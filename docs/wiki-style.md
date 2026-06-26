@@ -69,4 +69,4 @@ Open a section with a `mermaid` diagram when a picture helps see the whole flow 
 
 ## Keeping it tidy
 
-In this framework, the wiki is gardened at **ship time**: when `/ship` distills a reusable process from a conversation, it extends the page that owns it (or, rarely, adds a properly-placed and linked new one) — following exactly the rules above. The discipline is: document **general, reusable processes only**; the conversation's specifics go in the GitHub **summary issue** that `/ship` records, never the wiki. One topic, one page; link, don't restate.
+In WongStack, the wiki is gardened at **ship time**: when `/ship` distills a reusable process from a conversation, it extends the page that owns it (or, rarely, adds a properly-placed and linked new one) — following exactly the rules above. The discipline is: document **general, reusable processes only**; the conversation's specifics go in the GitHub **summary issue** that `/ship` records, never the wiki. One topic, one page; link, don't restate.
