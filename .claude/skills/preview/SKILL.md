@@ -8,7 +8,7 @@ user-invocable: true
 
 `/preview` is an **alias for `/save`** — they run the exact same end-to-end runbook.
 
-**Invoke the `save` skill** (via the Skill tool, `framework:save`) and follow it verbatim. It:
+**Invoke the `save` skill** (via the Skill tool) and follow it verbatim. It:
 
 1. Pushes the current branch (auto-creating a branch off the default branch / detached HEAD and auto-committing a dirty tree if needed) and opens or updates the PR.
 2. Snapshots the session into a durable GitHub handoff issue (the current plan, resumable with `/continue`) **while CI runs** — so the issue work costs no extra wall-clock.
