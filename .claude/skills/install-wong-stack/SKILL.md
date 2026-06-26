@@ -35,10 +35,22 @@ Launch a subagent (`Explore` if available) to report, with file paths:
 > 4. **`docs/`** — exists? Structure, and whether it's already a progressive-disclosure wiki (`README.md` hub, `wiki-style.md`).
 > 5. **`.claude/skills/`** — existing skills, especially collisions: `save`, `preview`, `continue`, `ship`, `document`.
 > 6. **Legacy traces** — `.claude/.wong-stack.json` manifest? a `daily/` folder? an old `claude-framework` plugin in `.claude/settings.json`?
-> 7. **Tooling** — `gh` authed (`gh auth status`)? `jq`?
+> 7. **GitHub readiness** (WongStack runs on GitHub — every skill needs this): is this a git repo (`git rev-parse --is-inside-work-tree`)? Is `gh` installed (`command -v gh`) and authed (`gh auth status`)? Is there an `origin` remote pointing at GitHub (`git remote -v`), and does it resolve (`gh repo view`)? `jq` present?
 > Read, don't modify.
 
 This drives every question and default below.
+
+## Step 1.5 — get GitHub working (newcomer-friendly; ask before each action)
+
+WongStack's whole workflow lives on GitHub — `/save`, `/preview`, `/continue`, and `/ship` push branches, open PRs, write issues, and wait on Actions. So before installing, close any gap the research found. **Don't assume the user has done this before** — explain what each piece is for, offer to run it, and never run an interactive/account-changing command without asking. Work top to bottom; skip any rung already satisfied.
+
+1. **Git repo?** No `.git` → explain it and offer `git init` (then `git add -A && git commit -m "initial commit"` once they're ready).
+2. **`gh` installed?** `command -v gh` fails → it's GitHub's official CLI and everything below needs it. Offer the right install for the platform (macOS `brew install gh`; otherwise point to <https://cli.github.com>). It's a one-time machine setup, so confirm before installing.
+3. **`gh` authed?** `gh auth status` fails → this links the CLI to their GitHub account. `gh auth login` is **interactive** (browser/device-code) — don't try to drive it headless; ask them to run it in their terminal (recommend `gh auth login --web --git-protocol https`) and tell you when it's done, then re-check. If they don't have a GitHub account yet, point them to <https://github.com/signup> first.
+4. **GitHub remote?** No `origin` (or it doesn't resolve) → offer to create one and push: `gh repo create <name> --source=. --remote=origin --push` (ask **private vs public** first; default the name to the directory name). If `origin` exists but isn't GitHub, surface that and ask rather than reassigning it.
+5. **Preview deploys (optional).** If they want per-commit preview URLs from `/save`, mention that needs a provider (e.g. Vercel/Netlify) wired to the repo — out of scope for this installer, just flag it.
+
+If GitHub still isn't fully working after this (e.g. they want to set up the account later), say so plainly: install can still proceed, but `/save` and `/ship` won't work until auth + a remote exist. Don't block — let them choose.
 
 ## Step 2 — mode
 
@@ -105,7 +117,7 @@ Adjust `components` to what was actually installed. Always write this last, refl
 
 ## Step 6 — report
 
-Mode (fresh / X→`$LATEST`); skills installed/updated/skipped (+ collisions); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations. Then: *"Start working, then `/save` to checkpoint and `/ship` to merge — it records a summary issue and updates the docs. Re-run `/install-wong-stack` any time to update."* **Don't commit or push** — leave it for the user to review.
+Mode (fresh / X→`$LATEST`); any GitHub setup done (init / `gh` install / auth / remote created) or still outstanding; skills installed/updated/skipped (+ collisions); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations. Then: *"Start working, then `/save` to checkpoint and `/ship` to merge — it records a summary issue and updates the docs. Re-run `/install-wong-stack` any time to update."* **Don't commit or push** — leave it for the user to review.
 
 ## Hard rules
 - Research before touching anything; merge or ask, never blind-overwrite a `CLAUDE.md`, doc, or customized skill.

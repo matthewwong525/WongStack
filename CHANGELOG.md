@@ -3,6 +3,22 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 2.1.0 — Installer helps set up GitHub
+
+`/install-wong-stack` now walks newcomers through GitHub setup instead of assuming it's
+already done. Since every WongStack skill (`/save`, `/preview`, `/continue`, `/ship`) runs on
+GitHub, the installer treats a working GitHub as a prerequisite and helps close the gap.
+
+- **New "get GitHub working" step.** After researching the repo, the installer checks four
+  rungs — is it a git repo, is `gh` installed, is `gh` authed, is there a GitHub `origin` — and
+  offers to fix each it finds missing (`git init`, install `gh`, guide `gh auth login`,
+  `gh repo create --push`). It explains what each piece is for, asks before any interactive or
+  account-changing command, and never silently reassigns an existing remote.
+- **Non-blocking.** If the user wants to set GitHub up later, install still proceeds; the report
+  flags that `/save`/`/ship` won't work until auth + a remote exist.
+- **Richer research.** The target-repo research now reports full GitHub readiness (git repo,
+  `gh` install, auth, remote resolves) rather than just `gh auth status`.
+
 ## 2.0.0 — Renamed WongFramework → WongStack
 
 The project is now **WongStack**. This is a rename only — no behavior changed — but it
