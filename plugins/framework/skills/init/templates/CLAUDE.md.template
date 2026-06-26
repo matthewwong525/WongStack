@@ -1,0 +1,26 @@
+# CLAUDE.md
+
+## What this is
+
+<One short paragraph: what this app/repo is, the stack (if any), and how it ships.
+e.g. "A <stack> app deployed via <host>. Every push gets a preview deploy; merge to
+`main` deploys production." Keep it to a few sentences — orientation, not a manual.>
+
+## Where context lives
+
+`docs/` is the source of truth for **how we do things** — process and conventions alike.
+Before any non-trivial change, **find and read the owning doc** rather than guessing from
+code or memory. Start at [`docs/README.md`](docs/README.md) and drill down: index →
+section README → the specific page. How the wiki is organized: [`docs/wiki-style.md`](docs/wiki-style.md).
+
+## Rules
+
+- **GitHub Actions is the build gate.** Don't run a build/test locally as a prerequisite —
+  push and let CI run. The framework skills wait for the checks and fix failures.
+- **Use the framework skills** instead of hand-rolling the workflow:
+  `/framework:save` (checkpoint + preview URL + handoff issue), `/framework:preview` (alias),
+  `/framework:continue <issue#>` (resume on any machine), `/framework:ship` (merge + write docs +
+  daily note), `/framework:document` (write a process doc).
+- **Don't edit `docs/` mid-task** unless it's explicitly the task — `/ship` captures reusable
+  processes at the end, with the full conversation and diff in hand.
+- **Document general, reusable processes only.** Specifics go in the daily note (`daily/`), not the wiki.

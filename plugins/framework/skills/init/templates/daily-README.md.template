@@ -1,0 +1,11 @@
+# Daily notes
+
+A dated log of what happened, day by day. Every `/framework:ship` appends a note for the
+conversation it shipped.
+
+- One file per day: `YYYY-MM-DD.md`.
+- Inside each file, **one `# H1` section per conversation**, with a short summary below it.
+- These capture the **specifics** — what was done, decided, and shipped that day. Reusable
+  **processes** don't live here; they go in the wiki (see [../docs/wiki-style.md](../docs/wiki-style.md)).
+
+Read a day's file to catch up on what shipped without reading the diffs.

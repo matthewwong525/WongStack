@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "claude-framework",
+  "owner": { "name": "Matthew Wong" },
+  "description": "A portable, stack-agnostic workflow framework for Claude Code: save / preview / continue / ship, process documentation, and daily notes — usable in any GitHub repo.",
+  "plugins": [
+    {
+      "name": "framework",
+      "source": "./plugins/framework",
+      "description": "save / preview / continue / ship checkpoint-and-merge workflow + progressive-disclosure process docs + daily notes. Zero-config, GitHub-native, no stack assumptions.",
+      "category": "workflow",
+      "keywords": ["workflow", "git", "github", "checkpoint", "docs", "process"]
+    }
+  ]
+}
