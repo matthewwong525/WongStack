@@ -27,7 +27,7 @@ Two patterns fall out of this:
 
 Readers don't browse a table of contents — they **follow inline links down, or search straight to a page**. So a reader can land anywhere, mid-tree, with no context. That means:
 
-- Give every page a clear **`#` title** and a strong **first sentence** that says what it is. A viewer often uses that first line of prose as the search snippet and the hover-preview, so don't open with a breadcrumb, a caveat, or filler.
+- Give every page a clear **`#` title** and a strong **first sentence** that says what it is. Many doc tools (and GitHub's search) use that first line of prose as the result snippet or hover preview, so don't open with a breadcrumb, a caveat, or filler.
 - **Title the topic, not its place in a sequence.** A page's title is the thing itself — `Find inspiration`, never `Stage 1 — Find inspiration`; `Postgres backups`, never `Step 3`. Ordering belongs to the parent hub's numbered list, not the child's title. Truly atomic pages can be reordered, reused, and linked from anywhere without their titles going stale — and they read as clean topics in search results. The same applies to the opening sentence and body: define the topic and link to its neighbours by name; don't lean on "this is the fourth step of…".
 - Put drill-down links **inline, at the point of need** — inside the step a reader would be on when they want more — not only in a list at the bottom.
 
@@ -44,9 +44,9 @@ Err on the side of more links — a reader who doesn't need them loses nothing, 
 
 ## Folders only for deep branches
 
-A folder is what makes a branch's hierarchy visible (a viewer's breadcrumb and sidebar are usually driven by folder structure). Use one only when a step expands into several of its own pages worth grouping (like `onboarding/` — a hub plus a page per role). A lone page stays flat in the section folder. Don't hand-write breadcrumbs in the Markdown.
+A folder is what makes a branch's hierarchy visible (in most rendered wikis, breadcrumbs and sidebars are driven by folder structure). Use one only when a step expands into several of its own pages worth grouping (like `onboarding/` — a hub plus a page per role). A lone page stays flat in the section folder. Don't hand-write breadcrumbs in the Markdown.
 
-A subfolder's `README.md` is its hub (it shows up as the folder's "Overview"). Moving a page into a folder changes its URL, so update the links that point at it.
+A subfolder's `README.md` is its hub (most renderers, GitHub included, show a folder's `README.md` as its overview/index). Moving a page into a folder changes its URL, so update the links that point at it.
 
 ## Maps are pictures; links live in the list
 
@@ -69,4 +69,4 @@ Open a section with a `mermaid` diagram when a picture helps see the whole flow 
 
 ## Keeping it tidy
 
-In this framework, the wiki is gardened at **ship time**: when `/ship` distills a reusable process from a conversation, it extends the page that owns it (or, rarely, adds a properly-placed and linked new one) — following exactly the rules above. The discipline is: document **general, reusable processes only**; specifics go in the daily note, never the wiki. One topic, one page; link, don't restate.
+In this framework, the wiki is gardened at **ship time**: when `/ship` distills a reusable process from a conversation, it extends the page that owns it (or, rarely, adds a properly-placed and linked new one) — following exactly the rules above. The discipline is: document **general, reusable processes only**; the conversation's specifics go in the GitHub **summary issue** that `/ship` records, never the wiki. One topic, one page; link, don't restate.
