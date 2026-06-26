@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Wait for ALL GitHub checks on the current branch's PR to finish, then report
-# the aggregate result. This is the framework's build/test gate: we never build
+# the aggregate result. This is WongStack's build/test gate: we never build
 # or test locally — the repo's own GitHub Actions (tests + preview deploy) are
 # the gate, and this just waits for them to settle and tells you the verdict.
 #
