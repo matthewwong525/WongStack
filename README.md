@@ -15,6 +15,8 @@ It's **GitHub-native**: GitHub Actions is the build gate, the per-commit preview
 | `/document` | Write/update a process doc by **progressive-disclosure** rules (atomic pages, stand-alone openers, generous linking). |
 | `/install-wong-stack` | Guided installer **and** updater: researches your repo, merges your `CLAUDE.md` with WongStack's, installs the skills, seeds the wiki — asking along the way. Re-run to update. |
 
+**Optional — the auto-push hook.** A `Stop` hook you can opt into at install time: once a branch has an open PR, it auto-commits and pushes any pending work every turn, so you stop re-running `/save`. It never touches the default branch or a branch without an open PR, and it's off unless you enable it.
+
 ## The ideas behind it
 
 - **A handoff issue is the unit of continuity.** `/save` writes the plan *as* an issue body; `/continue` rebuilds a cold session from that one durable surface. The plan travels, not the context window.
@@ -66,12 +68,14 @@ WongStack/
 ├── CLAUDE.md                    # app-specific "What this is" + WongStack block (WONG-STACK markers)
 ├── VERSION  ·  CHANGELOG.md      # payload semver + the updater's change log
 ├── docs/{README.md, wiki-style.md}
-└── .claude/skills/
-    ├── install-wong-stack/  # guided installer/updater (NOT copied into target repos)
-    ├── save/        SKILL.md + scripts/{wait-for-checks,preview-url}.sh
-    ├── preview/     (alias → save)
-    ├── continue/
-    ├── ship/        (parallel subagents: summary issue + docs)
-    └── document/    SKILL.md + references/progressive-disclosure.md   (canonical rulebook)
+└── .claude/
+    ├── settings.json  ·  hooks/auto-push.sh   # optional auto-push Stop hook (opt-in)
+    └── skills/
+        ├── install-wong-stack/  # guided installer/updater (NOT copied into target repos)
+        ├── save/        SKILL.md + scripts/{wait-for-checks,preview-url}.sh
+        ├── preview/     (alias → save)
+        ├── continue/
+        ├── ship/        (parallel subagents: summary issue + docs)
+        └── document/    SKILL.md + references/progressive-disclosure.md   (canonical rulebook)
 ```
-Installing into a target repo gives it: a merged `CLAUDE.md`, `.claude/skills/{save,preview,continue,ship,document}/`, `docs/README.md` + `docs/wiki-style.md`, and a `.claude/.wong-stack.json` manifest.
+Installing into a target repo gives it: a merged `CLAUDE.md`, `.claude/skills/{save,preview,continue,ship,document}/`, `docs/README.md` + `docs/wiki-style.md`, a `.claude/.wong-stack.json` manifest, and — if you opt in — the `auto-push` Stop hook.
