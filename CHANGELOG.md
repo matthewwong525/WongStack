@@ -3,6 +3,22 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 2.2.0 — Optional auto-push hook
+
+A new **opt-in `Stop` hook** that keeps an open PR synced without re-running `/save`. Ported
+and generalized from the ClaymooApp repo WongStack was extracted from.
+
+- **`auto-push` Stop hook** (`.claude/hooks/auto-push.sh`, wired via `.claude/settings.json`).
+  Once a branch has an **open PR**, it auto-commits any pending work and pushes it on every turn.
+  It no-ops on the repo's **default branch** (resolved from `origin/HEAD`, not hardcoded to
+  `main` — WongStack is stack-agnostic), on a detached HEAD, and on any branch without an open
+  PR, and it never blocks the turn (any hiccup just exits 0). The commit message lists the
+  changed files with a diffstat body.
+- **Opt-in only.** It acts every turn, so it's more intrusive than a skill — the installer
+  **asks** and leaves it **off by default**. `/install-wong-stack` copies the script and *merges*
+  the Stop entry into an existing `.claude/settings.json` (never clobbering your other hooks),
+  refreshes it on update, and records `autoPushHook` in the manifest.
+
 ## 2.1.0 — Installer helps set up GitHub
 
 `/install-wong-stack` now walks newcomers through GitHub setup instead of assuming it's
