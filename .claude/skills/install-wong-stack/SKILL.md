@@ -67,7 +67,7 @@ cat "$ROOT/.claude/.wong-stack.json" 2>/dev/null || cat "$ROOT/.claude/.wong-fra
 Summarize the research, then propose the plan and ask (batch the questions — this is the moment to get the merge right):
 1. **App facts** — confirm stack / how it deploys / preview deploys / default branch (these fill `CLAUDE.md`'s "What this is").
 2. **CLAUDE.md merge** — WongStack owns one block: the generic conventions between `WONG-STACK:BEGIN/END` in `$WS/CLAUDE.md`. "What this is" is always app-specific and lives *outside* the markers. No existing file → create one (generated "What this is" + the block). Existing → insert the block, preserving their content (including their own "What this is"); where their rules conflict with WongStack's, **ask which wins**.
-3. **docs/** — none → seed `docs/README.md` (sections from research) + copy the rulebook. Existing → don't restructure; just add `docs/wiki-style.md` if missing and ensure `docs/README.md` links it.
+3. **docs/** — none → seed `docs/README.md` (sections from research) + copy the style pages (`wiki-style.md` + `voice.md`). Existing → don't restructure; just add `docs/wiki-style.md` + `docs/voice.md` if missing and ensure `docs/README.md` links them.
 4. **Skills** — install `save`, `preview`, `continue`, `ship`, `document` (never the installer itself). Collision with an existing skill → ask per-collision (keep theirs / replace / install under another name).
 5. **Auto-push hook (optional, ask).** Offer the `auto-push` Stop hook: *once a branch has an open PR, it auto-commits and pushes any pending work every turn, so you stop re-running `/save`.* It's more intrusive than a skill (it acts every turn), so it's **off unless the user opts in** — default no. It never touches the default branch or a branch without an open PR.
 6. **Workflow fit** — confirm GitHub-Actions-as-only-gate + issue-per-`/ship` suits them (thin/absent CI is fine — just nothing to wait for).
@@ -81,9 +81,10 @@ for s in "$WS"/.claude/skills/*/; do
   else cp -R "$s" "$ROOT/.claude/skills/$name"; fi
 done
 [ -f "$ROOT/docs/wiki-style.md" ] || cp "$WS/docs/wiki-style.md" "$ROOT/docs/wiki-style.md"
+[ -f "$ROOT/docs/voice.md" ]      || cp "$WS/docs/voice.md"      "$ROOT/docs/voice.md"
 ```
 - **CLAUDE.md** — Read + Edit/Write to create-or-merge (never blind overwrite). Lift the marker block (markers included) from `$WS/CLAUDE.md`; ensure a "## What this is" exists outside it (generate from the facts if absent); keep the markers.
-- **docs/README.md** — from `$WS/docs/README.md` (seeded sections) only if absent; else ensure it links `wiki-style.md`.
+- **docs/README.md** — from `$WS/docs/README.md` (seeded sections) only if absent; else ensure it links `wiki-style.md` + `voice.md`.
 - **Auto-push hook** *(only if the user opted in at Step 3F.5)* — copy the script, then **merge** the Stop hook into `.claude/settings.json` rather than overwriting it (the repo may already have hooks):
   ```bash
   mkdir -p "$ROOT/.claude/hooks"
@@ -100,7 +101,7 @@ Bring the repo to `$LATEST` **without** undoing customizations.
 2. **Walk each change, ask:**
    - **Skills** — compare each `$WS/.claude/skills/<name>` (except the installer) to the installed copy: identical → update silently; **differs (customized)** → show the diff and ask (keep / take new / merge); new skill → offer it.
    - **CLAUDE.md** — re-merge **only between the markers**; leave everything outside (their "What this is") untouched. Markers missing → show the block, ask where to insert. Flag any new rule that conflicts with their content.
-   - **Rulebook** — `docs/wiki-style.md` unchanged → refresh from `$WS`; edited → diff and ask.
+   - **Style pages** — `docs/wiki-style.md` + `docs/voice.md`: unchanged → refresh from `$WS`; edited → diff and ask; missing (`voice.md` on a pre-2.3.0 repo) → add.
    - **Auto-push hook** — if the manifest shows it installed, refresh `.claude/hooks/auto-push.sh` from `$WS` (diff + ask if they edited it). If it's not installed and `$WS` newly ships it, **offer** it (same opt-in framing as Step 3F.5); on yes, install the script and merge the Stop entry into `settings.json` as in Step 3F.
 3. Apply only what's approved, then update the manifest.
 
