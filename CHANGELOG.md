@@ -3,6 +3,18 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 2.3.0 — Docs voice-and-tone guide
+
+A new **`docs/voice.md`** codifies the prose style for the wiki: concise, dense, still easy to
+read. [`wiki-style.md`](docs/wiki-style.md) owns a page's *shape* (titles, links,
+one-topic-one-page); `voice.md` owns its *sentences*.
+
+- **`docs/voice.md`** — the law (*say the most in the fewest words a stranger can still
+  follow*), seven one-line habits, a delete-on-sight filler list, and a cut-20% test. Linked
+  from [`docs/README.md`](docs/README.md) beside the rulebook.
+- **Installer ships it.** `/install-wong-stack` seeds `docs/voice.md` next to the rulebook on a
+  fresh install and adds/refreshes it on update, so every WongStack install inherits the voice.
+
 ## 2.2.0 — Optional auto-push hook
 
 A new **opt-in `Stop` hook** that keeps an open PR synced without re-running `/save`. Ported

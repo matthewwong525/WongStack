@@ -2,7 +2,8 @@
 
 This wiki is a **progressive-disclosure process tree**: start here, then follow the inline
 links down into whatever you need. Each page stands on its own and breaks down into more
-detail. How to add to it without breaking that: [wiki style](wiki-style.md).
+detail. How to add without breaking that: [wiki style](wiki-style.md) for a page's shape,
+[voice](voice.md) for how its sentences read.
 
 ## Where to find things
 
