@@ -3,7 +3,7 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
-## 2.2.0 — `/improve` — a senior codebase advisor (+ a `docs` variant)
+## 2.4.0 — `/improve` — a senior codebase advisor (+ a `docs` variant)
 
 New **`/improve`** skill: a **read-only senior advisor** that surveys a codebase, finds the
 highest-value improvements, and writes prioritized, **self-contained plans** for a cheaper model
@@ -24,6 +24,34 @@ WongStack addition: a **`docs` variant**.
 - **Attribution.** shadcn's MIT license is carried in `.claude/skills/improve/LICENSE.md`; the
   SKILL and the `audit-playbook.md` / `plan-template.md` / `closing-the-loop.md` references are
   his, verbatim. The installer offers `/improve` alongside the other skills.
+
+## 2.3.0 — Docs voice-and-tone guide
+
+A new **`docs/voice.md`** codifies the prose style for the wiki: concise, dense, still easy to
+read. [`wiki-style.md`](docs/wiki-style.md) owns a page's *shape* (titles, links,
+one-topic-one-page); `voice.md` owns its *sentences*.
+
+- **`docs/voice.md`** — the law (*say the most in the fewest words a stranger can still
+  follow*), seven one-line habits, a delete-on-sight filler list, and a cut-20% test. Linked
+  from [`docs/README.md`](docs/README.md) beside the rulebook.
+- **Installer ships it.** `/install-wong-stack` seeds `docs/voice.md` next to the rulebook on a
+  fresh install and adds/refreshes it on update, so every WongStack install inherits the voice.
+
+## 2.2.0 — Optional auto-push hook
+
+A new **opt-in `Stop` hook** that keeps an open PR synced without re-running `/save`. Ported
+and generalized from the ClaymooApp repo WongStack was extracted from.
+
+- **`auto-push` Stop hook** (`.claude/hooks/auto-push.sh`, wired via `.claude/settings.json`).
+  Once a branch has an **open PR**, it auto-commits any pending work and pushes it on every turn.
+  It no-ops on the repo's **default branch** (resolved from `origin/HEAD`, not hardcoded to
+  `main` — WongStack is stack-agnostic), on a detached HEAD, and on any branch without an open
+  PR, and it never blocks the turn (any hiccup just exits 0). The commit message lists the
+  changed files with a diffstat body.
+- **Opt-in only.** It acts every turn, so it's more intrusive than a skill — the installer
+  **asks** and leaves it **off by default**. `/install-wong-stack` copies the script and *merges*
+  the Stop entry into an existing `.claude/settings.json` (never clobbering your other hooks),
+  refreshes it on update, and records `autoPushHook` in the manifest.
 
 ## 2.1.0 — Installer helps set up GitHub
 

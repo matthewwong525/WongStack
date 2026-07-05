@@ -2,7 +2,7 @@
 
 ## What this is
 
-This repo is **WongStack** — a stack-agnostic Claude Code workflow toolkit, distributed as a **template you clone and work from**. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/), [`docs/`](docs/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md) skill copies that set (minus itself) into *other* repos. See the [README](README.md) for the user story.
+This repo is **WongStack** — a stack-agnostic Claude Code workflow toolkit, distributed as a **template you clone and work from**. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/), the optional [`.claude/hooks/`](.claude/hooks/) + [`.claude/settings.json`](.claude/settings.json) (the auto-push Stop hook), [`docs/`](docs/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md) skill copies that set (minus itself) into *other* repos. See the [README](README.md) for the user story.
 
 It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/install-wong-stack` here; it's the source, not a target.
 
