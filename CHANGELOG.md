@@ -3,6 +3,28 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 2.2.0 — `/improve` — a senior codebase advisor (+ a `docs` variant)
+
+New **`/improve`** skill: a **read-only senior advisor** that surveys a codebase, finds the
+highest-value improvements, and writes prioritized, **self-contained plans** for a cheaper model
+(or a person) to execute — it never edits source itself. It is
+[shadcn/improve](https://github.com/shadcn/improve) (MIT) carried pretty much verbatim, plus one
+WongStack addition: a **`docs` variant**.
+
+- **The advisor.** Recon → Audit (parallel read-only `Explore` subagents across nine categories —
+  correctness, security, performance, tests, tech-debt, dependencies, DX, docs, direction) → Vet
+  (subagents over-report; every finding is confirmed against the code) → write plans under
+  `plans/NNN-*.md`. Full variant set: `quick`/`deep`, a focus arg (`security`, `perf`, …),
+  `branch`, `next`, `plan <desc>`, `review-plan`, `execute` (dispatch an executor subagent in an
+  isolated worktree, then review its diff), `reconcile`, and `--issues`.
+- **`/improve docs` — the WongStack addition.** Specializes the audit for a `docs/`
+  progressive-disclosure wiki against `wiki-style.md` (structural integrity — broken links/anchors,
+  orphans, hub gaps; openers & titles; one-topic-one-page; navigation; staleness; coverage), per
+  `references/docs-audit-playbook.md`. Docs plans are applied by a human via `/save` → `/ship`.
+- **Attribution.** shadcn's MIT license is carried in `.claude/skills/improve/LICENSE.md`; the
+  SKILL and the `audit-playbook.md` / `plan-template.md` / `closing-the-loop.md` references are
+  his, verbatim. The installer offers `/improve` alongside the other skills.
+
 ## 2.1.0 — Installer helps set up GitHub
 
 `/install-wong-stack` now walks newcomers through GitHub setup instead of assuming it's
