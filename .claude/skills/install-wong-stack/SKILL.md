@@ -1,6 +1,6 @@
 ---
 name: install-wong-stack
-description: Install or update the WongStack in the current repo — a guided, question-driven integration that deep-researches what's already there, merges your existing CLAUDE.md with WongStack's conventions, installs the workflow skills (/save, /preview, /continue, /ship, /document), optionally enables the auto-push Stop hook, and seeds the docs/ progressive-disclosure wiki. Re-run it any time to update to the latest version: it diffs what's installed, walks you through each change, and re-merges without clobbering your customizations. Use when setting up a new or existing repo to use the WongStack, or to upgrade an existing install.
+description: Install or update the WongStack in the current repo — a guided, question-driven integration that deep-researches what's already there, merges your existing CLAUDE.md with WongStack's conventions, installs the workflow skills (/save, /preview, /continue, /ship, /document, /improve), optionally enables the auto-push Stop hook, and seeds the docs/ progressive-disclosure wiki. Re-run it any time to update to the latest version: it diffs what's installed, walks you through each change, and re-merges without clobbering your customizations. Use when setting up a new or existing repo to use the WongStack, or to upgrade an existing install.
 user-invocable: true
 ---
 
@@ -33,7 +33,7 @@ Launch a subagent (`Explore` if available) to report, with file paths:
 > 2. **How it ships** — CI workflows (`.github/workflows/*`) and what they gate; any preview-deploy provider; the default branch (`git symbolic-ref refs/remotes/origin/HEAD`).
 > 3. **`CLAUDE.md`** — exists? Its section headings; any `WONG-STACK:BEGIN/END` markers (already integrated) and a "What this is".
 > 4. **`docs/`** — exists? Structure, and whether it's already a progressive-disclosure wiki (`README.md` hub, `wiki-style.md`).
-> 5. **`.claude/skills/`** — existing skills, especially collisions: `save`, `preview`, `continue`, `ship`, `document`. Also `.claude/settings.json` (does it already define a `hooks.Stop` entry?) and `.claude/hooks/`.
+> 5. **`.claude/skills/`** — existing skills, especially collisions: `save`, `preview`, `continue`, `ship`, `document`, `improve`. Also `.claude/settings.json` (does it already define a `hooks.Stop` entry?) and `.claude/hooks/`.
 > 6. **Legacy traces** — `.claude/.wong-stack.json` manifest? a `daily/` folder? an old `claude-framework` plugin in `.claude/settings.json`?
 > 7. **GitHub readiness** (WongStack runs on GitHub — every skill needs this): is this a git repo (`git rev-parse --is-inside-work-tree`)? Is `gh` installed (`command -v gh`) and authed (`gh auth status`)? Is there an `origin` remote pointing at GitHub (`git remote -v`), and does it resolve (`gh repo view`)? `jq` present?
 > Read, don't modify.
@@ -68,7 +68,7 @@ Summarize the research, then propose the plan and ask (batch the questions — t
 1. **App facts** — confirm stack / how it deploys / preview deploys / default branch (these fill `CLAUDE.md`'s "What this is").
 2. **CLAUDE.md merge** — WongStack owns one block: the generic conventions between `WONG-STACK:BEGIN/END` in `$WS/CLAUDE.md`. "What this is" is always app-specific and lives *outside* the markers. No existing file → create one (generated "What this is" + the block). Existing → insert the block, preserving their content (including their own "What this is"); where their rules conflict with WongStack's, **ask which wins**.
 3. **docs/** — none → seed `docs/README.md` (sections from research) + copy the style pages (`wiki-style.md` + `voice.md`). Existing → don't restructure; just add `docs/wiki-style.md` + `docs/voice.md` if missing and ensure `docs/README.md` links them.
-4. **Skills** — install `save`, `preview`, `continue`, `ship`, `document` (never the installer itself). Collision with an existing skill → ask per-collision (keep theirs / replace / install under another name).
+4. **Skills** — install `save`, `preview`, `continue`, `ship`, `document`, `improve` (never the installer itself). Collision with an existing skill → ask per-collision (keep theirs / replace / install under another name).
 5. **Auto-push hook (optional, ask).** Offer the `auto-push` Stop hook: *once a branch has an open PR, it auto-commits and pushes any pending work every turn, so you stop re-running `/save`.* It's more intrusive than a skill (it acts every turn), so it's **off unless the user opts in** — default no. It never touches the default branch or a branch without an open PR.
 6. **Workflow fit** — confirm GitHub-Actions-as-only-gate + issue-per-`/ship` suits them (thin/absent CI is fine — just nothing to wait for).
 
@@ -110,7 +110,7 @@ Bring the repo to `$LATEST` **without** undoing customizations.
 ```bash
 cat > "$ROOT/.claude/.wong-stack.json" <<EOF
 { "version": "$LATEST", "installedAt": "<existing, or today>", "updatedAt": "$(date +%F)",
-  "components": { "skills": ["save","preview","continue","ship","document"], "claudeMd": true, "docs": true, "autoPushHook": false } }
+  "components": { "skills": ["save","preview","continue","ship","document","improve"], "claudeMd": true, "docs": true, "autoPushHook": false } }
 EOF
 ```
 Adjust `components` to what was actually installed — set `autoPushHook` to `true` only if the user opted into the Stop hook. Always write this last, reflecting reality — it's the source of truth for the next run.

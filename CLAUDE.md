@@ -33,7 +33,8 @@ without reading diffs.
 - **Use the WongStack skills** instead of hand-rolling the workflow:
   `/save` (checkpoint + preview URL + handoff issue), `/preview` (alias),
   `/continue <issue#>` (resume on any machine), `/ship` (merge + write docs +
-  record a summary issue), `/document` (write a process doc).
+  record a summary issue), `/document` (write a process doc),
+  `/improve` (read-only advisor: audit + write plans; `/improve docs` for the docs wiki).
 - **Don't edit `docs/` mid-task** unless it's explicitly the task — `/ship` captures reusable
   processes at the end, with the full conversation and diff in hand.
 - **Document general, reusable processes only.** The specifics of a given conversation go in
