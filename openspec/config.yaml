@@ -1,0 +1,25 @@
+schema: spec-driven
+
+# Project context shown to the AI when it drafts change artifacts.
+context: |
+  WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
+  template you clone and work from. The payload is markdown: skills under
+  .claude/skills/, the docs/ progressive-disclosure wiki, CLAUDE.md, VERSION,
+  CHANGELOG.md. There is no build/test suite in this repo — GitHub Actions in a
+  *target* repo is the gate; here the payload is prose.
+
+  Planning runs on OpenSpec: a change is openspec/changes/<name>/ (proposal,
+  specs, design, tasks). Changes live on the default branch (main) so they are
+  visible from any clone; code lives on a feature branch named after the change.
+  The WongStack skills own all git — OpenSpec never runs git itself.
+
+  Editing the payload is a release: bump VERSION (semver) and add a newest-first
+  CHANGELOG.md entry in the same change.
+
+# Per-artifact rules.
+rules:
+  proposal:
+    - Keep it tight — what changes and why, plus a Non-goals line.
+  tasks:
+    - Group tasks by the surface they touch (skill, script, docs, CLAUDE.md).
+    - A payload change is not done until VERSION and CHANGELOG.md are updated.

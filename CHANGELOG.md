@@ -3,6 +3,31 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 3.0.0 — OpenSpec is the planning layer
+
+WongStack now plans with **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** instead of GitHub
+issues. A change is a folder under `openspec/changes/<name>/` (proposal, delta specs, design,
+tasks) — visible from any clone via `openspec list`, and the **archived change is the record of
+what shipped**. The workflow skills are now thin verbs over the native OpenSpec loop; you never
+type `/opsx:*` by hand, but the commands stay available. **Breaking:** `/preview` is removed, and
+`/save` / `/ship` no longer create GitHub handoff or summary issues.
+
+- **The loop.** `/explore → /plan → /continue → /save → /ship`, each fronting one OpenSpec step:
+  `/explore`=`/opsx:explore`, `/plan`=`/opsx:propose`, `/continue`=load context + `/opsx:apply`,
+  `/save`=`/opsx:sync`, `/ship`=`/opsx:archive`. Documented in
+  [`docs/development/the-change-loop.md`](docs/development/the-change-loop.md).
+- **New skills** `/explore` and `/plan` (thin delegates to the generated `openspec-*` skills).
+  **Removed** `/preview` (it was a `/save` alias — redundant now).
+- **Simplified git skills.** `/save` syncs the change's delta specs into `openspec/specs/`, then
+  pushes + previews (no handoff issue). `/continue` resumes by change name (= branch name), PR, or
+  the `openspec list` menu, then implements. `/ship` squash-merges then archives the change (no
+  summary issue, no docs distillation — use `/document`). The CI gate + preview URLs are unchanged.
+- **OpenSpec never runs git; the WongStack skills own all of it.** The `openspec/` folder is
+  committed with your code and reaches the default branch on `/ship`'s merge.
+- **Installer.** `/install-wong-stack` now installs the `openspec` CLI and runs `openspec init` in
+  the target (generating the `/opsx:*` commands + `openspec-*` skills); the manifest gains an
+  `openspec` component and drops `preview` from the skill list.
+
 ## 2.4.0 — `/improve` — a senior codebase advisor (+ a `docs` variant)
 
 New **`/improve`** skill: a **read-only senior advisor** that surveys a codebase, finds the
