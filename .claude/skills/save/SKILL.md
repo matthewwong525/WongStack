@@ -1,80 +1,53 @@
 ---
 name: save
-description: End-to-end checkpoint for any GitHub repo. Pushes the current branch (auto-creating it + auto-committing a dirty tree), opens or updates a PR, snapshots the session into a durable GitHub handoff issue (the current plan, resumable with /continue), waits for all GitHub checks to pass — fixing CI failures automatically — and returns the auto-discovered preview URL plus the issue link. Does NOT build locally (GitHub Actions is the gate) and NEVER merges (that's /ship). /preview is an alias. Use whenever you want to save/checkpoint/snapshot the thread or get a shareable preview URL of in-progress work.
+description: Checkpoint the current branch — sync the active OpenSpec change's delta specs into openspec/specs/ (/opsx:sync), commit code + specs, push, open or update a PR, wait for GitHub checks to pass (auto-fixing CI failures), and return the preview URL. Does NOT build locally (GitHub Actions is the gate) and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/preview in-progress work.
 user-invocable: true
 ---
 
 # /save
 
-Checkpoint runbook; `/preview` is an alias. Invoking it authorizes the branch creation, push, PR creation, and handoff-issue creation — don't re-prompt for those. Confirm anything outside this runbook (force push, hard reset, amending merged commits).
+Checkpoint runbook. Invoking it authorizes the branch creation, commit, push, and PR — don't re-prompt for those. Confirm anything outside this runbook (force push, hard reset).
 
-**Delivers two things:** a durable **handoff issue** whose body *is* the resumable plan (a cold session on another machine rebuilds from it via `/continue`), and a per-commit **preview URL** on a branch that passed CI. **GitHub Actions is the gate — we never build/test locally.** The push kicks off CI; file the issue during that wait, then read the result.
+`/save` is the **sync** step of the loop (`/explore → /plan → /continue → /save → /ship`): it folds the active change's delta specs into the source-of-truth specs, then checkpoints code + specs behind CI and hands back a preview URL. **The `openspec/changes/` change is the plan — there's no GitHub handoff issue.** GitHub Actions is the gate; we never build/test locally.
 
-Write the plan for a **cold reader on another machine**: self-contained, repo files referenced by repo-relative path (`src/app/routes.ts`), everything it relies on pushed. A non-CI failure stops and surfaces the error — never bypass with `--no-verify`/`--force`. A CI failure is not a stop; it's Step 4's auto-fix loop.
-
-> Throughout, `main` stands in for **the repo's default branch** — if `git symbolic-ref refs/remotes/origin/HEAD` resolves to something else, substitute it.
+> `main` stands for the repo's default branch — if `git symbolic-ref refs/remotes/origin/HEAD` resolves to something else, substitute it.
 
 ## Step 1 — preflight
 
 ```bash
 git rev-parse --abbrev-ref HEAD            # current branch
 git status --porcelain                      # working-tree state (incl. ?? untracked)
-git log origin/main..HEAD --oneline 2>/dev/null  # commits ahead of the default branch
+git log origin/main..HEAD --oneline 2>/dev/null
+openspec list                               # active change(s), if any
 ```
 
-- **On the default branch or detached HEAD** → auto-create a feature branch from the current commit; don't prompt. (Work doesn't belong on the default branch; previews run for branch pushes, not it.) Name it from the repo/worktree dir, falling back to `<slug>-<short-sha>` if it exists:
+- **Resolve the active change first** — it names the branch and drives Step 2. It's the change whose name matches the current branch (`openspec/changes/<branch>/`), else the sole entry in `openspec list`, else none (a pure-code/docs branch). Ambiguous (several active, none matching the branch) → ask which one you're saving.
+- **On the default branch or detached HEAD** → auto-create a feature branch; don't prompt. **Branch name = the active change name** (so `/continue` and `/ship` can find it); no active change → slug the worktree dir:
   ```bash
-  RAW=$(basename "$(git rev-parse --show-toplevel)")
-  SLUG=$(echo "$RAW" | sed -E 's/[^a-zA-Z0-9]+/-/g; s/^-+//; s/-+$//' | tr '[:upper:]' '[:lower:]')
-  git checkout -b "$SLUG"
+  git checkout -b "<change-name-or-slug>"
   ```
-- **0 commits ahead + clean tree** → nothing to push; skip to Step 3 and just snapshot the plan (a pure research session is a valid `/save` with no PR).
-- **Dirty tree** → auto-commit; don't prompt. Stage tracked changes (`git add -u`) and relevant new files by path (never `git add .`). One-line repo-style message (`feat:`/`fix:` — see `git log -5`) via HEREDOC with a `Co-Authored-By: Claude` trailer.
+- Don't commit yet — sync first (Step 2), so the synced specs land in the same commit. Even a **spec-only** save (a freshly proposed change, no code yet) is valid: the untracked change folder makes the tree dirty, so Step 3 commits and pushes it — that's exactly what makes the spec handoff-ready.
 
-## Step 2 — push and open or update the PR
+## Step 2 — sync the active change's specs (/opsx:sync)
 
-```bash
-gh pr view --json number,state,url,body 2>/dev/null
-```
-- **OPEN** → `git push`.
-- **None** → `git push -u origin HEAD`, then `gh pr create` (HEREDOC body: Summary + Test plan; repo-style title).
-- **MERGED** → already shipped; update the issue (Step 3) but skip the CI wait and note there's no live preview.
-- **CLOSED (not merged)** → ask whether to reopen or push to a fresh branch; don't silently revive it.
+Using the change resolved in Step 1:
 
-The push triggers CI — don't wait now; go file the issue.
+- **Active change** → **invoke the `openspec-sync-specs` skill** (via the Skill tool) for that change name. It merges the change's `specs/**` deltas into `openspec/specs/<capability>/spec.md` (agent-driven, idempotent). This is OpenSpec's `/opsx:sync`.
+- **No active change** (e.g. a pure-research or docs-only branch) → skip with a one-line note; there's nothing to sync.
 
-## Step 3 — snapshot the session into a handoff issue (while CI runs)
+## Step 3 — commit + push
 
-The issue body *is* the plan — the most concise, complete statement of what we're doing and how, so a cold reader can act.
+- **Clean tree, 0 commits ahead** → nothing to push; report and stop.
+- **Otherwise** stage code **and** the `openspec/` changes (the new/updated change dir + any specs the sync touched) by path — never `git add .` on unrelated junk. One-line repo-style message (`feat:`/`fix:` — see `git log -5`) via HEREDOC with a `Co-Authored-By: Claude` trailer, then:
+  ```bash
+  gh pr view --json number,state,url 2>/dev/null
+  ```
+  - **OPEN** → `git push`.
+  - **None** → `git push -u origin HEAD`, then `gh pr create` (HEREDOC body: Summary + Test plan; repo-style title).
+  - **MERGED** → already shipped; skip the CI wait, note there's no live preview.
+  - **CLOSED (not merged)** → ask whether to reopen or push a fresh branch; don't silently revive it.
 
-1. **Establish the plan.** Plan-mode session → the latest `ExitPlanMode` plan, updated for anything since. No plan mode → synthesize one from the conversation + diff. Inline any fact that lived only in scratch/terminal state. Empty session (nothing decided/done) → say so and skip the issue.
-2. **Detect an existing handoff issue** — reuse this session's if `/save`/`/continue`/`/preview` already ran, or the one in the PR body's `Closes #N`. Found → update; else → create.
-3. **Compose body** = the plan + a footer:
-   ```markdown
-   <the current plan>
-
-   ---
-   **Links**
-   - PR: <url, or "none yet">
-   - Preview: <url, or "pending">
-   - Branch: `<branch>`
-   ```
-   Title in repo convention (`feat:`/`fix:`/`docs:` prefix), from the plan's subject.
-4. **Create or update:**
-   ```bash
-   gh issue create --title "<title>" --body "$(cat <<'EOF'
-   <plan + footer>
-   EOF
-   )"
-   # updating instead:
-   gh issue edit <N> --body "<latest plan + footer>"
-   gh issue comment <N> --body "Updated via /save — <what changed since last save>"
-   ```
-   Optionally add labels that exist in the repo (`gh label list`): a **type** label (`fix:`→`bug`, `feat:`→`enhancement`, `docs:`→`documentation`) and one **size** label by blast-radius/reversibility — `S` one area/easily reversed · `M` self-contained feature · `L` multi-layer, a new integration, or a shared-infra change · `XL` a whole new subsystem. Missing label → skip (never fail the save over it); between two sizes pick the larger.
-5. **Cross-link** the PR to the issue so it closes on merge and `/continue` can resolve either way (idempotent — leave it if present):
-   ```bash
-   gh pr edit <pr> --body "$(printf 'Closes #%s\n\n%s' "<issue>" "<existing body>")"
-   ```
+The push triggers CI.
 
 ## Step 4 — wait for CI, auto-fix on failure
 
@@ -97,15 +70,14 @@ Read the final `RESULT:` line:
 ROOT="$(git rev-parse --show-toplevel)"
 PREVIEW_URL=$(bash "$ROOT/.claude/skills/save/scripts/preview-url.sh")
 ```
-Got one → write it into the issue footer (replacing "pending") and lead the report with it. None → say so plainly (PR is still pushed + green; check the PR's deploy/bot comment).
 
 Report, briefly:
-- Branch + commit pushed; PR number + URL (noting `Closes #N`).
-- **Handoff issue** — created/updated, as a clickable markdown link (`[#42 feat: …](url)`), resumable with `/continue`.
+- Branch + commit pushed; PR number + URL.
+- **Specs** — synced (which capabilities) / no active change to sync.
 - **CI** — ✅ green / 🔧 auto-fixed in N pushes / ❌ red after 3 / ⏳ running / — none configured.
-- **Preview** — a markdown link whose visible text is the full URL (`[https://…](https://…)`); never bare or in a code block.
+- **Preview** — a markdown link whose visible text is the full URL (`[https://…](https://…)`); never bare or in a code block. None found → say so (check the PR's deploy comment). Resume later with [`/continue`](../continue/SKILL.md).
 
 ## Hard rules
 - Never `--force` / `--no-verify`. Never push to the default branch — branch off (Step 1).
 - GitHub Actions is the only gate; a CI failure is fixed-and-re-pushed, never a stop (except after 3 attempts).
-- **Never merge** — that's `/ship`. One issue per line of work: update the existing handoff issue, don't spawn duplicates.
+- **Never merge** — that's `/ship`. No GitHub planning issues — the OpenSpec change is the plan.
