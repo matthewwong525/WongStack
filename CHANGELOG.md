@@ -3,6 +3,31 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 3.2.0 — `/improve` plans as OpenSpec changes
+
+`/improve` now writes its plans **where the repo plans**. When the audited repo has an initialized
+OpenSpec layer (`openspec/changes/` at the root), Phase 4 writes each selected finding as an
+**OpenSpec change folder** — `openspec/changes/<slug>/` with proposal, tasks, design when warranted,
+and delta specs when spec-level behavior changes — instead of `plans/NNN-*.md`. The change name is a
+branch-ready kebab-case slug, so advisor output plugs straight into the loop:
+`/continue <slug>` → `/save` → `/ship`. Repos without OpenSpec keep shadcn's original `plans/` flow,
+unchanged.
+
+- **New reference** [`references/openspec-plans.md`](.claude/skills/improve/references/openspec-plans.md)
+  holds all OpenSpec-mode instructions: the detection rule, the plan-template → artifact mapping
+  (the self-contained-for-a-weak-executor bar carries over — drift stamp, verification gates, STOP
+  conditions land in `tasks.md`), `openspec validate` when the CLI is available, and no persistent
+  rejection index (`openspec list` + the archive replace `plans/README.md`).
+- **Variants adapt:** `execute` inlines the change's artifacts and ticks `tasks.md` checkboxes on
+  approval; `reconcile` reads `openspec list` + the archive; `review-plan` takes a change slug;
+  `--issues` publishes proposal + tasks as the issue body; the `docs` variant's plans are applied
+  via `/continue` → `/save` → `/ship`.
+- **Hard Rule 1 widened, not weakened:** in OpenSpec mode the only writable location is
+  `openspec/changes/` (never `archive/`, never `openspec/specs/` — syncing is `/save`'s job).
+  Still zero source edits, zero git.
+- **Docs playbook refreshed:** the "Planning & applying docs fixes" section covers both modes and
+  drops stale pre-3.0 wording (handoff/summary issues; "merge on green CI" → the 3.1.0 gate).
+
 ## 3.1.0 — CI is optional, not the only gate
 
 GitHub Actions is no longer a required pillar — it's an **optional accelerator**, honored when a

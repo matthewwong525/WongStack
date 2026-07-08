@@ -135,8 +135,10 @@ Order by **leverage = impact ÷ effort, discounted by confidence and risk**. Tie
 
 ## Planning & applying docs fixes
 
-Docs plans use the same [plan template](plan-template.md) and `plans/` index as every other plan,
-with three docs-specific adaptations (the general template is written for code — override these):
+Docs plans use the same [plan template](plan-template.md) and `plans/` index as every other plan —
+or, when the repo plans with OpenSpec, the same change folders as every other plan (see
+[openspec-plans.md](openspec-plans.md)) — with three docs-specific adaptations (the general
+template is written for code — override these):
 
 - **Category is `docs`.** The plan's "Current state" inlines the exact page(s), the current text
   excerpt, the **wiki-style rule** it satisfies, and the exact link targets/anchors to use (so the
@@ -149,8 +151,10 @@ with three docs-specific adaptations (the general template is written for code �
   default, a decision) is a **STOP condition / open question** in the plan, never a guess.
 
 **Applying a docs plan — the WongStack way (no `execute`).** Unlike code plans, docs plans are
-*not* dispatched to an executor subagent. A human (or a fresh Claude session) opens the plan, runs
-its drift check, makes exactly the edits it names in `docs/**`, confirms the done criteria, then
-**`/save`** (checkpoint + preview + handoff issue) → **`/ship`** (merge on green CI, after a human
-reviews the PR). `/ship` records the summary issue and closes it on merge. `--issues` and
-`reconcile` work as in [closing-the-loop.md](closing-the-loop.md).
+*not* dispatched to an executor subagent. A human (or a fresh Claude session) picks up the plan —
+in OpenSpec mode, **`/continue <slug>`** loads the change and implements it; otherwise open the
+plan file, run its drift check, and make exactly the edits it names in `docs/**` — confirms the
+done criteria, then **`/save`** (sync specs + push + preview) → **`/ship`** (merge once the gate
+passes — CI when present, else PR review — then archive the change). `--issues` and `reconcile`
+work as in [closing-the-loop.md](closing-the-loop.md), adapted per
+[openspec-plans.md](openspec-plans.md) in OpenSpec mode.
