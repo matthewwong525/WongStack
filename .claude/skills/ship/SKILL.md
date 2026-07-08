@@ -8,7 +8,9 @@ user-invocable: true
 
 Ship runbook. Invoking it authorizes the push, merge, and archive in Steps 3–5 — don't re-prompt. Confirm anything outside this runbook (force push, hard reset).
 
-`/ship` is the **archive** step of the loop (`/explore → /plan → /continue → /save → /ship`): it archives the active change, then squash-merges the code. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/document` for that). CI is the gate when the repo has checks: we push, wait, and on red read-fix-repush until green, then merge. No checks configured → the PR review is the gate; merge once approved. Never build/test locally.
+`/ship` is the **merge + archive** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, then squash-merges the code. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/document` for that). CI is the gate when the repo has checks: we push, wait, and on red read-fix-repush until green, then merge. No checks configured → the PR review is the gate; merge once approved. Never build/test locally.
+
+Deeper code review (cleanliness, broad consolidation, downstream breakage) happens **out-of-band** — PR review, or a dedicated code-review pass — not as a `/ship` gate; `/ship` is the merge, not the review.
 
 > `main` stands for the repo's default branch — substitute whatever `git symbolic-ref refs/remotes/origin/HEAD` resolves to.
 
@@ -41,7 +43,7 @@ No active change on this branch → skip Step 2 with a note (nothing to archive)
 ```bash
 gh pr view --json number,state,url 2>/dev/null
 ```
-- OPEN → `git push`. None → `git push -u origin HEAD` + `gh pr create` (Summary + Test plan). MERGED/CLOSED → stop and ask.
+- OPEN → `git push` (leave the body — `/save` already mirrored the change into it). None → `git push -u origin HEAD` + `gh pr create`; use the same **change-mirror body** `/save` writes (Summary + **Status** + Tasks + Preview + a `/continue` handoff footer) so the PR is a readable handoff even when `/save` was skipped. MERGED/CLOSED → stop and ask.
 
 ## Step 4 — wait for CI green if present (auto-fix on failure)
 
