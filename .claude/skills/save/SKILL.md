@@ -1,6 +1,6 @@
 ---
 name: save
-description: Checkpoint the current branch — sync the active OpenSpec change's delta specs into openspec/specs/ (/opsx:sync), commit code + specs, push, open or update a PR, wait for GitHub checks to pass (auto-fixing CI failures), and return the preview URL. Does NOT build locally (GitHub Actions is the gate) and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/preview in-progress work.
+description: Checkpoint the current branch — sync the active OpenSpec change's delta specs into openspec/specs/ (/opsx:sync), commit code + specs, push, open or update a PR, wait for GitHub checks to pass when present (auto-fixing CI failures), and return the preview URL. Does NOT build locally (CI is the gate when present, else PR review) and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/preview in-progress work.
 user-invocable: true
 ---
 
@@ -8,7 +8,7 @@ user-invocable: true
 
 Checkpoint runbook. Invoking it authorizes the branch creation, commit, push, and PR — don't re-prompt for those. Confirm anything outside this runbook (force push, hard reset).
 
-`/save` is the **sync** step of the loop (`/explore → /plan → /continue → /save → /ship`): it folds the active change's delta specs into the source-of-truth specs, then checkpoints code + specs behind CI and hands back a preview URL. **The `openspec/changes/` change is the plan — there's no GitHub handoff issue.** GitHub Actions is the gate; we never build/test locally.
+`/save` is the **sync** step of the loop (`/explore → /plan → /continue → /save → /ship`): it folds the active change's delta specs into the source-of-truth specs, then checkpoints code + specs and hands back a preview URL. **The `openspec/changes/` change is the plan — there's no GitHub handoff issue.** CI is the gate when the repo has checks; otherwise the PR itself is the checkpoint a reviewer sees. Either way we never build/test locally.
 
 > `main` stands for the repo's default branch — if `git symbolic-ref refs/remotes/origin/HEAD` resolves to something else, substitute it.
 
@@ -49,14 +49,14 @@ Using the change resolved in Step 1:
 
 The push triggers CI.
 
-## Step 4 — wait for CI, auto-fix on failure
+## Step 4 — wait for CI (if any), auto-fix on failure
 
 ```bash
 ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/.claude/skills/save/scripts/wait-for-checks.sh" 20
 ```
 Read the final `RESULT:` line:
-- **SUCCESS** / **NONE** (no checks configured) → Step 5.
+- **SUCCESS** / **NONE** (no checks configured — the PR review is the gate) → Step 5.
 - **TIMEOUT** → report checks still running + the PR link; don't block.
 - **FAILURE** → read the failing log, fix, commit, push, re-wait. **Cap 3 attempts**; still red → stop with the error + checks link.
   ```bash
@@ -79,5 +79,5 @@ Report, briefly:
 
 ## Hard rules
 - Never `--force` / `--no-verify`. Never push to the default branch — branch off (Step 1).
-- GitHub Actions is the only gate; a CI failure is fixed-and-re-pushed, never a stop (except after 3 attempts).
+- CI is the gate when present, else the PR (for review) is; a CI failure is fixed-and-re-pushed, never a stop (except after 3 attempts). Never build/test locally.
 - **Never merge** — that's `/ship`. No GitHub planning issues — the OpenSpec change is the plan.

@@ -5,8 +5,9 @@ context: |
   WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
   template you clone and work from. The payload is markdown: skills under
   .claude/skills/, the docs/ progressive-disclosure wiki, CLAUDE.md, VERSION,
-  CHANGELOG.md. There is no build/test suite in this repo — GitHub Actions in a
-  *target* repo is the gate; here the payload is prose.
+  CHANGELOG.md. There is no build/test suite in this repo — the payload is prose.
+  CI is an optional accelerator: it's the gate in a *target* repo when checks
+  exist, else PR review is; nothing builds locally either way.
 
   Planning runs on OpenSpec: a change is openspec/changes/<name>/ (proposal,
   specs, design, tasks). Changes live on the default branch (main) so they are

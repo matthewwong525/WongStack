@@ -3,6 +3,23 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 3.1.0 — CI is optional, not the only gate
+
+GitHub Actions is no longer a required pillar — it's an **optional accelerator**, honored when a
+repo has checks configured. The durable system is **pull requests** (any forge), version control,
+OpenSpec, and everything-lives-in-the-repo. When a repo has CI, `/save` and `/ship` behave exactly
+as before (wait for checks, auto-fix on red, `/ship` merges only on green); when it doesn't, the
+**gate is PR review** — the PR, the OpenSpec change, and its archive are what a reviewer approves.
+Nothing builds locally in either case (no local-verify fallback).
+
+- **Doctrine reworded, mechanics unchanged.** `wait-for-checks.sh` already returned `NONE` for
+  repos without checks, and `/save` / `/ship` already proceeded on it — this release makes the
+  prose match: `CLAUDE.md`, `README.md`, `docs/development/the-change-loop.md`, the `save` / `ship`
+  skills (intros, steps, hard rules, descriptions), the `wait-for-checks.sh` header, and the
+  `install-wong-stack` workflow-fit note now say "CI when present, else PR review."
+- **No tooling change.** The skills still use `gh` for PR mechanics; the shift is doctrine, not a
+  rewrite for other forges.
+
 ## 3.0.0 — OpenSpec is the planning layer
 
 WongStack now plans with **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** instead of GitHub
