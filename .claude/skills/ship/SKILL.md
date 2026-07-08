@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Ship the current branch — open or update a PR, wait for all GitHub checks to pass (auto-fixing CI failures), squash-merge to the default branch, then archive the OpenSpec change (/opsx:archive) so the archived spec becomes the record of what shipped. Does NOT build locally — GitHub Actions is the gate. Stops after archive. Use when you're done iterating on a branch and want it shipped.
+description: Ship the current branch — open or update a PR, wait for all GitHub checks to pass when present (auto-fixing CI failures), squash-merge to the default branch, then archive the OpenSpec change (/opsx:archive) so the archived spec becomes the record of what shipped. Does NOT build locally — CI is the gate when present, else PR review. Stops after archive. Use when you're done iterating on a branch and want it shipped.
 user-invocable: true
 ---
 
@@ -8,7 +8,7 @@ user-invocable: true
 
 Ship runbook. Invoking it authorizes the push, merge, and archive in Steps 3–5 — don't re-prompt. Confirm anything outside this runbook (force push, hard reset).
 
-`/ship` is the **archive** step of the loop (`/explore → /plan → /continue → /save → /ship`): it archives the active change, then squash-merges the code. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/document` for that). GitHub Actions is the only gate; we push, wait, and on red read-fix-repush until green, then merge.
+`/ship` is the **archive** step of the loop (`/explore → /plan → /continue → /save → /ship`): it archives the active change, then squash-merges the code. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/document` for that). CI is the gate when the repo has checks: we push, wait, and on red read-fix-repush until green, then merge. No checks configured → the PR review is the gate; merge once approved. Never build/test locally.
 
 > `main` stands for the repo's default branch — substitute whatever `git symbolic-ref refs/remotes/origin/HEAD` resolves to.
 
@@ -43,13 +43,13 @@ gh pr view --json number,state,url 2>/dev/null
 ```
 - OPEN → `git push`. None → `git push -u origin HEAD` + `gh pr create` (Summary + Test plan). MERGED/CLOSED → stop and ask.
 
-## Step 4 — wait for CI green (auto-fix on failure)
+## Step 4 — wait for CI green if present (auto-fix on failure)
 
 ```bash
 ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/.claude/skills/save/scripts/wait-for-checks.sh" 20
 ```
-- **SUCCESS** / **NONE** → Step 5.
+- **SUCCESS** / **NONE** (no checks — the PR review is the gate; invoking `/ship` is the approval) → Step 5.
 - **FAILURE** → read the log, fix, re-push, re-wait (**cap 3; never ship red**):
   ```bash
   RUN_ID=$(gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId')
@@ -76,6 +76,6 @@ On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not
 - **CI** — green (note N auto-fix pushes if any), and any follow-ups (a flag, a manual step, a secret).
 
 ## Hard rules
-- Never ship onto a red default branch. Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation.
+- Never ship onto a red default branch (when it has checks). Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. Never build/test locally — CI is the gate when present, else PR review.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - No GitHub summary issue and no docs distillation — the archived spec is the record; `/document` handles docs.

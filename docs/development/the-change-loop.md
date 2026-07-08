@@ -14,7 +14,7 @@ Each verb is a thin WongStack skill fronting one step of [OpenSpec](https://gith
 - **[`/explore`](../../.claude/skills/explore/SKILL.md)** *(optional)* — think a problem through before committing to a shape. Fronts `/opsx:explore`. Nothing is written yet.
 - **[`/plan`](../../.claude/skills/plan/SKILL.md)** — draft the change: a folder `openspec/changes/<name>/` holding the proposal, delta specs, design, and tasks. Fronts `/opsx:propose`.
 - **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name (or PR, or the `openspec list` menu), check out its branch, and implement the tasks. Fronts `/opsx:apply`.
-- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint: sync the change's delta specs into `openspec/specs/`, commit code + specs, push, open/update the PR, wait for CI (auto-fixing failures), and return a preview URL. Fronts `/opsx:sync`.
+- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint: sync the change's delta specs into `openspec/specs/`, commit code + specs, push, open/update the PR, wait for CI when present (auto-fixing failures; no checks → PR review is the gate), and return a preview URL. Fronts `/opsx:sync`.
 - **[`/ship`](../../.claude/skills/ship/SKILL.md)** — squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts `/opsx:archive`.
 
 Loop back any time: `/save` as often as you like while building; re-`/plan` if the spec needs to change.

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Wait for ALL GitHub checks on the current branch's PR to finish, then report
-# the aggregate result. This is WongStack's build/test gate: we never build
-# or test locally — the repo's own GitHub Actions (tests + preview deploy) are
-# the gate, and this just waits for them to settle and tells you the verdict.
+# the aggregate result. CI is WongStack's gate *when a repo has checks* — we
+# never build or test locally. Where the repo's own GitHub Actions exist, this
+# waits for them to settle and tells you the verdict; where none are configured
+# it returns NONE and the PR review is the gate (see the RESULT lines below).
 #
 # Prints exactly one RESULT line at the end:
 #   RESULT: SUCCESS   — every check passed (or skipped)

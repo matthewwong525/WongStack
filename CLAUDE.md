@@ -30,8 +30,11 @@ and its archive *is* the record.
 
 ## Rules
 
-- **GitHub Actions is the build gate.** Don't run a build/test locally as a prerequisite —
-  push and let CI run. The WongStack skills wait for the checks and fix failures.
+- **CI is the gate when present, else PR review.** The durable system is pull requests (any
+  forge), version control, OpenSpec, and everything-lives-in-the-repo; GitHub Actions is an
+  optional accelerator, honored when configured. Where checks exist, push and let CI run — the
+  skills wait and fix failures; where they don't, the PR (plus the OpenSpec change and its
+  archive) is the record a human reviews. Either way, nothing builds locally as a prerequisite.
 - **Use the WongStack skills** — a thin verb over each OpenSpec step, so you never type `/opsx:*`
   by hand (though it's there if you want it):
   `/explore` (think it through — `/opsx:explore`), `/plan` (draft the change — `/opsx:propose`),
