@@ -8,5 +8,5 @@ The **payload** is the set that [`/install-wong-stack`](../../.claude/skills/ins
 
 ## Processes
 
-- [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /continue → /save → /ship`, each a thin verb over an OpenSpec step.
+- [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /continue → /ship`, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
 - [Adding a skill](adding-a-skill.md) — create a new workflow skill and wire it through every surface that installs, versions, and advertises the payload.

@@ -3,6 +3,48 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 4.0.0 — the change becomes a living handoff: `/apply` front-door + Status/Decision-log/PR-mirror
+
+The loop grows from five verbs to six and the OpenSpec change stops being a static plan — it becomes
+a **living handoff** that carries the *why*, not just the *what*. This mirrors the shape ClaymooApp
+settled on after dogfooding it, adapted to WongStack's stack-agnostic, CI-optional gate.
+
+```
+was:  /explore → /plan → /continue → /save → /ship
+now:  /explore → /plan → /apply → /save → /continue → /ship
+```
+
+- **New skill [`/apply`](.claude/skills/apply/SKILL.md)** — the **implement stage**, fronting
+  `/opsx:apply` with no git. It works the change's `tasks.md` in a live session (already on the
+  branch, right after `/plan`). This splits *implementing* from *resuming*: implement with `/apply`,
+  resume cold with `/continue`.
+- **[`/continue`](.claude/skills/continue/SKILL.md) is now the resume on-ramp** — it checks out the
+  branch, recaps the plan + the **tail of the Decision log** (so you inherit decisions and dead ends),
+  runs a **counts-only drift check** (commits vs tasks, unresolved review comments), then hands off to
+  `/apply`. The `openspec list` pick-menu shows each change's **Status**, so "what can I pick up?" is
+  answerable at a glance.
+- **[`/save`](.claude/skills/save/SKILL.md) maintains the change as a living surface**, not just a
+  spec sync:
+  - a **`**Status:**` header** on `proposal.md` — `in-progress` / `blocked (…)` / `ready-to-ship` /
+    `parked`; **`/save <note>`** sets it (e.g. `/save blocked on API key`).
+  - an **append-only `## Decision log`** — one dated bullet per save (what landed, what was decided or
+    ruled out and why); plan sections may change, history never gets rewritten.
+  - a **PR body that mirrors the change**, regenerated every save (Summary + Status + Tasks + Preview +
+    a `/continue` footer) — so a forge alone is a complete handoff surface.
+  - **author-as-fallback** — a session that skipped `/plan` gets its change authored from the
+    conversation via the same OpenSpec artifact process, so nothing pushes without its handoff.
+- **[`/ship`](.claude/skills/ship/SKILL.md)** now reuses `/save`'s change-mirror PR body and names
+  out-of-band review (`/code-review`, PR review) as the deeper-review path — it is the merge, not the
+  gate. Stack-specific quality-gate subagents stay out; WongStack is stack-agnostic.
+- **Docs + surfaces updated** — [the change loop](docs/development/the-change-loop.md) is rewritten
+  for the six-stage loop and the living-handoff surfaces; README, `CLAUDE.md`, and the installer all
+  install and advertise `/apply`.
+
+**Upgrading is additive** — `/save` and `/continue` keep working; existing changes without a Status
+header or Decision log just gain them on the next `/save`. The one behavior change: `/continue` now
+hands off to `/apply` rather than calling `/opsx:apply` directly, and implementing in a live session is
+`/apply`.
+
 ## 3.2.0 — `/improve` plans as OpenSpec changes
 
 `/improve` now writes its plans **where the repo plans**. When the audited repo has an initialized
