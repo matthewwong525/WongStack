@@ -3,6 +3,26 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 4.1.0 — a stack-neutral secrets convention
+
+WongStack now ships an opinion on secrets — the one generalizable piece of a downstream Cloudflare
+install's `.dev.vars` pattern, with none of the platform machinery. A committed **`.env.example`** is
+the source-of-truth list of every variable a repo reads (documented, blank); the real file is
+git-ignored. It's a **convention, not code** — nothing reads it, and a repo renames it to whatever its
+stack expects.
+
+- **New root [`.env.example`](.env.example)** — documented placeholders, no platform names; add a var
+  in code, add it here.
+- **`.gitignore`** now ignores `.env` / `.env.local` / `.dev.vars` so real secrets can't be committed.
+- **New page [`docs/development/secrets.md`](docs/development/secrets.md)** — the
+  `.example`-as-source-of-truth discipline and how to bootstrap a local file; linked from the
+  development section README.
+- **[`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md) offers it** — the page rides
+  along with `docs/`; the `.env.example` + `.gitignore` entries are seeded on opt-in (a repo may
+  already handle secrets its own way).
+
+Purely additive — no skill, loop, or gate behavior changes.
+
 ## 4.0.0 — the change becomes a living handoff: `/apply` front-door + Status/Decision-log/PR-mirror
 
 The loop grows from five verbs to six and the OpenSpec change stops being a static plan — it becomes
