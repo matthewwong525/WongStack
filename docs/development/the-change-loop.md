@@ -37,6 +37,16 @@ So: already here and building → `/apply`. Coming back to it → `/continue`.
 - **`## Decision log`** — an **append-only**, dated record of what happened and *why* (decisions made, dead ends ruled out, what it's blocked on). Plan sections above it may change; the log never rewrites. This is what `/continue` reads back so a resumer inherits the journey, not just the destination.
 - **The PR body mirrors the change** — regenerated on every `/save` from the change file (Status + plan + task checklist), so GitHub alone is a complete handoff (reviewers comment; they don't edit the body).
 
+## The ship quality gate
+
+A green build proves the code *compiles*; it doesn't prove the logic is *right* or that it doesn't break a caller. [`/ship`](../../.claude/skills/ship/SKILL.md) closes that gap with three subagents it launches in parallel (their briefs live in [`.claude/skills/ship/agents/`](../../.claude/skills/ship/agents/)), collected before the merge:
+
+- **test-runner** — discovers the repo's test command, runs the suite, and writes the tests the change should have had. A real regression or a test that finds a bug is a **blocker** (it stops the merge); risky-but-untestable logic is reported as a *gap*.
+- **integration-reviewer** — reads the diff for a named downstream caller that would misbehave. A concrete break is a **blocker**; duplication and missed-reuse are **advisory** (reported, never gated).
+- **doc-finder** — judges whether a *reusable process* changed and finds the page to extend. Docs are captured here, at `/ship`, because it's the one moment with both the full conversation and the finished diff — which is also why we don't touch `docs/` mid-task.
+
+Blockers stop the merge; advisory findings ride along in the ship report. This gate is stack-agnostic — it asserts nothing about the toolchain — and layers on top of the CI-when-present gate, never replacing it.
+
 ## Where the plan and record live
 
 The plan is the change folder, on the default branch's history once shipped — `openspec list` shows every active change from a fresh clone, so there's no branch-hunting to find what someone is building. The record of what shipped is the **archived change** plus the synced `openspec/specs/`. There are no GitHub planning or summary issues; the change *is* the plan and its archive *is* the record.
