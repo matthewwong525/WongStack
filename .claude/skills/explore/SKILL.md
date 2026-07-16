@@ -9,7 +9,7 @@ user-invocable: true
 `/explore` is WongStack's front door to OpenSpec's **explore** step — the optional first stop in the loop:
 
 ```
-/explore ─▶ /plan ─▶ /continue ─▶ /save ─▶ /ship
+/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
 (optional)
 ```
 

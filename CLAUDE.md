@@ -10,7 +10,7 @@ It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below 
 - **Editing the payload is a release** — add a [`CHANGELOG.md`](CHANGELOG.md) entry and bump [`VERSION`](VERSION) (semver) so the updater can detect and explain it.
 - Skills run from a target repo's `.claude/skills/`, so they reference files by **repo-relative path** (`$(git rev-parse --show-toplevel)/.claude/skills/...`) — never `${CLAUDE_PLUGIN_ROOT}` or an absolute path.
 - Rulebook canonical: [`.claude/skills/document/references/progressive-disclosure.md`](.claude/skills/document/references/progressive-disclosure.md); [`docs/wiki-style.md`](docs/wiki-style.md) is a synced copy (re-copy when you edit the canonical).
-- **The WongStack skills own all git; OpenSpec never runs git.** `/plan`·`/explore` front `/opsx:propose`·`/opsx:explore`; `/continue` runs `/opsx:apply`; `/save` runs `/opsx:sync`; `/ship` runs `/opsx:archive`. When you touch one of the git skills, keep the OpenSpec step it fronts intact.
+- **The WongStack skills own all git; OpenSpec never runs git.** `/plan`·`/explore` front `/opsx:propose`·`/opsx:explore`; `/apply` runs `/opsx:apply`; `/save` runs `/opsx:sync`; `/ship` runs `/opsx:archive`; `/continue` resumes a change (checkout + recap) then hands to `/apply`. When you touch one of the git skills, keep the OpenSpec step it fronts intact.
 
 <!-- WONG-STACK:BEGIN — generic WongStack conventions. The installer lifts this block verbatim into a target repo's CLAUDE.md, so keep it free of repo-specifics. Edit freely between the markers. -->
 
@@ -38,9 +38,11 @@ and its archive *is* the record.
 - **Use the WongStack skills** — a thin verb over each OpenSpec step, so you never type `/opsx:*`
   by hand (though it's there if you want it):
   `/explore` (think it through — `/opsx:explore`), `/plan` (draft the change — `/opsx:propose`),
-  `/continue [name]` (resume the branch + implement — `/opsx:apply`), `/save` (sync specs +
-  push + preview — `/opsx:sync`), `/ship` (merge + archive — `/opsx:archive`),
-  `/document` (write a process doc), `/improve` (read-only advisor; `/improve docs` for the wiki).
+  `/apply` (implement the tasks — `/opsx:apply`), `/save` (maintain the change's Status +
+  Decision log, sync specs, push, mirror the PR body, preview — `/opsx:sync`), `/continue [name]`
+  (resume a change on any machine: checkout + recap + drift check, then hand to `/apply`),
+  `/ship` (quality-gate + merge + archive — `/opsx:archive`), `/document` (write a process doc),
+  `/improve` (read-only advisor; `/improve docs` for the wiki).
   Branch name = change name ties a branch to its plan.
 - **Don't edit `docs/` mid-task** unless it's explicitly the task — reach for `/document` when a
   reusable process is worth capturing, with the change and diff in hand.

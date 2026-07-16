@@ -2,19 +2,20 @@
 
 A **stack-agnostic workflow toolkit for [Claude Code](https://claude.com/claude-code)**, distributed as a **template you clone and work from** — not a plugin. It distills a proven way of working — plan, build, checkpoint, ship, document — into a handful of skills that work in **any GitHub repo**.
 
-Planning runs on **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: what you're building is a spec under `openspec/changes/`, visible from any clone; the skills are thin verbs over its loop, so you never type `/opsx:*` by hand. Delivery rides on **pull requests** (any forge): CI is an **optional accelerator** — honored as the gate when configured, otherwise PR review is the gate — the per-commit preview URL is auto-discovered, and the record of what shipped is the **archived spec**. The skills land directly in your repo's `.claude/skills/`, so commands are plain `/explore`, `/plan`, `/save`, `/continue`, `/ship`, `/document`, `/improve` (no namespace, no marketplace). One guided command, **`/install-wong-stack`**, integrates and later updates the whole thing.
+Planning runs on **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: what you're building is a spec under `openspec/changes/`, visible from any clone; the skills are thin verbs over its loop, so you never type `/opsx:*` by hand. Delivery rides on **pull requests** (any forge): CI is an **optional accelerator** — honored as the gate when configured, otherwise PR review is the gate — the per-commit preview URL is auto-discovered, and the record of what shipped is the **archived spec**. The skills land directly in your repo's `.claude/skills/`, so commands are plain `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/document`, `/improve` (no namespace, no marketplace). One guided command, **`/install-wong-stack`**, integrates and later updates the whole thing.
 
 ## What you get
 
-Each verb fronts one step of the OpenSpec loop — `/explore → /plan → /continue → /save → /ship`:
+Each verb fronts one step of the OpenSpec loop — `/explore → /plan → /apply → /save → /continue → /ship`:
 
 | Command | What it does |
 | --- | --- |
 | `/explore` | *(optional)* Think a problem through before committing to a shape — fronts `/opsx:explore`. Nothing is written yet. |
 | `/plan` | Draft the change: `openspec/changes/<name>/` with proposal, delta specs, design, tasks — fronts `/opsx:propose`. |
-| `/continue [name]` | Resume on **any machine** by change name (= branch name), PR, or the `openspec list` menu: load context, check out the branch, and implement the tasks — fronts `/opsx:apply`. Add an instruction to steer (`/continue add-auth fix the failing test`). |
-| `/save` | Checkpoint: sync the change's delta specs into `openspec/specs/` (`/opsx:sync`), push the branch (auto-creating it + committing a dirty tree), open/update a PR, wait for CI green when present (auto-fixing), return the **preview URL**. Never merges. |
-| `/ship` | Finish a branch: wait for CI green when present (else on PR review), **squash-merge**, then archive the change (`/opsx:archive`) so the archived spec is the record. |
+| `/apply` | Implement the tasks: work the `tasks.md` checklist, checking off `- [x]` as each lands — fronts `/opsx:apply`. No git. Use it when you're already on the change's branch. |
+| `/save` | Checkpoint: maintain the change's **handoff surface** (a `Status` header + append-only `Decision log` on `proposal.md`), sync delta specs into `openspec/specs/` (`/opsx:sync`), push (auto-creating the branch + committing a dirty tree), open/update a PR whose **body mirrors the change**, wait for CI green when present (auto-fixing), return the **preview URL**. `/save <note>` sets the status. Never merges. |
+| `/continue [name]` | Resume a change on **any machine** by name (= branch name), PR, or the `openspec list` menu: check out the branch, recap the plan + its **Decision log** (so you inherit the *why*), run a counts-only drift check, then hand off to `/apply`. Add an instruction to steer (`/continue add-auth fix the failing test`). |
+| `/ship` | Finish a branch: run a parallel **quality gate** (tests + integration + docs), wait for CI green when present (else on PR review), **squash-merge**, then archive the change (`/opsx:archive`) so the archived spec is the record. |
 | `/document` | Write/update a process doc by **progressive-disclosure** rules (atomic pages, stand-alone openers, generous linking). |
 | `/improve` | **Senior advisor, read-only** (adapted from [shadcn/improve](https://github.com/shadcn/improve), MIT): audit the codebase, vet findings, and write self-contained **plans** under `plans/` for a cheaper model or a person to execute — never edits source. Nine categories + `execute`/`branch`/`next`/`reconcile`/`--issues`. **`/improve docs`** specializes it for the `docs/` wiki (applied via `/save` + `/ship`). |
 | `/install-wong-stack` | Guided installer **and** updater: researches your repo, merges your `CLAUDE.md` with WongStack's, installs the skills, seeds the wiki — asking along the way. Re-run to update. |
@@ -23,7 +24,7 @@ Each verb fronts one step of the OpenSpec loop — `/explore → /plan → /cont
 
 ## The ideas behind it
 
-- **The spec is the unit of continuity.** The plan lives in `openspec/changes/<name>/`, not a context window — `openspec list` shows every active change from a fresh clone, and `/continue` rebuilds a cold session from it. Branch name = change name ties the plan to its code.
+- **The spec is the unit of continuity.** The plan lives in `openspec/changes/<name>/`, not a context window — `openspec list` shows every active change from a fresh clone, and `/continue` rebuilds a cold session from it, inheriting the *why* from an append-only `Decision log` `/save` keeps on the proposal. Branch name = change name ties the plan to its code.
 - **The gate is CI when present, else PR review.** Nothing builds locally either way. Where GitHub Actions run, you push; the skills wait and, on red, read-fix-repush (capped); `/ship` merges only on green. Where there's no CI, the PR — with the OpenSpec change and its archive — is what a reviewer approves before `/ship` merges. CI is an accelerator, not a requirement.
 - **Preview URLs are discovered, not configured** — Vercel, Netlify, Cloudflare, Render, GitHub Pages, … attach the URL to the commit/PR in a standard way; WongStack finds it.
 - **Knowledge has two homes.** Reusable *processes* → the `docs/` progressive-disclosure tree (via `/document`). A change's *specifics* → its proposal and specs, preserved in `openspec/changes/archive/` when it ships. The archive is the project's searchable record of what shipped.
@@ -37,7 +38,7 @@ Install WongStack in this repo by reading and following
 https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.claude/skills/install-wong-stack/SKILL.md
 ```
 
-That's the whole install. Claude clones WongStack, researches your repo, merges your `CLAUDE.md`, sets up OpenSpec (`openspec init`), installs the skills (`/explore`, `/plan`, `/save`, `/continue`, `/ship`, `/document`, `/improve`), and seeds the `docs/` wiki — **asking before it changes anything**. Paste it again any time to update.
+That's the whole install. Claude clones WongStack, researches your repo, merges your `CLAUDE.md`, sets up OpenSpec (`openspec init`), installs the skills (`/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/document`, `/improve`), and seeds the `docs/` wiki — **asking before it changes anything**. Paste it again any time to update.
 
 The link points straight at the installer's own runbook — [`install-wong-stack/SKILL.md`](.claude/skills/install-wong-stack/SKILL.md) — so this section never drifts from what the installer actually does. The runbook self-bootstraps the clone, and can symlink itself as a real `/install-wong-stack` command for future updates.
 
@@ -51,9 +52,10 @@ git clone https://github.com/matthewwong525/WongStack && cd WongStack
 ```
 # paste the install prompt above, then:
 /plan add-auth      # draft the change spec (openspec/changes/add-auth/)
-/continue add-auth  # implement the tasks — later, on any machine
-/save               # sync specs → checkpoint → preview URL
-/ship               # squash-merge on green CI, then archive the change
+/apply              # implement the tasks (already on the branch)
+/save               # maintain the change surface → sync specs → checkpoint → preview URL
+/continue add-auth  # …or resume the change later, on any machine, then keep building
+/ship               # quality-gate + squash-merge on green CI, then archive the change
 ```
 
 ## Updating
@@ -80,11 +82,12 @@ WongStack/
     └── skills/
         ├── install-wong-stack/  # guided installer/updater (NOT copied into target repos)
         ├── explore/  ·  plan/    # thin verbs → /opsx:explore, /opsx:propose
+        ├── apply/               # implement the tasks (→ /opsx:apply)
         ├── save/        SKILL.md + scripts/{wait-for-checks,preview-url}.sh   (→ /opsx:sync)
-        ├── continue/            # resume + implement (→ /opsx:apply)
-        ├── ship/                # squash-merge + archive (→ /opsx:archive)
+        ├── continue/            # cold-resume: checkout + recap + drift → hands to /apply
+        ├── ship/        SKILL.md + agents/{doc-finder,test-runner,integration-reviewer}.md   (→ /opsx:archive)
         ├── document/    SKILL.md + references/progressive-disclosure.md   (canonical rulebook)
         ├── improve/     SKILL.md + references/ (advisor → plans; shadcn/improve verbatim + a docs variant, MIT)
         └── openspec-*/          # generated by `openspec init` (fronted by the verbs above)
 ```
-Installing into a target repo gives it: a merged `CLAUDE.md`, the `openspec/` scaffold + `/opsx:*` commands (via `openspec init`), `.claude/skills/{explore,plan,save,continue,ship,document,improve}/`, `docs/README.md` + `docs/wiki-style.md`, a `.claude/.wong-stack.json` manifest, and — if you opt in — the `auto-push` Stop hook.
+Installing into a target repo gives it: a merged `CLAUDE.md`, the `openspec/` scaffold + `/opsx:*` commands (via `openspec init`), `.claude/skills/{explore,plan,apply,save,continue,ship,document,improve}/`, `docs/README.md` + `docs/wiki-style.md`, a `.claude/.wong-stack.json` manifest, and — if you opt in — the `auto-push` Stop hook.

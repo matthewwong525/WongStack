@@ -3,7 +3,7 @@
 Every change to WongStack — and to any repo that installs it — moves through one loop, from a rough idea to a shipped, archived spec:
 
 ```
-/explore ─▶ /plan ─▶ /continue ─▶ /save ─▶ /ship
+/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
 (optional)
 ```
 
@@ -13,11 +13,29 @@ Each verb is a thin WongStack skill fronting one step of [OpenSpec](https://gith
 
 - **[`/explore`](../../.claude/skills/explore/SKILL.md)** *(optional)* — think a problem through before committing to a shape. Fronts `/opsx:explore`. Nothing is written yet.
 - **[`/plan`](../../.claude/skills/plan/SKILL.md)** — draft the change: a folder `openspec/changes/<name>/` holding the proposal, delta specs, design, and tasks. Fronts `/opsx:propose`.
-- **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name (or PR, or the `openspec list` menu), check out its branch, and implement the tasks. Fronts `/opsx:apply`.
-- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint: sync the change's delta specs into `openspec/specs/`, commit code + specs, push, open/update the PR, wait for CI when present (auto-fixing failures; no checks → PR review is the gate), and return a preview URL. Fronts `/opsx:sync`.
-- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts `/opsx:archive`.
+- **[`/apply`](../../.claude/skills/apply/SKILL.md)** — implement the tasks: read the proposal/specs/design, work the `tasks.md` checklist, check off `- [x]` as each lands. No git. Fronts `/opsx:apply`.
+- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint: maintain the change's [handoff surface](#the-handoff-surface), sync its delta specs into `openspec/specs/`, commit code + specs, push, open/update a PR whose body mirrors the change, wait for CI when present (auto-fixing failures; no checks → PR review is the gate), and return a preview URL. Fronts `/opsx:sync`.
+- **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change on **any machine** by name (or PR, or the `openspec list` menu): check out its branch, recap the plan + the last Decision-log entries (so you inherit the *why*), run a counts-only drift check, then hand off to `/apply`.
+- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — run a parallel quality gate (tests + integration + docs), squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts `/opsx:archive`.
 
 Loop back any time: `/save` as often as you like while building; re-`/plan` if the spec needs to change.
+
+## `/apply` vs `/continue`
+
+Both end in the same place — working the tasks — but they start differently:
+
+- **`/apply`** is the plain **implement** verb. Use it in a live session (right after `/plan`, or any time you're already on the change's branch). It writes code and checks off tasks; it runs no git.
+- **`/continue`** is **cold-resume**. Use it when you're picking a change back up — a fresh clone, another machine, a new session. It checks out the branch, recaps the change and its Decision log, checks for drift, *then* hands off to `/apply`. It's `/apply` plus the "get me back to where I was" front matter.
+
+So: already here and building → `/apply`. Coming back to it → `/continue`.
+
+## The handoff surface
+
+`/save` keeps a change resumable **cold** — from a machine with no scrollback — by maintaining three things on `proposal.md`, plus the PR:
+
+- **`**Status:**`** — one of `in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`, under the H1, alongside `**Open questions:**`. A `/save <note>` that reads as a state sets it.
+- **`## Decision log`** — an **append-only**, dated record of what happened and *why* (decisions made, dead ends ruled out, what it's blocked on). Plan sections above it may change; the log never rewrites. This is what `/continue` reads back so a resumer inherits the journey, not just the destination.
+- **The PR body mirrors the change** — regenerated on every `/save` from the change file (Status + plan + task checklist), so GitHub alone is a complete handoff (reviewers comment; they don't edit the body).
 
 ## Where the plan and record live
 
@@ -27,6 +45,6 @@ The plan is the change folder, on the default branch's history once shipped — 
 
 ## `/continue` is not `/opsx:continue`
 
-WongStack's `/continue` **resumes a change and implements it** — it loads context and runs OpenSpec's *apply* step so you can pick work back up on any machine. OpenSpec's own step-by-step drafting stepper is a different thing; don't reach for it expecting to resume implementation. When you want to build, `/continue`.
+WongStack's `/continue` **resumes a change and implements it** — it loads context and hands to `/apply` so you can pick work back up on any machine. OpenSpec's own step-by-step drafting stepper is a different thing; don't reach for it expecting to resume implementation. When you want to build from scratch, `/apply`; when you want to pick a change back up, `/continue`.
 
 See also [Adding a skill](adding-a-skill.md) for how a new verb gets wired through the payload.

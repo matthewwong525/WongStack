@@ -1,6 +1,6 @@
 ---
 name: install-wong-stack
-description: Install or update the WongStack in the current repo — a guided, question-driven integration that deep-researches what's already there, merges your existing CLAUDE.md with WongStack's conventions, sets up the OpenSpec planning layer (openspec init), installs the workflow skills (/explore, /plan, /save, /continue, /ship, /document, /improve), optionally enables the auto-push Stop hook, and seeds the docs/ progressive-disclosure wiki. Re-run it any time to update to the latest version: it diffs what's installed, walks you through each change, and re-merges without clobbering your customizations. Use when setting up a new or existing repo to use the WongStack, or to upgrade an existing install.
+description: Install or update the WongStack in the current repo — a guided, question-driven integration that deep-researches what's already there, merges your existing CLAUDE.md with WongStack's conventions, sets up the OpenSpec planning layer (openspec init), installs the workflow skills (/explore, /plan, /apply, /save, /continue, /ship, /document, /improve), optionally enables the auto-push Stop hook, and seeds the docs/ progressive-disclosure wiki. Re-run it any time to update to the latest version: it diffs what's installed, walks you through each change, and re-merges without clobbering your customizations. Use when setting up a new or existing repo to use the WongStack, or to upgrade an existing install.
 user-invocable: true
 ---
 
@@ -69,10 +69,10 @@ Summarize the research, then propose the plan and ask (batch the questions — t
 1. **App facts** — confirm stack / how it deploys / preview deploys / default branch (these fill `CLAUDE.md`'s "What this is").
 2. **CLAUDE.md merge** — WongStack owns one block: the generic conventions between `WONG-STACK:BEGIN/END` in `$WS/CLAUDE.md`. "What this is" is always app-specific and lives *outside* the markers. No existing file → create one (generated "What this is" + the block). Existing → insert the block, preserving their content (including their own "What this is"); where their rules conflict with WongStack's, **ask which wins**.
 3. **docs/** — none → seed `docs/README.md` (sections from research) + copy the style pages (`wiki-style.md` + `voice.md`). Existing → don't restructure; just add `docs/wiki-style.md` + `docs/voice.md` if missing and ensure `docs/README.md` links them.
-4. **Skills** — install `explore`, `plan`, `save`, `continue`, `ship`, `document`, `improve` (never the installer itself, and never the generated `openspec-*` skills — those come from `openspec init` in 4a). Collision with an existing skill → ask per-collision (keep theirs / replace / install under another name).
+4. **Skills** — install `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `document`, `improve` (never the installer itself, and never the generated `openspec-*` skills — those come from `openspec init` in 4a). Collision with an existing skill → ask per-collision (keep theirs / replace / install under another name).
 4a. **OpenSpec** — the planning layer the skills front. If `openspec` isn't installed, offer to install the CLI (`npm install -g @fission-ai/openspec@latest`; if a global install is blocked, the skills can fall back to `npx @fission-ai/openspec`). Then, unless the target already has an `openspec/` folder, run `openspec init --tools claude` there to scaffold `openspec/` and generate the `/opsx:*` commands + `openspec-*` skills. Already init'd → leave it; just confirm the CLI is present.
 5. **Auto-push hook (optional, ask).** Offer the `auto-push` Stop hook: *once a branch has an open PR, it auto-commits and pushes any pending work every turn, so you stop re-running `/save`.* It's more intrusive than a skill (it acts every turn), so it's **off unless the user opts in** — default no. It never touches the default branch or a branch without an open PR.
-6. **Workflow fit** — confirm the loop suits them: plan in `openspec/` (`/plan`), build (`/continue`), checkpoint (`/save`) with CI as the gate when present (else PR review), merge + archive (`/ship`). Thin/absent CI is fine — CI is an optional accelerator, not a requirement; without it the PR review is the gate.
+6. **Workflow fit** — confirm the loop suits them: plan in `openspec/` (`/plan`), build (`/apply`, or `/continue` to resume on any machine), checkpoint (`/save`) with CI as the gate when present (else PR review), merge + archive (`/ship`). Thin/absent CI is fine — CI is an optional accelerator, not a requirement; without it the PR review is the gate.
 
 Then integrate (`$ROOT` = target, `$WS` = source):
 ```bash
@@ -86,8 +86,10 @@ for s in "$WS"/.claude/skills/*/; do
 done
 [ -f "$ROOT/docs/wiki-style.md" ] || cp "$WS/docs/wiki-style.md" "$ROOT/docs/wiki-style.md"
 [ -f "$ROOT/docs/voice.md" ]      || cp "$WS/docs/voice.md"      "$ROOT/docs/voice.md"
+[ -f "$ROOT/docs/development/secrets.md" ] || { mkdir -p "$ROOT/docs/development"; cp "$WS/docs/development/secrets.md" "$ROOT/docs/development/secrets.md"; }
 ```
 - **CLAUDE.md** — Read + Edit/Write to create-or-merge (never blind overwrite). Lift the marker block (markers included) from `$WS/CLAUDE.md`; ensure a "## What this is" exists outside it (generate from the facts if absent); keep the markers.
+- **Secrets convention** *(offer, don't force)* — the [secrets](../../../docs/development/secrets.md) doc always comes along with `docs/`. Additionally offer: seed a `.env.example` (copy `$WS/.env.example` if the repo has none, or point at their existing dotenv file) and ensure the real secrets files are git-ignored — Read `.gitignore` and add `.env` / `.env.local` (and any stack-specific file like `.dev.vars`) if missing. The target may already handle secrets its own way; confirm before touching `.gitignore` or adding the example.
 - **docs/README.md** — from `$WS/docs/README.md` (seeded sections) only if absent; else ensure it links `wiki-style.md` + `voice.md`.
 - **Auto-push hook** *(only if the user opted in at Step 3F.5)* — copy the script, then **merge** the Stop hook into `.claude/settings.json` rather than overwriting it (the repo may already have hooks):
   ```bash
@@ -115,7 +117,7 @@ Bring the repo to `$LATEST` **without** undoing customizations.
 ```bash
 cat > "$ROOT/.claude/.wong-stack.json" <<EOF
 { "version": "$LATEST", "installedAt": "<existing, or today>", "updatedAt": "$(date +%F)",
-  "components": { "skills": ["explore","plan","save","continue","ship","document","improve"], "claudeMd": true, "docs": true, "openspec": true, "autoPushHook": false } }
+  "components": { "skills": ["explore","plan","apply","save","continue","ship","document","improve"], "claudeMd": true, "docs": true, "openspec": true, "autoPushHook": false } }
 EOF
 ```
 Adjust `components` to what was actually installed — set `openspec` to `true` only if `openspec init` ran (or the target was already init'd), and `autoPushHook` to `true` only if the user opted into the Stop hook. Always write this last, reflecting reality — it's the source of truth for the next run.
@@ -133,7 +135,7 @@ Adjust `components` to what was actually installed — set `openspec` to `true` 
 
 ## Step 6 — report
 
-Mode (fresh / X→`$LATEST`); any GitHub setup done (init / `gh` install / auth / remote created) or still outstanding; OpenSpec (CLI installed / `openspec init` run / already present); skills installed/updated/skipped (+ collisions); the auto-push hook (enabled / declined); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations. Then: *"Plan with `/plan`, build with `/continue`, checkpoint with `/save`, and merge + archive with `/ship`. Re-run `/install-wong-stack` any time to update."* **Don't commit or push** — leave it for the user to review.
+Mode (fresh / X→`$LATEST`); any GitHub setup done (init / `gh` install / auth / remote created) or still outstanding; OpenSpec (CLI installed / `openspec init` run / already present); skills installed/updated/skipped (+ collisions); the auto-push hook (enabled / declined); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations. Then: *"Plan with `/plan`, build with `/apply` (or `/continue` to resume on any machine), checkpoint with `/save`, and merge + archive with `/ship`. Re-run `/install-wong-stack` any time to update."* **Don't commit or push** — leave it for the user to review.
 
 ## Hard rules
 - Research before touching anything; merge or ask, never blind-overwrite a `CLAUDE.md`, doc, or customized skill.

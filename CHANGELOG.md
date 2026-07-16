@@ -3,6 +3,37 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 4.0.0 — the change loop grows a handoff surface (and a sixth verb)
+
+Back-ports the methodology a downstream install evolved past the template. The loop gains a
+**standalone `/apply` verb** and a **decision-logged, status-headed** change that resumes cold from
+any machine, `/ship` grows a **parallel quality gate**, and a stack-neutral **secrets convention**
+ships in the payload. **Breaking:** the loop is now six verbs — `/apply` is split out of
+`/continue` — so muscle memory and any automation that encodes the five-verb loop must adjust.
+
+- **The loop.** `/explore → /plan → /apply → /save → /continue → /ship`. `/apply` (new) is the
+  implement verb — it fronts `/opsx:apply`, works `tasks.md`, runs no git. `/continue` is now
+  **cold-resume**: check out the branch, recap the plan + its Decision log, run a counts-only drift
+  check, then hand off to `/apply`. Already on the branch → `/apply`; picking a change back up →
+  `/continue`.
+- **Handoff surface (in `/save` + `/continue`).** `proposal.md` carries a `**Status:**` +
+  `**Open questions:**` header (`in-progress | blocked | ready-to-ship | parked`) and an
+  **append-only `## Decision log`** (dated bullets, never rewritten). `/save <note>` sets the
+  status and seeds the log; the **PR body is regenerated every save as a mirror** of the change, so
+  GitHub alone is a complete handoff. `/continue` reads the last log entries back so a resumer
+  inherits the *why*.
+- **`/ship` quality gate.** Three parallel background agents — a **test-runner** (discovers the
+  repo's test command, runs the suite, writes the tests the change should have had), an
+  **integration-reviewer** (named downstream breakage blocks; duplication is advisory), and a
+  **doc-finder** (captures reusable-process changes) — layered on top of the CI-when-present gate.
+  All stack-agnostic; no local build. Briefs live under `.claude/skills/ship/agents/`.
+- **Secrets convention.** A committed `.env.example` (the source-of-truth variable list) + real
+  secrets git-ignored, documented in [`docs/development/secrets.md`](docs/development/secrets.md).
+  Convention only — no build-gate or platform coupling. The installer offers to seed it.
+- **Everywhere the loop is described** — `CLAUDE.md` (the `WONG-STACK` block), `README.md`,
+  `docs/development/`, and `install-wong-stack` — now names all six verbs; the installer installs
+  the new `/apply` skill and its update flow explains the addition.
+
 ## 3.1.0 — CI is optional, not the only gate
 
 GitHub Actions is no longer a required pillar — it's an **optional accelerator**, honored when a
