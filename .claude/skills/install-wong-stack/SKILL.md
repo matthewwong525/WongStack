@@ -86,8 +86,10 @@ for s in "$WS"/.claude/skills/*/; do
 done
 [ -f "$ROOT/docs/wiki-style.md" ] || cp "$WS/docs/wiki-style.md" "$ROOT/docs/wiki-style.md"
 [ -f "$ROOT/docs/voice.md" ]      || cp "$WS/docs/voice.md"      "$ROOT/docs/voice.md"
+[ -f "$ROOT/docs/development/secrets.md" ] || { mkdir -p "$ROOT/docs/development"; cp "$WS/docs/development/secrets.md" "$ROOT/docs/development/secrets.md"; }
 ```
 - **CLAUDE.md** — Read + Edit/Write to create-or-merge (never blind overwrite). Lift the marker block (markers included) from `$WS/CLAUDE.md`; ensure a "## What this is" exists outside it (generate from the facts if absent); keep the markers.
+- **Secrets convention** *(offer, don't force)* — the [secrets](../../../docs/development/secrets.md) doc rides along with `docs/`. Additionally offer to seed a `.env.example` (copy `$WS/.env.example` if the repo has none, or point at their existing dotenv file) and to git-ignore the real secrets files — Read `.gitignore` and add `.env` / `.env.local` (and any stack-specific file like `.dev.vars`) if missing. The target may already handle secrets its own way; confirm before touching `.gitignore` or adding the example.
 - **docs/README.md** — from `$WS/docs/README.md` (seeded sections) only if absent; else ensure it links `wiki-style.md` + `voice.md`.
 - **Auto-push hook** *(only if the user opted in at Step 3F.5)* — copy the script, then **merge** the Stop hook into `.claude/settings.json` rather than overwriting it (the repo may already have hooks):
   ```bash
