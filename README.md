@@ -31,14 +31,16 @@ Each verb fronts one step of the OpenSpec loop — `/explore → /plan → /appl
 
 ## Install
 
-Open Claude Code **in the repo you want to set up** and paste this:
+**New to Claude Code?** It's Anthropic's coding agent — the least terminal-heavy way to try it is the web/desktop app at **[claude.ai/code](https://claude.com/claude-code)**. Open it on the folder you want to set up (an empty folder is fine — the installer will get you a repo and GitHub sorted, step by step). You don't need to have used Git or GitHub before.
+
+Then paste this one line — that's the whole install:
 
 ```
 Install WongStack in this repo by reading and following
 https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.claude/skills/install-wong-stack/SKILL.md
 ```
 
-That's the whole install. Claude clones WongStack, researches your repo, merges your `CLAUDE.md`, sets up OpenSpec (`openspec init`), installs the skills (`/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/document`, `/improve`), and seeds the `docs/` wiki — **asking before it changes anything**. Paste it again any time to update.
+Claude takes it from there: it clones WongStack, looks over your repo, merges your `CLAUDE.md`, sets up OpenSpec (`openspec init`), installs the skills (`/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/document`, `/improve`), and seeds the `docs/` wiki — **asking before it changes anything**, and ending by handing you your first command to run. Paste it again any time to update.
 
 The link points straight at the installer's own runbook — [`install-wong-stack/SKILL.md`](.claude/skills/install-wong-stack/SKILL.md) — so this section never drifts from what the installer actually does. The runbook self-bootstraps the clone, and can symlink itself as a real `/install-wong-stack` command for future updates.
 
