@@ -3,6 +3,26 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 4.3.0 — contribute-wong-stack: push improvements back upstream
+
+The round trip is complete. `/install-wong-stack` copies the payload *down* into a repo; the new
+[`contribute-wong-stack`](.claude/skills/contribute-wong-stack/SKILL.md) skill pushes improvements to
+that payload *back up* into a WongStack clone — so WongStack, the source of truth, stops drifting
+behind its own installs. (The v4.0.0 `/apply` adoption was exactly this, done by hand; now it's a
+command.)
+
+- **New `/contribute-wong-stack` skill** — the upstream-only inverse of install. It diffs **only the
+  payload manifest** (the workflow skills, the `docs/` convention pages, the auto-push hook, and the
+  `CLAUDE.md` WONG-STACK block) between the current repo and a WongStack clone, walks you through each
+  drift (**keep-WongStack / take-from-here / skip**), copies the approved ones up, then bumps `VERSION`
+  + adds a `CHANGELOG` entry and leaves the clone ready for `/save`. It never reads or copies
+  app/business-specific files, so nothing local can leak upstream; it runs no git itself; and it
+  refuses to run when the clone *is* the current repo.
+- **Installer knows the meta-skills come in a pair** —
+  [`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md) now excludes **both**
+  `install-wong-stack` and `contribute-wong-stack` from the copied payload (source-only tooling) and
+  offers to symlink both so they're runnable from a target repo.
+
 ## 4.2.0 — a friendlier install for total newcomers
 
 The installer now welcomes someone who has never used Claude Code — or barely used a terminal — the
