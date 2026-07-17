@@ -41,14 +41,15 @@ Launch a subagent (`Explore` if available) to report, with file paths:
 
 This drives every question and default below.
 
-## Step 1.5 — get GitHub working (newcomer-friendly; ask before each action)
+## Step 1.5 — get GitHub working (start from anywhere; ask before each action)
 
-WongStack's whole workflow lives on GitHub — `/save`, `/continue`, and `/ship` push branches, open PRs, and wait on Actions (planning lives in `openspec/`, not issues). So before installing, close any gap the research found. **Don't assume the user has done this before** — explain what each piece is for, offer to run it, and never run an interactive/account-changing command without asking. Work top to bottom; skip any rung already satisfied.
+WongStack's whole workflow lives on GitHub — `/save`, `/continue`, and `/ship` push branches, open PRs, and wait on Actions (planning lives in `openspec/`, not issues). So before installing, close any gap the research found. **Assume the user may have never done any of this** — even opened a terminal. This is a first-class starting point, not an error path: welcome someone starting from an empty folder just as warmly as someone with a repo already. For each gap, say in one plain sentence *what the piece is and why it's needed*, offer to handle it, and wait — **one thing at a time**, never a wall of tool output. Never run an interactive or account-changing command without asking. Work top to bottom; silently skip any rung already satisfied (don't narrate what already works).
 
-1. **Git repo?** No `.git` → explain it and offer `git init` (then `git add -A && git commit -m "initial commit"` once they're ready).
-2. **`gh` installed?** `command -v gh` fails → it's GitHub's official CLI and everything below needs it. Offer the right install for the platform (macOS `brew install gh`; otherwise point to <https://cli.github.com>). It's a one-time machine setup, so confirm before installing.
-3. **`gh` authed?** `gh auth status` fails → this links the CLI to their GitHub account. `gh auth login` is **interactive** (browser/device-code) — don't try to drive it headless; ask them to run it in their terminal (recommend `gh auth login --web --git-protocol https`) and tell you when it's done, then re-check. If they don't have a GitHub account yet, point them to <https://github.com/signup> first.
-4. **GitHub remote?** No `origin` (or it doesn't resolve) → offer to create one and push: `gh repo create <name> --source=. --remote=origin --push` (ask **private vs public** first; default the name to the directory name). If `origin` exists but isn't GitHub, surface that and ask rather than reassigning it.
+0. **A repo at all?** Not inside a git repo (an empty or brand-new folder) → this is fine, and a normal place to begin. In plain language: "A repo is just the folder Git tracks your project in — I'll set that up." Offer `git init`, then `git add -A && git commit -m "initial commit"` once they're ready. Only after they confirm, continue down the rungs. (Already in a repo → skip straight to rung 2.)
+1. **First commit?** Repo exists but has no commits yet → offer the initial `git add -A && git commit -m "initial commit"` so later branches/PRs have a base.
+2. **`gh` installed?** `command -v gh` fails → "`gh` is GitHub's official command-line tool; the save/ship steps use it to open pull requests." Offer the right install for the platform (macOS `brew install gh`; otherwise point to <https://cli.github.com>). It's a one-time machine setup, so confirm before installing.
+3. **`gh` authed?** `gh auth status` fails → "This links `gh` to your GitHub account so it can push on your behalf." `gh auth login` is **interactive** (browser/device-code) — don't try to drive it headless; ask them to run it in their terminal (recommend `gh auth login --web --git-protocol https`) and tell you when it's done, then re-check. If they don't have a GitHub account yet, point them to <https://github.com/signup> first.
+4. **GitHub remote?** No `origin` (or it doesn't resolve) → "A remote is the copy of your repo on GitHub that everything syncs to." Offer to create one and push: `gh repo create <name> --source=. --remote=origin --push` (ask **private vs public** first; default the name to the directory name). If `origin` exists but isn't GitHub, surface that and ask rather than reassigning it.
 5. **Preview deploys (optional).** If they want per-commit preview URLs from `/save`, mention that needs a provider (e.g. Vercel/Netlify) wired to the repo — out of scope for this installer, just flag it.
 
 If GitHub still isn't fully working after this (e.g. they want to set up the account later), say so plainly: install can still proceed, but `/save` and `/ship` won't work until auth + a remote exist. Don't block — let them choose.
@@ -65,7 +66,9 @@ cat "$ROOT/.claude/.wong-stack.json" 2>/dev/null || cat "$ROOT/.claude/.wong-fra
 
 ## Step 3F — fresh install
 
-Summarize the research, then propose the plan and ask (batch the questions — this is the moment to get the merge right):
+**Preamble first (before changing anything).** In a few plain sentences, tell the user what WongStack is and what you're about to set up — roughly: *"WongStack gives Claude a repeatable way to work in this repo: plan a change, build it, checkpoint it to a pull request, and ship it. I'm going to add a set of `/` commands, a planning folder, and merge a short section into your project notes — asking before each real change. Ready?"* Wait for a go-ahead. Keep it welcoming, skip jargon, and don't list the tool checks — this is the "here's the plan" moment, not a checklist.
+
+Then summarize the research and propose the plan (batch these questions — this is the moment to get the merge right). Frame each in plain language; ask, don't assume:
 1. **App facts** — confirm stack / how it deploys / preview deploys / default branch (these fill `CLAUDE.md`'s "What this is").
 2. **CLAUDE.md merge** — WongStack owns one block: the generic conventions between `WONG-STACK:BEGIN/END` in `$WS/CLAUDE.md`. "What this is" is always app-specific and lives *outside* the markers. No existing file → create one (generated "What this is" + the block). Existing → insert the block, preserving their content (including their own "What this is"); where their rules conflict with WongStack's, **ask which wins**.
 3. **docs/** — none → seed `docs/README.md` (sections from research) + copy the style pages (`wiki-style.md` + `voice.md`). Existing → don't restructure; just add `docs/wiki-style.md` + `docs/voice.md` if missing and ensure `docs/README.md` links them.
@@ -135,7 +138,9 @@ Adjust `components` to what was actually installed — set `openspec` to `true` 
 
 ## Step 6 — report
 
-Mode (fresh / X→`$LATEST`); any GitHub setup done (init / `gh` install / auth / remote created) or still outstanding; OpenSpec (CLI installed / `openspec init` run / already present); skills installed/updated/skipped (+ collisions); the auto-push hook (enabled / declined); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations. Then: *"Plan with `/plan`, build with `/apply`, checkpoint with `/save`, resume anywhere with `/continue`, and merge + archive with `/ship`. Re-run `/install-wong-stack` any time to update."* **Don't commit or push** — leave it for the user to review.
+Mode (fresh / X→`$LATEST`); any GitHub setup done (init / `gh` install / auth / remote created) or still outstanding; OpenSpec (CLI installed / `openspec init` run / already present); skills installed/updated/skipped (+ collisions); the auto-push hook (enabled / declined); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations.
+
+Then **hand the user a real first step**, not just a menu. Lead with one concrete, copy-pasteable command tied to something they might actually build — e.g. *"Try this to start your first change: `/plan add-a-readme` (name it after whatever you want to build). That drafts the plan; then `/apply` builds it, `/save` checkpoints it to a PR, and `/ship` merges it."* Follow with the full loop for reference: *"Plan with `/plan`, build with `/apply`, checkpoint with `/save`, resume anywhere with `/continue`, and merge + archive with `/ship`. Re-run `/install-wong-stack` any time to update."* **Don't commit or push** — leave it for the user to review.
 
 ## Hard rules
 - Research before touching anything; merge or ask, never blind-overwrite a `CLAUDE.md`, doc, or customized skill.

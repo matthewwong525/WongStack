@@ -3,6 +3,25 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 4.2.0 — a friendlier install for total newcomers
+
+The installer now welcomes someone who has never used Claude Code — or barely used a terminal — the
+way a good onboarding prompt should: paste one line, answer in plain language, and end up genuinely
+*started*. No behavior changes to what gets installed; this is voice and starting-point.
+
+- **Bootstrap from zero.** [`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md) now
+  treats "no repo yet / an empty folder" as a first-class starting point (Step 1.5, rung 0), not an
+  error path — it explains what a repo and a remote *are* and offers to set each up.
+- **Plain-language, one-thing-at-a-time.** The GitHub-readiness rungs each lead with a one-line "why,"
+  asked one at a time instead of as a wall of tool checks; a fresh install now opens with a short
+  human-facing preamble ("here's what I'm about to set up — ready?") before touching anything.
+- **A real first step.** The install now ends by handing you a concrete, copy-pasteable first command
+  (e.g. `/plan add-a-readme`), not just a menu of verbs.
+- **Warmer README front door** — the install section points newcomers at the web/desktop app
+  ([claude.ai/code](https://claude.com/claude-code)) as the least terminal-heavy way in, and reassures
+  that an empty folder with no Git/GitHub experience is fine. The paste stays a URL-read of the runbook,
+  so nothing drifts.
+
 ## 4.1.0 — a stack-neutral secrets convention
 
 WongStack now ships an opinion on secrets — the one generalizable piece of a downstream Cloudflare
