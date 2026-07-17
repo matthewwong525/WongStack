@@ -1,6 +1,6 @@
 ---
 name: contribute-wong-stack
-description: Push WongStack improvements made in THIS repo back up into a WongStack clone — the upstream-only inverse of /install-wong-stack. When you've improved a workflow skill, a docs convention, the auto-push hook, or the CLAUDE.md WONG-STACK block while working in a target repo, this diffs only those payload files against a WongStack clone, walks you through each drift (keep / take-from-here / skip), copies the approved ones up, then bumps VERSION + adds a CHANGELOG entry and leaves the clone ready for /save. Never reads or copies app/business-specific files, so nothing local leaks upstream. Use when you want to contribute, upstream, or push a skill/doc/workflow change back to WongStack.
+description: Push WongStack improvements made in THIS repo back up into a WongStack clone — the upstream-only inverse of /install-wong-stack. When you've improved a workflow skill, a docs convention, or the CLAUDE.md WONG-STACK block while working in a target repo, this diffs only those payload files against a WongStack clone, walks you through each drift (keep / take-from-here / skip), copies the approved ones up, then bumps VERSION + adds a CHANGELOG entry and leaves the clone ready for /save. Never reads or copies app/business-specific files, so nothing local leaks upstream. Use when you want to contribute, upstream, or push a skill/doc/workflow change back to WongStack.
 user-invocable: true
 ---
 
@@ -46,7 +46,6 @@ The manifest is exactly the set `/install-wong-stack` copies **into** a target �
 - **Workflow skills** — `.claude/skills/<name>/` for `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `document`, `improve`. **Never** the meta-skills (`install-wong-stack`, `contribute-wong-stack`) or the generated `openspec-*` skills (those come from `openspec init`, not the payload).
 - **Docs conventions** — `docs/wiki-style.md`, `docs/voice.md`, `docs/development/secrets.md`. (Not the rest of `docs/` — that's this repo's own wiki.)
 - **CLAUDE.md WONG-STACK block** — only the content between `WONG-STACK:BEGIN` and `WONG-STACK:END`. The "What this is" and every other section are this repo's own and are ignored.
-- **Auto-push hook** — `.claude/hooks/auto-push.sh`, only if this repo has it. (The `settings.json` Stop entry is per-repo boilerplate, not payload — don't diff it.)
 
 **Not in the diff:** `VERSION` and `CHANGELOG.md`. The installer never copies those into a target, so this repo's copies aren't WongStack's — they're handled by the release ritual in Step 3, in `$WS` only.
 
