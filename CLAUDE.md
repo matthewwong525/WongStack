@@ -2,9 +2,9 @@
 
 ## What this is
 
-This repo is **WongStack** — a stack-agnostic Claude Code workflow toolkit, distributed as a **template you clone and work from**. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), the optional [`.claude/hooks/`](.claude/hooks/) + [`.claude/settings.json`](.claude/settings.json) (the auto-push Stop hook), [`docs/`](docs/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md) skill copies that set (minus itself) into *other* repos. See the [README](README.md) for the user story.
+This repo is **WongStack** — a stack-agnostic Claude Code workflow toolkit, distributed as a **template you clone and work from**. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), the optional [`.claude/hooks/`](.claude/hooks/) + [`.claude/settings.json`](.claude/settings.json) (the auto-push Stop hook), [`docs/`](docs/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md) skill copies that set (minus the two meta-skills) into *other* repos; its inverse, [`contribute-wong-stack`](.claude/skills/contribute-wong-stack/SKILL.md), pushes payload improvements made in a target repo back up. See the [README](README.md) for the user story.
 
-It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/install-wong-stack` here; it's the source, not a target.
+It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/install-wong-stack` or `/contribute-wong-stack` here; it's the source, not a target (both stop when the clone *is* the current repo).
 
 **Working on WongStack:**
 - **Editing the payload is a release** — add a [`CHANGELOG.md`](CHANGELOG.md) entry and bump [`VERSION`](VERSION) (semver) so the updater can detect and explain it.
@@ -44,6 +44,10 @@ and its archive *is* the record.
   `/opsx:archive`), `/document` (write a process doc), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Branch name = change name ties a branch to its plan.
+- **Improved a WongStack skill or convention here?** `/contribute-wong-stack` pushes that change back
+  up into a WongStack clone — the upstream inverse of `/install-wong-stack`. It diffs only the payload
+  files, confirms each one, and copies the approved ones up (nothing app-specific ever leaks), then
+  leaves the clone ready for `/save`.
 - **Don't edit `docs/` mid-task** unless it's explicitly the task — reach for `/document` when a
   reusable process is worth capturing, with the change and diff in hand.
 - **Document general, reusable processes only.** The specifics of a given change live in its
