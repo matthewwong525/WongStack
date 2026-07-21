@@ -1,4 +1,4 @@
-**Status:** Implemented — upstreamed from WongOS via `/contribute-wong-stack`; ready for review + `/ship`.
+**Status:** Shipped 2026-07-21 — squash-merged in #22, archived.
 
 ## Why
 
