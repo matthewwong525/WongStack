@@ -13,7 +13,7 @@ WongOS (Matthew's personal second brain) proved two convention changes in daily 
 - **Wiki root is resolved, not hardcoded.** `improve` (`/improve docs` + `references/docs-audit-playbook.md`) and `dream` resolve `wiki/`, falling back to `docs/` — backward-compatible with every existing install.
 - **Convention pages updated** — the `CLAUDE.md` WONG-STACK block, `docs/wiki-style.md`, `docs/voice.md`, and `docs/development/secrets.md` now speak in `wiki/` terms and name `/dream` as the wiki's single write path. `/ship`'s cross-references point at `/dream`.
 - **Meta-skills + README follow the rename** — the payload manifests in `install-wong-stack` and `contribute-wong-stack` list `dream` instead of `document`; `README.md` and the repo `CLAUDE.md` drop every reference to the deleted skill.
-- **Release ritual:** `VERSION` 4.3.0 → 4.4.0, newest-first `CHANGELOG.md` entry.
+- **Release ritual:** `VERSION` → 4.5.0 (4.4.0 was taken by the auto-push retirement, #21), newest-first `CHANGELOG.md` entry.
 - **Non-goals:** WongStack's own `docs/` → `wiki/` directory rename and the installer's seeding of `wiki/` in new targets — the natural follow-up change, kept separate to keep this one review-sized.
 
 ## Capabilities
@@ -33,3 +33,4 @@ WongOS (Matthew's personal second brain) proved two convention changes in daily 
 ## Decision log
 
 - **2026-07-21** — Change authored and implemented in one pass: the payload edits were upstreamed from WongOS by `/contribute-wong-stack` (per-file approved: dream, improve, ship, WONG-STACK block, all three docs pages), then the meta-skill manifests, README, and CLAUDE.md were updated here so no reference to the deleted `document` skill survives. WongStack's own `docs/` → `wiki/` rename deliberately deferred to a follow-up change.
+- **2026-07-21** — Merged `main` (#21, retire the auto-push Stop hook, which claimed v4.4.0): conflicts resolved by combining both changes — skill lists say `dream` *and* carry no auto-push references; the `contribute-wong-stack` manifest spec drops the hook and the `settings.json` exclusion note. This release re-versioned 4.4.0 → **4.5.0**.

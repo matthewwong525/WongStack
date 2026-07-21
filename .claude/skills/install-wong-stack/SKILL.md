@@ -1,6 +1,6 @@
 ---
 name: install-wong-stack
-description: Install or update the WongStack in the current repo — a guided, question-driven integration that deep-researches what's already there, merges your existing CLAUDE.md with WongStack's conventions, sets up the OpenSpec planning layer (openspec init), installs the workflow skills (/explore, /plan, /apply, /save, /continue, /ship, /dream, /improve), optionally enables the auto-push Stop hook, and seeds the docs/ progressive-disclosure wiki. Re-run it any time to update to the latest version: it diffs what's installed, walks you through each change, and re-merges without clobbering your customizations. Use when setting up a new or existing repo to use the WongStack, or to upgrade an existing install.
+description: Install or update the WongStack in the current repo — a guided, question-driven integration that deep-researches what's already there, merges your existing CLAUDE.md with WongStack's conventions, sets up the OpenSpec planning layer (openspec init), installs the workflow skills (/explore, /plan, /apply, /save, /continue, /ship, /dream, /improve), and seeds the docs/ progressive-disclosure wiki. Re-run it any time to update to the latest version: it diffs what's installed, walks you through each change, and re-merges without clobbering your customizations. Use when setting up a new or existing repo to use the WongStack, or to upgrade an existing install.
 user-invocable: true
 ---
 
@@ -12,7 +12,7 @@ Guided installer **and** updater. First run installs; later runs update — diff
 
 ## Step 0 — locate (or fetch) the WongStack source
 
-The payload is **the WongStack repo itself** (root holds `.claude/skills/`, `.claude/hooks/`, `.claude/settings.json`, `docs/`, `CLAUDE.md`, `VERSION`, `CHANGELOG.md`, and the OpenSpec planning layer — `openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills); this skill is one skill inside it. The `openspec/` scaffold and its generated commands/skills are (re)generated in the target by `openspec init` (Step 3F.4a), not copied, so they always match the installed CLI. You may be running these instructions two ways — as the installed `/install-wong-stack` skill, or read fresh from the public repo (e.g. someone pasted the SKILL.md URL into Claude). Either way you need a local clone of WongStack as `$WS`. Resolve it, cloning if there's no local source:
+The payload is **the WongStack repo itself** (root holds `.claude/skills/`, `docs/`, `CLAUDE.md`, `VERSION`, `CHANGELOG.md`, and the OpenSpec planning layer — `openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills); this skill is one skill inside it. The `openspec/` scaffold and its generated commands/skills are (re)generated in the target by `openspec init` (Step 3F.4a), not copied, so they always match the installed CLI. You may be running these instructions two ways — as the installed `/install-wong-stack` skill, or read fresh from the public repo (e.g. someone pasted the SKILL.md URL into Claude). Either way you need a local clone of WongStack as `$WS`. Resolve it, cloning if there's no local source:
 ```bash
 # (a) running as an installed skill — source is 3 dirs up from this SKILL.md (follow symlinks)
 WS=$(cd "$(dirname "$(readlink -f "<this SKILL.md path>")")/../../.." 2>/dev/null && pwd)
@@ -38,7 +38,7 @@ Launch a subagent (`Explore` if available) to report, with file paths:
 > 2. **How it ships** — CI workflows (`.github/workflows/*`) and what they gate; any preview-deploy provider; the default branch (`git symbolic-ref refs/remotes/origin/HEAD`).
 > 3. **`CLAUDE.md`** — exists? Its section headings; any `WONG-STACK:BEGIN/END` markers (already integrated) and a "What this is".
 > 4. **`docs/`** — exists? Structure, and whether it's already a progressive-disclosure wiki (`README.md` hub, `wiki-style.md`).
-> 5. **`.claude/skills/`** — existing skills, especially collisions: `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve`. Also `.claude/settings.json` (does it already define a `hooks.Stop` entry?) and `.claude/hooks/`.
+> 5. **`.claude/skills/`** — existing skills, especially collisions: `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve`.
 > 6. **OpenSpec** — is the `openspec` CLI installed (`command -v openspec`)? Is there already an `openspec/` folder (init'd already) or generated `.claude/commands/opsx/` commands? Is `node`/`npm` present (needed to install the CLI)?
 > 7. **Legacy traces** — `.claude/.wong-stack.json` manifest? a `daily/` folder? an old `claude-framework` plugin in `.claude/settings.json`? A removed `preview` skill (pre-3.0, folded into `/save`)?
 > 8. **GitHub readiness** (WongStack runs on GitHub — every skill needs this): is this a git repo (`git rev-parse --is-inside-work-tree`)? Is `gh` installed (`command -v gh`) and authed (`gh auth status`)? Is there an `origin` remote pointing at GitHub (`git remote -v`), and does it resolve (`gh repo view`)? `jq` present?
@@ -79,8 +79,7 @@ Then summarize the research and propose the plan (batch these questions — this
 3. **docs/** — none → seed `docs/README.md` (sections from research) + copy the style pages (`wiki-style.md` + `voice.md`). Existing → don't restructure; just add `docs/wiki-style.md` + `docs/voice.md` if missing and ensure `docs/README.md` links them.
 4. **Skills** — install `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve` (never the installer itself, and never the generated `openspec-*` skills — those come from `openspec init` in 4a). Collision with an existing skill → ask per-collision (keep theirs / replace / install under another name).
 4a. **OpenSpec** — the planning layer the skills front. If `openspec` isn't installed, offer to install the CLI (`npm install -g @fission-ai/openspec@latest`; if a global install is blocked, the skills can fall back to `npx @fission-ai/openspec`). Then, unless the target already has an `openspec/` folder, run `openspec init --tools claude` there to scaffold `openspec/` and generate the `/opsx:*` commands + `openspec-*` skills. Already init'd → leave it; just confirm the CLI is present.
-5. **Auto-push hook (optional, ask).** Offer the `auto-push` Stop hook: *once a branch has an open PR, it auto-commits and pushes any pending work every turn, so you stop re-running `/save`.* It's more intrusive than a skill (it acts every turn), so it's **off unless the user opts in** — default no. It never touches the default branch or a branch without an open PR.
-6. **Workflow fit** — confirm the loop suits them: plan in `openspec/` (`/plan`), build (`/apply`), checkpoint (`/save`) with CI as the gate when present (else PR review), resume anywhere (`/continue`), merge + archive (`/ship`). Thin/absent CI is fine — CI is an optional accelerator, not a requirement; without it the PR review is the gate.
+5. **Workflow fit** — confirm the loop suits them: plan in `openspec/` (`/plan`), build (`/apply`), checkpoint (`/save`) with CI as the gate when present (else PR review), resume anywhere (`/continue`), merge + archive (`/ship`). Thin/absent CI is fine — CI is an optional accelerator, not a requirement; without it the PR review is the gate.
 
 Then integrate (`$ROOT` = target, `$WS` = source):
 ```bash
@@ -99,13 +98,6 @@ done
 - **CLAUDE.md** — Read + Edit/Write to create-or-merge (never blind overwrite). Lift the marker block (markers included) from `$WS/CLAUDE.md`; ensure a "## What this is" exists outside it (generate from the facts if absent); keep the markers.
 - **Secrets convention** *(offer, don't force)* — the [secrets](../../../docs/development/secrets.md) doc rides along with `docs/`. Additionally offer to seed a `.env.example` (copy `$WS/.env.example` if the repo has none, or point at their existing dotenv file) and to git-ignore the real secrets files — Read `.gitignore` and add `.env` / `.env.local` (and any stack-specific file like `.dev.vars`) if missing. The target may already handle secrets its own way; confirm before touching `.gitignore` or adding the example.
 - **docs/README.md** — from `$WS/docs/README.md` (seeded sections) only if absent; else ensure it links `wiki-style.md` + `voice.md`.
-- **Auto-push hook** *(only if the user opted in at Step 3F.5)* — copy the script, then **merge** the Stop hook into `.claude/settings.json` rather than overwriting it (the repo may already have hooks):
-  ```bash
-  mkdir -p "$ROOT/.claude/hooks"
-  cp "$WS/.claude/hooks/auto-push.sh" "$ROOT/.claude/hooks/auto-push.sh"
-  chmod +x "$ROOT/.claude/hooks/auto-push.sh"
-  ```
-  For `settings.json`: no file → copy `$WS/.claude/settings.json` verbatim. File exists → Read it and add our Stop entry to the existing `hooks.Stop` array (create `hooks`/`Stop` if absent) with `jq`, never clobbering their other hooks; skip if an identical `auto-push.sh` entry is already there (idempotent). If the user declined the hook, install neither file.
 - Then write the manifest (Step 4).
 
 ## Step 3U — update
@@ -116,7 +108,7 @@ Bring the repo to `$LATEST` **without** undoing customizations.
    - **Skills** — compare each `$WS/.claude/skills/<name>` (except the meta-skills `install-wong-stack` and `contribute-wong-stack`) to the installed copy: identical → update silently; **differs (customized)** → show the diff and ask (keep / take new / merge); new skill → offer it. A customized skill here is exactly what `/contribute-wong-stack` exists to push back up.
    - **CLAUDE.md** — re-merge **only between the markers**; leave everything outside (their "What this is") untouched. Markers missing → show the block, ask where to insert. Flag any new rule that conflicts with their content.
    - **Style pages** — `docs/wiki-style.md` + `docs/voice.md`: unchanged → refresh from `$WS`; edited → diff and ask; missing (`voice.md` on a pre-2.3.0 repo) → add.
-   - **Auto-push hook** — if the manifest shows it installed, refresh `.claude/hooks/auto-push.sh` from `$WS` (diff + ask if they edited it). If it's not installed and `$WS` newly ships it, **offer** it (same opt-in framing as Step 3F.5); on yes, install the script and merge the Stop entry into `settings.json` as in Step 3F.
+   - **Auto-push hook (retired in 4.4.0)** — if the manifest shows `autoPushHook: true`, the target has a `.claude/hooks/auto-push.sh` + a `hooks.Stop` entry from an older WongStack. Offer to remove both (delete the script; drop only our `auto-push.sh` entry from `settings.json` with `jq`, leaving any other hooks intact), then set `autoPushHook: false` in the manifest. Ask first; leave it if they still want it.
    - **OpenSpec** — manifest lacks `openspec` (a pre-3.0 install) → set it up now per Step 3F.4a (install the CLI if needed, `openspec init --tools claude`), and note the retired `preview` skill was folded into `/save`. Already present → confirm the CLI is installed; leave the target's `openspec/` untouched.
 3. Apply only what's approved, then update the manifest.
 
@@ -125,10 +117,10 @@ Bring the repo to `$LATEST` **without** undoing customizations.
 ```bash
 cat > "$ROOT/.claude/.wong-stack.json" <<EOF
 { "version": "$LATEST", "installedAt": "<existing, or today>", "updatedAt": "$(date +%F)",
-  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve"], "claudeMd": true, "docs": true, "openspec": true, "autoPushHook": false } }
+  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve"], "claudeMd": true, "docs": true, "openspec": true } }
 EOF
 ```
-Adjust `components` to what was actually installed — set `openspec` to `true` only if `openspec init` ran (or the target was already init'd), and `autoPushHook` to `true` only if the user opted into the Stop hook. Always write this last, reflecting reality — it's the source of truth for the next run.
+Adjust `components` to what was actually installed — set `openspec` to `true` only if `openspec init` ran (or the target was already init'd). (A legacy `autoPushHook` key may linger from a pre-4.4.0 install; the update path in Step 3U offers to retire it.) Always write this last, reflecting reality — it's the source of truth for the next run.
 
 ## Step 5 — migrate legacy traces (ask first; never delete unprompted)
 
@@ -143,7 +135,7 @@ Adjust `components` to what was actually installed — set `openspec` to `true` 
 
 ## Step 6 — report
 
-Mode (fresh / X→`$LATEST`); any GitHub setup done (init / `gh` install / auth / remote created) or still outstanding; OpenSpec (CLI installed / `openspec init` run / already present); skills installed/updated/skipped (+ collisions); the auto-push hook (enabled / declined); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations.
+Mode (fresh / X→`$LATEST`); any GitHub setup done (init / `gh` install / auth / remote created) or still outstanding; OpenSpec (CLI installed / `openspec init` run / already present); skills installed/updated/skipped (+ collisions); CLAUDE.md created-or-merged (+ conflicts reconciled); docs seeded or left intact; migrations.
 
 Then **hand the user a real first step**, not just a menu. Lead with one concrete, copy-pasteable command tied to something they might actually build — e.g. *"Try this to start your first change: `/plan add-a-readme` (name it after whatever you want to build). That drafts the plan; then `/apply` builds it, `/save` checkpoints it to a PR, and `/ship` merges it."* Follow with the full loop for reference: *"Plan with `/plan`, build with `/apply`, checkpoint with `/save`, resume anywhere with `/continue`, and merge + archive with `/ship`. Re-run `/install-wong-stack` any time to update."* **Don't commit or push** — leave it for the user to review.
 

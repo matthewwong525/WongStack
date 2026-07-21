@@ -3,7 +3,7 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
-## 4.4.0 — /dream replaces /document; the wiki lives at `wiki/`
+## 4.5.0 — /dream replaces /document; the wiki lives at `wiki/`
 
 Upstreamed from **WongOS** (Matthew's personal second brain), where the conventions were proven in
 use: the wiki moved from `docs/` to `wiki/`, and the write path became **`/dream`** — capture the
@@ -26,6 +26,21 @@ session's durable facts, then consolidate the whole tree — replacing the page-
   `/dream` as the gardener. (WongStack's own pages still sit at `docs/` — the repo's own
   `docs/` → `wiki/` rename + installer update is the natural follow-up.)
 - **`/ship` cross-references updated** — docs distillation now points at `/dream`.
+
+## 4.4.0 — retire the auto-push Stop hook
+
+WongStack no longer ships the optional auto-push `Stop` hook. It was opt-in and off by default, but a
+hook that commits and pushes on every turn is more surprising than it's worth now that `/save` and
+`/ship` own git explicitly — the payload is simpler without it.
+
+- **Removed from the payload** — `.claude/hooks/auto-push.sh` and the `.claude/settings.json` `Stop`
+  entry are gone; `install-wong-stack` no longer offers the hook (the Step 3F question and the
+  copy/merge step are dropped, and the manifest no longer carries `autoPushHook`); `contribute-wong-stack`
+  no longer diffs it.
+- **Update path cleans up existing installs** — re-running `/install-wong-stack` on a repo whose
+  manifest shows `autoPushHook: true` now **offers to remove** the installed `auto-push.sh` and drop
+  only our `Stop` entry from `settings.json` (leaving any other hooks intact), then flips the manifest.
+- No change to the core loop: `/explore → /plan → /apply → /save → /continue → /ship`.
 
 ## 4.3.0 — contribute-wong-stack: push improvements back upstream
 

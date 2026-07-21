@@ -16,5 +16,5 @@
 
 ## 3. Release
 
-- [x] 3.1 Bump `VERSION` 4.3.0 → 4.4.0 (minor — new skill behavior)
+- [x] 3.1 Bump `VERSION` → 4.5.0 (minor — new skill behavior; 4.4.0 was claimed by #21 on main)
 - [x] 3.2 Add newest-first `CHANGELOG.md` entry naming what was upstreamed and that it came from WongOS
