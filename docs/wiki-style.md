@@ -1,6 +1,6 @@
-# Progressive-disclosure docs: the rulebook
+# Progressive-disclosure wiki: the rulebook
 
-A `docs/` wiki built this way is a **progressive-disclosure process tree**: one place to start, and every node drills down into more detail. You read the high level, click into the part you care about, and that part breaks down the same way — recursively. This page is how to add to such a wiki so it keeps working that way.
+A `wiki/` built this way is a **progressive-disclosure process tree**: one place to start, and every node drills down into more detail. You read the high level, click into the part you care about, and that part breaks down the same way — recursively. This page is how to add to such a wiki so it keeps working that way.
 
 It uses **plain Markdown and standard Markdown links** — nothing tool-specific — so it works in GitHub's renderer, any static-site generator, an in-app viewer, or just a folder of `.md` files.
 
@@ -69,4 +69,4 @@ Open a section with a `mermaid` diagram when a picture helps see the whole flow 
 
 ## Keeping it tidy
 
-In WongStack, the wiki is gardened with **`/document`**: when a reusable process is worth capturing, it extends the page that owns it (or, rarely, adds a properly-placed and linked new one) — following exactly the rules above. The discipline is: document **general, reusable processes only**; a change's specifics live in its proposal and specs (preserved in `openspec/changes/archive/` when it ships), never the wiki. One topic, one page; link, don't restate.
+In WongStack, [the wiki](README.md) is gardened with **`/dream`**: it captures what the session's conversation said that's durably true — extending the page that owns each fact (or, rarely, adding a properly-placed and linked new one) — then consolidates the whole tree: duplicates merged, contradictions resolved newest-wins, stale content pruned, links repaired — following exactly the rules above. The discipline is: document **general, reusable processes only**; a change's specifics live in its proposal and specs (preserved in `openspec/changes/archive/` when it ships), never the wiki. One topic, one page; link, don't restate.

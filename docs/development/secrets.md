@@ -21,4 +21,4 @@ Work down the file top to bottom, following each comment to wherever the value c
 
 The template is only useful if it stays complete. **When you add a variable in code, add it to `.env.example` in the same change** — blank, with its comment. Treat a missing entry as a bug: the next contributor's app won't run and they won't know why. Reviewers can watch for a code reference to a new variable that has no matching template line.
 
-This is the same discipline the rest of the wiki runs on — keep the shared source of truth current as you go, rather than letting it drift. For how work moves through the repo, see [the change loop](the-change-loop.md).
+This is the same discipline the rest of [the wiki](../README.md) runs on — keep the shared source of truth current as you go, rather than letting it drift. Other development processes live in [Development](README.md).
