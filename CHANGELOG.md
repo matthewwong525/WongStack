@@ -3,6 +3,30 @@
 The `/install-wong-stack` updater reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 4.4.0 — /dream replaces /document; the wiki lives at `wiki/`
+
+Upstreamed from **WongOS** (Matthew's personal second brain), where the conventions were proven in
+use: the wiki moved from `docs/` to `wiki/`, and the write path became **`/dream`** — capture the
+session's durable facts, then consolidate the whole tree — replacing the page-at-a-time `/document`.
+
+- **New `/dream` skill, `/document` retired** — [`dream`](.claude/skills/dream/SKILL.md) consolidates
+  the session into the wiki the way sleep consolidates memory: capture durable facts the user stated,
+  then garden the whole wiki (merge duplicates, resolve contradictions newest-wins, prune stale
+  content, repair links, reality-check cited paths/commands against the code). Deliberate only;
+  edits stay in the working tree for `/save`. `.claude/skills/document/` (and its
+  `references/progressive-disclosure.md`) is deleted — the rulebook lives in the repo's own
+  `wiki-style.md`.
+- **Wiki root is `wiki/`, falling back to `docs/`** —
+  [`improve`](.claude/skills/improve/SKILL.md) (`/improve docs` + the
+  [docs audit playbook](.claude/skills/improve/references/docs-audit-playbook.md)) and `dream`
+  resolve the wiki root instead of hardcoding `docs/`, so un-renamed repos keep working.
+- **Conventions updated for the rename** — the `CLAUDE.md` WONG-STACK block,
+  [`docs/wiki-style.md`](docs/wiki-style.md), [`docs/voice.md`](docs/voice.md), and
+  [`docs/development/secrets.md`](docs/development/secrets.md) now speak in `wiki/` terms and name
+  `/dream` as the gardener. (WongStack's own pages still sit at `docs/` — the repo's own
+  `docs/` → `wiki/` rename + installer update is the natural follow-up.)
+- **`/ship` cross-references updated** — docs distillation now points at `/dream`.
+
 ## 4.3.0 — contribute-wong-stack: push improvements back upstream
 
 The round trip is complete. `/install-wong-stack` copies the payload *down* into a repo; the new

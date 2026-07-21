@@ -2,17 +2,18 @@
 
 The **`docs` variant's** specialization of [audit-playbook.md](audit-playbook.md). When
 `/improve docs` runs, this *replaces* that playbook's generic *Docs* category (§8) with a full
-pass over a `docs/` **progressive-disclosure wiki**. Everything else in the skill is unchanged —
-the same Recon → Audit → Vet → Plan workflow, the same [plan template](plan-template.md), the
-same `plans/` handoff and finding format.
+pass over the repo's **progressive-disclosure wiki**. The wiki root is `wiki/`, falling back to
+`docs/` in repos that keep the old name — `wiki/` in the examples below means that resolved root.
+Everything else in the skill is unchanged — the same Recon → Audit → Vet → Plan workflow, the
+same [plan template](plan-template.md), the same `plans/` handoff and finding format.
 
 What to look for, per lens. Each subagent (or direct audit pass) gets the relevant section plus
 the **Finding format** at the bottom. The standard every finding is measured against is the
-repo's own [`wiki-style.md`](../../../../docs/wiki-style.md) — read it first; these lenses are
-how you find where the wiki has drifted from it.
+repo's own `wiki-style.md` at the wiki root ([`wiki/wiki-style.md`](../../../../wiki/wiki-style.md)
+here) — read it first; these lenses are how you find where the wiki has drifted from it.
 
 A finding is only a finding with **evidence**. "The docs feel disorganized" is not a finding;
-"`docs/guides/setup.md:40` links `#count-raw-materials` but the heading's slug is
+"`wiki/guides/setup.md:40` links `#count-raw-materials` but the heading's slug is
 `#count-raw-materials--monday`, so it 404s" is.
 
 This audit is **read-only and pure-judgment — there is no script.** You resolve links and compute
@@ -35,13 +36,13 @@ reader a dead end.
 - **Dead `#anchors`** — a `[text](page.md#heading)` whose slug matches no heading in the target.
   Compute the slug by the rule above; the usual cause is a heading renamed or that lost a suffix.
   The fix regenerates the anchor from the live heading.
-- **Orphan pages** — a page unreachable by following links from `docs/README.md` (nothing links to
+- **Orphan pages** — a page unreachable by following links from `wiki/README.md` (nothing links to
   it, not even its hub).
 - **Hub-coverage gaps** — a folder `README.md` that doesn't link one of its own child pages or
   child-folder hubs (a hub must link every child).
 - **Dead-ends** — a page with no outgoing relative links (no up/down/sideways navigation).
 
-Do **not** flag **illustrative / seed example links** — the seed list in `docs/README.md`
+Do **not** flag **illustrative / seed example links** — the seed list in `wiki/README.md`
 (`development/README.md`, …) and the `[label](path.md)` samples inside `wiki-style.md` point at
 non-existent files on purpose. By-design, not a finding.
 
@@ -108,7 +109,7 @@ Every docs finding, from every lens and every subagent, comes back in this shape
 ```markdown
 ### [DOCS-NN] Short imperative title
 
-- **Evidence**: `docs/path/page.md:123` — one sentence on what's there and which wiki-style rule
+- **Evidence**: `wiki/path/page.md:123` — one sentence on what's there and which wiki-style rule
   it violates. (Repeat per location; 2–5 strongest, note "and ~N similar".)
 - **Impact**: The reader cost. Concrete: "every reader following this link 404s", not "suboptimal".
 - **Effort**: S (a few edits) / M (a page or a cluster) / L (a restructure across pages) — for the
@@ -145,7 +146,7 @@ template is written for code — override these):
   executor links without guessing).
 - **The verification gate isn't a build.** Docs have no `pnpm typecheck` / test suite. Replace the
   template's command table and done-criteria with docs checks: the target file exists
-  (`test -f docs/<path>`), the `#anchor` matches a real heading slug, the opener is a topic-defining
+  (`test -f wiki/<path>`), the `#anchor` matches a real heading slug, the opener is a topic-defining
   sentence, and re-running `/improve docs` no longer reports the finding.
 - **Invent nothing.** A fix that would need a fact the repo doesn't contain (a procedure, a
   default, a decision) is a **STOP condition / open question** in the plan, never a guess.
@@ -153,7 +154,7 @@ template is written for code — override these):
 **Applying a docs plan — the WongStack way (no `execute`).** Unlike code plans, docs plans are
 *not* dispatched to an executor subagent. A human (or a fresh Claude session) picks up the plan —
 in OpenSpec mode, **`/continue <slug>`** loads the change and implements it; otherwise open the
-plan file, run its drift check, and make exactly the edits it names in `docs/**` — confirms the
+plan file, run its drift check, and make exactly the edits it names in `wiki/**` — confirms the
 done criteria, then **`/save`** (sync specs + push + preview) → **`/ship`** (merge once the gate
 passes — CI when present, else PR review — then archive the change). `--issues` and `reconcile`
 work as in [closing-the-loop.md](closing-the-loop.md), adapted per

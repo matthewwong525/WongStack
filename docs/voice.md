@@ -2,7 +2,8 @@
 
 **Say the most in the fewest words a stranger can still follow.** Density and clarity aren't
 rivals — you win both by cutting filler and choosing exact words, not by cramming clauses.
-[Wiki style](wiki-style.md) owns a page's shape; this owns its sentences.
+[Wiki style](wiki-style.md) owns a page's shape; this owns its sentences. Every page in
+[the wiki](README.md) gets both.
 
 - **Lead with the point.** First sentence says what it is or what to do — no runway. Search
   and hover previews quote it.

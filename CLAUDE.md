@@ -9,17 +9,17 @@ It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below 
 **Working on WongStack:**
 - **Editing the payload is a release** — add a [`CHANGELOG.md`](CHANGELOG.md) entry and bump [`VERSION`](VERSION) (semver) so the updater can detect and explain it.
 - Skills run from a target repo's `.claude/skills/`, so they reference files by **repo-relative path** (`$(git rev-parse --show-toplevel)/.claude/skills/...`) — never `${CLAUDE_PLUGIN_ROOT}` or an absolute path.
-- Rulebook canonical: [`.claude/skills/document/references/progressive-disclosure.md`](.claude/skills/document/references/progressive-disclosure.md); [`docs/wiki-style.md`](docs/wiki-style.md) is a synced copy (re-copy when you edit the canonical).
+- Rulebook canonical: [`docs/wiki-style.md`](docs/wiki-style.md) — the payload copy the installer places at a target's wiki root; the skills (`/dream`, `/improve docs`) read the repo's own copy there.
 - **The WongStack skills own all git; OpenSpec never runs git.** `/explore`·`/plan`·`/apply` front `/opsx:explore`·`/opsx:propose`·`/opsx:apply` and touch no git; `/save`·`/continue`·`/ship` own every git action — `/save` runs `/opsx:sync`, `/continue` checks out the branch then hands off to `/apply`, `/ship` runs `/opsx:archive`. When you touch one of the git skills, keep the OpenSpec step it fronts intact.
 
 <!-- WONG-STACK:BEGIN — generic WongStack conventions. The installer lifts this block verbatim into a target repo's CLAUDE.md, so keep it free of repo-specifics. Edit freely between the markers. -->
 
 ## Where context lives
 
-`docs/` is the source of truth for **how we do things** — process and conventions alike.
+`wiki/` is the source of truth for **how we do things** — process and conventions alike.
 Before any non-trivial change, **find and read the owning doc** rather than guessing from
-code or memory. Start at [`docs/README.md`](docs/README.md) and drill down: index →
-section README → the specific page. How the wiki is organized: [`docs/wiki-style.md`](docs/wiki-style.md).
+code or memory. Start at [`wiki/README.md`](wiki/README.md) and drill down: index →
+section README → the specific page. How the wiki is organized: [`wiki/wiki-style.md`](wiki/wiki-style.md).
 
 The plan for **what we're building** lives in **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** —
 each change is a folder under `openspec/changes/<name>/` (proposal, delta specs, design, tasks).
@@ -41,14 +41,14 @@ and its archive *is* the record.
   `/apply` (implement the tasks — `/opsx:apply`), `/save` (sync specs + maintain the Status header +
   append to the Decision log + push + PR-body mirror + preview — `/opsx:sync`),
   `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (merge + archive —
-  `/opsx:archive`), `/document` (write a process doc), `/improve` (read-only advisor; `/improve docs`
+  `/opsx:archive`), `/dream` (capture session facts into the wiki + consolidate it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Branch name = change name ties a branch to its plan.
 - **Improved a WongStack skill or convention here?** `/contribute-wong-stack` pushes that change back
   up into a WongStack clone — the upstream inverse of `/install-wong-stack`. It diffs only the payload
   files, confirms each one, and copies the approved ones up (nothing app-specific ever leaks), then
   leaves the clone ready for `/save`.
-- **Don't edit `docs/` mid-task** unless it's explicitly the task — reach for `/document` when a
+- **Don't edit `wiki/` mid-task** unless it's explicitly the task — reach for `/dream` when a
   reusable process is worth capturing, with the change and diff in hand.
 - **Document general, reusable processes only.** The specifics of a given change live in its
   proposal and specs (and its archive), not the wiki.

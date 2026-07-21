@@ -8,7 +8,7 @@ user-invocable: true
 
 Ship runbook. Invoking it authorizes the push, merge, and archive in Steps 3–5 — don't re-prompt. Confirm anything outside this runbook (force push, hard reset).
 
-`/ship` is the **merge + archive** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, then squash-merges the code. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/document` for that). CI is the gate when the repo has checks: we push, wait, and on red read-fix-repush until green, then merge. No checks configured → the PR review is the gate; merge once approved. Never build/test locally.
+`/ship` is the **merge + archive** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, then squash-merges the code. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/dream` for that). CI is the gate when the repo has checks: we push, wait, and on red read-fix-repush until green, then merge. No checks configured → the PR review is the gate; merge once approved. Never build/test locally.
 
 Deeper code review (cleanliness, broad consolidation, downstream breakage) happens **out-of-band** — PR review, or a dedicated code-review pass — not as a `/ship` gate; `/ship` is the merge, not the review.
 
@@ -80,4 +80,4 @@ On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not
 ## Hard rules
 - Never ship onto a red default branch (when it has checks). Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. Never build/test locally — CI is the gate when present, else PR review.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
-- No GitHub summary issue and no docs distillation — the archived spec is the record; `/document` handles docs.
+- No GitHub summary issue and no docs distillation — the archived spec is the record; `/dream` handles the wiki.
