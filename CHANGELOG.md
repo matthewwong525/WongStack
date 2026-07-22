@@ -27,6 +27,31 @@ carries your improvements back up, replacing the installer's update mode and `/c
   `upstream { repo, fork, clone }`; the clone moves to `${XDG_CACHE_HOME:-~/.cache}/wong-stack/`.
   Old manifests migrate lazily: the first sync falls back to a two-way walk, then records the base.
 
+## 4.6.0 — UX stage in /plan: design the screen before the tasks
+
+Upstreamed from **ClaymooApp**, where a `/plan` UX stage was proven on a UI-heavy Workers app: a
+UI-bearing change now designs *what a screen should be* — the job, the flow, the hierarchy — before
+any task is written, so tasks build against a spec instead of a guess. Stack-neutral and **gated to
+repos with UI**: a CLI, library, or backend never runs the stage and never installs the doc.
+
+- **New `docs/ux-principles.md`** — the judgment layer beside `wiki-style`/`voice`: use-case-first
+  brief (who, the job, what *done* looks like, context, common-vs-edge, stated frequency
+  assumptions), the shortest flow from intent to done, and the Refactoring-UI principles
+  (hierarchy, one primary action per screen, emphasize-by-de-emphasizing, design the empty state).
+  Ends with the `## UX` section template every UI-bearing change carries in its design.md. No
+  design-system specifics — it points at *your* repo's UI/component conventions for the mechanics.
+- **`/plan` UX stage** — [`plan`](.claude/skills/plan/SKILL.md) gains a "UX stage (UI-bearing changes
+  only)": a design subagent drafts the `## UX` section by mirroring the closest existing screen, a
+  critic subagent checks it against `ux-principles.md`, one revision round, then tasks reference the
+  subsection they implement. UI-less changes skip it entirely.
+- **OpenSpec rules** — [`openspec/config.yaml`](openspec/config.yaml) gains a `design` rule (UI-bearing
+  → carry a `## UX` section per `ux-principles.md`) and a `tasks` rule (UI tasks cite the `## UX`
+  subsection), so any author — not just `/plan` — is held to the same shape.
+- **Installer + contribute wiring** — [`install-wong-stack`](.claude/skills/install-wong-stack/SKILL.md)
+  offers `ux-principles.md` only when the target has UI (never forced into a UI-less repo, on install
+  or update); [`contribute-wong-stack`](.claude/skills/contribute-wong-stack/SKILL.md) adds it to the
+  payload manifest so the doc round-trips.
+
 ## 4.5.0 — /dream replaces /document; the wiki lives at `wiki/`
 
 Upstreamed from **WongOS** (Matthew's personal second brain), where the conventions were proven in

@@ -8,7 +8,7 @@ The single source of truth for **which files sync** between WongStack and a targ
   `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve`, **`wong-sync`** (this skill syncs itself — upstream improvements to the sync arrive through the sync).
   A skill installed under a different local name is diffed under that name: the target's `.claude/.wong-stack.json` `components.skills` array records what was actually installed, and that mapping wins over the default names.
 - **Docs convention pages** — at the target's wiki root (`wiki/`, falling back to `docs/`):
-  `wiki-style.md`, `voice.md`, `development/secrets.md`.
+  `wiki-style.md`, `voice.md`, `development/secrets.md`, and `ux-principles.md` (**UI-bearing repos only** — synced where installed, offered when the repo has a frontend/screens, never pushed into a CLI/library/backend repo).
   Only these pages — the rest of the wiki is the target repo's own.
 - **CLAUDE.md — the `WONG-STACK` block only** — the content between `WONG-STACK:BEGIN` and `WONG-STACK:END`. Everything outside the markers ("What this is" and any repo-specific sections) belongs to the target and is never compared or copied.
 

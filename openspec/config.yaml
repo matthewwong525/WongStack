@@ -21,6 +21,17 @@ context: |
 rules:
   proposal:
     - Keep it tight — what changes and why, plus a Non-goals line.
+  design:
+    - If the change adds or meaningfully restructures a user-facing screen (a page
+      or component — not merely touching a UI file), include a "## UX" section
+      following docs/ux-principles.md — use-case brief (who, the job, what done
+      looks like, context of use, common vs edge case, stated frequency assumptions),
+      the shortest flow from intent to done, hierarchy (the one primary action per
+      screen), ASCII wireframes including empty/error states, and the component
+      inventory. Prefer mirroring the closest existing screen; name it in the brief.
+      Skip the section for UI-less changes (worker, CLI, library).
   tasks:
     - Group tasks by the surface they touch (skill, script, docs, CLAUDE.md).
+    - UI tasks reference the design.md "## UX" subsection they implement
+      (e.g. 'Build list view per design.md ## UX — Wireframes').
     - A payload change is not done until VERSION and CHANGELOG.md are updated.
