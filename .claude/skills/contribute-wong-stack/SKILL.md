@@ -44,7 +44,7 @@ Optional: symlink this skill so `/contribute-wong-stack` is a real command in th
 The manifest is exactly the set `/install-wong-stack` copies **into** a target — so it's exactly what can be improved here and flow back. Compare each file in `ROOT` against its counterpart in `$WS`; surface only the ones that differ. **Nothing outside this list is read.**
 
 - **Workflow skills** — `.claude/skills/<name>/` for `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve`. **Never** the meta-skills (`install-wong-stack`, `contribute-wong-stack`) or the generated `openspec-*` skills (those come from `openspec init`, not the payload).
-- **Docs conventions** — `docs/wiki-style.md`, `docs/voice.md`, `docs/development/secrets.md`. (Not the rest of `docs/` — that's this repo's own wiki.)
+- **Docs conventions** — `docs/wiki-style.md`, `docs/voice.md`, `docs/ux-principles.md`, `docs/development/secrets.md`. (Not the rest of `docs/` — that's this repo's own wiki.)
 - **CLAUDE.md WONG-STACK block** — only the content between `WONG-STACK:BEGIN` and `WONG-STACK:END`. The "What this is" and every other section are this repo's own and are ignored.
 
 **Not in the diff:** `VERSION` and `CHANGELOG.md`. The installer never copies those into a target, so this repo's copies aren't WongStack's — they're handled by the release ritual in Step 3, in `$WS` only.
