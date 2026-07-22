@@ -48,7 +48,7 @@ Read, don't modify — and **don't act on the GitHub gaps yet**; that work waits
 
 ## Step 3 — discover and diagnose (skippable)
 
-**Fast path:** the user arrived already decided — they said "just install it", asked to skip the questions, or came in having read the README and named what they want. Confirm in one line and jump to Step 5. The consultation is for the undecided, never a toll gate.
+**Default is the consultation** — run it unless the user gives an **explicit skip signal**: "just install it", "skip the questions", or the like. A bare "set up WongStack in this repo" (the README paste included) is a *request to be walked through it*, **not** a skip signal — run the discovery below. On a real skip signal, confirm in one line and jump to Step 5. The consultation is for the undecided, never a toll gate — but the paste alone doesn't opt out of it.
 
 Otherwise, hold a short discovery conversation using the [fit playbook](references/fit-playbook.md):
 - Pick **2–4 questions** from the playbook's question bank, chosen and phrased around what Step 2 found — reference the actual repo ("I see there's no CI and `docs/` hasn't moved since March — how do you verify a change today?"), never the blank script. One question at a time; follow what they actually say.

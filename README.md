@@ -32,11 +32,12 @@ Each verb fronts one step of the OpenSpec loop — `/explore → /plan → /appl
 
 **New to Claude Code?** It's Anthropic's coding agent — the least terminal-heavy way to try it is the web/desktop app at **[claude.ai/code](https://claude.com/claude-code)**. Open it on the folder you want to set up (an empty folder is fine — the setup will get you a repo and GitHub sorted, step by step). You don't need to have used Git or GitHub before.
 
-Then paste this one line — that's the whole setup (not sure WongStack is for you? it'll tell you):
+Then paste this one line — the front door that sizes up fit first (not sure WongStack is for you? it'll tell you):
 
 ```
-Set up WongStack in this repo by reading and following
+Read and follow
 https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.claude/skills/wong-setup/SKILL.md
+to see whether WongStack fits how I work — then, if it does, walk me through setting it up.
 ```
 
 Your agent takes it from there (the prompt is written for Claude Code but works in any coding agent that can run shell commands): it clones WongStack, looks over your repo, asks a few questions about where your workflow hurts, and gives an **honest fit verdict** — if WongStack isn't a good fit, it says so and suggests what to use instead. On a yes (or a "just install it"), it sets up git, GitHub, and OpenSpec (`openspec init`), then hands the install to `/wong-sync`, which pulls in the skills (`/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve`, `/wong-sync`) and the wiki convention pages in one pass — **asking before it changes anything**, and ending by handing you your first command to run. From then on, the same `/wong-sync` keeps you current.
