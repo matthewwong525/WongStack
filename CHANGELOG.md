@@ -1,7 +1,31 @@
 # Changelog
 
-The `/install-wong-stack` updater reads the entries newer than your installed version
+`/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
+
+## 5.0.0 — /wong-sync: the round trip in one pass
+
+One skill now owns staying current: **`/wong-sync`** pulls upstream WongStack changes down *and*
+carries your improvements back up, replacing the installer's update mode and `/contribute-wong-stack`
+(both did blind two-way diffs, and contributing ended with a dirty clone you had to go `/save` yourself).
+
+- **New `/wong-sync` payload skill** — [`wong-sync`](.claude/skills/wong-sync/SKILL.md) is installed
+  into every target (it syncs itself). One pass: refresh the cached clone → **three-way diff** every
+  payload file against the commit you last synced to (upstream update / contribution candidate /
+  true conflict / in sync — only real decisions get asked) → pull updates into the working tree for
+  `/save` → curate local drift with a per-file generality rationale (**opt-in; default skip**) →
+  branch + VERSION/CHANGELOG ritual + push + **upstream PR, opened by the skill itself**, forking
+  first when you lack push access. The canonical payload list now lives in one place:
+  [`payload-manifest.md`](.claude/skills/wong-sync/references/payload-manifest.md).
+- **BREAKING: `/install-wong-stack` is fresh-install-only** — re-run on an installed repo it
+  bootstraps `wong-sync` if missing and hands off to it; the Step 3U update walk is gone.
+- **BREAKING: `/contribute-wong-stack` retired** — absorbed into `/wong-sync`'s contribute leg;
+  the installer offers to remove installed/symlinked copies.
+- **Git rule rescoped, not broken** — `/wong-sync` runs no git in the repo it syncs (pulled updates
+  wait for `/save`) but owns full git in the WongStack clone, and never leaves the clone dirty.
+- **Manifest schema v2** — `.claude/.wong-stack.json` gains `commit` (the three-way base) and
+  `upstream { repo, fork, clone }`; the clone moves to `${XDG_CACHE_HOME:-~/.cache}/wong-stack/`.
+  Old manifests migrate lazily: the first sync falls back to a two-way walk, then records the base.
 
 ## 4.5.0 — /dream replaces /document; the wiki lives at `wiki/`
 

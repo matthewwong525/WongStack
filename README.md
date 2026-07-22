@@ -2,7 +2,7 @@
 
 A **stack-agnostic workflow toolkit for [Claude Code](https://claude.com/claude-code)**, distributed as a **template you clone and work from** — not a plugin. It distills a proven way of working — plan, build, checkpoint, ship, dream — into a handful of skills that work in **any GitHub repo**.
 
-Planning runs on **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: what you're building is a spec under `openspec/changes/`, visible from any clone; the skills are thin verbs over its loop, so you never type `/opsx:*` by hand. Delivery rides on **pull requests** (any forge): CI is an **optional accelerator** — honored as the gate when configured, otherwise PR review is the gate — the per-commit preview URL is auto-discovered, and the record of what shipped is the **archived spec**. The skills land directly in your repo's `.claude/skills/`, so commands are plain `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve` (no namespace, no marketplace). One guided command, **`/install-wong-stack`**, integrates and later updates the whole thing.
+Planning runs on **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: what you're building is a spec under `openspec/changes/`, visible from any clone; the skills are thin verbs over its loop, so you never type `/opsx:*` by hand. Delivery rides on **pull requests** (any forge): CI is an **optional accelerator** — honored as the gate when configured, otherwise PR review is the gate — the per-commit preview URL is auto-discovered, and the record of what shipped is the **archived spec**. The skills land directly in your repo's `.claude/skills/`, so commands are plain `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve`, `/wong-sync` (no namespace, no marketplace). One guided command, **`/install-wong-stack`**, integrates the whole thing once; **`/wong-sync`** keeps it current — and carries your improvements back upstream.
 
 ## What you get
 
@@ -18,8 +18,8 @@ Each verb fronts one step of the OpenSpec loop — `/explore → /plan → /appl
 | `/ship` | Finish a branch: wait for CI green when present (else on PR review), **squash-merge**, then archive the change (`/opsx:archive`) so the archived spec is the record. |
 | `/dream` | Consolidate the session into the wiki the way sleep consolidates memory: capture the durable facts the user stated, then garden the whole tree — merge duplicates, resolve contradictions newest-wins, prune stale content, repair links. The single wiki write path. |
 | `/improve` | **Senior advisor, read-only** (adapted from [shadcn/improve](https://github.com/shadcn/improve), MIT): audit the codebase, vet findings, and write self-contained **plans** for a cheaper model or a person to execute — never edits source. In a repo that plans with OpenSpec, plans land as **change folders** under `openspec/changes/`, ready for `/continue` → `/save` → `/ship`; elsewhere, under `plans/`. Nine categories + `execute`/`branch`/`next`/`reconcile`/`--issues`. **`/improve docs`** specializes it for the repo's wiki (`wiki/`, falling back to `docs/`). |
-| `/install-wong-stack` | Guided installer **and** updater: researches your repo, merges your `CLAUDE.md` with WongStack's, installs the skills, seeds the wiki — asking along the way. Re-run to update. |
-| `/contribute-wong-stack` | The **upstream inverse** of install: when you've improved a skill, a docs convention, or the CLAUDE.md block *in a target repo*, this diffs only those payload files against a WongStack clone, walks you through each drift (**keep / take-from-here / skip**), copies the approved ones up, and bumps VERSION + CHANGELOG — leaving the clone ready for `/save`. Never touches app/business files, so nothing local leaks upstream. |
+| `/install-wong-stack` | Guided **fresh installer**: researches your repo, merges your `CLAUDE.md` with WongStack's, installs the skills, seeds the wiki — asking along the way. Installs once; updates are `/wong-sync`'s job. |
+| `/wong-sync` | The **round trip in one pass**: refreshes a cached WongStack clone, three-way-diffs every payload file against the commit you last synced to, pulls upstream updates into your working tree (only real decisions get asked; checkpoint with `/save`), then offers your genuinely-local improvements back upstream — **opt-in per file**, with a generality rationale each — and opens the upstream PR itself (fork-aware, VERSION + CHANGELOG bumped in the same commit). Never touches app/business files, so nothing local leaks upstream. |
 
 ## The ideas behind it
 
@@ -39,7 +39,7 @@ Install WongStack in this repo by reading and following
 https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.claude/skills/install-wong-stack/SKILL.md
 ```
 
-Claude takes it from there: it clones WongStack, looks over your repo, merges your `CLAUDE.md`, sets up OpenSpec (`openspec init`), installs the skills (`/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve`), and seeds the `docs/` wiki — **asking before it changes anything**, and ending by handing you your first command to run. Paste it again any time to update.
+Claude takes it from there: it clones WongStack, looks over your repo, merges your `CLAUDE.md`, sets up OpenSpec (`openspec init`), installs the skills (`/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve`, `/wong-sync`), and seeds the `docs/` wiki — **asking before it changes anything**, and ending by handing you your first command to run. From then on, `/wong-sync` keeps you current.
 
 The link points straight at the installer's own runbook — [`install-wong-stack/SKILL.md`](.claude/skills/install-wong-stack/SKILL.md) — so this section never drifts from what the installer actually does. The runbook self-bootstraps the clone, and can symlink itself as a real `/install-wong-stack` command for future updates.
 
@@ -59,9 +59,9 @@ git clone https://github.com/matthewwong525/WongStack && cd WongStack
 /ship               # squash-merge on green CI, then archive the change
 ```
 
-## Updating
+## Staying in sync
 
-Paste the same install prompt again — the installer pulls the latest WongStack, diffs your install against it, and walks you through what changed. It reads `.claude/.wong-stack.json`, compares to the clone's `VERSION`, and walks the [CHANGELOG](CHANGELOG.md) — never clobbering a skill or doc you've customized.
+Run **`/wong-sync`** — it refreshes the cached WongStack clone, three-way-diffs every payload file against the commit recorded in `.claude/.wong-stack.json`, and walks the [CHANGELOG](CHANGELOG.md) entries you're behind on. Upstream updates land in your working tree for `/save`; a skill or convention *you* improved is offered back upstream (opt-in per file), and approved contributions become a PR that `/wong-sync` opens itself — forking first when you don't have push access. Nothing you've customized is ever clobbered, and nothing app-specific ever leaks upstream.
 
 ## Requirements
 
@@ -80,7 +80,7 @@ WongStack/
 └── .claude/
     ├── commands/opsx/            # generated OpenSpec commands (/opsx:*)
     └── skills/
-        ├── install-wong-stack/  # guided installer/updater (NOT copied into target repos)
+        ├── install-wong-stack/  # guided fresh installer (NOT copied into target repos)
         ├── explore/  ·  plan/    # thin verbs → /opsx:explore, /opsx:propose (no git)
         ├── apply/               # implement the tasks → /opsx:apply (no git)
         ├── save/        SKILL.md + scripts/{wait-for-checks,preview-url}.sh   (→ /opsx:sync)
@@ -88,6 +88,7 @@ WongStack/
         ├── ship/                # squash-merge + archive (→ /opsx:archive)
         ├── dream/       SKILL.md   (capture session facts + consolidate the wiki)
         ├── improve/     SKILL.md + references/ (advisor → plans; shadcn/improve verbatim + a docs variant, MIT)
+        ├── wong-sync/   SKILL.md + references/payload-manifest.md (the round trip; the manifest is THE list of what syncs)
         └── openspec-*/          # generated by `openspec init` (fronted by the verbs above)
 ```
-Installing into a target repo gives it: a merged `CLAUDE.md`, the `openspec/` scaffold + `/opsx:*` commands (via `openspec init`), `.claude/skills/{explore,plan,apply,save,continue,ship,dream,improve}/`, `docs/README.md` + `docs/wiki-style.md`, and a `.claude/.wong-stack.json` manifest.
+Installing into a target repo gives it: a merged `CLAUDE.md`, the `openspec/` scaffold + `/opsx:*` commands (via `openspec init`), `.claude/skills/{explore,plan,apply,save,continue,ship,dream,improve,wong-sync}/`, `docs/README.md` + `docs/wiki-style.md`, and a `.claude/.wong-stack.json` manifest recording the version + commit it synced to.
