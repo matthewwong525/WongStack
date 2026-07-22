@@ -1,9 +1,7 @@
-# install-onboarding Specification
+# install-onboarding — delta
 
-## Purpose
-How `wong-setup` — the consultative front door — welcomes someone considering WongStack: it researches the repo first, listens for where the workflow hurts, maps pains to the verbs via its fit playbook, and gives an honest fit verdict (including "not a good fit") before anything installs. On a yes it makes `/wong-sync` runnable and hands the install to its fresh mode. It bootstraps from zero (no repo/git/GitHub), narrates setup in plain language one thing at a time, ends by handing over a concrete first command, and is fronted by a warm one-paste README door that any coding agent can execute.
+## ADDED Requirements
 
-## Requirements
 ### Requirement: Research before the conversation
 
 `wong-setup` SHALL run its deep-research step (the target-repo survey: what the app is, how it ships, CLAUDE.md, docs, skills, OpenSpec, legacy traces, GitHub readiness) *before* any discovery conversation, and SHALL use the findings to make its questions specific to the repo rather than generic.
@@ -82,6 +80,8 @@ The `install-wong-stack` skill SHALL be deleted — directory and all live refer
 - **WHEN** the payload ships at 6.0.0
 - **THEN** `.claude/skills/install-wong-stack/` does not exist and the only remaining mentions of the name are historical CHANGELOG entries and archived changes
 
+## MODIFIED Requirements
+
 ### Requirement: Bootstrap from zero
 
 The `wong-setup` skill SHALL treat "no git repository yet" (an empty or non-repo folder) as a first-class, supported starting point, and SHALL NOT assume the user is already inside a git repo. When no repo exists, it SHALL offer, in plain language and only after confirmation, to create one and continue the setup — never failing or dead-ending the newcomer.
@@ -95,34 +95,6 @@ The `wong-setup` skill SHALL treat "no git repository yet" (an empty or non-repo
 
 - **WHEN** the skill runs inside an existing git repo
 - **THEN** it skips the bootstrap-from-zero path and proceeds as before, without asking repo-creation questions
-
-### Requirement: Plain-language, one-thing-at-a-time narration
-
-The skill SHALL present its newcomer-facing setup (GitHub readiness and setup questions) as a guided conversation that explains *why* each piece is needed and asks about one thing at a time, rather than presenting a wall of tool checks at once. It SHALL state in plain language what it is about to set up before it begins changing anything. The underlying outcomes and checks SHALL remain intact and precise for the executing agent.
-
-#### Scenario: GitHub not yet set up
-
-- **WHEN** the newcomer lacks `gh`, auth, or a remote
-- **THEN** the skill introduces each missing piece with a one-line plain-language reason, offers to handle it, and waits — rather than listing all gaps as raw tool-check output
-
-#### Scenario: Setup preamble
-
-- **WHEN** setup begins after the verdict
-- **THEN** before any change is made, the skill tells the user in plain language what it is about to set up and confirms readiness
-
-#### Scenario: Checks preserved
-
-- **WHEN** the friendlier narration is applied
-- **THEN** every readiness outcome is still reached; only the human-facing framing changes
-
-### Requirement: End with a real first step
-
-On successful setup, the skill SHALL end by handing the user a concrete first command to run (e.g. a suggested `/plan ...`, ideally tied to the first pain they named) so a newcomer knows exactly how to get started, rather than only reporting what was installed.
-
-#### Scenario: Setup completes
-
-- **WHEN** the setup finishes successfully (after wong-sync's fresh-mode pull)
-- **THEN** the closing report includes an explicit, copy-pasteable first command the user can run next
 
 ### Requirement: Warm one-paste front door
 
