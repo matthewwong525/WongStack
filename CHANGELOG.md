@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.0.1 — the front door actually opens the conversation
+
+The README's one-paste prompt used to start with "Set up WongStack in this repo…", which reads as a
+made decision — so `/wong-setup` took its fast path and **skipped the consultation and fit verdict**
+for the exact newcomers the door is written for. Two wording fixes: the README paste now asks the
+agent to *see whether WongStack fits how I work — then, if it does, walk me through setting it up*,
+and `/wong-setup` Step 3 now runs the consultation **by default**, fast-pathing only on an explicit
+skip signal ("just install it", "skip the questions"). A bare "set up WongStack" no longer opts you
+out of the fit check. No behavior change once either path runs.
+
 ## 6.0.0 — /wong-setup: the front door that listens first
 
 Setting up WongStack now starts with a conversation, not an install. **`/wong-setup`** replaces the
