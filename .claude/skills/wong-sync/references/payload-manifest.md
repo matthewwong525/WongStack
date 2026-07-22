@@ -1,6 +1,6 @@
 # The payload manifest
 
-The single source of truth for **which files sync** between WongStack and a target repo — in both directions. `/wong-sync` reads this list for its diff; `/install-wong-stack` copies this same set on a fresh install. Nothing outside this list is ever read or copied, so app and business-specific files cannot leak upstream, and upstream cannot clobber them.
+The single source of truth for **which files sync** between WongStack and a target repo — in both directions. `/wong-sync` reads this list for its diff — and a fresh install is the same diff against an empty base, so this list drives installs too. Nothing outside this list is ever read or copied, so app and business-specific files cannot leak upstream, and upstream cannot clobber them.
 
 ## In the manifest
 
@@ -14,7 +14,7 @@ The single source of truth for **which files sync** between WongStack and a targ
 
 ## Not in the manifest
 
-- **`install-wong-stack`** — source-only tooling; never copied into a target (offered as a symlink instead).
+- **`wong-setup`** — source-only tooling; never copied into a target (offered as a symlink instead). It copies no payload file except the `wong-sync` skill (the bootstrap that makes the first sync possible); everything else installs through the fresh-mode pull.
 - **The generated `openspec-*` skills and `.claude/commands/opsx/`** — regenerated in each repo by `openspec init`, not copied, so they always match the installed CLI.
 - **`VERSION` and `CHANGELOG.md`** — WongStack's release record; never copied into a target. `/wong-sync` edits them only in the clone, as part of a contribution's release ritual.
 - **Everything else** — app skills, app source, business docs, `.claude/settings.json`, the target's `openspec/` content.

@@ -1,17 +1,16 @@
 # Adding a skill to the payload
 
-Adding a skill to WongStack means creating it under [`.claude/skills/`](../../.claude/skills/) and wiring it through every surface that installs, versions, and advertises the payload — so [`/install-wong-stack`](../../.claude/skills/install-wong-stack/SKILL.md) copies it into target repos, [`/wong-sync`](../../.claude/skills/wong-sync/SKILL.md) diffs it on every later sync, and the docs and READMEs still match reality. It's a [release](README.md), so it ends with a version bump and a changelog entry.
+Adding a skill to WongStack means creating it under [`.claude/skills/`](../../.claude/skills/) and wiring it through every surface that installs, versions, and advertises the payload — so [`/wong-sync`](../../.claude/skills/wong-sync/SKILL.md) pulls it into target repos (fresh installs and updates run the same manifest-driven sync, fronted by [`/wong-setup`](../../.claude/skills/wong-setup/SKILL.md)), and the docs and READMEs still match reality. It's a [release](README.md), so it ends with a version bump and a changelog entry.
 
 Work through it in order:
 
 1. **Create the skill.** Add `.claude/skills/<name>/SKILL.md` with YAML frontmatter — `name`, a trigger-rich `description` (the text an invocation is matched against, so pack it with the phrasings that should fire the skill), and `user-invocable: true` — following an existing skill like [`document`](../../.claude/skills/document/SKILL.md) or [`save`](../../.claude/skills/save/SKILL.md) for shape. Add a `references/` folder for supporting material the skill reads (as [`document`](../../.claude/skills/document/) does) and/or a `scripts/` folder for helpers it runs (as [`save`](../../.claude/skills/save/) does), only if the skill needs them. Reference repo files by **repo-relative path** — `$(git rev-parse --show-toplevel)/…` — never an absolute path or `${CLAUDE_PLUGIN_ROOT}`, because the same skill runs from whatever repo installed it.
 
-2. **Wire it into the payload manifest and the installer.** The [payload manifest](../../.claude/skills/wong-sync/references/payload-manifest.md) inside `wong-sync` is the canonical list of what installs and syncs — add the skill there first, or `/wong-sync` will never diff it. Then mirror it through the installer's surfaces so a fresh install carries it too:
+2. **Wire it into the payload manifest and the setup surfaces.** The [payload manifest](../../.claude/skills/wong-sync/references/payload-manifest.md) inside `wong-sync` is the canonical list of what installs and syncs — add the skill there first, or `/wong-sync` will never diff it. A fresh install pulls from this same manifest (`/wong-sync` fresh mode), so the remaining wiring is just the surfaces that *name* the skills:
    - the [payload manifest](../../.claude/skills/wong-sync/references/payload-manifest.md)'s workflow-skills list (the source of truth),
-   - the installer frontmatter `description`'s skills list,
-   - the [Step 1](../../.claude/skills/install-wong-stack/SKILL.md#step-1--deep-research-the-target-repo) research **collision list** — the skills the installer checks a target repo for,
-   - the [Step 3](../../.claude/skills/install-wong-stack/SKILL.md#step-3--fresh-install) **fresh-install list**,
-   - the [Step 4](../../.claude/skills/install-wong-stack/SKILL.md#step-4--manifest) **manifest `skills` array**.
+   - the `wong-setup` frontmatter `description`'s skills list,
+   - the [Step 2](../../.claude/skills/wong-setup/SKILL.md#step-2--deep-research-the-target-repo) research **collision list** — the skills `wong-setup` checks a target repo for,
+   - the [Step 7](../../.claude/skills/wong-setup/SKILL.md#step-7--bootstrap-seed-hand-off) **seed-manifest `skills` array** (there is no separate install copy-list — the fresh install is `/wong-sync`'s manifest-driven pull).
 
 3. **Cut the release.** Bump [`VERSION`](../../VERSION) — a new skill is additive, so a **minor** bump — and add a newest-first entry to [`CHANGELOG.md`](../../CHANGELOG.md) describing it. `/wong-sync` reads every entry newer than a repo's installed version to walk the user through what changed, so an unversioned skill is invisible to existing installs. This is the [release](README.md) that any payload edit ends with.
 

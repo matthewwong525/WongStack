@@ -3,6 +3,44 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.0.0 — /wong-setup: the front door that listens first
+
+Setting up WongStack now starts with a conversation, not an install. **`/wong-setup`** replaces the
+installer outright: it researches your repo, asks where your workflow actually hurts, maps those
+pains to the verbs that address them, and gives an **honest fit verdict — including "not a good
+fit"** — before a single file is copied. Only a yes (or an explicit "just install it", which skips
+the questions entirely) moves to setup — and the install itself is now a `/wong-sync` sync.
+
+- **New source-only `wong-setup` skill** — [`wong-setup`](.claude/skills/wong-setup/SKILL.md):
+  locate source → mode check → deep research → discover → diagnose → fit verdict → make
+  `/wong-sync` runnable (git repo, GitHub access, OpenSpec init, the authored CLAUDE.md
+  "What this is" and wiki hub) → seed manifest → hand off. The consultation content lives in
+  [`references/fit-playbook.md`](.claude/skills/wong-setup/references/fit-playbook.md) — question
+  bank, pain→verb map, and the disqualifiers with what to recommend instead. Research runs
+  *before* the conversation so the questions are informed; GitHub setup waits until *after* the
+  verdict.
+- **`/wong-sync` gains a fresh-install mode** — a seed manifest (`commit: null`, written by
+  `wong-setup`) makes the sync diff against the **empty tree**: every payload file classifies as
+  a batch-approvable pull (that *is* the install), collisions surface as conflicts with a
+  keep-under-another-name option, the contribute leg and changelog walk are skipped, and the
+  CLAUDE.md block is inserted when no markers exist. **One copy engine, one list** — the
+  installer's copy-loop (a second, driftable encoding of the payload) is gone; `wong-setup`
+  copies exactly one payload file, the `wong-sync` skill that bootstraps the first sync.
+- **The runbook is guidance-level and agent-agnostic** — outcomes to reach, not command
+  sequences, executable by any coding agent that can run shell and edit files (Claude-only
+  affordances are "if available"). Setup asks which agent(s) drive the repo, passes them to
+  `openspec init --tools`, and offers non-Claude agents an AGENTS.md pointer to the skills.
+  Kept exact: the seed-manifest schema and the shared clone cache path.
+- **BREAKING: `install-wong-stack` removed** — replaced by `wong-setup`; the skill directory and
+  every live reference are gone (no tombstone — there's no installed base to redirect). The
+  README's one-paste prompt now reads `wong-setup/SKILL.md`.
+- **"Not a good fit" is a first-class exit** — a disqualifier (non-GitHub forge, no git and no
+  willingness, a locked-in workflow the loop would fight, no ongoing changes) ends the run with
+  the mismatch named and an alternative suggested. Zero changes to the repo on that path.
+- **Installed repos are unaffected** — fresh mode triggers only on `commit: null`; a manifest
+  with a real commit syncs exactly as before, and a repo with one still skips straight to
+  `/wong-sync`.
+
 ## 5.0.0 — /wong-sync: the round trip in one pass
 
 One skill now owns staying current: **`/wong-sync`** pulls upstream WongStack changes down *and*
