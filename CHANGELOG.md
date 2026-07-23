@@ -3,6 +3,29 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.1.0 — WongStack's own wiki moves to `wiki/`
+
+**Nothing is required of your repo.** This is the deferred second half of 4.4.0: that release
+taught every skill to resolve the wiki root as `wiki/`, falling back to `docs/`, and rewrote the
+convention pages to speak in `wiki/` terms — but WongStack's own tree stayed at `docs/`. So the
+toolkit shipped a convention it didn't practice, and its own `CLAUDE.md` and `dream` skill linked
+`wiki/wiki-style.md` — a path that didn't exist here. Those links now resolve.
+
+- **`docs/` → `wiki/` in this repo** — all eight pages moved with `git mv`, so history follows
+  each one. Content is unchanged apart from path references.
+- **The fallback is untouched.** Skills still resolve `wiki/` first and fall back to `docs/`, and
+  `/wong-sync` still places the convention pages (`wiki-style.md`, `voice.md`,
+  `development/secrets.md`, `ux-principles.md`) at *your* repo's resolved wiki root. A repo that
+  installed WongStack before 4.4.0 and kept `docs/` keeps working exactly as it did. Renaming your
+  own wiki is optional and yours to do.
+- **References repaired** across `CLAUDE.md`, `README.md`, `openspec/config.yaml`, and the `plan`,
+  `improve`, `wong-setup`, and `wong-sync` skills — WongStack's own page paths only. Every sentence
+  describing a *target's* wiki stays generic, and `/improve docs` keeps its name (it names a
+  subject, not a directory).
+- **History left alone** — earlier CHANGELOG entries and everything under
+  `openspec/changes/archive/` still read `docs/`, because that's where those files were when they
+  shipped.
+
 ## 6.0.1 — the front door actually opens the conversation
 
 The README's one-paste prompt used to start with "Set up WongStack in this repo…", which reads as a

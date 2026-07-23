@@ -18,7 +18,7 @@ Pick **2–4**, phrased around what the research (Step 2) actually found — cit
 - Do you work from more than one machine, or run parallel sessions/agents? How do they stay coherent?
 
 **The record**
-- *(research hook: docs/ stale or absent)* Where does "how we do things here" live — and does it match reality right now?
+- *(research hook: the wiki is stale or absent)* Where does "how we do things here" live — and does it match reality right now?
 - If you rolled a new teammate (or a fresh Claude session) onto this repo today, what would they read?
 
 **Scale of the work**

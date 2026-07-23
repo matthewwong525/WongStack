@@ -4,7 +4,7 @@ schema: spec-driven
 context: |
   WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
   template you clone and work from. The payload is markdown: skills under
-  .claude/skills/, the docs/ progressive-disclosure wiki, CLAUDE.md, VERSION,
+  .claude/skills/, the wiki/ progressive-disclosure wiki, CLAUDE.md, VERSION,
   CHANGELOG.md. There is no build/test suite in this repo — the payload is prose.
   CI is an optional accelerator: it's the gate in a *target* repo when checks
   exist, else PR review is; nothing builds locally either way.
@@ -24,7 +24,7 @@ rules:
   design:
     - If the change adds or meaningfully restructures a user-facing screen (a page
       or component — not merely touching a UI file), include a "## UX" section
-      following docs/ux-principles.md — use-case brief (who, the job, what done
+      following wiki/ux-principles.md — use-case brief (who, the job, what done
       looks like, context of use, common vs edge case, stated frequency assumptions),
       the shortest flow from intent to done, hierarchy (the one primary action per
       screen), ASCII wireframes including empty/error states, and the component

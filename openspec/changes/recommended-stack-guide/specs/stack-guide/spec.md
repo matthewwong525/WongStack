@@ -2,13 +2,13 @@
 
 ### Requirement: An optional recommended-stack doc ships in the payload
 
-The `docs/` wiki SHALL include a recommendation doc describing an opinionated AI-dev stack. The doc SHALL be framed, in its opening, as a recommendation and not a requirement or default, and SHALL be linked from `docs/README.md` as an optional appendix — never presented as part of the core change-loop process. It SHALL follow the progressive-disclosure rulebook (topic title, strong stand-alone opener, links up/down/sideways).
+The `wiki/` wiki SHALL include a recommendation doc describing an opinionated AI-dev stack. The doc SHALL be framed, in its opening, as a recommendation and not a requirement or default, and SHALL be linked from `wiki/README.md` as an optional appendix — never presented as part of the core change-loop process. It SHALL follow the progressive-disclosure rulebook (topic title, strong stand-alone opener, links up/down/sideways).
 
 #### Scenario: The doc is framed as optional
 
 - **WHEN** a reader opens the recommended-stack doc
 - **THEN** its opening states it is a recommendation, not a requirement
-- **AND** `docs/README.md` links it as an optional appendix, distinct from the core process pages
+- **AND** `wiki/README.md` links it as an optional appendix, distinct from the core process pages
 
 #### Scenario: WongStack stays stack-agnostic
 
