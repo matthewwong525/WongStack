@@ -37,7 +37,7 @@ Read the target's `.claude/.wong-stack.json` (falling back to the pre-2.0 name `
 1. **What the app is** — purpose + stack, from `README*`/manifests/entry points.
 2. **How it ships** — CI workflows and what they gate; any preview-deploy provider; the default branch.
 3. **`CLAUDE.md`** — exists? Section headings; any `WONG-STACK:BEGIN/END` markers; a "What this is".
-4. **Wiki/docs** — `docs/` or `wiki/`: structure, and whether it's already a progressive-disclosure wiki (`README.md` hub, `wiki-style.md`).
+4. **Wiki/docs** — `wiki/` or `docs/`: structure, and whether it's already a progressive-disclosure wiki (`README.md` hub, `wiki-style.md`).
 5. **Existing skills** — `.claude/skills/`: anything that collides with the payload names (`explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve`, `wong-sync`).
 6. **OpenSpec** — `openspec` CLI installed? An `openspec/` folder or generated `.claude/commands/opsx/` already there? `node`/`npm` present?
 7. **Which agent(s) drive the repo** — signs of Claude Code, Codex, Cursor, or others (`CLAUDE.md`, `AGENTS.md`, `.cursor/`, …); this feeds the `openspec init --tools` choice and the pointer question in Step 6.
@@ -51,7 +51,7 @@ Read, don't modify — and **don't act on the GitHub gaps yet**; that work waits
 **Default is the consultation** — run it unless the user gives an **explicit skip signal**: "just install it", "skip the questions", or the like. A bare "set up WongStack in this repo" (the README paste included) is a *request to be walked through it*, **not** a skip signal — run the discovery below. On a real skip signal, confirm in one line and jump to Step 5. The consultation is for the undecided, never a toll gate — but the paste alone doesn't opt out of it.
 
 Otherwise, hold a short discovery conversation using the [fit playbook](references/fit-playbook.md):
-- Pick **2–4 questions** from the playbook's question bank, chosen and phrased around what Step 2 found — reference the actual repo ("I see there's no CI and `docs/` hasn't moved since March — how do you verify a change today?"), never the blank script. One question at a time; follow what they actually say.
+- Pick **2–4 questions** from the playbook's question bank, chosen and phrased around what Step 2 found — reference the actual repo ("I see there's no CI and the wiki hasn't moved since March — how do you verify a change today?"), never the blank script. One question at a time; follow what they actually say.
 - As pains surface, **map each to the verb that addresses it** using the playbook's pain→verb map, in plain factual language — what the verb does, not how great it is.
 - If a **disqualifier** from the playbook surfaces mid-conversation, don't keep asking — go straight to Step 4 with the verdict.
 
@@ -77,7 +77,7 @@ Give an explicit verdict, honestly:
 These come out of the research and the conversation, not out of the payload — settle them before the sync so the pull lands into agreed ground:
 
 - **CLAUDE.md "What this is"** — confirm the app facts (stack, how it deploys, default branch) and write/keep an app-specific "What this is" *outside* the future `WONG-STACK:BEGIN/END` markers. The block itself arrives with the sync; if the research found house rules that will conflict with the block's conventions, **ask now which wins** and note the resolution for the post-sync review.
-- **Wiki hub** — no `docs/`(or `wiki/`) hub? Seed a `README.md` for it with sections drawn from the research. An existing wiki is never restructured.
+- **Wiki hub** — no `wiki/` (or `docs/`) hub? Seed a `wiki/README.md` for it with sections drawn from the research. An existing wiki is never restructured.
 - **Collisions** — for each payload-name collision from Step 2, agree the resolution: keep theirs / take WongStack's / install under another name. Renames go into the seed manifest so the sync (and every later one) diffs them under the local name.
 - **Not (only) Claude?** — the skills live in `.claude/skills/`, Claude Code's native location; for Codex or other agents, offer an `AGENTS.md` pointer to the verbs and their SKILL.md paths so those agents can discover and follow them too.
 - **Secrets convention** *(offer, don't force)* — the `secrets.md` page arrives with the sync; additionally offer a `.env.example` seed and git-ignore entries for real secrets files. The target may already handle secrets its own way; confirm before touching `.gitignore`.

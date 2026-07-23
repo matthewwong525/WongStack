@@ -10,6 +10,6 @@ for what a screen should *be* before any component is picked.
 
 - [Development](development/README.md) — working on WongStack itself: editing the payload and cutting a release.
 
-> New section? Add a `docs/<section>/README.md` hub, link it from the list above, and let
+> New section? Add a `wiki/<section>/README.md` hub, link it from the list above, and let
 > it break its own process down page by page. Don't manufacture depth — add a layer only
 > when there's genuinely more to break down.

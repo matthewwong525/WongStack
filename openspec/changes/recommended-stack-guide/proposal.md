@@ -6,11 +6,11 @@ WongStack tells you *how* to work (the change loop, the skills) but says nothing
 
 ## What Changes
 
-- Add an **optional, opinionated recommendation doc** to the payload (`docs/`) covering:
+- Add an **optional, opinionated recommendation doc** to the payload (`wiki/`) covering:
   - **Core stack** — React + Vite SPA on **Cloudflare Workers** (D1/R2), and why this combo suits AI-driven dev (merge = deploy, one runtime, cheap previews).
   - **Paseo** — the open-source tool for driving Claude Code across parallel git-worktree agents; how it fits the change loop (branch = change, isolated worktree per agent).
   - **Slash-skill tips & tricks** — practical, day-to-day guidance on the WongStack verbs (`/explore /plan /apply /save /continue /ship`, `/document`, `/improve`): when to reach for each, how they chain, common gotchas.
-- Frame it clearly as **optional** at the top and link it from `docs/README.md` as an appendix, not part of the core process tree.
+- Frame it clearly as **optional** at the top and link it from `wiki/README.md` as an appendix, not part of the core process tree.
 - Follow the progressive-disclosure rulebook (topic titles, strong openers, linked up/down/sideways).
 
 ## Capabilities
@@ -23,7 +23,7 @@ WongStack tells you *how* to work (the change loop, the skills) but says nothing
 
 ## Impact
 
-- **Docs:** a new page (e.g. `docs/recommended-stack.md`) + a link/framing line in `docs/README.md`; possibly split into a small `docs/recommended-stack/` section if the three topics each want their own page.
+- **Docs:** a new page (e.g. `wiki/recommended-stack.md`) + a link/framing line in `wiki/README.md`; possibly split into a small `wiki/recommended-stack/` section if the three topics each want their own page.
 - **Root payload:** `CHANGELOG.md` entry + `VERSION` bump (minor — additive doc).
-- **No code, skills, hooks, or installer behavior change** (the doc ships with the payload like any other `docs/` page; the installer already copies `docs/`).
+- **No code, skills, hooks, or installer behavior change** (the doc ships with the payload like any other `wiki/` page; the installer already copies `wiki/`).
 - **Coordinates with `evolve-change-loop`:** if that change lands first, the tips reference the six-verb loop (incl. `/apply`) and can point at the new secrets-convention page.
