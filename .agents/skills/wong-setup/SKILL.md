@@ -1,15 +1,15 @@
 ---
 name: wong-setup
-description: The WongStack front door — a consultative setup that researches the repo, listens for where the workflow hurts, maps those pains to the WongStack verbs, and gives an honest fit verdict (including "not a good fit") before anything installs. On a yes (or an explicit "just install it") it sets up the ground — git repo, GitHub access, OpenSpec, the authored CLAUDE.md and wiki seeds, a seed manifest — then hands the install itself to /wong-sync, whose fresh mode pulls the whole payload in one manifest-driven pass. Fresh integrations only — a repo with a real manifest skips the consultation and goes straight to /wong-sync. Use when considering, evaluating, or setting up WongStack in a new or existing repo.
+description: The WongStack front door — guided setup for turning a repo into an AI knowledge center. It researches the repo, listens for how the team works, maps process needs to WongStack's verbs and knowledge surfaces, then sets up the ground — git repo, GitHub access, OpenSpec, the authored CLAUDE.md and wiki seeds, a seed manifest — before handing the install itself to /wong-sync, whose fresh mode pulls the whole payload in one manifest-driven pass. Hard mismatches still stop safely before changes. Fresh integrations only — a repo with a real manifest skips onboarding and goes straight to /wong-sync. Use when considering, evaluating, or setting up WongStack in a new or existing repo.
 user-invocable: true
 ---
 
 # /wong-setup
 
-Consultative **front door**. It works out whether WongStack actually fits — researching the repo, listening for where the workflow hurts, mapping pains to the verbs that address them — and gives an honest verdict either way. On a yes it doesn't install the payload itself: it gets the ground ready, writes a **seed manifest**, and hands the install to **`/wong-sync`**, whose fresh mode pulls every payload file in one manifest-driven pass. One copy engine for install and update alike; the only payload file this skill ever copies is the `wong-sync` skill itself.
+Guided **front door**. It helps turn a repo into an AI knowledge center: researching how work happens here, listening for where process knowledge is scattered, and mapping those needs to WongStack's verbs and knowledge surfaces. It still stops before changing anything when a hard mismatch would make the workflow fight the repo. When setup proceeds, it doesn't install the payload itself: it gets the ground ready, writes a **seed manifest**, and hands the install to **`/wong-sync`**, whose fresh mode pulls every payload file in one manifest-driven pass. One copy engine for install and update alike; the only payload file this skill ever copies is the `wong-sync` skill itself.
 
 Rules that hold throughout:
-- **Consult, don't sell.** Ask, diagnose, recommend — factually. No superlatives about WongStack; the willingness to say "not a good fit" is what makes a "good fit" credible.
+- **Guide, don't sell.** Ask, diagnose, recommend — factually. No superlatives about WongStack; name hard mismatches plainly, but do not make denial the center of the experience.
 - **Never clobber the user's work** — existing `CLAUDE.md`, docs, and colliding skills are discussed and agreed, never silently overwritten.
 - **Research, propose, ask, then change.** One thing at a time, in plain language — assume the user may never have used git, GitHub, or a terminal, and welcome that start warmly.
 - **You may not be Claude.** This runbook assumes only an agent that can run shell commands, edit files, and ask the user questions. Claude affordances — `AskUserQuestion`, research subagents, the Skill tool — are conveniences: use them if you have them, otherwise ask in plain text and do the work inline. Steps state the *outcome to reach*; pick your own commands except where marked **exact**.
@@ -46,22 +46,22 @@ Read the target's `.claude/.wong-stack.json` (falling back to the pre-2.0 name `
 
 Read, don't modify — and **don't act on the GitHub gaps yet**; that work waits for Step 5, after the verdict.
 
-## Step 3 — discover and diagnose (skippable)
+## Step 3 — discover the process (skippable)
 
-**Default is the consultation** — run it unless the user gives an **explicit skip signal**: "just install it", "skip the questions", or the like. A bare "set up WongStack in this repo" (the README paste included) is a *request to be walked through it*, **not** a skip signal — run the discovery below. On a real skip signal, confirm in one line and jump to Step 5. The consultation is for the undecided, never a toll gate — but the paste alone doesn't opt out of it.
+**Default is guided discovery** — run it unless the user gives an **explicit skip signal**: "just install it", "skip the questions", or the like. A bare "set up WongStack in this repo" (the README paste included) is a *request to be walked through it*, **not** a skip signal — run the discovery below. On a real skip signal, confirm in one line and jump to Step 5. Discovery is for aligning the knowledge workflow to the repo, never a toll gate.
 
-Otherwise, hold a short discovery conversation using the [fit playbook](references/fit-playbook.md):
+Otherwise, hold a short discovery conversation using the [process playbook](references/fit-playbook.md):
 - Pick **2–4 questions** from the playbook's question bank, chosen and phrased around what Step 2 found — reference the actual repo ("I see there's no CI and the wiki hasn't moved since March — how do you verify a change today?"), never the blank script. One question at a time; follow what they actually say.
 - As pains surface, **map each to the verb that addresses it** using the playbook's pain→verb map, in plain factual language — what the verb does, not how great it is.
-- If a **disqualifier** from the playbook surfaces mid-conversation, don't keep asking — go straight to Step 4 with the verdict.
+- If a **hard mismatch** from the playbook surfaces mid-conversation, don't keep asking — go straight to Step 4 with the mismatch.
 
-## Step 4 — the fit verdict
+## Step 4 — recommend the path
 
-Give an explicit verdict, honestly:
+Recommend the path plainly:
 
-- **Not a good fit** — one or more playbook disqualifiers hold. Say so plainly: name the mismatch, suggest the playbook's alternative for it, invite them back if circumstances change, and **stop — the run ends here, zero changes to the repo.** This is a success outcome, not a failure.
-- **Good fit** — summarize the diagnosis as the recommendation: each pain they named, next to the verb that addresses it, in a couple of plain sentences or a short table. Then ask whether they want it set up. Only a yes moves on.
-- **Borderline** — say what's borderline and what would tip it either way; let the user decide. Their call is the verdict.
+- **Hard mismatch** — one or more playbook disqualifiers hold. Say so plainly: name the mismatch, suggest the playbook's alternative for it, and **stop — the run ends here, zero changes to the repo.** This is a safety exit, not a failure.
+- **Proceed** — summarize the diagnosis as the recommendation: each process need they named, next to the verb or knowledge surface that addresses it, in a couple of plain sentences or a short table. Then ask whether they want it set up. Only a yes moves on.
+- **Borderline** — say what's borderline and what would tip it either way; let the user decide. Their call sets the path.
 
 ## Step 5 — make `/wong-sync` runnable (only after a yes)
 
@@ -101,12 +101,12 @@ For anything Step 2 found: pre-2.0 `WONG-FRAMEWORK` markers → rename to `WONG-
 
 ## Step 9 — close (after /wong-sync reports)
 
-Report the path taken (consultation → verdict, fast path, not-a-fit exit, or the installed-repo hand-off), what environment work happened or remains (GitHub, OpenSpec), what the sync pulled, collisions and how each resolved, migrations — and that everything sits **uncommitted in the working tree** for the user to review.
+Report the path taken (guided discovery, fast path, hard-mismatch exit, or the installed-repo hand-off), what environment work happened or remains (GitHub, OpenSpec), what the sync pulled, collisions and how each resolved, migrations — and that everything sits **uncommitted in the working tree** for the user to review.
 
 Then **hand the user a real first step**, not just a menu: one concrete, copy-pasteable command tied to something they might actually build — ideally addressing the first pain they named in Step 3 — e.g. *"Try `/plan add-a-readme` (name it after whatever you want to build). That drafts the plan; `/apply` builds it, `/save` checkpoints it to a PR, `/ship` merges it."* Follow with the loop for reference, and note `/wong-sync` keeps everything current from here. **Don't commit or push** — that's the user's first `/save`.
 
 ## Hard rules
-- **A "not a good fit" verdict ends the run.** No partial setup, no repo changes, no second pitch.
+- **A hard-mismatch exit ends the run.** No partial setup, no repo changes, no second pitch.
 - **The consultation is never a toll gate.** "Just install it" skips straight to Step 5.
 - **No GitHub setup before the verdict.** Rungs run only after a yes (or the fast path).
 - **This skill copies no payload file except `wong-sync`.** The install is `/wong-sync`'s fresh-mode pull, driven by its payload manifest — there is no second list to drift.

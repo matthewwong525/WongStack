@@ -3,6 +3,27 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.1.1 — WongStack as an AI knowledge center
+
+The docs now state WongStack's thesis directly: agents need shared process knowledge to work well,
+and WongStack turns a repo into the place where that knowledge lives, runs, and improves. Code is one
+output; the durable value is the knowledge center built through the process.
+
+- **README reframed** — the front door now leads with a repo-native AI knowledge center, not
+  "building apps with Claude Code." The paste prompt stays near the top and is written for any
+  coding agent that can read files, edit files, run shell commands, and ask questions.
+- **New philosophy page** — [`wiki/agent-knowledge-center.md`](wiki/agent-knowledge-center.md)
+  explains the model: centralize process, make it agent-runnable, capture plans and decisions,
+  preserve reusable lessons, and give future work more context.
+- **Shared-memory context** — `CLAUDE.md` now describes the wiki/OpenSpec/skills system as repo
+  memory for humans and agents, and the generic WongStack block points agents to the philosophy page
+  before the lower-level rulebook.
+- **Guided onboarding language** — `/wong-setup` and its playbook now frame setup as process
+  alignment into an AI knowledge workflow. Hard mismatches still stop safely before changes, but the
+  public posture no longer foregrounds denial.
+- **Plain-language terms retained** — repo, pull request, CI, OpenSpec, and wiki are still introduced
+  briefly for readers who are learning the workflow for the first time.
+
 ## 6.1.0 — WongStack's own wiki moves to `wiki/`
 
 **Nothing is required of your repo.** This is the deferred second half of 4.4.0: that release
