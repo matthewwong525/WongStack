@@ -1,7 +1,7 @@
 # install-onboarding Specification
 
 ## Purpose
-How `wong-setup` — the consultative front door — welcomes someone considering WongStack: it researches the repo first, listens for where the workflow hurts, maps pains to the verbs via its fit playbook, and gives an honest fit verdict (including "not a good fit") before anything installs. On a yes it makes `/wong-sync` runnable and hands the install to its fresh mode. It bootstraps from zero (no repo/git/GitHub), narrates setup in plain language one thing at a time, ends by handing over a concrete first command, and is fronted by a warm one-paste README door that any coding agent can execute.
+How `wong-setup` — the guided front door — welcomes someone considering WongStack: it researches the repo first, listens for how the team works, maps process needs to WongStack's verbs and knowledge surfaces, and stops safely before changes when a hard mismatch means the workflow cannot operate. When setup proceeds it makes `/wong-sync` runnable and hands the install to its fresh mode. It bootstraps from zero (no repo/git/GitHub), narrates setup in plain language one thing at a time, ends by handing over a concrete first command, and is fronted by a warm one-paste README door that any capable coding agent can execute.
 ## Requirements
 ### Requirement: Research before the conversation
 
@@ -23,17 +23,23 @@ How `wong-setup` — the consultative front door — welcomes someone considerin
 
 ### Requirement: Honest fit verdict with a first-class not-a-fit exit
 
-After discovery, `wong-setup` SHALL give an explicit fit verdict. When a playbook disqualifier holds (e.g. a non-GitHub forge, no willingness to use git, a locked-in workflow the loop would fight, no ongoing changes to manage), the skill SHALL say WongStack is not a good fit, explain why, suggest an alternative from the playbook, and stop without changing the repo.
+After research and any discovery, `wong-setup` SHALL guide the user through onboarding and process alignment. It SHALL stop without changing the repo when a hard playbook disqualifier holds (e.g. a non-GitHub forge, no willingness to use git, a locked-in workflow the loop would fight, no ongoing changes to manage), explain the mismatch plainly, and suggest an alternative from the playbook. Public-facing wording SHALL NOT repeatedly foreground fit verdicts or make setup feel like an admissions test; mismatch handling remains a safety exit for cases where the workflow cannot operate.
 
-#### Scenario: Not a good fit
+#### Scenario: Hard mismatch stops setup
 
 - **WHEN** discovery reveals the team hosts on a non-GitHub forge and won't move
-- **THEN** the skill states the mismatch plainly, offers what to consider instead, invites them back if circumstances change, and makes no changes to the repo
+- **THEN** the skill states the mismatch plainly, offers what to consider instead, and makes no changes to the repo
 
-#### Scenario: Good fit
+#### Scenario: Normal onboarding is not framed as denial
+
+- **WHEN** the README or setup runbook introduces WongStack to a newcomer
+- **THEN** it presents setup as guided onboarding into a repo-native knowledge workflow
+- **AND** it does not repeatedly emphasize "not a good fit" as the main product promise
+
+#### Scenario: Recommendation still maps user needs to verbs
 
 - **WHEN** discovery surfaces pains the verbs address and no disqualifier holds
-- **THEN** the skill summarizes the pain→verb mapping as its recommendation and proceeds to setup
+- **THEN** the skill summarizes how WongStack's commands and knowledge surfaces address those needs and proceeds to setup after consent
 
 ### Requirement: Consultation is skippable
 
@@ -130,15 +136,16 @@ On successful setup, the skill SHALL end by handing the user a concrete first co
 
 ### Requirement: Warm one-paste front door
 
-The README SHALL present a short, warm, beginner-friendly paste-able setup prompt that keeps the URL-read mechanism pointed at `wong-setup/SKILL.md` (so the README never drifts from the runbook), SHALL note that the skill will honestly assess fit ("not sure it's for you? it'll tell you"), and SHALL point newcomers to Claude Code's web/desktop version at claude.ai/code as the least terminal-intensive way to run that first paste — while the prompt itself works in any coding agent. The prompt's wording SHALL frame the paste as a request to **evaluate fit and guide the user through it** rather than a command to install outright, so that following it triggers the consultation instead of bypassing it.
+The README SHALL present a short, beginner-friendly paste-able setup prompt that keeps the URL-read mechanism pointed at `wong-setup/SKILL.md` so the README does not drift from the runbook. The prompt and surrounding copy SHALL frame WongStack as an agent-agnostic, repo-native AI knowledge center that centralizes process and captures knowledge through work. The README SHALL mention Claude Code as an easy place to run the prompt while making clear that any coding agent with file, edit, and shell access can follow it.
 
 #### Scenario: Newcomer reads the README
 
 - **WHEN** someone new to coding agents reads the install section
-- **THEN** they find one short warm prompt to paste that reads+follows the `wong-setup` runbook URL, a note that it assesses fit honestly, and a pointer to claude.ai/code for running it without a heavy terminal setup
+- **THEN** they find one short prompt to paste that reads and follows the `wong-setup` runbook URL
+- **AND** they understand the setup creates a knowledge-centered workflow in the repo
 
-#### Scenario: The paste invites the consultation
+#### Scenario: Agent-agnostic prompt
 
-- **WHEN** an agent follows the pasted prompt in a repo with no WongStack manifest
-- **THEN** the prompt's wording leads it to run `wong-setup`'s consultation and fit verdict, not to jump straight to install
-
+- **WHEN** a user runs the prompt in Claude Code, Codex, Cursor, or another capable coding agent
+- **THEN** the prompt wording does not depend on Claude-only behavior
+- **AND** the README explains the agent needs to read files, edit files, run shell commands, and ask questions

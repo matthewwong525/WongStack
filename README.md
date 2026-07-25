@@ -1,96 +1,115 @@
 # WongStack
 
-A **stack-agnostic workflow toolkit for [Claude Code](https://claude.com/claude-code)**, distributed as a **template you clone and work from** — not a plugin. It distills a proven way of working — plan, build, checkpoint, ship, dream — into a handful of skills that work in **any GitHub repo**.
+WongStack turns a repo into an AI knowledge center.
 
-Planning runs on **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: what you're building is a spec under `openspec/changes/`, visible from any clone; the skills are thin verbs over its loop, so you never type `/opsx:*` by hand. Delivery rides on **pull requests** (any forge): CI is an **optional accelerator** — honored as the gate when configured, otherwise PR review is the gate — the per-commit preview URL is auto-discovered, and the record of what shipped is the **archived spec**. The skills land directly in your repo's `.claude/skills/`, so commands are plain `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve`, `/wong-sync` (no namespace, no marketplace). One guided command, **`/wong-setup`**, works out whether WongStack fits your workflow and — on a yes — integrates the whole thing once; **`/wong-sync`** keeps it current — and carries your improvements back upstream.
+Agents need shared knowledge to do useful work. WongStack helps teams centralize their processes inside the repo, then gives AI agents a repeatable way to run those processes, improve them, and capture new knowledge as work happens.
 
-## What you get
+That is the first step toward becoming AI-native: make the process visible, make it runnable, and let every project leave the next person or agent smarter than the last one.
 
-Each verb fronts one step of the OpenSpec loop — `/explore → /plan → /apply → /save → /continue → /ship`:
+## Start here
 
-| Command | What it does |
-| --- | --- |
-| `/explore` | *(optional)* Think a problem through before committing to a shape — fronts `/opsx:explore`. Nothing is written yet. |
-| `/plan` | Draft the change: `openspec/changes/<name>/` with proposal, delta specs, design, tasks — fronts `/opsx:propose`. No git. |
-| `/apply` | Implement the change: work `tasks.md`, writing the code and checking off `- [x]` as each task lands — fronts `/opsx:apply`. No git — checkpoint with `/save`. |
-| `/save` | Checkpoint, the git stage: commit code + change, push, open/update a PR whose **body mirrors the change**, wait for CI green when present (auto-fixing), return the **preview URL**. Before committing it syncs the change — maintains a `**Status:**` header, **appends** to an append-only `## Decision log`, folds delta specs into `openspec/specs/` (`/opsx:sync`), and authors the change as a fallback if `/plan` was skipped. `/save <note>` sets the status. Never merges. |
-| `/continue [name]` | Resume on **any machine** by change name (= branch name), PR, or the `openspec list` menu (which shows each change's Status): check out the branch, recap the plan + the tail of its Decision log, run a counts-only drift check, then hand off to `/apply`. Add an instruction to steer (`/continue add-auth fix the failing test`). |
-| `/ship` | Finish a branch: wait for CI green when present (else on PR review), **squash-merge**, then archive the change (`/opsx:archive`) so the archived spec is the record. |
-| `/dream` | Consolidate the session into the wiki the way sleep consolidates memory: capture the durable facts the user stated, then garden the whole tree — merge duplicates, resolve contradictions newest-wins, prune stale content, repair links. The single wiki write path. |
-| `/improve` | **Senior advisor, read-only** (adapted from [shadcn/improve](https://github.com/shadcn/improve), MIT): audit the codebase, vet findings, and write self-contained **plans** for a cheaper model or a person to execute — never edits source. In a repo that plans with OpenSpec, plans land as **change folders** under `openspec/changes/`, ready for `/continue` → `/save` → `/ship`; elsewhere, under `plans/`. Nine categories + `execute`/`branch`/`next`/`reconcile`/`--issues`. **`/improve docs`** specializes it for the repo's wiki (`wiki/`, falling back to `docs/`). |
-| `/wong-setup` | The **consultative front door**: researches your repo, asks where your workflow hurts, maps those pains to the verbs, and gives an honest fit verdict — including "not a good fit" — before anything installs. On a yes (or "just install it") it gets the ground ready — git, GitHub, OpenSpec, your `CLAUDE.md`'s "What this is" — then hands the install itself to `/wong-sync`, whose fresh mode pulls the whole payload in one manifest-driven pass. |
-| `/wong-sync` | The **round trip in one pass**: refreshes a cached WongStack clone, three-way-diffs every payload file against the commit you last synced to, pulls upstream updates into your working tree (only real decisions get asked; checkpoint with `/save`), then offers your genuinely-local improvements back upstream — **opt-in per file**, with a generality rationale each — and opens the upstream PR itself (fork-aware, VERSION + CHANGELOG bumped in the same commit). Never touches app/business files, so nothing local leaks upstream. |
-
-## The ideas behind it
-
-- **The spec is the unit of continuity.** The plan lives in `openspec/changes/<name>/`, not a context window — `openspec list` shows every active change from a fresh clone, and `/continue` rebuilds a cold session from it. Branch name = change name ties the plan to its code.
-- **The gate is CI when present, else PR review.** Nothing builds locally either way. Where GitHub Actions run, you push; the skills wait and, on red, read-fix-repush (capped); `/ship` merges only on green. Where there's no CI, the PR — with the OpenSpec change and its archive — is what a reviewer approves before `/ship` merges. CI is an accelerator, not a requirement.
-- **Preview URLs are discovered, not configured** — Vercel, Netlify, Cloudflare, Render, GitHub Pages, … attach the URL to the commit/PR in a standard way; WongStack finds it.
-- **Knowledge has two homes.** Reusable *processes* → the `wiki/` progressive-disclosure tree (via `/dream`). A change's *specifics* → its proposal and specs, preserved in `openspec/changes/archive/` when it ships. The archive is the project's searchable record of what shipped.
-
-## Install
-
-**New to Claude Code?** It's Anthropic's coding agent — the least terminal-heavy way to try it is the web/desktop app at **[claude.ai/code](https://claude.com/claude-code)**. Open it on the folder you want to set up (an empty folder is fine — the setup will get you a repo and GitHub sorted, step by step). You don't need to have used Git or GitHub before.
-
-Then paste this one line — the front door that sizes up fit first (not sure WongStack is for you? it'll tell you):
+Open your project folder in Claude Code, Codex, Cursor, or another coding agent that can read files, edit files, run shell commands, and ask you questions. An empty folder is fine. Then paste this:
 
 ```
 Read and follow
 https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.claude/skills/wong-setup/SKILL.md
-to see whether WongStack fits how I work — then, if it does, walk me through setting it up.
+to install WongStack in this repo and walk me through the first workflow.
 ```
 
-Your agent takes it from there (the prompt is written for Claude Code but works in any coding agent that can run shell commands): it clones WongStack, looks over your repo, asks a few questions about where your workflow hurts, and gives an **honest fit verdict** — if WongStack isn't a good fit, it says so and suggests what to use instead. On a yes (or a "just install it"), it sets up git, GitHub, and OpenSpec (`openspec init`), then hands the install to `/wong-sync`, which pulls in the skills (`/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve`, `/wong-sync`) and the wiki convention pages in one pass — **asking before it changes anything**, and ending by handing you your first command to run. From then on, the same `/wong-sync` keeps you current.
+The agent will take it from there. It will look at your project, explain what it is about to set up, ask before changing files, and leave you with the first process to run.
 
-The link points straight at the setup skill's own runbook — [`wong-setup/SKILL.md`](.claude/skills/wong-setup/SKILL.md) — so this section never drifts from what the setup actually does. The runbook self-bootstraps the clone, and can symlink itself as a real `/wong-setup` command for future runs elsewhere.
+## What you get
 
-**Prefer to work from it directly?** Clone and every command is live, no install step:
-```bash
-git clone https://github.com/matthewwong525/WongStack && cd WongStack
+- **Centralized process memory.** Your team's way of working lives in the repo, not scattered across chats, docs, and people's heads.
+- **Agent-runnable workflows.** Agents get concrete commands for exploring, planning, implementing, saving, resuming, and shipping work.
+- **Knowledge captured while work happens.** Plans, decisions, shipped records, and reusable lessons are written down as part of the workflow.
+- **Faster future work.** Each finished change improves the context available to the next teammate or agent.
+- **A reviewable work trail.** Work can be saved in a package your team can inspect before it becomes part of the main project.
+- **Agent-agnostic foundations.** Claude Code is one way to run WongStack. The durable system is files, instructions, and process inside the repo.
+
+## The compounding loop
+
+WongStack is built around one idea: centralize the process, let agents run it, then improve the process from what the work teaches you.
+
+```text
+centralize process
+        |
+        v
+make it agent-runnable
+        |
+        v
+capture plans and decisions
+        |
+        v
+preserve reusable lessons
+        |
+        v
+future work starts with more context
 ```
 
-## Quick start
+The code is one output. The more durable value is the knowledge system that makes the next change easier.
 
+## The workflow
+
+WongStack gives agents a small set of commands that match how work moves from idea to finished record:
+
+```text
+/explore -> /plan -> /apply -> /save -> /continue -> /ship
 ```
-# paste the install prompt above, then:
-/plan add-auth      # draft the change spec (openspec/changes/add-auth/)
-/apply              # implement the tasks
-/save               # sync + checkpoint → PR (body mirrors the change) → preview URL
-/continue add-auth  # later, on any machine: resume the branch → back into /apply
-/ship               # squash-merge on green CI, then archive the change
-```
 
-## Staying in sync
+| Command | Plain-language meaning |
+| --- | --- |
+| `/explore` | Think through the idea before deciding what to do. |
+| `/plan` | Write the plan, tasks, and important decisions. |
+| `/apply` | Do the planned work. |
+| `/save` | Save the work for review and future continuation. |
+| `/continue` | Pick work back up later, even from another machine or session. |
+| `/ship` | Finish the change and preserve the record of what shipped. |
+| `/dream` | Save reusable lessons and team conventions into the wiki. |
+| `/improve` | Ask an agent to audit the project and write improvement plans without changing code. |
+| `/wong-sync` | Update WongStack and, when useful, contribute general workflow improvements back upstream. |
 
-Run **`/wong-sync`** — it refreshes the cached WongStack clone, three-way-diffs every payload file against the commit recorded in `.claude/.wong-stack.json`, and walks the [CHANGELOG](CHANGELOG.md) entries you're behind on. Upstream updates land in your working tree for `/save`; a skill or convention *you* improved is offered back upstream (opt-in per file), and approved contributions become a PR that `/wong-sync` opens itself — forking first when you don't have push access. Nothing you've customized is ever clobbered, and nothing app-specific ever leaks upstream.
+## Where the knowledge lives
+
+- **Agent instructions** tell future agents how to work in the repo.
+- **The wiki** holds reusable team process and conventions.
+- **Active changes** hold the plan, tasks, status, and decisions for work in progress.
+- **Archived changes** preserve what shipped and why.
+- **Skills** are repeatable workflows agents can run.
+
+For the deeper philosophy, read [AI knowledge centers](wiki/agent-knowledge-center.md). For the operational loop, read [the change loop](wiki/development/the-change-loop.md).
+
+## A few terms the agent may introduce
+
+You do not need these before starting, but they help explain what WongStack sets up:
+
+- **Repo:** the project folder plus its saved history.
+- **Pull request:** a reviewable package of work. It lets you or your team inspect what changed before it becomes part of the main project.
+- **CI:** automated checks that may run on saved work, such as tests or linting. If your project has them, WongStack pays attention to them.
+- **OpenSpec:** the planning layer WongStack uses to write down what is being built and what shipped.
+- **Wiki:** the repo's place for reusable team knowledge and conventions.
+
+## Learn more
+
+- [Wiki](wiki/README.md) - the progressive-disclosure guide to WongStack's process.
+- [AI knowledge centers](wiki/agent-knowledge-center.md) - the philosophy behind the repo-native knowledge layer.
+- [The change loop](wiki/development/the-change-loop.md) - how work moves from idea to shipped record.
+- [Working on WongStack](wiki/development/README.md) - how to change the toolkit itself.
+- [Changelog](CHANGELOG.md) - what changed between releases.
 
 ## Requirements
 
-- [`gh`](https://cli.github.com/), authenticated (`gh auth login`), and `jq`.
-- A GitHub repo. CI + preview deploys are optional — without CI, `/save`/`/ship` have no checks to wait for and the gate is PR review.
-- [Node.js](https://nodejs.org/) — for the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI (`npm install -g @fission-ai/openspec`, or run via `npx`). The installer offers to set it up.
+The setup prompt can help with missing pieces, but WongStack is designed around:
 
-## Layout
+- A coding agent that can read files, edit files, run shell commands, and ask questions.
+- A GitHub repo. If you are starting from an empty folder, setup can walk you through creating one.
+- [`gh`](https://cli.github.com/) and `jq`.
+- [Node.js](https://nodejs.org/) for the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI.
 
+## Prefer to work from the source?
+
+Clone this repo and the commands are live here:
+
+```bash
+git clone https://github.com/matthewwong525/WongStack && cd WongStack
 ```
-WongStack/
-├── CLAUDE.md                    # app-specific "What this is" + WongStack block (WONG-STACK markers)
-├── VERSION  ·  CHANGELOG.md      # payload semver + the updater's change log
-├── openspec/                     # OpenSpec planning layer: config.yaml, changes/, specs/
-├── wiki/{README.md, wiki-style.md, voice.md, ux-principles.md, development/}
-└── .claude/
-    ├── commands/opsx/            # generated OpenSpec commands (/opsx:*)
-    └── skills/
-        ├── wong-setup/          # consultative front door: fit verdict, ground setup, handoff to /wong-sync (NOT copied into targets)
-        │       SKILL.md + references/fit-playbook.md
-        ├── explore/  ·  plan/    # thin verbs → /opsx:explore, /opsx:propose (no git)
-        ├── apply/               # implement the tasks → /opsx:apply (no git)
-        ├── save/        SKILL.md + scripts/{wait-for-checks,preview-url}.sh   (→ /opsx:sync)
-        ├── continue/            # resume the branch cold, then hand off to /apply
-        ├── ship/                # squash-merge + archive (→ /opsx:archive)
-        ├── dream/       SKILL.md   (capture session facts + consolidate the wiki)
-        ├── improve/     SKILL.md + references/ (advisor → plans; shadcn/improve verbatim + a docs variant, MIT)
-        ├── wong-sync/   SKILL.md + references/payload-manifest.md (the round trip; the manifest is THE list of what syncs)
-        └── openspec-*/          # generated by `openspec init` (fronted by the verbs above)
-```
-Installing into a target repo gives it: a merged `CLAUDE.md`, the `openspec/` scaffold + `/opsx:*` commands (via `openspec init`), `.claude/skills/{explore,plan,apply,save,continue,ship,dream,improve,wong-sync}/`, a wiki hub + `wiki-style.md` at its wiki root (`wiki/`, or an existing `docs/`), and a `.claude/.wong-stack.json` manifest recording the version + commit it synced to.
