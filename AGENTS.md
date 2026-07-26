@@ -30,6 +30,13 @@ The record of **what shipped** is the **archived change** in `openspec/changes/a
 synced result in `openspec/specs/`. No GitHub planning or summary issues — the change *is* the plan
 and its archive *is* the record.
 
+**Credentials and config already live in the repo's environment files** — don't ask for a token or
+stub a call out when a task needs one. `.env.example` is the committed map: every variable the
+project reads, each with a comment on what it is and where it comes from. Read that to learn what a
+task needs; the filled-in values sit in a git-ignored `.env` at the repo root (or your stack's
+dotenv equivalent) for when you actually need to run something — a one-off script, a real API call.
+The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
+
 ## Rules
 
 - **CI is the gate when present, else PR review.** The durable system is pull requests (any

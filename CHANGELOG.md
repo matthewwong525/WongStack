@@ -3,6 +3,31 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.3.0 — Agents know where the credentials are
+
+WongStack has shipped a secrets convention since 4.x — a committed `.env.example`, git-ignored real
+values, and a wiki page explaining both — but the file agents actually read first never mentioned
+it. `CLAUDE.md` had no occurrence of `.env`, "secret", "credential", or "auth", so the only route to
+the convention was three hops down the wiki, and none of the surfaces along the way used any of
+those words. The practical cost: an agent asked to run a one-off script against an API would ask you
+for a token or stub the call out, while the value sat in `.env` the whole time.
+
+- **New paragraph in the generic WongStack block**, under "Where context lives" — so it reaches your
+  repo's `CLAUDE.md` on the next `/wong-sync`. It names `.env.example` as the committed map of every
+  variable the project reads, and the git-ignored `.env` as where the values live when a task
+  genuinely needs to run something.
+- **`.env.example` first, `.env` second — deliberately.** The template is valueless and safe to read
+  freely; it answers "what auth does this project need." Reading `.env` pours live credentials into
+  the transcript, so the guidance frames it as the conditional read, for when a script has to run.
+- **Stack-neutral, as the convention has always been.** `.env` at the repo root is named as the
+  default because a concrete first place to look is the point, but "or your stack's dotenv
+  equivalent" keeps it true for a repo on `.dev.vars` or a framework's own dotenv file. `.env.example`
+  is mentioned as inline code rather than linked, since `/wong-setup` seeds it on opt-in and a repo
+  that declined shouldn't inherit a dead link.
+- **Nothing else changed.** The template, `.gitignore` entries, `wiki/development/secrets.md`, and
+  `/wong-setup`'s opt-in seeding all behave exactly as before. This is a pointer, not a new
+  mechanism — and the block still defers to the wiki page for the full convention.
+
 ## 6.2.0 — completed `/apply` runs `/save`
 
 Finishing the implementation checklist now produces its durable handoff without requiring a second
