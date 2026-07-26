@@ -3,6 +3,24 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.2.0 — completed `/apply` runs `/save`
+
+Finishing the implementation checklist now produces its durable handoff without requiring a second
+remembered command. Once every task is complete, `/apply` invokes the existing `/save` skill exactly
+once, so the change is synced, committed, pushed, opened or updated as a PR, and checked by CI when
+present.
+
+- **One owner for git remains** — `/apply` does not duplicate commit, push, PR, preview, or CI
+  mechanics; it delegates the completed change to `/save`, which remains their single runbook.
+- **Partial work stays intentional** — paused, blocked, interrupted, or failed applies with pending
+  tasks do not auto-save. `/save` is still independently invocable whenever an in-progress
+  checkpoint is wanted.
+- **Already-complete changes are covered** — invoking `/apply` on an all-done task list also hands it
+  to `/save`, covering completed work that has not yet received its durable checkpoint.
+- **Loop guidance aligned** — the apply wrapper, bundled OpenSpec apply skill, README, CLAUDE.md
+  conventions, onboarding, planning guidance, and change-loop wiki now describe the same terminal
+  behavior.
+
 ## 6.1.1 — WongStack as an AI knowledge center
 
 The docs now state WongStack's thesis directly: agents need shared process knowledge to work well,

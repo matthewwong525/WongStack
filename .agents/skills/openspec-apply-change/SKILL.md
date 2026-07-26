@@ -49,7 +49,7 @@ Implement tasks from an OpenSpec change.
 
    **Handle states:**
    - If `state: "blocked"` (missing artifacts): show message, suggest using openspec-continue-change
-   - If `state: "all_done"`: congratulate, suggest archive
+   - If `state: "all_done"`: invoke the `save` skill immediately so completed but uncheckpointed work receives the normal durable handoff
    - Otherwise: proceed to implementation
 
 4. **Read context files**
@@ -87,8 +87,8 @@ Implement tasks from an OpenSpec change.
    Display:
    - Tasks completed this session
    - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
-   - If paused: explain why and wait for guidance
+   - If all done: invoke the `save` skill exactly once, follow it verbatim, then include its checkpoint result
+   - If paused with pending tasks: do not invoke `save`; explain why and remind the user that `/save` is available for an intentional partial checkpoint
 
 **Output During Implementation**
 
@@ -118,7 +118,9 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! Ready to archive this change.
+All tasks complete! Handing the completed change to `/save`.
+
+[...`/save` result...]
 ```
 
 **Output On Pause (Issue Encountered)**
@@ -144,6 +146,8 @@ What would you like to do?
 **Guardrails**
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
+- Invoke the `save` skill exactly once whenever the selected change reaches or begins in the all-done state
+- Never invoke `save` automatically while pending tasks remain; the user can still request a partial checkpoint explicitly
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
