@@ -103,7 +103,7 @@ For anything Step 2 found: pre-2.0 `WONG-FRAMEWORK` markers → rename to `WONG-
 
 Report the path taken (guided discovery, fast path, hard-mismatch exit, or the installed-repo hand-off), what environment work happened or remains (GitHub, OpenSpec), what the sync pulled, collisions and how each resolved, migrations — and that everything sits **uncommitted in the working tree** for the user to review.
 
-Then **hand the user a real first step**, not just a menu: one concrete, copy-pasteable command tied to something they might actually build — ideally addressing the first pain they named in Step 3 — e.g. *"Try `/plan add-a-readme` (name it after whatever you want to build). That drafts the plan; `/apply` builds it, `/save` checkpoints it to a PR, `/ship` merges it."* Follow with the loop for reference, and note `/wong-sync` keeps everything current from here. **Don't commit or push** — that's the user's first `/save`.
+Then **hand the user a real first step**, not just a menu: one concrete, copy-pasteable command tied to something they might actually build — ideally addressing the first pain they named in Step 3 — e.g. *"Try `/plan add-a-readme` (name it after whatever you want to build). That drafts the plan; `/apply` builds it and automatically hands completed work to `/save` for the PR; `/ship` merges it. Run `/save` directly whenever you want a partial checkpoint."* Follow with the loop for reference, and note `/wong-sync` keeps everything current from here. **Setup itself does not commit or push** — the user's first completed `/apply` (or explicit `/save`) does that.
 
 ## Hard rules
 - **A hard-mismatch exit ends the run.** No partial setup, no repo changes, no second pitch.
