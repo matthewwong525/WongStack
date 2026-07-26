@@ -6,8 +6,8 @@
 
 ## 2. Release ritual
 
-- [x] 2.1 Bump `VERSION` 6.1.1 → 6.2.0
-- [x] 2.2 Add the newest-first `CHANGELOG.md` entry for 6.2.0 describing the added guidance
+- [x] 2.1 Bump `VERSION` 6.1.1 → 6.3.0
+- [x] 2.2 Add the newest-first `CHANGELOG.md` entry for 6.3.0 describing the added guidance
 
 ## 3. Verification
 

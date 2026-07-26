@@ -7,7 +7,7 @@ WongStack ships a real secrets convention — a committed `.env.example`, git-ig
 - Add one paragraph to the `WONG-STACK` block in `AGENTS.md`, under **Where context lives**, pointing agents at `.env.example` as the map of what auth exists and at the git-ignored `.env` for the values when a task actually needs to run something.
 - Phrase it **stack-neutral** — `.env` at the repo root named as the default, "or your stack's dotenv equivalent" as the escape hatch — because `wong-setup` offers the convention rather than forcing it, and `secrets.md` explicitly invites renaming to a framework's own dotenv file or `.dev.vars`.
 - Add a requirement to the `secrets-convention` spec covering the agent instruction block, which it currently doesn't cover.
-- Bump `VERSION` 6.1.1 → 6.2.0 and add the `CHANGELOG.md` entry (the block is payload, so editing it is a release).
+- Bump `VERSION` 6.1.1 → 6.3.0 and add the `CHANGELOG.md` entry (the block is payload, so editing it is a release).
 
 **Non-goals:** no change to the `.env.example` template, `.gitignore`, `wiki/development/secrets.md`, or `wong-setup`'s opt-in seeding behavior; no duplication of the "keep the template honest" maintenance rule into the block (the link carries it); no fix to the stale `# CLAUDE.md` heading at `AGENTS.md:1` (leftover from the codex-first rename, unrelated).
 

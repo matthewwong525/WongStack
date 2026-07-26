@@ -46,4 +46,4 @@ The payload manifest syncs **the block only** — "everything outside the marker
 - **The sentence is false in a target with no dotenv file at all** → the "don't ask for a token" clause is scoped to the environment files existing; neutral phrasing plus the link means a reader with no `.env` follows through to the convention rather than hunting for a file that isn't there.
 - **Agents read `.env` eagerly and spill secrets into transcripts** → the paragraph orders the two files deliberately, making `.env.example` the default read and `.env` the conditional one ("when you actually need to run something").
 - **Block bloat — every added line ships to every target forever** → one paragraph, no restatement of the wiki page, no extra rule.
-- **Version choice** → additive payload guidance with no migration, so minor: 6.1.1 → 6.2.0.
+- **Version choice** → additive payload guidance with no migration, so minor: 6.1.1 → 6.3.0.

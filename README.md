@@ -61,8 +61,8 @@ WongStack gives agents a small set of commands that match how work moves from id
 | --- | --- |
 | `/explore` | Think through the idea before deciding what to do. |
 | `/plan` | Write the plan, tasks, and important decisions. |
-| `/apply` | Do the planned work. |
-| `/save` | Save the work for review and future continuation. |
+| `/apply` | Do the planned work, then automatically save it once every task is complete. |
+| `/save` | Save a checkpoint for review and future continuation at any time. |
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
 | `/dream` | Save reusable lessons and team conventions into the wiki. |
