@@ -3,6 +3,33 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.5.0 — An optional Cloudflare stack: the Access setup
+
+WongStack tells you how to work but stays quiet on what to run it on. This starts an optional,
+opinionated answer — a React + Vite SPA on Cloudflare Workers with D1 — beginning with the one part
+that's written down nowhere else: the Cloudflare-side setup. It's a recommendation, not a
+requirement; a repo that never adopts the stack sees nothing change, and WongStack stays
+stack-agnostic.
+
+- **New `wiki/stack/` section** (linked from `wiki/README.md` as *optional*, distinct from the core
+  process pages). A hub plus two pages:
+  - **Cloudflare Access** — stand up a login wall with no auth code: the Zero Trust org, an identity
+    provider, one Access application, and the trick that gates production *and* every `*.workers.dev`
+    preview URL with a **single wildcard policy** (plus a bypass for the open `/public/*` surface, and
+    why the bypass must sit above the gate). Documents the header-trust auth model — the Worker trusts
+    `Cf-Access-Authenticated-User-Email` — and states loudly that this is safe only *behind* the
+    proxy, so verifying previews are actually gated is a step, not a footnote. A missing header is a
+    `401`; only an explicit `SKIP_AUTH` dev flag substitutes a fallback identity.
+  - **Cloudflare credentials** — the tokens that make everything work. Leads with the trap: create a
+    **user-scoped** API token (My Profile → API Tokens), *not* an account token — the Workers Builds
+    log API rejects account tokens with `Invalid token`. Both `CLOUDFLARE_USER_TOKEN` and
+    `CLOUDFLARE_ACCOUNT_ID` land in `.env` per the secrets convention. Also creates an Access
+    **service token** now, so a later CI/tests change can reach gated previews without a browser.
+- **Retires `recommended-stack-guide`** — a superseded single-page draft, never started.
+- Follow-on changes (not yet shipped): the scripts + D1 pipeline + opt-in installer wiring, then
+  `/wong-sync` pull-only, then integration tests. The `wiki/stack/` pages install into a target repo
+  only once that installer wiring lands; until then they live here.
+
 ## 6.4.0 — One less thing to install (and a CI gate that actually reports)
 
 WongStack asked every repo to install `jq`. It barely used it: of 20 `jq` mentions in the payload, 12
