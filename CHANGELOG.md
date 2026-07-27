@@ -3,6 +3,48 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.6.0 — An optional Cloudflare stack: the runnable pack
+
+Change 1 documented the Cloudflare *setup*; this makes the stack *runnable* — as an **opt-in pack** a
+repo takes at install and `/wong-sync` keeps current. It ships the parts nobody can reproduce from
+prose: three hard-won D1 scripts and the two-database pipeline they implement, generalized from a
+production app (where a hand-applied migration once kept a branch red for 8 commits). A repo that
+declines the pack sees zero change, and WongStack stays exactly as stack-agnostic as before.
+
+- **A gated `stack-pack` payload category**, keyed on `components.stackPack` in
+  `.claude/.wong-stack.json`. Its files install and refresh **only** for a repo that opted in; a repo
+  that declined never sees them, in either sync direction.
+- **Three zero-config, byte-identical scripts** — no per-repo literal; every value reads from
+  `wrangler.jsonc` or `.env`, so identical copies never conflict on refresh:
+  - `scripts/cf-build.sh` — the CI build wrapper. Default branch → migrate **prod** D1; any other
+    branch → migrate **staging** then swap the binding. Reads the DB name from `wrangler.jsonc`. The
+    source's duplicate-prefix guard is **deleted** — timestamp prefixes make collisions impossible.
+  - `scripts/swap-d1-id.js` — regex-swaps `database_id` ↔ `preview_database_id` so a preview binds
+    staging. The hardcoded prod-id constant is **dropped**; it reads both ids from the file.
+  - `scripts/reset-staging-d1.mjs` — drop staging → apply migrations → apply `schema/seed.sql`.
+    **Never touches prod.** ~90 lines, down from ~250: the prod-mirror/topo-sort machinery is gone
+    because staging is a seeded fixture, not a prod copy.
+- **Template files** — `schema/seed.sql` (a commented, empty data-only INSERT template) and
+  `schema/migrations/.gitkeep`.
+- **Guided config fragments** — `package.json` scripts, the `wrangler.jsonc` `d1_databases` block,
+  `.env.example` vars, and `.gitignore` `.dev.vars`. These *merge* into files the target owns, so
+  they're applied as guided edits (show → confirm → merge, never blind-write), not manifest pull-files.
+- **New `wiki/stack/` pipeline docs** — a **core-stack** page (React + Vite + Workers + D1, why the
+  combo suits AI-driven dev) and the **D1 pipeline** — the two-database model, auto-migrate-on-deploy,
+  timestamp migrations (`YYYYMMDDHHMMSS_name.sql`; additive and order-independent), seeded staging +
+  reset, and the three **prod-recovery runbooks** (Time Travel; never hand-apply schema to prod;
+  reconcile `d1_migrations` when prod drifts). The whole `wiki/stack/` section (including change 1's
+  Access + credentials pages) now installs with the pack.
+- **`/wong-setup` offers the pack** — one plain prompt; yes writes `components.stackPack: true` and
+  applies the fragments, no leaves the repo stack-agnostic. Decline is the default and never a gate.
+- **`/wong-sync` refreshes the pack** through its existing three-way diff — the gated files enter the
+  file list only when `stackPack` is true; config fragments are re-offered as guided edits on the rare
+  upstream change. No new refresh machinery.
+- **`required-tools.md` states the split** — core stays exactly `git`/`gh`/`openspec`; the pack may add
+  `node`/`npm`/`wrangler` + a Cloudflare account, but only in a repo that took it and only in that
+  repo's build/CI, never in a skill.
+- Follow-on (not yet shipped): `/wong-sync` pull-only (contribute-leg removal), then integration tests.
+
 ## 6.5.0 — An optional Cloudflare stack: the Access setup
 
 WongStack tells you how to work but stays quiet on what to run it on. This starts an optional,

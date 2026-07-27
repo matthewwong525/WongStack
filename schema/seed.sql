@@ -1,0 +1,18 @@
+-- schema/seed.sql — fixture data for the STAGING database.
+--
+-- HOW THIS WORKS
+--   • Data only. No CREATE/ALTER here — the schema comes from
+--     schema/migrations/, which `db:reset:staging` applies BEFORE this file.
+--   • `npm run db:reset:staging` drops every staging object, replays the
+--     migrations, then runs these INSERTs. Staging is a seeded fixture
+--     database, never a copy of production.
+--   • A change that alters a seeded table updates THIS file in the same
+--     change, so a reset always matches the current schema.
+--   • Keep it minimal: the few rows a preview needs to be exercisable
+--     (a demo account, a couple of reference rows), not a data dump.
+--
+-- This template ships empty. Add your INSERTs below.
+
+-- Example (delete this; replace with your project's fixtures):
+-- INSERT INTO users (id, email, name) VALUES
+--   ('00000000-0000-0000-0000-000000000001', 'demo@example.com', 'Demo User');

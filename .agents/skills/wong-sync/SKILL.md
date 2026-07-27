@@ -37,6 +37,7 @@ MF="$ROOT/.claude/.wong-stack.json"
   - `UPSTREAM` ← `upstream.repo` — defaults to `https://github.com/matthewwong525/WongStack` when absent.
   - `FORK` ← `upstream.fork` — the fork used for contributions, if one was recorded.
   - `WS` ← `upstream.clone` — the cached clone path, with a leading `~` expanded to `$HOME`. Only a hint; Step 1 re-resolves it.
+  - `STACKPACK` ← `components.stackPack` — whether this repo took the opt-in Cloudflare stack pack. Absent = false. Gates the pack's files into the Step 2 file list.
 
   These are filled in (or corrected) at Step 6, so missing keys are normal on older manifests, not an error.
 
@@ -61,6 +62,8 @@ Show what's new since the installed version: the `$WS/CHANGELOG.md` entries newe
 
 The file list — and nothing else — comes from [`references/payload-manifest.md`](references/payload-manifest.md). A skill installed under a different local name is diffed under that name via the manifest's `components.skills` mapping; `CLAUDE.md` is compared **block-scoped** — only the content between `WONG-STACK:BEGIN/END` on each side.
 
+**Opt-in stack pack:** the manifest's [stack-pack files](references/payload-manifest.md#the-opt-in-stack-pack) (the three `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, and the whole `wiki/stack/` section) enter the file list **only when `$MF` has `components.stackPack: true`**. For any other repo they're outside the manifest — never classified, pulled, or offered. When they are in scope, they classify and refresh through the same three-way diff as every other file. The pack's config fragments are *not* in this list; they follow the guided-edit path (below).
+
 With a recorded base (`$BASE`), get each file's base content from history — `git -C "$WS" show "$BASE:<path>"` — and compare base→upstream and base→local:
 
 | upstream vs base | local vs base | classification | behavior |
@@ -79,6 +82,8 @@ Only real decisions get surfaced — don't walk the user through files that need
 ## Step 3 — pull leg (upstream → here, no git)
 
 Apply the **upstream updates** to `$ROOT`'s working tree: list them with a one-line summary each and offer batch approval (per-file inspection on request). Walk **true conflicts** one at a time with a three-way view — keep local / take upstream / merge by hand. For `CLAUDE.md`, replace only the marker block; everything outside it is this repo's own. No markers yet (a fresh install, or a file that lost them) → insert the block, markers included, without touching anything outside it — creating the file if it doesn't exist.
+
+**Stack-pack config fragments** (opt-in repos only): if an upstream change touched one of the pack's [config fragments](references/stack-pack-fragments.md) — the `package.json` scripts, the `wrangler.jsonc` `d1_databases` block, the `.env.example` vars, or the `.gitignore` `.dev.vars` entry — re-offer it as a guided edit (show the fragment, merge on a yes, never blind-write), exactly as `/wong-setup` first applied it. These merge into files the target owns, so they can't be whole-file three-way-diffed; re-offer rather than auto-merge.
 
 No `git add`, no commit, no branch — when the pull leg is done, the updates exist only as working-tree edits. Point the user at `/save` to checkpoint them through the normal gate.
 
@@ -120,10 +125,10 @@ Update `.claude/.wong-stack.json` to reflect what actually happened — this is 
 { "version": "<LATEST>", "commit": "<WS_HEAD>",
   "installedAt": "<existing>", "updatedAt": "<today>",
   "upstream": { "repo": "<UPSTREAM>", "fork": "<fork URL or null>", "clone": "<WS path>" },
-  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true } }
+  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent> } }
 ```
 
-Older manifests just gain the new keys here — nothing breaks on a v1 manifest. Set `commit` to `$WS_HEAD` (pre-contribution HEAD of the default branch); keep `components` matching reality. ⑂ Fresh mode: the seed's null `version`/`commit` are filled with `$LATEST`/`$WS_HEAD` here — keep the seed's `installedAt` and any renames it recorded (plus ones agreed during the pull). If the target still carries a `contribute-wong-stack` skill or symlink, offer to remove it — `/wong-sync` supersedes it.
+Older manifests just gain the new keys here — nothing breaks on a v1 manifest. Set `commit` to `$WS_HEAD` (pre-contribution HEAD of the default branch); keep `components` matching reality — including `stackPack`, which is what gates the pack's files into the Step 2 file list (absent = false = the repo never took the pack). ⑂ Fresh mode: the seed's null `version`/`commit` are filled with `$LATEST`/`$WS_HEAD` here — keep the seed's `installedAt` and any renames it recorded (plus ones agreed during the pull). If the target still carries a `contribute-wong-stack` skill or symlink, offer to remove it — `/wong-sync` supersedes it.
 
 ## Step 7 — report
 

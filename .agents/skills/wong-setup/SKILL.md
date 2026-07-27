@@ -81,6 +81,7 @@ These come out of the research and the conversation, not out of the payload — 
 - **Collisions** — for each payload-name collision from Step 2, agree the resolution: keep theirs / take WongStack's / install under another name. Renames go into the seed manifest so the sync (and every later one) diffs them under the local name.
 - **Not (only) Claude?** — the skills live in `.claude/skills/`, Claude Code's native location; for Codex or other agents, offer an `AGENTS.md` pointer to the verbs and their SKILL.md paths so those agents can discover and follow them too.
 - **Secrets convention** *(offer, don't force)* — the `secrets.md` page arrives with the sync; additionally offer a `.env.example` seed and git-ignore entries for real secrets files. The target may already handle secrets its own way; confirm before touching `.gitignore`.
+- **Cloudflare stack pack** *(one plain offer; decline is the default)* — ask once, in plain language, whether the repo wants the opt-in D1 + Workers stack pack: three zero-config pipeline scripts (auto-migrate on deploy, staging swap, seeded staging reset), a seed template, and the [`wiki/stack/`](../../../wiki/stack/README.md) pipeline docs. Frame it as optional and stack-specific — it fits a React-on-Workers-with-D1 app, adds `node`/`npm`/`wrangler` + a Cloudflare account to that repo's build/CI ([required tools](../../../wiki/development/required-tools.md#the-opt-in-cloudflare-stack-pack)), and is worth nothing to a repo on another stack. **Declining is the safe default and never gates the rest of setup.** On a yes: set `components.stackPack: true` in the seed manifest (Step 7) so the fresh-mode pull installs the drop-in files, and apply the four config fragments as guided edits (show → confirm → merge, never blind-write) from `$WS/.claude/skills/wong-sync/references/stack-pack-fragments.md` — `package.json` scripts, the `wrangler.jsonc` `d1_databases` block, `.env.example` vars, and `.gitignore` `.dev.vars`. On a no (or no answer): leave `stackPack` false and touch none of it.
 
 ## Step 7 — bootstrap, seed, hand off
 
@@ -90,9 +91,9 @@ These come out of the research and the conversation, not out of the payload — 
 { "version": null, "commit": null,
   "installedAt": "<today YYYY-MM-DD>", "updatedAt": "<today YYYY-MM-DD>",
   "upstream": { "repo": "https://github.com/matthewwong525/WongStack", "fork": null, "clone": "<the $WS path>" },
-  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": <true if init ran, else false> } }
+  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": <true if init ran, else false>, "stackPack": <true if the user accepted the stack-pack offer in Step 6, else false> } }
 ```
-Adjust `components.skills` for the renames agreed in Step 6. `commit: null` is the signal: it tells `/wong-sync` this sync *is* the install (fresh mode — empty-tree base, whole payload as one batch-approvable pull, no contribute leg). The sync writes the real `version` and `commit` when it finishes.
+Adjust `components.skills` for the renames agreed in Step 6. `stackPack: true` is what makes the fresh-mode pull include the pack's drop-in files (`/wong-sync` Step 2 reads it); leave it false and no pack file is pulled. `commit: null` is the signal: it tells `/wong-sync` this sync *is* the install (fresh mode — empty-tree base, whole payload as one batch-approvable pull, no contribute leg). The sync writes the real `version` and `commit` when it finishes.
 3. **Hand off:** read and follow `.claude/skills/wong-sync/SKILL.md` — a file path on purpose, so any agent can follow it. Its fresh mode pulls the payload into the working tree; nothing is committed.
 
 ## Step 8 — migrate legacy traces (ask first; never delete unprompted)
