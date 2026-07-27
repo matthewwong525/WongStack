@@ -10,4 +10,5 @@ The **payload** is the set that [`/wong-sync`](../../.claude/skills/wong-sync/SK
 
 - [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /continue → /ship`, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
 - [Adding a skill](adding-a-skill.md) — create a new workflow skill and wire it through every surface that installs, versions, and advertises the payload.
+- [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, and `openspec`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: real secrets stay out of git, the committed template lists every variable, contributors bootstrap a local file from it.
