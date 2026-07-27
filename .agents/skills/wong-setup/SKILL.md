@@ -26,7 +26,7 @@ If `$WS` turns out to be the repo you're setting up, **stop** — that's the sou
 
 Read the target's `.claude/.wong-stack.json` (falling back to the pre-2.0 name `.claude/.wong-framework.json`).
 
-- **Manifest with a real `commit`** (or any pre-seed manifest) → **already installed; not a prospect — skip the consultation entirely.** Do exactly one thing: if the `wong-sync` skill is missing (an install that predates it), copy it from `$WS`. Then stop and hand off: *"WongStack is installed here — run `/wong-sync` to pull updates and contribute improvements back."*
+- **Manifest with a real `commit`** (or any pre-seed manifest) → **already installed; not a prospect — skip the consultation entirely.** Do exactly one thing: if the `wong-sync` skill is missing (an install that predates it), copy it from `$WS`. Then stop and hand off: *"WongStack is installed here — run `/wong-sync` to pull the latest updates."*
 - **Seed manifest** (`commit: null`) → a previous run stopped between seeding and syncing; pick up at Step 7's handoff.
 - **No manifest** → continue. (No git repo at all → also continue; that's a normal starting point, handled in Step 5.)
 

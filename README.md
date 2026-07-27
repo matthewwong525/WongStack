@@ -67,7 +67,7 @@ WongStack gives agents a small set of commands that match how work moves from id
 | `/ship` | Finish the change and preserve the record of what shipped. |
 | `/dream` | Save reusable lessons and team conventions into the wiki. |
 | `/improve` | Ask an agent to audit the project and write improvement plans without changing code. |
-| `/wong-sync` | Update WongStack and, when useful, contribute general workflow improvements back upstream. |
+| `/wong-sync` | Pull the latest WongStack into this repo. Add `contribute` to also offer your general workflow improvements back upstream. |
 
 ## Where the knowledge lives
 
