@@ -3,6 +3,36 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.4.0 — One less thing to install (and a CI gate that actually reports)
+
+WongStack asked every repo to install `jq`. It barely used it: of 20 `jq` mentions in the payload, 12
+were `gh --jq`, which runs on gh's *embedded* jq and costs nothing. Only three places touched the
+standalone binary — and all three failed silently without it rather than erroring, so nobody noticed.
+The toolchain is now `git`, `gh`, and `openspec`, full stop.
+
+- **Fix: `wait-for-checks.sh` no longer reports false green.** Two independent bugs lived in the same
+  script. Without `jq` on PATH, the pending count came back empty, `${PENDING:-0}` defaulted to 0,
+  and a PR with failing checks reported `RESULT: SUCCESS` — `/save` and `/ship` treated red CI as
+  passing. Separately (and this one hit *everyone*, `jq` installed or not), the no-checks guard keyed
+  off `gh pr checks`'s exit code, but that command exits `8` on pending and `1` on failure — it
+  reports the verdict, not whether checks exist. So any PR with live checks took the "no CI
+  configured" branch on the first poll and the gate was skipped entirely. The guard is now emptiness
+  of output alone, and the filtering runs through `gh --jq` into plain shell.
+- **`/wong-sync` Step 0 reads its manifest instead of parsing it.** Four scalars out of
+  `.claude/.wong-stack.json` used to come from `jq -r '... // empty'`, which yields a blank string for
+  a missing key, an unreadable file, or the pre-2.0 filename alike — all indistinguishable from "not
+  set." The skill now tells the agent to read the file and note the values, with defaults and the
+  `~` → `$HOME` expansion stated in prose. Skills are instructions to an agent; a subshell is only
+  worth it when determinism or volume demands it, and four scalars is neither.
+- **`/wong-setup` stops gating onboarding on `jq`** — its readiness check is now `git`, `gh`
+  (installed and authed), a resolving `origin`, and `openspec`.
+- **New wiki page: [Required tools](wiki/development/required-tools.md)** — the three-tool set, why it
+  stays that small, and the two rules that keep it there: filter with `gh --jq` in scripts, and read
+  small local JSON files directly rather than shelling out to a parser.
+
+Nothing changes for repos that already have `jq` installed, except that the CI gate now tells the
+truth. No manifest or schema changes.
+
 ## 6.3.0 — Agents know where the credentials are
 
 WongStack has shipped a secrets convention since 4.x — a committed `.env.example`, git-ignored real

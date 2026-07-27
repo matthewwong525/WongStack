@@ -42,7 +42,7 @@ Read the target's `.claude/.wong-stack.json` (falling back to the pre-2.0 name `
 6. **OpenSpec** — `openspec` CLI installed? An `openspec/` folder or generated `.claude/commands/opsx/` already there? `node`/`npm` present?
 7. **Which agent(s) drive the repo** — signs of Claude Code, Codex, Cursor, or others (`CLAUDE.md`, `AGENTS.md`, `.cursor/`, …); this feeds the `openspec init --tools` choice and the pointer question in Step 6.
 8. **Legacy traces** — a `.wong-framework.json` manifest, `daily/` folder, `claude-framework` plugin, removed `preview` skill (pre-3.0), `contribute-wong-stack` (pre-5.0).
-9. **GitHub readiness** — git repo? `gh` installed and authed? An `origin` remote that resolves? `jq`?
+9. **GitHub readiness** — git repo? `gh` installed and authed? An `origin` remote that resolves? `openspec` on PATH? (Those four are the whole required toolchain — nothing else, no `jq`.)
 
 Read, don't modify — and **don't act on the GitHub gaps yet**; that work waits for Step 5, after the verdict.
 

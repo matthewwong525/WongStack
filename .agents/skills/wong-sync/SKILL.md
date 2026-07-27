@@ -32,13 +32,13 @@ MF="$ROOT/.claude/.wong-stack.json"
 - **No manifest** → WongStack isn't installed here; stop and point at `/wong-setup`.
 - **Seed manifest** (`commit` is null and `version` is null — `/wong-setup` just handed off) → **fresh mode: this sync IS the install.** Same steps, three differences marked ⑂ below: the base is the empty tree, the changelog walk is skipped, and the contribute leg is idle.
 - **This repo IS a WongStack source** (`$ROOT/VERSION` exists alongside `$ROOT/.claude/skills/wong-setup/`) → **stop** — the source has nothing to sync with itself.
-- Read what the manifest already knows (older manifests may lack any of these — that's fine, they're filled in at Step 6):
-```bash
-BASE=$(jq -r '.commit // empty' "$MF")
-UPSTREAM=$(jq -r '.upstream.repo // "https://github.com/matthewwong525/WongStack"' "$MF")
-FORK=$(jq -r '.upstream.fork // empty' "$MF")
-WS=$(jq -r '.upstream.clone // empty' "$MF"); WS="${WS/#\~/$HOME}"
-```
+- **Read `$MF` yourself** — it's a handful of lines, and reading beats parsing: note these four values for the rest of the run. Older manifests may lack any of them; an absent key is *absent*, not empty — say so rather than silently proceeding on a blank.
+  - `BASE` ← `commit` — the commit the repo last synced to, and the three-way diff base. Absent on a seed manifest (⑂ fresh mode uses the empty tree instead).
+  - `UPSTREAM` ← `upstream.repo` — defaults to `https://github.com/matthewwong525/WongStack` when absent.
+  - `FORK` ← `upstream.fork` — the fork used for contributions, if one was recorded.
+  - `WS` ← `upstream.clone` — the cached clone path, with a leading `~` expanded to `$HOME`. Only a hint; Step 1 re-resolves it.
+
+  These are filled in (or corrected) at Step 6, so missing keys are normal on older manifests, not an error.
 
 ## Step 1 — refresh the clone (a disposable cache)
 

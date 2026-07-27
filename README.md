@@ -103,7 +103,7 @@ The setup prompt can help with missing pieces, but WongStack is designed around:
 
 - A coding agent that can read files, edit files, run shell commands, and ask questions.
 - A GitHub repo. If you are starting from an empty folder, setup can walk you through creating one.
-- [`gh`](https://cli.github.com/) and `jq`.
+- [`gh`](https://cli.github.com/), authenticated. (That plus `git` and `openspec` is the whole toolchain — no `jq` or other tools required.)
 - [Node.js](https://nodejs.org/) for the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI.
 
 ## Prefer to work from the source?
