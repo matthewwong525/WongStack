@@ -1,27 +1,40 @@
 ---
 name: wong-sync
-description: Sync this repo with WongStack in one pass — the round trip that replaced the installer's update mode and /contribute-wong-stack. Refreshes a cached WongStack clone, three-way-diffs every payload file against the commit you last synced to, pulls upstream improvements down into the working tree (per-file, batch-approvable), then surfaces your genuinely-local improvements as contribution candidates and — for the ones you approve — opens the upstream PR itself (fork-aware, VERSION + CHANGELOG ritual included). Runs no git in this repo; owns full git in the clone. Use when you want to sync, update, or upgrade WongStack here, pull the latest skills, or contribute/upstream an improvement back.
+description: Pull the latest WongStack into this repo — the updater that replaced the installer's update mode and /contribute-wong-stack. Refreshes a cached WongStack clone, three-way-diffs every payload file against the commit you last synced to, and pulls upstream improvements down into the working tree (per-file, batch-approvable). A bare run is pull-only. Add the word contribute (/wong-sync contribute) and it pulls first, then curates your genuinely-local payload improvements as candidates and — for the ones you approve — opens the upstream PR itself (fork-aware, VERSION + CHANGELOG ritual included). Runs no git in this repo; owns full git in the clone. Use when you want to sync, update, or upgrade WongStack here, pull the latest skills, or (explicitly) contribute an improvement back.
 user-invocable: true
 ---
 
 # /wong-sync
 
-The WongStack round trip in one pass. `/wong-setup` installs once; from then on this skill keeps the install current **and** keeps WongStack current with you:
+Pulls the latest WongStack into this repo in one pass. `/wong-setup` installs once; from then on this skill keeps the install current:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ 1. Clone    refresh the cached WongStack clone ($WS)     │
-│ 2. Classify three-way diff each payload file vs base     │
-│ 3. Pull     upstream → here (working tree only, /save)   │
-│ 4. Curate   local drift → contribution candidates        │
-│ 5. PR       branch in $WS + release ritual + push + PR   │
-│ 6. Manifest record the new base commit                   │
+│ every run                                                │
+│   1. Clone    refresh the cached WongStack clone ($WS)   │
+│   2. Classify three-way diff each payload file vs base   │
+│   3. Pull     upstream → here (working tree only, /save) │
+├──────────────────────────────────────────────────────────┤
+│ `contribute` only                                        │
+│   4. Curate   local drift → contribution candidates      │
+│   5. PR       branch in $WS + release ritual + push + PR │
+├──────────────────────────────────────────────────────────┤
+│ every run                                                │
+│   6. Manifest record the new base commit                 │
+│   7. Report                                              │
 └──────────────────────────────────────────────────────────┘
 ```
 
+## Input contract
+
+- **`/wong-sync`** (bare) → **pull-only.** Steps 1 → 2 → 3 → 6 → 7. It refreshes the clone, classifies, pulls upstream updates into the working tree, rewrites the manifest, and reports. It does **not** curate local drift and never asks about contributing.
+- **`/wong-sync contribute`** → pull, **then** the contribute leg. Steps 1 → 2 → 3 → 4 → 5 → 6 → 7.
+
+An explicit contribute run **still pulls first** — that ordering is behavior, not politeness. Drift that already landed upstream self-cancels in Step 3, so the contribute leg only ever sees *genuinely* local change. There is no contribute-only mode.
+
 Two rules hold throughout:
 - **No git in this repo; full git in the clone.** Pulled updates land in the working tree for you to review and `/save` — the branch → PR → CI gate stays the only way changes land here. In `$WS`, this skill owns the whole flow: branch, commit, push, PR, and it never leaves the clone dirty.
-- **Only manifest files, ever.** Reads and copies are scoped to [`references/payload-manifest.md`](references/payload-manifest.md) in both directions — app skills, app source, and business docs are never read, so nothing local can leak upstream. Contributing is **opt-in per file**; the default is skip.
+- **Only manifest files, ever.** Reads and copies are scoped to [`references/payload-manifest.md`](references/payload-manifest.md) in both directions — app skills, app source, and business docs are never read, so nothing local can leak upstream. On a `contribute` run, contributing is **opt-in per file**; the default is skip.
 
 ## Step 0 — resolve this repo and its manifest
 
@@ -69,15 +82,15 @@ With a recorded base (`$BASE`), get each file's base content from history — `g
 | upstream vs base | local vs base | classification | behavior |
 |---|---|---|---|
 | changed | unchanged | **upstream update** | pull down — batch-approvable |
-| unchanged | changed | **contribution candidate** | curate in Step 4 |
+| unchanged | changed | **local-only change** | `contribute` run: curate in Step 4. Bare run: **silent** — classified, never surfaced |
 | changed | changed | **true conflict** | show three-way, ask |
 | unchanged | unchanged | in sync | silent |
 
-Only real decisions get surfaced — don't walk the user through files that need none.
+Only real decisions get surfaced — don't walk the user through files that need none. A bare run has no decisions to make about local-only change, so it makes none: the classification still happens (it's how Step 3 knows a file isn't a clean update), but nothing about those files reaches the user.
 
-**No `$BASE`, real `version`** (an install that predates this skill): say so up front, fall back to a plain two-way walk of local vs `$WS` for this one sync (show each diff, ask keep / take-upstream / candidate), and record `$WS_HEAD` at Step 6 so every later sync is three-way.
+**No `$BASE`, real `version`** (an install that predates this skill): say so up front, fall back to a plain two-way walk of local vs `$WS` for this one sync (show each diff, ask keep / take-upstream — plus *candidate* on a `contribute` run), and record `$WS_HEAD` at Step 6 so every later sync is three-way.
 
-⑂ **Fresh mode** (`commit` *and* `version` null): the base is the **empty tree** — the same table, with base content empty for every file. Files absent locally classify as **upstream updates** (the batch-approvable pull *is* the install); files present locally that differ are **true conflicts** — resolve keep-local / take-upstream / **keep under another name**, recording any rename in the manifest's `components.skills`. Contribution candidates cannot occur against an empty base.
+⑂ **Fresh mode** (`commit` *and* `version` null): the base is the **empty tree** — the same table, with base content empty for every file. Files absent locally classify as **upstream updates** (the batch-approvable pull *is* the install); files present locally that differ are **true conflicts** — resolve keep-local / take-upstream / **keep under another name**, recording any rename in the manifest's `components.skills`. Local-only change cannot occur against an empty base, so fresh mode is pull-only regardless of the argument.
 
 ## Step 3 — pull leg (upstream → here, no git)
 
@@ -87,7 +100,11 @@ Apply the **upstream updates** to `$ROOT`'s working tree: list them with a one-l
 
 No `git add`, no commit, no branch — when the pull leg is done, the updates exist only as working-tree edits. Point the user at `/save` to checkpoint them through the normal gate.
 
-## Step 4 — contribute leg (curate the local drift)
+**Bare run ends here.** With no `contribute` argument, skip Steps 4 and 5 entirely — no curation, no candidates, no question — and continue at Step 6.
+
+## Step 4 — contribute leg (curate the local drift) — `contribute` only
+
+**Gate:** run this step only when the invocation was `/wong-sync contribute`. On a bare run, skip to Step 6.
 
 ⑂ Fresh mode: skip — nothing can be a contribution candidate on an install; continue at Step 6.
 
@@ -98,7 +115,9 @@ The pull leg just ran, so what's left classified local-only is *genuinely* local
 
 Nothing approved → report and stop after Step 6; the clone stays pristine — no branch, no ritual, no PR.
 
-## Step 5 — branch, release ritual, fork-aware PR (all in `$WS`)
+## Step 5 — branch, release ritual, fork-aware PR (all in `$WS`) — `contribute` only
+
+**Gate:** same as Step 4 — a bare run never reaches here.
 
 With at least one approved candidate:
 
@@ -132,11 +151,17 @@ Older manifests just gain the new keys here — nothing breaks on a v1 manifest.
 
 ## Step 7 — report
 
-Pulled (files + one-liners, and that they await `/save`); conflicts and how each resolved; contributed (files + rationales + the PR URL, or the parked branch name on the degraded path); skipped candidates; new manifest `version`/`commit`; fork recorded, if one was created. ⑂ Fresh mode: this report is the install record — version installed, everything pulled, collisions and their resolutions — and control returns to `/wong-setup`'s closing step when it drove the handoff.
+**Bare run:** pulled (files + one-liners, and that they await `/save`); conflicts and how each resolved; new manifest `version`/`commit`. Then close with **one line** — not a prompt, not a decision: *"Improved a payload file here? `/wong-sync contribute` offers it upstream — `contributing.md` at the wiki root has the bar."* Say nothing about which local files drifted; naming them turns the line back into the prompt this replaced.
+
+**`contribute` run:** all of the above, plus contributed (files + rationales + the PR URL, or the parked branch name on the degraded path); skipped candidates; fork recorded, if one was created — and drop the closing line, since the leg just ran.
+
+⑂ Fresh mode: this report is the install record — version installed, everything pulled, collisions and their resolutions — and control returns to `/wong-setup`'s closing step when it drove the handoff.
 
 ## Hard rules
 
 - **No git in this repo.** Pulled updates stay working-tree-only; `/save` is the gate.
+- **Pull-only unless asked.** A bare `/wong-sync` never curates and never asks about contributing. Only `/wong-sync contribute` runs Steps 4–5.
+- **`contribute` still pulls first.** Never contribute-only; the pull leg is what makes local drift trustworthy.
 - **Full git in the clone, never left dirty.** Contributions ride a pushed branch; the clone ends clean on the default branch. No approvals → the clone is untouched.
 - **Manifest files only, both directions.** Nothing outside [`references/payload-manifest.md`](references/payload-manifest.md) is read or copied.
 - **Contributions are opt-in per file.** Default skip; rationale shown before asking.

@@ -5,7 +5,7 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 | Tool | Why |
 |---|---|
 | `git` | Everything lives in the repo; `/save`, `/continue`, and `/ship` own all git. |
-| `gh` | PRs, checks, and the GitHub API — the delivery gate and the `/wong-sync` contribution leg. Must be authenticated. |
+| `gh` | PRs, checks, and the GitHub API — the delivery gate, plus the clone refresh and upstream PR behind `/wong-sync` (and its explicit [`contribute`](../contributing.md) run). Must be authenticated. |
 | `openspec` | The planning layer the workflow verbs front. Installed via npm, so its own install needs [Node.js](https://nodejs.org/) — but the payload only ever calls the `openspec` binary. |
 
 [`/wong-setup`](../../.claude/skills/wong-setup/SKILL.md) checks for these during its readiness step. Beyond them, no core payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.

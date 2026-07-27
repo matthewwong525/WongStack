@@ -2,7 +2,7 @@
 
 ## What this is
 
-This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents can run the same workflows, preserve decisions, and improve the process as work happens. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/) (Claude Code's native skill location, also readable by other agents), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`wong-setup`](.claude/skills/wong-setup/SKILL.md) skill guides *other* repos through onboarding once (git, GitHub, OpenSpec, a seed manifest) and hands the install itself to `wong-sync`'s fresh mode; from then on [`wong-sync`](.claude/skills/wong-sync/SKILL.md) — itself part of the payload, with the canonical [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) inside it — runs the round trip: pull updates down, contribute improvements back up via an upstream PR. See the [README](README.md) for the user story.
+This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents can run the same workflows, preserve decisions, and improve the process as work happens. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/) (Claude Code's native skill location, also readable by other agents), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`wong-setup`](.claude/skills/wong-setup/SKILL.md) skill guides *other* repos through onboarding once (git, GitHub, OpenSpec, a seed manifest) and hands the install itself to `wong-sync`'s fresh mode; from then on [`wong-sync`](.claude/skills/wong-sync/SKILL.md) — itself part of the payload, with the canonical [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) inside it — pulls updates down. Sending improvements back up is the explicit `/wong-sync contribute`, which opens the upstream PR for you ([contributing](wiki/contributing.md)). See the [README](README.md) for the user story.
 
 It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/wong-setup` or `/wong-sync` here; it's the source, not a target (both stop when the clone *is* the current repo).
 
@@ -53,11 +53,12 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   `/opsx:archive`), `/dream` (capture session facts into the wiki + consolidate it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Branch name = change name ties a branch to its plan.
-- **Stay in sync with WongStack** — `/wong-sync` runs the round trip in one pass: it pulls upstream
-  WongStack improvements into the working tree (three-way-diffed, so only real decisions get asked),
-  then offers your genuinely-local payload improvements back upstream — opt-in per file, nothing
-  app-specific ever leaks — and opens the upstream PR itself. Pulled updates land uncommitted;
-  checkpoint them with `/save`.
+- **Stay in sync with WongStack** — `/wong-sync` pulls upstream WongStack improvements into the
+  working tree (three-way-diffed, so only real decisions get asked). Pulled updates land
+  uncommitted; checkpoint them with `/save`. Sending an improvement the other way is a separate,
+  explicit ask: `/wong-sync contribute` pulls first, then curates your genuinely-local payload
+  improvements and opens the upstream PR itself — opt-in per file, nothing app-specific ever leaks.
+  The bar and the flow: [contributing](wiki/contributing.md).
 - **Don't edit `wiki/` mid-task** unless it's explicitly the task — reach for `/dream` when a
   reusable process is worth capturing, with the change and diff in hand.
 - **Document general, reusable processes only.** The specifics of a given change live in its

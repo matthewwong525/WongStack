@@ -3,6 +3,28 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.7.0 — `/wong-sync` is pull-only; contributing is a word you say
+
+Every `/wong-sync` used to end by curating your local drift and asking what to send upstream — a step
+most people declined on a command they ran to *get updates*. The default now matches the common case.
+Nothing is lost: the contribute machinery is untouched, just no longer unprompted.
+
+- **A bare `/wong-sync` pulls and stops.** Refresh the clone, three-way-diff, pull upstream updates
+  into the working tree, rewrite the manifest, report. No curation, no contribution prompt. Local-only
+  drift is still classified (Step 3 needs it) but never surfaced.
+- **`/wong-sync contribute` runs the contribute leg**, unchanged: one-line generality rationale per
+  candidate, opt-in per file with skip as the default, then branch + `VERSION`/`CHANGELOG` ritual +
+  fork-aware PR in the clone. It **still pulls first** — that ordering is what makes drift already
+  landed upstream self-cancel instead of being re-offered. There is no contribute-only mode.
+- **A new `wiki/contributing.md`, synced to every target repo** — what `/wong-sync contribute` does,
+  the bar ("does this belong in every WongStack repo?"), and the opt-in-per-file rule. The prompt was
+  the only place most people met the capability; this page is what replaces it, so it joins the
+  manifest's synced docs alongside `wiki-style.md` and `voice.md`.
+- **Reworded every surface that promised the round trip** — the skill's description, opener, and step
+  diagram, the `WONG-STACK` block, `README.md`'s skill table, `wiki/development/README.md`,
+  `required-tools.md`'s `gh` row, and `wong-setup`'s installed-repo hand-off. `gh` stays required; it
+  was never justified by the contribute leg alone.
+
 ## 6.6.0 — An optional Cloudflare stack: the runnable pack
 
 Change 1 documented the Cloudflare *setup*; this makes the stack *runnable* — as an **opt-in pack** a
