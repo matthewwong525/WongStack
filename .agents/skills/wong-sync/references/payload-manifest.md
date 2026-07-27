@@ -12,6 +12,18 @@ The single source of truth for **which files sync** between WongStack and a targ
   Only these pages — the rest of the wiki is the target repo's own.
 - **CLAUDE.md — the `WONG-STACK` block only** — the content between `WONG-STACK:BEGIN` and `WONG-STACK:END`. Everything outside the markers ("What this is" and any repo-specific sections) belongs to the target and is never compared or copied.
 
+## The opt-in stack pack
+
+The **Cloudflare stack pack** is a manifest category gated on a flag: its files are in the manifest **only** for a repo whose `.claude/.wong-stack.json` has `components.stackPack: true`. For any other repo they are treated as *outside* the manifest — never read, classified, pulled, or offered in either direction, so a repo that declined the pack stays byte-for-byte stack-agnostic. For a repo that opted in, these files classify and refresh exactly like any other payload file (the same three-way diff).
+
+The pack's **drop-in files** (whole files the target owns after install):
+
+- `scripts/cf-build.sh`, `scripts/swap-d1-id.js`, `scripts/reset-staging-d1.mjs` — the three zero-config D1 pipeline scripts.
+- `schema/seed.sql` and `schema/migrations/.gitkeep` — the seed template and the migrations directory.
+- The whole `wiki/stack/` section (hub + `core-stack.md`, `d1-pipeline.md`, `cloudflare-access.md`, `cloudflare-credentials.md`) — the pipeline and Cloudflare-setup docs.
+
+The pack's **config fragments** are **not** manifest files. `package.json` scripts, the `wrangler.jsonc` `d1_databases` block, `.env.example` variables, and the `.gitignore` `.dev.vars` entry must *merge* into files the target already owns, so they can't be whole-file three-way-diffed. They are applied as guided edits following the `CLAUDE.md`-block precedent (show → apply with confirmation → never blind-write), from [`stack-pack-fragments.md`](stack-pack-fragments.md). On the rare upstream change to a fragment, `/wong-sync` re-offers it as a guided edit rather than auto-merging.
+
 ## Not in the manifest
 
 - **`wong-setup`** — source-only tooling; never copied into a target (offered as a symlink instead). It copies no payload file except the `wong-sync` skill (the bootstrap that makes the first sync possible); everything else installs through the fresh-mode pull.

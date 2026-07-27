@@ -8,7 +8,16 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 | `gh` | PRs, checks, and the GitHub API — the delivery gate and the `/wong-sync` contribution leg. Must be authenticated. |
 | `openspec` | The planning layer the workflow verbs front. Installed via npm, so its own install needs [Node.js](https://nodejs.org/) — but the payload only ever calls the `openspec` binary. |
 
-[`/wong-setup`](../../.claude/skills/wong-setup/SKILL.md) checks for these during its readiness step. Beyond them, no payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.
+[`/wong-setup`](../../.claude/skills/wong-setup/SKILL.md) checks for these during its readiness step. Beyond them, no core payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.
+
+## The opt-in Cloudflare stack pack
+
+One exception, and it proves the rule by staying opt-in. The [Cloudflare stack pack](../stack/README.md) ships three scripts that run `node`/`npm` and `wrangler` and expect a Cloudflare account. That's more than the core three tools — so the pack is **opt-in, and its tools are its own:**
+
+- They run **only in a repo that explicitly took the pack** (`components.stackPack: true`), and **only in that repo's own build/CI** — the [D1 pipeline scripts](../stack/d1-pipeline.md#the-scripts) that migrate and deploy — **never inside a WongStack skill.**
+- A repo that **declined the pack** runs the entire toolkit on `git`, `gh`, and `openspec` alone, exactly as before. It receives no pack file and needs no extra tool.
+
+So the core three-tool guarantee stays literally true for every repo: the pack adds tools to *its* repo's deploy pipeline, not to WongStack. The `wrangler`/`node` line lives at the target's build boundary, which was never bound by this page's promise.
 
 ## Working with JSON
 
