@@ -15,24 +15,22 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, "..");
+import { findWranglerConfig, readDatabaseName, repoRoot } from "./lib-wrangler-config.mjs";
 
-const wrangler = readFileSync(resolve(root, "wrangler.jsonc"), "utf8");
-const nameMatch = wrangler.match(/"database_name"\s*:\s*"([^"]+)"/);
-if (!nameMatch) {
-  console.error("Could not read `database_name` from wrangler.jsonc — aborting.");
-  process.exit(1);
-}
-const DB = nameMatch[1];
+const root = repoRoot;
+const wranglerPath = findWranglerConfig();
+const DB = readDatabaseName(wranglerPath);
 const PREVIEW_FLAGS = ["--remote", "--preview"]; // staging
+
+// Run wrangler from the config's own directory so config-relative paths
+// (migrations_dir, assets) resolve the way wrangler expects.
+const wranglerCwd = dirname(wranglerPath);
 
 function exec(args, { json = false, quiet = false } = {}) {
   const result = execFileSync("npx", ["wrangler", ...args], {
+    cwd: wranglerCwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", quiet ? "pipe" : "inherit"],
   });

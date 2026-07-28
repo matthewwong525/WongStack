@@ -15,14 +15,18 @@ The `build` script becomes the CI wrapper; the repo's real build moves to `build
   "scripts": {
     "build": "bash scripts/cf-build.sh",
     "build:app": "<the repo's existing build command — e.g. tsc -b && vite build>",
-    "db:migrate:staging": "wrangler d1 migrations apply $npm_package_config_db --remote --preview",
-    "db:migrate:prod": "wrangler d1 migrations apply $npm_package_config_db --remote",
+    "db:migrate:staging": "wrangler d1 migrations apply <your-db-name> --remote --preview",
+    "db:migrate:prod": "wrangler d1 migrations apply <your-db-name> --remote",
     "db:reset:staging": "node scripts/reset-staging-d1.mjs"
   }
 }
 ```
 
-If the repo already has a `build`, rename it to `build:app` (confirm first) so `cf-build.sh` can call it. The `db:migrate:*` scripts pass the database name explicitly; if the repo prefers, replace `$npm_package_config_db` with the literal `database_name` — the scripts under `scripts/` read the name from `wrangler.jsonc` themselves, so this is only a convenience alias.
+If the repo already has a `build`, rename it to `build:app` (confirm first) so `cf-build.sh` can call it.
+
+**Paths here are relative to the `package.json` you're merging into.** When the Worker lives in a subdirectory (the `app/` layout the SPA pack ships), that's `app/package.json`, so the two script paths become `bash ../scripts/cf-build.sh` and `node ../scripts/reset-staging-d1.mjs`. The scripts themselves resolve the repo root from their own location, so they work from either layout.
+
+Write the **literal** `database_name` into the `db:migrate:*` scripts. (An earlier version of this page used `$npm_package_config_db`, which expands to an empty string unless the `package.json` also defines a `config.db` key — leaving wrangler with no database argument.) These two are only a convenience alias: the scripts under `scripts/` read the name out of the wrangler config themselves.
 
 ## `wrangler.jsonc` → `d1_databases`
 
@@ -42,7 +46,11 @@ One binding entry carries both databases — production in `database_id`, stagin
 }
 ```
 
+**`migrations_dir` is resolved relative to the wrangler config file, not the repo root.** The value above is right when the config sits at the repo root. In the `app/` layout it must be `"../schema/migrations"`, since `schema/` stays at the repo root — get this wrong and wrangler reports no migrations to apply rather than erroring.
+
 `cf-build.sh` reads `database_name` from here; `swap-d1-id.js` reads and swaps the two ids. Keep the two `_id` values distinct — the swap refuses to run when they're identical.
+
+One cosmetic gotcha: `wrangler deploy`'s binding summary prints the entry's `preview_database_id`, so after a preview swap the log names the *other* database. The deployed binding follows `database_id` and is correct; verify against the generated `dist/**/wrangler.json` rather than the log line.
 
 ## `.env.example` → Cloudflare variables
 

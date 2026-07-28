@@ -17,8 +17,8 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+
+import { findWranglerConfig } from "./lib-wrangler-config.mjs";
 
 const target = process.argv[2];
 if (target !== "staging") {
@@ -26,8 +26,7 @@ if (target !== "staging") {
   process.exit(1);
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
-const wranglerPath = resolve(here, "..", "wrangler.jsonc");
+const wranglerPath = findWranglerConfig();
 const original = readFileSync(wranglerPath, "utf8");
 
 const dbIdRe = /("database_id"\s*:\s*")([^"]+)(")/;
