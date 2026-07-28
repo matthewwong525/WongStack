@@ -5,7 +5,7 @@ This wiki is WongStack's process memory: the reusable knowledge a human or agent
 ## Where to find things
 
 - [AI knowledge centers](agent-knowledge-center.md) — why WongStack centralizes process knowledge in the repo and makes it runnable by agents.
-- [Contributing upstream](contributing.md) — how to send a workflow improvement back to WongStack with `/wong-sync contribute`, and the generality bar it has to clear.
+- [Contributing upstream](contributing.md) — how to send a workflow improvement back to WongStack by hand, and the generality bar it has to clear.
 - [Development](development/README.md) — working on WongStack itself: editing the payload and cutting a release.
 
 > New section? Add a `wiki/<section>/README.md` hub, link it from the list above, and let

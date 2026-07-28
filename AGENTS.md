@@ -2,7 +2,7 @@
 
 ## What this is
 
-This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents can run the same workflows, preserve decisions, and improve the process as work happens. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/) (Claude Code's native skill location, also readable by other agents), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`wong-setup`](.claude/skills/wong-setup/SKILL.md) skill guides *other* repos through onboarding once (git, GitHub, OpenSpec, a seed manifest) and hands the install itself to `wong-sync`'s fresh mode; from then on [`wong-sync`](.claude/skills/wong-sync/SKILL.md) — itself part of the payload, with the canonical [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) inside it — pulls updates down. Sending improvements back up is the explicit `/wong-sync contribute`, which opens the upstream PR for you ([contributing](wiki/contributing.md)). See the [README](README.md) for the user story.
+This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents can run the same workflows, preserve decisions, and improve the process as work happens. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/) (Claude Code's native skill location, also readable by other agents), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`wong-setup`](.claude/skills/wong-setup/SKILL.md) skill guides *other* repos through onboarding once (git, GitHub, OpenSpec, a seed manifest) and hands the install itself to `wong-sync`, which copies in every payload file the repo lacks; from then on [`wong-sync`](.claude/skills/wong-sync/SKILL.md) — itself part of the payload, with the canonical [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) inside it — keeps a repo current by copying in what's missing and *proposing* what's worth adopting, never overwriting. Sending improvements back up is a manual pull request ([contributing](wiki/contributing.md)). See the [README](README.md) for the user story.
 
 It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/wong-setup` or `/wong-sync` here; it's the source, not a target (both stop when the clone *is* the current repo).
 
@@ -10,7 +10,7 @@ It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below 
 - **Editing the payload is a release** — add a [`CHANGELOG.md`](CHANGELOG.md) entry and bump [`VERSION`](VERSION) (semver) so the updater can detect and explain it.
 - Skills run from a target repo's `.claude/skills/`, so they reference files by **repo-relative path** (`$(git rev-parse --show-toplevel)/.claude/skills/...`) — never `${CLAUDE_PLUGIN_ROOT}` or an absolute path.
 - Rulebook canonical: [`wiki/wiki-style.md`](wiki/wiki-style.md) — the payload copy the installer places at a target's wiki root; the skills (`/dream`, `/improve docs`) read the repo's own copy there.
-- **The WongStack skills own all git; OpenSpec never runs git.** `/explore`·`/plan`·`/apply` front `/opsx:explore`·`/opsx:propose`·`/opsx:apply` and implement no git themselves; when `/apply` completes every task it automatically hands the change to `/save`. `/save`·`/continue`·`/ship` own every git action — `/save` runs `/opsx:sync`, `/continue` checks out the branch then hands off to `/apply`, `/ship` runs `/opsx:archive`. When you touch one of the git skills, keep the OpenSpec step it fronts intact. The one scoped exception: `/wong-sync` runs **no git in the repo it syncs** (pulled updates wait for `/save`) but **owns full git in the WongStack clone** — branch, commit, push, PR — and never leaves the clone dirty.
+- **The WongStack skills own all git; OpenSpec never runs git.** `/explore`·`/plan`·`/apply` front `/opsx:explore`·`/opsx:propose`·`/opsx:apply` and implement no git themselves; when `/apply` completes every task it automatically hands the change to `/save`. `/save`·`/continue`·`/ship` own every git action — `/save` runs `/opsx:sync`, `/continue` checks out the branch then hands off to `/apply`, `/ship` runs `/opsx:archive`. When you touch one of the git skills, keep the OpenSpec step it fronts intact. The one scoped exception: `/wong-sync` runs **no git in the repo it syncs** (what it copies and proposes waits for `/save`) and treats its cached WongStack clone as **read-only** — fetch, checkout, reset, never branch or push.
 
 <!-- WONG-STACK:BEGIN — generic WongStack conventions. The installer lifts this block verbatim into a target repo's CLAUDE.md, so keep it free of repo-specifics. Edit freely between the markers. -->
 
@@ -53,12 +53,13 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   `/opsx:archive`), `/dream` (capture session facts into the wiki + consolidate it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Branch name = change name ties a branch to its plan.
-- **Stay in sync with WongStack** — `/wong-sync` pulls upstream WongStack improvements into the
-  working tree (three-way-diffed, so only real decisions get asked). Pulled updates land
-  uncommitted; checkpoint them with `/save`. Sending an improvement the other way is a separate,
-  explicit ask: `/wong-sync contribute` pulls first, then curates your genuinely-local payload
-  improvements and opens the upstream PR itself — opt-in per file, nothing app-specific ever leaks.
-  The bar and the flow: [contributing](wiki/contributing.md).
+- **Stay in sync with WongStack** — `/wong-sync` copies in any payload file this repo doesn't have
+  yet, then *adapts* rather than overwrites: it reads what upstream lets you do against what this
+  repo already does, and proposes the worthwhile gap as an OpenSpec change you review and `/apply`.
+  It **never modifies a file that already exists**, so local customization is safe and a capability
+  you already solve your own way is left alone. Everything it writes lands uncommitted; checkpoint
+  it with `/save`. Sending an improvement the other way is a manual pull request — the bar and the
+  route: [contributing](wiki/contributing.md).
 - **Don't edit `wiki/` mid-task** unless it's explicitly the task — reach for `/dream` when a
   reusable process is worth capturing, with the change and diff in hand.
 - **Document general, reusable processes only.** The specifics of a given change live in its
