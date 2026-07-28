@@ -1,7 +1,7 @@
 # app-typescript-eslint
 
-**Status:** in-progress
-**Open questions:** (1) Cloudflare credentials — `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the git-ignored root `.env` are still blank, so nothing can deploy. (2) The Worker is named `app` in `app/wrangler.jsonc`, which determines the `app.<subdomain>.workers.dev` URL — is that the real name? (3) Does `app/` belong in this repo at all, given it's the WongStack meta-repo?
+**Status:** shipped
+**Open questions:** Deferred to a follow-up change, deliberately — (1) the Worker is named `app` in `app/wrangler.jsonc`, which sets the `app.<subdomain>.workers.dev` URL; (2) whether `app/` stays nested or lifts to the repo root, which is what `scripts/cf-build.sh` and the existing Workers Builds integration expect. Cloudflare credentials are now filled in the git-ignored root `.env` (resolved).
 
 ## Why
 
@@ -56,3 +56,8 @@ No router, CSS framework, test runner, or Cloudflare bindings (D1/KV/R2) — the
   - **Verified, not assumed:** `npm run lint` clean, `tsc -b` clean, `npm run build` succeeds, and `npm run dev` serves the SPA (HTTP 200) with `/api/` returning `{"name":"Cloudflare"}`. Because a passing linter and a no-op linter look identical, oxlint was checked against a throwaway file with deliberate violations — it flagged `no-unused-vars` and `no-constant-condition`, confirming it actually scans. The file was deleted.
   - **Naming drift, left alone:** this branch is `app-typescript-eslint`, from before the oxlint decision. The branch name is the change name that `/continue` and `/ship` key off, so renaming mid-flight costs more than the stale word is worth.
   - Nothing has been deployed and no Cloudflare credentials exist yet — see Open questions.
+- **2026-07-28** — Investigated the missing preview URL, then shipped. Findings:
+  - **`preview-url.sh` only discovers a URL a provider already published** — GitHub Deployments, commit statuses, check-run `details_url`, or PR bot comments. On this commit there were 0 deployments, no bot comments, and the one check-run's `details_url` was a `dash.cloudflare.com` dashboard link, which the script's preview regex correctly declines to treat as a preview. Nothing was broken; nothing had published a URL.
+  - **A Workers Builds integration already exists on this repo** — a Worker named `wongstack`, which ran on this commit and uploaded version `e01c56f5`. It predates this branch. Two reasons it yields no preview of the React app: Workers Builds posts Build ID / Script / Version ID into the check summary but no preview URL (a version needs **Preview URLs** enabled on the Worker to get a `<version-prefix>-wongstack.<subdomain>.workers.dev` address — unverified, as it needs dashboard access), and more fundamentally its build runs at the repo root, where there is no `package.json` or `wrangler.jsonc` — the only ones are nested under `app/`. The build's `started_at` equals its `completed_at`, i.e. a 0-second no-op. **Workers Builds is not building `app/`.**
+  - **Shipped with the Worker name and the `app/` location still undecided**, as an explicit call: the scaffold is verified and self-contained, and relocating a folder later is a clean `git mv`. Wiring Workers Builds to actually build the app depends on that location decision, so both belong in one follow-up change rather than being rushed into this one.
+  - Cloudflare credentials were filled into the git-ignored root `.env` before shipping. No deploy has been run.

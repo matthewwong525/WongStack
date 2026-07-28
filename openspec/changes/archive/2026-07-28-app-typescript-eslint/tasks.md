@@ -17,7 +17,7 @@
 
 - [x] Document `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in `.env.example`
 - [x] Create the git-ignored root `.env` with both keys blank, ready to fill
-- [ ] **User:** fill in the real token + account ID in `.env`
+- [x] **User:** fill in the real token + account ID in `.env`
 
 ## Verification
 
