@@ -3,6 +3,35 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 6.8.0 — the D1 pipeline works when the Worker lives in `app/`
+
+The stack pack (6.6.0) put `wrangler.jsonc` at the repo root; the SPA pack (6.7.0) put it in `app/`.
+Take both and all three pipeline scripts die on `ENOENT: wrangler.jsonc` — they resolved it as
+`<repo>/wrangler.jsonc` and read `schema/` from a different root again. Found by running the pipeline
+end-to-end against real D1 databases; every item below is a reproduced failure, not a review note.
+
+- **The scripts find the wrangler config instead of assuming it.** New `scripts/lib-wrangler-config.mjs`
+  resolves the repo root from the script's own location, then looks for `wrangler.jsonc`/`.json`/`.toml`
+  at the root and in each immediate subdirectory. `swap-d1-id.js` and `reset-staging-d1.mjs` share it;
+  `cf-build.sh` does the same in bash. Still zero-config and byte-identical in every repo — now for
+  both layouts.
+- **`cf-build.sh` no longer depends on the caller's CWD.** It anchors on `${BASH_SOURCE[0]}`, runs
+  wrangler from the config's own directory (so config-relative paths resolve), and runs `build:app`
+  wherever `package.json` actually is. Previously it grepped `wrangler.jsonc` from CWD and invoked
+  `node scripts/swap-d1-id.js` by relative path — both wrong unless CWD was the repo root.
+- **`reset-staging-d1.mjs` runs wrangler from the config directory**, so `migrations_dir` resolves the
+  way wrangler expects while `schema/seed.sql` still comes from the repo root.
+- **Three fragment-doc corrections** in `stack-pack-fragments.md`, each a real install failure:
+  `migrations_dir` is config-relative (`../schema/migrations` in the `app/` layout, and getting it
+  wrong silently finds no migrations); the `db:migrate:*` scripts used `$npm_package_config_db`, which
+  expands to nothing without a `config.db` key; and script paths are relative to the `package.json`
+  being merged into. Plus a note that `wrangler deploy`'s binding summary prints
+  `preview_database_id`, which reads alarming after a preview swap but is only cosmetic.
+
+Known drift, not fixed here: `wiki/stack/cloudflare-credentials.md` documents `CLOUDFLARE_USER_TOKEN`,
+but wrangler reads `CLOUDFLARE_API_TOKEN` (what `.env.example` ships). Follow the wiki and nothing
+picks the token up.
+
 ## 6.7.0 — `/wong-sync` is pull-only; contributing is a word you say
 
 Every `/wong-sync` used to end by curating your local drift and asking what to send upstream — a step

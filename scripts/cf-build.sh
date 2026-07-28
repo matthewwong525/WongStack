@@ -27,34 +27,71 @@
 
 set -euo pipefail
 
+# Anchor every path on this script's own location, not the caller's CWD — the
+# Workers Builds root directory may be the repo root or the app subdirectory.
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROOT=$(dirname "$SCRIPT_DIR")
+
+# Find the wrangler config: repo root first, then each immediate subdirectory.
+# Keeps this script identical across repos whether the Worker sits at the root
+# or in an `app/` subdirectory.
+WRANGLER_CONFIG=""
+for name in wrangler.jsonc wrangler.json wrangler.toml; do
+  if [ -f "$ROOT/$name" ]; then WRANGLER_CONFIG="$ROOT/$name"; break; fi
+done
+if [ -z "$WRANGLER_CONFIG" ]; then
+  for dir in "$ROOT"/*/; do
+    base=$(basename "$dir")
+    # Skip node_modules and dotted directories — match on the basename only,
+    # since the repo's own absolute path may contain a dotted component.
+    case "$base" in node_modules|.*) continue ;; esac
+    for name in wrangler.jsonc wrangler.json wrangler.toml; do
+      if [ -f "$dir$name" ]; then WRANGLER_CONFIG="$dir$name"; break 2; fi
+    done
+  done
+fi
+if [ -z "$WRANGLER_CONFIG" ]; then
+  echo "cf-build: ERROR — no wrangler config found under $ROOT" >&2
+  exit 1
+fi
+APP_DIR=$(dirname "$WRANGLER_CONFIG")
+
+# Run the build where package.json actually lives.
+BUILD_DIR="$ROOT"
+[ -f "$APP_DIR/package.json" ] && BUILD_DIR="$APP_DIR"
+
 # Local (non-CI) runs: skip migrate + swap, just build.
 if [ -z "${WORKERS_CI_BRANCH:-}" ]; then
   echo "cf-build: not in CI — running plain build only"
-  exec npm run build:app
+  cd "$BUILD_DIR" && exec npm run build:app
 fi
 
 BRANCH="$WORKERS_CI_BRANCH"
 PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-main}"
 echo "cf-build: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
-# Read the D1 database name from wrangler.jsonc — no name is baked into this
-# script, so every repo's copy is identical.
-DB_NAME=$(grep -oE '"database_name"[[:space:]]*:[[:space:]]*"[^"]+"' wrangler.jsonc \
-  | head -1 | sed -E 's/.*:[[:space:]]*"([^"]+)".*/\1/')
+# Read the D1 database name from the wrangler config — no name is baked into
+# this script, so every repo's copy is identical.
+# `|| true` so a no-match grep doesn't trip `set -e`/`pipefail` and kill the
+# script before the explanatory error below can print.
+DB_NAME=$(grep -oE '"?database_name"?[[:space:]]*[:=][[:space:]]*"[^"]+"' "$WRANGLER_CONFIG" \
+  | head -1 | sed -E 's/.*[:=][[:space:]]*"([^"]+)".*/\1/' || true)
 if [ -z "$DB_NAME" ]; then
-  echo "cf-build: ERROR — could not read database_name from wrangler.jsonc" >&2
+  echo "cf-build: ERROR — could not read database_name from $WRANGLER_CONFIG" >&2
   exit 1
 fi
 
+# wrangler resolves config-relative paths (migrations_dir, assets) from the
+# config's own directory, so run it from there.
 if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   echo "cf-build: production branch — applying migrations to prod D1 ($DB_NAME)"
-  npx wrangler d1 migrations apply "$DB_NAME" --remote
+  (cd "$APP_DIR" && npx wrangler d1 migrations apply "$DB_NAME" --remote)
 else
   echo "cf-build: preview branch — applying migrations to staging D1 (preview_database_id)"
-  npx wrangler d1 migrations apply "$DB_NAME" --remote --preview
-  echo "cf-build: swapping wrangler.jsonc database_id to staging"
-  node scripts/swap-d1-id.js staging
+  (cd "$APP_DIR" && npx wrangler d1 migrations apply "$DB_NAME" --remote --preview)
+  echo "cf-build: swapping $WRANGLER_CONFIG database_id to staging"
+  node "$SCRIPT_DIR/swap-d1-id.js" staging
 fi
 
 echo "cf-build: building"
-npm run build:app
+cd "$BUILD_DIR" && npm run build:app
