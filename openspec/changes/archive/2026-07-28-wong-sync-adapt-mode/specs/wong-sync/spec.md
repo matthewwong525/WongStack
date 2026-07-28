@@ -1,10 +1,46 @@
-# wong-sync Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Never overwrite an existing file
 
-Keeping a repo current with WongStack, by **adaptation rather than replication**: a repo is up to date when the *capability* is present in it, in whatever form fits — not when its files match upstream's byte for byte. `/wong-sync` takes no arguments. It refreshes a cached WongStack clone, copies in verbatim any payload file the target does not have, hands every file the target *does* have to the capability analysis (the `wong-sync-adapt` capability), records the verdicts in a durable ledger, and reports. It **never modifies a file that already exists**, which is the guarantee that replaced its three-way diff and every conflict prompt that went with it. It runs no git in the target repo, treats the clone as read-only, opens no pull requests, and proposes rather than implements. It replaced the installer's update mode and the retired `/contribute-wong-stack`; contributing upstream is now a manual pull request.
+`/wong-sync` SHALL NOT modify or replace any file that already exists in the target repo. Its entire write scope SHALL be: payload files that were absent, the `WONG-STACK` block where no markers existed, the OpenSpec change folder the analysis proposes, and `.claude/.wong-stack.json`. This guarantee replaces every conflict-resolution mechanism the skill previously carried — there SHALL be no three-way view, no keep-local / take-upstream prompt, no batch approval of overwrites, and no rename-on-collision option, because no overwrite is ever attempted.
 
-## Requirements
+#### Scenario: Locally customized skill is safe
+
+- **WHEN** a repo has heavily edited its copy of a payload skill and upstream has also changed it
+- **THEN** the file is left byte-identical and the difference is handled by the capability analysis
+
+#### Scenario: No prompts about clobbering
+
+- **WHEN** any `/wong-sync` run completes
+- **THEN** the user was never asked to choose between a local and an upstream version of a file
+
+### Requirement: Absent payload files are copied directly
+
+For each file in the payload manifest, `/wong-sync` SHALL copy it into the target verbatim **if and only if** it does not exist locally. A file that exists locally SHALL NOT be copied, and SHALL instead be handed to the capability analysis. The threshold is per file, not per repo: a fresh install is simply the case where every manifest file is absent, and SHALL NOT be a distinct mode.
+
+For `CLAUDE.md`, the unit is the `WONG-STACK` block rather than the file: absent markers (or an absent file) SHALL cause the block to be inserted with its markers, creating the file if needed and leaving all other content byte-identical; present markers SHALL send the block to the analysis and SHALL NOT be rewritten in place.
+
+#### Scenario: New upstream skill arrives
+
+- **WHEN** upstream ships a payload skill the target does not have
+- **THEN** it is copied in directly, with no analysis needed to decide
+
+#### Scenario: Existing file is never copied over
+
+- **WHEN** a payload file exists locally in any state
+- **THEN** it is not copied, whether or not it matches upstream
+
+#### Scenario: Fresh install falls out of the general rule
+
+- **WHEN** `/wong-sync` runs in a repo where no payload file exists yet
+- **THEN** every manifest file is copied in as the install, with no separate fresh-mode branch
+
+#### Scenario: CLAUDE.md with the user's own content and no markers
+
+- **WHEN** the target's `CLAUDE.md` has content but no `WONG-STACK` markers
+- **THEN** the block is inserted with its markers and everything outside them is byte-identical
+
+## MODIFIED Requirements
 
 ### Requirement: One behavior, no arguments
 
@@ -27,20 +63,6 @@ An invocation carrying the retired `contribute` argument SHALL stop with a short
 
 - **WHEN** `/wong-sync` is invoked inside a WongStack clone itself (the resolved clone equals the current repo)
 - **THEN** the skill stops without changing anything, explaining the source has nothing to sync with itself
-
-### Requirement: Clone in the XDG cache, disposable
-
-The skill SHALL keep the WongStack clone at `${XDG_CACHE_HOME:-$HOME/.cache}/wong-stack/WongStack`, record that path in the manifest as `upstream.clone`, and treat the recorded path as a hint: a missing or broken clone is silently re-cloned; a present clone is fetched and reset to the upstream default branch so every sync starts from a clean, current base. A dirty clone MUST NOT be reset without warning and confirmation.
-
-#### Scenario: Recorded clone path was wiped
-
-- **WHEN** the manifest's `upstream.clone` path does not exist or is not a git repo
-- **THEN** the skill re-clones into the cache location and proceeds, updating the manifest
-
-#### Scenario: Clone has uncommitted changes
-
-- **WHEN** `git status --porcelain` in the clone is non-empty at sync start
-- **THEN** the skill warns and asks before resetting, and does not discard the changes unprompted
 
 ### Requirement: No git in the target; full git in the clone
 
@@ -154,42 +176,45 @@ The payload SHALL include a contributing page at the wiki root explaining how to
 - **WHEN** a reader reviews the `wong-sync` description and opener, the `WONG-STACK` block, the README skill table, and the wiki
 - **THEN** none of them mention a `contribute` argument or describe any sync as contributing anything upstream
 
-### Requirement: Never overwrite an existing file
+## REMOVED Requirements
 
-`/wong-sync` SHALL NOT modify or replace any file that already exists in the target repo. Its entire write scope SHALL be: payload files that were absent, the `WONG-STACK` block where no markers existed, the OpenSpec change folder the analysis proposes, and `.claude/.wong-stack.json`. This guarantee replaces every conflict-resolution mechanism the skill previously carried — there SHALL be no three-way view, no keep-local / take-upstream prompt, no batch approval of overwrites, and no rename-on-collision option, because no overwrite is ever attempted.
+### Requirement: Three-way classification against a recorded base
 
-#### Scenario: Locally customized skill is safe
+**Reason**: Nothing diffs any more. Files absent locally are copied verbatim; files present locally go to the capability analysis, which reasons about meaning rather than bytes. The four-cell classification, the `git show <base>:<path>` base lookup, the conflict walk, and the two-way fallback for manifests without a base all have no remaining role.
 
-- **WHEN** a repo has heavily edited its copy of a payload skill and upstream has also changed it
-- **THEN** the file is left byte-identical and the difference is handled by the capability analysis
+**Migration**: `commit` survives with a new meaning (the clone HEAD last synced against, driving the changelog walk and the ledger's `asOfCommit`), so no manifest edit is required. Behavior the classification used to provide — noticing a file is behind upstream — is now an `adopt` verdict whose task says to take the upstream version verbatim.
 
-#### Scenario: No prompts about clobbering
+### Requirement: Fresh-install mode via seed manifest
 
-- **WHEN** any `/wong-sync` run completes
-- **THEN** the user was never asked to choose between a local and an upstream version of a file
+**Reason**: Fresh install is no longer a mode. With the copy threshold set per file, a repo where every manifest file is absent is simply the degenerate case of the general rule, so the empty-tree base, the install-time collision walk, the keep-under-another-name option, and the skipped-changelog carve-out are all redundant.
 
-### Requirement: Absent payload files are copied directly
+**Migration**: A seed manifest (`version` and `commit` null) still works — every manifest file is absent, so every one is copied, and the real `version`/`commit` are written last. `wong-setup`'s handoff is unchanged; it simply no longer names a distinct mode on the other side.
 
-For each file in the payload manifest, `/wong-sync` SHALL copy it into the target verbatim **if and only if** it does not exist locally. A file that exists locally SHALL NOT be copied, and SHALL instead be handed to the capability analysis. The threshold is per file, not per repo: a fresh install is simply the case where every manifest file is absent, and SHALL NOT be a distinct mode.
+### Requirement: CLAUDE.md block insertion when no markers exist
 
-For `CLAUDE.md`, the unit is the `WONG-STACK` block rather than the file: absent markers (or an absent file) SHALL cause the block to be inserted with its markers, creating the file if needed and leaving all other content byte-identical; present markers SHALL send the block to the analysis and SHALL NOT be rewritten in place.
+**Reason**: Folded into the general copy-if-absent rule, which now states the `WONG-STACK` block as its own unit — absent markers means insert, present markers means analyse.
 
-#### Scenario: New upstream skill arrives
+**Migration**: None; the behavior is identical and specified in "Absent payload files are copied directly."
 
-- **WHEN** upstream ships a payload skill the target does not have
-- **THEN** it is copied in directly, with no analysis needed to decide
+### Requirement: Fork-aware upstream PR
 
-#### Scenario: Existing file is never copied over
+**Reason**: The contribute leg is removed entirely; the skill no longer opens pull requests, forks repositories, or writes to the clone.
 
-- **WHEN** a payload file exists locally in any state
-- **THEN** it is not copied, whether or not it matches upstream
+**Migration**: Contribute by hand — fork the upstream repo, branch, apply the release ritual (`VERSION` bump + newest-first `CHANGELOG.md` entry), and open the PR yourself. The route is documented on the payload's contributing page. A contribution branch parked in the cached clone by an earlier version is untouched and can still be pushed manually.
 
-#### Scenario: Fresh install falls out of the general rule
+### Requirement: Curation bar for contributions
 
-- **WHEN** `/wong-sync` runs in a repo where no payload file exists yet
-- **THEN** every manifest file is copied in as the install, with no separate fresh-mode branch
+**Reason**: With no contribute leg there are no contribution candidates to curate, and with no classification there is no notion of "local drift" to curate from.
 
-#### Scenario: CLAUDE.md with the user's own content and no markers
+**Migration**: The generality bar ("does this belong in every WongStack repo?") survives as guidance on the contributing page, applied by the human opening the PR rather than by the skill.
 
-- **WHEN** the target's `CLAUDE.md` has content but no `WONG-STACK` markers
-- **THEN** the block is inserted with its markers and everything outside them is byte-identical
+## RENAMED Requirements
+
+- FROM: `### Requirement: One-pass round trip, pull before contribute`
+- TO: `### Requirement: One behavior, no arguments`
+
+- FROM: `### Requirement: Manifest schema v2, lazily migrated`
+- TO: `### Requirement: Manifest schema, lazily migrated`
+
+- FROM: `### Requirement: The opt-in pack refreshes through the existing three-way diff`
+- TO: `### Requirement: The opt-in pack follows the same rules as any payload file`

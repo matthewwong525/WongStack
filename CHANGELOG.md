@@ -3,6 +3,43 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 7.0.0 — `/wong-sync` adapts instead of overwriting
+
+Updating stopped being a file copy. `/wong-sync` used to three-way-diff every payload file and ask
+you to resolve the collisions — which meant it could tell you your copy of a skill was *behind*, but
+never what upstream could now *do* that you couldn't. Repos experienced that as a sync that only
+grabbed surface-level features. It now reads both sides for meaning and proposes what's worth taking,
+in your repo's own terms.
+
+The premise is adaptation, not replication: you're up to date when the *capability* is present here,
+whatever form it takes — not when your bytes match upstream's.
+
+- **BREAKING: it never overwrites a file that already exists.** The whole write scope is payload
+  files that were absent, the `WONG-STACK` block where no markers existed, one OpenSpec change, and
+  the manifest. There's no conflict prompt because there's no conflict.
+- **BREAKING: the three-way diff is gone**, along with the base commit, the conflict walk, and fresh
+  mode. A file you don't have is copied in verbatim; a file you do have is adapted. The threshold is
+  per file, so a fresh install is just the case where every file is absent — it stopped being a mode.
+- **New: the adapt step.** Two independent subagents — a *cartographer* that maps what WongStack lets
+  you do (reading the wiki and the `WONG-STACK` block as first-class sources, not just skills), and a
+  *surveyor* that reads what your repo already does. Every capability gets one verdict: `present`,
+  `divergent` (you solve it your own way — left alone), `adopt`, or `declined`, each with a reason.
+- **It proposes; it never implements.** `adopt` verdicts become
+  `openspec/changes/adopt-wongstack-<date>/` — review it, then `/apply` like any other change.
+- **New: a capability ledger** in `.claude/.wong-stack.json`, so declines aren't re-pitched every run
+  — unless upstream changed that capability since you declined it, in which case it's re-raised with
+  what changed.
+- **BREAKING: `/wong-sync contribute` is removed.** No curation, no fork handling, no upstream PR.
+  Contributing is a manual pull request now; `wiki/contributing.md` has the route and the generality
+  bar. Removing the outbound leg is also what lets the surveyor read your repo properly.
+- `commit` survives with a new meaning: the clone HEAD you last synced against, driving the changelog
+  walk and the ledger — no longer a diff base. Older manifests just gain the new keys.
+
+Upgrading: your first sync after this one is an analysis, not a pull. A stale-but-untouched payload
+file no longer refreshes silently — it becomes a task saying to take the upstream version verbatim.
+That costs a review it didn't before, which is the deliberate price of never clobbering work you
+thought was yours.
+
 ## 6.7.0 — `/wong-sync` is pull-only; contributing is a word you say
 
 Every `/wong-sync` used to end by curating your local drift and asking what to send upstream — a step
