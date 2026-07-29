@@ -62,16 +62,17 @@ WongStack gives agents a small set of commands that match how work moves from id
 | `/explore` | Think through the idea before deciding what to do. |
 | `/plan` | Write the plan, tasks, and important decisions. |
 | `/apply` | Do the planned work, then automatically save it once every task is complete. |
-| `/save` | Save a checkpoint for review and future continuation at any time. |
+| `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, which lands straight in the repo as a note with no branch or PR. |
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
-| `/dream` | Save reusable lessons and team conventions into the wiki. |
+| `/dream` | Turn saved session notes into reusable lessons and team conventions in the wiki — works from any machine, since it reads the repo rather than your chat history. |
 | `/improve` | Ask an agent to audit the project and write improvement plans without changing code. |
 | `/wong-sync` | Bring this repo up to date with WongStack — copy in what's missing, and propose what's worth adopting from what upstream can now do. Never overwrites your files. |
 
 ## Where the knowledge lives
 
 - **Agent instructions** tell future agents how to work in the repo.
+- **Session notes** capture what a conversation figured out, so it survives the session and the machine it happened on.
 - **The wiki** holds reusable team process and conventions.
 - **Active changes** hold the plan, tasks, status, and decisions for work in progress.
 - **Archived changes** preserve what shipped and why.

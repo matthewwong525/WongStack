@@ -1,18 +1,27 @@
 ---
 name: dream
-description: Consolidate the session into the wiki the way sleep consolidates memory — capture durable facts the user stated (conventions, preferences, decisions-with-rationale, domain knowledge), then garden the whole wiki: merge duplicates, resolve contradictions newest-wins, prune stale content, split overgrown pages, repair links, tighten prose, and reality-check every cited path/command/flag against the code (fix mechanical drift, flag semantic conflicts). Use when the user wants to dream, synthesize, consolidate, distill the conversation into the wiki, clean up / garden the wiki, or check the wiki is consistent with the code. The single wiki write path (replaces the retired /document). Deliberate only — nothing auto-runs it; edits stay in the working tree (checkpoint with /save).
+description: Consolidate captured sessions into the wiki the way sleep consolidates memory — read the unconsolidated notes/*.md that /save committed (never the conversation, scrollback, or transcripts, so this runs on any machine), capture the durable facts the user stated (conventions, preferences, decisions-with-rationale, domain knowledge), mark each note consolidated, then garden the whole wiki: merge duplicates, resolve contradictions newest-wins, prune stale content, split overgrown pages, repair links, tighten prose, and reality-check every cited path/command/flag against the code (fix mechanical drift, flag semantic conflicts). Gardening runs whether or not there are new notes. Use when the user wants to dream, synthesize, consolidate notes into the wiki, clean up / garden the wiki, or check the wiki is consistent with the code. The single wiki write path (replaces the retired /document). Deliberate only — nothing auto-runs it; edits stay in the working tree (checkpoint with /save).
 user-invocable: true
 ---
 
 # /dream
 
-The wiki improves the way memory does overnight: the session's experience is **captured**, then the whole tree is **consolidated** — new facts merged into what's already known, contradictions resolved, noise pruned. One deliberate cycle, invoked at a natural stopping point. A wiki that only accretes pages rots; the second phase is what keeps it atomic and trustworthy.
+The wiki improves the way memory does overnight: the day's experience — already **captured** by `/save` into `notes/`, and committed — is **consolidated**, new facts merged into what's already known, contradictions resolved, noise pruned. One deliberate cycle, invoked at a natural stopping point. A wiki that only accretes pages rots; the second phase is what keeps it atomic and trustworthy.
+
+Capture and consolidation are split **across the repo boundary** on purpose. `/save` holds the conversation and writes it down; `/dream` reads only what's committed. So a session captured on a laptop is consolidatable from a desktop, a week later, by someone who wasn't there.
 
 **Before anything:** resolve the wiki root — `wiki/`, falling back to `docs/` in repos that keep the old name — and read its [`wiki-style.md`](../../../wiki/wiki-style.md). That file owns every structural and placement rule; this skill never restates it. The defect checklist for consolidation is `improve`'s [docs audit playbook](../improve/references/docs-audit-playbook.md).
 
 ## Phase 1 — capture
 
-Replay the conversation and extract facts worth keeping **from what the user said** — never from your own inferences or work products.
+**Read the repo, never the conversation.** The session's experience was already captured — `/save` compressed it into `notes/<slug>.md` and committed it. That is what makes this skill portable: capture happens on the machine that had the conversation, consolidation happens anywhere, later, by anyone. Never read scrollback, the current conversation, or machine-local transcript files; a session that was never `/save`d simply isn't available, and the fix is to `/save` it, not to reconstruct it here.
+
+```bash
+git pull                                    # another machine's notes may be newer
+grep -L 'consolidated: [0-9]' notes/*.md    # notes with no consolidation date
+```
+
+Read the unconsolidated notes — those whose frontmatter carries no `consolidated:` date — and extract facts worth keeping **from what the user said**, never from your own inferences or work products, and never from the assistant turns a note may quote. `notes/README.md` is the convention, not an input.
 
 **In scope** — things that will still be true next month, in a different task:
 - cross-cutting conventions ("we always deploy on Fridays")
@@ -30,7 +39,11 @@ Replay the conversation and extract facts worth keeping **from what the user sai
 
 Place each qualifying fact per the rulebook: extend the owning page first; a new atomic page is the exception, linked up/down/sideways with its parent linking back.
 
+**Then mark each note you consumed** — set `consolidated: YYYY-MM-DD` in its frontmatter. That watermark is what stops the next run re-litigating the whole history, and it lives in each note rather than a central ledger so two machines never conflict over it. **Never delete a note**: the wiki carries only what survived the filter, and the note stays referenceable for what didn't. A note you read and took nothing from is still consolidated — mark it.
+
 ## Phase 2 — consolidate
+
+**Phase 2 runs whether or not Phase 1 found anything.** No unconsolidated notes is a normal outcome, not a reason to stop — gardening is worth doing on its own, and a wiki that only ever grows when someone happens to have had a conversation rots between them.
 
 Now garden the whole tree, capture in hand — integrate and prune, never just append:
 
@@ -46,17 +59,15 @@ Work from the playbook's defect lenses; measure every edit against `wiki-style.m
 
 ## Report
 
-Close with a concise summary: facts captured (and where they landed), pages merged / pruned / split, links repaired, code drift fixed — and any doc-vs-code conflicts flagged as open questions for the user. Or a one-liner on why nothing qualified: "nothing to capture" and "nothing to fix" are both fine results; say so plainly.
-
-## Sweep mode — designed, not yet implemented
-
-`/dream sweep` will consolidate sessions this repo never dreamed on: enumerate `~/.claude/projects/*/`, match transcripts to this repo by the `cwd` field inside each JSONL (never by directory slug — worktree slugs are ephemeral), process sessions newer than a committed watermark file, then run this same two-phase cycle on their user messages. Until then, respond to `sweep` by saying it isn't implemented yet and running the normal cycle on the current session instead.
+Close with a concise summary: notes consolidated (by name) and facts captured from them (and where they landed), pages merged / pruned / split, links repaired, code drift fixed — and any doc-vs-code conflicts flagged as open questions for the user. Or a one-liner on why nothing qualified: "no unconsolidated notes", "nothing to capture", and "nothing to fix" are all fine results; say so plainly.
 
 ## Hard rules
 
-- **No git.** Edits stay in the working tree — `/save` commits and pushes, `/ship` merges. Wiki edits reach `main` through the same PR gate as everything else.
-- **Deliberate only.** Nothing invokes `/dream` automatically — not `/save`, not hooks. (`/ship`'s capture-a-process step may hand a shipped change's reusable process to the capture phase; that's a human-triggered flow.)
-- **User-stated facts only.** The assistant's conclusions, however good, wait until the user has adopted them.
+- **Read the repo, never a transcript.** Phase 1's only input is committed `notes/*.md`. Never read the current conversation, scrollback, or `~/.claude/projects/`. This is what makes `/dream` portable — capture already happened, in `/save`, on whatever machine had the conversation. There is no sweep mode and no transcript enumeration; a fresh clone that pulls sees every machine's unconsolidated notes by construction.
+- **No git.** Edits stay in the working tree — `/save` commits and pushes, `/ship` merges. Wiki edits reach `main` through the same branch + PR gate as everything else; the notes-only fast path is `/save`'s and does not apply here, because a wiki edit *is* canonical and *is* worth reviewing.
+- **Never delete a note.** Mark it `consolidated:` and leave it. Notes are the referenceable record of what didn't make the wiki, not a queue to drain.
+- **Deliberate only.** Nothing invokes `/dream` automatically — not `/save`, not hooks. `/save` writing `notes/` is *not* `/dream` running: `/save` captures into `notes/`, never into `wiki/`, and never calls this skill. (`/ship`'s capture-a-process step may hand a shipped change's reusable process to the capture phase; that's a human-triggered flow.)
+- **User-stated facts only.** The assistant's conclusions, however good, wait until the user has adopted them — including assistant reasoning a note happens to quote.
 - **One rulebook.** `wiki-style.md` (and `voice.md` for sentences) govern every edit; never fork or restate their rules here.
 - **Delete with cause.** Every removal is justified by supersession, duplication, or staleness — and rides a reviewable diff.
 - **Wiki edits only.** The reality-check reads the code, never changes it — when code and wiki disagree on intent, the user decides.

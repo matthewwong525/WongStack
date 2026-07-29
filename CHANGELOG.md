@@ -3,6 +3,42 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 7.1.0 — conversations reach the repo; `/dream` reads the repo, not your chat history
+
+`/dream` could only consolidate what was in the current conversation, and its unbuilt sweep mode would have
+read `~/.claude/projects/` transcripts. Both are machine-local, so a long session on your laptop died there:
+`/save` pushed the code and the change, but never the conversation — and `/dream` on a second machine found
+nothing. Capture and consolidation are now split across the repo boundary.
+
+- **New `notes/` surface.** One note per line of work at `notes/<slug>.md`, keyed by the same slug as the
+  branch and the change, so `notes/add-po-search.md` sits parallel to `openspec/changes/add-po-search/`.
+  Kept forever — the wiki carries only what survived the filter; the note stays referenceable for the rest.
+  `notes/README.md` documents the convention and ships as a payload file.
+- **`/save` is the only skill that reads the conversation.** It writes the note as part of the checkpoint —
+  a *compression, not a summary*: what the user stated, decisions with their rationale, what was ruled out
+  and why, specifics, open threads. It deliberately does **not** pre-apply `/dream`'s durable-facts filter,
+  so that judgment stays repeatable instead of being made once, on one machine. Nothing new beyond the diff
+  and the Decision log → no note, and it says so.
+- **A conversation is now a valid save.** A session with no code and no plan gets **no OpenSpec change** —
+  no invented proposal describing nothing changing, no `tasks.md` with zero tasks, no `no-tasks` entry
+  cluttering `openspec list`. Just the note.
+- **Notes-only saves commit straight to the default branch** — no branch, no PR, no CI wait, no `/ship`.
+  **This is a scoped carve-out to the PR gate** and to `/save`'s "never push to the default branch" rule:
+  it applies only when *every* changed path matches `notes/*.md`, and one file outside `notes/` restores
+  the normal flow for the whole save. The gate isn't weakened, it moves — a note is one additive,
+  slug-unique file that's raw and non-canonical, so there's nothing to approve; `/dream`'s wiki edits *are*
+  canonical and keep the full branch + PR route. A rejected push (protected branch) falls back to branch +
+  PR, never forced. `/save` still never merges.
+- **`/dream` reads only the repo.** Phase 1 consolidates unconsolidated `notes/*.md` and never touches the
+  conversation, scrollback, or transcript files, then records `consolidated: <date>` in each note's
+  frontmatter — a per-note watermark rather than a central ledger, which would merge-conflict in exactly the
+  multi-machine case this exists to serve. Notes are marked, never deleted. Phase 2 gardening runs whether or
+  not there are new notes.
+- **Sweep mode is deleted.** Its job — reaching sessions the repo never consolidated — is now structural:
+  a fresh clone that pulls sees every machine's unconsolidated notes.
+- **`/continue` reads the note alongside the change**, so a cold resume inherits the *understanding*, not
+  just the plan. No note is normal, not an error.
+
 ## 7.0.1 — the D1 pipeline works when the Worker lives in `app/`
 
 The stack pack (6.6.0) put `wrangler.jsonc` at the repo root; the SPA pack (6.7.0) put it in `app/`.
