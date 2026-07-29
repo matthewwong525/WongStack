@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Resume an OpenSpec change and pick up the work. Use whenever you want to continue, resume, or rehydrate a thread — by change name (which is also the branch name), a PR number/URL, or from the openspec list menu when given no argument. Loads the change (proposal + tasks) from openspec/changes/<name>/, checks out the branch, recaps the plan + the tail of its Decision log, runs a counts-only drift check, then hands off to /apply to work the tasks. Accepts an optional explicit instruction after the reference (/continue <name> <instruction>) to steer what gets done. Pairs with /save.
+description: Resume an OpenSpec change and pick up the work. Use whenever you want to continue, resume, or rehydrate a thread — by change name (which is also the branch name), a PR number/URL, or from the openspec list menu when given no argument. Loads the change (proposal + tasks) from openspec/changes/<name>/ plus the session note at notes/<name>.md when one exists, checks out the branch, recaps the plan + the tail of its Decision log + the session context, runs a counts-only drift check, then hands off to /apply to work the tasks. Accepts an optional explicit instruction after the reference (/continue <name> <instruction>) to steer what gets done. Pairs with /save.
 user-invocable: true
 ---
 
@@ -42,7 +42,9 @@ You need two things: the **change** (proposal + tasks) and the **branch** to che
 - **Change name** (matches `openspec/changes/<name>/` or an `openspec list` entry) → branch = that name. Read it:
   ```bash
   openspec show <name>          # or read openspec/changes/<name>/proposal.md + tasks.md
+  cat notes/<name>.md 2>/dev/null   # the session note, if one exists
   ```
+  The note is keyed by the same slug as the change and the branch. It holds the *session* context the change deliberately doesn't — what was tried and abandoned, what the user said the constraint really is, the thread left open. Read it when it's there; **its absence is normal, not an error.**
 - **PR number/URL** → the branch is the PR's `headRefName`, and the change is the folder named after that branch:
   ```bash
   gh pr view <N> --json headRefName,url,title,state
@@ -73,6 +75,7 @@ Give the user a tight recap so they can confirm the loaded state:
 
 - **The change** — 2–4 lines summarizing it (what the work is + where the tasks stand), read from `openspec/changes/<name>/`, plus its **`Status:`** line and any **open questions** from the proposal header.
 - **The journey** — the last 1–3 entries of the proposal's `## Decision log`, so the resumer inherits the *why* (decisions made, dead ends ruled out, blockers) and not just the plan.
+- **The session context** — if `notes/<name>.md` exists, fold in what the change doesn't carry: the constraints the user stated, options weighed and dropped, open threads. This is what closes the gap between resuming the *plan* and resuming the *understanding*. Skip the line entirely when there's no note — don't report it as missing.
 - **State** — which branch is checked out and the PR link (as a markdown link so it stays clickable).
 - **Drift check** — the change is the spine, but verify it isn't stale. Report **counts only** (don't load diffs or threads unless asked):
   ```bash
@@ -95,5 +98,5 @@ From here it's an ordinary session with the change loaded; to checkpoint again, 
 
 ## Notes
 
-- The change (`proposal.md` + `tasks.md`) is the plan and the source of intent. `/continue` reads it and checks out the branch — nothing more.
+- The change (`proposal.md` + `tasks.md`) is the plan and the source of intent; `notes/<name>.md`, when present, is the session context around it. `/continue` reads both and checks out the branch — nothing more.
 - `/continue` **resumes and implements**; it is not OpenSpec's `/opsx:*` spec-drafting stepper. When you want to build, `/continue`.

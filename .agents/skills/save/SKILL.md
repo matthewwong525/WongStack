@@ -1,6 +1,6 @@
 ---
 name: save
-description: The end-to-end checkpoint skill — the git stage of the change loop. Commits and pushes the current branch (auto-creating it + auto-committing a dirty tree), opens or updates a PR whose body mirrors the change, waits for CI when present (auto-fixing failures; no checks → PR review is the gate), and returns the per-commit preview URL. Before committing it syncs the OpenSpec change under openspec/changes/<branch>/ — updating the plan, maintaining its Status header, APPENDING a dated Decision-log entry, and folding delta specs into openspec/specs/ (/opsx:sync); when the session skipped /plan it authors the change via the same OpenSpec artifact process /plan uses. Accepts an optional trailing note (/save <note>) that sets the status and seeds the log entry. Does NOT implement tasks (that's /apply), does NOT build locally, and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/snapshot the thread, push the work up, or get a shareable preview URL of in-progress work.
+description: The end-to-end checkpoint skill — the git stage of the change loop, and the only skill that reads the conversation. Commits and pushes the current branch (auto-creating it + auto-committing a dirty tree), opens or updates a PR whose body mirrors the change, waits for CI when present (auto-fixing failures; no checks → PR review is the gate), and returns the per-commit preview URL. Before committing it syncs the OpenSpec change under openspec/changes/<branch>/ — updating the plan, maintaining its Status header, APPENDING a dated Decision-log entry, and folding delta specs into openspec/specs/ (/opsx:sync); when the session skipped /plan it authors the change via the same OpenSpec artifact process /plan uses. It also captures the session into notes/<slug>.md — a concise-but-lossless compression of the conversation that /dream later consolidates into the wiki from any machine. A conversation-only session (no code, no plan) writes just the note and commits it straight to the default branch — no change, no branch, no PR, no /ship. Accepts an optional trailing note (/save <note>) that sets the status and seeds the log entry. Does NOT implement tasks (that's /apply), does NOT build locally, and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/snapshot the thread, save a conversation into the repo, push the work up, or get a shareable preview URL of in-progress work.
 user-invocable: true
 ---
 
@@ -10,10 +10,11 @@ The single checkpoint runbook. Invoking it authorizes the branch creation, commi
 
 **Input:** `/save [note]` — anything after the command is an optional **checkpoint note**, e.g. `/save blocked on API key from ops`, `/save ready to ship`. The note sets the change's `**Status:**` line (when it reads as a state — blocked / ready / parked) and seeds today's Decision-log entry. Most calls are bare.
 
-`/save` is the **git + sync** stage of the loop (`/explore → /plan → /apply → /save → /continue → /ship`). It delivers two things:
+`/save` is the **git + sync** stage of the loop (`/explore → /plan → /apply → /save → /continue → /ship`). It delivers three things:
 
 1. A pushed branch + PR with a per-commit **preview URL** (auto-discovered) and a **PR body that mirrors the change**, so a forge alone is a complete handoff surface — no clone or CLI needed to read the plan. This is `/save`'s headline job: the git mechanics of the loop (drafting is `/plan`, implementing is `/apply`).
-2. A durable **OpenSpec change** under `openspec/changes/<branch>/` whose `proposal.md` *is* the current plan **plus its history**: a `**Status:**` header, the plan sections (kept current), and an append-only `## Decision log` (what happened along the way), with a `tasks.md` checklist — so a fresh session (another machine, no scrollback) can resume cold with `/continue` and know not just *what* to do but *why* it's shaped that way. Normally `/plan` drafted it and `/apply` checked off its tasks; `/save` **syncs** it. When the session skipped `/plan`, `/save` **authors it as a fallback via the same OpenSpec artifact process `/plan` uses**, so nothing gets pushed without its handoff. **The change is the plan — there is no GitHub handoff issue.**
+2. A durable **OpenSpec change** under `openspec/changes/<branch>/` whose `proposal.md` *is* the current plan **plus its history**: a `**Status:**` header, the plan sections (kept current), and an append-only `## Decision log` (what happened along the way), with a `tasks.md` checklist — so a fresh session (another machine, no scrollback) can resume cold with `/continue` and know not just *what* to do but *why* it's shaped that way. Normally `/plan` drafted it and `/apply` checked off its tasks; `/save` **syncs** it. When the session skipped `/plan`, `/save` **authors it as a fallback via the same OpenSpec artifact process `/plan` uses**, so nothing gets pushed without its handoff. **The change is the plan — there is no GitHub handoff issue.** A session that produced *no code and no plan* gets no change at all (Step 2) — the note below is the whole output.
+3. A **session note** at `notes/<slug>.md` — the conversation itself, compressed into the repo. `/save` is the **only** skill that reads the conversation, which is what makes consolidation portable: `/dream` reads committed notes, never scrollback, so a session captured on one machine is consolidatable from any other. See [`notes/README.md`](../../../notes/README.md) for the convention.
 
 **CI is the gate when the repo has checks; otherwise the PR itself is the checkpoint a reviewer sees.** Either way we never build or test locally. Because the change lives *in the repo*, we author it **before** the commit so it ships in the same commit; the push then triggers CI, which we wait on in Step 6.
 
@@ -37,12 +38,33 @@ openspec list                                     # active change(s), if any
 
 **Don't create a branch or commit yet.** The plan comes first (Step 2), the branch is *named from it* (Step 3), and the change is authored (Step 4) so it lands in the same commit as the code. Even a **plan-only** save (a freshly authored change, no code yet) is valid: the untracked change folder makes the tree dirty, so Step 5 commits and pushes it — that's exactly what makes the plan handoff-ready.
 
+### The notes-only fast path
+
+Before anything else, decide which of two routes this save takes. Read the plan of the session (Step 2 tells you how) and the tree state above:
+
+- **The session produced code, a plan, or any file outside `notes/`** → the normal flow. Continue to Step 2.
+- **The session produced neither code nor a plan** — a conversation that established understanding and nothing more → the **notes-only fast path**. Write the note (Step 4c), then commit and push it **directly to the default branch**: no feature branch, no OpenSpec change, no PR, no CI wait, and no `/ship` afterwards. Jump to Step 5's notes-only variant.
+
+The routing is decided **by path scope, and it is exact**: the fast path applies only when *every* changed path matches `notes/*.md`. One file outside `notes/` — a source edit, a wiki page, a change folder — and the whole save takes the normal flow, with the note riding along on the branch.
+
+Why the carve-out: the PR gate exists to stop unreviewed *behavior* reaching the default branch. A note is one additive file, keyed by a unique slug so two people's notes never touch the same path, containing no code, config, or spec — and raw and non-canonical by design. There is nothing to approve. The review happens one step later, when `/dream` proposes `wiki/` edits; those are canonical and keep the full branch + PR gate.
+
 ## Step 2 — establish the current plan
 
 The change's `proposal.md` *is* the plan — not a status report. The most concise, complete statement of what we're doing and how, so a cold reader can act.
 
 - **Session used plan mode** → the plan is the **most recent** one you presented (the latest `ExitPlanMode` plan), updated for anything that changed since it was approved.
-- **Session never used plan mode** → synthesize a concise plan from the conversation + the diff: what this work is, and the steps to finish it. This skill is authorized to run non-interactively, so don't block on a plan-mode round-trip — write the plan directly. (Only pause if you genuinely can't tell what the work is. If the session is empty — nothing learned, decided, or done — say so and skip the change.)
+- **Session never used plan mode** → synthesize a concise plan from the conversation + the diff: what this work is, and the steps to finish it. This skill is authorized to run non-interactively, so don't block on a plan-mode round-trip — write the plan directly. (Only pause if you genuinely can't tell what the work is.)
+
+**Not every session has a plan, and that's a valid save.** Route on what the session actually produced:
+
+| The session produced | Change? | Note? | Route |
+|---|---|---|---|
+| Code, or a plan for code | yes — sync or author it | if there's context beyond the diff and the Decision log | normal flow |
+| Neither — conversation only | **no** | yes | notes-only fast path (Step 1) |
+| Nothing at all — nothing learned, decided, or done | no | no | say so and stop |
+
+**Never invent a plan for a conversation.** A session that clarified how something works, settled a question, or established a constraint is *not* empty and is *not* a change — writing it a `proposal.md` describing nothing changing and a `tasks.md` with zero tasks files real knowledge in the wrong drawer and puts a no-op entry in `openspec list`. It gets a note, and that is the complete and correct output.
 
 Keep the plan in its own shape — whatever headings it has. If a fact it relies on lived only in local scratch state or terminal output, inline it so the cold reader has it.
 
@@ -64,7 +86,9 @@ git checkout -b "$SLUG"
 git rev-parse --abbrev-ref HEAD   # refresh the branch variable before continuing
 ```
 
-## Step 4 — sync the OpenSpec change (append, never rewrite)
+## Step 4 — sync the OpenSpec change (append, never rewrite) + write the session note
+
+4a–4b sync or author the change; **4c writes the note**, and runs on *every* route — including the notes-only fast path, where it's the only part of Step 4 that happens.
 
 If `/plan` already drafted the change and `/apply` has been checking off tasks, this is a light **sync**. Full authoring (4b) is the **fallback** for sessions that skipped `/plan`. Either way the shape is the same — and the prime directive is: **plan sections update in place; Status is maintained; the Decision log only ever appends.**
 
@@ -92,7 +116,28 @@ Then write the artifacts (OpenSpec never runs git; you write the files):
 - **`tasks.md`** — the `- [ ]` checklist per 4a, with already-done work checked off.
 - **`design.md`** — only when the change warrants it (cross-cutting, new pattern, real trade-offs) — same bar `/plan` applies.
 
-### 4c. Sync delta specs, if any
+### 4c. Write the session note
+
+**You are the only skill that reads the conversation.** `/dream` consolidates the wiki from committed notes and never touches scrollback or transcript files — so whatever you don't write here is lost the moment this session ends, and unreachable from any other machine even now.
+
+Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug (notes-only save with no change: derive the slug from the topic, exactly as Step 3 would). Read [`notes/README.md`](../../../notes/README.md) for the full convention; the rules that bind this step:
+
+- **Update in place, never a file per save.** A second save on the same slug revises what's now better understood and appends what's new. No date in the filename; dates live in frontmatter (`slug`, `started`, `updated`, and an empty `consolidated:` that `/dream` fills in later).
+- **Write only when there's something to write.** If the session produced nothing beyond what the diff and the Decision log already say, **skip the note** and report that in Step 7. A `/save` run three times an hour shouldn't leave three restatements of the commit.
+- **Don't duplicate the Decision log.** If a fact is about why *this change* is shaped that way, it belongs in `proposal.md` and the note doesn't repeat it. The note carries the surrounding context the change deliberately doesn't hold.
+
+**The bar is concise *without losing context*** — a compression, not a summary. Summaries drop the "why," and the why is the payload. Write so a cold reader on another machine reaches the same understanding you have now, without the transcript.
+
+| Keep | Drop |
+|---|---|
+| what the user **stated** — facts, constraints, preferences, corrections | tool-call mechanics and file dumps |
+| decisions **and their rationale**, including what was ruled out and why | your own reasoning-out-loud |
+| specifics: names, repo-relative paths, numbers, versions, error strings | the back-and-forth of arriving somewhere (keep the destination + why) |
+| open threads and unresolved questions | anything already true in the repo |
+
+**Do not pre-apply `/dream`'s durable-facts filter.** That filter ("will this still be true next month, in a different task?") belongs at consolidation, not capture. Applying it here makes the judgment once, on this machine, unrecoverably — record both the durable conventions and the change-specific context, and let `/dream` select.
+
+### 4d. Sync delta specs, if any
 
 - **The change carries delta specs** (`openspec/changes/<name>/specs/**`, written because it formally revises a capability's spec) → **invoke the `openspec-sync-specs` skill** (via the Skill tool) for `<name>` to fold them into `openspec/specs/`. This is OpenSpec's `/opsx:sync`.
 - **No delta specs** → skip; **most changes have none** — proposal + tasks are the whole plan.
@@ -101,11 +146,26 @@ Sanity-check with `openspec list` (it should show the change + task progress). *
 
 ## Step 5 — commit (code + change) + push + PR (body mirrors the change)
 
-Stage the code **and** the `openspec/` change **by path** (never `git add .`) so they land in one commit:
+### Notes-only variant (the fast path from Step 1)
+
+Every changed path matches `notes/*.md` — commit straight to the default branch and stop. No branch, no PR, no CI wait, no `/ship`:
+
+```bash
+git add notes/
+git commit -m "notes: <topic>"    # HEREDOC, with the Co-Authored-By: Claude trailer
+git push origin HEAD:main         # substitute the repo's actual default branch
+```
+
+- **The push is rejected** (protected branch, required reviews, non-fast-forward) → **don't force and don't retry.** Say plainly that the default branch is protected, then fall back to the normal flow below: cut a branch from the note's slug, push it, and open a PR whose body is the note.
+- **The push succeeds** → skip Steps 6 and 7's normal shape; report with Step 7's notes-only variant.
+
+### Normal variant
+
+Stage the code, the `openspec/` change, **and the note** **by path** (never `git add .`) so they land in one commit:
 
 ```bash
 git add -u
-git add openspec/changes/"$NAME" <relevant new source/doc/config files by path>
+git add openspec/changes/"$NAME" notes/"$NAME".md <relevant new source/doc/config files by path>
 ```
 
 - **Clean tree, 0 commits ahead of `origin/main`** → nothing to push; report the change you authored and stop (a pure research/decision session is a valid `/save` with no PR).
@@ -171,13 +231,20 @@ Read the final `RESULT:` line:
 
 Keep it short — the user invoked this to get a URL + a saved change, not a wall of text:
 
+**Notes-only save** → a two-liner, and nothing else. Name the note path and say it landed on the default branch (with the commit). **Omit the PR, CI, and preview sections entirely** — don't report them as missing or "none found"; they were never part of this route. Don't tell the user to run `/ship`; there's nothing to ship.
+
+**Normal save:**
+
 - Branch + commit pushed (`git log -1 --oneline`); PR number + URL, noting the body mirrors the change.
+- **Note** — written or updated at `notes/<slug>.md`, or explicitly skipped ("nothing beyond the diff to capture").
 - **Change** — synced or authored at `openspec/changes/<name>/`, its current **Status**, and the Decision-log entry appended (name the capability specs synced, if any). Resumable with `/continue <name>`.
 - **CI** — ✅ green / 🔧 auto-fixed in N pushes / ❌ red after 3 (with the error) / ⏳ still running / — none configured (PR review is the gate).
 - **Preview** — a markdown link whose visible text *is* the full URL (`[https://…](https://…)`); never bare or in a code block. None found → say so (check the PR's deploy comment).
 
 ## Hard rules
-- Never `git push --force`. Never `--no-verify`. Never push to the default branch — branch off (Step 3).
+- Never `git push --force`. Never `--no-verify`.
+- **Never push to the default branch — branch off (Step 3) — with exactly one exception: a notes-only save**, where every changed path matches `notes/*.md`. That route commits straight to the default branch. The scope is exact: one path outside `notes/` and the rule applies in full. A rejected push (protected branch) falls back to a branch + PR — never forced.
+- **Never merge a PR** — not on any route, not for a notes-only branch that fell back. Merging is `/ship`'s, and no scheduled job or other skill does it on this skill's behalf.
 - **Never build/test locally as a gate.** CI is the gate when present, else PR review; a CI failure is fixed-and-re-pushed, never a stop (except after 3 attempts).
 - **Never merge** — that's `/ship` (which also archives the change).
 - **The Decision log is append-only.** Never rewrite, reorder, or delete prior entries; plan sections may change, history may not.

@@ -13,6 +13,7 @@ The single source of truth for **which files `/wong-sync` may copy into a target
   `wiki-style.md`, `voice.md`, `contributing.md`, `development/secrets.md`, and `ux-principles.md` (**UI-bearing repos only** — copied where the repo has a frontend/screens, never pushed into a CLI/library/backend repo).
   `contributing.md` is how a target repo learns that upstream exists and how to send something back by hand — the sync itself never mentions contributing, so this page carries the discovery.
   Only these pages — the rest of the wiki is the target repo's own.
+- **The session-capture surface** — `notes/README.md`. The file carries the directory (git tracks files, not folders), so copying it in *is* installing the surface. It documents the convention `/save` and `/dream` rely on — the slug key, the frontmatter watermark, the compression bar, and the boundary against the change's Decision log and `wiki/` — so a target repo inherits the convention rather than an empty folder. Never the notes themselves: `notes/*.md` are the target repo's own sessions and are outside the manifest entirely.
 - **CLAUDE.md — the `WONG-STACK` block only** — the content between `WONG-STACK:BEGIN` and `WONG-STACK:END`. The block, not the file, is the unit: no markers (or no file) means insert the block; markers present means the block is adapted, never rewritten in place. Everything outside the markers belongs to the target and is never copied over.
 
 ## The opt-in stack pack
@@ -32,4 +33,5 @@ The pack's **config fragments** are **not** manifest files. `package.json` scrip
 - **`wong-setup`** — source-only tooling; never copied into a target (offered as a symlink instead). It copies no payload file except the `wong-sync` skill (the bootstrap that makes the first sync possible); everything else arrives through Step 2's copy-if-absent walk.
 - **The generated `openspec-*` skills and `.claude/commands/opsx/`** — regenerated in each repo by `openspec init`, not copied, so they always match the installed CLI.
 - **`VERSION` and `CHANGELOG.md`** — WongStack's release record; never copied into a target. `/wong-sync` reads them in the clone (the changelog walk) and writes neither, anywhere.
+- **The target's own notes** — `notes/*.md` other than `README.md`. A repo's captured sessions belong to it; only the convention page is payload.
 - **Everything else** — app skills, app source, business docs, `.claude/settings.json`, the target's `openspec/` content. The surveyor may *read* a repo's process surfaces to understand it; nothing here is ever *copied*.

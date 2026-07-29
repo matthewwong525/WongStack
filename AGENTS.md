@@ -30,6 +30,21 @@ The record of **what shipped** is the **archived change** in `openspec/changes/a
 synced result in `openspec/specs/`. No GitHub planning or summary issues — the change *is* the plan
 and its archive *is* the record.
 
+The raw record of **what a session figured out** is [`notes/`](notes/) — one note per line of work at
+`notes/<slug>.md`, keyed by the same slug as the branch and the change. `/save` writes it (it's the
+only skill that reads the conversation); `/dream` consolidates it into `wiki/` from *any* machine,
+because it reads committed notes rather than scrollback. Four surfaces, one job each:
+
+| Surface | Holds | Lifecycle |
+|---|---|---|
+| `openspec/changes/<slug>/` | the plan, and why this change is shaped this way | ships, then archives |
+| `notes/<slug>.md` | everything else the session produced | permanent, mutable |
+| `wiki/` | what survived consolidation — how we do things | canonical, curated |
+| `openspec/specs/` + archive | what shipped | immutable record |
+
+Don't duplicate across them: a fact about why the change is shaped that way lives in its Decision
+log, not the note. The convention is [`notes/README.md`](notes/README.md).
+
 **Credentials and config already live in the repo's environment files** — don't ask for a token or
 stub a call out when a task needs one. `.env.example` is the committed map: every variable the
 project reads, each with a comment on what it is and where it comes from. Read that to learn what a
@@ -50,9 +65,14 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   `/apply` (implement the tasks, then hand completed work to `/save` — `/opsx:apply`), `/save` (sync specs + maintain the Status header +
   append to the Decision log + push + PR-body mirror + preview — `/opsx:sync`),
   `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (merge + archive —
-  `/opsx:archive`), `/dream` (capture session facts into the wiki + consolidate it), `/improve` (read-only advisor; `/improve docs`
+  `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
-  Branch name = change name ties a branch to its plan.
+  Branch name = change name = note name ties a branch to its plan and its session context.
+- **A conversation is worth saving too.** `/save` after a session that produced no code writes
+  `notes/<slug>.md` and commits it **straight to the default branch** — no change, no branch, no PR,
+  no `/ship`. That's the one carve-out to the PR gate, scoped exactly to `notes/*.md`: a note is raw
+  and non-canonical, so there's nothing to approve. The review happens later, when `/dream` proposes
+  wiki edits — and those take the normal branch + PR route.
 - **Stay in sync with WongStack** — `/wong-sync` copies in any payload file this repo doesn't have
   yet, then *adapts* rather than overwrites: it reads what upstream lets you do against what this
   repo already does, and proposes the worthwhile gap as an OpenSpec change you review and `/apply`.
