@@ -1,6 +1,6 @@
 ---
 name: save
-description: The end-to-end checkpoint skill — the git stage of the change loop, and the only skill that reads the conversation. Commits and pushes the current branch (auto-creating it + auto-committing a dirty tree), opens or updates a PR whose body mirrors the change, waits for CI when present (auto-fixing failures; no checks → PR review is the gate), and returns the per-commit preview URL. Before committing it syncs the OpenSpec change under openspec/changes/<branch>/ — updating the plan, maintaining its Status header, APPENDING a dated Decision-log entry, and folding delta specs into openspec/specs/ (/opsx:sync); when the session skipped /plan it authors the change via the same OpenSpec artifact process /plan uses. It also captures the session into notes/<slug>.md — a concise-but-lossless compression of the conversation that /dream later consolidates into the wiki from any machine. A conversation-only session (no code, no plan) writes just the note and commits it straight to the default branch — no change, no branch, no PR, no /ship. Accepts an optional trailing note (/save <note>) that sets the status and seeds the log entry. Does NOT implement tasks (that's /apply), does NOT build locally, and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/snapshot the thread, save a conversation into the repo, push the work up, or get a shareable preview URL of in-progress work.
+description: The end-to-end checkpoint skill — the git stage of the change loop, and the only skill that reads the conversation. Commits and pushes the current branch (auto-creating it + auto-committing a dirty tree), opens or updates a PR whose body mirrors the change, waits for CI when present (auto-fixing failures; no checks → PR review is the gate), and returns the per-commit preview URL. Before committing it syncs the OpenSpec change under openspec/changes/<branch>/ — updating the plan, maintaining its Status header, APPENDING a dated Decision-log entry, and folding delta specs into openspec/specs/ (/opsx:sync); when the session skipped /plan it authors the change via the same OpenSpec artifact process /plan uses. It also captures the session into notes/<slug>.md — a concise-but-lossless compression of the conversation that /dream later consolidates into the wiki from any machine. A prose-only save — every changed path inside the allowlist notes/** + wiki/**, so a conversation-only session or a /dream run — commits straight to the default branch: no change, no branch, no PR, no /ship. Routing is by path prefix and never by file extension; markdown under .claude/, openspec/, or the repo root keeps the full gate. Accepts an optional trailing note (/save <note>) that sets the status and seeds the log entry. Does NOT implement tasks (that's /apply), does NOT build locally, and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/snapshot the thread, save a conversation into the repo, push the work up, or get a shareable preview URL of in-progress work.
 user-invocable: true
 ---
 
@@ -38,16 +38,25 @@ openspec list                                     # active change(s), if any
 
 **Don't create a branch or commit yet.** The plan comes first (Step 2), the branch is *named from it* (Step 3), and the change is authored (Step 4) so it lands in the same commit as the code. Even a **plan-only** save (a freshly authored change, no code yet) is valid: the untracked change folder makes the tree dirty, so Step 5 commits and pushes it — that's exactly what makes the plan handoff-ready.
 
-### The notes-only fast path
+### The prose fast path
 
-Before anything else, decide which of two routes this save takes. Read the plan of the session (Step 2 tells you how) and the tree state above:
+Before anything else, decide which of two routes this save takes. Run the changed paths from `git status --porcelain` above against the **prose allowlist** — exactly two path prefixes:
 
-- **The session produced code, a plan, or any file outside `notes/`** → the normal flow. Continue to Step 2.
-- **The session produced neither code nor a plan** — a conversation that established understanding and nothing more → the **notes-only fast path**. Write the note (Step 4c), then commit and push it **directly to the default branch**: no feature branch, no OpenSpec change, no PR, no CI wait, and no `/ship` afterwards. Jump to Step 5's notes-only variant.
+```
+notes/**
+wiki/**
+```
 
-The routing is decided **by path scope, and it is exact**: the fast path applies only when *every* changed path matches `notes/*.md`. One file outside `notes/` — a source edit, a wiki page, a change folder — and the whole save takes the normal flow, with the note riding along on the branch.
+- **Every changed path is inside the allowlist** → the **prose fast path**. Write the note if there's one to write (Step 4c), then commit and push **directly to the default branch**: no feature branch, no OpenSpec change, no PR, no CI wait, and no `/ship` afterwards. Jump to Step 5's prose variant. Two sessions land here: a conversation that produced only understanding (just `notes/<slug>.md`), and a `/dream` run (wiki pages plus the `consolidated:` stamps it wrote into `notes/`).
+- **Anything else** → the normal flow. Continue to Step 2.
 
-Why the carve-out: the PR gate exists to stop unreviewed *behavior* reaching the default branch. A note is one additive file, keyed by a unique slug so two people's notes never touch the same path, containing no code, config, or spec — and raw and non-canonical by design. There is nothing to approve. The review happens one step later, when `/dream` proposes `wiki/` edits; those are canonical and keep the full branch + PR gate.
+Three rules bind this decision:
+
+- **It is by path prefix, and it is exact.** One changed path outside the allowlist — a source edit, a skill, a change folder, a version bump — and the **whole save** takes the normal flow, with the prose riding along on the branch. Never split a mixed diff into two commits to send the prose half down the fast path; the mixed save is one save.
+- **Never route on file extension.** `*.md` is not a proxy for prose. `.claude/**` *is* the shipped payload and editing it is a release, `openspec/**` *is* the specs, and `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and every config file keep the full gate — all of them markdown or config, none of them on the fast path. The allowlist is closed: a surface that isn't named above gets the gate.
+- **`wiki/` means the literal prefix `wiki/`.** A repo that keeps its prose somewhere else — `docs/`, `handbook/` — keeps the full gate. (`/improve docs` falls back to `docs/`; this route does not.) Don't re-litigate this per save.
+
+Why the carve-out: the gate exists to stop unreviewed *behavior* reaching the default branch, and neither surface carries behavior. A note is one additive file, keyed by a unique slug so two people's notes never touch the same path, containing no code, config, or spec — raw and non-canonical by design. A wiki page is prose a human already reviewed in-session, on the diff `/dream` produced, and it can't break a build or a deploy. Nothing in either surface executes.
 
 ## Step 2 — establish the current plan
 
@@ -61,8 +70,12 @@ The change's `proposal.md` *is* the plan — not a status report. The most conci
 | The session produced | Change? | Note? | Route |
 |---|---|---|---|
 | Code, or a plan for code | yes — sync or author it | if there's context beyond the diff and the Decision log | normal flow |
-| Neither — conversation only | **no** | yes | notes-only fast path (Step 1) |
+| Conversation only — no diff outside `notes/` | **no** | yes | prose fast path (Step 1) |
+| Wiki edits (a `/dream` run) and nothing else | **no** | the `consolidated:` stamps only | prose fast path (Step 1) |
+| Prose *plus* anything outside the allowlist | yes | yes | normal flow — the prose rides along |
 | Nothing at all — nothing learned, decided, or done | no | no | say so and stop |
+
+The table restates Step 1's path test; when they seem to disagree, **the paths win** — the route is a function of the diff, not of your read of the session.
 
 **Never invent a plan for a conversation.** A session that clarified how something works, settled a question, or established a constraint is *not* empty and is *not* a change — writing it a `proposal.md` describing nothing changing and a `tasks.md` with zero tasks files real knowledge in the wrong drawer and puts a no-op entry in `openspec list`. It gets a note, and that is the complete and correct output.
 
@@ -88,7 +101,7 @@ git rev-parse --abbrev-ref HEAD   # refresh the branch variable before continuin
 
 ## Step 4 — sync the OpenSpec change (append, never rewrite) + write the session note
 
-4a–4b sync or author the change; **4c writes the note**, and runs on *every* route — including the notes-only fast path, where it's the only part of Step 4 that happens.
+4a–4b sync or author the change; **4c writes the note**, and runs on *every* route — including the prose fast path, where it's the only part of Step 4 that happens. (On a `/dream`-only save there may be nothing new to capture; 4c's write-only-when-there's-something-to-write rule still applies.)
 
 If `/plan` already drafted the change and `/apply` has been checking off tasks, this is a light **sync**. Full authoring (4b) is the **fallback** for sessions that skipped `/plan`. Either way the shape is the same — and the prime directive is: **plan sections update in place; Status is maintained; the Decision log only ever appends.**
 
@@ -120,7 +133,7 @@ Then write the artifacts (OpenSpec never runs git; you write the files):
 
 **You are the only skill that reads the conversation.** `/dream` consolidates the wiki from committed notes and never touches scrollback or transcript files — so whatever you don't write here is lost the moment this session ends, and unreachable from any other machine even now.
 
-Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug (notes-only save with no change: derive the slug from the topic, exactly as Step 3 would). Read [`notes/README.md`](../../../notes/README.md) for the full convention; the rules that bind this step:
+Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug (prose fast path, so no change: derive the slug from the topic, exactly as Step 3 would). Read [`notes/README.md`](../../../notes/README.md) for the full convention; the rules that bind this step:
 
 - **Update in place, never a file per save.** A second save on the same slug revises what's now better understood and appends what's new. No date in the filename; dates live in frontmatter (`slug`, `started`, `updated`, and an empty `consolidated:` that `/dream` fills in later).
 - **Write only when there's something to write.** If the session produced nothing beyond what the diff and the Decision log already say, **skip the note** and report that in Step 7. A `/save` run three times an hour shouldn't leave three restatements of the commit.
@@ -146,18 +159,23 @@ Sanity-check with `openspec list` (it should show the change + task progress). *
 
 ## Step 5 — commit (code + change) + push + PR (body mirrors the change)
 
-### Notes-only variant (the fast path from Step 1)
+### Prose variant (the fast path from Step 1)
 
-Every changed path matches `notes/*.md` — commit straight to the default branch and stop. No branch, no PR, no CI wait, no `/ship`:
+Every changed path is inside the allowlist (`notes/**`, `wiki/**`) — commit straight to the default branch and stop. No branch, no PR, no CI wait, no `/ship`. Stage **only the prefixes that actually changed**, never `git add .`:
 
 ```bash
-git add notes/
-git commit -m "notes: <topic>"    # HEREDOC, with the Co-Authored-By: Claude trailer
+git add notes/ wiki/              # drop whichever of the two this save didn't touch
+git status --porcelain            # re-check: every staged path must be under notes/ or wiki/
+git commit -m "<msg>"             # HEREDOC, with the Co-Authored-By: Claude trailer
 git push origin HEAD:main         # substitute the repo's actual default branch
 ```
 
-- **The push is rejected** (protected branch, required reviews, non-fast-forward) → **don't force and don't retry.** Say plainly that the default branch is protected, then fall back to the normal flow below: cut a branch from the note's slug, push it, and open a PR whose body is the note.
-- **The push succeeds** → skip Steps 6 and 7's normal shape; report with Step 7's notes-only variant.
+Message convention by what the save carries: notes only → `notes: <topic>`; wiki pages (a `/dream` run) → `docs: <what was consolidated or gardened>`; both → `docs: <topic>`.
+
+The `git status --porcelain` line is not ceremony — it's the last chance to catch a stray file that would put an unreviewed non-prose path on the default branch. If anything outside the allowlist is staged, unstage it and take the normal flow for the whole save.
+
+- **The push is rejected** (protected branch, required reviews, non-fast-forward) → **don't force and don't retry.** Say plainly that the default branch is protected, then fall back to the normal flow below: cut a branch named for the prose's slug (the note's slug, or a slug describing the wiki work), push it, and open a PR whose body is the prose change.
+- **The push succeeds** → skip Steps 6 and 7's normal shape; report with Step 7's prose variant.
 
 ### Normal variant
 
@@ -231,7 +249,7 @@ Read the final `RESULT:` line:
 
 Keep it short — the user invoked this to get a URL + a saved change, not a wall of text:
 
-**Notes-only save** → a two-liner, and nothing else. Name the note path and say it landed on the default branch (with the commit). **Omit the PR, CI, and preview sections entirely** — don't report them as missing or "none found"; they were never part of this route. Don't tell the user to run `/ship`; there's nothing to ship.
+**Prose-only save** → a two-liner, and nothing else. Name the prose paths that landed (the note, the wiki pages, or both — list them, don't just say "prose") and say they went to the default branch, with the commit. **Omit the PR, CI, and preview sections entirely** — don't report them as missing or "none found"; they were never part of this route. Don't tell the user to run `/ship`; there's nothing to ship.
 
 **Normal save:**
 
@@ -243,8 +261,8 @@ Keep it short — the user invoked this to get a URL + a saved change, not a wal
 
 ## Hard rules
 - Never `git push --force`. Never `--no-verify`.
-- **Never push to the default branch — branch off (Step 3) — with exactly one exception: a notes-only save**, where every changed path matches `notes/*.md`. That route commits straight to the default branch. The scope is exact: one path outside `notes/` and the rule applies in full. A rejected push (protected branch) falls back to a branch + PR — never forced.
-- **Never merge a PR** — not on any route, not for a notes-only branch that fell back. Merging is `/ship`'s, and no scheduled job or other skill does it on this skill's behalf.
+- **Never push to the default branch — branch off (Step 3) — with exactly one exception: a prose-only save**, where every changed path is inside the allowlist `notes/**` + `wiki/**`. That route commits straight to the default branch. The scope is exact and by path prefix: one path outside the allowlist and the rule applies in full to the whole save. **Never by extension** — markdown under `.claude/**`, `openspec/**`, `AGENTS.md`/`CLAUDE.md`, `README.md`, or `CHANGELOG.md` is payload, spec, or doctrine, and keeps the gate. A rejected push (protected branch) falls back to a branch + PR — never forced.
+- **Never merge a PR** — not on any route, not for a prose branch that fell back. Merging is `/ship`'s, and no scheduled job or other skill does it on this skill's behalf.
 - **Never build/test locally as a gate.** CI is the gate when present, else PR review; a CI failure is fixed-and-re-pushed, never a stop (except after 3 attempts).
 - **Never merge** — that's `/ship` (which also archives the change).
 - **The Decision log is append-only.** Never rewrite, reorder, or delete prior entries; plan sections may change, history may not.

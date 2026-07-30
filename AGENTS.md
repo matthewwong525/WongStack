@@ -68,11 +68,19 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Branch name = change name = note name ties a branch to its plan and its session context.
-- **A conversation is worth saving too.** `/save` after a session that produced no code writes
-  `notes/<slug>.md` and commits it **straight to the default branch** — no change, no branch, no PR,
-  no `/ship`. That's the one carve-out to the PR gate, scoped exactly to `notes/*.md`: a note is raw
-  and non-canonical, so there's nothing to approve. The review happens later, when `/dream` proposes
-  wiki edits — and those take the normal branch + PR route.
+- **Prose goes straight to `main`.** When a `/save`'s entire diff sits inside the **prose
+  allowlist** — the two path prefixes `notes/**` and `wiki/**` — it commits **straight to the
+  default branch**: no change, no branch, no PR, no `/ship`. That covers a conversation-only session
+  (just a note) and a `/dream` run (wiki pages plus the `consolidated:` stamps). The gate exists to
+  stop unreviewed *behavior* reaching `main`, and neither surface carries behavior — a note is raw
+  and non-canonical, and a wiki page is prose you already reviewed in-session on the diff `/dream`
+  produced. The carve-out is **exact and by path**: one changed path outside the allowlist and the
+  normal branch + PR flow applies to the whole save.
+- **Routing is by path prefix, never by file extension.** Markdown is not a proxy for prose here:
+  `.claude/**` *is* the payload (editing it is a release), `openspec/**` *is* the specs, and
+  `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and every config file
+  keep the full gate. The allowlist is closed — a new surface gets the gate until someone
+  deliberately adds it.
 - **Stay in sync with WongStack** — `/wong-sync` copies in any payload file this repo doesn't have
   yet, then *adapts* rather than overwrites: it reads what upstream lets you do against what this
   repo already does, and proposes the worthwhile gap as an OpenSpec change you review and `/apply`.
