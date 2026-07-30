@@ -3,6 +3,32 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 7.2.0 — prose goes straight to `main`; the fast path widens to `wiki/`
+
+`/save`'s direct-to-default-branch route was scoped to exactly `notes/*.md`. Everything else took the full
+behavior-change gate — so a `/dream` run that only rewrote wiki prose needed a branch, a PR, a CI wait, and
+`/ship` to land a paragraph. The gate exists to stop unreviewed *behavior* reaching `main`, and prose has
+none. The carve-out now matches its own reason.
+
+- **The fast path is a prose allowlist:** the two path prefixes `notes/**` and `wiki/**`. Every changed path
+  inside it → commit straight to the default branch, no branch, no PR, no CI, no `/ship`. That covers a
+  conversation-only session (just a note) *and* a `/dream` run (wiki pages plus the `consolidated:` stamps).
+  One path outside and the normal flow applies to the **whole** save, prose riding along on the branch.
+- **Routing is by path prefix, never by file extension.** `*.md` is not a proxy for prose:
+  `.claude/**` *is* the shipped payload (editing it is a release), `openspec/**` *is* the specs, and
+  `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and config files keep the full
+  gate. The allowlist is closed — a surface that isn't named gets the gate until someone adds it. `wiki/` is
+  the literal prefix; a repo that keeps prose in `docs/` is unaffected.
+- **Wiki edits no longer need a PR** — the reversal of 7.1.0's stated rule. Review of a wiki edit happens
+  where it actually happens: in-session, on the diff `/dream` produced, before `/save` runs. `/dream` is
+  deliberate and human-invoked, and a wiki page can't break a build or a deploy; a wrong sentence is caught
+  by the next gardening pass, which resolves contradictions newest-wins by design.
+- **`/dream` still runs no git** — unchanged rule, new reason. It's the division of labour (the git skills
+  own git), not a claim that wiki edits are gated behind a PR.
+- Vocabulary: "notes-only fast path" → **prose fast path**, throughout `/save` and the doctrine.
+- Doctrine updated in step: `CLAUDE.md`, `notes/README.md`, `wiki/development/the-change-loop.md`, and the
+  `save` and `dream` skills now state one identical rule.
+
 ## 7.1.0 — conversations reach the repo; `/dream` reads the repo, not your chat history
 
 `/dream` could only consolidate what was in the current conversation, and its unbuilt sweep mode would have

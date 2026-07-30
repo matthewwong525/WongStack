@@ -1,25 +1,4 @@
-# delivery-gate Specification
-
-## Purpose
-TBD - created by archiving change optional-ci-gate. Update Purpose after archive.
-## Requirements
-### Requirement: CI is optional, not required
-
-The WongStack doctrine SHALL treat GitHub Actions (and CI generally) as an optional accelerator that is honored when present and never required. Doctrine text across the payload — `CLAUDE.md`, `README.md`, `wiki/development/the-change-loop.md`, and the `save`, `ship`, and `wong-setup` skills — MUST NOT assert CI as the sole or required gate. The system's durable pillars SHALL be described as: pull requests, version control, OpenSpec, and everything-lives-in-the-repo.
-
-Where that doctrine text states the scope of the direct-to-default-branch carve-out, it SHALL state the prose allowlist (`notes/**` + `wiki/**`) rather than `notes/*.md` alone, and SHALL NOT assert that wiki edits require a pull request.
-
-#### Scenario: Payload prose describes CI as optional
-
-- **WHEN** a reader reviews the delivery doctrine in `CLAUDE.md`, `README.md`, or the `save`/`ship` skills
-- **THEN** the text states CI is honored when present but not required, and names PR review as the gate when CI is absent
-- **AND** no remaining sentence asserts "CI is the only gate" or "GitHub Actions is the build gate"
-
-#### Scenario: Doctrine states the widened carve-out consistently
-
-- **WHEN** a reader reviews `CLAUDE.md`, `notes/README.md`, `wiki/development/the-change-loop.md`, and the `save` and `dream` skills
-- **THEN** every statement of the carve-out names `notes/**` + `wiki/**`
-- **AND** no remaining sentence says wiki edits take the normal branch + PR route
+## MODIFIED Requirements
 
 ### Requirement: The gate is CI-when-present, else PR review
 
@@ -27,7 +6,7 @@ Where that doctrine text states the scope of the direct-to-default-branch carve-
 
 **Prose exception.** A `/save` whose entire diff falls inside the **prose allowlist** SHALL bypass the branch-and-PR gate and commit directly to the default branch. The allowlist is exactly two path prefixes: `notes/**` and `wiki/**`. The carve-out is decided by **path scope only** — never by file extension, and never by a judgment of how consequential the edit is. It is exact: if any path outside the allowlist appears in the diff, the normal branch + PR flow applies in full to the whole save.
 
-Routing SHALL NOT key on file extension. Markdown outside the allowlist — `.claude/**` (the shipped payload, whose edit is a release), `openspec/**` (the specs), `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and any config file — keeps the full gate.
+Routing SHALL NOT key on file extension. Markdown outside the allowlist — `.claude/**` (the shipped payload, whose edit is a release), `openspec/**` (the specs), `CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and any config file — keeps the full gate.
 
 The gate is not weakened by this. Neither surface carries behavior: a note is raw, unconsolidated, and non-canonical, and a wiki page is prose a human already reviewed in-session on the diff `/dream` produced. Nothing in either surface executes, deploys, or changes what the tooling does.
 
@@ -62,12 +41,20 @@ The gate is not weakened by this. Neither surface carries behavior: a note is ra
 - **WHEN** a save's diff touches `.claude/skills/save/SKILL.md`, `CLAUDE.md`, or `openspec/changes/<name>/proposal.md` — markdown, but not in the allowlist
 - **THEN** the normal branch + PR flow applies in full
 
-### Requirement: No local build fallback
+### Requirement: CI is optional, not required
 
-The skills SHALL NOT build or test the project locally as a prerequisite for `/save` or `/ship`, whether or not CI is present. The absence of CI SHALL NOT trigger a local-verify gate.
+The WongStack doctrine SHALL treat GitHub Actions (and CI generally) as an optional accelerator that is honored when present and never required. Doctrine text across the payload — `CLAUDE.md`, `README.md`, `wiki/development/the-change-loop.md`, and the `save`, `ship`, and `wong-setup` skills — MUST NOT assert CI as the sole or required gate. The system's durable pillars SHALL be described as: pull requests, version control, OpenSpec, and everything-lives-in-the-repo.
 
-#### Scenario: No CI present does not trigger a local build
+Where that doctrine text states the scope of the direct-to-default-branch carve-out, it SHALL state the prose allowlist (`notes/**` + `wiki/**`) rather than `notes/*.md` alone, and SHALL NOT assert that wiki edits require a pull request.
 
-- **WHEN** a repo has no CI and `/ship` is invoked
-- **THEN** the skill does not run a local build or test as a gate; it relies on PR review
+#### Scenario: Payload prose describes CI as optional
 
+- **WHEN** a reader reviews the delivery doctrine in `CLAUDE.md`, `README.md`, or the `save`/`ship` skills
+- **THEN** the text states CI is honored when present but not required, and names PR review as the gate when CI is absent
+- **AND** no remaining sentence asserts "CI is the only gate" or "GitHub Actions is the build gate"
+
+#### Scenario: Doctrine states the widened carve-out consistently
+
+- **WHEN** a reader reviews `CLAUDE.md`, `notes/README.md`, `wiki/development/the-change-loop.md`, and the `save` and `dream` skills
+- **THEN** every statement of the carve-out names `notes/**` + `wiki/**`
+- **AND** no remaining sentence says wiki edits take the normal branch + PR route

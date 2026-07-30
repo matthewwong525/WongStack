@@ -20,13 +20,18 @@ Each verb is a thin WongStack skill fronting one step of OpenSpec, the planning 
 - **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name (= branch), by PR, or from the `openspec list` menu (which shows each change's Status): check out its branch, recap the proposal + the tail of its Decision log + the session note when one exists, run a counts-only drift check, then hand off to `/apply`. Picks up cold on any machine from a fresh clone.
 - **[`/ship`](../../.claude/skills/ship/SKILL.md)** — squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts `/opsx:archive`. CI is the gate when present, else PR review.
 
-**A conversation is a valid save.** Not every session produces a diff. When one produces only
-understanding — no code, no plan — `/save` writes `notes/<slug>.md` and commits it **directly to the
-default branch**: no change folder, no branch, no PR, no `/ship`. That's the single carve-out to the
-PR gate, scoped exactly to `notes/*.md`; one changed file outside `notes/` and the normal flow
-applies to the whole save. The gate isn't weakened, it moves — a note is raw and non-canonical, so
-there's nothing to approve, and the review happens when `/dream` turns it into `wiki/` content,
-which takes the usual branch + PR route. See [`notes/README.md`](../../notes/README.md).
+**A prose-only save is a valid save.** Not every session produces a diff that needs reviewing. When
+a save's entire diff sits inside the **prose allowlist** — the two path prefixes `notes/**` and
+`wiki/**` — `/save` commits it **directly to the default branch**: no change folder, no branch, no
+PR, no `/ship`. A conversation that produced only understanding takes it (just `notes/<slug>.md`),
+and so does a `/dream` run (wiki pages plus the `consolidated:` stamps).
+
+The gate isn't weakened — it applies where behavior does. Neither surface carries any: a note is raw
+and non-canonical, and a wiki page is prose you already reviewed in-session on the diff `/dream`
+produced. The carve-out is scoped by path and exact; one changed path outside the allowlist and the
+normal flow applies to the whole save. It never keys on file extension — markdown under `.claude/`
+is the payload and markdown under `openspec/` is the spec, and both keep the full gate. See
+[`notes/README.md`](../../notes/README.md).
 
 Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
 
