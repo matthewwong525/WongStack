@@ -29,3 +29,11 @@
 
 - [x] 4.1 Bump `VERSION` to `8.0.0`.
 - [x] 4.2 Add the newest-first `CHANGELOG.md` entry — the version-vs-deployment diagnosis, the `env.staging` model, `cf-deploy.sh` in, `swap-d1-id.js` out, twin-by-default, and a pointer to the adoption runbook for repos on the old model.
+
+## 5. Verification *(added during apply)*
+
+- [x] 5.1 Exercise the scripts against a synthetic `app/`-layout repo — production vs staging name reads, the missing-`env.staging` error path, and the branch→preview-alias sanitizer.
+- [x] 5.2 Confirm `--preview-alias` and `--env` exist on the wrangler commands used (4.107.0).
+- [x] 5.3 Full end-to-end rehearsal against real Cloudflare: scratch Worker + twin queues, both `cf-build.sh` legs, both `cf-deploy.sh` legs, a queue message enqueued on staging, and both databases inspected. Tear down every scratch resource afterwards.
+- [x] 5.4 Fix what the rehearsal found — `wrangler versions upload` must run *after* `wrangler deploy --env staging`; propagate the corrected order to the wiki, both specs, the proposal, the design, and the changelog.
+

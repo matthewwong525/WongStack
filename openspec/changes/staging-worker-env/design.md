@@ -52,7 +52,7 @@ Behavior:
 | Branch | Command(s) |
 |---|---|
 | production | `wrangler deploy` |
-| any other | `wrangler versions upload --env staging --preview-alias <branch>` then `wrangler deploy --env staging` |
+| any other | `wrangler deploy --env staging` then `wrangler versions upload --env staging --preview-alias <branch>` |
 
 Both non-production commands carry `--env staging`. Without it the version upload reverts to being a version of the *production* Worker, bound to production D1 — reintroducing exactly the bug this change removes. This is the single sharpest edge in the design and is called out in the script's header comment and the wiki page.
 

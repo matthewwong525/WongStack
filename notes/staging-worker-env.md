@@ -36,6 +36,27 @@ This is why "add a second queue" doesn't work — a consumer registers against a
 - **`scripts/lib-wrangler-config.sh` was extracted** rather than copy the config-discovery rule a third time (bash in `cf-build.sh`, bash in `cf-deploy.sh`, JS in `lib-wrangler-config.mjs`). A build and its deploy resolving *different* apps would fail silently and confusingly. This deviates from tasks.md, which said to leave `cf-build.sh`'s discovery alone; recorded as tasks 1.5/1.6.
 - **The existing Access wildcard `*.<subdomain>.workers.dev` already covers the staging Worker** and its aliases — no new policy needed, contrary to the initial assumption. The runbook says "confirm" rather than "add."
 
+## The rehearsal, and why it earned its keep
+
+The user asked "how can we confirm that this works before we /ship?" — a good question, because at that point *nothing* had been executed against Cloudflare. Everything verified so far only proved the scripts did what was written, not that what was written matched Cloudflare's behaviour.
+
+Rehearsed on the account's existing test D1s plus a scratch Worker and twin queues (all torn down after). It found a bug that no amount of local testing would have:
+
+> **`wrangler versions upload --env staging` fails against a Worker that doesn't exist yet.** *"You cannot upload a new version of a Worker that does not yet exist. Please run the `deploy` command first."*
+
+That is exactly the state on a repo's **first** branch push, and with the upload ordered first `set -e` killed the script before the deploy that would have created the staging Worker. Every adopting repo would have hit it on day one, and the error message points at a fix (`run deploy first`) that reads like a wrangler quirk rather than a bug in the pack — easy to misdiagnose. **Deploy first, upload the alias version second.**
+
+The rehearsal then positively demonstrated the central claim: a message enqueued on the staging queue was handled by the *staging* Worker and written to the *staging* database, while the production database's only row came from the production Worker. Two distinct Workers, one consumer each, no cross-contamination.
+
+The general lesson worth carrying: **for a payload change, the cost of a wrong assumption is multiplied by every repo that takes the pack**, and un-propagating it is manual. A ~15-minute rehearsal against real infra is cheap against that. The 2026-07-28 D1 pipeline test set the same precedent.
+
+Two smaller findings:
+
+- Wrangler **warns on a production deploy** when environments are defined but none is named. Harmless — the printed bindings are the top-level production ones. `--env=""` silences it and binds identically (verified by dry-run), but it's a newer wrangler semantic and the pack pins no wrangler version, so it was documented as expected rather than "fixed". A version-dependent flag is a worse failure mode than a cosmetic warning.
+- **Teardown has a circular dependency**: a Worker can't be deleted while it's a queue consumer, and a queue can't be deleted while a Worker binds it. Break it by deleting the *consumer* first (`DELETE /queues/{id}/consumers/{consumer_id}`), then the Worker, then the queue. `wrangler delete` didn't handle it; the REST API did.
+
+**Still unverified, and unverifiable from this repo:** that Workers Builds accepts `bash scripts/cf-deploy.sh` as its deploy command. That's a dashboard setting on a connected repo — only wongos can prove it, and it's the assumption the entire change rests on.
+
 ## Repo-specific things worth knowing
 
 - **`.claude` is a symlink to `.agents`**, and `CLAUDE.md` to `AGENTS.md`. Payload files are one edit, not two — don't hunt for a second copy to keep in sync.

@@ -15,11 +15,17 @@
 #   - production branch (default `main`, override with CF_PRODUCTION_BRANCH)
 #       → `wrangler deploy`  — the production Worker.
 #   - any other branch
-#       → `wrangler versions upload --env staging --preview-alias <branch>`
-#         (the per-commit preview URL, HTTP only)
 #       → `wrangler deploy --env staging`
 #         (the deployed staging Worker — the thing that receives queue
 #          messages, cron triggers, and every other non-request handler)
+#       → `wrangler versions upload --env staging --preview-alias <branch>`
+#         (the per-commit preview URL, HTTP only)
+#
+#     Deploy first, then upload. `versions upload` fails outright against a
+#     Worker that doesn't exist yet — "You cannot upload a new version of a
+#     Worker that does not yet exist" — which is the state on the very first
+#     branch push in a repo. Uploading first would kill this script before the
+#     deploy that would have created the Worker.
 #   - anywhere else (a developer's terminal) → no-op. Nothing is ever deployed
 #     from a laptop.
 #
@@ -63,6 +69,11 @@ echo "cf-deploy: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
 if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   echo "cf-deploy: production branch — deploying the production Worker"
+  # Recent wrangler warns here that environments are defined but none was
+  # named. Expected and harmless: with no `--env` it binds the top-level
+  # (production) config, which is what we want — verified by comparing the
+  # printed bindings. `--env=""` silences it but is a newer wrangler
+  # semantic, and the pack pins no wrangler version, so we don't rely on it.
   (cd "$APP_DIR" && npx wrangler deploy)
   exit 0
 fi
@@ -82,8 +93,10 @@ fi
 # Built once, used by both commands below. See the warning in the header.
 STAGING_ENV=(--env staging)
 
-echo "cf-deploy: preview branch — uploading a staging version (alias: $ALIAS)"
-(cd "$APP_DIR" && npx wrangler versions upload "${STAGING_ENV[@]}" --preview-alias "$ALIAS")
-
-echo "cf-deploy: deploying the staging Worker"
+echo "cf-deploy: preview branch — deploying the staging Worker"
 (cd "$APP_DIR" && npx wrangler deploy "${STAGING_ENV[@]}")
+
+# Must come *after* the deploy — see the header. A version can only be uploaded
+# against a Worker that already exists.
+echo "cf-deploy: uploading a staging version (alias: $ALIAS)"
+(cd "$APP_DIR" && npx wrangler versions upload "${STAGING_ENV[@]}" --preview-alias "$ALIAS")

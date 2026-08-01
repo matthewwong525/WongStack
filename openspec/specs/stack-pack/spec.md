@@ -26,7 +26,7 @@ The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy
 
 The pack SHALL isolate staging at the Worker level, not the binding level. `wrangler.jsonc` SHALL declare a `staging` environment with its own Worker `name` and its own bindings, and a non-production branch SHALL be **deployed** to that Worker rather than uploaded as a version of the production Worker. No pack script SHALL rewrite `wrangler.jsonc` to redirect a binding.
 
-The pack SHALL ship `scripts/cf-deploy.sh`, wired to the Workers Builds deploy command. On the production branch it SHALL run `wrangler deploy`. On any other branch it SHALL run `wrangler versions upload --env staging --preview-alias <branch>` followed by `wrangler deploy --env staging`, so the per-commit preview URL is preserved *and* the deployed staging Worker runs branch code. Both non-production commands SHALL carry `--env staging`; omitting it on the version upload binds the production Worker's resources.
+The pack SHALL ship `scripts/cf-deploy.sh`, wired to the Workers Builds deploy command. On the production branch it SHALL run `wrangler deploy`. On any other branch it SHALL run `wrangler deploy --env staging` followed by `wrangler versions upload --env staging --preview-alias <branch>`, so the deployed staging Worker runs branch code *and* the per-commit preview URL is preserved. The deploy SHALL come first: a version cannot be uploaded against a Worker that does not yet exist, which is the state on a repo's first branch push. Both non-production commands SHALL carry `--env staging`; omitting it on the version upload binds the production Worker's resources.
 
 #### Scenario: A queue message on a branch is handled by staging
 

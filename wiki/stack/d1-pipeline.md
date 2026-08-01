@@ -48,11 +48,11 @@ Two dashboard commands, two pack scripts, one rule each:
      ┌──────────┴──────────┐              ┌─────────────┴─────────────┐
  default branch      other branch     default branch            other branch
      │                     │               │                          │
- migrations apply    migrations apply  wrangler deploy      versions upload --env staging
- --remote            --remote                              --preview-alias <branch>
- (production D1)     --env staging                                    +
-     │               (staging D1)      (production Worker)   wrangler deploy --env staging
-     │                     │                                     (staging Worker)
+ migrations apply    migrations apply  wrangler deploy       wrangler deploy --env staging
+ --remote            --remote                                    (staging Worker)
+ (production D1)     --env staging                                        +
+     │               (staging D1)      (production Worker)  versions upload --env staging
+     │                     │                                --preview-alias <branch>
      └──────────┬──────────┘
                 ▼
         npm run build:app
@@ -75,6 +75,8 @@ Workers Builds → Settings → Build → Deploy command:   bash scripts/cf-depl
 ```
 
 Leave the default `npx wrangler deploy` in place and branch pushes go back to uploading versions of the *production* Worker — the exact behaviour this model replaces. The production branch defaults to `main`; set `CF_PRODUCTION_BRANCH` in CI if yours differs.
+
+On a branch it **deploys first, then uploads the version.** That order is load-bearing: `wrangler versions upload` refuses to run against a Worker that doesn't exist yet, which is exactly the state on the first branch push in a repo — so uploading first would fail before the deploy that creates the staging Worker. On the production branch, wrangler warns that environments are defined but none was named; that's expected, and the bindings it prints are the top-level production ones.
 
 ### Two preview URLs, and only one of them runs your queue
 
@@ -170,7 +172,7 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 | Script | Run by | Does |
 |---|---|---|
 | `scripts/cf-build.sh` | the Workers Builds **build** command | Migrate production or staging by branch, then build. |
-| `scripts/cf-deploy.sh` | the Workers Builds **deploy** command | Deploy the production Worker on the default branch; on any other, upload a per-commit staging version and deploy the staging Worker. |
+| `scripts/cf-deploy.sh` | the Workers Builds **deploy** command | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging` | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
 | `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config" and "what is this environment's database name", so a build and its deploy can't resolve different apps. |
 
