@@ -48,13 +48,38 @@ export function findWranglerConfig() {
   process.exit(1);
 }
 
-/** Read `database_name` out of the wrangler config. */
-export function readDatabaseName(configPath) {
-  const match = readFileSync(configPath, "utf8").match(
-    /"?database_name"?\s*[:=]\s*"([^"]+)"/,
-  );
+/**
+ * Read `database_name` out of the wrangler config.
+ *
+ * With an `env` argument, read the name declared *inside* that environment's
+ * block — staging binds a twin database, which has its own name — by scanning
+ * from the environment's key onwards. The `env.staging` block must therefore
+ * declare its own `d1_databases` entry (see the stack-pack config fragments).
+ * `cf-build.sh` applies the identical rule in bash; keep the two in step.
+ */
+export function readDatabaseName(configPath, env) {
+  const file = readFileSync(configPath, "utf8");
+
+  let haystack = file;
+  if (env) {
+    const key = new RegExp(`"${env}"\\s*[:=]`);
+    const at = file.search(key);
+    if (at === -1) {
+      console.error(
+        `Could not find the \`${env}\` environment in ${configPath} — aborting.`,
+      );
+      process.exit(1);
+    }
+    haystack = file.slice(at);
+  }
+
+  const match = haystack.match(/"?database_name"?\s*[:=]\s*"([^"]+)"/);
   if (!match) {
-    console.error(`Could not read \`database_name\` from ${configPath} — aborting.`);
+    console.error(
+      env
+        ? `Could not read \`database_name\` for the \`${env}\` environment in ${configPath} — it needs its own d1_databases entry. Aborting.`
+        : `Could not read \`database_name\` from ${configPath} — aborting.`,
+    );
     process.exit(1);
   }
   return match[1];

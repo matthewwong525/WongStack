@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 8.0.0 — staging is its own Worker; the D1 preview swap is gone
+
+**Only the [stack pack](.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-stack-pack) changes.** A repo that declined it is untouched by this release.
+
+The pack isolated staging at the *binding* level: one Worker, two database ids, and `swap-d1-id.js` rewriting `wrangler.jsonc` on preview branches. That only ever covered one code path. Cloudflare Workers Builds uploads a **version** on a non-production branch, and a version serves HTTP and nothing else — queue consumers, cron triggers, and every other non-request handler run on the **deployed** version, with production bindings. So a repo that added a queue couldn't exercise it on staging at all, and staging messages were handled by production code against the production database. The unit of isolation on Cloudflare is the Worker; this release uses one.
+
+- **`env.staging` in `wrangler.jsonc`** — a second Worker (`<name>-staging`) with its own deployment, its own queue consumers, and its own bindings. A branch deployed there runs imports, crons, and alarms end to end on branch code.
+- **New `scripts/cf-deploy.sh`**, wired to the Workers Builds **deploy command** (`bash scripts/cf-deploy.sh` — the one setting a human must change). Default branch → `wrangler deploy`; any other → `wrangler deploy --env staging` *then* `wrangler versions upload --env staging --preview-alias <branch>` (deploy first — a version can't be uploaded against a Worker that doesn't exist yet). Per-commit preview URLs survive the switch; without that first command a custom deploy command would silently switch them off.
+- **BREAKING — `scripts/swap-d1-id.js` is deleted** and `preview_database_id` is gone from the model. Nothing rewrites `wrangler.jsonc` any more; which database a branch binds follows from which Worker it deploys to. `cf-build.sh` loses its swap leg, and it and `reset-staging-d1.mjs` target staging with `--env staging` instead of `--preview`.
+- **Twin by default** — every stateful binding in `env.staging` points at a second resource rather than sharing production's behind a namespace prefix. A twin needs no application code; a prefix taxes every call site forever, and one omission writes into production data. Documented as a table over D1, Queues, R2, KV, Durable Objects, cron, secrets, and service bindings. R2 key prefixes are explicitly rejected.
+- **Two libraries, one rule each** — `scripts/lib-wrangler-config.sh` (new) and `lib-wrangler-config.mjs` (extended) so a build and its deploy can't resolve different apps, and so every script reads a database name from the right environment. Staging declares its own `database_name`; a missing `env.staging` D1 entry stops the build with an explicit error rather than touching production.
+- **`wiki/stack/d1-pipeline.md` is now [Deploy and data pipeline](wiki/stack/d1-pipeline.md)** — opens with the version-vs-deployment diagnostic, then the two-environment model, the twin table, the two preview URLs and which one runs your queue, why staging is shared, and why per-PR Workers are declined. Migration mechanics, seeded staging, and all three production-recovery runbooks are unchanged. `cloudflare-credentials.md` gains per-environment Worker secrets; `cloudflare-access.md` names the staging hostname the existing wildcard already covers.
+- **Upgrading is deliberate, and documented.** `/wong-sync` never modifies a file a repo already has, so an existing repo keeps its old scripts until a human follows [adopting the staging environment](wiki/stack/d1-pipeline.md#adopting-the-staging-environment) — nine ordered steps, arranged so stopping partway leaves the repo behaving exactly as before. Nothing breaks until step 8 repoints the deploy command.
+
 ## 7.2.0 — prose goes straight to `main`; the fast path widens to `wiki/`
 
 `/save`'s direct-to-default-branch route was scoped to exactly `notes/*.md`. Everything else took the full

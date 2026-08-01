@@ -1,26 +1,4 @@
-# stack-pack Specification
-
-## Purpose
-
-The opt-in Cloudflare stack pack in the WongStack payload: the zero-config pipeline scripts, a seed template, guided config fragments, and the `wiki/stack/` pipeline docs — installed and refreshed only for a repo that opted in (`components.stackPack: true`), leaving WongStack byte-for-byte stack-agnostic for every repo that declines. The scripts auto-apply migrations on deploy (production on the default branch, staging elsewhere), deploy each branch to the Worker that belongs to it, and rebuild staging from a checked-in seed without ever touching production.
-
-## Requirements
-
-### Requirement: An opt-in Cloudflare stack pack ships in the payload
-
-The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — that a repo installs only by opting in. A repo that does not opt in SHALL receive none of the pack's files and SHALL remain stack-agnostic. Opt-in state SHALL be recorded as `components.stackPack` (boolean) in `.claude/.wong-stack.json`; absent or false means the repo never took the pack.
-
-#### Scenario: A repo that declines the pack is unaffected
-
-- **WHEN** a repo installs or syncs WongStack without opting into the pack
-- **THEN** no pack script, seed file, config fragment, or pipeline doc is written to it
-- **AND** `components.stackPack` is absent or false
-
-#### Scenario: A repo that opts in receives the pack
-
-- **WHEN** a repo opts into the pack
-- **THEN** it receives the pack scripts, the seed template, and the pipeline docs, and is guided through the config fragments
-- **AND** `components.stackPack` is true
+## ADDED Requirements
 
 ### Requirement: Staging is a separate Worker declared as a Wrangler environment
 
@@ -67,6 +45,39 @@ The rule SHALL be documented as a table covering at least D1, Queues, R2, KV, Du
 
 - **WHEN** a repo adds a stateful binding the pack does not itself ship
 - **THEN** the twin-by-default rule and its table answer what staging binds to without a new decision
+
+### Requirement: The pack documents its adoption path for repos on the previous model
+
+Because `/wong-sync` never modifies a file that already exists, a repo that installed the previous staging model keeps its old scripts and config indefinitely. The pack SHALL therefore document an ordered, human-run adoption runbook covering: creating the staging twins, adding the `env.staging` block and removing `preview_database_id`, putting secrets per environment, repointing service bindings, confirming Access covers the staging hostname, taking the new and updated scripts and deleting `scripts/swap-d1-id.js`, updating the `db:*` scripts, and repointing the Workers Builds deploy command. The runbook SHALL order the steps so an interrupted upgrade leaves the repo behaving as it did before.
+
+#### Scenario: An existing repo upgrades deliberately
+
+- **WHEN** a repo that took the previous pack syncs WongStack
+- **THEN** its existing pack files are left untouched and the gap is surfaced through the adapt step
+- **AND** the runbook gives the ordered steps to adopt the staging environment by hand
+
+#### Scenario: A partial upgrade is not broken
+
+- **WHEN** a repo has added `env.staging` but has not yet repointed the Workers Builds deploy command
+- **THEN** branch deploys continue to behave as they did before the upgrade
+
+## MODIFIED Requirements
+
+### Requirement: An opt-in Cloudflare stack pack ships in the payload
+
+The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — that a repo installs only by opting in. A repo that does not opt in SHALL receive none of the pack's files and SHALL remain stack-agnostic. Opt-in state SHALL be recorded as `components.stackPack` (boolean) in `.claude/.wong-stack.json`; absent or false means the repo never took the pack.
+
+#### Scenario: A repo that declines the pack is unaffected
+
+- **WHEN** a repo installs or syncs WongStack without opting into the pack
+- **THEN** no pack script, seed file, config fragment, or pipeline doc is written to it
+- **AND** `components.stackPack` is absent or false
+
+#### Scenario: A repo that opts in receives the pack
+
+- **WHEN** a repo opts into the pack
+- **THEN** it receives the pack scripts, the seed template, and the pipeline docs, and is guided through the config fragments
+- **AND** `components.stackPack` is true
 
 ### Requirement: The pack scripts are zero-config and byte-identical across repos
 
@@ -161,18 +172,3 @@ The pipeline page SHALL open with the diagnostic that motivates the model — a 
 
 - **WHEN** a repo did not take the pack
 - **THEN** the pack's pipeline docs are not installed
-
-### Requirement: The pack documents its adoption path for repos on the previous model
-
-Because `/wong-sync` never modifies a file that already exists, a repo that installed the previous staging model keeps its old scripts and config indefinitely. The pack SHALL therefore document an ordered, human-run adoption runbook covering: creating the staging twins, adding the `env.staging` block and removing `preview_database_id`, putting secrets per environment, repointing service bindings, confirming Access covers the staging hostname, taking the new and updated scripts and deleting `scripts/swap-d1-id.js`, updating the `db:*` scripts, and repointing the Workers Builds deploy command. The runbook SHALL order the steps so an interrupted upgrade leaves the repo behaving as it did before.
-
-#### Scenario: An existing repo upgrades deliberately
-
-- **WHEN** a repo that took the previous pack syncs WongStack
-- **THEN** its existing pack files are left untouched and the gap is surfaced through the adapt step
-- **AND** the runbook gives the ordered steps to adopt the staging environment by hand
-
-#### Scenario: A partial upgrade is not broken
-
-- **WHEN** a repo has added `env.staging` but has not yet repointed the Workers Builds deploy command
-- **THEN** branch deploys continue to behave as they did before the upgrade
