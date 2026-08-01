@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 8.2.0 — one list of secrets for both Workers, and a gate that catches the drift
+
+8.0.0 made staging a second Worker. A second Worker has a second secret store, and nothing syncs the two — so every new secret meant two `wrangler secret put` calls, and forgetting the second one surfaced at runtime, in staging, later. Configuration drift between the environments was the default state and nothing in the pack looked for it.
+
+- **`.dev.vars` is now the declared source of truth**, and `npm run secrets:push` loads both Workers from it via `wrangler secret bulk` (which takes dotenv format directly). Staging reads `.dev.vars.staging` when it exists and falls back to `.dev.vars` otherwise — so identical values across both Workers is the zero-config default, and divergence costs one file and no command change. `wrangler dev` already reads the same file, so it serves local development too.
+- **Diverge where writes escape.** Identical values are fine for read-only credentials. For anything with third-party *write* side effects — payment keys, outbound email/SMS, webhook targets — sharing the value lets a branch on staging charge a real card, which is the production-contamination hole twinning the database closes, re-opened at the API layer.
+- **`npm run secrets:check` is a parity gate**, wired into the workflow on every push. Because `.dev.vars` is git-ignored and so absent in CI, the assertion that fails is **Worker against Worker**: production's secret names against staging's. It also fails when a binding declared at the top level of `wrangler.jsonc` is missing from `env.staging`, and warns when a staging service binding still targets production's service. **Names only** — no secret value is read, printed, or logged, so it is safe in retained CI logs.
+- **The `.env` refusal is code, not a note.** `.env` holds `CLOUDFLARE_API_TOKEN`, which can widen its own permissions and create account resources; in a Worker's runtime environment, one log leak escalates to the whole Cloudflare account. `secrets:push` refuses that file, resolves symlinks before judging it, and stops outright if `.dev.vars` itself contains a `CLOUDFLARE_*` or `CF_ACCESS_*` key. The two files look interchangeable and the mistake only has to happen once.
+- **Cron triggers were documented backwards, and are corrected.** Only `vars` and bindings are non-inheritable; `triggers` is an ordinary *inheritable* key. The pipeline docs told you to omit crons from `env.staging` to keep staging manual — which does the opposite: the environment inherits production's schedule and fires against the staging database, with no error. Keeping staging manual-only needs the explicit `"triggers": { "crons": [] }`. The docs now state the inheritable/non-inheritable split, since the two failure directions are both silent and opposite.
+- **`.gitignore` widens to `.dev.vars*` with a `!.dev.vars.example` negation** — the wildcard so a `.dev.vars.staging` of live values can't be committed, the negation so the new committed, values-blank `.dev.vars.example` isn't swallowed by it.
+
+**Adopting:** run `npm run secrets:push` once so both Workers agree, then let the gate hold the line. On a repo that has already drifted the check goes red on the first push — that is the finding, not a regression, and the failure names the keys or bindings. Nothing else changes: no existing script changed behaviour, and the check *skips* rather than fails on a repo with no `CLOUDFLARE_API_TOKEN` (not provisioned) or no `env.staging` (not on the two-Worker model), so adoption never produces a permanently red check.
+
 ## 8.1.0 — one token stands the app up; branches stop reaching production
 
 Getting the Cloudflare app running meant leaving the agent and working the dashboard by hand: guess a token's
