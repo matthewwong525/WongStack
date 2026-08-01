@@ -1,6 +1,6 @@
 # Zero-dependency onboarding
 
-**Status:** ready-to-ship — verified end to end against a live repo; 45/47 tasks, the two open ones need environments this machine can't provide
+**Status:** ready-to-ship — verified end to end against a live repo; 49/51 tasks, the two open ones need environments this machine can't provide
 **Open questions:** none blocking. Two environmental checks remain (a machine without Node; a fresh `gh auth login` to confirm the `workflow` scope), and the two disposable test repos need `delete_repo` scope to remove.
 
 ## Why
@@ -21,6 +21,7 @@ Live investigation against the Cloudflare API showed most of that is unnecessary
 - **Runtimes install at the point of need, never pre-emptively.** The OpenSpec CLI is npm-only with no standalone binary, so Node stays a real dependency of the planning verbs — but setup no longer treats it as a precautionary install. It asks when a step actually needs it, prefers a user-local install over `sudo`, and if declined completes the runtime-free layer (CLAUDE.md, wiki, notes, the git-only verbs) while naming what is unavailable. `node` is also permitted inside pack-gated scripts, where it already exists at the build boundary; provisioning stays `curl`-first so it never triggers an install.
 - **Multi-account handling and a teardown path.** Provisioning lists accounts and asks rather than assuming one. Teardown removes what a run created, so repeated fresh-repo tests stop leaking Workers and databases.
 - **An end-to-end fresh-repo test** of the whole paste-to-deployed path, run against a live repo and real Cloudflare. It found two bugs, both fixed here: binding types weren't regenerated after provisioning (first build failed `tsc`), and — **live in 8.0.0, independent of this change** — every feature branch deployed to the **production** Worker on the **production** database, because `@cloudflare/vite-plugin` selects the environment at build time and `--env` on `wrangler deploy` has no effect once its redirect config exists. Fixed with build-time `CLOUDFLARE_ENV`, a conditional `--env`, and a fail-closed guard that refuses to deploy when a non-production branch resolves to production's Worker.
+- **The CI gate is fixed too.** `wait-for-checks.sh` swallowed gh's stderr and read empty output as "no checks", so on any `gh` without `gh pr checks --json` it silently reported `NONE` — disabling the delivery gate `/ship` relies on. It now falls back to the default output and reserves `NONE` for gh explicitly saying so; everything else becomes `RESULT: UNKNOWN`, which `/save` reports as unverified and `/ship` refuses to merge on.
 - **Release chores:** `VERSION` bump from 8.0.0 to 8.1.0, a newest-first `CHANGELOG.md` entry, and the new payload files registered in the stack-pack section of the payload manifest.
 
 ### Non-goals
