@@ -24,9 +24,12 @@ Pin these versions where the scaffold needs them (Vite's Cloudflare plugin and t
 
 **Cheap previews are the inner loop.** Every branch push gets its own preview URL on the [staging Worker](d1-pipeline.md#two-preview-urls-and-only-one-of-them-runs-your-queue), bound to staging data — a real, shareable deploy to exercise a change against, with no local build gate. `/save` pushes and hands back the URL; that URL, not a localhost server, is where you confirm the change works.
 
+**Nothing has to run on your machine.** Getting the app live is [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) plus one Cloudflare token; after that, building a change is push → preview URL → look at it. No `npm install`, no `wrangler dev`, no localhost.
+
 ## Next
 
+- Standing the whole thing up from one token: [provisioning](provisioning.md).
 - How code and data ship, and how a bad migration is recovered: the [deploy and data pipeline](d1-pipeline.md).
-- The login wall in front of the app: [Cloudflare Access](cloudflare-access.md).
+- The optional login wall in front of the app: [Cloudflare Access](cloudflare-access.md).
 - The tokens the pipeline needs: [Cloudflare credentials](cloudflare-credentials.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

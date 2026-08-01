@@ -52,6 +52,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/.claude/skills/save/scripts/wait-for-checks.sh" 20
 ```
 - **SUCCESS** / **NONE** (no checks — the PR review is the gate; invoking `/ship` is the approval) → Step 5.
+- **UNKNOWN** → **do not merge.** gh couldn't be asked, so the gate is unverified, not absent — merging here is exactly how a red branch reaches the default branch. Report the script's message and stop; the user can re-run `/ship` once `gh` works, or merge deliberately after checking the PR themselves.
 - **FAILURE** → read the log, fix, re-push, re-wait (**cap 3; never ship red**):
   ```bash
   RUN_ID=$(gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId')
@@ -78,6 +79,6 @@ On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not
 - **CI** — green (note N auto-fix pushes if any), and any follow-ups (a flag, a manual step, a secret).
 
 ## Hard rules
-- Never ship onto a red default branch (when it has checks). Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. Never build/test locally — CI is the gate when present, else PR review.
+- Never ship onto a red default branch (when it has checks). **Never merge on an `UNKNOWN` check result** — unverified is not the same as no checks. Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. Never build/test locally — CI is the gate when present, else PR review.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - No GitHub summary issue and no docs distillation — the archived spec is the record; `/dream` handles the wiki.

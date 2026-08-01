@@ -2,7 +2,11 @@
 
 Put a login wall in front of your app without writing a line of auth code. Cloudflare Access (the Zero Trust product) sits at the edge, authenticates the visitor against an identity provider you choose, and only then forwards the request to your Worker — with the verified email in a header the Worker trusts. This page stands up Access for the [Cloudflare stack](README.md): the org, an identity provider, one application, and the two policies that gate the admin surface while leaving the public one open.
 
-You do this once per app, in the Cloudflare dashboard. It needs a Cloudflare account and a Worker you've already deployed at least once (so its hostnames exist). The token half of setup — the API tokens your build and CI need — is the sibling page, [Cloudflare credentials](cloudflare-credentials.md).
+> **This is opt-in, and nothing else requires it.** An app the stack pack [provisions](provisioning.md) is **public by default** — anyone with the link can open it, which is what most projects want. Nothing in the pack, the pipeline, or CI depends on Access existing. Come here when you decide you want people to sign in first.
+
+You do this once per app, in the Cloudflare dashboard. It needs a Cloudflare account and a Worker you've already deployed at least once (so its hostnames exist). The token half of setup is the sibling page, [Cloudflare credentials](cloudflare-credentials.md) — an agent can grant itself the Access permissions on demand, so you don't pre-authorize anything to *read* this page.
+
+**Adopting Access is two changes made together:** the Cloudflare setup below, and [the Worker code change](#the-auth-model-the-worker-trusts-a-header) that starts trusting the identity header. Doing either alone is a bug — see the warning in that section for why the code change *ahead* of the proxy is a security hole.
 
 > Dashboard labels and menu paths drift and vary by plan. This page names the durable pieces — organization, identity provider, application, policy, bypass, service token — and where each roughly lives. If a label here doesn't match what you see, match on the concept; the shape hasn't changed.
 
@@ -17,13 +21,15 @@ You do this once per app, in the Cloudflare dashboard. It needs a Cloudflare acc
               sets the identity header ─────────┘
 ```
 
-Access is a **reverse proxy in front of every request.** A request that fails the policy never reaches your Worker — it's stopped at the edge with Cloudflare's login screen. A request that passes arrives with `Cf-Access-Authenticated-User-Email` set to the verified address. The Worker reads that header and believes it, because nothing else could have set it. See [the auth model](#the-auth-model-the-worker-trusts-a-header) below for why that trust is safe — and exactly when it isn't.
+Access is a **reverse proxy in front of every request.** A request that fails the policy never reaches your Worker — it's stopped at the edge with Cloudflare's login screen. A request that passes arrives with `Cf-Access-Authenticated-User-Email` set to the verified address. Once this is set up, the Worker can read that header and believe it, because nothing else could have set it. See [the auth model](#the-auth-model-the-worker-trusts-a-header) below for why that trust is safe once the proxy is there — and why the same code is a hole before it.
 
 ## Setup
 
 ### 1. Turn on Zero Trust and pick an identity provider
 
 In the Cloudflare dashboard, open **Zero Trust** and — first time only — choose a team name (your org's Zero Trust subdomain) and a plan; the free tier covers this setup.
+
+> **Unverified step.** Whether this first-time onboarding can be done through the API (`POST /accounts/{id}/access/organizations`) rather than the dashboard could not be tested during design — both accounts available already had a Zero Trust organization, and once one exists the cold-start path can never be observed again. Plan selection may well be dashboard-only. If an agent's API call fails here, that's the expected fallback, not a bug: do this step in the dashboard and continue. Everything after it is API-driven.
 
 Then add an **identity provider** (under Settings → Authentication): the source of truth for *who* your users are. Two common choices:
 
@@ -78,10 +84,20 @@ Create it under **Zero Trust → Access → Service Auth**, then add a policy (o
 
 ## The auth model: the Worker trusts a header
 
+**The template Worker ships trusting nothing.** Because a provisioned app is public by default, the code below is something you *add* when you adopt Access — never before:
+
+```
+   public Worker + code that trusts Cf-Access-Authenticated-User-Email
+        = anyone can send that header and become any user
+```
+
+On a Worker with no Access proxy in front, that header is attacker-controlled. It is an ordinary request header; a `curl` one-liner sets it to any address you like. Shipping the trust "ready for later" is not harmless preparation — it is an open impersonation hole for exactly as long as the app stays public. So the code change and the login wall are adopted in the same step, in this order: stand up Access, verify coverage, *then* trust the header.
+
 Once Access is in front, **the Worker needs no auth code.** It reads the identity from the request:
 
 ```ts
 // Returns the Access-verified email, or null when no proxy is in front.
+// Add this ONLY once Access gates every hostname that reaches this Worker.
 export function getAccessEmail(request: Request): string | null {
   return request.headers.get("Cf-Access-Authenticated-User-Email");
 }
@@ -106,5 +122,6 @@ The rule: production fails closed. The fallback identity exists only because *yo
 
 ## Next
 
-- Wire up the API tokens your build and CI need — including where the service token's two values go: [Cloudflare credentials](cloudflare-credentials.md).
+- Wire up the API token your build and CI need — including where the service token's two values go: [Cloudflare credentials](cloudflare-credentials.md).
+- How the app got there in the first place: [provisioning](provisioning.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

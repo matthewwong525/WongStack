@@ -6,18 +6,43 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 |---|---|
 | `git` | Everything lives in the repo; `/save`, `/continue`, and `/ship` own all git. |
 | `gh` | PRs, checks, and the GitHub API — the delivery gate. Must be authenticated. (`/wong-sync` doesn't need it: its clone refresh is plain `git`, and it opens no PRs. [Contributing](../contributing.md) upstream is a manual PR, where you'd use `gh` yourself.) |
-| `openspec` | The planning layer the workflow verbs front. Installed via npm, so its own install needs [Node.js](https://nodejs.org/) — but the payload only ever calls the `openspec` binary. |
+| `openspec` | The planning layer the workflow verbs front. Distributed only as an npm package (no standalone binary), so it needs [Node.js](https://nodejs.org/) — but the payload only ever calls the `openspec` binary. |
 
 [`/wong-setup`](../../.claude/skills/wong-setup/SKILL.md) checks for these during its readiness step. Beyond them, no core payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.
+
+## Runtimes install at the point of need
+
+**Nothing is installed pre-emptively.** A readiness check that installs Node "while we're here" is the one action in setup that changes the machine rather than the repo — so it isn't taken as a precaution. Setup proceeds until a step genuinely requires a runtime, then explains what and why, and asks.
+
+When the answer is yes, prefer a **user-local** install (the [official installer](https://nodejs.org/) or `nvm` into `$HOME`) over a `sudo` package manager, which fails outright on plenty of managed laptops.
+
+When the answer is no, setup doesn't dead-end — the layers degrade cleanly:
+
+```
+   git + gh + an agent   →  CLAUDE.md, wiki/, notes/, the skills,
+                            /save, /continue, /dream          ← zero runtime
+   + node → openspec     →  /plan, /apply, /ship
+   + a Cloudflare token  →  the running app                   ← nothing local
+```
+
+The knowledge center — most of what WongStack promises — works with **no Node at all**. Only the planning verbs need the CLI, because they ask it for artifact templates and the dependency graph at runtime rather than carrying a fork of its schema. Setup completes the runtime-free layer and names exactly which verbs are missing, so declining is a real choice rather than a failure.
 
 ## The opt-in Cloudflare stack pack
 
 One exception, and it proves the rule by staying opt-in. The [Cloudflare stack pack](../stack/README.md) ships a handful of scripts that run `node`/`npm` and `wrangler` and expect a Cloudflare account. That's more than the core three tools — so the pack is **opt-in, and its tools are its own:**
 
-- They run **only in a repo that explicitly took the pack** (`components.stackPack: true`), and **only in that repo's own build/CI** — the [pipeline scripts](../stack/d1-pipeline.md#the-scripts) that migrate and deploy — **never inside a WongStack skill.**
+- They run **only in a repo that explicitly took the pack** (`components.stackPack: true`), and **only in that repo's own build/CI** — the [pipeline scripts](../stack/d1-pipeline.md#the-scripts) that migrate and deploy.
 - A repo that **declined the pack** runs the entire toolkit on `git`, `gh`, and `openspec` alone, exactly as before. It receives no pack file and needs no extra tool.
 
-So the core three-tool guarantee stays literally true for every repo: the pack adds tools to *its* repo's deploy pipeline, not to WongStack. The `wrangler`/`node` line lives at the target's build boundary, which was never bound by this page's promise.
+**`curl` is a pack-gated skill dependency.** [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) drives the Cloudflare REST API with `curl` rather than `wrangler`, so [provisioning](../stack/provisioning.md) works on a machine with no runtime installed. (An earlier version of this page said pack tools run "never inside a WongStack skill." That was true when no skill touched Cloudflare; it isn't now, so the carve-out is named rather than quietly broken.)
+
+**Pack-gated scripts may use `node`** where it's the better tool — JSON assembly, editing `wrangler.jsonc` — because a pack repo already requires it at its build boundary. The governing rule:
+
+> Use `node` where it is already required. Never let a WongStack skill be the reason a runtime gets installed.
+
+That's why provisioning is `curl`-first even though `npx wrangler` would be shorter: reaching for it would trigger an install during the one flow whose whole selling point is having no local setup.
+
+So the core three-tool guarantee stays literally true for every repo: the pack adds tools to *its* repo's deploy pipeline, not to WongStack.
 
 ## Working with JSON
 

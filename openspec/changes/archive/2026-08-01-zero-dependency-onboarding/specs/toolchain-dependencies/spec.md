@@ -1,13 +1,6 @@
-# toolchain-dependencies Specification
-
-## Purpose
-
-The external command-line tools the WongStack payload is allowed to depend on — `git`, `gh`, and `openspec` — and the two rules that keep the set that small: JSON returned by GitHub is filtered with `gh`'s embedded `--jq` rather than a standalone `jq`, and small local JSON files are read by the agent rather than parsed by a subshell. WongStack installs into repos of every stack, so each added dependency is a repo it cannot serve.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: The payload depends only on git, gh, and openspec
-
 
 The WongStack **core** payload SHALL require no external command-line tools beyond `git`, `gh`, and `openspec`. No core payload script or skill SHALL invoke a standalone `jq`, `python`, `node`, or other interpreter to do work the agent or an already-required tool can do. The **opt-in Cloudflare stack pack** MAY require additional tools — `node`/`npm` and `wrangler` in that repo's own build/CI, and `curl` in the pack's own provisioning skill — but only in a repo that explicitly took the pack. A repo that did not take the pack SHALL still run the entire toolkit on `git`, `gh`, and `openspec` alone. The required-tools page SHALL state this split, and SHALL name `curl` explicitly as a pack-gated skill dependency rather than leaving the earlier "never in a WongStack skill" wording to be quietly contradicted.
 
@@ -41,26 +34,6 @@ Pack-gated skills and scripts MAY use `node` where it is the better tool, since 
 - **WHEN** a user provisions the Cloudflare app on a machine with no Node.js installed
 - **THEN** provisioning completes using `curl` and `gh` only
 - **AND** no step instructs the user to install a language runtime
-
-### Requirement: JSON handling goes through gh's embedded filter
-
-Where a payload script must filter or reshape JSON returned by GitHub, it SHALL use `gh`'s built-in `--jq` flag rather than piping to a standalone `jq`. Filters SHALL stay within the syntax common to jq and gojq (`gh`'s embedded implementation).
-
-#### Scenario: Script needs a subset of a gh response
-
-- **WHEN** a payload script needs specific fields out of a `gh` API or `gh pr` response
-- **THEN** it passes a `--jq` expression to the `gh` invocation itself
-- **AND** no `| jq` pipeline appears anywhere in the payload
-
-### Requirement: Skills read local JSON directly rather than shelling out
-
-Where a skill needs values from a small local JSON file — such as the manifest at `.claude/.wong-stack.json` — the skill SHALL instruct the agent to read the file and note the values, stating each field's default and any expansion (for example `~` → `$HOME`) in prose, rather than shelling out to a JSON parser.
-
-#### Scenario: wong-sync resolves its manifest
-
-- **WHEN** `/wong-sync` Step 0 needs `commit`, `upstream.repo`, `upstream.fork`, and `upstream.clone`
-- **THEN** the skill directs the agent to read the manifest file and note those values, applying the documented default for `upstream.repo` and expanding `~` in `upstream.clone`
-- **AND** absent fields are recognized as absent rather than silently resolving to an empty string
 
 ### Requirement: Check-waiting reports the true gate result without jq
 
@@ -99,8 +72,9 @@ Callers SHALL treat `UNKNOWN` as *unverified*, never as *no checks*: `/save` rep
 - **THEN** the script prints `RESULT: UNKNOWN` with the message `gh` produced
 - **AND** `/ship` does not merge on that result
 
-### Requirement: Runtimes are installed at the point of need, never pre-emptively
+## ADDED Requirements
 
+### Requirement: Runtimes are installed at the point of need, never pre-emptively
 
 No WongStack skill SHALL install a language runtime as a precaution, as part of a readiness check, or "while we're here." A runtime SHALL be installed only at the moment a step actually requires it, and only after the user consents. Installation SHALL prefer a user-local method (the official installer, or `nvm` into the user's home) over a `sudo` package manager, which can fail outright on a managed machine. Installing a runtime is the only step in the flow that modifies the machine rather than the repo, and SHALL be the only step that asks for that reason.
 

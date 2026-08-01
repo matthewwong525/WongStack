@@ -35,10 +35,10 @@ So isolating staging at the *binding* level can't work. Redirecting a database i
 
 ## Auto-migrate on build, deploy by branch
 
-Two dashboard commands, two pack scripts, one rule each:
+Two CI steps, two pack scripts, one rule each:
 
 ```
-                     push (Cloudflare Workers Builds)
+                     push (GitHub Actions)
                                     │
                 ┌───────────────────┴───────────────────┐
                 ▼                                       ▼
@@ -48,11 +48,11 @@ Two dashboard commands, two pack scripts, one rule each:
      ┌──────────┴──────────┐              ┌─────────────┴─────────────┐
  default branch      other branch     default branch            other branch
      │                     │               │                          │
- migrations apply    migrations apply  wrangler deploy       wrangler deploy --env staging
- --remote            --remote                                    (staging Worker)
+ migrations apply    migrations apply  wrangler deploy        wrangler deploy → staging
+ --remote            --remote                                     (staging Worker)
  (production D1)     --env staging                                        +
-     │               (staging D1)      (production Worker)  versions upload --env staging
-     │                     │                                --preview-alias <branch>
+     │               (staging D1)      (production Worker)   versions upload → staging
+     │                     │                                 --preview-alias <branch>
      └──────────┬──────────┘
                 ▼
         npm run build:app
@@ -60,9 +60,9 @@ Two dashboard commands, two pack scripts, one rule each:
 
 - **Default branch** → migrations apply to **production**, then a deploy to the production Worker.
 - **Any other branch** → migrations apply to **staging**, then a deploy to the staging Worker (plus a per-commit version, below).
-- **A developer's terminal** (no `WORKERS_CI_BRANCH`) → the build wrapper just builds and the deploy wrapper does nothing. A remote database is never touched, and nothing is ever deployed, from a laptop.
+- **A developer's terminal** (no `CF_BRANCH` or `WORKERS_CI_BRANCH`) → the build wrapper just builds and the deploy wrapper does nothing. A remote database is never touched, and nothing is ever deployed, from a laptop.
 
-Nothing rewrites `wrangler.jsonc`. Which database a branch binds follows from which Worker it deploys to.
+Nothing rewrites `wrangler.jsonc`. Which database a branch binds follows from which Worker it deploys to — and [how that Worker gets chosen](#how-the-environment-actually-gets-selected) depends on how the app is built.
 
 ### The two commands
 
@@ -88,6 +88,32 @@ A branch push produces two reachable URLs, and they are not equivalent:
 | `<worker>-staging.workers.dev` | the deployed staging Worker | ✓ | ✓ |
 
 Use the alias URL for UI review — it's per-commit, so two branches never collide. Use the staging Worker URL when you're exercising an import, a queue, or anything scheduled. "Why didn't my import run?" is almost always "you were on the alias URL."
+
+## How the environment actually gets selected
+
+There are two mechanisms, and using the wrong one fails **silently** — the deploy succeeds, prints a preview URL, and has overwritten production.
+
+| Layout | Selected by | When |
+|---|---|---|
+| plain wrangler build | `wrangler deploy --env staging` | deploy time |
+| `@cloudflare/vite-plugin` (the SPA layout the pack ships) | `CLOUDFLARE_ENV=staging` | **build** time |
+
+The plugin flattens the chosen environment into a generated `dist/<worker>/wrangler.json` and writes `.wrangler/deploy/config.json` pointing wrangler at it. From that moment the environment is baked in, and [Cloudflare's docs state plainly](https://developers.cloudflare.com/workers/vite-plugin/reference/cloudflare-environments/) that `CLOUDFLARE_ENV` on `wrangler deploy` "will have no effect".
+
+So the pack handles both: `cf-build.sh` exports `CLOUDFLARE_ENV=staging` on a non-production branch, and `cf-deploy.sh` drops `--env staging` when it detects the redirect.
+
+**Why this is written down rather than left to the scripts.** Before the pack did this, a plugin-built repo silently deployed *every* feature branch to the production Worker bound to the production database. Nothing errored: the build was green, a preview URL was printed, and it happened to be production's. Worse, migrations still went to the staging database, so code and schema drifted apart in exactly the way the two-environment model exists to prevent.
+
+### The guard
+
+`cf-deploy.sh` re-reads the name wrangler will actually deploy — from the generated config when one exists, the source config otherwise — and **refuses to deploy** when a non-production branch resolves to production's Worker:
+
+```
+cf-deploy: ERROR — on branch 'feat/x' the staging environment resolves to the
+cf-deploy: production Worker 'myapp'. Deploying would overwrite production.
+```
+
+It catches the whole class — a missing `env.staging.name`, a build that didn't select the environment, a future plugin change — rather than any one instance of it. Verified against a live repo: with the selection deliberately broken, the deploy is blocked and production is untouched.
 
 ## Twin every stateful binding
 
@@ -171,8 +197,8 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 
 | Script | Run by | Does |
 |---|---|---|
-| `scripts/cf-build.sh` | the Workers Builds **build** command | Migrate production or staging by branch, then build. |
-| `scripts/cf-deploy.sh` | the Workers Builds **deploy** command | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
+| `scripts/cf-build.sh` | the workflow's **build** step | Migrate production or staging by branch, then build. `--app-dir` prints where `package.json` lives, so CI can install in the right place. |
+| `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging` | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
 | `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config" and "what is this environment's database name", so a build and its deploy can't resolve different apps. |
 
@@ -183,6 +209,35 @@ npm run db:migrate:staging   # apply pending migrations to staging without a res
 npm run db:migrate:prod      # apply pending migrations to production (rare; the deploy does this)
 npm run db:reset:staging     # rebuild staging from migrations + seed
 ```
+
+## CI is GitHub Actions
+
+The pack ships `.github/workflows/deploy.yml`, and it is deliberately thin — it sets the branch and runs the two scripts above:
+
+```yaml
+CF_BRANCH: ${{ github.head_ref || github.ref_name }}
+CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
+```
+
+**The scripts own every deploy decision, not the workflow.** That's the point: production, the staging Worker, and the per-commit preview alias behave identically whichever CI invokes them, and switching backends is a matter of where the scripts are called from.
+
+| Variable | Set by | If absent |
+|---|---|---|
+| `CF_BRANCH` | the workflow | falls back to `WORKERS_CI_BRANCH`; neither set → local mode, migrate and deploy nothing |
+| `CF_PRODUCTION_BRANCH` | the workflow, from the repo's default branch | `main` |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub repository secrets | no secrets → build-only |
+
+`WORKERS_CI_BRANCH` is still honored, so a repo on Cloudflare Workers Builds keeps working unchanged and a repo mid-migration can run both.
+
+**Before the repo is provisioned there are no secrets, and the workflow builds without deploying** — an unprovisioned repo gets a real pull-request check (types, build errors) instead of a permanently red one. [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) sets the secrets, and it starts deploying.
+
+### Why not Cloudflare's own Workers Builds
+
+It can't be automated. Cloudflare's Builds API triggers builds, patches existing triggers, and reads logs, but **cannot create the repository connection, set the production branch, or create the first trigger** — and the GitHub App it needs requires browser OAuth consent that `gh` cannot grant. That's three dashboard steps per repo, forever.
+
+Actions is `gh secret set` plus this file. It also produces a real pull-request check, and a red build is `gh run view --log-failed` — the surface `/save` and `/ship` already read, with no Cloudflare credential involved. The costs, plainly: Actions minutes are billable on private repos (2,000/month free; public unlimited), and the credentials also live in GitHub secrets.
+
+Staying on Workers Builds is supported and needs no changes — point its build command at `scripts/cf-build.sh` and its deploy command at `scripts/cf-deploy.sh`, and don't add the workflow.
 
 ## Adopting the staging environment
 
