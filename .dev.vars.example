@@ -1,0 +1,39 @@
+# .dev.vars.example — the secrets the WORKER reads at runtime.
+#
+# HOW THIS WORKS
+#   • This file is committed and carries KEY NAMES ONLY, never a value. It is
+#     the reviewable list of what the Worker expects, and `secrets:check`
+#     compares it against what each Worker actually holds.
+#   • Copy it to a git-ignored `.dev.vars` and fill in the real values:
+#         cp .dev.vars.example .dev.vars
+#   • Load both Workers from it — one command, no per-environment `wrangler
+#     secret put` to forget:
+#         npm run secrets:push
+#   • `wrangler dev` reads `.dev.vars` automatically, so the same file serves
+#     local development and both deployed Workers.
+#
+# THIS IS NOT `.env`, AND THE DIFFERENCE MATTERS
+#   .env       what CI and the pack's scripts authenticate WITH — chiefly
+#              CLOUDFLARE_API_TOKEN, which can widen its own permissions and
+#              create account resources. It must NEVER reach a Worker: a log
+#              leak or code-execution bug there would escalate to the whole
+#              Cloudflare account. `secrets:push` refuses to load it.
+#   .dev.vars  what the Worker itself reads off `env`. This file.
+#
+# STAGING VALUES
+#   By default both Workers get identical values — `secrets:push` falls back to
+#   `.dev.vars` for staging. To give staging its own value for a key, create a
+#   git-ignored `.dev.vars.staging`; no command changes.
+#
+#   Diverge for anything with third-party WRITE side effects — payment keys,
+#   outbound email/SMS, webhook targets. Sharing those lets a branch on staging
+#   charge a real card or email a real customer, re-opening at the API layer the
+#   hole that twinning the database closes. See wiki/stack/d1-pipeline.md.
+
+# --- Example entries (delete these; replace with your Worker's real secrets) ---
+
+# Secret key for the payments provider. Use the TEST key in .dev.vars.staging.
+# STRIPE_SECRET_KEY=
+
+# Where the app posts outbound webhooks. Point staging at a sink, not at prod.
+# WEBHOOK_URL=

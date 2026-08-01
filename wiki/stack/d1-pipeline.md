@@ -117,7 +117,20 @@ It catches the whole class — a missing `env.staging.name`, a build that didn't
 
 ## Twin every stateful binding
 
-An environment **inherits nothing it doesn't redeclare**. Every stateful binding must appear inside `env.staging` pointing at its own resource — a *twin*, not a shared resource with a staging namespace inside it.
+Among `vars` and bindings, an environment **inherits nothing it doesn't redeclare**. Every stateful binding must appear inside `env.staging` pointing at its own resource — a *twin*, not a shared resource with a staging namespace inside it.
+
+That scope matters, because the rest of the config behaves the *opposite* way:
+
+```
+  non-inheritable   vars, bindings        env.staging starts EMPTY
+                                          → forget one and staging lacks it
+
+  inheritable       triggers, limits,     env.staging starts from PRODUCTION
+                    observability, …      → forget one and staging silently
+                                            acquires production's behaviour
+```
+
+Both directions are silent. The first is the one the twin table below covers; the second is why [cron triggers](#cron-triggers-inherit-omitting-them-does-not-disable-them) need an explicit override rather than an omission.
 
 That's a deliberate rule, and the reason is cost:
 
@@ -133,13 +146,77 @@ So: twin by default; a prefix only where a twin genuinely isn't available.
 | R2 | twin bucket | not a `staging/` key prefix |
 | KV | twin namespace | |
 | Durable Objects | nothing to do | DO storage is per-Worker; a separate Worker is already isolated |
-| Cron triggers | declare or omit | omit unless staging should fire on its own schedule |
-| Secrets | re-put per environment | `wrangler secret put --env staging <NAME>` |
+| Cron triggers | **explicit** `"triggers": { "crons": [] }` | inheritable — omitting the key inherits production's schedule, it does not disable it |
+| Secrets | `npm run secrets:push` | loads both Workers from `.dev.vars`; see [the secret model](#one-declared-list-of-secrets-two-workers) |
 | Service bindings | **repoint** at the staging counterpart | |
 
-The last two bite differently. A missing staging secret fails **loudly** on the first run. A service binding copied into `env.staging` but left pointing at production fails **quietly** — staging code, production side effects, no error anywhere. Check that one by reading the environment block, not by waiting for a failure.
+The last two bite differently. A missing staging secret fails **loudly** on the first run. A service binding copied into `env.staging` but left pointing at production fails **quietly** — staging code, production side effects, no error anywhere.
+
+You don't have to catch either by eye: **`npm run secrets:check`** fails the build when a binding declared at the top level is missing from `env.staging` or when the two Workers' secret names disagree, and warns when a staging service binding still targets production's service. It runs on every push.
 
 The exact JSONC to merge is in the pack's [config fragments](../../.claude/skills/wong-sync/references/stack-pack-fragments.md).
+
+### Cron triggers inherit; omitting them does not disable them
+
+The row above is the one place the twin table's logic inverts, so it is worth stating on its own. `triggers` is an **inheritable** key. Declare crons at the top level and leave `env.staging` silent, and the staging Worker inherits that schedule and fires on it — against the staging database, with no error and nothing in the config that looks wrong.
+
+To keep staging manual-only, say so:
+
+```jsonc
+"env": {
+  "staging": {
+    "triggers": { "crons": [] }
+  }
+}
+```
+
+Omit the key **only** when staging genuinely should run production's schedule.
+
+Exercising a cron by manual trigger instead is a reasonable choice, and it costs less than it looks: what goes untested is the *schedule*, not the handler. Keep `scheduled()` and the manual trigger calling the same function so the tested path can't drift from the real one. The cron expression itself is only ever verifiable in production — check the Worker's Triggers tab after the first deploy.
+
+## One declared list of secrets, two Workers
+
+`env.staging` is a second Worker, so it has a second secret store. Nothing syncs the two: a `wrangler secret put` reaches exactly one of them, which makes "remember two commands, forever" the maintenance burden and drift the default state.
+
+The pack collapses that to one declared list.
+
+```
+  .dev.vars            ─┬─▶  production Worker
+  (git-ignored,         │
+   your real values)    └─▶  staging Worker        ← unless .dev.vars.staging exists
+
+  .dev.vars.example    committed, names only — what `secrets:check` compares against
+```
+
+```bash
+npm run secrets:push    # load both Workers from .dev.vars
+npm run secrets:check   # do the two Workers still agree?
+```
+
+`wrangler dev` already reads `.dev.vars`, so the same file serves local development and both deployments.
+
+### `.env` and `.dev.vars` are not interchangeable
+
+| File | Holds | Reaches |
+|---|---|---|
+| `.env` | what CI and the pack's scripts authenticate **with** — chiefly `CLOUDFLARE_API_TOKEN` | Cloudflare's API. **Never a Worker.** |
+| `.dev.vars` | what the **Worker** reads off `env` | both Workers, via `secrets:push` |
+
+`CLOUDFLARE_API_TOKEN` can widen its own permissions and create account resources. Put it in a Worker's runtime environment and any log leak or code-execution bug there escalates to the whole Cloudflare account. `secrets:push` **refuses** to load `.env` — it resolves symlinks first, and it also stops if `.dev.vars` itself contains a `CLOUDFLARE_*` or `CF_ACCESS_*` key. That's a guard rather than a note in a doc because the two files look interchangeable and the mistake only has to happen once.
+
+### Same values by default; diverge where writes escape
+
+`secrets:push` falls back to `.dev.vars` for staging, so both Workers get identical values unless you create a git-ignored **`.dev.vars.staging`**. No command changes; the file's existence is the switch.
+
+Identical values are fine for read-only or harmless credentials. **Diverge for anything with third-party write side effects** — payment keys, outbound email and SMS, webhook targets. Sharing those lets a branch on staging charge a real card or email a real customer: the same production-contamination hole that twinning the database closes, re-opened one layer up at the API. It fails quietly, in the same family as a service binding left pointing at production.
+
+### What the gate can and can't see
+
+`secrets:check` compares **names only** — no value is read, printed, or logged, so it is safe in CI where output is retained. Because `.dev.vars` is git-ignored and absent in CI, the assertion that *fails* is Worker against Worker: production's secret names against staging's. `.dev.vars.example` is consulted when present, but only to **warn** — it is uncorroborated, and a repo may set a secret out of band.
+
+That leaves one blind spot by construction: a key missing from *both* Workers looks like perfect parity. The example file's warning is what covers it, which is the reason to keep it current.
+
+The check skips rather than fails when the repo has no `CLOUDFLARE_API_TOKEN` (not provisioned) or no `env.staging` (not on the two-Worker model), so adopting the pack never produces a permanently red check.
 
 ## Staging is shared, and that's the trade
 
@@ -200,6 +277,7 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 | `scripts/cf-build.sh` | the workflow's **build** step | Migrate production or staging by branch, then build. `--app-dir` prints where `package.json` lives, so CI can install in the right place. |
 | `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging` | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
+| `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load both Workers from `.dev.vars`, refusing `.env`; compare the two Workers' secret names and staging's bindings against production's. |
 | `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config" and "what is this environment's database name", so a build and its deploy can't resolve different apps. |
 
 Common operations:
@@ -208,6 +286,9 @@ Common operations:
 npm run db:migrate:staging   # apply pending migrations to staging without a reset
 npm run db:migrate:prod      # apply pending migrations to production (rare; the deploy does this)
 npm run db:reset:staging     # rebuild staging from migrations + seed
+
+npm run secrets:push         # load both Workers from .dev.vars
+npm run secrets:check        # do the two Workers still agree?
 ```
 
 ## CI is GitHub Actions
@@ -245,10 +326,10 @@ For a repo running the older model — one Worker, a `preview_database_id`, and 
 
 1. **Create the staging twins** — a D1 database (reuse the one `preview_database_id` already points at), plus a queue, bucket, or KV namespace for each stateful binding the Worker has. See [the twin table](#twin-every-stateful-binding).
 2. **Add the `env.staging` block** to `wrangler.jsonc`, redeclaring every stateful binding, and remove `preview_database_id`. Nothing changes yet — the deploy command is still the default.
-3. **Put the secrets**: `wrangler secret put --env staging <NAME>` for every secret the Worker reads.
+3. **Put the secrets**: collect every secret the Worker reads into `.dev.vars` and run `npm run secrets:push`, which loads both Workers. Add `.dev.vars.staging` for any value that must differ — see [the secret model](#one-declared-list-of-secrets-two-workers).
 4. **Repoint service bindings** inside `env.staging` at their staging counterparts. This is the quiet one — nothing fails if you skip it.
 5. **Check [Access](cloudflare-access.md) covers the staging Worker's hostname.** The recommended `*.<subdomain>.workers.dev` wildcard already does; a per-hostname application list needs `<worker>-staging` added.
-6. **Take the scripts**: `scripts/cf-deploy.sh` and `scripts/lib-wrangler-config.sh` are new; `cf-build.sh`, `reset-staging-d1.mjs`, and `lib-wrangler-config.mjs` are updated. Delete `scripts/swap-d1-id.js`.
+6. **Take the scripts**: `scripts/cf-deploy.sh`, `scripts/lib-wrangler-config.sh`, and `scripts/cf-secrets.mjs` are new; `cf-build.sh`, `reset-staging-d1.mjs`, and `lib-wrangler-config.mjs` are updated. Delete `scripts/swap-d1-id.js`.
 7. **Update `package.json`**: `db:migrate:staging` moves from `--preview` to `--env staging` and takes the staging database's name.
 8. **Repoint the deploy command** to `bash scripts/cf-deploy.sh`. *This is the switch* — everything before it was preparation.
 9. **Verify**: push a branch, open both [preview URLs](#two-preview-urls-and-only-one-of-them-runs-your-queue), and confirm a queue message is handled by the staging Worker against the staging database.
