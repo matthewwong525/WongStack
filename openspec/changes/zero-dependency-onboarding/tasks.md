@@ -28,6 +28,13 @@
 - [x] 2b.5 `cf-build.sh` regenerates binding types before building, so a binding added during provisioning doesn't fail `tsc`
 - [x] 2b.6 Document the mechanism in `d1-pipeline.md` and the `env.staging.name` rule in the config fragments
 
+## 2c. Fix: the CI gate silently reported "no checks"
+
+- [x] 2c.1 `wait-for-checks.sh` probes whether `gh pr checks --json` exists and falls back to parsing the default output — `--json` is absent on gh 2.46, where the flag error was swallowed and reported as `NONE`
+- [x] 2c.2 Stop discarding gh's stderr; report `RESULT: UNKNOWN` (with the message) for any empty result gh didn't explicitly attribute to "no checks"
+- [x] 2c.3 Teach `/save` to report an unverified gate rather than "none configured", and `/ship` to refuse to merge on `UNKNOWN`
+- [x] 2c.4 Amend the `Check-waiting reports the true gate result` requirement, which encoded the bug ("emptiness of the filtered output is the only such signal")
+
 ## 3. Docs
 
 - [x] 3.1 Write the `wiki/stack/` provisioning runbook — token, self-widening sequence, account resolution, resources, the manual build connection, teardown; mark the Zero Trust cold-start step unverified with its dashboard fallback

@@ -238,6 +238,7 @@ bash "$ROOT/.claude/skills/save/scripts/wait-for-checks.sh" 20
 ```
 Read the final `RESULT:` line:
 - **SUCCESS** / **NONE** (no checks configured — the PR review is the gate) → Step 7.
+- **UNKNOWN** → gh couldn't be asked, so the gate is **unverified — not absent**. Don't report it as "no checks configured." Surface the message the script printed, say plainly that CI state is unknown, and check the PR in a browser before treating the branch as ready.
 - **TIMEOUT** → report checks still running + the PR link; don't block.
 - **FAILURE** → read the failing log, fix, commit, push, re-wait. **Cap 3 attempts**; still red → stop with the error + checks link.
   ```bash
@@ -256,7 +257,7 @@ Keep it short — the user invoked this to get a URL + a saved change, not a wal
 - Branch + commit pushed (`git log -1 --oneline`); PR number + URL, noting the body mirrors the change.
 - **Note** — written or updated at `notes/<slug>.md`, or explicitly skipped ("nothing beyond the diff to capture").
 - **Change** — synced or authored at `openspec/changes/<name>/`, its current **Status**, and the Decision-log entry appended (name the capability specs synced, if any). Resumable with `/continue <name>`.
-- **CI** — ✅ green / 🔧 auto-fixed in N pushes / ❌ red after 3 (with the error) / ⏳ still running / — none configured (PR review is the gate).
+- **CI** — ✅ green / 🔧 auto-fixed in N pushes / ❌ red after 3 (with the error) / ⏳ still running / — none configured (PR review is the gate) / ⚠️ unverified (`UNKNOWN`, with the reason). Never report `UNKNOWN` as "none configured" — one means the repo has no CI, the other means we failed to find out.
 - **Preview** — a markdown link whose visible text *is* the full URL (`[https://…](https://…)`); never bare or in a code block. None found → say so (check the PR's deploy comment).
 
 ## Hard rules

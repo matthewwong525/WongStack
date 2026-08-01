@@ -42,6 +42,7 @@ those was a place to stall. Live probing found most of it unnecessary. The manua
 - **`cf-build.sh` regenerates binding types before building.** A binding written during provisioning failed
   the first build with `Property 'DB' does not exist on type 'Env'`, because `worker-configuration.d.ts` is
   generated from `wrangler.jsonc`. CI regenerates, so nobody has to remember.
+- **FIX: the CI gate could silently skip itself.** `wait-for-checks.sh` ran `gh pr checks --json …` with stderr discarded and treated empty output as "no checks." `--json` doesn't exist on older `gh` (2.46, for one), so the flag error was swallowed and the script reported `RESULT: NONE` — telling `/save` and `/ship` the repo had no CI while checks sat on the PR, from which `/ship` would happily merge a red branch. It now detects the flag and falls back to the default output, and **only reports `NONE` when gh explicitly says there are no checks**; anything else it couldn't ask becomes the new `RESULT: UNKNOWN`, carrying gh's own message. `/save` reports that as an unverified gate rather than "none configured", and **`/ship` refuses to merge on it**. Caught when this very release's `/save` reported no checks while three were green.
 - **`gh auth login` requests the `workflow` scope.** It isn't in the default set (`repo`, `read:org`, `gist`),
   and without it pushing a workflow file fails at push time with an OAuth error a newcomer can't act on.
   `gh auth refresh --scopes workflow` is the documented repair.

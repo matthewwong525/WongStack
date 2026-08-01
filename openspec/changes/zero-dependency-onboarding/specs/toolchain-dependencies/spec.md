@@ -35,6 +35,43 @@ Pack-gated skills and scripts MAY use `node` where it is the better tool, since 
 - **THEN** provisioning completes using `curl` and `gh` only
 - **AND** no step instructs the user to install a language runtime
 
+### Requirement: Check-waiting reports the true gate result without jq
+
+`wait-for-checks.sh` SHALL determine and report the aggregate check result — `SUCCESS`, `FAILURE`, `NONE`, `TIMEOUT`, or `UNKNOWN`, each on a single `RESULT:` line, with failing or still-pending check names listed after `FAILURE` and `TIMEOUT` and the underlying message after `UNKNOWN` — using only `gh` and shell built-ins. It MUST NOT report `SUCCESS` on a run whose checks are pending, failed, or unreadable. Because `gh pr checks` exits non-zero when checks are merely pending or failing, the script MUST NOT treat that exit code as a "no checks" signal.
+
+**Empty output alone SHALL NOT be read as "no checks".** `RESULT: NONE` SHALL be reported only when `gh` explicitly says the branch has no checks. Any other empty result — no pull request for the branch, an authentication or network failure, or a `gh` too old to support the flags used — SHALL be reported as `RESULT: UNKNOWN`, carrying the message `gh` produced. The script SHALL NOT discard `gh`'s error output.
+
+The script SHALL work across `gh` versions, detecting whether `gh pr checks --json` is supported and falling back to parsing the default output when it is not. Both paths SHALL produce the same states.
+
+Callers SHALL treat `UNKNOWN` as *unverified*, never as *no checks*: `/save` reports the gate as unverified, and `/ship` SHALL NOT merge on it.
+
+#### Scenario: Failing checks on a machine without jq
+
+- **WHEN** the script runs against a PR with at least one failed or cancelled check, on a machine with no standalone `jq`
+- **THEN** it prints `RESULT: FAILURE` followed by the name and link of each failing check
+
+#### Scenario: Checks are still running
+
+- **WHEN** the script polls a PR whose checks are pending, causing `gh pr checks` to exit non-zero
+- **THEN** it keeps waiting rather than reporting `RESULT: NONE`
+
+#### Scenario: No checks configured
+
+- **WHEN** `gh pr checks` reports that the branch has no checks
+- **THEN** the script prints `RESULT: NONE` and exits, so the caller falls back to PR review as the gate
+
+#### Scenario: An older gh that lacks the JSON flag
+
+- **WHEN** the installed `gh` does not support `gh pr checks --json`, on a PR that has checks
+- **THEN** the script parses the default output instead and reports the real aggregate result
+- **AND** it does not report `RESULT: NONE`
+
+#### Scenario: gh cannot be asked at all
+
+- **WHEN** `gh pr checks` fails because there is no pull request for the branch, or authentication or the network is broken
+- **THEN** the script prints `RESULT: UNKNOWN` with the message `gh` produced
+- **AND** `/ship` does not merge on that result
+
 ## ADDED Requirements
 
 ### Requirement: Runtimes are installed at the point of need, never pre-emptively
