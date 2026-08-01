@@ -3,6 +3,66 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 8.1.0 — one token stands the app up; branches stop reaching production
+
+Getting the Cloudflare app running meant leaving the agent and working the dashboard by hand: guess a token's
+permission set, create the databases, wire the binding, connect the build, stand up Zero Trust. Every one of
+those was a place to stall. Live probing found most of it unnecessary. The manual list is now **sign up and copy one token.**
+
+- **New `/wong-cloudflare` skill** (stack-pack only). Given one token it widens its own permissions, resolves
+  the account, creates the production and staging D1 databases, writes the binding, computes the URLs, and
+  sets the GitHub secrets. Idempotent, re-runnable long after
+  `/wong-setup`, and it ships with the teardown that removes what it made.
+- **The self-widening token.** The user creates a token with two permission groups — `User ▸ API Tokens ▸ Edit`
+  and `Account ▸ API Tokens ▸ Edit` — and the agent grants itself the rest via `PUT /user/tokens/{id}`.
+  Verified end to end: nine endpoints went from `Authentication error` to resolving. The token id is stable, so
+  `.env` is written once. Optional features cost nothing up front — someone who never wants a login wall never
+  grants anything Zero-Trust-shaped.
+- **GitHub Actions is the pack's CI**, via a new `.github/workflows/deploy.yml`. Cloudflare's own Workers
+  Builds cannot be connected to a repo through its API at all — no repository connection, no branch config,
+  no first trigger — and its GitHub App needs browser OAuth `gh` can't grant, so it costs three dashboard
+  steps per repo forever and produces no pull-request check. Actions is `gh secret set` plus a file, and a red
+  build is `gh run view --log-failed`, which `/save` and `/ship` already read.
+- **The deploy model does not change, and nothing breaks.** 8.0.0 put the branch split in `cf-deploy.sh`, so
+  the workflow is a thin driver: it sets the branch and runs the same two scripts. The only script edit is a
+  CI-neutral **`CF_BRANCH`**, with `WORKERS_CI_BRANCH` retained as a fallback — so a repo on Workers Builds
+  keeps working untouched, can run both backends while migrating, and adopting the workflow is opt-in per repo.
+  Before the secrets exist the workflow builds without deploying, so an unprovisioned repo gets a real PR check
+  rather than a permanently red one.
+- **FIX (was live in 8.0.0): a feature branch deployed to the production Worker, on production data.**
+  On the SPA layout the pack ships, `@cloudflare/vite-plugin` flattens the selected environment into a
+  generated config and redirects wrangler at it — after which [`--env` on `wrangler deploy` has no
+  effect](https://developers.cloudflare.com/workers/vite-plugin/reference/cloudflare-environments/). So
+  `wrangler deploy --env staging` silently deployed *production*, while migrations still went to the staging
+  database. Green build, preview URL printed, production overwritten. Found by running the whole path against
+  a real repo. Three parts to the fix: `cf-build.sh` now exports `CLOUDFLARE_ENV=staging` (the environment is
+  selected at **build** time); `cf-deploy.sh` drops `--env` when it sees the redirect; and a **fail-closed
+  guard** refuses to deploy when a non-production branch resolves to the production Worker's name — verified
+  live by deliberately re-breaking the selection and watching the deploy get blocked.
+- **`cf-build.sh` regenerates binding types before building.** A binding written during provisioning failed
+  the first build with `Property 'DB' does not exist on type 'Env'`, because `worker-configuration.d.ts` is
+  generated from `wrangler.jsonc`. CI regenerates, so nobody has to remember.
+- **`gh auth login` requests the `workflow` scope.** It isn't in the default set (`repo`, `read:org`, `gist`),
+  and without it pushing a workflow file fails at push time with an OAuth error a newcomer can't act on.
+  `gh auth refresh --scopes workflow` is the documented repair.
+- **Zero Trust is opt-in documentation, not provisioning.** A provisioned app is public by default.
+  **BREAKING for the header-trust default:** the template Worker no longer reads
+  `Cf-Access-Authenticated-User-Email`, because on a public Worker that header is attacker-controlled and
+  trusting it lets anyone impersonate any user. The login wall and the code change are adopted together.
+- **Runtimes install at the point of need, never pre-emptively.** Node stays a real dependency of `/plan`,
+  `/apply`, and `/ship` (the OpenSpec CLI is npm-only and supplies artifact templates at runtime), but setup
+  no longer installs it as a precaution. It asks when a step needs it, prefers a user-local install over
+  `sudo`, and completes the runtime-free layer — wiki, notes, `/save`, `/continue`, `/dream` — if you decline.
+- **Written for someone non-technical.** The stack-pack offer asks whether you want *a real website people can
+  visit* rather than listing components; the token screen gets a literal click path with **Account Resources**
+  flagged as the field people miss; Cloudflare's error codes are translated into the one thing to fix; and
+  resource names are derived from the repo instead of asked.
+- **Docs:** new `wiki/stack/getting-started.md` (the human walkthrough — five steps, no jargon) and
+  `wiki/stack/provisioning.md` (the runbook `/wong-cloudflare` executes). `cloudflare-credentials.md`
+  reconciled with `.env.example` on one user-scoped `CLOUDFLARE_API_TOKEN`, naming `Workers CI Read` properly
+  (Cloudflare files Builds under "CI", which is why searching 392 permission groups for "build" finds nothing)
+  and stating plainly that a self-widening token is effectively account-root.
+
 ## 8.0.0 — staging is its own Worker; the D1 preview swap is gone
 
 **Only the [stack pack](.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-stack-pack) changes.** A repo that declined it is untouched by this release.

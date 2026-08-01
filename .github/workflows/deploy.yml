@@ -1,0 +1,83 @@
+# Cloudflare stack pack — build, and deploy when the repo is provisioned.
+#
+# This workflow is a thin driver. The branch logic lives in the pack's scripts,
+# exactly as it does under Cloudflare Workers Builds:
+#
+#   scripts/cf-build.sh   migrate the right database, then build
+#   scripts/cf-deploy.sh  default branch → the production Worker
+#                         any other      → the staging Worker + a preview alias
+#
+# So both CI backends run identical code, and a repo can switch between them by
+# changing where the scripts are invoked from. See wiki/stack/d1-pipeline.md.
+#
+# Before /wong-cloudflare has run there are no secrets, so this builds only.
+# That is deliberate: an unprovisioned repo gets a real PR check instead of a
+# permanently red one.
+
+name: Deploy
+
+on:
+  push:
+  pull_request:
+
+# One release per branch. Let an in-flight production deploy finish rather than
+# cancelling it half-applied; previews are cheap, so cancel those.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # head_ref is the source branch on pull_request; ref_name is the branch on
+      # push. The scripts treat this as "we are in CI" — empty means local, and
+      # they then migrate and deploy nothing.
+      CF_BRANCH: ${{ github.head_ref || github.ref_name }}
+      CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate the app
+        id: app
+        run: echo "dir=$(bash scripts/cf-build.sh --app-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ steps.app.outputs.dir }}/package-lock.json
+
+      - name: Install
+        working-directory: ${{ steps.app.outputs.dir }}
+        run: npm ci
+
+      # Not provisioned yet: build the app directly. Deliberately not through
+      # cf-build.sh — that would need a wrangler config with an `env.staging`
+      # D1 entry, which a repo that hasn't taken the full pack won't have.
+      - name: Build (not provisioned — check only)
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        working-directory: ${{ steps.app.outputs.dir }}
+        run: |
+          echo "No CLOUDFLARE_API_TOKEN secret — building without deploying."
+          echo "Run /wong-cloudflare to provision, then this job deploys."
+          # A wired pack repo has build:app (build is the cf-build.sh wrapper,
+          # which would try to migrate). An unwired repo just has build.
+          if node -e "process.exit(require('./package.json').scripts?.['build:app']?0:1)"; then
+            npm run build:app
+          else
+            npm run build
+          fi
+
+      - name: Build
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: bash scripts/cf-build.sh
+
+      - name: Deploy
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: bash scripts/cf-deploy.sh

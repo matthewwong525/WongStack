@@ -59,8 +59,9 @@ The top level declares production's bindings. A `staging` environment declares i
 }
 ```
 
-Three rules the scripts depend on:
+Four rules the scripts depend on:
 
+- **`env.staging` needs its own `name`.** Without it the environment inherits production's, and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses to deploy when the staging environment resolves to production's name, so this fails loudly rather than silently — but declare the name and the check never has to fire.
 - **`env.staging` needs its own `d1_databases` entry**, with the staging database's own `database_name`. `cf-build.sh` and `reset-staging-d1.mjs` read the name from *inside* the environment block; without it they stop with an explicit error rather than touching production.
 - **An environment inherits nothing it doesn't redeclare.** Every stateful binding must be repeated inside `env.staging` pointing at its twin. A binding you forget is simply absent in staging; a *service* binding you copy without repointing quietly calls production.
 - **`migrations_dir` is resolved relative to the wrangler config file, not the repo root** — and it must be repeated inside the environment. The value above is right when the config sits at the repo root; in the `app/` layout it's `"../schema/migrations"`, since `schema/` stays at the root. Get it wrong and wrangler reports no migrations to apply rather than erroring.
@@ -73,6 +74,8 @@ Twin every other stateful binding the same way. A queue needs both halves inside
   "consumers": [{ "queue": "<your-queue>-staging" }]
 }
 ```
+
+**If the app builds through `@cloudflare/vite-plugin`, the environment is chosen at BUILD time.** The plugin flattens the selected environment into a generated `dist/<worker>/wrangler.json` and writes `.wrangler/deploy/config.json` redirecting wrangler at it — after which [Cloudflare's docs are explicit](https://developers.cloudflare.com/workers/vite-plugin/reference/cloudflare-environments/) that `--env` on `wrangler deploy` "will have no effect". `cf-build.sh` therefore exports `CLOUDFLARE_ENV=staging` on non-production branches, and `cf-deploy.sh` drops `--env staging` when it sees the redirect. Both are handled for you; the reason it matters is that getting it wrong deploys branch code to production **without any error at all**.
 
 There is no `preview_database_id` and no swap script: which database a branch binds is decided by which Worker it deploys to. See [`d1-pipeline.md`](../../../../wiki/stack/d1-pipeline.md) for the full twin table and the reasoning.
 

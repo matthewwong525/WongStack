@@ -30,11 +30,21 @@
 #     from a laptop.
 #
 # ── The one thing not to get wrong ────────────────────────────────────────────
-# `--env staging` belongs on BOTH non-production commands. Drop it from the
-# version upload and that upload becomes a version of the *production* Worker,
-# bound to the production database — which is exactly the bug the staging
-# environment exists to remove, and it fails silently. The flag is built once
-# below and reused, so the two commands cannot drift apart.
+# A non-production branch must never land on the production Worker. There are
+# two ways the environment gets selected, and using the wrong one fails SILENTLY
+# — the deploy succeeds, prints a preview URL, and has overwritten production:
+#
+#   plain wrangler build  → `--env staging` here, at deploy time.
+#   @cloudflare/vite-plugin → `CLOUDFLARE_ENV=staging` at BUILD time (cf-build.sh
+#     sets it). The plugin flattens that environment into a generated config and
+#     redirects wrangler at it; Cloudflare's docs state that `--env` on
+#     `wrangler deploy` "will have no effect" once that redirect exists.
+#
+# So the flag is conditional, decided by whether the build left a redirect, and
+# it is built once and reused so the two commands below cannot drift apart.
+# Whichever path ran, the guard after them re-reads the name wrangler actually
+# deployed and aborts if it is production's. That check is the real safety net:
+# it catches this whole class of mistake rather than any one instance of it.
 #
 # Why two commands rather than one: they produce two URLs with different
 # capabilities. The version alias serves HTTP for that specific commit; only
@@ -55,15 +65,20 @@ ROOT=$(dirname "$SCRIPT_DIR")
 # shellcheck source=lib-wrangler-config.sh
 source "$SCRIPT_DIR/lib-wrangler-config.sh"
 
+# The branch in CI. `CF_BRANCH` is the CI-neutral name the pack's GitHub Actions
+# workflow sets; `WORKERS_CI_BRANCH` is what Cloudflare Workers Builds sets on
+# its own. Either backend works, and a repo can run both while it migrates.
+CI_BRANCH="${CF_BRANCH:-${WORKERS_CI_BRANCH:-}}"
+
 # Local (non-CI) runs: deploy nothing.
-if [ -z "${WORKERS_CI_BRANCH:-}" ]; then
+if [ -z "$CI_BRANCH" ]; then
   echo "cf-deploy: not in CI — nothing deployed"
   exit 0
 fi
 
 wong_resolve_wrangler_config "$ROOT"
 
-BRANCH="$WORKERS_CI_BRANCH"
+BRANCH="$CI_BRANCH"
 PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-main}"
 echo "cf-deploy: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
@@ -93,7 +108,45 @@ fi
 # Built once, used by both commands below. See the warning in the header.
 STAGING_ENV=(--env staging)
 
-echo "cf-deploy: preview branch — deploying the staging Worker"
+# ...unless the build already chose the environment for us.
+#
+# @cloudflare/vite-plugin flattens the selected environment into a generated
+# `dist/**/wrangler.json` and writes `.wrangler/deploy/config.json` to redirect
+# wrangler at it. From that point the environment is BAKED IN, and Cloudflare's
+# docs state plainly that `--env` on `wrangler deploy` "will have no effect".
+#
+# Passing `--env staging` anyway is not merely redundant — it reads as though
+# isolation is happening when it isn't. `cf-build.sh` sets `CLOUDFLARE_ENV` so
+# the generated config *is* staging; here we must not re-specify it.
+#
+# The redirect file is the signal, so this works for both layouts: a plain
+# wrangler build has no redirect and still needs the flag.
+if [ -f "$APP_DIR/.wrangler/deploy/config.json" ]; then
+  STAGING_ENV=()
+  echo "cf-deploy: build redirected wrangler to its generated config — environment already selected"
+fi
+
+# Fail closed: confirm the config wrangler will actually use names a Worker
+# other than production's, BEFORE anything is deployed.
+#
+# `wong_read_worker_name` reads the name wrangler resolves — the generated
+# config when the build redirected, the source config otherwise. If that equals
+# the production name on a non-production branch, the staging environment did
+# not take effect and deploying would overwrite production. Refuse.
+PROD_NAME=$(wong_read_worker_name)
+STAGING_NAME=$(wong_read_worker_name staging)
+if [ -n "$PROD_NAME" ] && [ "$STAGING_NAME" = "$PROD_NAME" ]; then
+  echo "cf-deploy: ERROR — on branch '$BRANCH' the staging environment resolves to the" >&2
+  echo "cf-deploy: production Worker '$PROD_NAME'. Deploying would overwrite production." >&2
+  echo "cf-deploy:" >&2
+  echo "cf-deploy: Fix one of these in $WRANGLER_CONFIG:" >&2
+  echo "cf-deploy:   • env.staging needs its own \"name\" (e.g. \"$PROD_NAME-staging\")" >&2
+  echo "cf-deploy:   • the build must select it — cf-build.sh exports CLOUDFLARE_ENV=staging" >&2
+  echo "cf-deploy:     for @cloudflare/vite-plugin builds" >&2
+  exit 1
+fi
+
+echo "cf-deploy: preview branch — deploying the staging Worker ($STAGING_NAME)"
 (cd "$APP_DIR" && npx wrangler deploy "${STAGING_ENV[@]}")
 
 # Must come *after* the deploy — see the header. A version can only be uploaded

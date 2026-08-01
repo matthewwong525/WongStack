@@ -1,12 +1,6 @@
-# cloudflare-access-guide Specification
-
-## Purpose
-The optional `wiki/stack/` Cloudflare-side setup runbook: how the payload documents standing up Cloudflare Access (Zero Trust org, identity provider, one Access application, a wildcard policy over the production host and every `*.workers.dev` preview, and a bypass policy for the open public surface), the header-trust auth model it implies and its safety boundary, and the two credentials the stack needs (a user-scoped API token and an Access service token) — all framed as a recommendation, never a requirement.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: A Cloudflare Access setup runbook ships in the payload
-
 
 The payload SHALL include a wiki page that walks an adopter through the Cloudflare-side Zero Trust setup end to end: creating the Zero Trust organization, adding an identity provider, creating the Access application, protecting the production hostname AND every `*.workers.dev` preview URL with a single wildcard policy, and adding a bypass policy for the open public surface. The page SHALL follow the progressive-disclosure rulebook (`wiki/wiki-style.md` + `wiki/voice.md`): a topic title, a strong stand-alone opener, and links up to its hub, down to what it references, and sideways to the credentials page.
 
@@ -37,7 +31,6 @@ The page SHALL frame Access as **opt-in**: an app provisioned by the stack pack 
 
 ### Requirement: The runbook documents the header-trust auth model and its safety boundary
 
-
 The runbook SHALL describe the auth model the setup implies: once Access is in front, the Worker carries no auth code and trusts the `Cf-Access-Authenticated-User-Email` header set by the Access proxy. It SHALL state, as a first-class step and not a footnote, that trusting the header is safe ONLY behind the proxy, so the reader MUST verify the wildcard policy actually covers preview hostnames before relying on it. It SHALL specify that a request missing the header is rejected (`401`), and that only an explicit `SKIP_AUTH` development escape substitutes a fallback identity — never a silent default in production.
 
 Because the provisioned app is public by default, the template Worker SHALL NOT read or trust the identity header until Access is adopted. The runbook SHALL state why: on a Worker with no Access proxy in front, the header is attacker-controlled, so trusting it lets any caller impersonate any user. Enabling header trust SHALL be documented as part of adopting Access, in the same step.
@@ -61,7 +54,6 @@ Because the provisioned app is public by default, the template Worker SHALL NOT 
 - **AND** the docs state that trusting it on a public Worker allows trivial impersonation
 
 ### Requirement: A credentials guide ships covering the user-scoped API token and Access service token
-
 
 The payload SHALL include a wiki page that documents the credentials the stack needs. It SHALL instruct the reader to create a USER-scoped API token (My Profile → API Tokens), state explicitly that an account-scoped token does NOT work for the user-level endpoints the provisioning flow depends on, and have the reader store `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in `.env` per the existing secrets convention — one variable name, used consistently by `.env.example` and every page that references it. It SHALL also walk through creating an Access service token and adding it to the Access policy so non-interactive callers can reach gated preview URLs, framed as part of the opt-in Access path. Exact Cloudflare permission and menu names SHALL be verified against the live dashboard or API when the page is written, not reproduced from memory; the Workers Builds permission SHALL be named `Workers CI Read`/`Workers CI Write`, since Cloudflare exposes Builds under "CI".
 
@@ -91,19 +83,3 @@ The page SHALL document the self-widening token: the two permission groups the u
 - **WHEN** a reader reaches the self-widening section
 - **THEN** it states that the token is effectively account-root and that least privilege was traded for usability
 - **AND** it explains how to narrow the token after provisioning
-
-### Requirement: The stack section stays optional and does not make WongStack stack-specific
-
-The `wiki/stack/` section SHALL be linked from `wiki/README.md` such that it is reachable but clearly optional, and no skill, installer, or core doc SHALL require or default to Cloudflare as a result of this section. The pages SHALL contain nothing specific to any single app — every example is generic.
-
-#### Scenario: WongStack stays stack-agnostic
-
-- **WHEN** a reader reviews the skills, installer, and core wiki
-- **THEN** none of them require or default to Cloudflare/Access
-- **AND** only the `wiki/stack/` pages name it
-
-#### Scenario: The section is reachable but not orphaned
-
-- **WHEN** a reader opens `wiki/README.md`
-- **THEN** it links the `wiki/stack/` hub
-- **AND** the hub links every page in the section
