@@ -39,15 +39,15 @@ An **application** is the set of URLs Access guards plus the rules for who gets 
 The one decision that matters here is the **application domain** — and this is the trick that makes previews free:
 
 ```
-   ONE wildcard covers prod AND every per-branch preview
+   ONE wildcard covers prod, staging AND every per-branch preview
 
    app.example.com          ← production
-   *.example.workers.dev    ← every branch preview, forever
+   *.example.workers.dev    ← the staging Worker + every branch preview, forever
 
    add both as application domains (or one wildcard that spans them)
 ```
 
-Because each branch deploys to `<branch>-<worker>.<subdomain>.workers.dev`, a wildcard over `*.<subdomain>.workers.dev` gates **every preview URL that will ever exist** — you never touch Access again when you open a new branch. Add your production hostname as a second domain on the same application.
+Every non-production URL lives under the same `workers.dev` subdomain — the [staging Worker](d1-pipeline.md#why-staging-is-a-whole-worker) at `<worker>-staging.<subdomain>.workers.dev`, and each branch's version alias at `<branch>-<worker>-staging.<subdomain>.workers.dev`. So a wildcard over `*.<subdomain>.workers.dev` gates **every one of them, including URLs that don't exist yet** — you never touch Access again when you open a new branch or stand up a new environment. Add your production hostname as a second domain on the same application.
 
 ### 3. Add the gating policy
 

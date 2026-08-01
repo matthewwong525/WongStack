@@ -65,7 +65,23 @@ CF_ACCESS_CLIENT_SECRET=
 
 Nothing consumes these yet — the integration-test setup that reaches previews from CI arrives in a later change. They're captured now because adding the token later means re-opening the Access policy; setting it up once, up front, is the cheaper path.
 
+## Worker secrets are per environment
+
+The two credentials above are yours — they live in `.env` and let *you* and CI talk to Cloudflare. A **Worker secret** is different: it belongs to a deployed Worker, and the runtime reads it off `env`. An API key the Worker itself calls out with is this kind.
+
+Secrets are scoped to a single Worker, and [staging is a separate Worker](d1-pipeline.md#why-staging-is-a-whole-worker). So every secret has to be put twice:
+
+```bash
+npx wrangler secret put GEMINI_API_KEY                  # the production Worker
+npx wrangler secret put GEMINI_API_KEY --env staging    # the staging Worker
+```
+
+Forgetting the second one is the single most common staging failure, and it's the friendly kind — the binding is simply missing, so the Worker throws on first use rather than doing something subtly wrong. Add a secret to production and put it in staging in the same sitting.
+
+Locally, the same values go in `.dev.vars` (git-ignored, per the [secrets convention](../development/secrets.md)) — `wrangler dev` reads that instead.
+
 ## Next
 
 - If you haven't set up the login wall yet: [Cloudflare Access](cloudflare-access.md).
+- How staging gets its own Worker and its own bindings: [Deploy and data pipeline](d1-pipeline.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

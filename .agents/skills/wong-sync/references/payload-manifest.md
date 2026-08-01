@@ -22,11 +22,12 @@ The **Cloudflare stack pack** is a manifest category gated on a flag: its files 
 
 The pack's **drop-in files** (whole files the target owns after install):
 
-- `scripts/cf-build.sh`, `scripts/swap-d1-id.js`, `scripts/reset-staging-d1.mjs` — the three zero-config D1 pipeline scripts.
+- `scripts/cf-build.sh`, `scripts/cf-deploy.sh`, `scripts/reset-staging-d1.mjs` — the three zero-config pipeline scripts (build, deploy, staging reset), plus the two helper libraries they share, `scripts/lib-wrangler-config.sh` and `scripts/lib-wrangler-config.mjs`.
+  A repo that installed the pack before v8 also has `scripts/swap-d1-id.js`, which the pack no longer ships. The sync neither deletes it nor rewrites the scripts around it — retiring it is a step in the [adoption runbook](../../../../wiki/stack/d1-pipeline.md#adopting-the-staging-environment), surfaced through the adapt step like any other present-file gap.
 - `schema/seed.sql` and `schema/migrations/.gitkeep` — the seed template and the migrations directory.
 - The whole `wiki/stack/` section (hub + `core-stack.md`, `d1-pipeline.md`, `cloudflare-access.md`, `cloudflare-credentials.md`) — the pipeline and Cloudflare-setup docs.
 
-The pack's **config fragments** are **not** manifest files. `package.json` scripts, the `wrangler.jsonc` `d1_databases` block, `.env.example` variables, and the `.gitignore` `.dev.vars` entry must *merge* into files the target already owns, so they are never whole-file copies. They are applied as guided edits following the `CLAUDE.md`-block precedent (show → apply with confirmation → never blind-write), from [`stack-pack-fragments.md`](stack-pack-fragments.md). When upstream changes a fragment, it surfaces through the adapt step rather than being merged automatically.
+The pack's **config fragments** are **not** manifest files. `package.json` scripts, the `wrangler.jsonc` bindings and `env.staging` block, `.env.example` variables, and the `.gitignore` `.dev.vars` entry must *merge* into files the target already owns, so they are never whole-file copies. They are applied as guided edits following the `CLAUDE.md`-block precedent (show → apply with confirmation → never blind-write), from [`stack-pack-fragments.md`](stack-pack-fragments.md). When upstream changes a fragment, it surfaces through the adapt step rather than being merged automatically.
 
 ## Not in the manifest
 
