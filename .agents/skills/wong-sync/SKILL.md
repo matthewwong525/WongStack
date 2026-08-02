@@ -1,6 +1,6 @@
 ---
 name: wong-sync
-description: Bring this repo up to date with WongStack — the updater that replaced the installer's update mode and /contribute-wong-stack. Refreshes a cached WongStack clone, copies in any payload file this repo doesn't have yet, and then *adapts* rather than overwrites: two subagents map what WongStack lets you do and what this repo already does, and the gap becomes an OpenSpec change proposing what's worth adopting, in this repo's own terms. It never modifies a file that already exists and never opens a pull request. Use when you want to sync, update, or upgrade WongStack here, pull the latest skills, or see what upstream has that this repo could take.
+description: Bring this repo up to date with WongStack — the updater that replaced the installer's update mode and /contribute-wong-stack. Refreshes a cached WongStack clone, copies in any payload file this repo doesn't have yet, and then *adapts* rather than overwrites: two subagents map what WongStack lets you do and what this repo already does, and the gap becomes an OpenSpec change proposing what's worth adopting, in this repo's own terms. Every verdict — adopted or not — lands in .claude/wong-sync-verdicts.md, where ticking a box overrules the call on the next run. It never modifies a file it didn't generate and never opens a pull request. Use when you want to sync, update, or upgrade WongStack here, pull the latest skills, see what upstream has that this repo could take, or change what a previous sync decided.
 user-invocable: true
 ---
 
@@ -12,7 +12,7 @@ Brings this repo up to date with WongStack in one pass. `/wong-setup` installs o
 ┌──────────────────────────────────────────────────────────┐
 │ 1. Clone    refresh the cached WongStack clone ($WS)     │
 │ 2. Copy     payload files this repo doesn't have yet     │
-│ 3. Adapt    what it does have → capability gap → change  │
+│ 3. Adapt    what it has → verdicts → record + change     │
 │ 4. Manifest record the commit + the capability ledger    │
 │ 5. Report                                                │
 └──────────────────────────────────────────────────────────┘
@@ -22,7 +22,7 @@ Updating is **adaptation, not replication.** Convergence with WongStack doesn't 
 
 Three rules hold throughout:
 
-- **Never overwrite.** This skill does not modify or replace any file that already exists. Its entire write scope is: payload files that were absent, the `WONG-STACK` block where no markers existed, the one OpenSpec change it proposes, and `.claude/.wong-stack.json`. There is no conflict prompt because there is no conflict — nothing is ever clobbered.
+- **Never overwrite anything you didn't generate.** This skill does not modify or replace any file authored by a human or another tool. Its entire write scope is: payload files that were absent, the `WONG-STACK` block where no markers existed, the OpenSpec change it proposes, `.claude/.wong-stack.json`, and `.claude/wong-sync-verdicts.md`. The last two are files the skill generates and solely owns, so it rewrites them each run; the carve-out is scoped by **authorship**, not kept as a growing list of exceptions. There is no conflict prompt because there is no conflict — nothing you wrote is ever clobbered.
 - **No git here; read-only in the clone.** Copied files and the proposed change land in the working tree for you to review and `/save` — the branch → PR → CI gate stays the only way changes land here. The clone is fetched and reset, never branched, committed, or pushed.
 - **It proposes; it never implements.** The adapt step writes an OpenSpec change and stops. Grafting happens later through the normal loop.
 
@@ -86,11 +86,16 @@ Say what was copied, in one line each. Copied files are working-tree edits only 
 
 ## Step 3 — adapt what's present
 
-Everything the repo already has goes to the capability analysis: two independent subagents, a verdict per capability, and an OpenSpec change proposing the ones worth adopting. It writes nothing except that change folder.
+Everything the repo already has goes to the capability analysis: two independent subagents, a verdict per capability, and an OpenSpec change proposing the ones worth adopting.
 
-**The pipeline is specified in [`references/adapt.md`](references/adapt.md)** — the two subagent briefs, the capability record shape, the four verdicts, the gap-analysis rules, the output contract, and the report format. Follow it there.
+**The pipeline is specified in [`references/adapt.md`](references/adapt.md)** — the two subagent briefs, the capability record shape, the five verdicts, the gap-analysis rules, the verdict record and its promotion path, the output contract, and the report format. Follow it there.
 
-In short: a *cartographer* reads only the clone and maps what WongStack lets you **do**; a *surveyor* reads only this repo and reports what it already does. Neither writes files and neither one's raw output is shown to you. The main thread compares them and assigns every capability one of `present` / `divergent` / `adopt` / `declined`, each with a one-line reason. Only `adopt` becomes work, as `openspec/changes/adopt-wongstack-<YYYY-MM-DD>/`.
+In short: a *cartographer* reads only the clone and maps what WongStack lets you **do**; a *surveyor* reads only this repo and reports what it already does. Neither writes files and neither one's raw output is shown to you. The main thread compares them and assigns every capability one of `present` / `divergent` / `adopt` / `not-applicable` / `declined`, each with a one-line reason. The taxonomy splits on **who decided**: the first four are the skill's reading, and `declined` is only ever written from a decision you actually made.
+
+The step writes two things:
+
+- **`.claude/wong-sync-verdicts.md`** — every run, every capability, every verdict and reason. Non-`adopt` entries are checkboxes; **tick one to overrule the verdict** and the next run adopts it. This is the deliverable — the report is a summary of it.
+- **`openspec/changes/adopt-wongstack-<YYYY-MM-DD>/`** — only when something is `adopt`, one task each.
 
 ## Step 4 — rewrite the manifest (always last)
 
@@ -102,12 +107,12 @@ Update `.claude/.wong-stack.json` to reflect what actually happened:
   "upstream": { "repo": "<UPSTREAM>", "fork": "<preserved as-is, or null>", "clone": "<WS path>" },
   "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent> },
   "capabilities": {
-    "<capability-id>": { "verdict": "present|divergent|adopt|declined", "reason": "<one line>", "asOfCommit": "<clone HEAD when judged>" }
+    "<capability-id>": { "verdict": "present|divergent|adopt|not-applicable|declined", "reason": "<one line>", "asOfCommit": "<clone HEAD when judged>" }
   } }
 ```
 
 - **`commit`** ← `$WS_HEAD`. It records the clone HEAD this repo last synced against. It is **not** a diff base — nothing in this skill diffs — and exists for the changelog walk and the ledger.
-- **`capabilities`** is the ledger, written from Step 3's verdicts with `asOfCommit` set to `$WS_HEAD`. It's what makes the sync idempotent *in judgment* even though it isn't idempotent in bytes: a `declined` or `divergent` capability is not re-pitched on a later run **unless** its upstream expression changed since the recorded `asOfCommit`, in which case it is re-raised naming what changed. A ledger id with no counterpart in the new map is reported as **retired**, not silently dropped.
+- **`capabilities`** is the ledger, written from Step 3's verdicts with `asOfCommit` set to `$WS_HEAD`. **Only `declined` suppresses**: a declined capability is not re-pitched on a later run **unless** its upstream expression changed since the recorded `asOfCommit`, in which case it is re-raised naming what changed. Every other verdict is **recomputed from scratch each run** — its entry is a snapshot of the last computed state for reporting and retirement detection, never authority to skip re-evaluating. That matters most for `not-applicable`, which turns on *this repo's* shape rather than upstream's: `asOfCommit` records a commit in the clone, so freezing a `not-applicable` against it would miss the repo gaining CI, a frontend, or a forge. So the ledger stores **your decisions, plus a snapshot** — only the first half is authoritative. A ledger id with no counterpart in the new map is reported as **retired**, not silently dropped. A `declined` written before the split is honored as a user refusal (the conservative read).
 - **`upstream.fork`** is preserved byte-for-byte where an older version recorded one, and is never written or used. Nothing in this skill forks anything.
 - ⑂ A seed manifest's null `version`/`commit` are filled with `$LATEST`/`$WS_HEAD` here — keep its `installedAt` and any renames it recorded.
 - Older manifests just gain the new keys; nothing breaks on a v1 manifest. If the repo still carries a `contribute-wong-stack` skill or symlink, offer to remove it — `/wong-sync` supersedes it.
@@ -115,17 +120,18 @@ Update `.claude/.wong-stack.json` to reflect what actually happened:
 ## Step 5 — report
 
 - **Copied** — the files that were absent and are now here, one line each, and that they await `/save`.
-- **Adapted** — the capability gap, per [`references/adapt.md`](references/adapt.md)'s report format: what's `adopt` (and the change folder written), what's `divergent` (one line each — you already solve these, they're not work), how many are `present`, what was `declined` and why, and anything re-raised or retired.
+- **Adapted** — a summary pointing at `.claude/wong-sync-verdicts.md`, which is the deliverable, per [`references/adapt.md`](references/adapt.md)'s report format: what's `adopt` (and the change folder written), anything promoted by a ticked box, counts for `divergent` / `not-applicable` / `present`, what was `declined` and why, and anything re-raised or retired. Say a box can be ticked to overrule any of it.
 - **Version** — the new manifest `version`/`commit`, and what the changelog walk showed.
 
-If nothing was copied and nothing is `adopt`, say so plainly: this repo is current. No change folder is written in that case.
+If nothing was copied and nothing is `adopt`, say so plainly: this repo is current. No change folder is written in that case — but `.claude/wong-sync-verdicts.md` still is, and it's exactly the run where it matters most, since it's the only place the reasoning survives.
 
 ## Hard rules
 
-- **Never overwrite an existing file.** Copy only what's absent; everything present is adapted, not replaced. There is no three-way diff, no conflict prompt, and no keep-local / take-upstream question — those mechanisms managed a risk that no longer exists.
-- **No git in this repo.** Copied files and the proposed change stay working-tree-only; `/save` is the gate.
+- **Never overwrite a file you didn't generate.** Copy only what's absent; everything present is adapted, not replaced. There is no three-way diff, no conflict prompt, and no keep-local / take-upstream question — those mechanisms managed a risk that no longer exists. The two generated files the skill owns — `.claude/.wong-stack.json` and `.claude/wong-sync-verdicts.md` — are rewritten each run; read the verdict record's ticked boxes *before* regenerating it, since ticking is the one edit that must survive.
+- **`declined` is only ever the user's word.** Never infer it. If you can't point to something the user actually said, the verdict is `not-applicable` — which is recomputed every run and therefore costs nothing to get wrong.
+- **No git in this repo.** Copied files, the verdict record, and the proposed change stay working-tree-only; `/save` is the gate.
 - **The clone is read-only.** Fetch, checkout, reset — never branch, commit, or push. Ask before resetting a dirty clone.
-- **It proposes; it never implements.** The only artifact Step 3 writes is one OpenSpec change folder, and it never overwrites an existing one (suffix `-2`, `-3` on a date collision).
+- **It proposes; it never implements.** Step 3 writes the verdict record and — only when something is `adopt` — one OpenSpec change folder, never overwriting an existing one (suffix `-2`, `-3` on a date collision). Overruling a verdict is a tick plus a re-run, not an implementation.
 - **No contribute leg, no arguments.** The skill never opens a pull request. `/wong-sync contribute` stops with a pointer to `contributing.md`'s manual route.
 - **The manifest bounds what's copied, not what's read.** Only manifest files are ever copied in. The surveyor reads this repo's process surfaces broadly — that's how it can tell you already solve something — and nothing it reads leaves the machine.
 - **Rewrite the manifest last**, reflecting what actually happened, ledger included.
