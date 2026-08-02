@@ -3,6 +3,33 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 8.2.0 — /ship can walk the app before it merges, if you ask it to
+
+Every gate `/ship` had answered *did it build and did the checks pass*. None answered *does this do what it
+promised*. The promise was already written down — every requirement in a change's delta specs is a
+`#### Scenario:` with a `WHEN` and a `THEN` — and the pack already deploys every branch to a real staging
+Worker with a per-commit URL. This wires the two together.
+
+- **New `/ship` Step 4.5 — the staging walkthrough.** Between green CI and the merge, the change's own
+  OpenSpec scenarios are filtered to the ones a browser can see, walked against the deployed preview with
+  Playwright, and graded against the scenario's `THEN`. Screenshot every step, video every journey, evidence
+  as a PR comment. Ships `.claude/skills/ship/scripts/walk-staging.sh` and `walk-runner.mjs`.
+- **Opt-in by state, no flag.** `playwright` in your app's `devDependencies` *is* the consent — the Cloudflare
+  Access pattern, where you adopt a capability by taking it. **There is no manifest field.** A repo that
+  hasn't opted in sees `/ship` behave exactly as before: no walk, no warning, ~30ms. Remove the dependency
+  and it's off again.
+- **It gates, and it never installs anything.** A judged failure resets staging (`db:reset:staging`, only on
+  failure) then fixes, repushes and re-walks, sharing `/ship`'s existing cap of 3. A walk that *couldn't run*
+  — missing browser, no preview URL, or a Cloudflare Access login page — is `UNKNOWN` and refuses to merge,
+  extending the existing "unverified is not the same as absent" rule. The Access case is checked by name:
+  without it, a walk screenshots a login form and a grader could read that as a pass.
+- **Nothing is saved.** Journeys are generated per run into a temp directory and deleted with it — no test
+  suite, no `tests/`, no fixtures, working tree unchanged whatever the verdict. The verdict lives outside the
+  generated script on purpose: "it didn't throw" is not "it worked."
+- **New runbook** — [`wiki/stack/ship-walkthrough.md`](wiki/stack/ship-walkthrough.md): the three adoption
+  rungs (install → Access service token → optional media bucket, each degrading to the one below), the five
+  verdicts, and what the gate deliberately isn't (not a test suite, not on `/save`, no second judging agent).
+
 ## 8.1.0 — one token stands the app up; branches stop reaching production
 
 Getting the Cloudflare app running meant leaving the agent and working the dashboard by hand: guess a token's

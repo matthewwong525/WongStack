@@ -59,13 +59,19 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   optional accelerator, honored when configured. Where checks exist, push and let CI run — the
   skills wait and fix failures; where they don't, the PR (plus the OpenSpec change and its
   archive) is the record a human reviews. Either way, nothing builds locally as a prerequisite.
+  The one thing that is *not* a local build: a repo that opted into the
+  [staging walkthrough](wiki/stack/ship-walkthrough.md) has `/ship` walk the change's own
+  OpenSpec scenarios against the **already-deployed** preview before merging — nothing is
+  compiled, nothing is installed, and the artifact under test is the one CI published. The
+  ladder is CI-when-present → the walkthrough-when-adopted → merge, and a skipped rung is
+  never a failure. Installing Playwright is the entire opt-in; there is no flag.
 - **Use the WongStack skills** — a thin verb over each OpenSpec step, so you never type `/opsx:*`
   by hand (though it's there if you want it):
   `/explore` (think it through — `/opsx:explore`), `/plan` (draft the change — `/opsx:propose`),
   `/apply` (implement the tasks, then hand completed work to `/save` — `/opsx:apply`), `/save` (sync specs + maintain the Status header +
   append to the Decision log + push + PR-body mirror + preview — `/opsx:sync`),
-  `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (merge + archive —
-  `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
+  `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (optional staging
+  walkthrough + merge + archive — `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Branch name = change name = note name ties a branch to its plan and its session context.
 - **Prose goes straight to `main`.** When a `/save`'s entire diff sits inside the **prose
