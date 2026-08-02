@@ -69,6 +69,8 @@ WongStack gives agents a small set of commands that match how work moves from id
 | `/improve` | Ask an agent to audit the project and write improvement plans without changing code. |
 | `/wong-sync` | Bring this repo up to date with WongStack — copy in what's missing, and propose what's worth adopting from what upstream can now do. Never overwrites your files. |
 
+Want your project to be a **real website people can open**? That's optional, and one command: `/wong-cloudflare` offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and puts the app online — whenever you're ready, including long after setup.
+
 ## Where the knowledge lives
 
 - **Agent instructions** tell future agents how to work in the repo.

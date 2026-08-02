@@ -2,7 +2,7 @@
 
 From nothing to a website other people can open, in five steps. Three of them are answering questions.
 
-This page is for the person doing it. It assumes you know nothing about Cloudflare, databases, or deployment — where a step needs one of those, the agent handles it and tells you what it did. The technical version is [provisioning](provisioning.md).
+This page is for the person doing it. It assumes you know nothing about Cloudflare, databases, or deployment — where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md).
 
 ## What you'll end up with
 
@@ -23,7 +23,7 @@ Open your project folder in your coding agent and paste the setup prompt from th
 
 **You do:** answer a few questions.
 
-At some point it asks whether you want this to be a real website people can visit. Say yes — that's what turns on everything below. (Saying no is fine too, and you can turn it on later.)
+At some point it asks whether you want this to be a real website people can visit. Say yes — that's what turns on everything below. (Saying no is fine too: ask for `/wong-cloudflare` any time later and it makes the same offer, sets everything up, and puts you online.)
 
 ### 2. Sign in to GitHub
 
@@ -90,17 +90,10 @@ If you'd rather people sign in first, say so and the agent sets it up. It needs 
 
 ## When something goes wrong
 
-Almost every failure at setup traces to the token, and almost always to one of two things:
-
-| What you see | What happened |
-|---|---|
-| "The token was made in the wrong place" | Cloudflare has two token screens. Use the one under **My Profile**, not the account one. |
-| "The token can't see your account" | The **Account Resources** field was left blank. Edit the token — you don't need a new one. |
-
-The agent translates Cloudflare's error codes into plain language, so if you see a raw code, ask it what that means.
+Almost every failure at setup traces to the token: it was made in the wrong place (use **My Profile**, not the account area), or the **Account Resources** field was left blank (edit the token you already made — no new one needed). Both are covered on [the credentials page](cloudflare-credentials.md). The agent translates Cloudflare's error codes into plain language, so if you see a raw code, ask it what that means.
 
 ## Next
 
-- The technical version of these steps: [provisioning](provisioning.md).
+- The runbook behind these steps: [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md).
 - What happens each time you push a change: the [D1 pipeline](d1-pipeline.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

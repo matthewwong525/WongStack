@@ -10,6 +10,21 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 [`/wong-setup`](../../.claude/skills/wong-setup/SKILL.md) checks for these during its readiness step. Beyond them, no core payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.
 
+## `gh` needs the `workflow` scope
+
+`gh auth login`'s minimum scope set is `repo`, `read:org`, `gist` — **`workflow` is not in it.** Without it, pushing any `.github/workflows/*.yml` file fails at *push* time, long after setup reported success, with wording a newcomer can't act on:
+
+```
+refusing to allow an OAuth App to create or update workflow
+```
+
+The pack's deploy workflow is the file that trips this, so any repo taking (or on) the stack pack needs the scope. The plain-language reason, for when you're asking a user: *"GitHub wants your permission before a tool can add an automated deploy step. This is that permission."*
+
+- **Authenticating fresh:** request it up front — `gh auth login --web --git-protocol https --scopes workflow`. It costs nothing in the browser visit the login already requires.
+- **Already authenticated:** check `gh auth status` for `workflow` in the token scopes; missing → `gh auth refresh --scopes workflow`.
+
+[`/wong-setup`](../../.claude/skills/wong-setup/SKILL.md) catches this during readiness and [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) re-checks before relying on a push; both point here rather than re-explaining.
+
 ## Runtimes install at the point of need
 
 **Nothing is installed pre-emptively.** A readiness check that installs Node "while we're here" is the one action in setup that changes the machine rather than the repo — so it isn't taken as a precaution. Setup proceeds until a step genuinely requires a runtime, then explains what and why, and asks.
@@ -34,7 +49,7 @@ One exception, and it proves the rule by staying opt-in. The [Cloudflare stack p
 - They run **only in a repo that explicitly took the pack** (`components.stackPack: true`), and **only in that repo's own build/CI** — the [pipeline scripts](../stack/d1-pipeline.md#the-scripts) that migrate and deploy.
 - A repo that **declined the pack** runs the entire toolkit on `git`, `gh`, and `openspec` alone, exactly as before. It receives no pack file and needs no extra tool.
 
-**`curl` is a pack-gated skill dependency.** [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) drives the Cloudflare REST API with `curl` rather than `wrangler`, so [provisioning](../stack/provisioning.md) works on a machine with no runtime installed. (An earlier version of this page said pack tools run "never inside a WongStack skill." That was true when no skill touched Cloudflare; it isn't now, so the carve-out is named rather than quietly broken.)
+**`curl` is a pack-gated skill dependency.** [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) drives the Cloudflare REST API with `curl` rather than `wrangler`, so provisioning works on a machine with no runtime installed. (An earlier version of this page said pack tools run "never inside a WongStack skill." That was true when no skill touched Cloudflare; it isn't now, so the carve-out is named rather than quietly broken.)
 
 **Pack-gated scripts may use `node`** where it's the better tool — JSON assembly, editing `wrangler.jsonc` — because a pack repo already requires it at its build boundary. The governing rule:
 

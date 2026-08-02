@@ -199,7 +199,7 @@ As of clone `a1b2c3d` (WongStack 8.3.0), 2026-08-02.
 
 ## Declined — you said no
 
-- [ ] `stack-pack-cloudflare` — declined 2026-07-14 at clone `9f8e7d6`.
+- [ ] `improve-audits` — declined 2026-07-14 at clone `9f8e7d6`.
 
 ## Present — 14 capabilities, current
 
