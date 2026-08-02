@@ -55,16 +55,19 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
 ## Rules
 
 - **CI is the gate when present, else PR review; nothing builds locally as a prerequisite.** The
-  ladder, the optional staging walkthrough, and what an unverifiable check means are stated in
+  ladder and what an unverifiable check means are stated in
   [the change loop](wiki/development/the-change-loop.md#the-gate) — the one place that owns them.
+  Nothing else gates a merge; the staging walkthrough is `/walk`'s job and gates nothing.
 - **Use the WongStack skills** — a thin verb over each OpenSpec step, so you never type `/opsx:*`
   by hand (though it's there if you want it):
   `/explore` (think it through — `/opsx:explore`), `/plan` (draft the change — `/opsx:propose`),
   `/apply` (implement the tasks, then hand completed work to `/save` — `/opsx:apply`), `/save` (sync specs + maintain the Status header +
   append to the Decision log + push + PR-body mirror + preview — `/opsx:sync`),
-  `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (optional staging
-  walkthrough + merge + archive — `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
+  `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (merge + archive
+  — `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
+  Beside the loop: `/walk` (invoke `/save`, then drive the change's scenarios through a browser
+  against the deployed preview and post the evidence to the PR — gates nothing, run it whenever).
   Branch name = change name = note name ties a branch to its plan and its session context.
 - **Prose goes straight to `main`.** A `/save` whose entire diff sits inside the prose allowlist —
   `notes/**` + `wiki/**` — commits to the default branch with no branch, PR, or `/ship`. Routing is

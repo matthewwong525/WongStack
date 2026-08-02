@@ -3,27 +3,27 @@
 # same every time, so the only thing the agent authors per run is the journeys
 # themselves.
 #
-# `/ship` calls this between CI-green and the merge, in three phases:
+# `/walk` calls this, in three phases:
 #
 #   walk-staging.sh preflight            → can we walk, and what do we walk?
 #   walk-staging.sh run <run-dir>        → drive the journeys, capture evidence
 #   walk-staging.sh cleanup <run-dir>    → leave no trace
 #
 # ── What this script does NOT do ──────────────────────────────────────────────
-# It never decides whether a journey passed. It captures evidence; `/ship` reads
+# It never decides whether a journey passed. It captures evidence; `/walk` reads
 # that evidence against the scenario's written THEN. So this script prints
 # NONE / UNKNOWN / TIMEOUT / READY / WALKED and deliberately never prints
 # SUCCESS or FAILURE — those two words belong to the grader, and printing them
 # here would let a run *look* graded when nothing had judged it.
 #
 #   RESULT: NONE     — this repo never opted in, or there is nothing to walk.
-#                      Silent by design: /ship proceeds exactly as before.
+#                      Reported in one line; nothing else is affected.
 #   RESULT: READY    — preflight passed; the facts below say where to walk.
 #   RESULT: WALKED   — every journey ran and its evidence is on disk.
 #   RESULT: UNKNOWN  — the walk could not run or could not be trusted (no
 #                      browser, no URL, unreachable staging, an Access
 #                      challenge). UNVERIFIED, which is not the same as "no
-#                      walkthrough exists" — /ship must NOT merge on it.
+#                      walkthrough exists" — /walk must report it as such.
 #   RESULT: TIMEOUT  — the walk did not finish inside its budget.
 #
 # After RESULT come indented human lines, then KEY=VALUE facts for the caller.

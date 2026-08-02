@@ -4,7 +4,7 @@
 // launching the browser the repo installed, authenticating past Access, opening
 // one recorded context per journey, screenshotting every step, and writing the
 // evidence manifest. What it does NOT own is the journeys: those are generated
-// per run by /ship's scout, written into <run-dir>/journeys/, and deleted with
+// per run by /walk's scout, written into <run-dir>/journeys/, and deleted with
 // the run directory.
 //
 // That split is the point. Regenerating this file every run would mean an agent

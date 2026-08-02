@@ -91,7 +91,7 @@ Use the alias URL for UI review — it's per-commit, so two branches never colli
 
 #### How the alias URL reaches the tooling
 
-`/save` prints a preview link and `/ship`'s [staging walkthrough](ship-walkthrough.md) walks one, and both find it the same way — by asking GitHub what was deployed for this commit. Which CI backend you're on decides who tells GitHub:
+`/save` prints a preview link and the [staging walkthrough](staging-walkthrough.md) that `/walk` runs walks one, and both find it the same way — by asking GitHub what was deployed for this commit. Which CI backend you're on decides who tells GitHub:
 
 - **Workers Builds** — Cloudflare's GitHub integration attaches the URL to the commit itself. Nothing in the pack has to do anything.
 - **GitHub Actions** — there is no such integration. `cf-deploy.sh` therefore **harvests the URL out of `wrangler versions upload`'s own output** and hands it to the workflow, which publishes a GitHub Deployment carrying it as `environment_url`.
