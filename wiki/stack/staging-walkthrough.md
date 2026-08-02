@@ -39,6 +39,8 @@ CF_ACCESS_CLIENT_SECRET=
 
 The walk sends them as `CF-Access-Client-Id` / `CF-Access-Client-Secret` headers. **Without them it reports `UNKNOWN` — not a pass** — and does not screenshot the login form and call it green. That distinction is the single most important property here: a walkthrough that reports success against a login page is worse than no walkthrough, because it converts an unchecked assumption into a checked-looking one.
 
+> **A `401` from your own app, with a valid service token, means the Worker is authenticating the wrong way.** Access strips the two headers above and sets **no email header** for a service token, so a Worker that reads `Cf-Access-Authenticated-User-Email` rejects the walk — and every other machine caller — while working fine in your browser. It looks like a walk problem and isn't. The symptom is distinctive: the walk gets *past* Access (no challenge) and then every journey fails on an app-rendered `401`. Verify the signed assertion instead — [`app/worker/access.ts`](cloudflare-access.md#the-auth-model-verify-the-signed-assertion) reads `email` for humans and `common_name` for service tokens, which is what makes one path serve both.
+
 ### 3. A public bucket — only if you want media in the comment
 
 ```

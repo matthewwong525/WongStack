@@ -26,17 +26,26 @@ The `build` script becomes the CI wrapper; the repo's real build moves to `build
 
 If the repo already has a `build`, rename it to `build:app` (confirm first) so `cf-build.sh` can call it.
 
-**Paths here are relative to the `package.json` you're merging into.** When the Worker lives in a subdirectory (the `app/` layout the SPA pack ships), that's `app/package.json`, so the script paths become `bash ../scripts/cf-build.sh`, `node ../scripts/reset-staging-d1.mjs`, and `node ../scripts/cf-secrets.mjs`. The scripts themselves resolve the repo root from their own location, so they work from either layout.
+**Paths here are relative to the `package.json` you're merging into.** When the Worker lives in a subdirectory (the `app/` layout the SPA pack and the [app scaffold](payload-manifest.md#the-opt-in-app-scaffold) ship), that's `app/package.json`, so the script paths become `bash ../scripts/cf-build.sh`, `node ../scripts/reset-staging-d1.mjs`, and `node ../scripts/cf-secrets.mjs`. The two `db:migrate:*` scripts have no such path — they invoke `wrangler` directly and are unchanged between layouts, but wrangler must find the config, so run them from the directory holding it. The scripts under `scripts/` resolve the repo root from their own location, so they work from either layout.
 
 Write the **literal** `database_name` into each `db:migrate:*` script — the production name for `db:migrate:prod`, the staging twin's name for `db:migrate:staging`. (An earlier version of this page used `$npm_package_config_db`, which expands to an empty string unless the `package.json` also defines a `config.db` key — leaving wrangler with no database argument.) These two are only a convenience alias: the scripts under `scripts/` read the name out of the wrangler config themselves.
 
-## `wrangler.jsonc` → bindings + `env.staging`
+**Those two scripts live here and nowhere else.** A hardcoded database name cannot travel between repos, so no copied payload file may carry one — the [app scaffold's](payload-manifest.md#the-opt-in-app-scaffold) `app/package.json` ships without them deliberately. `/wong-cloudflare` fills them from the databases it derives, as part of applying this fragment, so they arrive correct the first time they exist rather than arriving broken and waiting to be edited.
 
-The top level declares production's bindings. A `staging` environment declares its own Worker name and a **twin** of every stateful binding — a second database, a second queue, a second bucket. Merge both parts, filling the ids from the resources you created:
+## `wrangler.jsonc` → the Worker entry, bindings, and `env.staging`
+
+This fragment is the **only thing in the payload that creates a wrangler config**, so it describes a deployable Worker and not bindings alone. The top level declares the entry point, the static assets, and production's bindings. A `staging` environment declares its own Worker name and a **twin** of every stateful binding — a second database, a second queue, a second bucket. Merge every part, filling the ids from the resources you created:
 
 ```jsonc
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "<your-worker>",
+  "main": "worker/index.ts",
+  "compatibility_date": "<today, YYYY-MM-DD>",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application"
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -63,8 +72,9 @@ The top level declares production's bindings. A `staging` environment declares i
 }
 ```
 
-Five rules the scripts depend on:
+Six rules the scripts depend on:
 
+- **The fragment must describe a deployable Worker, not just bindings.** Nothing else in the payload creates a wrangler config — `app/wrangler.jsonc` is [deliberately not copied](payload-manifest.md#the-opt-in-app-scaffold), because it carries live `database_id`s — so a config produced from bindings alone has no entry point and `wrangler deploy` has nothing to build. To the user that is indistinguishable from a broken install: the provisioning run reports success and the address serves nothing. Hence `main`, `assets`, `compatibility_date`, and `compatibility_flags` above. `main` is resolved relative to the config file, so `worker/index.ts` is right for both layouts — the config sits beside the Worker either way. Set `compatibility_date` to the day you create the config, not to a date copied from elsewhere.
 - **`env.staging` needs its own `name`.** Without it the environment inherits production's, and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses to deploy when the staging environment resolves to production's name, so this fails loudly rather than silently — but declare the name and the check never has to fire.
 - **`env.staging` needs its own `d1_databases` entry**, with the staging database's own `database_name`. `cf-build.sh` and `reset-staging-d1.mjs` read the name from *inside* the environment block; without it they stop with an explicit error rather than touching production.
 - **An environment inherits nothing it doesn't redeclare — among `vars` and bindings.** Every stateful binding must be repeated inside `env.staging` pointing at its twin. A binding you forget is simply absent in staging; a *service* binding you copy without repointing quietly calls production. (`npm run secrets:check` fails the build on the first of those and warns on the second.)
@@ -90,7 +100,7 @@ Not a fragment, and **not part of the default install**: the pack's CI is [GitHu
 
 ## `.env.example` → Cloudflare variables
 
-Add these documented, blank lines (the pack's [credentials page](../../../../wiki/stack/cloudflare-credentials.md) explains each). Real values go in the git-ignored `.env`:
+Add these documented, blank lines (the pack's [credentials page](../../../../wiki/stack/cloudflare-credentials.md) explains each, and **owns the token variable's name** — don't rename it here; a rename is a behavioural change requiring a version bump, and it has silently regressed three times). Real values go in the git-ignored `.env`:
 
 ```bash
 # Cloudflare — user-scoped API token from My Profile → API Tokens
@@ -103,15 +113,21 @@ CF_ACCESS_CLIENT_ID=
 CF_ACCESS_CLIENT_SECRET=
 ```
 
-## `.gitignore` → `.dev.vars`
+## `.gitignore` → the two secrets files
 
-Cloudflare's local secrets file is never committed — and neither are its per-environment variants, since `.dev.vars.staging` holds real staging values. Add these lines if they aren't already there:
+Two files hold real credentials and are never committed: `.env` (the account-level Cloudflare token — the one the credentials page calls *"effectively account-root, treat it like a root password"*) and `.dev.vars` (the Worker's runtime secrets). Both have per-environment variants holding real values, and both have a committed, values-blank `.example` twin. Add these four lines if they aren't already there:
 
 ```gitignore
+.env*
+!.env.example
 .dev.vars*
 !.dev.vars.example
 ```
 
-**Both lines, or neither works.** The wildcard is what stops a `.dev.vars.staging` full of live secrets becoming committable; the negation is what keeps `.dev.vars.example` — the committed, values-blank list of expected key names that `secrets:check` reads — from being swallowed by that same wildcard. Getting either half wrong is silent: you either commit real secrets or lose the name list from git, and nothing complains.
+**One rationale covers both pairs, and each pair needs both lines.** The wildcard is what stops a `.env.staging` or a `.dev.vars.staging` full of live values becoming committable; the negation is what keeps the `.example` file — the committed name list a new contributor works down, and that `secrets:check` reads — from being swallowed by that same wildcard. Getting either half wrong is silent: you either commit real secrets or lose the name list from git, and nothing complains.
+
+`.env` matters most at the exact moment `/wong-cloudflare` asks for a token, since that is when a repo which never had a `.env` acquires one full of credentials. Apply this fragment **before** asking for the token, not after.
+
+**Widening `.gitignore` does not untrack a file already committed.** If the repo has a `.env` (or `.dev.vars`) in git history, adding these lines changes nothing for it — say so plainly rather than leaving a false sense of coverage, and give them the two steps: `git rm --cached .env` to stop tracking it, and **rotate the credential**, because it is in the history of every clone and the ignore rule cannot reach back. Check with `git ls-files .env .dev.vars` before applying.
 
 A repo that already has the bare `.dev.vars` line keeps working; widening it is the upgrade.

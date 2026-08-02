@@ -3,6 +3,71 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.1.0 — the pack brings an app, and stops lying about what works
+
+Five fixes, all found by people installing WongStack for real rather than by reading it. The theme is
+uncomfortable and worth naming: **this repo cannot detect most of them by inspection.** Every payload
+link resolves here, CI is green here, `.env` is git-ignored here, and the app exists here. The
+maintainers' own repo is not the artifact under test — the artifact is what arrives somewhere else.
+
+**Do this if you set up Cloudflare Access on the old runbook: open your app in a browser and log in.**
+The runbook recommended `workers.dev`, and Access cannot reliably gate a zone Cloudflare owns. The
+failure is the dangerous kind — an anonymous `curl` gets a `302` and a service token gets a `200`, so
+every terminal check passes, while a logged-in human gets Cloudflare's *"There is nothing here yet"*
+placeholder. Your wall may be admitting nobody, and nothing in your setup says so. The fix is a custom
+domain; the runbook now requires one and documents the symptom so you recognize it.
+
+**The pack can bring its own app.** It shipped a complete pipeline — scripts, CI, schema, docs — and no
+Worker, and the `wrangler.jsonc` fragment declared bindings with no `main`, so even a hand-written
+Worker got a config wrangler couldn't deploy. An install into a fresh repo landed the whole pack and
+left nothing deployable. Now `/wong-setup` and `/wong-cloudflare` detect a repo with no app of its own
+and fold WongStack's starter into the *same* one question — no second decision, no framework
+vocabulary — gated on `components.appScaffold` beside `stackPack`. **A repo that already has an app
+never sees the offer and is never touched.** `app/wrangler.jsonc` is deliberately excluded from the
+copy: it holds two live `database_id`s, and copying it would point your Worker at WongStack's own
+databases. Your config is created by `/wong-cloudflare` from the fragment, which now carries `main`,
+`assets`, and the compatibility fields.
+
+**CI was red by default and deployed twice.** In the state the pack ships in — no wrangler config yet —
+`deploy.yml` failed at step 1 and the parity check aborted, both before the token guard that was
+supposed to handle exactly this. And `concurrency` keyed on `github.ref`, which differs between a
+branch's `push` and `pull_request` triggers, so both ran and raced for the same preview alias. The
+workflow now detects an unconfigured repo, reports *"run `/wong-cloudflare`"*, and exits green; the
+concurrency group keys on the event as well as the branch, with a job-level `if` — **both are needed,
+because GitHub evaluates concurrency before a job's `if`**, and a cancelled run is what `gh pr checks`
+reports as `fail`, which would block `/ship`.
+
+**Two credential fixes.** `.env.example` shipped `CLOUDFLARE_USER_TOKEN` while everything that reads a
+token — wrangler, the scripts, the workflow, the skill, the docs — reads `CLOUDFLARE_API_TOKEN`. **If
+you filled in `.env` from the 9.0.0 template, your token is under a name nothing reads: rename it.**
+Nothing can detect this for you, because a missing token is indistinguishable from "not provisioned
+yet". The name has now flipped three times in both directions, so it has an owner
+(`wiki/stack/cloudflare-credentials.md`) and a rule: renaming a value the code reads is a behavioural
+change requiring a version bump, never a `docs(...)` commit. Separately, **the `.gitignore` fragment
+now covers `.env*` as well as `.dev.vars*`** — it never did, so a target that had no `.env` acquired a
+committable one at the exact moment `/wong-cloudflare` asked for an account-root credential.
+
+**The most-cited doc in the payload wasn't in the payload.** `wiki/development/the-change-loop.md` is
+referenced 14 times across 9 of the 10 installed skills, and the `WONG-STACK` block calls it "the one
+place that owns" the merge gate — and a target never received it. Same for
+`agent-knowledge-center.md` and `development/required-tools.md`. Combined with the block's own
+instruction to "find and read the owning doc rather than guessing", a fresh install sent agents to a
+dead link and told them to guess. All three now ship, `wiki-style.md` no longer arrives carrying links
+to WongStack's marketing section, and `scripts/check-payload-links.mjs` resolves every payload link
+against the file set a *target* receives, in each install shape — the check this repo structurally
+could not perform on itself.
+
+**How this reaches you.** The three wiki pages arrive automatically on your next `/wong-sync`
+(copy-if-absent, no conflict). Everything that edits a file you already own — `deploy.yml`,
+`.env.example`, `.gitignore`, `wiki-style.md` — is **offered** through the adapt step as a proposal you
+review, never merged into your files automatically. The app scaffold requires setting
+`components.appScaffold` and only lands where you have no app.
+
+- **Known limitation:** the Access changes are verified by construction and by unit tests
+  (`app/worker/access.ts` passes 15 cases covering both caller kinds and every fail-closed path), and
+  the partial-label wildcard was confirmed live against the Access API. Standing the rewritten runbook
+  up end to end on a custom domain has not been done.
+
 ## 9.0.0 — seeing the app is a verb now, not a toll on the merge
 
 You could only watch your app work in a browser by shipping it. The walkthrough was welded into `/ship`

@@ -4,6 +4,8 @@ The stack WongStack recommends for AI-driven dev — **a recommendation, not a r
 
 It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch preview URLs, and a change that ships the moment its PR lands. [One token](../../.claude/skills/wong-cloudflare/SKILL.md) is all it takes to stand up.
 
+**It doesn't assume you already have an app.** A repo with a Worker of its own takes the pipeline and keeps its application untouched. A repo with no application at all is offered WongStack's [starter app](../../.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) as part of the same single opt-in, so "a real address people can open" is answerable either way.
+
 ## Pages
 
 - [Getting started](getting-started.md) — the whole path in five steps, written for the person doing it; start here if you're setting this up for the first time.

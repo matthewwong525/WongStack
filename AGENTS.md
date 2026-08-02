@@ -8,6 +8,8 @@ It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below 
 
 **Working on WongStack:**
 - **Editing the payload is a release** — add a [`CHANGELOG.md`](CHANGELOG.md) entry and bump [`VERSION`](VERSION) (semver) so the updater can detect and explain it.
+  - **Run `node scripts/check-payload-links.mjs`** alongside the `VERSION` bump and the `CHANGELOG.md` entry. It resolves every internal link against the file set a *target* receives, in each install shape. **This repo cannot detect the problem by inspection: every payload link resolves here**, because this repo holds the payload plus everything around it — a page citing an owner that isn't in the manifest looks fine locally and is a dead link on arrival. It distinguishes *dead* (resolves in no shape — a defect, and it exits non-zero) from *conditional* (resolves only where the target took that opt-in category — reported, not failed).
+  - **A template or fragment is code, not prose.** Renaming a variable a script reads — in `.env.example`, a config fragment, a workflow's `env:` — is a **behavioural** change: version bump and changelog entry, never a `docs(...)` commit. `CLOUDFLARE_API_TOKEN` regressed twice this way, because the diff looks like documentation and the failure is silent (a token under an unread name is indistinguishable from an unprovisioned repo). Where a value appears in both a template and something that reads it, one file [owns the name](wiki/stack/cloudflare-credentials.md#store-it) and every other surface links to it.
 - Skills run from a target repo's `.claude/skills/`, so they reference files by **repo-relative path** (`$(git rev-parse --show-toplevel)/.claude/skills/...`) — never `${CLAUDE_PLUGIN_ROOT}` or an absolute path.
 - Rulebook canonical: [`wiki/wiki-style.md`](wiki/wiki-style.md) — the payload copy the installer places at a target's wiki root; the skills (`/dream`, `/improve docs`) read the repo's own copy there.
 - **The WongStack skills own all git; OpenSpec never runs git.** `/explore`·`/plan`·`/apply` front `/opsx:explore`·`/opsx:propose`·`/opsx:apply` and implement no git themselves; when `/apply` completes every task it automatically hands the change to `/save`. `/save`·`/continue`·`/ship` own every git action — `/save` runs `/opsx:sync`, `/continue` checks out the branch then hands off to `/apply`, `/ship` runs `/opsx:archive`. When you touch one of the git skills, keep the OpenSpec step it fronts intact. The one scoped exception: `/wong-sync` runs **no git in the repo it syncs** (what it copies and proposes waits for `/save`) and treats its cached WongStack clone as **read-only** — fetch, checkout, reset, never branch or push.
@@ -58,13 +60,15 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   ladder and what an unverifiable check means are stated in
   [the change loop](wiki/development/the-change-loop.md#the-gate) — the one place that owns them.
   Nothing else gates a merge; the staging walkthrough is `/walk`'s job and gates nothing.
-- **Use the WongStack skills** — a thin verb over each OpenSpec step, so you never type `/opsx:*`
-  by hand (though it's there if you want it):
-  `/explore` (think it through — `/opsx:explore`), `/plan` (draft the change — `/opsx:propose`),
-  `/apply` (implement the tasks, then hand completed work to `/save` — `/opsx:apply`), `/save` (sync specs + maintain the Status header +
-  append to the Decision log + push + PR-body mirror + preview — `/opsx:sync`),
+- **Use the WongStack skills** — a thin verb over each OpenSpec step, so the OpenSpec layer is
+  something you drive through these verbs rather than invoke directly. (`openspec init` generates
+  five `openspec-*` skills, which the verbs below call; it generates no `/opsx:*` slash commands, so
+  don't reach for one.)
+  `/explore` (think it through — `openspec-explore`), `/plan` (draft the change — `openspec-propose`),
+  `/apply` (implement the tasks, then hand completed work to `/save` — `openspec-apply-change`), `/save` (sync specs + maintain the Status header +
+  append to the Decision log + push + PR-body mirror + preview — `openspec-sync-specs`),
   `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (merge + archive
-  — `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
+  — `openspec-archive-change`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Beside the loop: `/walk` (invoke `/save`, then drive the change's scenarios through a browser
   against the deployed preview and post the evidence to the PR — gates nothing, run it whenever).

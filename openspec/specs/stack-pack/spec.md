@@ -10,6 +10,8 @@ The opt-in Cloudflare stack pack in the WongStack payload: the zero-config pipel
 
 The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — that a repo installs only by opting in. A repo that does not opt in SHALL receive none of the pack's files and SHALL remain stack-agnostic. Opt-in state SHALL be recorded as `components.stackPack` (boolean) in `.claude/.wong-stack.json`; absent or false means the repo never took the pack.
 
+The pack SHALL have a **second, independently gated category**: the app scaffold, recorded as `components.stackPack: true` plus `components.appScaffold` (boolean), and specified by the `app-scaffold` capability. The two flags SHALL be separate so that a repo which already has an application can take the pipeline without the app. The pack alone SHALL NOT be assumed to arrive at a repo that has a Worker: a repo with `stackPack: true` and no scaffold may legitimately have no application yet, and in that state the pack's scripts have nothing to build until one exists.
+
 #### Scenario: A repo that declines the pack is unaffected
 
 - **WHEN** a repo installs or syncs WongStack without opting into the pack
@@ -21,6 +23,12 @@ The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy
 - **WHEN** a repo opts into the pack
 - **THEN** it receives the pack scripts, the seed template, and the pipeline docs, and is guided through the config fragments
 - **AND** `components.stackPack` is true
+
+#### Scenario: A repo takes the pipeline without the app
+
+- **WHEN** a repo that already has its own application opts into the pack
+- **THEN** `components.stackPack` is true and `components.appScaffold` is absent or false
+- **AND** no `app/` file is written to it
 
 ### Requirement: The pack is adoptable after setup
 
@@ -154,11 +162,15 @@ The staging reset script SHALL rebuild staging from a checked-in seed, not from 
 
 ### Requirement: Config fragments are applied as guided merges, never blind writes
 
-Pack files that must merge into a file the target already owns — `package.json` scripts, the `wrangler.jsonc` bindings and `env.staging` block, `.env.example` variables, and the `.gitignore` entry covering the local secrets files — SHALL be applied as guided edits following the `CLAUDE.md` WONG-STACK-block precedent: the fragment is shown and applied with confirmation, never written over the target's file wholesale. **`/wong-cloudflare` SHALL be the applier**: the id-free fragments at the start of a run where they are missing, and the `wrangler.jsonc` block at the binding step with real resource ids. `wong-setup` SHALL NOT apply fragments; when upstream changes a fragment in a repo that already applied it, the change SHALL be surfaced through the sync's capability analysis rather than re-merged automatically.
+Pack files that must merge into a file the target already owns — `package.json` scripts, the `wrangler.jsonc` bindings and `env.staging` block, `.env.example` variables, and the `.gitignore` entries covering the local secrets files — SHALL be applied as guided edits following the `CLAUDE.md` WONG-STACK-block precedent: the fragment is shown and applied with confirmation, never written over the target's file wholesale. **`/wong-cloudflare` SHALL be the applier**: the id-free fragments at the start of a run where they are missing, and the `wrangler.jsonc` block at the binding step with real resource ids. `wong-setup` SHALL NOT apply fragments; when upstream changes a fragment in a repo that already applied it, the change SHALL be surfaced through the sync's capability analysis rather than re-merged automatically.
 
-The `.env.example` fragment's token variable SHALL be `CLOUDFLARE_API_TOKEN`, matching the skill, the docs, and the pack scripts. The pack's Workers Builds **deploy command** (`bash scripts/cf-deploy.sh`, set by a human in the dashboard) SHALL be documented as belonging **only to the Workers Builds fallback**: a repo on the pack's GitHub Actions workflow has no dashboard step, and the pack SHALL NOT describe the setting as required in general.
+The `wrangler.jsonc` fragment is the **only thing in the payload that creates a wrangler config**, so it SHALL declare a deployable Worker and not bindings alone: `main` (the Worker entry point), `assets` (with single-page-application not-found handling for an SPA), `compatibility_date`, and `compatibility_flags`, alongside the existing `name`, `d1_databases`, and `env.staging` block. A fragment that declares bindings without an entry point produces a config wrangler cannot deploy, which is indistinguishable to the user from a broken install.
 
-The `package.json` fragment SHALL include the secrets push and check scripts alongside the existing build and database scripts. The `.gitignore` fragment SHALL ignore `.dev.vars` **and its per-environment variants**, so that adding a file such as `.dev.vars.staging` cannot commit real secret values, while explicitly re-including `.dev.vars.example` — a committed, values-blank file that a wildcard would otherwise swallow.
+The token variable SHALL be `CLOUDFLARE_API_TOKEN` everywhere it appears — the shipped `.env.example`, the fragment, the skill, the pack scripts, the Actions workflow, and the wiki — because that is the name wrangler reads. **Exactly one payload file SHALL own this name**; every other surface that needs it SHALL link to that owner rather than restate it. The name has drifted in both directions across releases while each individual edit looked like a harmless documentation change, so a single owner is what makes a future rename a visible, reviewable act rather than a template typo.
+
+The `.gitignore` fragment SHALL cover **both** local credential files, each as a wildcard plus a negation for its committed example: `.dev.vars*` with `!.dev.vars.example`, and `.env*` with `!.env.example`. The wildcards stop a per-environment variant full of live values from being committable; the negations keep the committed, values-blank example files from being swallowed by them. `.env` holds `CLOUDFLARE_API_TOKEN`, which the pack's own docs describe as effectively account-root, and `/wong-cloudflare` writes it there — so a target repo that arrives without a `.gitignore` entry for it is handed a committable account-root credential at the moment the skill asks for one. Covering only `.dev.vars` leaves the more dangerous of the two files exposed.
+
+The `package.json` fragment SHALL include the secrets push and check scripts alongside the existing build and database scripts, and SHALL include the `db:migrate:staging` and `db:migrate:prod` scripts, whose database names are filled from the resources `/wong-cloudflare` derives. Those two scripts SHALL live in the fragment rather than in any copied file, because a hardcoded database name cannot travel between repos. The pack's Workers Builds **deploy command** (`bash scripts/cf-deploy.sh`, set by a human in the dashboard) SHALL be documented as belonging **only to the Workers Builds fallback**: a repo on the pack's GitHub Actions workflow has no dashboard step, and the pack SHALL NOT describe the setting as required in general.
 
 #### Scenario: Merging into an existing package.json
 
@@ -172,11 +184,23 @@ The `package.json` fragment SHALL include the secrets push and check scripts alo
 - **THEN** the config fragments are applied by `/wong-cloudflare`, the id-free ones up front and the wrangler block with real ids at the binding step
 - **AND** `wong-setup` applies none of them
 
-#### Scenario: The deploy command is fallback-only documentation
+#### Scenario: The shipped template names the variable the code reads
 
-- **WHEN** a repo runs the pack's GitHub Actions workflow
-- **THEN** no dashboard deploy-command step is presented as required
-- **AND** the setting is documented only for a repo that chose Cloudflare Workers Builds instead
+- **WHEN** a user fills in the token in `.env` by following `.env.example`
+- **THEN** the variable they filled is the one the scripts, the workflow, the skill, and wrangler read
+- **AND** no step silently behaves as though no token were present
+
+#### Scenario: The variable name has one owner
+
+- **WHEN** any payload file needs the reader to know the token's variable name
+- **THEN** exactly one file states it and the others link to that file
+- **AND** renaming it requires editing the owner, not a template
+
+#### Scenario: The credential file cannot be committed
+
+- **WHEN** `/wong-cloudflare` writes the API token into a target repo's `.env`
+- **THEN** the repo's `.gitignore` already covers `.env` and its per-environment variants
+- **AND** `.env.example` remains committable despite the wildcard
 
 #### Scenario: A per-environment secrets file cannot be committed
 
@@ -184,6 +208,24 @@ The `package.json` fragment SHALL include the secrets push and check scripts alo
 - **THEN** the pack's `.gitignore` entry already covers it
 - **AND** no step is required to prevent the file being committed
 - **AND** `.dev.vars.example` remains committable despite the wildcard
+
+#### Scenario: A created wrangler config is deployable
+
+- **WHEN** `/wong-cloudflare` creates a wrangler config from the fragment in a repo that had none
+- **THEN** the result declares `main`, `assets`, `compatibility_date`, and `compatibility_flags` as well as the bindings and `env.staging`
+- **AND** `wrangler deploy` has an entry point to build
+
+#### Scenario: Migration scripts name the target's own databases
+
+- **WHEN** the `package.json` fragment is applied
+- **THEN** `db:migrate:staging` and `db:migrate:prod` reference the databases provisioned for this repo
+- **AND** no copied payload file contains a migration script naming another repo's database
+
+#### Scenario: The deploy command is fallback-only documentation
+
+- **WHEN** a repo runs the pack's GitHub Actions workflow
+- **THEN** no dashboard deploy-command step is presented as required
+- **AND** the setting is documented only for a repo that chose Cloudflare Workers Builds instead
 
 ### Requirement: The pack ships the D1 pipeline and prod-recovery docs
 
@@ -230,12 +272,13 @@ Because `/wong-sync` never modifies a file that already exists, a repo that inst
 
 ### Requirement: The pack ships a GitHub Actions workflow as its CI
 
-
 The pack SHALL include a GitHub Actions workflow file that runs the pack's build and deploy scripts on push, supplying the branch name they need and reading the Cloudflare credentials from GitHub repository secrets. It SHALL be a drop-in payload file subject to the same copy-if-absent, never-overwrite rule as every other pack file, and SHALL surface as a pull-request check so the existing delivery gate has something to wait on.
 
 The workflow SHALL NOT reimplement any branch logic. Deciding which database to migrate and which Worker to deploy to belongs to `scripts/cf-build.sh` and `scripts/cf-deploy.sh`, so that both CI backends run identical code and the deploy model is independent of the CI choice.
 
 Where the Cloudflare credentials are absent, the workflow SHALL build without deploying, so a repo that took the pack but has not yet been provisioned gets a useful check rather than a permanently failing one. That path SHALL NOT route through the build wrapper, which requires a staging environment an unprovisioned repo does not yet have.
+
+**No step that runs before the credential guard SHALL fail on a repo the pack has been installed into but not yet configured.** The pack ships its CI before a wrangler config exists, so "installed, not yet provisioned" is the default state and every step reachable in it SHALL either succeed or skip. Where the workflow can find neither a wrangler config nor an app to build, it SHALL report that the repo is not yet configured, name the provisioning skill, and **exit green**. A step that aborts in this state produces exactly the permanently red check this requirement exists to prevent, and does so on the first push a new adopter makes.
 
 #### Scenario: A pack repo gains a PR check
 
@@ -248,6 +291,12 @@ Where the Cloudflare credentials are absent, the workflow SHALL build without de
 - **WHEN** the workflow runs in a repo with no `CLOUDFLARE_API_TOKEN` secret
 - **THEN** it builds the app and deploys nothing
 - **AND** it reports why, naming the provisioning skill as the next step
+
+#### Scenario: A repo with no wrangler config is not failed for it
+
+- **WHEN** the workflow runs in a repo that has the pack but no wrangler config — the state the pack ships in
+- **THEN** no step aborts, the job reports that the repo is not yet configured, and the check is green
+- **AND** the message names `/wong-cloudflare` as what turns deploying on
 
 #### Scenario: The workflow is never overwritten
 
@@ -323,3 +372,38 @@ Failure to publish SHALL NOT fail the deploy. The deploy has already succeeded b
 
 - **WHEN** the deploy script runs under Cloudflare Workers Builds rather than GitHub Actions
 - **THEN** it emits the URL for the log but publishes no GitHub Deployment, because Cloudflare's integration already did
+
+### Requirement: One commit deploys once
+
+A commit on a branch SHALL produce exactly one deploy. The pack's workflow triggers on both `push` and `pull_request`, and those two events SHALL NOT both deploy the same commit: two concurrent `wrangler versions upload` calls race to bind the same per-commit preview alias, and while the race settles the alias intermittently serves Cloudflare's placeholder page — indistinguishable, to the person looking at it, from a failed deploy.
+
+Three constraints hold together, and satisfying only some of them reintroduces the problem in a different form:
+
+- **The concurrency group SHALL distinguish the event as well as the branch.** Keying on the branch alone makes the two triggers share a group, and GitHub **cancels** the loser. `gh pr checks` reports a cancelled run as `fail`, so a shared group converts a double deploy into a blocked `/ship`.
+- **A job-level condition SHALL prevent the redundant run from starting** — `push`, plus pull requests whose head repository differs from the base (forks, which produce no push event in this repo). A same-repo pull request is already covered by its own push.
+- **`push` SHALL remain the deploying event.** Its `github.sha` is the branch head, which is what the preview-URL resolver looks up; a `pull_request` SHA is the merge commit, which no deploy ever published.
+
+The condition alone SHALL NOT be relied on, because **GitHub evaluates concurrency before a job's `if`** — a run that will be skipped can still cancel the run doing the work.
+
+#### Scenario: A branch with an open PR deploys once
+
+- **WHEN** a commit is pushed to a branch that has an open pull request in the same repository
+- **THEN** exactly one job deploys it
+- **AND** no second job uploads a version bound to the same preview alias
+
+#### Scenario: A skipped run cancels nothing
+
+- **WHEN** the redundant `pull_request` run is skipped by its condition
+- **THEN** the `push` run that is deploying is not cancelled
+- **AND** the check reports success rather than cancellation
+
+#### Scenario: The preview URL still resolves
+
+- **WHEN** the deploy publishes a preview URL for a branch commit
+- **THEN** the URL is attached to the branch head SHA
+- **AND** `.claude/skills/save/scripts/preview-url.sh` resolves it for that commit
+
+#### Scenario: A fork pull request still gets a check
+
+- **WHEN** a pull request arrives from a fork, which produces no push event in this repository
+- **THEN** the `pull_request` run executes so the contribution is still checked

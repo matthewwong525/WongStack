@@ -44,7 +44,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 
 // Only the exports that exist in every v8 copy of the library. `/wong-sync`
@@ -55,6 +55,37 @@ import { basename, dirname, resolve } from "node:path";
 import { findWranglerConfig, repoRoot } from "./lib-wrangler-config.mjs";
 
 const STAGING_ENV = "staging";
+
+/** The config filenames wrangler accepts, in the order it prefers them. */
+const CONFIG_NAMES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"];
+
+/**
+ * The library's `findWranglerConfig()` without the `process.exit(1)`: returns
+ * the path, or `null` when the repo has no wrangler config at all. Same search
+ * order — repo root first, then each immediate subdirectory (the `app/` layout)
+ * — so the two agree on which file they'd pick; they differ only in what
+ * happens when there isn't one.
+ */
+function findWranglerConfigOrNull() {
+  const firstIn = (dir) => {
+    for (const name of CONFIG_NAMES) {
+      const candidate = resolve(dir, name);
+      if (existsSync(candidate)) return candidate;
+    }
+    return null;
+  };
+
+  const atRoot = firstIn(repoRoot);
+  if (atRoot) return atRoot;
+
+  for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+    const found = firstIn(resolve(repoRoot, entry.name));
+    if (found) return found;
+  }
+  return null;
+}
 
 /** The file the Worker's runtime secrets are declared in. */
 const SOURCE = ".dev.vars";
@@ -535,7 +566,27 @@ if (mode !== "push" && mode !== "check") {
   process.exit(1);
 }
 
-const configPath = findWranglerConfig();
+// `check` resolves the config WITHOUT exiting, because a repo with no config at
+// all is the pack's shipping state — before `/wong-cloudflare` runs there is
+// nothing to check, and the gate's requirement is to skip rather than fail.
+// `push` keeps the library's aborting lookup: it has real work to do and cannot
+// do it without a config. The lookup is duplicated here rather than added to
+// `lib-wrangler-config.mjs` because copy-if-absent never updates a library a
+// repo already has — a script that must work the moment it lands cannot depend
+// on a library export newer than itself.
+const configPath =
+  mode === "check" ? findWranglerConfigOrNull() : findWranglerConfig();
+
+if (mode === "check" && !configPath) {
+  // The first of the three skip conditions, and the one that occurs earliest in
+  // every adoption: no config has been written yet. Joins no-`env.staging` and
+  // unparseable-config as a skip, not an abort.
+  console.log(
+    "cf-secrets: no wrangler config yet — skipping the parity check (run /wong-cloudflare to configure and provision)",
+  );
+  process.exit(0);
+}
+
 const appDir = dirname(configPath);
 console.log(`cf-secrets: ${mode} (config: ${configPath.slice(repoRoot.length + 1)})`);
 
