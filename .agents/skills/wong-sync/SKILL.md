@@ -41,6 +41,7 @@ MF="$ROOT/.claude/.wong-stack.json"
   - `UPSTREAM` ← `upstream.repo` — defaults to `https://github.com/matthewwong525/WongStack` when absent.
   - `WS` ← `upstream.clone` — the cached clone path, with a leading `~` expanded to `$HOME`. Only a hint; Step 1 re-resolves it.
   - `STACKPACK` ← `components.stackPack` — whether this repo took the opt-in Cloudflare stack pack. Absent = false. Gates the pack's files into the Step 2 file list.
+  - `APPSCAFFOLD` ← `components.appScaffold` — whether this repo took the opt-in app scaffold. Absent = false. Gates `app/` into the Step 2 file list, and **only in combination with `STACKPACK`** — the pair is the gate, since the scaffold's build and deploy path is the pack. `APPSCAFFOLD` true with `STACKPACK` false is not a valid manifest state: treat it as false, say so, and carry on.
   - `SKILLMAP` ← `components.skills` — what was actually installed, including any local renames.
   - `LEDGER` ← `capabilities` — **only on a manifest written before v8.5.** Verdicts now live solely in `.claude/wong-sync-verdicts.md`; if this key is still here, Step 3 folds it into the record and Step 4 writes the manifest without it. Absent is the normal case.
 
@@ -81,6 +82,7 @@ Three scoping rules:
 - **`CLAUDE.md`'s unit is the block, not the file.** No `WONG-STACK:BEGIN/END` markers (or no file at all) → insert the block, markers included, creating the file if needed and leaving every byte outside the markers untouched. Markers present → the block goes to Step 3 and is never rewritten in place.
 - **A renamed skill counts as present.** If `components.skills` records a payload skill installed under a different local name, that's the name it lives under here — it is present, so it is adapted, not copied in a second time under the default name.
 - **The opt-in stack pack** ([its files](references/payload-manifest.md#the-opt-in-stack-pack) — the three `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, and the whole `wiki/stack/` section) enters the file list **only when `$MF` has `components.stackPack: true`**. For any other repo they're outside the manifest — never copied, never analysed, never offered. Adopting the pack is not this skill's job: the door is `/wong-cloudflare` — or, where that skill isn't installed yet, setting `components.stackPack: true` and re-running the sync, which then copies the pack in; that copy is this skill's only part in adoption. When they are in scope they follow the same copy-if-absent / adapt-if-present rule as everything else. The pack's config fragments are *not* files in this list; they merge into files this repo owns, so they follow the guided-edit path and surface through Step 3.
+- **The opt-in app scaffold** ([its files](references/payload-manifest.md#the-opt-in-app-scaffold) — all of `app/` **except `app/wrangler.jsonc`**) enters the file list **only when `$MF` has both `components.appScaffold: true` and `components.stackPack: true`**. `app/wrangler.jsonc` is excluded even then: it carries live `database_id`s, and the target's config is created instead by `/wong-cloudflare` from the fragment. Every other scaffold file is ordinary copy-if-absent — a repo that already has a file at one of these paths keeps its own, byte for byte, so an existing application is never clobbered and a partial scaffold simply completes. With either flag absent, `app/` is outside the manifest entirely: not copied, not analysed, not offered.
 
 Say what was copied, in one line each. Copied files are working-tree edits only — no `git add`, no commit, no branch.
 
@@ -105,11 +107,12 @@ Update `.claude/.wong-stack.json` to reflect what actually happened. This block 
 { "version": "<LATEST>", "commit": "<WS_HEAD>",
   "installedAt": "<existing>", "updatedAt": "<today>",
   "upstream": { "repo": "<UPSTREAM>", "fork": "<preserved as-is, or null>", "clone": "<WS path>" },
-  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent> } }
+  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent>, "appScaffold": <true if this repo took the app scaffold, else omit> } }
 ```
 
 - **`commit`** ← `$WS_HEAD`. It records the clone HEAD this repo last synced against. It is **not** a diff base — nothing in this skill diffs — and exists for the changelog walk.
 - **The manifest carries install state only** — what is installed here, from where, and as of when. Verdicts, reasons, and the commit a decision was judged against live in `.claude/wong-sync-verdicts.md` and nowhere else. If this manifest still has a `capabilities` key from an earlier version, Step 3 has already folded it into the record; write the manifest without it.
+- **`appScaffold` is preserved, never inferred.** Write it as it was; a repo that took the scaffold keeps the flag, and a repo whose manifest has no such key gets none written — the absence is what makes every pre-9.1 install behave exactly as it did. Never set it because `app/` happens to exist: the flag records a decision, and plenty of repos have an `app/` directory they wrote themselves. Setting it is the job of `/wong-setup` and `/wong-cloudflare`, which ask first.
 - **`upstream.fork`** is preserved byte-for-byte where an older version recorded one, and is never written or used. Nothing in this skill forks anything.
 - ⑂ A seed manifest's null `version`/`commit` are filled with `$LATEST`/`$WS_HEAD` here — keep its `installedAt` and any renames it recorded.
 - Older manifests just gain the new keys; nothing breaks on a v1 manifest. If the repo still carries a `contribute-wong-stack` skill or symlink, offer to remove it — `/wong-sync` supersedes it.

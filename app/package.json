@@ -7,8 +7,6 @@
     "dev": "vite",
     "build": "bash ../scripts/cf-build.sh",
     "build:app": "tsc -b && vite build",
-    "db:migrate:staging": "wrangler d1 migrations apply wongstack-db-staging --remote --env staging",
-    "db:migrate:prod": "wrangler d1 migrations apply wongstack-db --remote",
     "db:reset:staging": "node ../scripts/reset-staging-d1.mjs",
     "secrets:push": "node ../scripts/cf-secrets.mjs push",
     "secrets:check": "node ../scripts/cf-secrets.mjs check",

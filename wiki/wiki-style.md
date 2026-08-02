@@ -35,9 +35,9 @@ Readers don't browse a table of contents — they **follow inline links down, or
 
 Links are the connective tissue of a progressive-disclosure tree: the more the pages interlink, the easier it is to land anywhere and find the next thing. So **link every doc, app, page, tool, or external resource the moment you name it** — inline, at the point of need. The bar is low: if you mention something that has a page or URL, link it.
 
-- Naming another doc? Link it (`[finding inspiration](../marketing/find-inspiration.md)`) — never just say its name in plain text.
+- Naming another doc? Link it (`[the secrets convention](development/secrets.md)`) — never just say its name in plain text.
 - Naming an app page, dashboard, or external tool? Link it (`[the deploy dashboard](https://…)`).
-- Pointing at one **section** of a page, not the whole thing? Append the heading anchor: `[count raw materials](weekly-cadence.md#count-raw-materials)`. The anchor is the heading text **lowercased, spaces → hyphens, punctuation dropped** (so `## Count raw materials — Monday` becomes `#count-raw-materials--monday`). Linking the exact section beats linking the page and making the reader hunt. The same `#anchor` works within a page (`[see below](#adding-a-page--the-checklist)`).
+- Pointing at one **section** of a page, not the whole thing? Append the heading anchor: `[sending a change upstream](contributing.md#the-bar)`. The anchor is the heading text **lowercased, spaces → hyphens, punctuation dropped** (so `## The bar — what belongs upstream` becomes `#the-bar--what-belongs-upstream`). Linking the exact section beats linking the page and making the reader hunt. The same `#anchor` works within a page (`[see below](#adding-a-page--the-checklist)`).
 - Every page should point **up** to its hub, **down** to anything it references, and **sideways** to the sibling pages it hands off to or depends on.
 
 Err on the side of more links — a reader who doesn't need them loses nothing, and a reader who does shouldn't have to go searching. (The one exception: never put links inside a `mermaid` diagram — keep those visual-only; see below.)

@@ -40,13 +40,21 @@ Read `.claude/.wong-stack.json` (no manifest at all → WongStack isn't installe
 
 > *"Do you want this to be a real website people can open at an address? I can set up the hosting, the data storage, and automatic publishing — so every change you make gets its own link to look at before it goes live. It needs a free Cloudflare account and a few minutes. Totally optional; everything else works either way."*
 
+**Does this repo have an app of its own?** Decide before you ask, on the same three signals `/wong-setup` uses — a `package.json` with a build script, an application entry point of any kind, or a wrangler config. Only the absence of all three makes it appless; lean toward "has one" when uncertain. Where it has none, the same one question also covers the starter site, because the pack alone would land a pipeline with nothing to run through it:
+
+> *"…automatic publishing. There's nothing to publish yet, so I'll also set up a starter site you can change — that way there's something real at the address from day one."*
+
+Still one question — don't ask separately about an app, and don't name a framework or a Worker. A repo that already has an app is never offered the scaffold.
+
 Keep product names and file lists out of the prompt; have them ready for a user who asks. On a **no**, stop — nothing changes. On a **yes**:
 
-1. Set `components.stackPack: true` in `.claude/.wong-stack.json`.
-2. Land the pack's drop-in files: read and follow `.claude/skills/wong-sync/SKILL.md` **Steps 1–2 only** — refresh the cached clone, copy what's absent. The adapt step is not part of this.
+1. Set `components.stackPack: true` in `.claude/.wong-stack.json` — plus `components.appScaffold: true` when the offer included the starter site. The two are set together and only together; `appScaffold` without `stackPack` is not a valid state.
+2. Land the pack's drop-in files: read and follow `.claude/skills/wong-sync/SKILL.md` **Steps 1–2 only** — refresh the cached clone, copy what's absent. The adapt step is not part of this. With `appScaffold` set, that same copy-if-absent walk lands the [app scaffold](../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) too, so provisioning has something to deploy.
 3. Continue below.
 
 **Whether the flag was just set or set long ago**, make sure the pack's config wiring is in: apply any missing **id-free fragments** — `package.json` scripts, `.env.example` variables, the `.gitignore` entries — as guided edits from [`stack-pack-fragments.md`](../wong-sync/references/stack-pack-fragments.md) (show → confirm → merge, never blind-write). The `wrangler.jsonc` block waits for Step 4, where the real ids exist; a missing wrangler config is created there from the fragment, not a reason to stop.
+
+The `package.json` fragment's `db:migrate:staging` and `db:migrate:prod` are the one part of it you **fill rather than copy**: write the literal database names for this repo — the same ones Step 4a derives from the repository name (`<repo>-db` and `<repo>-db-staging`). No copied payload file may carry a database name, so the fragment is where those two scripts come from and this is where they get their values. You reach this step before Step 4a runs, which is fine: the names are derived from the repository name, not returned by the API, so write the ones you are about to use. If 4a ends up suffixing a name that was already taken, correct the two scripts there.
 
 **No Cloudflare account or token yet?** Stop cleanly here: the files and wiring are in place, CI builds green without deploying, and a re-run with a token finishes the job. Say exactly that.
 
@@ -89,7 +97,7 @@ curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
 ```
 
 - **Exactly one** → use it, and say which one you're using.
-- **More than one** → list them by name and ask. Do not guess. Provisioning into the wrong account is annoying to undo.
+- **More than one** → **stop and ask.** List them by name and id, wait for an explicit choice, and **create nothing until you have it** — not a database, not a Worker, not a secret. Never infer the account from the repo name, the email, or the order the API returned them. A personal token commonly sees a personal account *and* a shared work one; one adopter's run came within a step of provisioning a project into an unrelated organization's account. Undoing that means deleting resources from an account you may not administer.
 - **Zero, with a valid token** → the Account Resources miss ([failure map](references/failure-map.md)). Explain, offer to re-check once they've saved it. Create nothing.
 
 Write the chosen id to `CLOUDFLARE_ACCOUNT_ID` in `.env`.
@@ -119,7 +127,9 @@ Say it in those terms. *"Two databases: the real one, and a practice one your te
 
 ### 4c. The binding
 
-Merge the `wrangler.jsonc` fragment from [`stack-pack-fragments.md`](../wong-sync/references/stack-pack-fragments.md) with the **real ids you just created**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry — each with its own `database_name`, its own `migrations_dir`, and `env.staging` with its own Worker `name`. No config exists yet → create it from the fragment. The fragment's five rules (why the environment redeclares everything, the `migrations_dir` relative path, the cron-trigger exception) are owned there — follow them, don't restate them.
+Merge the `wrangler.jsonc` fragment from [`stack-pack-fragments.md`](../wong-sync/references/stack-pack-fragments.md) with the **real ids you just created**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry — each with its own `database_name`, its own `migrations_dir`, and `env.staging` with its own Worker `name`. No config exists yet → create it from the fragment. The fragment's six rules (why the fragment must describe a deployable Worker, why the environment redeclares everything, the `migrations_dir` relative path, the cron-trigger exception) are owned there — follow them, don't restate them.
+
+**The config you create carries the Worker entry point as well as the ids** — `main`, `assets`, `compatibility_date`, `compatibility_flags` — because the fragment is the only thing in the payload that creates this file. That is what makes a scaffolded repo deployable without the user authoring any application code: the [scaffold](../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) brought `worker/index.ts` and the site, this step supplies the config that points at them. The same holds for a repo whose Worker was already its own — confirm `main` matches its actual entry point rather than assuming the fragment's default. Never ask a user on the scaffold path to write a Worker; there is already one there.
 
 ### 4d. GitHub secrets
 
@@ -149,6 +159,27 @@ Report the URLs — `GET /accounts/{account_id}/workers/subdomain` gives you `<s
 
 The preview line is a **pattern** — each commit's actual URL is harvested from the deploy's own output by CI ([how it reaches the tooling](../../../wiki/stack/d1-pipeline.md#how-the-alias-url-reaches-the-tooling)), never constructed by hand.
 
+**Say the URL may not work for a minute or two.** A freshly-created `workers.dev` hostname serves a `404` or Cloudflare's *"There is nothing here yet"* placeholder for a short window after the first deploy, while the hostname propagates. Hand the URL over with that stated up front — *"give it a minute; a brand-new address shows a Cloudflare placeholder until it settles"* — because a user who opens it immediately, sees a placeholder, and hasn't been warned concludes the deploy failed. Two adopters read exactly that as a broken run.
+
+### 4g. Smoke-test what you built
+
+Before reporting success, make one request and check it. A provisioning run that reports a URL it never fetched is reporting a guess.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}' "https://<worker>.<subdomain>.workers.dev/"
+```
+
+Assert against **how this app is configured**, and name which request disagreed when it fails:
+
+| configuration | anonymous request | with service token | verdict |
+|---|---|---|---|
+| public (the default) | `200` from the app | — | pass |
+| Access on | `302` to `<team>.cloudflareaccess.com` | `200` from the app | pass |
+
+Retry across the propagation window above before calling it a failure — a placeholder in the first minute is expected, one after several minutes is not. **Fail the run on a genuine mismatch** and say precisely which request disagreed and what it returned: *"anonymous request returned 200; Access is configured, so it should have been challenged"* is actionable, *"smoke test failed"* is not.
+
+**Where Access is on, say what this does not prove.** Both of those requests can pass while **no human can log in** — that is exactly the `workers.dev` failure the [Access runbook](../../../wiki/stack/cloudflare-access.md#why-workersdev-cannot-be-gated) documents. Report the terminal result and then point at the browser check: *"both terminal checks pass, which does not prove the wall works — open the URL in a browser and log in; that is the only check that covers a human."*
+
 ## Step 5 — the closing report
 
 State, in plain language:
@@ -165,14 +196,22 @@ Do not end on a menu. End on the URL and the one next command.
 
 Access is **opt-in**. Nothing above requires it, and a public app is a legitimate choice.
 
-When someone does want it, two things happen together and must never be separated: widen into the Access groups ([the protocol](references/permission-groups.md)) and follow [the Access runbook](../../../wiki/stack/cloudflare-access.md), **and** change the Worker to read the identity header in the same step —
+When someone does want it, two things happen together and must never be separated: widen into the Access groups ([the protocol](references/permission-groups.md)) and follow [the Access runbook](../../../wiki/stack/cloudflare-access.md), **and** turn on the Worker's enforcement in the same step —
 
 ```
-   public Worker + code that trusts Cf-Access-Authenticated-User-Email
+   public Worker + code that enforces an identity header
         = anyone can send that header and become any user
 ```
 
-— which is why the template Worker ships trusting nothing. One runbook step is **unverified**: creating the Zero Trust organization on an account that has never used Zero Trust. Say so, and give the dashboard fallback rather than implying it was proven.
+— which is why the template Worker ships enforcing nothing. Enforcement is `app/worker/access.ts`, which ships beside the entry point, inert; adopting is wiring it in and setting two `vars`, not writing auth code ([the wiring step](../../../wiki/stack/cloudflare-access.md#turning-it-on)).
+
+**Three things to say before they start, because each is a way this goes silently wrong:**
+
+- **Access needs a custom domain.** `workers.dev` cannot be reliably gated: a logged-in browser gets Cloudflare's placeholder while `curl` and service tokens both succeed. Do not stand Access up on a `workers.dev` hostname and report it as working — [the runbook's opening](../../../wiki/stack/cloudflare-access.md#why-workersdev-cannot-be-gated) owns this.
+- **Scope the hostnames to this app.** Never `*.<subdomain>.workers.dev` — it matches every Worker in the account, and would wall unrelated ones.
+- **Terminal checks are not evidence.** Verification is a logged-in browser load. A service-token `200` proves machines get through, not that a human can.
+
+One runbook step is **unverified**: creating the Zero Trust organization on an account that has never used Zero Trust. Say so, and give the dashboard fallback rather than implying it was proven.
 
 ## Teardown
 

@@ -9,16 +9,16 @@ Every change to WongStack — and to any repo that installs it — moves through
             (no git)   (no git)   preview
 ```
 
-Each verb is a thin WongStack skill fronting one step of OpenSpec, the planning layer. **OpenSpec owns the plan; the WongStack skills own all git** — OpenSpec never runs git itself. You never have to type `/opsx:*` by hand, though those commands stay available if you want the raw step. The three *think/draft/implement* verbs (`/explore`, `/plan`, `/apply`) implement no git themselves; the three *git* verbs (`/save`, `/continue`, `/ship`) own every branch, PR, and merge. When `/apply` completes every task, it automatically crosses that boundary by invoking `/save`.
+Each verb is a thin WongStack skill fronting one step of OpenSpec, the planning layer. **OpenSpec owns the plan; the WongStack skills own all git** — OpenSpec never runs git itself. You never invoke the OpenSpec layer directly — `openspec init` generates five `openspec-*` skills, which these verbs call for you, and no `/opsx:*` slash commands. The three *think/draft/implement* verbs (`/explore`, `/plan`, `/apply`) implement no git themselves; the three *git* verbs (`/save`, `/continue`, `/ship`) own every branch, PR, and merge. When `/apply` completes every task, it automatically crosses that boundary by invoking `/save`.
 
 ## The steps
 
-- **[`/explore`](../../.claude/skills/explore/SKILL.md)** *(optional)* — think a problem through before committing to a shape. Fronts `/opsx:explore`. Nothing is written yet.
-- **[`/plan`](../../.claude/skills/plan/SKILL.md)** — draft the change: a folder `openspec/changes/<name>/` holding the proposal, tasks, optional design, and optional delta specs. Fronts `/opsx:propose`. Still no git.
-- **[`/apply`](../../.claude/skills/apply/SKILL.md)** — implement: work the change's `tasks.md`, writing the code and checking off `- [x]` as each task lands. Fronts `/opsx:apply`, then invokes `/save` exactly once when every task is complete. A paused or blocked apply does not auto-save; invoke `/save` yourself only if you want that partial state checkpointed.
-- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint, the git stage: commit code + change together, push, open/update a PR whose body **mirrors the change**, wait for CI when present (auto-fixing failures; no checks → PR review is the gate), and return a preview URL. Before committing it **syncs the change** — plan sections update in place, the `**Status:**` header is maintained, a dated entry is **appended** to the `## Decision log`, and delta specs (if any) fold into `openspec/specs/` (`/opsx:sync`). Skipped `/plan`? `/save` authors the change from your session as a fallback, so nothing ships without its handoff. It also writes the **session note** (`notes/<slug>.md`) — the conversation compressed into the repo, which is what lets `/dream` consolidate from another machine.
+- **[`/explore`](../../.claude/skills/explore/SKILL.md)** *(optional)* — think a problem through before committing to a shape. Fronts the `openspec-explore` skill. Nothing is written yet.
+- **[`/plan`](../../.claude/skills/plan/SKILL.md)** — draft the change: a folder `openspec/changes/<name>/` holding the proposal, tasks, optional design, and optional delta specs. Fronts the `openspec-propose` skill. Still no git.
+- **[`/apply`](../../.claude/skills/apply/SKILL.md)** — implement: work the change's `tasks.md`, writing the code and checking off `- [x]` as each task lands. Fronts the `openspec-apply-change` skill, then invokes `/save` exactly once when every task is complete. A paused or blocked apply does not auto-save; invoke `/save` yourself only if you want that partial state checkpointed.
+- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint, the git stage: commit code + change together, push, open/update a PR whose body **mirrors the change**, wait for CI when present (auto-fixing failures; no checks → PR review is the gate), and return a preview URL. Before committing it **syncs the change** — plan sections update in place, the `**Status:**` header is maintained, a dated entry is **appended** to the `## Decision log`, and delta specs (if any) fold into `openspec/specs/` (the `openspec-sync-specs` skill). Skipped `/plan`? `/save` authors the change from your session as a fallback, so nothing ships without its handoff. It also writes the **session note** (`notes/<slug>.md`) — the conversation compressed into the repo, which is what lets `/dream` consolidate from another machine.
 - **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name (= branch), by PR, or from the `openspec list` menu (which shows each change's Status): check out its branch, recap the proposal + the tail of its Decision log + the session note when one exists, run a counts-only drift check, then hand off to `/apply`. Picks up cold on any machine from a fresh clone.
-- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts `/opsx:archive`. It merges through [the gate](#the-gate) below.
+- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts the `openspec-archive-change` skill. It merges through [the gate](#the-gate) below.
 
 Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
 
@@ -26,7 +26,7 @@ Loop back any time: invoke `/save` as often as you like while building — each 
 
 **[`/walk`](../../.claude/skills/walk/SKILL.md)** sits *beside* the loop rather than in it. It invokes `/save`, then drives the change's own OpenSpec scenarios through a real browser against the deployed preview and posts screenshots, video, and a verdict to the PR. Invoke it whenever you want to see the thing working — mid-change, twice in a row, or right before `/ship`.
 
-It **gates nothing**: no verdict blocks a merge, and no other verb consults its result. That's what makes it safe to run early and often. Opt-in per repo and detected from state — see [the runbook](../stack/staging-walkthrough.md).
+It **gates nothing**: no verdict blocks a merge, and no other verb consults its result. That's what makes it safe to run early and often. Opt-in per repo and detected from state; where the Cloudflare stack pack is installed, `wiki/stack/staging-walkthrough.md` is its runbook.
 
 ## The gate
 
@@ -40,7 +40,7 @@ Where they don't, the PR (plus the OpenSpec change and its archive) is the recor
 Either way, **nothing builds locally as a prerequisite.**
 
 **The ladder is CI-when-present → merge**, and a skipped rung is never a failure. Nothing else gates
-a merge. In particular the [staging walkthrough](../stack/staging-walkthrough.md) does not: it's
+a merge. In particular the staging walkthrough (`/walk`) does not: it's
 reached by invoking [`/walk`](#walking-the-app), and `/ship` neither runs it nor checks whether it
 ran.
 
@@ -86,4 +86,4 @@ Most changes are `proposal.md` + `tasks.md` only. A change writes delta specs un
 
 Both end up working the change's `tasks.md`, but they enter from different places. **`/apply`** is the implement stage — use it in a live session, already on the branch, right after `/plan`; finishing every task automatically hands the result to `/save`. **`/continue`** is the *resume* on-ramp: it takes a handle (change name, PR, or the menu), checks out the branch, orients you (Status + Decision-log tail + drift check), then hands off to `/apply` and therefore gets the same completion behavior. Cold on another machine → `/continue`; already here → `/apply`.
 
-See also [Adding a skill](adding-a-skill.md) for how a new verb gets wired through the payload.
+Adding a verb of your own is a matter of writing a `SKILL.md` under `.claude/skills/<name>/` and pointing at it from this page — the loop above is a convention, not a hardcoded list.

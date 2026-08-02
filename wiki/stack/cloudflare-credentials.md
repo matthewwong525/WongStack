@@ -59,6 +59,10 @@ CLOUDFLARE_ACCOUNT_ID=
 
 `.env.example` uses these same two names. Provisioning creates `.env` from it, confirms git ignores it, and fills `CLOUDFLARE_ACCOUNT_ID` for you once it knows which account you picked.
 
+> **This page owns the token variable's name.** `CLOUDFLARE_API_TOKEN` is what wrangler reads natively, and what `scripts/cf-secrets.mjs`, `.github/workflows/deploy.yml`, `/wong-cloudflare`, and the GitHub repository secret all read. Every other surface that mentions it — the `.env.example` template, the [config fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#envexample--cloudflare-variables) — links here rather than restating it, so there is one place to change and no second definition to drift from.
+>
+> **Renaming it is a behavioural change, not a docs edit.** The name has flipped between `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_USER_TOKEN` three times across releases, in both directions, because a rename in a template looks exactly like prose in review. It isn't: it changes what a provisioned repo does. A change to this name requires a `VERSION` bump and a `CHANGELOG.md` entry like any other behavioural change — and the symptom when it's wrong is silent, since a token under an unread name looks identical to "not provisioned yet".
+
 CI gets its copy as **GitHub repository secrets** — provisioning sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` with `gh secret set`, so the pack's Actions workflow can deploy. The token therefore lives in exactly two places, neither committed: the git-ignored `.env`, and GitHub's sealed secret store. (A repo on the Workers Builds fallback needs neither: that CI runs inside Cloudflare.)
 
 ## How two checkboxes become enough
@@ -98,6 +102,16 @@ CF_ACCESS_CLIENT_SECRET=
 ```
 
 Create it while you're setting up Access ([step 5](cloudflare-access.md#5-create-the-service-token-do-it-now)) — adding it later means re-opening the policy.
+
+### What a service-token request looks like at the Worker
+
+This is the part that catches people out, because it is the opposite of what the two headers above suggest:
+
+- **The two headers you sent are stripped at the edge.** `CF-Access-Client-Id` and `CF-Access-Client-Secret` do not reach your Worker; Access consumes them.
+- **No email header is set.** Access sets `Cf-Access-Authenticated-User-Email` for a *human* who signed in through your identity provider. A service token has no email, so the header is simply absent. A Worker that authenticates by reading it therefore rejects **every machine caller** — CI, scripts, and WongStack's own [`/walk`](staging-walkthrough.md) — with a `401`, while working fine in your browser. That asymmetry is why the header pattern looks correct right up until automation needs in.
+- **What does arrive** is `cf-access-jwt-assertion` — the signed assertion — alongside the ordinary `cf-connecting-ip`, `cf-ipcountry`, `cf-ray`, and `cf-visitor`.
+
+So the assertion is the only signal that covers humans and machines both. In its verified claims, a human carries `email` and a service token carries `common_name` (the token's Client ID, with `sub` an empty string) — one code path, both callers. That is what [`app/worker/access.ts`](cloudflare-access.md#the-auth-model-verify-the-signed-assertion) does, and why the Access runbook rejects plain header trust.
 
 ## Worker secrets are per environment
 

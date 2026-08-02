@@ -37,7 +37,11 @@ The payload SHALL include a provisioning skill, gated on `components.stackPack: 
 
 When `/wong-cloudflare` runs in a repo whose manifest lacks `components.stackPack: true` (or whose pack files never landed), it SHALL NOT stop and point elsewhere. It SHALL make the pack's outcome-phrased offer itself; on a yes it SHALL set `components.stackPack: true` in `.claude/.wong-stack.json`, land the pack's drop-in files by following the `wong-sync` skill's clone-refresh and copy-if-absent steps (the adapt step SHALL NOT run as part of this), apply the id-free config fragments, and continue into provisioning. On a no it SHALL stop having changed nothing.
 
-The skill SHALL own all config-fragment application: the id-free fragments (`package.json` scripts, `.env.example` variables, `.gitignore` entries) at the start of a run where they are missing, and the `wrangler.jsonc` block at the binding step with real resource ids. A missing wrangler config SHALL be created from the fragment, not treated as a reason to stop.
+Where the repo has no application of its own, the offer SHALL include the app scaffold on the same terms `wong-setup` uses: one outcome-shaped question, and on a yes `components.appScaffold: true` is set alongside `stackPack` so the copy-if-absent walk lands the scaffold too. A repo that already has an application SHALL NOT be offered it.
+
+The skill SHALL own all config-fragment application: the id-free fragments (`package.json` scripts, `.env.example` variables, `.gitignore` entries) at the start of a run where they are missing, and the `wrangler.jsonc` block at the binding step with real resource ids. A missing wrangler config SHALL be created from the fragment, not treated as a reason to stop. Because the fragment declares the Worker entry point as well as the bindings, the created config SHALL be deployable whether the application arrived with the scaffold or was already the repo's own.
+
+The `db:migrate:staging` and `db:migrate:prod` scripts SHALL be written with the database names the skill derives, as part of the `package.json` fragment, since no copied payload file may carry a database name.
 
 When no Cloudflare token is available yet, the skill SHALL stop cleanly after the adoption work with the files and fragments in place, stating that a re-run with a token completes provisioning.
 
@@ -46,6 +50,18 @@ When no Cloudflare token is available yet, the skill SHALL stop cleanly after th
 - **WHEN** `/wong-cloudflare` runs in a repo that has the skill but not `components.stackPack: true`
 - **THEN** it offers the pack, and on a yes sets the flag, lands the missing drop-in files, applies the id-free fragments, and proceeds toward provisioning
 - **AND** on a no it stops with the repo unchanged
+
+#### Scenario: Late adoption in a repo with no app
+
+- **WHEN** `/wong-cloudflare` offers the pack in a repo with no application of its own and the user says yes
+- **THEN** it sets `components.appScaffold: true` alongside `components.stackPack: true`
+- **AND** the copy-if-absent walk lands the scaffold, so provisioning has something to deploy
+
+#### Scenario: A scaffolded repo needs only ids
+
+- **WHEN** the skill reaches the binding step in a repo carrying the scaffold
+- **THEN** it creates the wrangler config from the fragment, supplying the entry point and the ids it just provisioned
+- **AND** it does not ask the user to author any application code
 
 #### Scenario: Adoption without a token yet
 
@@ -223,3 +239,74 @@ The skill SHALL provide a teardown path that removes the resources a provisionin
 - **WHEN** the account contains databases or Workers that this repo did not create
 - **THEN** teardown does not delete them
 - **AND** it names them as skipped
+
+### Requirement: The account is chosen before anything is created
+
+Where the token resolves more than one Cloudflare account, the skill SHALL enumerate the accounts it can see and stop for an explicit choice **before creating any resource**. It SHALL NOT infer the account from ordering, from a single-match heuristic applied to a multi-match result, or from the repository's name.
+
+Provisioning into the wrong account is expensive to undo — resources must be created again elsewhere and deleted here, and anything already bound to them re-bound — and the mistake is invisible at the moment it is made, since every call succeeds. An adopter with access to more than one account came within one step of provisioning a personal project into a business account.
+
+#### Scenario: A multi-account token stops for a choice
+
+- **WHEN** the token can see more than one account
+- **THEN** the skill lists them and asks which to use
+- **AND** it creates nothing until the answer arrives
+
+#### Scenario: A single-account token does not ask
+
+- **WHEN** the token resolves exactly one account
+- **THEN** the skill proceeds, naming the account it resolved
+
+### Requirement: Permission propagation is waited out, not treated as failure
+
+After the token widens its own permissions, the skill SHALL treat an early authorization failure as **propagation rather than refusal**, retrying with backoff before concluding anything. A widen can take up to roughly a minute to take effect, and the Access endpoints in particular were observed returning `403` for about that long immediately after a successful widen.
+
+The retry window and the reason SHALL be documented wherever the probe protocol is stated, so that a first `403` is not read as a wrong token, a wrong account, or a missing permission group — each of which sends the reader down a diagnosis that cannot succeed.
+
+#### Scenario: An early 403 after widening is retried
+
+- **WHEN** an API call fails authorization within the propagation window of a successful widen
+- **THEN** the skill retries with backoff before reporting a failure
+- **AND** it says it is waiting for propagation rather than reporting a permission problem
+
+#### Scenario: A genuine permission failure is still reported
+
+- **WHEN** the calls continue to fail after the documented window
+- **THEN** the skill reports the failure with the permission group involved
+
+### Requirement: A fresh hostname's placeholder is set as an expectation
+
+The skill SHALL tell the user, at the point it hands over a newly created `workers.dev` URL, that a hostname can serve a placeholder or `404` for a minute or two after its first deploy. Without that sentence the first thing a new user sees at their new address is a page that reads as a failed deploy — observed twice in one adoption.
+
+#### Scenario: The handover sets the expectation
+
+- **WHEN** the skill reports a URL for a hostname deployed for the first time
+- **THEN** it states that the address may briefly 404 or show a placeholder before it resolves
+
+### Requirement: A run finishes with a smoke test against the deployed URL
+
+Before reporting success, the skill SHALL make two requests against the deployed URL and assert the results: one **anonymous**, and one **authenticated** by the means the repo actually uses — a service token where Access is on, an ordinary request where it is not. It SHALL assert that each gets the response its configuration implies: the application for the authenticated caller, and the application or an Access challenge, per configuration, for the anonymous one.
+
+A mismatch SHALL be reported as a failure of the run rather than a note, and SHALL name which of the two requests disagreed with the configuration.
+
+This check exists because the two most damaging findings in this area were both invisible to every other step: an Access wall that admitted service tokens and challenged anonymous callers while serving a browser a placeholder, and an auth implementation that `401`d every machine caller. Both would have surfaced here immediately.
+
+Where Access is in front, the skill SHALL additionally state that the smoke test does not prove a human can log in, and point at the runbook's browser verification — the terminal cannot establish that.
+
+#### Scenario: A public app answers both requests
+
+- **WHEN** the run finishes on a repo with no Access in front
+- **THEN** both the anonymous and the authenticated request receive the application
+- **AND** the run reports the check passed
+
+#### Scenario: A gated app challenges the anonymous caller
+
+- **WHEN** the run finishes on a repo with Access configured
+- **THEN** the anonymous request receives a challenge and the service-token request receives the application
+- **AND** the report states that browser verification is still required to confirm a human can pass
+
+#### Scenario: A locked-out machine caller fails the run
+
+- **WHEN** the service-token request is rejected by the app's own auth code
+- **THEN** the run reports a failure naming that request
+- **AND** it does not report provisioning as successful

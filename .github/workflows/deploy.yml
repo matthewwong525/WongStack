@@ -10,9 +10,39 @@
 # So both CI backends run identical code, and a repo can switch between them by
 # changing where the scripts are invoked from. See wiki/stack/d1-pipeline.md.
 #
-# Before /wong-cloudflare has run there are no secrets, so this builds only.
-# That is deliberate: an unprovisioned repo gets a real PR check instead of a
-# permanently red one.
+# An unprovisioned repo gets a real PR check instead of a permanently red one,
+# and it does so at two levels:
+#
+#   - No wrangler config at all — the state the pack SHIPS in, before
+#     /wong-cloudflare writes one. "Locate the app" detects it (cf-build.sh
+#     --app-dir exits 3 for exactly this) and the job reports why and stops,
+#     green. Every later step is gated on that detection.
+#   - Config but no secrets — builds without deploying, as before.
+#
+# ---------------------------------------------------------------------------
+# Why one commit does not deploy twice
+#
+# `push` and `pull_request` both fire for a commit on a branch with an open PR.
+# Collapsing them takes THREE parts, and two are non-obvious:
+#
+#   1. The concurrency group keys on the EVENT as well as the branch. Keying on
+#      the branch alone does not merge the two triggers — `github.ref` is
+#      `refs/heads/x` on push and `refs/pull/N/merge` on pull_request, so the
+#      groups never matched in the first place. Worse, a key that DID match
+#      would make one run cancel the other, and `gh pr checks` reports a
+#      cancelled run as `fail`, which blocks /ship. Separate groups, no
+#      cancellation between triggers.
+#   2. The job-level `if` means only `push` — plus pull requests from FORKS,
+#      whose pushes fire no event in this repo — actually runs. A same-repo PR
+#      is already covered by its own push event.
+#   3. Both are required, because GITHUB EVALUATES CONCURRENCY BEFORE A JOB'S
+#      `if`. A run destined to be skipped still enters its concurrency group
+#      and can still cancel the run doing the real work. The `if` alone looks
+#      correct in testing and races in practice; the group alone leaves the
+#      double deploy in place.
+#
+# `push` stays the deploying event, so the preview URL attaches to the branch
+# head SHA — which is the SHA /save and /walk look the preview up by.
 
 name: Deploy
 
@@ -20,14 +50,18 @@ on:
   push:
   pull_request:
 
-# One release per branch. Let an in-flight production deploy finish rather than
-# cancelling it half-applied; previews are cheap, so cancel those.
+# One release per branch PER EVENT — see the header. Let an in-flight production
+# deploy finish rather than cancelling it half-applied; previews are cheap, so
+# cancel those.
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
 
 jobs:
   build:
+    # Same-repo pull requests are already covered by their push event; only a
+    # fork PR, which fires no push here, needs the pull_request trigger.
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,17 +80,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Exit 3 means "no wrangler config yet" — not a failure, just a repo that
+      # has taken the pack and not yet been provisioned. Report it and let every
+      # later step skip, so the check is green and says what to do next. Any
+      # other non-zero exit is a real error and still fails the job.
       - name: Locate the app
         id: app
-        run: echo "dir=$(bash scripts/cf-build.sh --app-dir)" >> "$GITHUB_OUTPUT"
+        run: |
+          set +e
+          DIR=$(bash scripts/cf-build.sh --app-dir)
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -eq 3 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Not configured yet"
+              echo ""
+              echo "This repo has the Cloudflare stack pack but no wrangler config,"
+              echo "so there is nothing to build or deploy yet."
+              echo ""
+              echo "Run \`/wong-cloudflare\` to configure and provision it."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "No wrangler config yet — run /wong-cloudflare to configure and provision."
+            exit 0
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            echo "cf-build.sh --app-dir failed with exit $STATUS" >&2
+            exit "$STATUS"
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
+        if: ${{ steps.app.outputs.configured == 'true' }}
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: ${{ steps.app.outputs.dir }}/package-lock.json
 
       - name: Install
+        if: ${{ steps.app.outputs.configured == 'true' }}
         working-directory: ${{ steps.app.outputs.dir }}
         run: npm ci
 
@@ -64,7 +127,7 @@ jobs:
       # cf-build.sh — that would need a wrangler config with an `env.staging`
       # D1 entry, which a repo that hasn't taken the full pack won't have.
       - name: Build (not provisioned — check only)
-        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN == '' }}
         working-directory: ${{ steps.app.outputs.dir }}
         run: |
           echo "No CLOUDFLARE_API_TOKEN secret — building without deploying."
@@ -78,20 +141,22 @@ jobs:
           fi
 
       # Runs before the build so drift is reported even when the build is what
-      # breaks. Deliberately unconditional: the binding half of the check needs
-      # no credential, and an unprovisioned repo still gets that much signal.
-      # The script skips — never fails — when there is no token, and when the
-      # config has no `env.staging` at all.
+      # breaks. Gated only on there being a config to read: the binding half of
+      # the check needs no credential, so a repo with a config and no token
+      # still gets that much signal. The script itself skips — never fails — on
+      # all three of no token, no config, and no `env.staging`, so this step is
+      # safe either way; the `if` just avoids running it with nothing to say.
       - name: Check staging/production parity
+        if: ${{ steps.app.outputs.configured == 'true' }}
         run: node scripts/cf-secrets.mjs check
 
       - name: Build
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' }}
         run: bash scripts/cf-build.sh
 
       - name: Deploy
         id: deploy
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' }}
         run: bash scripts/cf-deploy.sh
 
       # Publish the preview URL where the tooling can find it.
@@ -106,7 +171,7 @@ jobs:
       # Non-production branches only: the alias URL is per-commit, and the
       # production deploy has a permanent address that needs no announcing.
       - name: Publish the preview URL
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && steps.deploy.outputs.preview-url != '' }}
+        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' && steps.deploy.outputs.preview-url != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PREVIEW_URL: ${{ steps.deploy.outputs.preview-url }}

@@ -36,15 +36,32 @@ ROOT=$(dirname "$SCRIPT_DIR")
 # shellcheck source=lib-wrangler-config.sh
 source "$SCRIPT_DIR/lib-wrangler-config.sh"
 
-wong_resolve_wrangler_config "$ROOT"
-
 # `--app-dir` prints the directory holding package.json and exits. It exists so
 # the pack's GitHub Actions workflow can `npm ci` in the right place without
 # duplicating the resolution logic in YAML.
+#
+# It answers with a THIRD outcome as well as found/broken: exit 3 means "this
+# repo has no wrangler config yet" — the state the pack ships in, before
+# `/wong-cloudflare` writes one. That is not a build failure and a caller is
+# meant to route it somewhere green; the workflow's locate step does exactly
+# that. Exit 1 stays reserved for a genuine error, so a provisioned repo whose
+# config is broken still fails loudly instead of yielding an empty path and a
+# confusing `npm ci` two steps later.
+#
+# The resolver *returns* non-zero rather than exiting, so guarding the call is
+# all it takes to ask the question without `set -e` killing the script — no
+# duplicate search logic, and the two paths can never disagree about which file
+# they'd pick.
 if [ "${1:-}" = "--app-dir" ]; then
+  if ! wong_resolve_wrangler_config "$ROOT"; then
+    echo "cf-build: this repo is not configured yet — run /wong-cloudflare to configure and provision." >&2
+    exit 3
+  fi
   echo "$BUILD_DIR"
   exit 0
 fi
+
+wong_resolve_wrangler_config "$ROOT"
 
 # The branch in CI. `CF_BRANCH` is the CI-neutral name the pack's GitHub Actions
 # workflow sets; `WORKERS_CI_BRANCH` is what Cloudflare Workers Builds sets on
