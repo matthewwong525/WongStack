@@ -49,3 +49,11 @@
 - [x] 6.2 Rehearse the Access path against a protected URL with and without the service token, confirming `UNKNOWN` rather than a green login page
 - [x] 6.3 `openspec validate ship-staging-tests --strict`
 - [x] 6.4 Bump `VERSION` (minor — an additive, opt-in capability) and add the newest-first `CHANGELOG.md` entry
+
+## 7. Preview-URL publication (found while verifying 6.1)
+
+- [x] 7.1 `cf-deploy.sh` harvests the alias URL from `wrangler versions upload` output — never constructs it — and writes it to `$GITHUB_OUTPUT`, guarding every extraction against `set -e`
+- [x] 7.2 `deploy.yml` publishes it as a GitHub Deployment with `environment_url`, gated on a non-empty URL, with `deployments: write`
+- [x] 7.3 Add the `stack-pack` delta requiring publication, harvest-not-construct, and no-op under Workers Builds
+- [x] 7.4 Document it in the pipeline docs and the walkthrough runbook
+- [ ] 7.5 Provision this repo manually and confirm `preview-url.sh` resolves the published URL on this PR — closing 6.1's gap

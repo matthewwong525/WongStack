@@ -152,4 +152,41 @@ echo "cf-deploy: preview branch — deploying the staging Worker ($STAGING_NAME)
 # Must come *after* the deploy — see the header. A version can only be uploaded
 # against a Worker that already exists.
 echo "cf-deploy: uploading a staging version (alias: $ALIAS)"
-(cd "$APP_DIR" && npx wrangler versions upload "${STAGING_ENV[@]}" --preview-alias "$ALIAS")
+UPLOAD_LOG=$(mktemp)
+(cd "$APP_DIR" && npx wrangler versions upload "${STAGING_ENV[@]}" --preview-alias "$ALIAS") \
+  | tee "$UPLOAD_LOG"
+
+# ── Publish the alias URL so something downstream can find it ─────────────────
+# Under Cloudflare Workers Builds, Cloudflare's own GitHub integration posts the
+# preview URL onto the commit, which is where `/save` and `/ship` look for it.
+# The Actions workflow has no such integration — wrangler prints the URL into a
+# job log and it dies there. So we lift it out and hand it to the workflow,
+# which publishes it as a GitHub Deployment.
+#
+# **Harvested, never constructed.** The URL shape is documented, so building
+# `<alias>-<worker>-staging.<subdomain>.workers.dev` by hand is tempting — and
+# wrong. A constructed URL is a guess that answers 200 even when it points at a
+# different commit or a Worker the deploy never touched, which is precisely the
+# failure a preview URL exists to rule out. If wrangler didn't print one, we
+# publish nothing and the caller reports "no preview URL" honestly.
+#
+# Every extraction below is `|| true`-guarded: this script runs under `set -e`,
+# and a grep that matches nothing exits 1. Failing to find a URL must degrade to
+# "no preview URL", never abort a deploy that already succeeded.
+ALL_URLS=$(grep -oE 'https://[a-z0-9._-]+\.workers\.dev[^[:space:]]*' "$UPLOAD_LOG" || true)
+PREVIEW_URL=$(printf '%s\n' "$ALL_URLS" | grep -F "$ALIAS" | head -1 || true)
+if [ -z "$PREVIEW_URL" ]; then
+  PREVIEW_URL=$(printf '%s\n' "$ALL_URLS" | head -1 || true)
+fi
+rm -f "$UPLOAD_LOG"
+
+if [ -n "$PREVIEW_URL" ]; then
+  echo "cf-deploy: preview URL $PREVIEW_URL"
+  # GITHUB_OUTPUT is set only inside GitHub Actions; on Workers Builds this is
+  # a no-op and Cloudflare publishes the URL itself.
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    echo "preview-url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+  fi
+else
+  echo "cf-deploy: WARNING — wrangler printed no preview URL; nothing to publish" >&2
+fi

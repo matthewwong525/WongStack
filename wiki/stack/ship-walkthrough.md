@@ -22,6 +22,8 @@ That's it. There is **no manifest field, no config file, and no flag.** `playwri
 
 `/ship` will never install this for you — not on a prompt, not as a convenience. Installing a browser modifies your machine rather than your repo, and a merge gate is the wrong place for that decision. If the dependency is declared but the browser is missing, the walk reports `UNKNOWN` and tells you the command; it doesn't run it.
 
+**Prerequisite: your branch must publish a preview URL.** The walk targets the per-commit alias, discovered by asking GitHub what was deployed for this commit — never constructed from a naming convention. On Workers Builds, Cloudflare publishes that automatically; on GitHub Actions, the pack's workflow does it ([how the alias URL reaches the tooling](d1-pipeline.md#how-the-alias-url-reaches-the-tooling)). A repo whose CI doesn't deploy at all has no URL to walk, and the walkthrough reports `UNKNOWN` rather than guessing one.
+
 **Prerequisite: your seed must make the app exercisable.** Staging is a [seeded fixture database](d1-pipeline.md#seeded-staging-production-untouched), and `schema/seed.sql` ships empty. Journeys need something to act on — a demo account, a couple of reference rows. An empty seed produces journeys that can't do anything, which grade as failures for a reason that isn't a bug.
 
 ### 2. Access service token — only if you have a login wall

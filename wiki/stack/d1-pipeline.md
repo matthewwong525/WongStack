@@ -89,6 +89,15 @@ A branch push produces two reachable URLs, and they are not equivalent:
 
 Use the alias URL for UI review — it's per-commit, so two branches never collide. Use the staging Worker URL when you're exercising an import, a queue, or anything scheduled. "Why didn't my import run?" is almost always "you were on the alias URL."
 
+#### How the alias URL reaches the tooling
+
+`/save` prints a preview link and `/ship`'s [staging walkthrough](ship-walkthrough.md) walks one, and both find it the same way — by asking GitHub what was deployed for this commit. Which CI backend you're on decides who tells GitHub:
+
+- **Workers Builds** — Cloudflare's GitHub integration attaches the URL to the commit itself. Nothing in the pack has to do anything.
+- **GitHub Actions** — there is no such integration. `cf-deploy.sh` therefore **harvests the URL out of `wrangler versions upload`'s own output** and hands it to the workflow, which publishes a GitHub Deployment carrying it as `environment_url`.
+
+The URL is harvested, never rebuilt from the shape in the table above. A hand-constructed URL is a guess that can answer `200` while pointing at a different commit — exactly what a per-commit URL exists to rule out. If wrangler prints nothing, the pack publishes nothing and the tooling says so, rather than offering a URL nobody verified.
+
 ## How the environment actually gets selected
 
 There are two mechanisms, and using the wrong one fails **silently** — the deploy succeeds, prints a preview URL, and has overwritten production.
