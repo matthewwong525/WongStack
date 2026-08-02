@@ -137,12 +137,14 @@ Rehearsed before shipping, per the precedent set by `2026-08-01-staging-worker-e
 
 Two bugs were found this way and fixed: a `git rev-parse` fatal leaking out of an empty repo, and a top-level git-root check that stranded `run`/`cleanup` outside a repository. A third change came from watching a bad selector burn Playwright's 30s default inside a merge gate — the harness now sets 15s.
 
-**Could not reach, and unverifiable from this repo:**
+**Reached after provisioning this repo (task 7.5):**
 
-- **`preview-url.sh` resolving a real per-commit preview URL.** It needs a PR with a deployment attached; this repo's CI builds but does not deploy, because the meta-repo ships the stack pack without having taken it (no repo secrets, no `env.staging` or `d1_databases` in `app/wrangler.jsonc`, no pack npm scripts).
-- **`db:reset:staging` firing on failure.** Same cause — there is no D1 binding here to reset.
+Provisioning turned the two open items into verified ones, and turned up a defect in the change itself along the way.
 
-Both close the moment a provisioned repo runs `/ship`. Deferred deliberately to a follow-up `/wong-cloudflare` change rather than bundling an infra change into a payload one; the walkthrough is opt-in, so nothing adopts it before then by accident.
+- **The defect.** `preview-url.sh`'s four discovery methods all read GitHub-side artifacts, which exist because *Cloudflare Workers Builds* publishes them. The pack's **GitHub Actions** workflow published nothing — wrangler printed the URL into a job log and it died there. So on the Actions backend the walkthrough could only ever return `UNKNOWN`, making the whole gate unreachable for those repos. Fixed in group 7: `cf-deploy.sh` harvests the URL from wrangler's own output and the workflow publishes it as a GitHub Deployment.
+- **Verified end to end on this PR:** CI built, migrated, deployed the staging Worker, and published the URL; `preview-url.sh` resolved it (deployment 5710516663); `db:reset:staging` rebuilt the real staging D1 from seed; and Step 4.5 ran for real — `READY` → journeys → `WALKED` → graded from screenshots — then reported `NONE` again the moment the temporary `playwright` devDependency was removed.
+- **The walk caught a real divergence on its first live run.** Cloudflare's static-asset layer intercepts requests with `Sec-Fetch-Mode: navigate` and serves the SPA fallback *before* the Worker runs. `curl /api/` returns the Worker's JSON; a browser navigating to `/api/` gets the SPA. A curl-based CI smoke test passes this; a browser does not. Documented in the runbook as guidance for journey authors — walk the app the way a person does.
+- **Honest caveat on that result:** the failing journey's `THEN` was hand-written for the rehearsal, not derived from a spec, and it asserted something the app never promised. It is a true failure of a badly chosen expectation — which is itself the back-pressure on `/plan` the design predicts: a vague or wrong `THEN` produces an unwalkable journey, and you find out at ship time.
 
 ## Open Questions
 

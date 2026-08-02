@@ -26,6 +26,12 @@ Worker with a per-commit URL. This wires the two together.
 - **Nothing is saved.** Journeys are generated per run into a temp directory and deleted with it — no test
   suite, no `tests/`, no fixtures, working tree unchanged whatever the verdict. The verdict lives outside the
   generated script on purpose: "it didn't throw" is not "it worked."
+- **The preview URL now reaches the tooling on GitHub Actions too.** `preview-url.sh`'s discovery methods
+  all read GitHub-side artifacts that only *Cloudflare Workers Builds* publishes, so on the Actions backend
+  wrangler's URL died in a job log — `/save` reported no preview and the walkthrough could only ever return
+  `UNKNOWN`. `cf-deploy.sh` now **harvests** the URL from wrangler's own output (never constructs it from the
+  naming convention — a built URL can answer 200 while pointing at another commit) and `deploy.yml` publishes
+  it as a GitHub Deployment.
 - **New runbook** — [`wiki/stack/ship-walkthrough.md`](wiki/stack/ship-walkthrough.md): the three adoption
   rungs (install → Access service token → optional media bucket, each degrading to the one below), the five
   verdicts, and what the gate deliberately isn't (not a test suite, not on `/save`, no second judging agent).

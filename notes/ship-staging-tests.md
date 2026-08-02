@@ -37,13 +37,18 @@ The phrase that did the most work is *"like someone going through."* It's what r
 
 **Playwright's toolchain is already installed in this environment** — 1.61.1, two chromium builds, and `ffmpeg` — resolvable from `/root/.npm/_npx/*/node_modules`. Video recording works out of the box via `recordVideo` on a context.
 
+**Cloudflare's asset layer intercepts browser navigations before the Worker runs.** With `assets.not_found_handling: single-page-application`, a request carrying `Sec-Fetch-Mode: navigate` gets `index.html`; anything else reaches the Worker. So `curl /api/` returns JSON and a browser navigating to `/api/` returns the SPA. Found by the walkthrough on its first live run against real staging — a curl-based CI smoke test would have passed it. This is the concrete argument for the whole feature, and it generalises: any check that isn't a real browser can disagree with what a user sees.
+
+**`preview-url.sh` only worked on one of the two CI backends.** All four of its discovery methods read GitHub-side artifacts that *Cloudflare Workers Builds* publishes; the pack's GitHub Actions workflow published nothing, so wrangler's URL died in a job log. Anything depending on a preview URL — `/save`'s link, the walkthrough's target — was structurally broken for Actions repos. Fixed by harvesting the URL from wrangler's output and publishing a GitHub Deployment.
+
 **The meta-repo ships the stack pack without having taken it.** `gh secret list` is empty, `app/wrangler.jsonc` is the bare scaffold with no `env.staging` or `d1_databases`, and `app/package.json` has the vanilla vite scripts rather than the pack's wrappers. So its CI builds and never deploys — by design, per the workflow's own comment ("an unprovisioned repo gets a real PR check instead of a permanently red one"). This is why anything needing a real preview URL can't be tested from here.
 
 **The July test resources are still live** — `wongstack-d1-test` Worker responds 200. Useful as a real HTTPS target for anything that needs one without provisioning.
 
 ## Open threads
 
-- **Provision the meta-repo via `/wong-cloudflare`** — the agreed next change. It closes the two unverified pieces (`preview-url.sh` on a real per-commit URL, `db:reset:staging` firing on failure) and would let WongStack dogfood the walkthrough on its own PRs.
+- **The meta-repo is now provisioned** — Worker `wongstack` / `wongstack-staging`, D1 `wongstack-db` (`322d78e8-19e1-4bf0-8489-faa13c66deb1`) and `wongstack-db-staging` (`0e5a5be6-1eca-4b99-ab10-5decaa4c55f5`), both repo secrets set, in the Matthewwong525 account. Done by hand rather than via `/wong-cloudflare`, so **the provisioning skill itself is still unexercised end to end** — worth a real run before trusting it downstream.
+- **Should WongStack itself adopt the walkthrough?** Deliberately not done: `playwright` was added to `app/package.json` for the rehearsal and reverted. The scaffold SPA has no scenarios worth walking, so adopting now would buy a slower `/ship` for nothing. Revisit if the app grows real screens.
 - **Whether the gate can actually say no in practice.** The design bets on the `THEN`'s provenance rather than a second judge. If it starts rubber-stamping, the recorded fallback is a skeptical judge that sees only the screenshots and the `THEN`, blind to the steps taken.
 - **Whether the media bucket rung is worth keeping.** It shipped optional and nothing depends on it; if nobody configures one, the comment-as-prose design means it can be dropped without loss.
 - **A repo with a Worker but no D1 can't use the pack's pipeline** — `cf-build.sh` errors without a staging `database_name`. Noticed while diagnosing why CI doesn't deploy here; not pursued, and possibly a real gap for simple apps.

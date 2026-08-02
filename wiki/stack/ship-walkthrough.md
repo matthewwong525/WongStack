@@ -73,6 +73,19 @@ The generated scripts contain **no assertions**. Their job is to produce evidenc
 
 Nothing is saved. The scripts, screenshots, and video live in a temp directory and leave with it. Your working tree is unchanged whatever the verdict.
 
+### Walk the app the way a person does
+
+A journey should reach a behavior the way a user reaches it — click the thing that calls the API, don't navigate straight to the API route. That isn't style advice; on this stack it changes the answer:
+
+```
+Sec-Fetch-Mode: navigate   →  index.html   (the SPA fallback; your Worker never runs)
+anything else              →  your Worker's response
+```
+
+Cloudflare's static-asset layer intercepts **browser navigations** and serves the SPA fallback *before* the Worker executes. So `curl /api/` returns JSON while typing `/api/` into an address bar returns the app — and a journey that navigates directly to an API route is testing the asset layer, not the API.
+
+This is also the clearest illustration of why the walkthrough exists: a `curl`-based smoke test in CI passes this case, and a real browser does not.
+
 ## The five verdicts
 
 | | | |

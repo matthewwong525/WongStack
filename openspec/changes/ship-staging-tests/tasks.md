@@ -45,7 +45,7 @@
 
 ## 6. Verification and release
 
-- [x] 6.1 Rehearse the helper — every verdict path locally, plus a walk against a **real deployed Cloudflare Worker** (screenshot, video, evidence, grading). Two pieces stay unverified and are unverifiable from this repo (see design.md "What the rehearsal could not reach"): `preview-url.sh` resolving a real per-commit URL, and `db:reset:staging` firing on failure. Closing them needs a provisioned repo — deliberately deferred to a follow-up `/wong-cloudflare` change
+- [x] 6.1 Rehearse the helper — every verdict path locally, plus a walk against a **real deployed Cloudflare Worker** (screenshot, video, evidence, grading). Two pieces initially unreachable — `preview-url.sh` on a real per-commit URL and `db:reset:staging` — were **closed in task 7.5** after provisioning this repo
 - [x] 6.2 Rehearse the Access path against a protected URL with and without the service token, confirming `UNKNOWN` rather than a green login page
 - [x] 6.3 `openspec validate ship-staging-tests --strict`
 - [x] 6.4 Bump `VERSION` (minor — an additive, opt-in capability) and add the newest-first `CHANGELOG.md` entry
@@ -56,4 +56,4 @@
 - [x] 7.2 `deploy.yml` publishes it as a GitHub Deployment with `environment_url`, gated on a non-empty URL, with `deployments: write`
 - [x] 7.3 Add the `stack-pack` delta requiring publication, harvest-not-construct, and no-op under Workers Builds
 - [x] 7.4 Document it in the pipeline docs and the walkthrough runbook
-- [ ] 7.5 Provision this repo manually and confirm `preview-url.sh` resolves the published URL on this PR — closing 6.1's gap
+- [x] 7.5 Provisioned this repo manually (two D1s, `env.staging`, pack scripts, repo secrets); CI deployed, published the URL, and `preview-url.sh` resolved it via deployment 5710516663. `db:reset:staging` verified against the real staging D1. Full Step 4.5 walked the live preview — **closing 6.1's gap entirely**
