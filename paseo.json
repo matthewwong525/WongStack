@@ -1,0 +1,5 @@
+{
+  "worktree": {
+    "setup": "if [ -f \"$PASEO_SOURCE_CHECKOUT_PATH/.env\" ]; then cp \"$PASEO_SOURCE_CHECKOUT_PATH/.env\" .env; fi"
+  }
+}
