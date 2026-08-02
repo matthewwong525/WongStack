@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
-## 8.2.0 — /ship can walk the app before it merges, if you ask it to
+## 8.4.0 — /ship can walk the app before it merges, if you ask it to
 
 Every gate `/ship` had answered *did it build and did the checks pass*. None answered *does this do what it
 promised*. The promise was already written down — every requirement in a change's delta specs is a
@@ -29,6 +29,30 @@ Worker with a per-commit URL. This wires the two together.
 - **New runbook** — [`wiki/stack/ship-walkthrough.md`](wiki/stack/ship-walkthrough.md): the three adoption
   rungs (install → Access service token → optional media bucket, each degrading to the one below), the five
   verdicts, and what the gate deliberately isn't (not a test suite, not on `/save`, no second judging agent).
+## 8.3.0 — /wong-sync stops deciding on your behalf and shows its work
+
+`/wong-sync` had a review gate for everything it said **yes** to and none for anything it said **no** to. An `adopt` became an OpenSpec change folder you read at your leisure; a `divergent` or a `declined` got one line in a chat report that scrolled away — and then a manifest entry that quietly suppressed that capability on every future run. So a judgment call you never made became a permanent, invisible "no." The taxonomy made it worse: `declined` was defined as "wrong for this repo, **or** the user said no", so the skill's guesses and your actual refusals shared one sticky slot.
+
+- **The verdicts now split on *who decided*.** A new **`not-applicable`** carries the skill's own reading — an `assumes` your repo doesn't meet, or a graft it couldn't describe concretely. **`declined` narrows to mean you said no**, and may never be inferred: if the skill can't point to something you actually said, the verdict is `not-applicable`.
+- **Only `declined` suppresses.** `present`, `divergent`, `adopt` and `not-applicable` are recomputed from scratch every run. This also closes a latent bug: `not-applicable` turns on *your repo's* shape, but ledger entries are pinned to an `asOfCommit` in the **upstream clone** — so "assumes CI, you have none" would never have been revisited when you added CI. The ledger's job is now precise: it stores your decisions, plus a snapshot of the last computed state, and only the first half is authoritative.
+- **New `.claude/wong-sync-verdicts.md`** — written on **every** run, holding **every** capability with its verdict and one-line reason, not just the ones that became work. It's committed rather than ignored, so it travels between clones and shows up in the PR diff. It's written even when nothing is adopted — the run where the old output was thinnest and the "it just decided" feeling strongest. The chat report shrinks to a summary that points at it.
+- **Tick a box to overrule the skill.** Every non-`adopt` entry in that file is a checkbox. The next `/wong-sync` reads the ticks *before* regenerating the file, forces those capabilities to `adopt`, writes them as tasks, and clears any `declined` ledger entry among them — asking for a capability is how a past refusal is reversed. Promotion costs a second run, which keeps the sync itself non-interactive: no per-capability prompt wall.
+- **"Never overwrite" is now scoped by authorship, not by an exception list.** The skill may rewrite a file it generates and solely owns — the manifest, and now the verdict record — and rewrites nothing a human or another tool wrote. The verdict file carries a generated-file header saying so, since ticking is the only edit that survives regeneration.
+
+**Adopting:** nothing to do — your next `/wong-sync` writes the verdict record and leaves it uncommitted for `/save`. Two migration notes. Existing **`divergent` entries stop suppressing** and are recomputed; if the local solution that justified one is still there, it simply lands on `divergent` again. Existing **`declined` entries are honored as user refusals**, because a pre-8.3.0 ledger can't distinguish your "no" from the skill's guess — the conservative read, since re-pitching something you genuinely refused is the louder failure. Tick its box (or delete the entry) if one of them was never your call.
+
+## 8.2.0 — one list of secrets for both Workers, and a gate that catches the drift
+
+8.0.0 made staging a second Worker. A second Worker has a second secret store, and nothing syncs the two — so every new secret meant two `wrangler secret put` calls, and forgetting the second one surfaced at runtime, in staging, later. Configuration drift between the environments was the default state and nothing in the pack looked for it.
+
+- **`.dev.vars` is now the declared source of truth**, and `npm run secrets:push` loads both Workers from it via `wrangler secret bulk` (which takes dotenv format directly). Staging reads `.dev.vars.staging` when it exists and falls back to `.dev.vars` otherwise — so identical values across both Workers is the zero-config default, and divergence costs one file and no command change. `wrangler dev` already reads the same file, so it serves local development too.
+- **Diverge where writes escape.** Identical values are fine for read-only credentials. For anything with third-party *write* side effects — payment keys, outbound email/SMS, webhook targets — sharing the value lets a branch on staging charge a real card, which is the production-contamination hole twinning the database closes, re-opened at the API layer.
+- **`npm run secrets:check` is a parity gate**, wired into the workflow on every push. Because `.dev.vars` is git-ignored and so absent in CI, the assertion that fails is **Worker against Worker**: production's secret names against staging's. It also fails when a binding declared at the top level of `wrangler.jsonc` is missing from `env.staging`, and warns when a staging service binding still targets production's service. **Names only** — no secret value is read, printed, or logged, so it is safe in retained CI logs.
+- **The `.env` refusal is code, not a note.** `.env` holds `CLOUDFLARE_API_TOKEN`, which can widen its own permissions and create account resources; in a Worker's runtime environment, one log leak escalates to the whole Cloudflare account. `secrets:push` refuses that file, resolves symlinks before judging it, and stops outright if `.dev.vars` itself contains a `CLOUDFLARE_*` or `CF_ACCESS_*` key. The two files look interchangeable and the mistake only has to happen once.
+- **Cron triggers were documented backwards, and are corrected.** Only `vars` and bindings are non-inheritable; `triggers` is an ordinary *inheritable* key. The pipeline docs told you to omit crons from `env.staging` to keep staging manual — which does the opposite: the environment inherits production's schedule and fires against the staging database, with no error. Keeping staging manual-only needs the explicit `"triggers": { "crons": [] }`. The docs now state the inheritable/non-inheritable split, since the two failure directions are both silent and opposite.
+- **`.gitignore` widens to `.dev.vars*` with a `!.dev.vars.example` negation** — the wildcard so a `.dev.vars.staging` of live values can't be committed, the negation so the new committed, values-blank `.dev.vars.example` isn't swallowed by it.
+
+**Adopting:** run `npm run secrets:push` once so both Workers agree, then let the gate hold the line. On a repo that has already drifted the check goes red on the first push — that is the finding, not a regression, and the failure names the keys or bindings. Nothing else changes: no existing script changed behaviour, and the check *skips* rather than fails on a repo with no `CLOUDFLARE_API_TOKEN` (not provisioned) or no `env.staging` (not on the two-Worker model), so adoption never produces a permanently red check.
 
 ## 8.1.0 — one token stands the app up; branches stop reaching production
 

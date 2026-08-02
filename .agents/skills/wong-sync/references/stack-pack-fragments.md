@@ -17,14 +17,16 @@ The `build` script becomes the CI wrapper; the repo's real build moves to `build
     "build:app": "<the repo's existing build command — e.g. tsc -b && vite build>",
     "db:migrate:staging": "wrangler d1 migrations apply <your-staging-db-name> --remote --env staging",
     "db:migrate:prod": "wrangler d1 migrations apply <your-db-name> --remote",
-    "db:reset:staging": "node scripts/reset-staging-d1.mjs"
+    "db:reset:staging": "node scripts/reset-staging-d1.mjs",
+    "secrets:push": "node scripts/cf-secrets.mjs push",
+    "secrets:check": "node scripts/cf-secrets.mjs check"
   }
 }
 ```
 
 If the repo already has a `build`, rename it to `build:app` (confirm first) so `cf-build.sh` can call it.
 
-**Paths here are relative to the `package.json` you're merging into.** When the Worker lives in a subdirectory (the `app/` layout the SPA pack ships), that's `app/package.json`, so the two script paths become `bash ../scripts/cf-build.sh` and `node ../scripts/reset-staging-d1.mjs`. The scripts themselves resolve the repo root from their own location, so they work from either layout.
+**Paths here are relative to the `package.json` you're merging into.** When the Worker lives in a subdirectory (the `app/` layout the SPA pack ships), that's `app/package.json`, so the script paths become `bash ../scripts/cf-build.sh`, `node ../scripts/reset-staging-d1.mjs`, and `node ../scripts/cf-secrets.mjs`. The scripts themselves resolve the repo root from their own location, so they work from either layout.
 
 Write the **literal** `database_name` into each `db:migrate:*` script — the production name for `db:migrate:prod`, the staging twin's name for `db:migrate:staging`. (An earlier version of this page used `$npm_package_config_db`, which expands to an empty string unless the `package.json` also defines a `config.db` key — leaving wrangler with no database argument.) These two are only a convenience alias: the scripts under `scripts/` read the name out of the wrangler config themselves.
 
@@ -53,17 +55,20 @@ The top level declares production's bindings. A `staging` environment declares i
           "database_id": "<staging database_id>",
           "migrations_dir": "schema/migrations"
         }
-      ]
+      ],
+      // Only if production declares crons — see the fifth rule below.
+      "triggers": { "crons": [] }
     }
   }
 }
 ```
 
-Four rules the scripts depend on:
+Five rules the scripts depend on:
 
 - **`env.staging` needs its own `name`.** Without it the environment inherits production's, and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses to deploy when the staging environment resolves to production's name, so this fails loudly rather than silently — but declare the name and the check never has to fire.
 - **`env.staging` needs its own `d1_databases` entry**, with the staging database's own `database_name`. `cf-build.sh` and `reset-staging-d1.mjs` read the name from *inside* the environment block; without it they stop with an explicit error rather than touching production.
-- **An environment inherits nothing it doesn't redeclare.** Every stateful binding must be repeated inside `env.staging` pointing at its twin. A binding you forget is simply absent in staging; a *service* binding you copy without repointing quietly calls production.
+- **An environment inherits nothing it doesn't redeclare — among `vars` and bindings.** Every stateful binding must be repeated inside `env.staging` pointing at its twin. A binding you forget is simply absent in staging; a *service* binding you copy without repointing quietly calls production. (`npm run secrets:check` fails the build on the first of those and warns on the second.)
+- **Cron triggers are the exception: `triggers` is inheritable.** Leave it out of `env.staging` and the environment inherits production's schedule, so the staging Worker fires on its own against the staging database — the opposite of what omitting a key looks like it does, with no error. To keep staging manual-only, declare `"triggers": { "crons": [] }` explicitly, as above. Omit the key entirely only when staging *should* run production's schedule.
 - **`migrations_dir` is resolved relative to the wrangler config file, not the repo root** — and it must be repeated inside the environment. The value above is right when the config sits at the repo root; in the `app/` layout it's `"../schema/migrations"`, since `schema/` stays at the root. Get it wrong and wrangler reports no migrations to apply rather than erroring.
 
 Twin every other stateful binding the same way. A queue needs both halves inside the environment, or staging messages land on the production consumer:
@@ -110,8 +115,13 @@ CF_ACCESS_CLIENT_SECRET=
 
 ## `.gitignore` → `.dev.vars`
 
-Cloudflare's local secrets file is never committed. Add the line if it isn't already there:
+Cloudflare's local secrets file is never committed — and neither are its per-environment variants, since `.dev.vars.staging` holds real staging values. Add these lines if they aren't already there:
 
 ```gitignore
-.dev.vars
+.dev.vars*
+!.dev.vars.example
 ```
+
+**Both lines, or neither works.** The wildcard is what stops a `.dev.vars.staging` full of live secrets becoming committable; the negation is what keeps `.dev.vars.example` — the committed, values-blank list of expected key names that `secrets:check` reads — from being swallowed by that same wildcard. Getting either half wrong is silent: you either commit real secrets or lose the name list from git, and nothing complains.
+
+A repo that already has the bare `.dev.vars` line keeps working; widening it is the upgrade.

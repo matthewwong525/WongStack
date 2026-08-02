@@ -6,4 +6,5 @@ node_modules/
 # Real secrets — the committed template is .env.example. Never commit filled-in values.
 .env
 .env.local
-.dev.vars
+.dev.vars*
+!.dev.vars.example

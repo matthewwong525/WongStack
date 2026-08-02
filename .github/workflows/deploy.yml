@@ -74,6 +74,14 @@ jobs:
             npm run build
           fi
 
+      # Runs before the build so drift is reported even when the build is what
+      # breaks. Deliberately unconditional: the binding half of the check needs
+      # no credential, and an unprovisioned repo still gets that much signal.
+      # The script skips — never fails — when there is no token, and when the
+      # config has no `env.staging` at all.
+      - name: Check staging/production parity
+        run: node scripts/cf-secrets.mjs check
+
       - name: Build
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: bash scripts/cf-build.sh

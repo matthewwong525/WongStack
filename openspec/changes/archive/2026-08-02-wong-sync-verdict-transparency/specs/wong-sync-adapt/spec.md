@@ -1,70 +1,9 @@
-# wong-sync-adapt Specification
+## RENAMED Requirements
 
-## Purpose
+- FROM: `### Requirement: Four verdicts, one per capability`
+- TO: `### Requirement: One verdict per capability`
 
-The capability-adoption analysis inside `/wong-sync`. Updating a repo is **adaptation, not replication**: a repo is current when the *capability* is present in it, in whatever form fits — not when its files match upstream's byte for byte. Two independent subagents (a cartographer over the WongStack clone, a surveyor over the target) feed a gap analysis that assigns every capability exactly one verdict — split by *who decided*, so the skill's own judgment is never stored with the weight of the user's — records them all in a durable, reviewable record the user can overrule, and proposes the worthwhile ones as an OpenSpec change. It reads broadly, writes almost nothing, and never implements.
-
-## Requirements
-
-### Requirement: Capability adaptation is the default and only analysis path
-
-Every `/wong-sync` run SHALL, after refreshing the clone and copying absent payload files, run the capability analysis over the payload files that already exist locally. The skill SHALL take no arguments and SHALL expose no alternative mode. The analysis SHALL NOT modify any existing file in the target and SHALL NOT run any git command in the target.
-
-#### Scenario: An ordinary run analyses rather than diffs
-
-- **WHEN** the user runs `/wong-sync` in an installed repo
-- **THEN** no three-way diff is performed and no file is overwritten
-- **AND** the capability analysis runs over the payload surfaces the repo already has
-
-#### Scenario: A fully-absent repo needs no analysis of what it lacks
-
-- **WHEN** every payload file is missing locally (a fresh install)
-- **THEN** the files are copied directly and the analysis has nothing present to weigh them against
-
-#### Scenario: No manifest at all
-
-- **WHEN** `/wong-sync` runs in a repo with no `.claude/.wong-stack.json`
-- **THEN** it stops and points at `/wong-setup`
-
-### Requirement: Two independent subagents, synthesized by the main thread
-
-The analysis SHALL spawn exactly two subagents that run independently and share no context:
-
-- A **cartographer** that reads only the refreshed clone and returns a map of WongStack's capabilities.
-- A **surveyor** that reads only the target repo and returns what that repo already is and already does.
-
-Neither subagent's raw output SHALL be presented to the user; the main thread SHALL perform the gap analysis and own every verdict. Neither subagent SHALL write any file.
-
-#### Scenario: Agents are independent
-
-- **WHEN** the analysis runs
-- **THEN** the cartographer is given no information about the target repo and the surveyor is given no information about upstream
-
-#### Scenario: Raw findings stay internal
-
-- **WHEN** both subagents return
-- **THEN** the user sees the synthesized capability gap, not either agent's report verbatim
-
-### Requirement: The unit of analysis is a capability, not a file or a skill
-
-The cartographer SHALL map capabilities defined as "a thing WongStack lets you do, plus what it assumes about your repo" — explicitly not one-per-file and not one-per-skill. It SHALL read the wiki and the `WONG-STACK` block as first-class sources alongside `.claude/skills/`, so that cross-cutting conventions are mapped as capabilities in their own right. Each mapped capability SHALL carry a stable kebab-case id, what it lets you do, where upstream expresses it, what it assumes about a repo, and what it depends on.
-
-Capability ids SHALL be derived from upstream content only — never from the target — so the same upstream commit yields the same ids in every repo. The cartographer SHALL be given the ids already in the repo's ledger and SHALL reuse a matching id rather than minting a new one.
-
-#### Scenario: A convention is a capability
-
-- **WHEN** the cartographer maps upstream
-- **THEN** conventions expressed only in the wiki or the `WONG-STACK` block — such as "CI is the gate when present, else PR review" — appear as capabilities, not merely as file contents
-
-#### Scenario: Ids are reused across runs
-
-- **WHEN** the analysis runs a second time in a repo whose ledger already records a capability id
-- **THEN** the same capability is mapped under that same id
-
-#### Scenario: A ledger id disappears from the map
-
-- **WHEN** an id in the ledger has no counterpart in the new map
-- **THEN** it is reported as retired rather than silently dropped from the ledger
+## MODIFIED Requirements
 
 ### Requirement: One verdict per capability
 
@@ -114,6 +53,39 @@ A payload file that exists locally, was never modified, and is behind upstream S
 - **WHEN** verdicts are assigned
 - **THEN** the proposed change contains one task per `adopt` capability and no task for any other verdict
 
+### Requirement: The capability ledger makes the sync idempotent in judgment
+
+`.claude/.wong-stack.json` SHALL carry a `capabilities` map keyed by capability id, each entry recording `verdict`, a one-line `reason`, and `asOfCommit` — the clone HEAD at which the judgment was made. The map SHALL be written last, with the rest of the manifest.
+
+**Only `declined` SHALL suppress re-evaluation.** A capability whose ledger verdict is `declined` SHALL NOT be re-pitched on a later run unless its upstream expression changed since the recorded `asOfCommit`, in which case it SHALL be re-raised with what changed. Every other verdict — `present`, `divergent`, `adopt`, `not-applicable` — SHALL be recomputed from scratch on each run; its ledger entry is a record of the last computed state for reporting and retirement detection, and SHALL NOT be read as authoritative. A `not-applicable` verdict in particular turns on the target's shape rather than upstream's, so pinning it to an upstream commit SHALL NOT prevent its re-evaluation.
+
+An absent `capabilities` key means nothing has been judged yet and is not an error. A ledger written by an earlier version, in which `declined` could mean either a user refusal or the skill's own judgment, SHALL have its `declined` entries honored as user refusals — the conservative read.
+
+#### Scenario: Declines are not re-litigated
+
+- **WHEN** the sync runs again and upstream has not changed a previously declined capability
+- **THEN** that capability is not proposed again
+
+#### Scenario: Upstream moved since the decline
+
+- **WHEN** a declined capability's upstream expression changed after its recorded `asOfCommit`
+- **THEN** it is re-raised, stating that it was declined earlier and what has changed since
+
+#### Scenario: A divergent capability is recomputed
+
+- **WHEN** the local mechanism that justified a `divergent` verdict has since been deleted
+- **THEN** the next run recomputes the capability and verdicts it `adopt`, rather than honoring the stale `divergent`
+
+#### Scenario: A not-applicable verdict follows the repo, not the clone
+
+- **WHEN** a capability was `not-applicable` because the repo had no CI, and the repo has since added CI
+- **THEN** the next run re-evaluates it and may verdict it `adopt`, even though the upstream expression is unchanged
+
+#### Scenario: Older manifest
+
+- **WHEN** the sync runs on a manifest with no `capabilities` key
+- **THEN** it proceeds normally and writes the key for the first time
+
 ### Requirement: The analysis proposes and never implements
 
 The analysis SHALL write exactly two kinds of artifact and nothing else:
@@ -149,6 +121,8 @@ The graft is performed later through the normal loop (`/apply` → `/save` → `
 
 - **WHEN** the target has no `openspec/changes/` directory
 - **THEN** the verdict record is still written and the report explains that the change could not be written
+
+## ADDED Requirements
 
 ### Requirement: Every verdict lands in a durable, reviewable record
 
@@ -200,50 +174,3 @@ The regenerated file SHALL show each promoted capability under the adopted group
 
 - **WHEN** the user ticks nothing between runs
 - **THEN** no capability is force-adopted and the analysis's own verdicts stand
-
-### Requirement: The capability ledger makes the sync idempotent in judgment
-
-`.claude/.wong-stack.json` SHALL carry a `capabilities` map keyed by capability id, each entry recording `verdict`, a one-line `reason`, and `asOfCommit` — the clone HEAD at which the judgment was made. The map SHALL be written last, with the rest of the manifest.
-
-**Only `declined` SHALL suppress re-evaluation.** A capability whose ledger verdict is `declined` SHALL NOT be re-pitched on a later run unless its upstream expression changed since the recorded `asOfCommit`, in which case it SHALL be re-raised with what changed. Every other verdict — `present`, `divergent`, `adopt`, `not-applicable` — SHALL be recomputed from scratch on each run; its ledger entry is a record of the last computed state for reporting and retirement detection, and SHALL NOT be read as authoritative. A `not-applicable` verdict in particular turns on the target's shape rather than upstream's, so pinning it to an upstream commit SHALL NOT prevent its re-evaluation.
-
-An absent `capabilities` key means nothing has been judged yet and is not an error. A ledger written by an earlier version, in which `declined` could mean either a user refusal or the skill's own judgment, SHALL have its `declined` entries honored as user refusals — the conservative read.
-
-#### Scenario: Declines are not re-litigated
-
-- **WHEN** the sync runs again and upstream has not changed a previously declined capability
-- **THEN** that capability is not proposed again
-
-#### Scenario: Upstream moved since the decline
-
-- **WHEN** a declined capability's upstream expression changed after its recorded `asOfCommit`
-- **THEN** it is re-raised, stating that it was declined earlier and what has changed since
-
-#### Scenario: A divergent capability is recomputed
-
-- **WHEN** the local mechanism that justified a `divergent` verdict has since been deleted
-- **THEN** the next run recomputes the capability and verdicts it `adopt`, rather than honoring the stale `divergent`
-
-#### Scenario: A not-applicable verdict follows the repo, not the clone
-
-- **WHEN** a capability was `not-applicable` because the repo had no CI, and the repo has since added CI
-- **THEN** the next run re-evaluates it and may verdict it `adopt`, even though the upstream expression is unchanged
-
-#### Scenario: Older manifest
-
-- **WHEN** the sync runs on a manifest with no `capabilities` key
-- **THEN** it proceeds normally and writes the key for the first time
-
-### Requirement: The read boundary is broad; the write boundary is narrow
-
-With no outbound contribution path, the payload manifest SHALL bound what the skill **copies**, not what the surveyor may **read**. The surveyor SHALL read the target's process surfaces broadly — skills, wiki or docs, `CLAUDE.md`, configuration, and top-level structure — and SHALL NOT be limited to manifest files. It SHALL NOT be required to read application source. Nothing the surveyor reads SHALL leave the machine. The payload prose SHALL state this boundary change explicitly rather than leave it implied.
-
-#### Scenario: Surveyor sees the whole repo's process surface
-
-- **WHEN** the surveyor runs in a repo with skills and docs outside the payload manifest
-- **THEN** it reads them, so that a capability already solved locally is correctly verdicted `divergent` rather than proposed as missing
-
-#### Scenario: Nothing is sent anywhere
-
-- **WHEN** the surveyor has read the target
-- **THEN** no read content is written to the clone, pushed, or included in any outbound request
