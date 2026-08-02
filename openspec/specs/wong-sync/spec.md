@@ -104,7 +104,11 @@ For a repo with `components.stackPack: true`, the pack's drop-in files SHALL fol
 
 ### Requirement: Manifest schema, lazily migrated
 
-`.claude/.wong-stack.json` SHALL carry `version`, `commit`, `upstream { repo, fork, clone }`, `components`, and `capabilities` (specified by the `wong-sync-adapt` capability). `commit` SHALL record the clone HEAD the repo last synced against — it is no longer a diff base, since nothing diffs — and SHALL drive the changelog walk and the ledger's notion of "since when." Old manifests remain valid: missing keys are filled in during the first sync and the manifest is rewritten last, reflecting what actually happened. `upstream.fork` SHALL remain readable where an earlier version recorded one, and SHALL NOT be written.
+`.claude/.wong-stack.json` SHALL carry `version`, `commit`, `upstream { repo, fork, clone }`, and `components`. It SHALL record **install state only** — what is installed here, from where, and as of when. It SHALL NOT carry verdicts, reasons, or judgment commits; those live solely in `.claude/wong-sync-verdicts.md`, specified by the `wong-sync-adapt` capability.
+
+`commit` SHALL record the clone HEAD the repo last synced against — it is not a diff base, since nothing diffs — and SHALL drive the changelog walk.
+
+Old manifests remain valid: missing keys are filled in during the first sync and the manifest is rewritten last, reflecting what actually happened. A manifest carrying a `capabilities` map from an earlier version SHALL have it folded into the verdict record and then dropped, per the `wong-sync-adapt` capability. `upstream.fork` SHALL remain readable where an earlier version recorded one, and SHALL NOT be written.
 
 #### Scenario: First sync on an older manifest
 
@@ -120,6 +124,17 @@ For a repo with `components.stackPack: true`, the pack's drop-in files SHALL fol
 
 - **WHEN** a manifest recorded `upstream.fork` under a previous version
 - **THEN** the value is preserved as-is and never used or updated
+
+#### Scenario: Manifest carrying a capability ledger
+
+- **WHEN** the sync runs on a manifest that still carries a `capabilities` map
+- **THEN** the rewritten manifest omits that key, and the entries survive in `.claude/wong-sync-verdicts.md`
+
+#### Scenario: The manifest is read for install state
+
+- **WHEN** a reader or a later run opens `.claude/.wong-stack.json`
+- **THEN** it answers what is installed, from where, and as of when
+- **AND** it answers nothing about what was judged, which the verdict record owns
 
 ### Requirement: Installer defers updates to wong-sync
 

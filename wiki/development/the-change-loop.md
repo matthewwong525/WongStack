@@ -18,7 +18,32 @@ Each verb is a thin WongStack skill fronting one step of OpenSpec, the planning 
 - **[`/apply`](../../.claude/skills/apply/SKILL.md)** — implement: work the change's `tasks.md`, writing the code and checking off `- [x]` as each task lands. Fronts `/opsx:apply`, then invokes `/save` exactly once when every task is complete. A paused or blocked apply does not auto-save; invoke `/save` yourself only if you want that partial state checkpointed.
 - **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint, the git stage: commit code + change together, push, open/update a PR whose body **mirrors the change**, wait for CI when present (auto-fixing failures; no checks → PR review is the gate), and return a preview URL. Before committing it **syncs the change** — plan sections update in place, the `**Status:**` header is maintained, a dated entry is **appended** to the `## Decision log`, and delta specs (if any) fold into `openspec/specs/` (`/opsx:sync`). Skipped `/plan`? `/save` authors the change from your session as a fallback, so nothing ships without its handoff. It also writes the **session note** (`notes/<slug>.md`) — the conversation compressed into the repo, which is what lets `/dream` consolidate from another machine.
 - **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name (= branch), by PR, or from the `openspec list` menu (which shows each change's Status): check out its branch, recap the proposal + the tail of its Decision log + the session note when one exists, run a counts-only drift check, then hand off to `/apply`. Picks up cold on any machine from a fresh clone.
-- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts `/opsx:archive`. CI is the gate when present, else PR review. A repo that opted into the [staging walkthrough](../stack/ship-walkthrough.md) gets one more gate between green CI and the merge — the change's own scenarios walked against the deployed preview in a browser — and a repo that didn't sees no difference at all.
+- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — squash-merge the code to the default branch, then archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`. Fronts `/opsx:archive`. It merges through [the gate](#the-gate) below.
+
+Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
+
+## The gate
+
+This page is where the delivery doctrine is **stated**; every other surface links here rather than
+restating it. Two rules, and one carve-out.
+
+**The gate is CI when present, else PR review.** The durable system is pull requests, version
+control, OpenSpec, and everything-lives-in-the-repo; GitHub Actions is an optional accelerator,
+honored when configured. Where checks exist, push and let CI run — the skills wait and fix failures.
+Where they don't, the PR (plus the OpenSpec change and its archive) is the record a human reviews.
+Either way, **nothing builds locally as a prerequisite.**
+
+**The ladder is CI-when-present → the staging walkthrough-when-adopted → merge**, and a skipped rung
+is never a failure. A repo that opted into the [staging walkthrough](../stack/ship-walkthrough.md)
+gets one more gate between green CI and the merge: `/ship` walks the change's own OpenSpec scenarios
+against the **already-deployed** preview. Nothing is compiled and nothing is installed — the artifact
+under test is the one CI published, which is why this isn't a local build. Installing Playwright is
+the entire opt-in; there is no flag. A repo that didn't opt in sees no difference at all.
+
+An **unverifiable** gate is not an absent one. When the check state can't be read, `/save` reports it
+as unverified and carries on — it's a checkpoint — while `/ship` stops rather than merge on it.
+
+### The prose allowlist
 
 **A prose-only save is a valid save.** Not every session produces a diff that needs reviewing. When
 a save's entire diff sits inside the **prose allowlist** — the two path prefixes `notes/**` and
@@ -30,10 +55,10 @@ The gate isn't weakened — it applies where behavior does. Neither surface carr
 and non-canonical, and a wiki page is prose you already reviewed in-session on the diff `/dream`
 produced. The carve-out is scoped by path and exact; one changed path outside the allowlist and the
 normal flow applies to the whole save. It never keys on file extension — markdown under `.claude/`
-is the payload and markdown under `openspec/` is the spec, and both keep the full gate. See
-[`notes/README.md`](../../notes/README.md).
-
-Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
+is the payload and markdown under `openspec/` is the spec, and `AGENTS.md`/`CLAUDE.md`,
+`README.md`, `CHANGELOG.md`, `VERSION`, `app/**` and every config file keep the full gate. The
+allowlist is closed: a surface that isn't named here gets the gate until someone deliberately adds
+it. See [`notes/README.md`](../../notes/README.md).
 
 ## The change is a living handoff, not just a plan
 

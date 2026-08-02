@@ -16,7 +16,7 @@ The single checkpoint runbook. Invoking it authorizes the branch creation, commi
 2. A durable **OpenSpec change** under `openspec/changes/<branch>/` whose `proposal.md` *is* the current plan **plus its history**: a `**Status:**` header, the plan sections (kept current), and an append-only `## Decision log` (what happened along the way), with a `tasks.md` checklist — so a fresh session (another machine, no scrollback) can resume cold with `/continue` and know not just *what* to do but *why* it's shaped that way. Normally `/plan` drafted it and `/apply` checked off its tasks; `/save` **syncs** it. When the session skipped `/plan`, `/save` **authors it as a fallback via the same OpenSpec artifact process `/plan` uses**, so nothing gets pushed without its handoff. **The change is the plan — there is no GitHub handoff issue.** A session that produced *no code and no plan* gets no change at all (Step 2) — the note below is the whole output.
 3. A **session note** at `notes/<slug>.md` — the conversation itself, compressed into the repo. `/save` is the **only** skill that reads the conversation, which is what makes consolidation portable: `/dream` reads committed notes, never scrollback, so a session captured on one machine is consolidatable from any other. See [`notes/README.md`](../../../notes/README.md) for the convention.
 
-**CI is the gate when the repo has checks; otherwise the PR itself is the checkpoint a reviewer sees.** Either way we never build or test locally. Because the change lives *in the repo*, we author it **before** the commit so it ships in the same commit; the push then triggers CI, which we wait on in Step 6.
+This save is checkpointed through the usual [gate](../../../wiki/development/the-change-loop.md#the-gate) — never a local build. Because the change lives *in the repo*, we author it **before** the commit so it ships in the same commit; the push then triggers CI, which we wait on in Step 6.
 
 If a step other than CI fails, stop and surface the exact error. Never bypass with `--no-verify` or `--force`. A *CI* failure is not a stop — it's the auto-fix loop's job (Step 6).
 
@@ -53,10 +53,10 @@ wiki/**
 Three rules bind this decision:
 
 - **It is by path prefix, and it is exact.** One changed path outside the allowlist — a source edit, a skill, a change folder, a version bump — and the **whole save** takes the normal flow, with the prose riding along on the branch. Never split a mixed diff into two commits to send the prose half down the fast path; the mixed save is one save.
-- **Never route on file extension.** `*.md` is not a proxy for prose. `.claude/**` *is* the shipped payload and editing it is a release, `openspec/**` *is* the specs, and `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and every config file keep the full gate — all of them markdown or config, none of them on the fast path. The allowlist is closed: a surface that isn't named above gets the gate.
+- **Never route on file extension.** `*.md` is not a proxy for prose — markdown outside the two prefixes keeps the full gate, and the allowlist is closed.
 - **`wiki/` means the literal prefix `wiki/`.** A repo that keeps its prose somewhere else — `docs/`, `handbook/` — keeps the full gate. (`/improve docs` falls back to `docs/`; this route does not.) Don't re-litigate this per save.
 
-Why the carve-out: the gate exists to stop unreviewed *behavior* reaching the default branch, and neither surface carries behavior. A note is one additive file, keyed by a unique slug so two people's notes never touch the same path, containing no code, config, or spec — raw and non-canonical by design. A wiki page is prose a human already reviewed in-session, on the diff `/dream` produced, and it can't break a build or a deploy. Nothing in either surface executes.
+Why the carve-out exists, and the full list of what stays gated: [the change loop](../../../wiki/development/the-change-loop.md#the-prose-allowlist). Don't restate it here — this step is the routing test, not the doctrine.
 
 ## Step 2 — establish the current plan
 
@@ -75,7 +75,7 @@ The change's `proposal.md` *is* the plan — not a status report. The most conci
 | Prose *plus* anything outside the allowlist | yes | yes | normal flow — the prose rides along |
 | Nothing at all — nothing learned, decided, or done | no | no | say so and stop |
 
-The table restates Step 1's path test; when they seem to disagree, **the paths win** — the route is a function of the diff, not of your read of the session.
+The table is about what to *write*; Step 1's path test decides the *route*, and it is the only thing that does.
 
 **Never invent a plan for a conversation.** A session that clarified how something works, settled a question, or established a constraint is *not* empty and is *not* a change — writing it a `proposal.md` describing nothing changing and a `tasks.md` with zero tasks files real knowledge in the wrong drawer and puts a no-op entry in `openspec list`. It gets a note, and that is the complete and correct output.
 
@@ -161,7 +161,7 @@ Sanity-check with `openspec list` (it should show the change + task progress). *
 
 ### Prose variant (the fast path from Step 1)
 
-Every changed path is inside the allowlist (`notes/**`, `wiki/**`) — commit straight to the default branch and stop. No branch, no PR, no CI wait, no `/ship`. Stage **only the prefixes that actually changed**, never `git add .`:
+Step 1 routed this save here — commit straight to the default branch and stop. No branch, no PR, no CI wait, no `/ship`. Stage **only the prefixes that actually changed**, never `git add .`:
 
 ```bash
 git add notes/ wiki/              # drop whichever of the two this save didn't touch
@@ -196,55 +196,13 @@ ROOT="$(git rev-parse --show-toplevel)"
 PREVIEW_URL=$(bash "$ROOT/.claude/skills/save/scripts/preview-url.sh")
 ```
 
-Then:
+Then **follow [`references/git-gate.md`](references/git-gate.md) § 1** — the PR runbook `/save` and `/ship` share: open or update the PR, push, and regenerate the body from the change-mirror template (`PREVIEW_URL` above fills its Preview section). The body is generated, not curated.
 
-```bash
-gh pr view --json number,state,url 2>/dev/null
-```
-
-- **PR is OPEN** → `git push`, then **regenerate the body**: `gh pr edit --body` with the template below.
-- **No PR** → `git push -u origin HEAD`, then `gh pr create` (HEREDOC body = the template below; title in repo style).
-- **PR is MERGED** → the branch is already shipped — skip the CI wait and note there's no live preview.
-- **PR is CLOSED (not merged)** → ask whether to reopen or push to a fresh branch. Don't silently revive a closed PR.
-
-**The PR body is a mirror of the change, regenerated on every save** — the change file is the source of truth, so overwriting the body is safe by construction (reviewers comment on the PR; they don't edit the body). Template:
-
-```markdown
-## Summary
-
-**Status:** <Status line from proposal.md>
-
-<the proposal's Why / What Changes, condensed to a few readable lines>
-
-## Tasks
-
-<the tasks.md checklist verbatim, current checkbox state>
-
-## Preview
-
-[<PREVIEW_URL>](<PREVIEW_URL>)   ← omit this whole section if no preview URL was found
-
----
-_Handoff: `openspec/changes/<name>/` — resume with `/continue <name>`. This body is regenerated by every `/save`; comment rather than editing it._
-```
-
-**The push above triggers CI** (where the repo has it). Go to Step 6 and wait on it.
+**The push triggers CI** (where the repo has it). Go to Step 6 and wait on it.
 
 ## Step 6 — wait for CI (if any), auto-fix on failure
 
-```bash
-ROOT="$(git rev-parse --show-toplevel)"
-bash "$ROOT/.claude/skills/save/scripts/wait-for-checks.sh" 20
-```
-Read the final `RESULT:` line:
-- **SUCCESS** / **NONE** (no checks configured — the PR review is the gate) → Step 7.
-- **UNKNOWN** → gh couldn't be asked, so the gate is **unverified — not absent**. Don't report it as "no checks configured." Surface the message the script printed, say plainly that CI state is unknown, and check the PR in a browser before treating the branch as ready.
-- **TIMEOUT** → report checks still running + the PR link; don't block.
-- **FAILURE** → read the failing log, fix, commit, push, re-wait. **Cap 3 attempts**; still red → stop with the error + checks link.
-  ```bash
-  RUN_ID=$(gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId')
-  gh run view "$RUN_ID" --log-failed | tail -120
-  ```
+**Follow [`references/git-gate.md`](references/git-gate.md) § 2** — wait on checks, read-fix-repush on red under a cap of 3. Its result table states `/save`'s outcomes directly: `UNKNOWN` is reported as **unverified, not absent** and does not block the checkpoint; `TIMEOUT` reports the PR link without blocking. Then Step 7.
 
 ## Step 7 — report
 
@@ -262,7 +220,7 @@ Keep it short — the user invoked this to get a URL + a saved change, not a wal
 
 ## Hard rules
 - Never `git push --force`. Never `--no-verify`.
-- **Never push to the default branch — branch off (Step 3) — with exactly one exception: a prose-only save**, where every changed path is inside the allowlist `notes/**` + `wiki/**`. That route commits straight to the default branch. The scope is exact and by path prefix: one path outside the allowlist and the rule applies in full to the whole save. **Never by extension** — markdown under `.claude/**`, `openspec/**`, `AGENTS.md`/`CLAUDE.md`, `README.md`, or `CHANGELOG.md` is payload, spec, or doctrine, and keeps the gate. A rejected push (protected branch) falls back to a branch + PR — never forced.
+- **Never push to the default branch — branch off (Step 3) — with exactly one exception: a prose-only save**, routed by Step 1's path test. A rejected push (protected branch) falls back to a branch + PR — never forced.
 - **Never merge a PR** — not on any route, not for a prose branch that fell back. Merging is `/ship`'s, and no scheduled job or other skill does it on this skill's behalf.
 - **Never build/test locally as a gate.** CI is the gate when present, else PR review; a CI failure is fixed-and-re-pushed, never a stop (except after 3 attempts).
 - **Never merge** — that's `/ship` (which also archives the change).

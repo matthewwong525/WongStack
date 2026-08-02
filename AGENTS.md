@@ -54,17 +54,9 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
 
 ## Rules
 
-- **CI is the gate when present, else PR review.** The durable system is pull requests (any
-  forge), version control, OpenSpec, and everything-lives-in-the-repo; GitHub Actions is an
-  optional accelerator, honored when configured. Where checks exist, push and let CI run — the
-  skills wait and fix failures; where they don't, the PR (plus the OpenSpec change and its
-  archive) is the record a human reviews. Either way, nothing builds locally as a prerequisite.
-  The one thing that is *not* a local build: a repo that opted into the
-  [staging walkthrough](wiki/stack/ship-walkthrough.md) has `/ship` walk the change's own
-  OpenSpec scenarios against the **already-deployed** preview before merging — nothing is
-  compiled, nothing is installed, and the artifact under test is the one CI published. The
-  ladder is CI-when-present → the walkthrough-when-adopted → merge, and a skipped rung is
-  never a failure. Installing Playwright is the entire opt-in; there is no flag.
+- **CI is the gate when present, else PR review; nothing builds locally as a prerequisite.** The
+  ladder, the optional staging walkthrough, and what an unverifiable check means are stated in
+  [the change loop](wiki/development/the-change-loop.md#the-gate) — the one place that owns them.
 - **Use the WongStack skills** — a thin verb over each OpenSpec step, so you never type `/opsx:*`
   by hand (though it's there if you want it):
   `/explore` (think it through — `/opsx:explore`), `/plan` (draft the change — `/opsx:propose`),
@@ -74,19 +66,11 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   walkthrough + merge + archive — `/opsx:archive`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Branch name = change name = note name ties a branch to its plan and its session context.
-- **Prose goes straight to `main`.** When a `/save`'s entire diff sits inside the **prose
-  allowlist** — the two path prefixes `notes/**` and `wiki/**` — it commits **straight to the
-  default branch**: no change, no branch, no PR, no `/ship`. That covers a conversation-only session
-  (just a note) and a `/dream` run (wiki pages plus the `consolidated:` stamps). The gate exists to
-  stop unreviewed *behavior* reaching `main`, and neither surface carries behavior — a note is raw
-  and non-canonical, and a wiki page is prose you already reviewed in-session on the diff `/dream`
-  produced. The carve-out is **exact and by path**: one changed path outside the allowlist and the
-  normal branch + PR flow applies to the whole save.
-- **Routing is by path prefix, never by file extension.** Markdown is not a proxy for prose here:
-  `.claude/**` *is* the payload (editing it is a release), `openspec/**` *is* the specs, and
-  `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and every config file
-  keep the full gate. The allowlist is closed — a new surface gets the gate until someone
-  deliberately adds it.
+- **Prose goes straight to `main`.** A `/save` whose entire diff sits inside the prose allowlist —
+  `notes/**` + `wiki/**` — commits to the default branch with no branch, PR, or `/ship`. Routing is
+  **by path prefix, never by file extension**, and the allowlist is closed: markdown under
+  `.claude/**` or `openspec/**`, and the repo-root files, keep the full gate. Scope, rationale, and
+  the exactness rule: [the change loop](wiki/development/the-change-loop.md#the-prose-allowlist).
 - **Stay in sync with WongStack** — `/wong-sync` copies in any payload file this repo doesn't have
   yet, then *adapts* rather than overwrites: it reads what upstream lets you do against what this
   repo already does, and proposes the worthwhile gap as an OpenSpec change you review and `/apply`.

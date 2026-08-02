@@ -3,6 +3,40 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 8.5.0 — one owner per fact: the payload stops saying things twice
+
+The payload had grown three copies of things it only needed one of, and one of them had already turned
+into a bug. `/opsx:apply` told you to archive on completion while the skill it duplicates hands the change
+to `/save`, and it pointed at `/opsx:continue`, which doesn't exist — nobody wrote that divergence, one
+copy just got an edit the other didn't. Nothing here changes what the verbs do, except that the raw
+commands now do what the skills do.
+
+- **The `/opsx:*` commands are one-line pointers.** Each `.claude/commands/opsx/<verb>.md` now invokes the
+  correspondingly named `openspec-*` skill and follows it verbatim, instead of carrying a second copy of its
+  runbook. Both stay committed — nothing depends on `openspec init` regenerating them — but the skill is the
+  single owner, so the two entry points can't drift again. **This fixes `/opsx:apply` skipping the `/save`
+  handoff.** ~700 lines removed.
+- **`/ship`'s walkthrough moved to `references/walkthrough.md`.** Step 4.5 had grown a 140-line runbook
+  inside `SKILL.md`; it now lives in a reference like `wong-sync`'s adapt step and `improve`'s playbooks do,
+  and `/ship` is back to reading as the merge verb (228 → ~107 lines). Same behavior, same verdicts.
+- **`/save` and `/ship` share one git runbook** — `save/references/git-gate.md` holds the PR open/update
+  sequence, the change-mirror body template, the check-result handling and the capped auto-fix loop, once.
+  The one place the two genuinely differ (an unverifiable check means *proceed* for `/save` and *stop* for
+  `/ship`) is now a per-caller column in that table rather than two independently maintained paragraphs.
+- **`/wong-sync` verdicts have one store.** `.claude/wong-sync-verdicts.md` is it. The `capabilities` ledger
+  leaves `.claude/.wong-stack.json`, which goes back to recording install state only — and with it goes the
+  rule that only half the ledger was authoritative. **Migration is automatic:** the first sync after this
+  release folds any existing `capabilities` map into the record, honoring each `declined` as a user refusal,
+  then writes the manifest without the key. Nothing to do by hand.
+- **One owner per doctrine sentence.** `wiki/development/the-change-loop.md` now states the gate ladder and
+  the prose allowlist; `CLAUDE.md`, `notes/README.md`, `/dream` and the verb skills link to it instead of
+  restating it. `/save` keeps the two path prefixes inline exactly once, where it routes. The loop diagram
+  stops being copied into four skills.
+- **New [repo layout](wiki/development/repo-layout.md) page** — `.claude` is a symlink to `.agents` and
+  `CLAUDE.md` to `AGENTS.md`, the Edit tool won't write through them, and `grep -r` doesn't follow them, so
+  payload audits must target `.agents/`. This had already cost one implementation and was recorded only in
+  session notes. `adding-a-skill.md`'s two dead links to the retired `document` skill are fixed.
+
 ## 8.4.0 — /ship can walk the app before it merges, if you ask it to
 
 Every gate `/ship` had answered *did it build and did the checks pass*. None answered *does this do what it

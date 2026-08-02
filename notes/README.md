@@ -86,17 +86,12 @@ note; a code session writes both.
 
 ## Reaching `main`
 
-A `/save` whose entire diff sits inside the **prose allowlist** — the two path prefixes `notes/**`
-and `wiki/**` — commits **directly to the default branch**: no branch, no PR, no `/ship`. A
-conversation-only session (just a note) takes it, and so does a `/dream` run (wiki pages plus the
-`consolidated:` stamps this directory's notes pick up).
+Notes are inside the **prose allowlist**, so a `/save` whose entire diff sits in `notes/**` +
+`wiki/**` commits **directly to the default branch** — no branch, no PR, no `/ship`. A
+conversation-only session (just a note) takes that route, and so does a `/dream` run (wiki pages
+plus the `consolidated:` stamps this directory's notes pick up).
 
-The gate exists to stop unreviewed *behavior* reaching the default branch, and neither surface
-carries behavior. A note is one additive, slug-unique file that is raw and non-canonical by design;
-there's nothing to approve. A wiki page is prose a human already reviewed in-session, on the diff
-`/dream` produced — and it can't break a deploy.
-
-The carve-out is scoped by path and exact: one changed path outside the allowlist and the whole save
-takes the normal flow, with the prose riding along on the branch. Routing never keys on file
-extension — markdown under `.claude/` is the payload and markdown under `openspec/` is the spec, and
-both keep the full gate.
+What makes a note safe to send that way is what this page is about: it is one additive, slug-unique
+file, raw and non-canonical by design, carrying no code, config, or spec — so there is nothing in it
+to approve. The rule itself, its scope, and what stays gated live in
+[the change loop](../wiki/development/the-change-loop.md#the-prose-allowlist).

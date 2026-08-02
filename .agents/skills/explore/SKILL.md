@@ -8,12 +8,7 @@ user-invocable: true
 
 `/explore` is WongStack's front door to OpenSpec's **explore** step — the optional first stop in the loop:
 
-```
-/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
-(optional)  draft the  implement  push +    resume →    merge +
-            change     the tasks  PR +      /apply      archive
-                                  preview
-```
+`/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
 It's a thinking partner, not a builder: use it to pull apart a problem, weigh options, and firm up scope *before* `/plan` writes a proposal. Nothing is committed and no specs are drafted.
 

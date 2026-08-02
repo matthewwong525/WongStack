@@ -8,12 +8,7 @@ user-invocable: true
 
 Rehydrate a fresh session from a saved OpenSpec change and pick up the work. **The change is the plan** (written by `/save`): `openspec/changes/<name>/proposal.md` is the intent, `tasks.md` is the checklist. Load it, check out the branch, continue.
 
-```
-/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
- think      draft the  implement  push +    resume →    merge +
- (no git)   change     the tasks  PR +      /apply      archive
-            (no git)   (no git)   preview
-```
+`/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
 This skill trusts the change as the source of truth. It deliberately does **not** reload the PR diff or review threads wholesale — `/save` keeps the change current, so the change alone is the spine; a cheap **counts-only drift check** (step 4) flags when reality has moved past the change. By convention **branch name = change name**.
 
