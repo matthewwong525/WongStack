@@ -31,6 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Needed by "Publish the preview URL" — creating a Deployment and its
+      # status is the only write this workflow makes to GitHub.
+      deployments: write
     env:
       # head_ref is the source branch on pull_request; ref_name is the branch on
       # push. The scripts treat this as "we are in CI" — empty means local, and
@@ -87,5 +90,36 @@ jobs:
         run: bash scripts/cf-build.sh
 
       - name: Deploy
+        id: deploy
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: bash scripts/cf-deploy.sh
+
+      # Publish the preview URL where the tooling can find it.
+      #
+      # Under Cloudflare Workers Builds this step is unnecessary — Cloudflare's
+      # own GitHub integration attaches the URL to the commit. Actions has no
+      # such integration, so without this the URL exists only in a job log and
+      # `/save` reports no preview while `/ship`'s staging walkthrough reports
+      # UNKNOWN and refuses to merge. A GitHub Deployment is what
+      # `.claude/skills/save/scripts/preview-url.sh` looks for first.
+      #
+      # Non-production branches only: the alias URL is per-commit, and the
+      # production deploy has a permanent address that needs no announcing.
+      - name: Publish the preview URL
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && steps.deploy.outputs.preview-url != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.preview-url }}
+        run: |
+          DEPLOYMENT_ID=$(gh api "repos/$GITHUB_REPOSITORY/deployments" \
+            -f ref="$GITHUB_SHA" \
+            -f environment=staging \
+            -f description="Preview for $CF_BRANCH" \
+            -F auto_merge=false \
+            -f 'required_contexts[]' \
+            --jq .id)
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
+            -f state=success \
+            -f environment_url="$PREVIEW_URL" \
+            --jq .id > /dev/null
+          echo "published $PREVIEW_URL as deployment $DEPLOYMENT_ID"

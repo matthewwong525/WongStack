@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "app",
+	"name": "wongstack",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-28",
 	"assets": {
@@ -16,7 +16,34 @@
 	"upload_source_maps": true,
 	"compatibility_flags": [
 		"nodejs_compat"
-	]
+	],
+	// Production's bindings. `migrations_dir` is relative to THIS file, not the
+	// repo root — `schema/` stays at the root, so from `app/` it's `../`.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "wongstack-db",
+			"database_id": "322d78e8-19e1-4bf0-8489-faa13c66deb1",
+			"migrations_dir": "../schema/migrations"
+		}
+	],
+	// Staging is a whole second Worker, not a binding swap. It needs its own
+	// `name` (without one, a branch deploy lands on production) and its own
+	// twin of every stateful binding — an environment inherits nothing it
+	// doesn't redeclare. See wiki/stack/d1-pipeline.md.
+	"env": {
+		"staging": {
+			"name": "wongstack-staging",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "wongstack-db-staging",
+					"database_id": "0e5a5be6-1eca-4b99-ab10-5decaa4c55f5",
+					"migrations_dir": "../schema/migrations"
+				}
+			]
+		}
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

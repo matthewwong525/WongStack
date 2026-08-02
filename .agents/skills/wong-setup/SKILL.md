@@ -98,6 +98,8 @@ These come out of the research and the conversation, not out of the payload — 
 
   **On a no (or no answer):** leave `stackPack` false and touch none of it. Declining never gates the rest of setup, and they can take the pack later via `/wong-sync`.
 
+  **Don't offer the [staging walkthrough](../../../wiki/stack/ship-walkthrough.md) here.** It only means anything once the repo has an app with screens and preview URLs, which on a fresh setup it doesn't — offering it now buys a yes to something they can't use, or a no to something they'd have wanted later. Name it once, as a thing that exists, and move on: *"Later on, once there's something to look at, `/ship` can walk through the app in a browser before it merges and show you screenshots. Worth knowing about; nothing to do now."* Adopting it is one `npm i -D playwright` in their app whenever they want it — there is **no manifest field and no flag to set**, so there is nothing to record either way.
+
 ## Step 7 — bootstrap, seed, hand off
 
 1. **Copy the `wong-sync` skill** from `$WS` into the target's `.claude/skills/` — the one payload file this skill copies (the sync can't run before it exists; it syncs itself from then on).
