@@ -6,7 +6,7 @@ The single source of truth for **which files `/wong-sync` may copy into a target
 
 ## In the manifest
 
-- **Workflow skills** — `.claude/skills/<name>/` (the whole directory, including any `references/` and `scripts/`) for:
+- **Workflow skills** — `.claude/skills/<name>/` (the whole directory, including any `references/` and `scripts/` — currently `save/references/git-gate.md` and `save/scripts/`, `ship/references/walkthrough.md` and `ship/scripts/`, `improve/references/`, and `wong-sync/references/`) for:
   `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve`, **`wong-sync`** (this skill included — upstream improvements to the sync arrive through the sync, though once installed they arrive as a *proposal* like any other present file).
   A skill installed under a different local name counts as **present** under that name: the target's `.claude/.wong-stack.json` `components.skills` array records what was actually installed, and that mapping wins over the default names. It is adapted, not copied in again under the default name.
 - **Docs convention pages** — at the target's wiki root (`wiki/`, falling back to `docs/`):
@@ -36,7 +36,8 @@ The pack's **config fragments** are **not** manifest files. `package.json` scrip
 ## Not in the manifest
 
 - **`wong-setup`** — source-only tooling; never copied into a target (offered as a symlink instead). It copies no payload file except the `wong-sync` skill (the bootstrap that makes the first sync possible); everything else arrives through Step 2's copy-if-absent walk.
-- **The generated `openspec-*` skills and `.claude/commands/opsx/`** — regenerated in each repo by `openspec init`, not copied, so they always match the installed CLI.
+- **The `openspec-*` skills and `.claude/commands/opsx/`** — produced in each repo by `openspec init`, not copied, so they always match the installed CLI.
+  In *this* repo both are **committed and kept deliberately**, so nothing depends on regenerating them. The five `commands/opsx/*.md` are one-line pointers at the correspondingly named `openspec-*` skill, which owns the behavior — that's what keeps the two entry points from drifting, as they had by v8.4. Edit the skill; the command needs no matching edit.
 - **`VERSION` and `CHANGELOG.md`** — WongStack's release record; never copied into a target. `/wong-sync` reads them in the clone (the changelog walk) and writes neither, anywhere.
 - **The target's own notes** — `notes/*.md` other than `README.md`. A repo's captured sessions belong to it; only the convention page is payload.
 - **The sync's own generated files** — `.claude/.wong-stack.json` and `.claude/wong-sync-verdicts.md`. Both are written per repo from that repo's state, not shipped from upstream, so they are outside the manifest in both directions: never copied in, and never read from the clone. They're the one place `/wong-sync` rewrites an existing file, which it may do precisely because it generated them.

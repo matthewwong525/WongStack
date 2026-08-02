@@ -62,10 +62,10 @@ Each record carries:
 | `assumes` | what it needs from a repo: a forge? CI? a frontend? OpenSpec? a particular stack? |
 | `dependsOn` | other capability ids it builds on |
 
-**Ids must be stable**, because the ledger keys on them. Two rules:
+**Ids must be stable**, because the verdict record keys on them. Two rules:
 
 1. Derive ids from **upstream content only** — never from the target — so the same upstream commit yields the same ids in every repo.
-2. The cartographer is **given the ids already in this repo's ledger** and must reuse a matching id rather than minting a new one for the same capability. Renaming an id orphans its ledger entry and silently re-pitches something the user already declined.
+2. The cartographer is **given the ids already in this repo's verdict record** and must reuse a matching id rather than minting a new one for the same capability. Renaming an id orphans its entry and silently re-pitches something the user already declined.
 
 ## The surveyor
 
@@ -111,23 +111,19 @@ The taxonomy splits on **who decided**, not on why. Four of the five verdicts ar
 
 **A stale-but-unmodified file is an ordinary `adopt`.** If the repo has a payload file it never touched and upstream has moved on, the verdict is `adopt` and its task says *take the upstream version verbatim*. There's no separate verdict for it — the difference lives in the task text, not the taxonomy. The file is **not** overwritten by the sync itself; it goes through review and `/apply` like everything else. That costs a round trip the old sync didn't, and it's the deliberate price of never clobbering work someone thought was theirs.
 
-### The ledger
+### What the last run decided
 
-Before assigning verdicts, read the manifest's `capabilities` map. **Only `declined` suppresses.**
+Before assigning verdicts, read the previous [verdict record](#the-verdict-record) — `.claude/wong-sync-verdicts.md`, which is the only place verdicts live. **Only `declined` suppresses.**
 
-A capability previously verdicted `declined` is **not re-pitched** — unless its upstream expression changed since the recorded `asOfCommit`, in which case **re-raise it**, saying it was declined earlier and what has changed since. A decline recorded against commit X is not a decline of what the capability became at commit Y; burying that would hide genuinely new information behind an old "no."
+A capability previously verdicted `declined` is **not re-pitched** — unless its upstream expression changed since the commit recorded with that entry, in which case **re-raise it**, saying it was declined earlier and what has changed since. A decline recorded against commit X is not a decline of what the capability became at commit Y; burying that would hide genuinely new information behind an old "no."
 
-Every other verdict — `present`, `divergent`, `adopt`, `not-applicable` — is **recomputed from scratch on every run**. Its ledger entry is a snapshot of the last computed state, kept for reporting and for retirement detection; it is not authority and must never be read as a reason to skip re-evaluating. Recomputing is close to free: none of the four becomes a task on its own, and the subagents have already done the reading. What it buys is correctness — delete the `Makefile` target that made something `divergent` and the next run notices, landing it on `adopt` instead of honoring a stale "you already solve this."
+Every other verdict — `present`, `divergent`, `adopt`, `not-applicable` — is **recomputed from scratch on every run**. The previous record is a picture of the last run; it is not authority and must never be read as a reason to skip re-evaluating. Recomputing is close to free: none of the four becomes a task on its own, and the subagents have already done the reading. What it buys is correctness — delete the `Makefile` target that made something `divergent` and the next run notices, landing it on `adopt` instead of honoring a stale "you already solve this."
 
-That distinction matters most for **`not-applicable`, which turns on the *target's* shape, not upstream's.** `asOfCommit` records a commit in the *clone*, so freezing a `not-applicable` against it would be a category error: the repo can grow CI, gain a frontend, or adopt a forge without upstream moving a byte, and the verdict has to follow the repo. Re-evaluate it every run.
+That distinction matters most for **`not-applicable`, which turns on the *target's* shape, not upstream's.** The recorded commit is a commit in the *clone*, so freezing a `not-applicable` against it would be a category error: the repo can grow CI, gain a frontend, or adopt a forge without upstream moving a byte, and the verdict has to follow the repo. Re-evaluate it every run.
 
-So the ledger's job is precise: **it stores the user's decisions, plus a snapshot of the last computed state.** Only the first half is authoritative on a later run.
+A recorded id with **no counterpart in the new map** is reported as **retired** — upstream dropped or absorbed it. Say so; don't silently drop the entry.
 
-A ledger id with **no counterpart in the new map** is reported as **retired** — upstream dropped or absorbed it. Say so; don't silently drop the entry.
-
-**Lazy migration.** A ledger written before the `declined` / `not-applicable` split could mean either "the user said no" or "the skill judged it a poor fit," and after the fact the two are indistinguishable. Honor an old `declined` as a user refusal — the conservative read. It keeps suppressing something that may have been suppressed on the skill's say-so, but the alternative re-pitches things the user genuinely refused, which is the louder failure. Anyone who wants a clean slate can tick its box (below) or delete the entry.
-
-Every verdict this run produces is written back to the ledger at Step 4, `asOfCommit` set to the clone HEAD.
+**Migrating a manifest ledger.** Earlier versions kept verdicts in `.claude/.wong-stack.json` under `capabilities`, alongside the record — two stores for one fact. If that key is still present, fold its entries into the record on this run and write the manifest without it (the manifest keeps install state only). Honor each migrated `declined` as a user refusal: a ledger written before the `declined` / `not-applicable` split could mean either "the user said no" or "the skill judged it a poor fit," and after the fact the two are indistinguishable. The conservative read keeps suppressing something that may have been suppressed on the skill's say-so; the alternative re-pitches things the user genuinely refused, which is the louder failure. Anyone who wants a clean slate can tick its box (below).
 
 ## The output
 
@@ -168,6 +164,8 @@ Every task must name its **capability id** and describe the graft **in this repo
 
 It exists because the step used to have a review gate for everything it said *yes* to and none for anything it said *no* to. An `adopt` got a change folder you could read at your leisure; a `divergent` or a `declined` got one line in a chat report that scrolled away, plus a JSON entry that quietly suppressed it forever. This file is the missing half.
 
+**It is the single store of verdicts.** No verdict, reason, or judgment commit is recorded anywhere else — not in `.claude/.wong-stack.json`, which holds install state only. One store means one authority: what this file says is what the last run decided, with no second copy to reconcile against.
+
 Three properties, each load-bearing:
 
 - **It lives next to the manifest, not in the change folder.** Verdicts are *repo state*, not change scope — they outlive any one adoption change, and on a current repo there is no change folder at all. A dated folder per run would scatter the record; what you want is the current picture, in one place.
@@ -176,7 +174,7 @@ Three properties, each load-bearing:
 
 ### Shape
 
-A generated-file header, then one group per verdict. Every capability gets one line: its id, then its one-line reason. **Every non-`adopt` line is a checkbox.**
+A generated-file header, then one group per verdict. Every capability gets one line: its id, then its one-line reason. **Every non-`adopt` line is a checkbox.** A `declined` line additionally carries the clone commit it was judged against — that is what lets a later run tell whether upstream has moved since the refusal.
 
 ```markdown
 <!-- Generated by /wong-sync — rewritten on every run.
@@ -216,7 +214,7 @@ As of clone `a1b2c3d` (WongStack 8.3.0), 2026-08-02.
 Each run reads the existing `.claude/wong-sync-verdicts.md` **before** regenerating it and collects every ticked capability id. For each one:
 
 - **Force it to `adopt`** for this run, whatever the analysis would otherwise have assigned, and write it a task in the change folder like any other adoption.
-- **Clear any `declined` ledger entry** among them. Asking for a capability is how a previous refusal is reversed — there is no separate un-decline gesture, because wanting the thing *is* the reversal.
+- **Drop any prior `declined`** among them, so it no longer suppresses. Asking for a capability is how a previous refusal is reversed — there is no separate un-decline gesture, because wanting the thing *is* the reversal.
 - **Show it under the adopted group** when the file is regenerated, and **name it in the report**. A tick that vanished into a rewritten file would reproduce the exact failure this section exists to fix.
 
 Promotion therefore takes a second `/wong-sync` run. That's the deliberate trade: the run itself stays non-interactive — no per-capability prompt wall — and the skill keeps proposing rather than deciding. Ticking nothing changes nothing; the analysis's own verdicts stand.
@@ -233,7 +231,7 @@ The record is the deliverable; the report is a summary that points at it. After 
 - **Present** — a count is enough.
 - **Declined** — each with its reason. Still worth naming in the report: these are the user's own decisions being honored, and seeing them is how a wrong one gets noticed.
 - **Re-raised** — anything previously declined whose upstream expression has since changed, and what changed.
-- **Retired** — ledger ids upstream no longer has.
+- **Retired** — recorded ids upstream no longer has.
 
 Say where the record was written and that a box can be ticked to overrule any of it.
 

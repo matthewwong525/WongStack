@@ -5,9 +5,16 @@ TBD - created by archiving change optional-ci-gate. Update Purpose after archive
 ## Requirements
 ### Requirement: CI is optional, not required
 
-The WongStack doctrine SHALL treat GitHub Actions (and CI generally) as an optional accelerator that is honored when present and never required. Doctrine text across the payload — `CLAUDE.md`, `README.md`, `wiki/development/the-change-loop.md`, and the `save`, `ship`, and `wong-setup` skills — MUST NOT assert CI as the sole or required gate. The system's durable pillars SHALL be described as: pull requests, version control, OpenSpec, and everything-lives-in-the-repo.
+The WongStack doctrine SHALL treat GitHub Actions (and CI generally) as an optional accelerator that is honored when present and never required. The system's durable pillars SHALL be described as: pull requests, version control, OpenSpec, and everything-lives-in-the-repo.
 
-Where that doctrine text states the scope of the direct-to-default-branch carve-out, it SHALL state the prose allowlist (`notes/**` + `wiki/**`) rather than `notes/*.md` alone, and SHALL NOT assert that wiki edits require a pull request.
+This doctrine SHALL have **one owning file** — `wiki/development/the-change-loop.md` — which states the gate ladder (CI when present → the staging walkthrough when adopted → merge, a skipped rung never being a failure), the scope of the direct-to-default-branch carve-out, and the prose allowlist (`notes/**` + `wiki/**`) with its rationale. Other payload surfaces SHALL link to that owner rather than restate it, per the `payload-single-source` capability.
+
+Two bounded exceptions, each because the reader must act without leaving the page:
+
+- `AGENTS.md`/`CLAUDE.md` MAY carry one summarizing line per doctrine, naming and linking the owner.
+- `.claude/skills/save/SKILL.md` SHALL state the allowlist's two path prefixes inline **once**, as the operational routing test the skill performs. Its other sections SHALL link to that single statement rather than repeat it.
+
+No payload surface SHALL assert CI as the sole or required gate, state the carve-out as `notes/*.md` alone, or say that wiki edits require a pull request. Where a surface links to the owner instead of restating it, that link SHALL satisfy this requirement.
 
 #### Scenario: Payload prose describes CI as optional
 
@@ -15,11 +22,22 @@ Where that doctrine text states the scope of the direct-to-default-branch carve-
 - **THEN** the text states CI is honored when present but not required, and names PR review as the gate when CI is absent
 - **AND** no remaining sentence asserts "CI is the only gate" or "GitHub Actions is the build gate"
 
-#### Scenario: Doctrine states the widened carve-out consistently
+#### Scenario: The carve-out has one owner
 
-- **WHEN** a reader reviews `CLAUDE.md`, `notes/README.md`, `wiki/development/the-change-loop.md`, and the `save` and `dream` skills
-- **THEN** every statement of the carve-out names `notes/**` + `wiki/**`
-- **AND** no remaining sentence says wiki edits take the normal branch + PR route
+- **WHEN** a reader reviews `CLAUDE.md`, `notes/README.md`, and the `save` and `dream` skills
+- **THEN** each either links to `wiki/development/the-change-loop.md` or carries one summarizing line naming it
+- **AND** no surface other than `save/SKILL.md`'s single operational statement reproduces the allowlist's scope, exceptions, or rationale
+
+#### Scenario: The save skill can route without leaving its runbook
+
+- **WHEN** `/save` reaches the point of deciding a save's route
+- **THEN** the two path prefixes are stated inline at that point
+- **AND** the skill's later sections link back to that statement rather than restating the prefixes
+
+#### Scenario: A surface contradicts the owner
+
+- **WHEN** any payload surface states the gate or the carve-out in terms the owning file does not
+- **THEN** that is a defect, resolved by correcting the surface to a link or to the owner's terms
 
 ### Requirement: The gate is CI-when-present, else PR review
 

@@ -1,10 +1,4 @@
-# apply-completion-handoff Specification
-
-## Purpose
-
-Define the automatic checkpoint boundary between completed `/apply` work and `/save`, while preserving intentional handling of partial work.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Completed apply automatically checkpoints
 
@@ -33,22 +27,3 @@ This SHALL hold for **every payload surface that fronts the apply step**, includ
 
 - **WHEN** a payload surface directs the user to a command
 - **THEN** that command exists in the payload
-
-### Requirement: Incomplete apply does not automatically checkpoint
-
-`/apply` MUST NOT automatically invoke `/save` while tasks remain pending or when implementation is paused, blocked, interrupted, or fails. It SHALL tell the user that `/save` remains available for an intentional partial checkpoint.
-
-#### Scenario: Implementation pauses with pending tasks
-
-- **WHEN** `/apply` stops because of ambiguity, a blocker, interruption, or an implementation failure while tasks remain
-- **THEN** it does not invoke `/save`
-- **AND** it reports the remaining work and the option to run `/save` manually
-
-### Requirement: Save remains independently invocable
-
-The automatic completion handoff SHALL NOT remove or narrow `/save` as an independently invocable checkpoint at any point in the change loop.
-
-#### Scenario: User wants an in-progress checkpoint
-
-- **WHEN** the user invokes `/save` before `/apply` has completed every task
-- **THEN** `/save` performs its existing checkpoint workflow without requiring `/apply` completion

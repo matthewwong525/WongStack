@@ -13,7 +13,7 @@ Brings this repo up to date with WongStack in one pass. `/wong-setup` installs o
 │ 1. Clone    refresh the cached WongStack clone ($WS)     │
 │ 2. Copy     payload files this repo doesn't have yet     │
 │ 3. Adapt    what it has → verdicts → record + change     │
-│ 4. Manifest record the commit + the capability ledger    │
+│ 4. Manifest record the version and commit installed      │
 │ 5. Report                                                │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -37,12 +37,12 @@ MF="$ROOT/.claude/.wong-stack.json"
 - **No manifest** → WongStack isn't installed here; stop and point at `/wong-setup`. A missing manifest means "not installed."
 - **This repo IS a WongStack source** (`$ROOT/VERSION` exists alongside `$ROOT/.claude/skills/wong-setup/`) → **stop** — the source has nothing to sync with itself.
 - **Read `$MF` yourself** — it's a handful of lines, and reading beats parsing. Note these for the rest of the run. Older manifests may lack any of them; an absent key is *absent*, not empty — say so rather than silently proceeding on a blank.
-  - `BASE` ← `commit` — the clone HEAD this repo last synced against. **Not a diff base** (nothing diffs); it drives the changelog walk and the ledger's `asOfCommit` reasoning.
+  - `BASE` ← `commit` — the clone HEAD this repo last synced against. **Not a diff base** (nothing diffs); it drives the changelog walk.
   - `UPSTREAM` ← `upstream.repo` — defaults to `https://github.com/matthewwong525/WongStack` when absent.
   - `WS` ← `upstream.clone` — the cached clone path, with a leading `~` expanded to `$HOME`. Only a hint; Step 1 re-resolves it.
   - `STACKPACK` ← `components.stackPack` — whether this repo took the opt-in Cloudflare stack pack. Absent = false. Gates the pack's files into the Step 2 file list.
   - `SKILLMAP` ← `components.skills` — what was actually installed, including any local renames.
-  - `LEDGER` ← `capabilities` — the capability ledger from previous runs. Absent means nothing has been judged yet, which is normal, not an error.
+  - `LEDGER` ← `capabilities` — **only on a manifest written before v8.5.** Verdicts now live solely in `.claude/wong-sync-verdicts.md`; if this key is still here, Step 3 folds it into the record and Step 4 writes the manifest without it. Absent is the normal case.
 
   A **seed manifest** (`version` and `commit` both null — `/wong-setup` just handed off) is not a special mode. Every payload file is simply absent, so Step 2 copies all of them and that *is* the install. Skip the changelog walk (there's no prior version to walk from) and state the version being installed instead.
 
@@ -105,14 +105,11 @@ Update `.claude/.wong-stack.json` to reflect what actually happened:
 { "version": "<LATEST>", "commit": "<WS_HEAD>",
   "installedAt": "<existing>", "updatedAt": "<today>",
   "upstream": { "repo": "<UPSTREAM>", "fork": "<preserved as-is, or null>", "clone": "<WS path>" },
-  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent> },
-  "capabilities": {
-    "<capability-id>": { "verdict": "present|divergent|adopt|not-applicable|declined", "reason": "<one line>", "asOfCommit": "<clone HEAD when judged>" }
-  } }
+  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent> } }
 ```
 
-- **`commit`** ← `$WS_HEAD`. It records the clone HEAD this repo last synced against. It is **not** a diff base — nothing in this skill diffs — and exists for the changelog walk and the ledger.
-- **`capabilities`** is the ledger, written from Step 3's verdicts with `asOfCommit` set to `$WS_HEAD`. **Only `declined` suppresses**: a declined capability is not re-pitched on a later run **unless** its upstream expression changed since the recorded `asOfCommit`, in which case it is re-raised naming what changed. Every other verdict is **recomputed from scratch each run** — its entry is a snapshot of the last computed state for reporting and retirement detection, never authority to skip re-evaluating. That matters most for `not-applicable`, which turns on *this repo's* shape rather than upstream's: `asOfCommit` records a commit in the clone, so freezing a `not-applicable` against it would miss the repo gaining CI, a frontend, or a forge. So the ledger stores **your decisions, plus a snapshot** — only the first half is authoritative. A ledger id with no counterpart in the new map is reported as **retired**, not silently dropped. A `declined` written before the split is honored as a user refusal (the conservative read).
+- **`commit`** ← `$WS_HEAD`. It records the clone HEAD this repo last synced against. It is **not** a diff base — nothing in this skill diffs — and exists for the changelog walk.
+- **The manifest carries install state only** — what is installed here, from where, and as of when. Verdicts, reasons, and the commit a decision was judged against live in `.claude/wong-sync-verdicts.md` and nowhere else. If this manifest still has a `capabilities` key from an earlier version, Step 3 has already folded it into the record; write the manifest without it.
 - **`upstream.fork`** is preserved byte-for-byte where an older version recorded one, and is never written or used. Nothing in this skill forks anything.
 - ⑂ A seed manifest's null `version`/`commit` are filled with `$LATEST`/`$WS_HEAD` here — keep its `installedAt` and any renames it recorded.
 - Older manifests just gain the new keys; nothing breaks on a v1 manifest. If the repo still carries a `contribute-wong-stack` skill or symlink, offer to remove it — `/wong-sync` supersedes it.
@@ -128,10 +125,11 @@ If nothing was copied and nothing is `adopt`, say so plainly: this repo is curre
 ## Hard rules
 
 - **Never overwrite a file you didn't generate.** Copy only what's absent; everything present is adapted, not replaced. There is no three-way diff, no conflict prompt, and no keep-local / take-upstream question — those mechanisms managed a risk that no longer exists. The two generated files the skill owns — `.claude/.wong-stack.json` and `.claude/wong-sync-verdicts.md` — are rewritten each run; read the verdict record's ticked boxes *before* regenerating it, since ticking is the one edit that must survive.
+- **Verdicts have one store.** `.claude/wong-sync-verdicts.md` holds every verdict, its reason, and the commit a `declined` was judged against. Never write a verdict into the manifest, and never read one from it except to migrate a pre-v8.5 `capabilities` key into the record.
 - **`declined` is only ever the user's word.** Never infer it. If you can't point to something the user actually said, the verdict is `not-applicable` — which is recomputed every run and therefore costs nothing to get wrong.
 - **No git in this repo.** Copied files, the verdict record, and the proposed change stay working-tree-only; `/save` is the gate.
 - **The clone is read-only.** Fetch, checkout, reset — never branch, commit, or push. Ask before resetting a dirty clone.
 - **It proposes; it never implements.** Step 3 writes the verdict record and — only when something is `adopt` — one OpenSpec change folder, never overwriting an existing one (suffix `-2`, `-3` on a date collision). Overruling a verdict is a tick plus a re-run, not an implementation.
 - **No contribute leg, no arguments.** The skill never opens a pull request. `/wong-sync contribute` stops with a pointer to `contributing.md`'s manual route.
 - **The manifest bounds what's copied, not what's read.** Only manifest files are ever copied in. The surveyor reads this repo's process surfaces broadly — that's how it can tell you already solve something — and nothing it reads leaves the machine.
-- **Rewrite the manifest last**, reflecting what actually happened, ledger included.
+- **Rewrite the manifest last**, reflecting what actually happened — install state only.

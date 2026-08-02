@@ -8,12 +8,7 @@ user-invocable: true
 
 `/plan` is WongStack's name for OpenSpec's **propose** step — it drafts a complete change under `openspec/changes/<name>/` (proposal, delta specs, design, tasks) so you have a spec to build against.
 
-```
-/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
-(optional)  draft the  implement  push +    resume →    merge +
-            change     the tasks  PR +      /apply      archive
-                                  preview
-```
+`/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
 **Invoke the `openspec-propose` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:propose` and owns the actual behavior (naming the change, generating artifacts in dependency order, validating).
 

@@ -8,12 +8,7 @@ user-invocable: true
 
 `/apply` is the **implement stage** of the WongStack change loop — its name for OpenSpec's **apply** step. It works the change's `tasks.md`: reads the proposal + specs + design, implements each pending task, and checks off `- [x]` as it goes.
 
-```
-/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
- think      draft the  implement  push +    resume →    merge +
- (no git)   change     the tasks  PR +      /apply      archive
-            (no git)   (no git)   preview
-```
+`/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
 **Invoke the `openspec-apply-change` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:apply` and owns the actual behavior (reading the artifacts, working the task list, checking off tasks).
 
