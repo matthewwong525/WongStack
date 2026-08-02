@@ -1,19 +1,34 @@
-# Permission-group ids
+# The widen protocol and the permission-group ids
 
-Cloudflare permission groups are what a token's policy actually grants. [The skill](../SKILL.md) needs their ids to build a widened policy set.
+Cloudflare permission groups are what a token's policy actually grants. The user grants two of them on the token screen; [the skill](../SKILL.md) grants itself everything else it needs, on demand, using this protocol. This page owns the mechanics — the skill states the outcome and points here.
 
-**Resolve ids by name at runtime.** These recorded values are a fallback and a test fixture — never the lookup path:
+## The sequence
+
+```
+   /user/tokens/verify              → your own token id
+   /user/tokens/{id}                → your current policy document
+   /user/tokens/permission_groups   → name → id lookup
+   PUT /user/tokens/{id}            → the widened set
+   /user/tokens/verify + a probe    → confirm it took
+```
+
+## The rules
+
+- **Resolve ids by name at runtime**, from `/user/tokens/permission_groups`. The recorded values below are a fallback and a test fixture — never the lookup path. Ids drift, groups are added, and one name is genuinely ambiguous (see the traps). A hardcoded id that silently stops matching is worse than a lookup that fails loudly.
+- **The `PUT` replaces the policy list wholesale.** The new set must still contain `API Tokens Write` (user scope) and `Account API Tokens Write` (account scope) — drop them and the token can never widen again, including on the next run. Preserve the existing account `resources` block as-is rather than rebuilding it; that map is what ties the token to the account, and losing it produces a token that verifies but sees no accounts.
+- **Re-verify, then probe one endpoint per permission added.** A widen that "succeeded" but didn't take is how a half-provision starts.
+- **If the widen didn't take: stop, provision nothing.** Report which surfaces are unavailable and list the permission names for the user to add by hand — that path still works, it's just more clicking. Cloudflare could restrict self-escalation in future; this check is what makes that arrive as a clear message instead of a confusing half-provision.
 
 ```bash
 curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   "https://api.cloudflare.com/client/v4/user/tokens/permission_groups?per_page=1000"
 ```
 
-Ids drift, groups are added, and one name is genuinely ambiguous. A hardcoded id that silently stops matching is worse than a lookup that fails loudly.
+The count was **392 groups** at the time of writing, which is why the endpoint needs `per_page=1000` — the default page hides most of them.
 
 ## Verified ids
 
-Read from the live API against a real account. The count was **392 groups** at the time of writing, which is why the endpoint needs `per_page=1000` — the default page hides most of them.
+Read from the live API against a real account.
 
 ### What the user grants
 
@@ -24,19 +39,19 @@ These two are the whole ask on the token screen. Every other group below, the sk
 | `API Tokens Write` | `com.cloudflare.api.user` | `686d18d5ac6c441c867cbf6771e58a0a` |
 | `Account API Tokens Write` | `com.cloudflare.api.account` | `5bc3f8b21c554832afc660159ab75fa4` |
 
-**Both must survive every widen.** `PUT /user/tokens/{id}` replaces the policy list wholesale — drop these and the token loses the ability to widen again, permanently, including on the next run.
+**Both must survive every widen** — see the wholesale-`PUT` rule above.
 
 ### A normal provision
 
-| Name | Scope | Id |
-|---|---|---|
-| `Workers Scripts Write` | account | `e086da7e2179491d91ee5f35b3ca210a` |
-| `D1 Write` | account | `09b2857d1c31407795e75e3fed8617a1` |
-| `Account Settings Read` | account | `c1fde68c7bcc44588cbb6ddbc16d6480` |
-| `Workers CI Read` | account | `ad99c5ae555e45c4bef5bdf2678388ba` |
-| `Workers CI Write` | account | `2e095cf436e2455fa62c9a9c2e18c478` |
-| `User Details Read` | user | `8acbe5bb0d54464ab867149d7f7cf8ac` |
-| `Workers R2 Storage Write` | account | `bf7481a1826f439697cb59a20b22293e` |
+| Name | Scope | For | Id |
+|---|---|---|---|
+| `Workers Scripts Write` | account | deploying the Worker | `e086da7e2179491d91ee5f35b3ca210a` |
+| `D1 Write` | account | creating databases, applying migrations | `09b2857d1c31407795e75e3fed8617a1` |
+| `Account Settings Read` | account | resolving account context | `c1fde68c7bcc44588cbb6ddbc16d6480` |
+| `Workers CI Read` | account | reading build state (see the traps) | `ad99c5ae555e45c4bef5bdf2678388ba` |
+| `Workers CI Write` | account | repointing a Workers Builds fallback | `2e095cf436e2455fa62c9a9c2e18c478` |
+| `User Details Read` | user | self-verification | `8acbe5bb0d54464ab867149d7f7cf8ac` |
+| `Workers R2 Storage Write` | account | only when the app adds an R2 bucket | `bf7481a1826f439697cb59a20b22293e` |
 
 ### The opt-in Access branch
 
@@ -60,7 +75,7 @@ Added only when a user asks for a login wall, and droppable afterward.
 
 Match on `scopes` containing `com.cloudflare.api.account`, never on position in the response — ordering is not guaranteed. Picking the zone-scoped copy produces a token that accepts the policy and then fails every account-level Access call.
 
-**Builds is filed under "CI".** There is no permission group whose name contains "build" — searching all 392 for it returns nothing, which is how [the credentials page](../../../../wiki/stack/cloudflare-credentials.md) came to hedge about the name. Workers Builds permissions are `Workers CI Read` and `Workers CI Write`.
+**Builds is filed under "CI".** There is no permission group whose name contains "build" — searching all 392 for it returns nothing. Workers Builds permissions are `Workers CI Read` and `Workers CI Write`.
 
 ## Reading a token's current policy
 
@@ -72,4 +87,4 @@ curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   https://api.cloudflare.com/client/v4/user/tokens/{id}          # → its policy document
 ```
 
-A policy pairs a permission-group list with a `resources` map. Preserve the existing resources block when widening rather than rebuilding it — that map is what ties the token to the user's account, and losing it produces a token that verifies but sees no accounts (the empty-`/accounts` symptom in the [failure map](failure-map.md)).
+A policy pairs a permission-group list with a `resources` map. An empty `/accounts` after a widen is the lost-resources symptom in the [failure map](failure-map.md).

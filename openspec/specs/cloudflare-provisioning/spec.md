@@ -33,6 +33,32 @@ The payload SHALL include a provisioning skill, gated on `components.stackPack: 
 - **THEN** those edits sit uncommitted in the working tree
 - **AND** the skill runs no git command in the repo
 
+### Requirement: Where the skill is present, it is the whole door to the pack
+
+When `/wong-cloudflare` runs in a repo whose manifest lacks `components.stackPack: true` (or whose pack files never landed), it SHALL NOT stop and point elsewhere. It SHALL make the pack's outcome-phrased offer itself; on a yes it SHALL set `components.stackPack: true` in `.claude/.wong-stack.json`, land the pack's drop-in files by following the `wong-sync` skill's clone-refresh and copy-if-absent steps (the adapt step SHALL NOT run as part of this), apply the id-free config fragments, and continue into provisioning. On a no it SHALL stop having changed nothing.
+
+The skill SHALL own all config-fragment application: the id-free fragments (`package.json` scripts, `.env.example` variables, `.gitignore` entries) at the start of a run where they are missing, and the `wrangler.jsonc` block at the binding step with real resource ids. A missing wrangler config SHALL be created from the fragment, not treated as a reason to stop.
+
+When no Cloudflare token is available yet, the skill SHALL stop cleanly after the adoption work with the files and fragments in place, stating that a re-run with a token completes provisioning.
+
+#### Scenario: Late adoption through the skill
+
+- **WHEN** `/wong-cloudflare` runs in a repo that has the skill but not `components.stackPack: true`
+- **THEN** it offers the pack, and on a yes sets the flag, lands the missing drop-in files, applies the id-free fragments, and proceeds toward provisioning
+- **AND** on a no it stops with the repo unchanged
+
+#### Scenario: Adoption without a token yet
+
+- **WHEN** the user says yes to the pack but has no Cloudflare account or token
+- **THEN** the run completes the adoption work and stops cleanly, telling the user a later re-run provisions
+- **AND** nothing is half-provisioned
+
+#### Scenario: No pointer at a refusing path
+
+- **WHEN** any payload prose directs a repo without the pack toward adopting it
+- **THEN** it names a route that works — `/wong-cloudflare` where the skill exists, or setting `components.stackPack: true` and running `/wong-sync` where it does not
+- **AND** no prose claims `/wong-sync` offers the pack
+
 ### Requirement: The token widens its own permissions rather than requiring a pre-granted set
 
 
@@ -133,10 +159,9 @@ The skill SHALL list the accounts the token can see and SHALL NOT assume a singl
 
 ### Requirement: Provisioning creates the two databases and the binding
 
+For a repo taking the stack pack, the skill SHALL create the production and staging D1 databases and write the binding on the staging-Worker model: the production id into the top-level `d1_databases` entry's `database_id`, and the staging id into the `env.staging` block's own `d1_databases` entry, merging the `wrangler.jsonc` fragment (from `stack-pack-fragments.md`) with real ids when the block is absent. There is no `preview_database_id` and no swap step. It SHALL compute the production URL and report the preview URL **pattern** in its staging-Worker form (`<branch>-<worker>-staging.<subdomain>.workers.dev`), while per-commit URLs remain harvested from wrangler output per the stack-pack capability, never constructed. It SHALL be idempotent: a resource that already exists is reused and reported, never duplicated.
 
-For a repo taking the stack pack, the skill SHALL create the production and staging D1 databases, write their ids into the repo's `wrangler.jsonc` `d1_databases` binding as `database_id` and `preview_database_id`, and compute the production and preview URLs from the account's Workers subdomain. It SHALL be idempotent: a resource that already exists is reused and reported, never duplicated.
-
-The Cloudflare token SHALL live only in the repo's git-ignored `.env`. Provisioning SHALL NOT copy it anywhere else, because Workers Builds runs inside Cloudflare and needs no credential handed to it.
+The Cloudflare token SHALL live only in the repo's git-ignored `.env` and in the GitHub repository secrets the CI wiring sets — never in a committed file.
 
 #### Scenario: A second run does not duplicate resources
 
@@ -144,10 +169,16 @@ The Cloudflare token SHALL live only in the repo's git-ignored `.env`. Provision
 - **THEN** it detects the existing databases and reuses them
 - **AND** it reports each as already present rather than creating a second copy
 
-#### Scenario: The credential is not copied out of .env
+#### Scenario: The binding follows the staging-Worker model
+
+- **WHEN** the skill writes the database ids
+- **THEN** production's id lands in the top-level binding and staging's id inside `env.staging`, each entry carrying its own `database_name` and `migrations_dir`
+- **AND** `preview_database_id` is not written anywhere
+
+#### Scenario: The credential reaches only its two stores
 
 - **WHEN** provisioning completes
-- **THEN** the token exists only in the git-ignored `.env`
+- **THEN** the token exists in the git-ignored `.env` and as a GitHub repository secret
 - **AND** no credential value is written into a committed file
 
 ### Requirement: CI is wired without user involvement
@@ -175,23 +206,6 @@ Before relying on a push, the skill SHALL check that the stored `gh` credentials
 - **WHEN** the workflow runs
 - **THEN** it delegates the branch decision to the pack's build and deploy scripts rather than reimplementing it
 - **AND** production, the staging Worker, and the per-commit preview alias behave exactly as they do under Cloudflare Workers Builds
-
-### Requirement: A runbook documents the provisioning path for any agent
-
-
-The payload SHALL include a `wiki/stack/` page describing the provisioning path in enough detail that an agent without the skill can execute it: the exact token the user creates, the self-widening sequence, account resolution, the resources created, the CI wiring, and teardown. It SHALL follow the progressive-disclosure rulebook and link from the `wiki/stack/` hub. Any step that was not verified against a live account SHALL be marked unverified and given a dashboard fallback.
-
-#### Scenario: An agent follows the runbook without the skill
-
-- **WHEN** an agent in a repo without the provisioning skill is asked to set up the Cloudflare app
-- **THEN** the runbook gives it the full sequence including the exact permission names and endpoints
-- **AND** it does not need to consult Cloudflare's dashboard documentation to proceed
-
-#### Scenario: Unverified steps are labelled
-
-- **WHEN** the runbook covers a step that could not be tested against a live account
-- **THEN** it marks the step unverified and states the dashboard fallback
-- **AND** it does not present the step as confirmed working
 
 ### Requirement: Everything provisioned can be torn down
 

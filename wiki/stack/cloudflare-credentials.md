@@ -1,6 +1,6 @@
 # Cloudflare credentials
 
-One token gets everything running. Create it with **two checkboxes**, paste it into `.env`, and the agent grants itself whatever else it needs — [provisioning](provisioning.md), deploys, build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall.
+One token gets everything running. Create it with **two checkboxes**, paste it into `.env`, and the agent grants itself whatever else it needs — [provisioning](../../.claude/skills/wong-cloudflare/SKILL.md), deploys, build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall.
 
 This page is the token screen in detail: where to click, what to tick, what it can do afterward, and the security trade-off that design makes. Values land in `.env` per the [secrets convention](../development/secrets.md); real values never touch git.
 
@@ -59,40 +59,17 @@ CLOUDFLARE_ACCOUNT_ID=
 
 `.env.example` uses these same two names. Provisioning creates `.env` from it, confirms git ignores it, and fills `CLOUDFLARE_ACCOUNT_ID` for you once it knows which account you picked.
 
-CI doesn't need a copy: Workers Builds runs inside Cloudflare and already has your account's credentials. The token in `.env` is what an agent uses to provision and to read a failed build's log.
+CI gets its copy as **GitHub repository secrets** — provisioning sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` with `gh secret set`, so the pack's Actions workflow can deploy. The token therefore lives in exactly two places, neither committed: the git-ignored `.env`, and GitHub's sealed secret store. (A repo on the Workers Builds fallback needs neither: that CI runs inside Cloudflare.)
 
 ## How two checkboxes become enough
 
-The token rewrites its own permissions:
+The token rewrites its own permissions: it reads its own id and policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified working against the live API: a token with only `API Tokens Write` widened itself and nine endpoints went from `Authentication error` to resolving. **The token id doesn't change**, so `.env` is written once — no rotation, no second secret, no re-paste.
 
-```
-   /user/tokens/verify              → its own id
-   /user/tokens/{id}                → its current policy
-   /user/tokens/permission_groups   → name → id lookup
-   PUT /user/tokens/{id}            → a wider policy set
-```
-
-Verified working against the live API: a token with only `API Tokens Write` widened itself and nine endpoints went from `Authentication error` to resolving. **The token id doesn't change**, so `.env` is written once — no rotation, no second secret, no re-paste.
-
-What gets granted for a normal setup:
-
-| Permission group | For |
-|---|---|
-| `Workers Scripts Write` | deploying the Worker |
-| `D1 Write` | creating databases, applying migrations |
-| `Account Settings Read` | resolving account context |
-| `Workers CI Read` | reading build state |
-| `User Details Read` | self-verification |
-
-Only if you ask for a login wall: `Access: Apps and Policies Write`, `Access: Organizations, Identity Providers, and Groups Write`, `Access: Service Tokens Write`, `Zero Trust Write`. Someone who never wants authentication never grants anything Zero-Trust-shaped — which is the practical payoff of this design.
-
-> **Workers Builds is filed under "CI".** The permission is `Workers CI Read` / `Workers CI Write`. There is no permission group whose name contains "build" — all 392 were searched. If you've ever hunted the picker for a Builds permission, that's why you didn't find one.
+The full protocol — the call sequence, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall — is owned by [the widen protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md). The practical payoff: someone who never wants authentication never grants anything Zero-Trust-shaped.
 
 ### Narrowing back
 
-The same call in reverse. Provision, then hand the extra permissions back; widen again next time you need them. Offered, never automatic.
-
-Whatever set you `PUT`, it must still contain `API Tokens Write` and `Account API Tokens Write` — the call replaces the policy list wholesale, and a token that drops them can never widen again. That one is unrecoverable without creating a new token.
+The same call in reverse. Provision, then hand the extra permissions back; widen again next time you need them. Offered, never automatic. The one rule that must survive any hand-editing: the two API-token groups stay in the policy, or the token can never widen again (the wholesale-`PUT` rule in [the protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md)).
 
 ## The security trade-off, stated plainly
 
@@ -139,7 +116,7 @@ Locally, the same values go in `.dev.vars` (git-ignored, per the [secrets conven
 
 ## Next
 
-- What the token is used to build: [provisioning](provisioning.md).
+- What the token is used to build: [the provisioning skill](../../.claude/skills/wong-cloudflare/SKILL.md).
 - Turning on a login wall: [Cloudflare Access](cloudflare-access.md).
 - How staging gets its own Worker and its own bindings: [Deploy and data pipeline](d1-pipeline.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

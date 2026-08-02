@@ -2,7 +2,7 @@
 
 The [Cloudflare stack pack](payload-manifest.md#the-opt-in-stack-pack) delivers two kinds of file. Its **drop-in files** (the `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, the `wiki/stack/` pipeline docs) are whole files the target owns — they ride the manifest and follow the normal rule: copied if absent, adapted if present, never overwritten. The four **config fragments** below are different: they must *merge* into files the target already owns, so they are **not** manifest pull-files. They are applied the way the `CLAUDE.md` `WONG-STACK` block is: **show the fragment, apply it with the user's confirmation, never blind-write over the target's file.**
 
-Apply these only for a repo that took the pack (`components.stackPack: true`): `/wong-setup` applies them on the first install (reading them here from the source clone), and `/wong-sync` surfaces a changed fragment through its adapt step on the rare occasion upstream changes one. A fragment can't be cleanly re-merged into a file the user has since edited, so it is *re-offered* as a guided edit, never auto-merged.
+Apply these only for a repo that took the pack (`components.stackPack: true`). **[`/wong-cloudflare`](../../wong-cloudflare/SKILL.md) is the applier**: the id-free fragments (`package.json`, `.env.example`, `.gitignore`) at the start of a run where they're missing, and the `wrangler.jsonc` block at its binding step, filled with the real resource ids it just created. `/wong-setup` applies none of them. `/wong-sync` surfaces a changed fragment through its adapt step on the rare occasion upstream changes one — a fragment can't be cleanly re-merged into a file the user has since edited, so it is *re-offered* as a guided edit, never auto-merged.
 
 For each fragment: read the target's current file, show what you'd add, and merge on a yes — preserving everything already there. If the target file doesn't exist yet, create it from the fragment.
 
@@ -84,19 +84,9 @@ Twin every other stateful binding the same way. A queue needs both halves inside
 
 There is no `preview_database_id` and no swap script: which database a branch binds is decided by which Worker it deploys to. See [`d1-pipeline.md`](../../../../wiki/stack/d1-pipeline.md) for the full twin table and the reasoning.
 
-## Workers Builds → the deploy command
+## Workers Builds fallback only: the deploy command
 
-Not a fragment — there is no file to merge it into. It is a **dashboard setting a human changes once**, and the pack does not work without it.
-
-In the Cloudflare dashboard, under the Worker's **Settings → Build → Deploy command**, replace the default `npx wrangler deploy` with:
-
-```bash
-bash scripts/cf-deploy.sh
-```
-
-(`bash ../scripts/cf-deploy.sh` in the `app/` layout, matching the build command's path.)
-
-Workers Builds offers one deploy command for every branch, which is exactly why the branch logic lives in a script: the production branch deploys the production Worker, and any other branch deploys the staging Worker *and* uploads a per-commit preview version. Leave the default in place and branch pushes keep uploading versions of the production Worker — the behaviour the staging environment exists to replace. Say this step out loud when installing or adopting the pack; it is the one thing no file in the repo can do for the user.
+Not a fragment, and **not part of the default install**: the pack's CI is [GitHub Actions](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions), which needs no dashboard step. Only a repo that chose the [Workers Builds fallback](../../../../wiki/stack/d1-pipeline.md#why-not-cloudflares-own-workers-builds) has this one dashboard setting to change — pointing the deploy command at `bash scripts/cf-deploy.sh` — and that page owns it. Mention it only when a repo is actually on that fallback.
 
 ## `.env.example` → Cloudflare variables
 
@@ -104,8 +94,8 @@ Add these documented, blank lines (the pack's [credentials page](../../../../wik
 
 ```bash
 # Cloudflare — user-scoped API token from My Profile → API Tokens
-# (NOT an account token — the Workers Builds log API rejects those).
-CLOUDFLARE_USER_TOKEN=
+# (NOT an account token — the /user/* endpoints this setup depends on reject those).
+CLOUDFLARE_API_TOKEN=
 # Your Cloudflare account ID (dashboard → any domain → Overview, or the URL).
 CLOUDFLARE_ACCOUNT_ID=
 # Cloudflare Access service token — lets CI reach Access-gated preview URLs.

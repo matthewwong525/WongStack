@@ -66,15 +66,17 @@ Nothing rewrites `wrangler.jsonc`. Which database a branch binds follows from wh
 
 ### The two commands
 
-`scripts/cf-build.sh` is the **build command** (`npm run build`), so the dashboard's default does the right thing with no dashboard config. It reads both database names from `wrangler.jsonc` — the top-level one for production, the one inside `env.staging` for staging — so nothing is baked in. Your real build lives under `build:app`, which the wrapper calls after migrating.
+`scripts/cf-build.sh` is the **build step**. It reads both database names from `wrangler.jsonc` — the top-level one for production, the one inside `env.staging` for staging — so nothing is baked in. Your real build lives under `build:app`, which the wrapper calls after migrating.
 
-`scripts/cf-deploy.sh` is the **deploy command**, and it is the one thing you must set by hand:
+`scripts/cf-deploy.sh` is the **deploy step**. On the pack's [GitHub Actions workflow](#ci-is-github-actions) — the default — both are invoked by `deploy.yml` and there is nothing to configure. The production branch defaults to `main`; set `CF_PRODUCTION_BRANCH` in CI if yours differs.
+
+**Only on the [Workers Builds fallback](#why-not-cloudflares-own-workers-builds)** is there a dashboard step, and it's the one thing that CI cannot set for you:
 
 ```
 Workers Builds → Settings → Build → Deploy command:   bash scripts/cf-deploy.sh
 ```
 
-Leave the default `npx wrangler deploy` in place and branch pushes go back to uploading versions of the *production* Worker — the exact behaviour this model replaces. The production branch defaults to `main`; set `CF_PRODUCTION_BRANCH` in CI if yours differs.
+Leave that fallback's default `npx wrangler deploy` in place and branch pushes go back to uploading versions of the *production* Worker — the exact behaviour this model replaces.
 
 On a branch it **deploys first, then uploads the version.** That order is load-bearing: `wrangler versions upload` refuses to run against a Worker that doesn't exist yet, which is exactly the state on the first branch push in a repo — so uploading first would fail before the deploy that creates the staging Worker. On the production branch, wrangler warns that environments are defined but none was named; that's expected, and the bindings it prints are the top-level production ones.
 

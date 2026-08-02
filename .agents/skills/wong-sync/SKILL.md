@@ -80,7 +80,7 @@ Three scoping rules:
 
 - **`CLAUDE.md`'s unit is the block, not the file.** No `WONG-STACK:BEGIN/END` markers (or no file at all) → insert the block, markers included, creating the file if needed and leaving every byte outside the markers untouched. Markers present → the block goes to Step 3 and is never rewritten in place.
 - **A renamed skill counts as present.** If `components.skills` records a payload skill installed under a different local name, that's the name it lives under here — it is present, so it is adapted, not copied in a second time under the default name.
-- **The opt-in stack pack** ([its files](references/payload-manifest.md#the-opt-in-stack-pack) — the three `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, and the whole `wiki/stack/` section) enters the file list **only when `$MF` has `components.stackPack: true`**. For any other repo they're outside the manifest — never copied, never analysed, never offered. When they are in scope they follow the same copy-if-absent / adapt-if-present rule as everything else. The pack's config fragments are *not* files in this list; they merge into files this repo owns, so they follow the guided-edit path and surface through Step 3.
+- **The opt-in stack pack** ([its files](references/payload-manifest.md#the-opt-in-stack-pack) — the three `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, and the whole `wiki/stack/` section) enters the file list **only when `$MF` has `components.stackPack: true`**. For any other repo they're outside the manifest — never copied, never analysed, never offered. Adopting the pack is not this skill's job: the door is `/wong-cloudflare` — or, where that skill isn't installed yet, setting `components.stackPack: true` and re-running the sync, which then copies the pack in; that copy is this skill's only part in adoption. When they are in scope they follow the same copy-if-absent / adapt-if-present rule as everything else. The pack's config fragments are *not* files in this list; they merge into files this repo owns, so they follow the guided-edit path and surface through Step 3.
 
 Say what was copied, in one line each. Copied files are working-tree edits only — no `git add`, no commit, no branch.
 
@@ -99,7 +99,7 @@ The step writes two things:
 
 ## Step 4 — rewrite the manifest (always last)
 
-Update `.claude/.wong-stack.json` to reflect what actually happened:
+Update `.claude/.wong-stack.json` to reflect what actually happened. This block is the payload's **single statement of the manifest schema** — `/wong-setup` writes its seed from here (same shape, `version`/`commit` null) rather than carrying a copy:
 
 ```json
 { "version": "<LATEST>", "commit": "<WS_HEAD>",

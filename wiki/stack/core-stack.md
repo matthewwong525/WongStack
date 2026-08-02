@@ -18,7 +18,7 @@ Pin these versions where the scaffold needs them (Vite's Cloudflare plugin and t
 
 ## Why this combo suits AI-driven dev
 
-**Merge = deploy.** A PR's merge to the default branch *is* the production release: Workers Builds runs the [build and deploy wrappers](d1-pipeline.md#auto-migrate-on-build-deploy-by-branch), applies pending migrations to prod, and ships the new bundle. No separate deploy step to forget, no drift between "merged" and "live."
+**Merge = deploy.** A PR's merge to the default branch *is* the production release: the pack's CI — [GitHub Actions by default](d1-pipeline.md#ci-is-github-actions) — runs the [build and deploy wrappers](d1-pipeline.md#auto-migrate-on-build-deploy-by-branch), applies pending migrations to prod, and ships the new bundle. No separate deploy step to forget, no drift between "merged" and "live."
 
 **One runtime, front to back.** The SPA, the APIs, and the data binding all live in a single Worker with one config file (`wrangler.jsonc`), which also declares the [staging environment](d1-pipeline.md#why-staging-is-a-whole-worker). An agent reasoning about a change sees the whole surface in one place instead of stitching a frontend host to a separate backend to a separate database.
 
@@ -28,7 +28,7 @@ Pin these versions where the scaffold needs them (Vite's Cloudflare plugin and t
 
 ## Next
 
-- Standing the whole thing up from one token: [provisioning](provisioning.md).
+- Standing the whole thing up from one token: [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md).
 - How code and data ship, and how a bad migration is recovered: the [deploy and data pipeline](d1-pipeline.md).
 - The optional login wall in front of the app: [Cloudflare Access](cloudflare-access.md).
 - The tokens the pipeline needs: [Cloudflare credentials](cloudflare-credentials.md).
