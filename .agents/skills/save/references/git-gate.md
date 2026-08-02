@@ -74,11 +74,12 @@ gh run view "$RUN_ID" --log-failed | tail -120
 
 **Cap: 3 attempts.** Still red → stop with the error and the checks link. A CI failure is not a stop condition until the cap is reached — fixing and re-pushing *is* the runbook. Never bypass with `--no-verify` or `--force`.
 
-Where a caller runs a further gate after this one that can also fail and retry (`/ship`'s staging walkthrough), those attempts **share this cap**; they are not a second budget.
+This cap covers the CI fix-and-repush loop only. No caller runs a further retrying gate after it — `/walk` is invoked deliberately and carries no retry budget of its own.
 
 ## What each caller keeps
 
 This runbook does **not** own, and each skill states for itself:
 
 - **`/save`** — the preview-URL discovery, staging by path (never `git add .`), the prose fast path, the session note, and the OpenSpec sync.
-- **`/ship`** — the default-branch-CI preflight, the archive commit, the staging walkthrough, and the worktree-safe merge.
+- **`/ship`** — the default-branch-CI preflight, the archive commit, and the worktree-safe merge.
+- **`/walk`** — the staging walkthrough, which it runs after invoking `/save`; it gates nothing here.

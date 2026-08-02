@@ -6,7 +6,7 @@ The single source of truth for **which files `/wong-sync` may copy into a target
 
 ## In the manifest
 
-- **Workflow skills** — `.claude/skills/<name>/` (the whole directory, including any `references/` and `scripts/` — currently `save/references/git-gate.md` and `save/scripts/`, `ship/references/walkthrough.md` and `ship/scripts/`, `improve/references/`, and `wong-sync/references/`) for:
+- **Workflow skills** — `.claude/skills/<name>/` (the whole directory, including any `references/` and `scripts/` — currently `save/references/git-gate.md` and `save/scripts/`, `improve/references/`, and `wong-sync/references/`) for:
   `explore`, `plan`, `apply`, `save`, `continue`, `ship`, `dream`, `improve`, **`wong-sync`** (this skill included — upstream improvements to the sync arrive through the sync, though once installed they arrive as a *proposal* like any other present file).
   A skill installed under a different local name counts as **present** under that name: the target's `.claude/.wong-stack.json` `components.skills` array records what was actually installed, and that mapping wins over the default names. It is adapted, not copied in again under the default name.
 - **Docs convention pages** — at the target's wiki root (`wiki/`, falling back to `docs/`):
@@ -29,7 +29,8 @@ The pack's **drop-in files** (whole files the target owns after install):
 - `schema/seed.sql` and `schema/migrations/.gitkeep` — the seed template and the migrations directory.
 - `.dev.vars.example` — the committed, values-blank list of the secret **names** the Worker reads, mirroring the `.env.example` convention. `secrets:check` reads it to warn about keys neither Worker holds. It carries no value, so copying it into a repo discloses nothing.
 - `.claude/skills/wong-cloudflare/` (plus its `references/`) — the provisioning skill. Gated on the pack because it's meaningless without it; a repo that declined never sees the command.
-- The whole `wiki/stack/` section (hub + `getting-started.md`, `core-stack.md`, `d1-pipeline.md`, `cloudflare-access.md`, `cloudflare-credentials.md`, `ship-walkthrough.md`) — the human walkthrough, the pipeline and Cloudflare-setup docs, and the opt-in staging-walkthrough gate. (The provisioning runbook is the `wong-cloudflare` skill itself, not a wiki page.)
+- `.claude/skills/walk/` (plus its `references/walkthrough.md` and `scripts/`) — the staging walkthrough skill. Gated on the pack for the same reason: it walks a per-commit preview alias that only the pack's pipeline publishes, so outside a stack-pack repo there is nothing for it to walk. Within the pack it is opt-in again at a second level — `playwright` in the app's `devDependencies` — so having the skill is not the same as walking.
+- The whole `wiki/stack/` section (hub + `getting-started.md`, `core-stack.md`, `d1-pipeline.md`, `cloudflare-access.md`, `cloudflare-credentials.md`, `staging-walkthrough.md`) — the human walkthrough, the pipeline and Cloudflare-setup docs, and the opt-in staging walkthrough. (The provisioning runbook is the `wong-cloudflare` skill itself, not a wiki page.)
 
 The pack's **config fragments** are **not** manifest files. `package.json` scripts, the `wrangler.jsonc` bindings and `env.staging` block, `.env.example` variables, and the `.gitignore` `.dev.vars*` entries (wildcard plus the `!.dev.vars.example` negation) must *merge* into files the target already owns, so they are never whole-file copies. They are applied as guided edits by `/wong-cloudflare`, following the `CLAUDE.md`-block precedent (show → apply with confirmation → never blind-write), from [`stack-pack-fragments.md`](stack-pack-fragments.md). When upstream changes a fragment, it surfaces through the adapt step rather than being merged automatically.
 

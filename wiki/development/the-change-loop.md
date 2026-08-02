@@ -22,6 +22,12 @@ Each verb is a thin WongStack skill fronting one step of OpenSpec, the planning 
 
 Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
 
+### Walking the app
+
+**[`/walk`](../../.claude/skills/walk/SKILL.md)** sits *beside* the loop rather than in it. It invokes `/save`, then drives the change's own OpenSpec scenarios through a real browser against the deployed preview and posts screenshots, video, and a verdict to the PR. Invoke it whenever you want to see the thing working — mid-change, twice in a row, or right before `/ship`.
+
+It **gates nothing**: no verdict blocks a merge, and no other verb consults its result. That's what makes it safe to run early and often. Opt-in per repo and detected from state — see [the runbook](../stack/staging-walkthrough.md).
+
 ## The gate
 
 This page is where the delivery doctrine is **stated**; every other surface links here rather than
@@ -33,12 +39,10 @@ honored when configured. Where checks exist, push and let CI run — the skills 
 Where they don't, the PR (plus the OpenSpec change and its archive) is the record a human reviews.
 Either way, **nothing builds locally as a prerequisite.**
 
-**The ladder is CI-when-present → the staging walkthrough-when-adopted → merge**, and a skipped rung
-is never a failure. A repo that opted into the [staging walkthrough](../stack/ship-walkthrough.md)
-gets one more gate between green CI and the merge: `/ship` walks the change's own OpenSpec scenarios
-against the **already-deployed** preview. Nothing is compiled and nothing is installed — the artifact
-under test is the one CI published, which is why this isn't a local build. Installing Playwright is
-the entire opt-in; there is no flag. A repo that didn't opt in sees no difference at all.
+**The ladder is CI-when-present → merge**, and a skipped rung is never a failure. Nothing else gates
+a merge. In particular the [staging walkthrough](../stack/staging-walkthrough.md) does not: it's
+reached by invoking [`/walk`](#walking-the-app), and `/ship` neither runs it nor checks whether it
+ran.
 
 An **unverifiable** gate is not an absent one. When the check state can't be read, `/save` reports it
 as unverified and carries on — it's a checkpoint — while `/ship` stops rather than merge on it.

@@ -3,6 +3,43 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.0.0 — seeing the app is a verb now, not a toll on the merge
+
+You could only watch your app work in a browser by shipping it. The walkthrough was welded into `/ship`
+as a gate, which put your first real look at the change at the last possible moment — and forced a whole
+apparatus around it, because a merge was waiting: a walk that couldn't run had to block, retries had to
+share `/ship`'s attempt budget, and evidence only got posted when everything already passed. It's now
+`/walk`, invoked when you want it, as often as you want it.
+
+- **BREAKING — `/ship` no longer walks.** Step 4.5, the verdict table, and the walkthrough hard rules are
+  gone; `/ship` is PR + CI + squash-merge + archive. **If you adopted the walkthrough as a merge gate, you
+  no longer have one** — nothing errors and nothing warns, the rung simply isn't there. Run `/walk` when
+  you want the evidence. `/ship` neither runs it nor checks whether it ran.
+- **BREAKING — the gate ladder lost a rung.** `CI-when-present → the walkthrough-when-adopted → merge`
+  is now just **`CI-when-present → merge`**, with PR review as the gate where there are no checks.
+- **New `/walk` skill.** It invokes `/save` first — push, wait for CI, resolve the per-commit preview URL,
+  because that alias only exists once CI has published *this* commit — then scouts the change's own
+  OpenSpec scenarios into browser journeys, drives them with Playwright, grades each against the scenario's
+  written `THEN`, and posts screenshots and video to the PR. Run it mid-change, twice in a row, or right
+  before shipping.
+- **Evidence is posted on every verdict.** It used to land only on success, because a failure blocked the
+  merge and got fixed before anything was published. That was backwards: a failed walk's screenshots are the
+  most useful thing it produces. Repeated walks append comments rather than overwriting, so the PR keeps an
+  honest log of attempts.
+- **Verdicts report instead of gating.** All five survive — `NONE`, `SUCCESS`, `FAILURE`, `UNKNOWN`,
+  `TIMEOUT` — but none of them blocks anything. `UNKNOWN` still isn't `NONE`: an adopted repo's un-runnable
+  walk is *unverified*, and the comment says so. That mattered as a merge rule; it still matters as a
+  reporting rule, because a walk that screenshots a login page and reads as a pass is the outcome worth
+  preventing either way.
+- **No retry budget.** A failed walk posts its evidence, resets staging, and stops. You fix and run `/walk`
+  again — the user is the retry loop, so there's nothing to bound.
+- **Renamed:** the capability `ship-walkthrough` → `staging-walkthrough`, and the runbook
+  `wiki/stack/ship-walkthrough.md` → `wiki/stack/staging-walkthrough.md`. Both names asserted a coupling
+  to `/ship` that no longer exists.
+- **Unchanged:** adoption is still `npm i -D playwright` and nothing else, still detected rather than
+  configured, and a repo that never adopted it still sees nothing. The walk still writes nothing inside your
+  repo, still installs nothing, still resets staging only after a failure, and still refuses to call a
+  clean-but-wrong screenshot a pass.
 ## 8.6.0 — one door to the stack pack, and the Cloudflare facts stop contradicting each other
 
 v8.0 replaced the preview-swap staging model and v8.1 replaced Workers Builds with GitHub Actions, but
