@@ -1,10 +1,12 @@
 .DS_Store
 *.log
 node_modules/
-.claude/settings.local.json
+# Per-machine agent settings. `.claude` is a symlink to `.agents`, and git does not
+# resolve paths through a symlink — the rule has to name the real directory.
+.agents/settings.local.json
 
 # Real secrets — the committed template is .env.example. Never commit filled-in values.
-.env
-.env.local
+.env*
+!.env.example
 .dev.vars*
 !.dev.vars.example
