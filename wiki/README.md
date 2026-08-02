@@ -16,4 +16,4 @@ This wiki is WongStack's process memory: the reusable knowledge a human or agent
 
 Not process — a recommendation you can take or leave. Nothing above depends on it.
 
-- [Cloudflare stack](stack/README.md) — the opinionated stack for AI-driven dev (React + Vite on Cloudflare Workers, D1, Access), and how to set up its Cloudflare side.
+- [Cloudflare stack](stack/README.md) — the opinionated stack for AI-driven dev (React + Vite on Cloudflare Workers, D1, Access). The flow: `/wong-setup` once, `/wong-sync` to stay current, and `/wong-cloudflare` whenever you want the app live — it offers the pack, sets everything up, and puts the app online.

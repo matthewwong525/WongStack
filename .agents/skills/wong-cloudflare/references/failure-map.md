@@ -45,13 +45,14 @@ This page maps what the API returns to **the one thing the user should change**.
 |---|---|---|
 | D1 create → name conflict | A database of that name exists | Reuse it if this repo made it; otherwise offer a suffix. Never delete to make room. |
 | `wrangler` reports no migrations to apply | `migrations_dir` is resolved relative to the wrangler config, not the repo root | In the `app/` layout it must be `../schema/migrations`. Fails silently — worth checking once. |
-| Preview swap refuses to run | `database_id` and `preview_database_id` are identical | Staging was never created, or both slots got the production id. |
+| `cf-deploy.sh` refuses: branch resolves to the production Worker | `env.staging` has no `name` of its own (or the environment wasn't applied at build time) | Declare `name: <worker>-staging` inside `env.staging`; for a vite-plugin build, confirm `CLOUDFLARE_ENV=staging` was set at build time. The refusal is the guard working — nothing was deployed. |
+| A pack script stops: staging database not declared | `env.staging` lacks its own `d1_databases` entry | Add the staging twin's `database_name` (and id) inside the environment block; the scripts refuse rather than touch production. |
 
 ### GitHub
 
 | Symptom | Cause | What to say |
 |---|---|---|
-| Push rejected: `refusing to allow an OAuth App to create or update workflow` | The `workflow` OAuth scope is missing | Not in `gh auth login`'s default set. `gh auth refresh --scopes workflow` — a browser consent, a few seconds. Explain it as *"GitHub needs your permission before a tool can add an automated deploy step."* Check for this **before** the first push, not after. |
+| Push rejected: `refusing to allow an OAuth App to create or update workflow` | The `workflow` OAuth scope is missing | `gh auth refresh --scopes workflow` — a browser consent, a few seconds. [Why, and the plain-language framing](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope). Check for this **before** the first push, not after. |
 | `gh secret set` → `HTTP 403` | No admin rights on the repo | Secrets need admin. On someone else's repo, they have to set them. |
 | The workflow runs but Cloudflare auth fails | Secrets not set, or set on the wrong repo | `gh secret list` to confirm. The values live in `.env` and are re-settable at any time. |
 | A feature branch deployed over production | `CF_PRODUCTION_BRANCH` doesn't match the repo's default branch | The workflow reads it from the repo, so this means the default branch was renamed. Check `cf-deploy.sh`'s log line, which prints both. |

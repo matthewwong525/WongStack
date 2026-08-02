@@ -3,6 +3,46 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 8.6.0 — one door to the stack pack, and the Cloudflare facts stop contradicting each other
+
+v8.0 replaced the preview-swap staging model and v8.1 replaced Workers Builds with GitHub Actions, but
+each change missed about half the places the old model was written down — leaving five live
+contradictions, two of which would have sent a real provisioning run down a retired path. And the pack's
+late-adoption story was circular: setup and `/wong-cloudflare` both said "run `/wong-sync` — it'll offer
+the pack," while `/wong-sync`'s own rule is that it never offers pack files to a repo that hasn't opted
+in. This release extends 8.5.0's one-owner-per-fact doctrine to the setup → sync → cloudflare surfaces.
+
+- **The five contradictions are fixed.** `/wong-cloudflare`'s binding step, its failure map, and the
+  provisioning spec now describe the `env.staging` twin model (no `preview_database_id`, no swap);
+  the fragments' `.env.example` writes `CLOUDFLARE_API_TOKEN` like everything else (was
+  `CLOUDFLARE_USER_TOKEN`); the Workers Builds dashboard deploy-command is documented as
+  fallback-only rather than "the pack does not work without it"; the preview URL pattern is the
+  staging-Worker form (`<branch>-<worker>-staging.<subdomain>.workers.dev`) everywhere; and the fit
+  playbook stops claiming `/wong-sync` "opens the PR itself" — contributing is a manual PR.
+- **`/wong-cloudflare` is the one door to the pack.** In a repo that hasn't taken it, the skill makes the
+  outcome-phrased offer itself, sets `components.stackPack: true`, lands the drop-in files (via
+  `wong-sync`'s clone + copy steps), applies the config fragments, and continues into provisioning; with
+  no token yet it stops cleanly and a later re-run finishes. It owns **all** fragment application now —
+  including the `wrangler.jsonc` block, written with the real database ids at the binding step, so the
+  placeholder-id phase is gone. `/wong-setup`'s offer shrinks to the question plus "run
+  `/wong-cloudflare` whenever"; where the skill isn't installed, the documented route is the flag +
+  `/wong-sync`. Every pointer now names a path that works.
+- **`wiki/stack/provisioning.md` is deleted.** It duplicated the skill step-for-step for an audience —
+  an agent with the pack but without the skill — that can't exist, since they install together; it was
+  also where the model drift accumulated. Each fact now has one owner: the token screen in
+  `cloudflare-credentials.md`, the widen protocol in the skill's `references/permission-groups.md`, the
+  deploy model in `d1-pipeline.md`, failures in `references/failure-map.md`, the human narrative in
+  `getting-started.md`. `/wong-cloudflare` slims to the outcome flow and links down, the `/ship` →
+  `walkthrough.md` pattern.
+- **Setup and sync stop restating each other's exact values.** The `.claude/.wong-stack.json` schema is
+  stated once, in `wong-sync` Step 4 — `/wong-setup` writes its seed from there (`version`/`commit`
+  null) instead of carrying a copy that had to be hand-synced. The clone cache path is marked as
+  `wong-sync`-owned where setup repeats it, the `workflow`-OAuth-scope explanation moved to
+  `wiki/development/required-tools.md` with one-liners + links everywhere else, and setup's legacy
+  migration step compressed to one line.
+- **The journey is visible.** The root README and the wiki hub each say the flow in a sentence: setup
+  once, sync to stay current, `/wong-cloudflare` when you want it live.
+
 ## 8.5.0 — one owner per fact: the payload stops saying things twice
 
 The payload had grown three copies of things it only needed one of, and one of them had already turned

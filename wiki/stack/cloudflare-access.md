@@ -2,7 +2,7 @@
 
 Put a login wall in front of your app without writing a line of auth code. Cloudflare Access (the Zero Trust product) sits at the edge, authenticates the visitor against an identity provider you choose, and only then forwards the request to your Worker — with the verified email in a header the Worker trusts. This page stands up Access for the [Cloudflare stack](README.md): the org, an identity provider, one application, and the two policies that gate the admin surface while leaving the public one open.
 
-> **This is opt-in, and nothing else requires it.** An app the stack pack [provisions](provisioning.md) is **public by default** — anyone with the link can open it, which is what most projects want. Nothing in the pack, the pipeline, or CI depends on Access existing. Come here when you decide you want people to sign in first.
+> **This is opt-in, and nothing else requires it.** An app the stack pack [provisions](../../.claude/skills/wong-cloudflare/SKILL.md) is **public by default** — anyone with the link can open it, which is what most projects want. Nothing in the pack, the pipeline, or CI depends on Access existing. Come here when you decide you want people to sign in first.
 
 You do this once per app, in the Cloudflare dashboard. It needs a Cloudflare account and a Worker you've already deployed at least once (so its hostnames exist). The token half of setup is the sibling page, [Cloudflare credentials](cloudflare-credentials.md) — an agent can grant itself the Access permissions on demand, so you don't pre-authorize anything to *read* this page.
 
@@ -123,5 +123,5 @@ The rule: production fails closed. The fallback identity exists only because *yo
 ## Next
 
 - Wire up the API token your build and CI need — including where the service token's two values go: [Cloudflare credentials](cloudflare-credentials.md).
-- How the app got there in the first place: [provisioning](provisioning.md).
+- How the app got there in the first place: [the provisioning skill](../../.claude/skills/wong-cloudflare/SKILL.md).
 - Back to the stack overview: [Cloudflare stack](README.md).
