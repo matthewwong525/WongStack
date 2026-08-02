@@ -86,3 +86,35 @@ temptation was strongest exactly where verification was hardest:
   the source repo paying a cost to keep the payload clean — the same tension the note opens with.
 - Whether the Access partial-label wildcard works on **every plan tier** is still unknown. The runbook
   documents the uncertainty instead of resolving it.
+
+## Live Access verification (added after the first save)
+
+User authorized standing Access up on an `ithinkwong.com` subdomain, which unblocked section 7 of
+`harden-cloudflare-access`. What was created on account `040f88e2…` (Matthewwong525@gmail.com's),
+and what to remove when it's no longer wanted:
+
+| resource | identifier |
+|---|---|
+| Workers custom domain | `wongstack-staging.ithinkwong.com` → `wongstack-staging` (id `16aa241c7fc2a934f0bc3f46650279f43ac50037`) |
+| Access application | `WongStack staging (Access runbook verification)` (id `10a98858-5fe3-4650-a57f-a02786a1e851`, aud `b0e998ce…`) |
+| Access service token | `wongstack-access-verification` (id `00e6082c-9e90-4e43-b167-49aa1004483d`) |
+
+Left standing deliberately so the outstanding browser check can be done. Nothing pre-existing was
+modified; the apex `ithinkwong.com` app was not touched.
+
+**The finding worth keeping.** The pre-existing `ithinkwong.com` Access app already used a
+partial-label wildcard — `*wongos.matthewwong525.workers.dev` — on an account *different* from the
+one that supplied the original evidence. So partial-label patterns are confirmed on two independent
+accounts, and the form varies (`*wongos…` here, `*-<worker>-staging…` as documented); the mechanism
+is what matters, not the punctuation.
+
+**The premise stopped being a documentation claim and became an observation.** A real
+`CF_Authorization` JWT captured from a service-token request contains `common_name`, no `email`, and
+an empty `sub` — so the header pattern really does reject machine callers, and `/walk` really would
+have been locked out. Worth remembering that this only became checkable once there was a live gated
+host; the synthetic tests could never have established it.
+
+**What was deliberately not claimed.** The logged-in-browser row is unverified and marked as such,
+because the IdP is one-time-PIN and no human was in the loop. Marking it done on the strength of a
+service-token `200` would have reproduced, inside this change's own record, the exact error the
+change exists to prevent.

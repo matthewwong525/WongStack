@@ -63,10 +63,23 @@ could not perform on itself.
 review, never merged into your files automatically. The app scaffold requires setting
 `components.appScaffold` and only lands where you have no app.
 
-- **Known limitation:** the Access changes are verified by construction and by unit tests
-  (`app/worker/access.ts` passes 15 cases covering both caller kinds and every fail-closed path), and
-  the partial-label wildcard was confirmed live against the Access API. Standing the rewritten runbook
-  up end to end on a custom domain has not been done.
+The Access rewrite was **stood up live on a custom domain** and behaves as documented: an anonymous
+caller is challenged, a service token is admitted, the scoped application gates exactly one hostname,
+and five unrelated Workers on the same `workers.dev` subdomain stay open. That last number is the
+argument against the wildcard this release removes — the account carries seven Workers on that
+subdomain, so `*.<subdomain>.workers.dev` would have walled six of them.
+
+`app/worker/access.ts` was verified against **real Cloudflare-issued tokens**, and they settle the
+premise empirically: a service-token JWT carries `common_name`, **no `email`**, and an empty `sub`. A
+Worker reading `Cf-Access-Authenticated-User-Email` rejects that caller — the lockout this release
+fixes. The module accepts the real token against the live certs endpoint and rejects a second real
+application's audience, a tampered payload, and a wrong team domain.
+
+- **Known limitation, and it is the one the runbook itself insists on:** the third caller — a
+  **logged-in browser** — has not been verified, because it needs a human to complete an
+  identity-provider login. A service-token `200` is explicitly *not* proof, so it is not being counted
+  as one here. If you adopt Access, do that browser check yourself; it is the only one that covers a
+  human.
 
 ## 9.0.0 — seeing the app is a verb now, not a toll on the merge
 
