@@ -1,7 +1,7 @@
 # fix-pack-ci-defaults
 
-**Status:** in-progress
-**Open questions:** none — tasks 5.2/5.3 verify themselves on this PR's own CI run
+**Status:** ready-to-ship
+**Open questions:** none
 
 > Ships together with four sibling changes as the single **9.1.0** payload release, on branch `setup-flow-testing`. Resume any of them with `/continue` and check out that branch — the branch carries all five.
 
@@ -59,3 +59,4 @@ The first is `deploy.yml`'s step 1, which runs unconditionally. The second is th
   `deploy.yml`: the locate step routes exit 3 to a green report naming `/wong-cloudflare`, all seven later steps gate on a `configured` output, concurrency keys on event+branch, and a job-level `if` limits runs to `push` plus fork PRs. The header now explains why **both** concurrency parts are required (GitHub evaluates concurrency before a job's `if`).
   Verified: skip/abort behaviour, that real binding drift still fails, that a provisioned repo's `--app-dir` output is byte-identical, and the locate step replayed against the fixture (exit 0, `configured=false`, summary names the skill).
   **Remaining:** 5.2/5.3 need a live push with an open PR — this PR's own CI run is that test.
+- **2026-08-02** — Tasks 5.2/5.3 **verified live on PR #50**, which is the fixture the plan asked for: a provisioned repo with an open PR. Exactly the designed outcome — the `push` run deployed (`success`), the `pull_request` run was `skipped` by the job-level `if`, **zero cancelled runs**, one successful deploy, and `gh pr checks` exits `0`. That last one is the point: under the old concurrency key the loser was *cancelled*, which `gh pr checks` reports as `fail` and which would have blocked `/ship`. Change complete at 20/20.

@@ -25,8 +25,8 @@
 ## 5. Verify end to end
 
 - [x] 5.1 Unconfigured pack repo: push and confirm a green check, with the "not configured" message naming the provisioning skill
-- [ ] 5.2 Provisioned repo with an open PR: push a commit and confirm exactly one deploy, one version bound to the alias, and no cancelled run
-- [ ] 5.3 Confirm `gh pr checks` reports success (not `fail` from a cancellation) so `/ship` is not blocked
+- [x] 5.2 Provisioned repo with an open PR: push a commit and confirm exactly one deploy, one version bound to the alias, and no cancelled run
+- [x] 5.3 Confirm `gh pr checks` reports success (not `fail` from a cancellation) so `/ship` is not blocked
 - [x] 5.4 Confirm `.claude/skills/save/scripts/preview-url.sh` still resolves the preview URL for the commit
 
 ## 6. Docs
