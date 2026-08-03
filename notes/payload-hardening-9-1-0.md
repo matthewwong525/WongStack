@@ -118,3 +118,10 @@ host; the synthetic tests could never have established it.
 because the IdP is one-time-PIN and no human was in the loop. Marking it done on the strength of a
 service-token `200` would have reproduced, inside this change's own record, the exact error the
 change exists to prevent.
+
+**Resolved.** The maintainer confirmed the logged-in browser serves the app on the custom domain, so
+7.1 closed with all three callers verified and the change archived. The custom-domain requirement is
+now established end to end rather than inferred from the `workers.dev` failure it avoids. 7.2 was
+recorded as descoped to the mechanism — a full `/walk` run needs `playwright`, a separate opt-in this
+repo hasn't taken — rather than checked off silently or left open against a dependency that isn't
+coming.

@@ -1,7 +1,7 @@
 # harden-cloudflare-access
 
-**Status:** ready-to-ship (one verification row outstanding: a human browser login)
-**Open questions:** 7.1's third caller — a logged-in browser — needs a human to receive a one-time PIN. Everything else in section 7 is verified live. Whether partial-label wildcards work on *every* plan tier is still unknown (two accounts confirmed).
+**Status:** shipped
+**Open questions:** whether partial-label wildcards work on *every* plan tier is still unknown — confirmed on two accounts, not established as universal. The runbook documents that uncertainty rather than resolving it.
 
 > Ships together with four sibling changes as the single **9.1.0** payload release, on branch `setup-flow-testing`. Resume any of them with `/continue` and check out that branch — the branch carries all five.
 
@@ -65,3 +65,6 @@ Three further findings compound it:
   **7.4 passes, including a negative control.** The smoke test from `/wong-cloudflare` 4g reports `pass` on the public app (anonymous `200`) and on the gated app (anonymous `302` to `cloudflareaccess.com`, service token `200`), and correctly reports `fail` with actionable wording — *"anonymous request returned 200 and was not challenged"* — when the public app is deliberately checked as if gated.
   **`access.ts` verified against real Cloudflare-issued tokens, not just synthetic ones.** Captured a genuine `CF_Authorization` JWT from a service-token request. Its claims settle the change's central premise **empirically** rather than from documentation: `common_name` present, **`email` absent**, `sub` empty. A Worker reading `Cf-Access-Authenticated-User-Email` would have rejected that caller — which is exactly the lockout this change fixes. The module accepts it against the **live** certs endpoint via both header and cookie, and rejects: the *other real app's* `aud` (cross-app replay, using a genuine second audience from the same org), a tampered payload, and a wrong team domain.
   **Outstanding: 7.1's third caller.** A logged-in browser needs a human to receive the one-time PIN; the IdP is OTP-only. Deliberately **not** marked verified — claiming a service-token `200` as proof is precisely the error this change exists to prevent, and doing it here would refute the change in its own record. `/walk` (7.2) needs `playwright`, which is not installed and which `/walk` never installs.
+- **2026-08-02** — **7.1 closed: the maintainer confirmed the logged-in browser serves the app** on `wongstack-staging.ithinkwong.com`. That was the decisive row — the whole change exists because it is the *only* check that covers a human, and because on `workers.dev` it is the one that fails while every terminal check passes. The custom-domain requirement is now verified end to end rather than argued from the failure it avoids.
+  7.2 is **descoped to the mechanism**: the service-token path `/walk` uses reaches the gated host and returns real app HTML, which is the property the task was protecting. A full `/walk` run needs `playwright` in the app's devDependencies — a separate opt-in this repo has not taken, and one `/walk` deliberately never installs. Recorded as descoped rather than checked off silently or left open against a dependency that is not coming.
+  Change complete at 31/31 and archived.
