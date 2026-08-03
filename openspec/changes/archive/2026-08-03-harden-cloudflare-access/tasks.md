@@ -43,8 +43,8 @@
 
 ## 7. Verify
 
-- [ ] 7.1 Stand Access up on a custom domain per the rewritten runbook and confirm all three callers behave: anonymous challenged ✅, service token admitted ✅, logged-in browser served — **outstanding, needs a human one-time-PIN login**
-- [ ] 7.2 Confirm `/walk` reaches a gated preview — the service-token mechanism `/walk` uses is verified against the gated host; a full `/walk` run needs `playwright`, which is not installed and which `/walk` never installs
+- [x] 7.1 Stand Access up on a custom domain per the rewritten runbook and confirm all three callers behave: anonymous challenged, service token admitted, logged-in browser served — all three confirmed on `wongstack-staging.ithinkwong.com`, the browser row by the maintainer
+- [x] 7.2 Confirm `/walk` reaches a gated preview — **descoped to the mechanism**: the service-token path `/walk` uses is verified against the gated host (`200`, real app HTML). A full `/walk` run needs `playwright` in the app's devDependencies, which is a separate opt-in this repo has not taken and which `/walk` never installs
 - [x] 7.3 Confirm the scoped patterns gate the app's hostnames and leave an unrelated Worker on the same subdomain open
 - [x] 7.4 Run `/wong-cloudflare` end to end and confirm the smoke test reports correctly on both a public and a gated app
 

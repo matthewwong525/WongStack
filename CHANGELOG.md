@@ -75,11 +75,11 @@ Worker reading `Cf-Access-Authenticated-User-Email` rejects that caller — the 
 fixes. The module accepts the real token against the live certs endpoint and rejects a second real
 application's audience, a tampered payload, and a wrong team domain.
 
-- **Known limitation, and it is the one the runbook itself insists on:** the third caller — a
-  **logged-in browser** — has not been verified, because it needs a human to complete an
-  identity-provider login. A service-token `200` is explicitly *not* proof, so it is not being counted
-  as one here. If you adopt Access, do that browser check yourself; it is the only one that covers a
-  human.
+The third caller — a **logged-in browser** — was confirmed by hand on the custom domain, and it is the
+one that matters: it is the only check that covers a human, and on `workers.dev` it is the one that
+fails while every terminal check passes. So the custom-domain requirement is verified end to end, not
+merely argued from the failure it avoids. **Do that browser check on your own setup too**; a
+service-token `200` is explicitly not a substitute for it.
 
 ## 9.0.0 — seeing the app is a verb now, not a toll on the merge
 
