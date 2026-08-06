@@ -2,6 +2,8 @@
 
 The single source of truth for **which files `/wong-sync` may copy into a target repo**. Step 2 walks this list: a file on it that the target doesn't have is copied in verbatim; a file on it that the target does have is left alone and handed to [the adapt step](adapt.md). Nothing outside this list is ever copied, so upstream cannot drop files into parts of a repo it doesn't own.
 
+> **The paths themselves live in [`payload-files.json`](payload-files.json)** — read that when you need the list; read this page when you need to know *why* a file is on it, which category gates it, or what is deliberately excluded. Splitting them this way is the same rule this manifest applies to everything else: one store per fact. Copying the list into a third place (a script's constants, an agent's working notes) is how it drifts — `scripts/check-payload-links.mjs` used to keep exactly such a copy.
+
 **This list bounds copying, not reading.** The adapt step's surveyor reads the target's process surfaces broadly — that is the whole point of it, since a repo that already solves something usually solves it somewhere upstream never heard of. That's safe because there is no outbound path: `/wong-sync` has no contribute leg, opens no pull request, and writes nothing to the clone, so nothing the surveyor reads leaves the machine. Sending an improvement upstream is a manual PR ([`contributing.md`](../../../../wiki/contributing.md)).
 
 ## In the manifest

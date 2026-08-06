@@ -24,7 +24,7 @@ If a step other than CI fails, stop and surface the exact error. Never bypass wi
 
 > **OpenSpec never runs git — this skill owns all of it.** `openspec` only reads/writes the `openspec/` folder; every `git`/`gh` action is here.
 >
-> `main` stands for the repo's default branch — if `git symbolic-ref refs/remotes/origin/HEAD` resolves to something else, substitute it.
+> `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` *fails* on a freshly created one (`gh repo create` doesn't record a head). Only where `main` doesn't exist locally or on the remote — an older repo on `master` — resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
 
 ## Step 1 — preflight (read-only)
 

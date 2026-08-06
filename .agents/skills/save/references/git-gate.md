@@ -2,7 +2,7 @@
 
 The pull-request and CI runbook **`/save` and `/ship` both perform**. Written once here so the two can't drift apart; each skill invokes it from its own step and keeps only what is genuinely its own.
 
-Everything below assumes a feature branch with commits already on it. `main` stands for the repo's default branch — substitute whatever `git symbolic-ref refs/remotes/origin/HEAD` resolves to.
+Everything below assumes a feature branch with commits already on it. `main` stands for the repo's default branch — **assume it**, since every repo `/wong-setup` creates is on `main` and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
 
 ## 1 — open or update the pull request
 

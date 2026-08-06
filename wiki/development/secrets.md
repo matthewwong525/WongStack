@@ -7,7 +7,9 @@ This is a **convention, not machinery.** WongStack ships the pattern and an exam
 ## The two files
 
 - **`.env.example` — committed.** Every variable the code reads appears here, blank, with a comment saying *what it is* and *where to get it*. It's a checklist, not a config: no real values ever land in it. Because it's versioned, a diff to this file is how the team sees that a new secret is now required.
-- **`.env` — git-ignored.** The real values, filled in per machine. It's listed in [`.gitignore`](../../.gitignore) (alongside common variants like `.env.local` and `.dev.vars`) so it can't be committed by accident.
+- **`.env` — git-ignored.** The real values, filled in per machine. Setup writes the rule into [`.gitignore`](../../.gitignore) before this page can be acted on — `.env*` with a `!.env.example` negation, and the same pair for `.dev.vars` — so a per-environment variant full of live values can't be committed by accident either. Check it yourself with `git check-ignore -q .env` any time you want to be sure.
+
+  If `.env` was already tracked before the rule existed, widening `.gitignore` does **not** untrack it: `git rm --cached .env`, and rotate whatever was in it, because it's in the history of every clone.
 
 ## Bootstrapping a local setup
 

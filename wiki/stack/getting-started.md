@@ -27,7 +27,7 @@ Cloudflare's free tier covers all of this. You need a free Cloudflare account an
 
 ### 1. Paste the prompt
 
-Open your project folder in your coding agent and paste the setup prompt from the [README](../../README.md). The agent reads your project, asks a few questions about how you like to work, and sets up the shared knowledge and workflows.
+Open your project folder in your coding agent and paste the setup prompt from [WongStack's README](https://github.com/matthewwong525/WongStack#readme). The agent reads your project, asks a few questions about how you like to work, and sets up the shared knowledge and workflows.
 
 **You do:** answer a few questions.
 

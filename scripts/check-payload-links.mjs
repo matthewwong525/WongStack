@@ -21,32 +21,12 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// The manifest, as paths. Mirrors payload-manifest.md — when that list changes,
-// this one changes with it. Kept here rather than parsed out of the prose,
-// because a parser that silently matched nothing would report a clean run.
-const SKILLS = [
-  "explore", "plan", "apply", "save", "continue",
-  "ship", "dream", "improve", "wong-sync",
-];
-const PACK_SKILLS = ["wong-cloudflare", "walk"];
-
-const DOCS = [
-  "wiki/wiki-style.md",
-  "wiki/voice.md",
-  "wiki/contributing.md",
-  "wiki/agent-knowledge-center.md",
-  "wiki/development/secrets.md",
-  "wiki/development/the-change-loop.md",
-  "wiki/development/required-tools.md",
-  "wiki/ux-principles.md", // UI-bearing repos only
-];
-
-const PACK_FILES = [
-  "scripts/cf-build.sh", "scripts/cf-deploy.sh", "scripts/reset-staging-d1.mjs",
-  "scripts/cf-secrets.mjs", "scripts/lib-wrangler-config.sh", "scripts/lib-wrangler-config.mjs",
-  ".github/workflows/deploy.yml", "schema/seed.sql", "schema/migrations/.gitkeep",
-  ".dev.vars.example",
-];
+// The manifest, read from the one place that stores it. This file used to keep
+// its own copy of the list, which made three restatements of one fact — the
+// prose, these constants, and whatever an installing agent assembled by hand.
+const MANIFEST = JSON.parse(
+  readFileSync(join(ROOT, ".claude/skills/wong-sync/references/payload-files.json"), "utf8"),
+);
 
 function walk(dir) {
   const out = [];
@@ -61,32 +41,38 @@ function walk(dir) {
   return out;
 }
 
-/** The files a target receives, given which optional categories it took. */
 // Files a target has that the payload does not supply, but may legitimately link
-// to: the repo's own root files, and the wiki hubs `/wong-setup` seeds. A link to
-// one of these is not dangling — it resolves in any real repo.
-const TARGET_PROVIDED = [
-  "README.md", ".gitignore", "package.json",
-  "wiki/README.md", "wiki/development/README.md",
-];
+// to. EVERY ENTRY IS A CLAIM ABOUT `/wong-setup`: it belongs here only when a step
+// in that skill demonstrably writes the path — which is why the list is read from
+// the manifest's `seededBySetup` rather than kept here as a convenience.
+//
+// This is where the check went wrong before: it exempted `wiki/development/
+// README.md` under the comment "the wiki hubs /wong-setup seeds", when setup
+// seeded only the wiki root. The result was a clean run against an install with
+// eight dead links — a check reporting its own assumption back to itself.
+// `package.json` is gone for the same reason (nothing creates one), and a link to
+// a target's own `README.md` was pointing at the wrong file anyway.
+const TARGET_PROVIDED = MANIFEST.seededBySetup.files;
 
+/** The files a target receives, given which optional categories it took. */
 function payloadFor({ pack, scaffold, ui }) {
-  const files = new Set(["notes/README.md", "CLAUDE.md"]);
-  for (const s of SKILLS) walk(join(ROOT, ".claude/skills", s)).forEach((f) => files.add(f));
-  for (const d of DOCS) {
-    if (d.endsWith("ux-principles.md") && !ui) continue;
-    files.add(d);
-  }
-  if (pack) {
-    PACK_FILES.forEach((f) => files.add(f));
-    for (const s of PACK_SKILLS) walk(join(ROOT, ".claude/skills", s)).forEach((f) => files.add(f));
-    walk(join(ROOT, "wiki/stack")).forEach((f) => files.add(f));
-  }
-  if (scaffold) {
-    walk(join(ROOT, "app"))
-      .filter((f) => f !== "app/wrangler.jsonc")
-      .forEach((f) => files.add(f));
-  }
+  const files = new Set(["CLAUDE.md"]);
+  const addCategory = (cat) => {
+    if (!cat) return;
+    for (const f of cat.files ?? []) files.add(f);
+    for (const s of cat.skillDirs ?? []) {
+      walk(join(ROOT, ".claude/skills", s)).forEach((f) => files.add(f));
+    }
+    for (const d of cat.dirs ?? []) {
+      walk(join(ROOT, d))
+        .filter((f) => !(cat.exclude ?? []).includes(f))
+        .forEach((f) => files.add(f));
+    }
+  };
+  addCategory(MANIFEST.core);
+  if (ui) addCategory(MANIFEST.ui);
+  if (pack) addCategory(MANIFEST.pack);
+  if (scaffold && pack) addCategory(MANIFEST.scaffold);
   return files;
 }
 

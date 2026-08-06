@@ -3,6 +3,66 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.2.0 — the ground under the install
+
+Last release said this repo can't detect its own install defects by inspection. So this time someone
+stood a target up from nothing — empty folder, no git, no app, driven the way a non-technical person
+would drive it — and wrote down everything that broke. The pipeline itself was fine: push, CI,
+migrations, deploy, a live URL serving the starter app. Everything that broke was the **ground
+underneath** it, and every one of these is invisible here because this repo already has that ground.
+
+**Your secrets are now actually ignored, which the docs have been claiming for some time.** A fresh
+install had no `.gitignore` at all — nothing in the payload or `/wong-setup` created one — while
+`secrets.md` shipped alongside it stating that `.env` *"is listed in `.gitignore` … so it can't be
+committed by accident"* and telling you to `cp .env.example .env` and fill it in. Follow that page on a
+fresh install and you produce a file holding a token the credentials page calls *"effectively
+account-root"*, fully committable. The rule now goes in during setup, **unconditionally** — declining
+the secrets convention no longer declines the protection, because leaving a credential committable
+isn't a documentation preference. `.env*` and `.dev.vars*`, each with its `!*.example` negation.
+**If you already have an install, check `git check-ignore -q .env` yourself** — `/wong-sync` never
+modifies a file you own, so this one won't arrive on its own.
+
+**Migrations work in the `app/` layout.** The `wrangler.jsonc` fragment is the only thing in the
+payload that ever creates a target's config, and it said `migrations_dir: "schema/migrations"`. Wrangler
+resolves that relative to the config file — which for the app scaffold lives in `app/` — so it pointed
+at `app/schema/migrations` while the pack ships `schema/` at the repo root. First change carrying a
+migration, the build stops with `No migrations present at …` naming a path you never chose. It's the
+flagship path: a repo with no app of its own gets the scaffold, so this is what every appless first
+install received. WongStack's own config had it right, with a comment explaining why — which is exactly
+why nobody saw it. The fragment now states the value for both layouts and lists it among the rules the
+scripts depend on.
+
+**Setup no longer walls a newcomer at the first commit.** Git refuses to record anything without a name
+and email, and `gh auth login` does not set them — so the most likely first-run failure for the exact
+audience this is written for was `Author identity unknown / Please tell me who you are`. Setup now
+reads both from the GitHub account that's already signed in and sets them, asking nothing. Private
+email (GitHub's default, and `null` from the API) resolves to the account's noreply address, which is
+what GitHub itself stamps on browser commits. The initial commit also moved to *after* seeding, because
+an empty folder has nothing to commit.
+
+**`main` is assumed instead of detected.** `/save`, `/ship`, and `/continue` all told the agent to
+substitute whatever `git symbolic-ref refs/remotes/origin/HEAD` resolves to — a command that *fails*
+on every freshly created repo, because `gh repo create` doesn't record a head. Since setup runs
+`git init -b main` and `gh repo create` follows the local branch, the answer was already known. Detection
+survives only for a pre-existing repo where `main` doesn't exist.
+
+**The release link check stopped grading its own homework.** It exempted four paths as "files any real
+target has", including `wiki/development/README.md` under the comment *"the wiki hubs `/wong-setup`
+seeds"* — which setup did not seed. It therefore reported **no dead links** against an install that had
+eight. Setup now seeds `wiki/development/README.md` alongside the wiki root, an exemption must name a
+step that demonstrably writes the path, and the payload file list moved into
+`payload-files.json` so the checker reads the manifest instead of keeping a third copy of it.
+
+**Two smaller honesty fixes.** `/wong-setup` promised that declining Node still left `/save` working;
+it doesn't — `/save` shells out to `openspec new change`, `openspec status`, and `openspec instructions`
+whenever it authors a change, which is most sessions. And `openspec init` signs off by telling you to
+run `/opsx:propose`, a command it does not generate and WongStack tells agents not to reach for; setup
+now corrects that immediately, since it's the last thing on your screen.
+
+Known and deliberately not handled: Cloudflare caps D1 at **ten databases per account** and each
+project takes two, so roughly the fifth project fails with `7406 System limit reached`. Adopters are
+typically on a fresh account and the failure is loud, so it's written down rather than pre-flighted.
+
 ## 9.1.0 — the pack brings an app, and stops lying about what works
 
 Five fixes, all found by people installing WongStack for real rather than by reading it. The theme is

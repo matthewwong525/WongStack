@@ -39,7 +39,11 @@ wong_resolve_wrangler_config() {
     done
   fi
   if [ -z "$WRANGLER_CONFIG" ]; then
-    echo "wong: ERROR — no wrangler config found under $root" >&2
+    # An unprovisioned repo is the expected state right after setup: the pack is
+    # adopted before it is configured. Name the remedy — the file this is looking
+    # for means nothing to whoever reads the CI log. Exit status is unchanged.
+    echo "wong: no wrangler config found under $root — this repo isn't set up for Cloudflare yet." >&2
+    echo "wong: run /wong-cloudflare to configure it and put the app online." >&2
     return 1
   fi
 
