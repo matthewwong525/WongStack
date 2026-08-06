@@ -54,6 +54,9 @@ These two are the whole ask on the token screen. Every other group below, the sk
 | `Workers CI Write` | account | repointing a Workers Builds fallback | `2e095cf436e2455fa62c9a9c2e18c478` |
 | `User Details Read` | user | self-verification | `8acbe5bb0d54464ab867149d7f7cf8ac` |
 | `Workers R2 Storage Write` | account | only when the app adds an R2 bucket | `bf7481a1826f439697cb59a20b22293e` |
+| `Browser Rendering Write` | account | `/walk`'s remote browser (Cloudflare Browser Run) | *resolve by name* |
+
+**`Browser Rendering Write` is part of every widen, unconditionally** — not gated on whether the repo adopted the walkthrough. The permission is free, the widen is already pre-authorized, and gating it would couple provisioning to walkthrough detection; the narrow-back offer covers it like any other granted group. The token screen shows it as *Browser Rendering ▸ Edit*; match the group whose name starts with `Browser Rendering` at account scope and grants write/edit (no verified id is recorded yet — the by-name lookup is the path regardless, per the rules above).
 
 ### The opt-in Access branch
 

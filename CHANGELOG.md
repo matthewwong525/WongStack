@@ -3,6 +3,27 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.4.0 — the walk's browser moves to Cloudflare, and the install step disappears
+
+**`/walk` no longer needs a browser on your machine.** The walkthrough's one machine-mutating
+prerequisite — `npx playwright install chromium`, a ~150MB download that broke on servers and
+sandboxes missing system libraries and was the step people skipped — is gone. The browser is now a
+[Cloudflare Browser Run](https://developers.cloudflare.com/browser-run/) session on Cloudflare's
+edge, attached over CDP with the same `CLOUDFLARE_API_TOKEN` the stack pack already provisions. The
+adoption rung is now one command: `npm i -D playwright-core` (the no-bundled-browsers half of
+Playwright — which is the point). Everything agentic about the walk is unchanged: journeys are still
+scouted from the change's own scenarios, evidence still lands on local disk, screenshots and video
+still grade against the scenario's verbatim `THEN`. Video was verified to survive the remote
+attachment before shipping this.
+
+**What an existing adopter does: nothing, usually.** `playwright` in your `devDependencies` still
+counts as consent — no dependency migration is required. If your token predates this release, the
+first walk may report `UNKNOWN` with Browser Run refusing the token; re-run `/wong-cloudflare`, whose
+widen now grants **Browser Rendering ▸ Edit** unconditionally, and walk again. Browser time is
+metered (free plan: ~10 browser-minutes/day, 3 concurrent; Workers Paid: 10 h/month) — an exhausted
+budget reports as `UNKNOWN`, never as a failing app. The
+[runbook](wiki/stack/staging-walkthrough.md) owns the rungs and the limits.
+
 ## 9.3.0 — the token widen stops asking
 
 **Setup no longer asks whether it may widen your Cloudflare token, because you already said yes when
