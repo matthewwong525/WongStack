@@ -1,6 +1,6 @@
 ---
 name: walk
-description: Walk the deployed staging preview in a real browser and show what the change actually does — the on-demand evidence verb. Runs /save first (push, wait for CI, resolve the per-commit preview URL), scouts the change's own OpenSpec scenarios into browser journeys, drives them with Playwright capturing a screenshot per step and a video per journey, grades each against the scenario's written THEN, and posts the evidence as a PR comment on every verdict. Gates nothing — /ship merges on CI alone — so run it as often as you like, mid-change or right before shipping. Use when you want to walk the app, see it working, check whether it looks right, watch the change in a browser, screenshot or record the UI, get browser evidence onto the PR, or confirm a change does what its scenarios promised. Opt-in and detected, never configured — playwright in the app's devDependencies is the entire consent. Stack-pack repos only. Never installs anything, never writes inside the repo, and never merges.
+description: Walk the deployed staging preview in a real browser and show what the change actually does — the on-demand evidence verb. Runs /save first (push, wait for CI, resolve the per-commit preview URL), scouts the change's own OpenSpec scenarios into browser journeys, drives them with Playwright against a remote browser on Cloudflare Browser Run (reached with the pack's CLOUDFLARE_API_TOKEN — no local browser exists or is looked for), capturing a screenshot per step and a video per journey, grades each against the scenario's written THEN, and posts the evidence as a PR comment on every verdict. Gates nothing — /ship merges on CI alone — so run it as often as you like, mid-change or right before shipping. Use when you want to walk the app, see it working, check whether it looks right, watch the change in a browser, screenshot or record the UI, get browser evidence onto the PR, or confirm a change does what its scenarios promised. Opt-in and detected, never configured — playwright-core (or playwright) in the app's devDependencies is the entire consent. Stack-pack repos only. Never installs anything, never writes inside the repo, and never merges.
 user-invocable: true
 ---
 
@@ -37,7 +37,9 @@ bash "$ROOT/.claude/skills/walk/scripts/walk-staging.sh" preflight
 
 **`RESULT: NONE`** → report in one line which case it is (this repo hasn't adopted the walkthrough, or it has and there's nothing browser-observable to walk) and stop. Nothing failed.
 
-**`RESULT: READY`** (also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`) → Step 3.
+**`RESULT: READY`** (also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`, `ACCOUNT_ID`) → Step 3.
+
+Preflight verifies the walk's browser can be had — the browser is a Cloudflare Browser Run session, opened with the pack's `CLOUDFLARE_API_TOKEN`, never a binary on this machine. A missing token, a token that lists no accounts, or an endpoint refusal are each `UNKNOWN` with the remedy named (most commonly: re-run `/wong-cloudflare`, whose widen grants Browser Rendering Edit).
 
 ## Step 3 — walk and grade
 
@@ -78,11 +80,11 @@ These describe what gets **reported**. None of them gates anything.
 | **UNKNOWN** | the walk could not run or could not be trusted | **unverified** — the comment says so, and why |
 | **TIMEOUT** | the walk exceeded its budget | **unverified** — what completed, and where it stopped |
 
-**`UNKNOWN` is not `NONE`.** Once a repo has adopted the walkthrough, a walk that cannot run is *unverified*, not *absent*, and the report must use those words. This no longer decides a merge — it's now about honest reporting, and it matters most in the Cloudflare Access case: without the check, a walk screenshots a login form and a reader skimming the comment sees "a page rendered." The script exits `UNKNOWN` on that challenge by name.
+**`UNKNOWN` is not `NONE`.** Once a repo has adopted the walkthrough, a walk that cannot run is *unverified*, not *absent*, and the report must use those words. This no longer decides a merge — it's now about honest reporting, and it matters most in the Cloudflare Access case: without the check, a walk screenshots a login form and a reader skimming the comment sees "a page rendered." The script exits `UNKNOWN` on that challenge by name. The same honesty applies to the browser itself: a missing `CLOUDFLARE_API_TOKEN`, a token Browser Run refuses (never widened into Browser Rendering Edit — re-run `/wong-cloudflare`), or an exhausted plan budget (free: ~10 browser-minutes/day) are each *unverified infrastructure*, reported with the specific fix, never graded as a failing app.
 
 ## Hard rules
 
-- **Never install anything** to make a walk run — not playwright, not a browser, not on a prompt. A missing dependency is a statement about what the repo chose, or a condition to report.
+- **Never install anything** to make a walk run — not playwright-core, not a browser, not on a prompt. There is no browser to install anyway — it runs on Cloudflare Browser Run — and a missing dependency or credential is a statement about what the repo chose, or a condition to report.
 - **Never write inside the repo.** Journeys, screenshots, and video live in the temp run directory and leave with it, so the working tree is unchanged whatever the verdict. Run `cleanup` on **every** exit path — including stopping on `UNKNOWN` and pausing to ask the user a question.
 - **Reset staging only after a failed walk.** A passing walk leaves its data alone.
 - **"No exception was thrown" is not a pass.** A journey whose script completed cleanly but whose screenshot lacks what the `THEN` requires **fails**. That judgement is why the verdict is not in the script.

@@ -29,16 +29,23 @@
 # After RESULT come indented human lines, then KEY=VALUE facts for the caller.
 #
 # ── Why absence is silent but a broken walk is loud ───────────────────────────
-# Adoption is a fact about the repo, not a setting: `playwright` in the app's
-# devDependencies IS the opt-in, exactly as adopting Cloudflare Access is the
-# policy plus the code change rather than a flag somewhere. Before consent,
-# silence is normal. After consent, silence is suspicious — so the same missing
-# browser is NONE in one repo and UNKNOWN in the other.
+# Adoption is a fact about the repo, not a setting: `playwright-core` (or
+# `playwright`, for earlier adopters) in the app's devDependencies IS the
+# opt-in, exactly as adopting Cloudflare Access is the policy plus the code
+# change rather than a flag somewhere. Before consent, silence is normal. After
+# consent, silence is suspicious — so the same missing credential is NONE in one
+# repo and UNKNOWN in the other.
+#
+# The browser is not on this machine: the runner attaches to Cloudflare Browser
+# Run over CDP with the pack's CLOUDFLARE_API_TOKEN. So preflight verifies the
+# credential (token present, account resolvable) where it used to verify a
+# binary — there is no binary.
 #
 # This script NEVER installs anything. A missing dependency is a statement about
 # what the repo chose, or a condition to report — never a condition to fix.
 #
-# Depends on: git, node (only when adopted), and the repo's own playwright.
+# Depends on: git, node (only when adopted), curl, and the repo's own
+# playwright-core (or playwright).
 set -uo pipefail
 
 CMD="${1:-preflight}"
@@ -53,17 +60,35 @@ note() { echo "  $*"; }
 # Cloudflare pack, and the URL comes from the preview helper either way.
 find_app_dir() {
   local root="$1" dir base
-  if [ -f "$root/package.json" ] && grep -q '"playwright"' "$root/package.json"; then
+  if [ -f "$root/package.json" ] && grep -Eq '"playwright(-core)?"' "$root/package.json"; then
     printf '%s' "$root"; return 0
   fi
   for dir in "$root"/*/; do
     base=$(basename "$dir")
     case "$base" in node_modules|.*) continue ;; esac
-    if [ -f "$dir/package.json" ] && grep -q '"playwright"' "$dir/package.json"; then
+    if [ -f "$dir/package.json" ] && grep -Eq '"playwright(-core)?"' "$dir/package.json"; then
       printf '%s' "${dir%/}"; return 0
     fi
   done
   return 1
+}
+
+# The token comes from the environment or the repo's git-ignored .env — the same
+# credential the pack provisions; the walk asks for nothing new. Never printed.
+load_token() {
+  if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${1:-}" ] && [ -f "$1/.env" ]; then
+    CLOUDFLARE_API_TOKEN=$(grep -E '^CLOUDFLARE_API_TOKEN=' "$1/.env" | head -1 | cut -d= -f2-)
+  fi
+  export CLOUDFLARE_API_TOKEN
+}
+
+# One API call, same route the pack uses. A token that lists no accounts is the
+# lost-resources symptom, distinct from a missing token — both are UNKNOWN, but
+# the remedy named differs.
+resolve_account() {
+  curl -s --max-time 15 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+    "https://api.cloudflare.com/client/v4/accounts" |
+    node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const r=JSON.parse(s);process.stdout.write(r.success&&r.result&&r.result[0]?r.result[0].id:"")}catch{}})' 2>/dev/null
 }
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -88,20 +113,36 @@ preflight)
 
   # From here on the repo HAS consented, so every remaining failure is UNKNOWN.
 
-  # The browser must already be there. `playwright install` is the user's call,
-  # made once, deliberately — not something a merge gate does on their behalf.
-  BROWSER=$(cd "$APP_DIR" && node -e '
-    try {
-      const { chromium } = require("playwright");
-      const p = chromium.executablePath();
-      process.stdout.write(require("fs").existsSync(p) ? p : "");
-    } catch { process.stdout.write(""); }
+  # The library must be installed (npm install is the repo's own routine, not a
+  # browser download — there is no browser on this machine to check for).
+  LIB=$(cd "$APP_DIR" && node -e '
+    try { require.resolve("playwright-core"); process.stdout.write("ok") }
+    catch { try { require.resolve("playwright"); process.stdout.write("ok") } catch {} }
   ' 2>/dev/null)
-  if [ -z "$BROWSER" ]; then
+  if [ -z "$LIB" ]; then
     emit UNKNOWN
-    note "playwright is declared in $APP_DIR/package.json but its browser is not installed."
-    note "Install it yourself — this gate will not modify your machine:"
-    note "    (cd $APP_DIR && npx playwright install chromium)"
+    note "playwright-core is declared in $APP_DIR/package.json but not installed."
+    note "Install the repo's own dependencies — this gate will not do it for you:"
+    note "    (cd $APP_DIR && npm install)"
+    exit 0
+  fi
+
+  # The browser is remote: Cloudflare Browser Run, reached with the pack's
+  # token. Verify the credential where a binary used to be verified.
+  load_token "$ROOT"
+  if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+    emit UNKNOWN
+    note "no CLOUDFLARE_API_TOKEN — the walk's browser runs on Cloudflare Browser Run,"
+    note "reached with the same token the stack pack provisions. See .env.example and"
+    note "wiki/stack/cloudflare-credentials.md, then run /walk again."
+    exit 0
+  fi
+  ACCOUNT_ID=$(resolve_account)
+  if [ -z "$ACCOUNT_ID" ]; then
+    emit UNKNOWN
+    note "the token lists no accounts, so no Browser Run endpoint can be addressed."
+    note "Re-run /wong-cloudflare to repair the token (a token that verifies but sees"
+    note "no accounts is the lost-resources symptom), then run /walk again."
     exit 0
   fi
 
@@ -126,6 +167,7 @@ preflight)
   echo "URL=$URL"
   echo "RUN_DIR=$RUN_DIR"
   echo "SHA=$(git rev-parse HEAD)"
+  echo "ACCOUNT_ID=$ACCOUNT_ID"
   ;;
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -146,7 +188,14 @@ run)
     exit 0
   fi
 
+  # The runner needs the pack's token and the account id. Re-derive both here
+  # rather than trusting the caller to thread them through — `run` may be
+  # invoked from a different shell than preflight was.
+  load_token "$ROOT"
+  ACCOUNT_ID="${WALK_CF_ACCOUNT_ID:-$(resolve_account)}"
+
   WALK_URL="$URL" \
+  WALK_CF_ACCOUNT_ID="$ACCOUNT_ID" \
   timeout "${BUDGET}m" node "$(dirname "${BASH_SOURCE[0]}")/walk-runner.mjs" "$RUN_DIR" "$APP_DIR"
   STATUS=$?
 
@@ -162,6 +211,14 @@ run)
          note "Set CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (see"
          note ".env.example and wiki/stack/cloudflare-access.md) so the walk can"
          note "authenticate. Reporting UNVERIFIED rather than grading a login page." ;;
+    # Exit 4 is Browser Run refusing the token — the walk's browser could not be
+    # had at all. Infrastructure, never a failing journey: the fix is the widen
+    # (/wong-cloudflare grants Browser Rendering Edit) or the plan's budget.
+    4)   emit UNKNOWN
+         note "Cloudflare Browser Run refused the token, so no browser session could open."
+         note "Re-run /wong-cloudflare — its widen grants Browser Rendering Edit — or"
+         note "check the plan's browser budget (free: ~10 browser-min/day)."
+         note "Reporting UNVERIFIED; nothing was walked." ;;
     *)   emit UNKNOWN; note "the runner exited $STATUS before finishing" ;;
   esac
   ;;

@@ -2,7 +2,9 @@
 
 How `/walk` walks a change's own OpenSpec scenarios against the deployed preview and grades them. The skill owns *when* this runs, what each verdict reports, and the hard rules; this file owns *how* a walk is performed.
 
-Everything here runs only on `RESULT: READY` from `walk-staging.sh preflight` (which also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`). On `RESULT: NONE` the skill has already reported and stopped, and nothing below applies.
+Everything here runs only on `RESULT: READY` from `walk-staging.sh preflight` (which also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`, `ACCOUNT_ID`). On `RESULT: NONE` the skill has already reported and stopped, and nothing below applies.
+
+The browser is a **Cloudflare Browser Run session**, attached over CDP with the pack's `CLOUDFLARE_API_TOKEN` — one session per journey, opened and closed by the runner. Journeys are written exactly as before; the only observable difference is that every action includes a round trip to the remote browser, which the 15-second step timeout already has headroom for. Don't tighten it.
 
 > **Why `/walk` runs `/save` first.** CI green is what proves `cf-deploy.sh` published a version for *this* commit, which is what makes `preview-url.sh` return a URL that exists. Walking earlier walks the previous commit, or nothing. Never construct the URL by hand from a worker-name convention — a URL you built yourself can point at a commit that was never deployed and still answer 200.
 
@@ -134,6 +136,7 @@ bash "$ROOT/.claude/skills/walk/scripts/walk-staging.sh" publish "$RUN_DIR"
 
 - **`RESULT: WALKED`** → it printed `<local-path>\t<public-url>` per file; substitute them into the comment. Screenshots render inline, video is a link.
 - **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths. This is **not** a failure and is not reported as one — the prose is the record; media is corroboration.
+- **A journey whose `video` is `null`** (recording unavailable over the remote session) → say "video unavailable — screenshots only" for that journey rather than omitting the line silently. The absence of video never changes a verdict.
 
 **Video is a link at every rung.** GitHub plays video inline only for `user-attachments` URLs, which are produced by dragging a file into the web UI — there is no `gh` or REST path to that endpoint. Don't go looking for one.
 

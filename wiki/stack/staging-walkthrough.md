@@ -12,17 +12,20 @@ It exists because CI answers *did it build and did the checks pass*. It doesn't 
 
 Each rung degrades cleanly to the one below. Rung 1 is the whole opt-in; 2 and 3 are only needed if they apply to you.
 
-### 1. Install Playwright — this is the entire opt-in
+### 1. Add playwright-core — this is the entire opt-in
 
 ```bash
 cd app                        # wherever your package.json lives
-npm i -D playwright
-npx playwright install chromium
+npm i -D playwright-core
 ```
 
-That's it. There is **no manifest field, no config file, and no flag.** `playwright` in your app's `devDependencies` *is* the consent signal, and the next `/walk` walks. Remove the dependency and `/walk` goes back to reporting `NONE`.
+That's it — **no browser install, ever.** The browser is a [Cloudflare Browser Run](https://developers.cloudflare.com/browser-run/) session on Cloudflare's edge, reached over CDP with the same `CLOUDFLARE_API_TOKEN` the [stack pack provisions](cloudflare-credentials.md) (the `/wong-cloudflare` widen grants the Browser Rendering permission). `playwright-core` is the library half of Playwright with no bundled browsers, which is exactly why it's the right dependency: nothing about this opt-in touches your machine. Plain `playwright` also counts — repos that adopted before Browser Run keep walking without changing anything.
 
-`/walk` will never install this for you — not on a prompt, not as a convenience. Installing a browser modifies your machine rather than your repo, and that's your decision to make deliberately. If the dependency is declared but the browser is missing, the walk reports `UNKNOWN` and tells you the command; it doesn't run it.
+There is **no manifest field, no config file, and no flag.** The dependency in your app's `devDependencies` *is* the consent signal, and the next `/walk` walks. Remove it and `/walk` goes back to reporting `NONE`.
+
+`/walk` will never install anything for you — not the dependency, not on a prompt. If the dependency is declared but `node_modules` isn't installed, or the token is missing or was never widened into Browser Rendering, the walk reports `UNKNOWN` and names the fix; it doesn't run it.
+
+**Browser time is metered.** The free plan includes roughly 10 browser-minutes per day and 3 concurrent browsers; Workers Paid includes 10 browser-hours per month, then ~$0.09/hour ([limits](https://developers.cloudflare.com/browser-run/limits/), [pricing](https://developers.cloudflare.com/browser-run/pricing/)). A walk opens one session per journey, so concurrency is never the constraint — but a free-plan repo gets about one full-budget walk a day, and an exhausted budget reports as `UNKNOWN`, not as a failure. One caveat: an [Access](cloudflare-access.md) policy that filters by source IP would see Cloudflare's egress rather than yours — the payload's Access setup uses service tokens, not IPs, so this only matters if you added IP rules yourself.
 
 **Prerequisite: your branch must publish a preview URL.** The walk targets the per-commit alias, discovered by asking GitHub what was deployed for this commit — never constructed from a naming convention. On Workers Builds, Cloudflare publishes that automatically; on GitHub Actions, the pack's workflow does it ([how the alias URL reaches the tooling](d1-pipeline.md#how-the-alias-url-reaches-the-tooling)). A repo whose CI doesn't deploy at all has no URL to walk, and the walkthrough reports `UNKNOWN` rather than guessing one.
 
@@ -119,7 +122,7 @@ The reset isn't housekeeping. A walk that starts against the half-mutated databa
 
 Recorded so it isn't re-litigated:
 
-- **Not a test suite.** Nothing is saved, so coverage never accumulates. If you want regression tests, write real ones and run them in CI — a different decision, and a good one, but not this.
+- **Not a test suite.** Nothing is saved, so coverage never accumulates. If you want regression tests, write real ones and run them in CI — a different decision, and a good one, but not this. (If you do: the same Browser Run endpoint works from GitHub Actions with the `CLOUDFLARE_API_TOKEN` secret the pack already set, so a committed Playwright suite in CI needs no browser install either. Nothing in the payload wires this yet — it's a natural follow-up.)
 - **Not automatic on `/save`.** `/walk` *begins* by invoking `/save` — that's how the preview URL comes to exist — but the reverse was declined: `/save` does not walk. Staging redeploys on every push, so walking there would fire N times per change, with the reseed and fix loop running while the surface is still changing. You choose the moments; the tool doesn't choose them for you.
 - **Not automatic on `/ship` either.** It used to be — a gate between green CI and the merge. Making the walk a merge gate forced everything around it: a walk that couldn't run had to block, retries had to share `/ship`'s attempt budget, and the only moment you could see your app was the moment you were done with it. Invoking it deliberately costs one command and buys back all three.
 - **No second judging agent.** The concern is real: an agent that plans a journey, drives it, and grades its own screenshots has every incentive to see success. The mitigation is *provenance* rather than redundancy — the `THEN` was written by [`/plan`](../../.claude/skills/plan/SKILL.md), before the walk existed, for reasons unrelated to passing it. Ambiguous evidence stops and asks a human rather than being resolved either way. A second judge is a clean addition later if the grading proves to rubber-stamp.
