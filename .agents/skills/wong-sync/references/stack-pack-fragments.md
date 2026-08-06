@@ -107,6 +107,7 @@ Add these documented, blank lines (the pack's [credentials page](../../../../wik
 ```bash
 # Cloudflare — user-scoped API token from My Profile → API Tokens
 # (NOT an account token — the /user/* endpoints this setup depends on reject those).
+# Two permission groups is all it needs: setup widens the token's own scope from there, no asking.
 CLOUDFLARE_API_TOKEN=
 # Your Cloudflare account ID (dashboard → any domain → Overview, or the URL).
 CLOUDFLARE_ACCOUNT_ID=

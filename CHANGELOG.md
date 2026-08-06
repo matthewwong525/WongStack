@@ -3,6 +3,31 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.3.0 — the token widen stops asking
+
+**Setup no longer asks whether it may widen your Cloudflare token, because you already said yes when
+you pasted it.** The two-checkbox token is the whole design — it carries `API Tokens Write` and
+nothing useful, and grants itself the rest on demand — but the payload never said, anywhere, that the
+agent was *allowed* to do that. So it read the step the way it reads any credential change on an
+account it doesn't own — outward-facing, hard to reverse, ask first — and stalled. Users were granting
+permission on every single run for the one move the token exists to make. Nothing was broken; the
+payload was silent on a fact only the payload could supply.
+
+It says it now. The [credentials page](wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)
+owns the statement: supplying a token with those two groups **is** the permission to widen it, and an
+agent widens and then reports which permissions it granted. `/wong-cloudflare` restates it as
+behaviour at Step 2 and in its Boundaries block — right beside *"ask before creating or deleting
+anything billable"*, which is the rule an agent was generalizing from, so the exception is named where
+the over-generalization happens. The widen protocol carries it too, for an agent following that
+reference outside the skill, and the failure map now lists the stalled run as the failure mode it is.
+
+**What it doesn't cover, stated in the same breath everywhere it appears:** creating or deleting
+anything billable still asks first, a widen that fails or doesn't verify still stops the run before
+anything is provisioned, and narrowing the token back afterward is still offered rather than assumed.
+The authorization is scoped to the one free, reversible call. The account-root trade-off is unchanged
+and still stated plainly on the same page, two sections down — the grant and its cost are meant to be
+read together.
+
 ## 9.2.0 — the ground under the install
 
 Last release said this repo can't detect its own install defects by inspection. So this time someone

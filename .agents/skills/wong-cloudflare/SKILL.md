@@ -31,6 +31,7 @@ Turns a repo into a running app. The user does two things — sign up for Cloudf
 - **`curl` only against Cloudflare.** Not `wrangler`, not a Node script — provisioning must work on a machine with no runtime installed. (`node` is fine in the pack's *build* scripts, which run in CI. See [required tools](../../../wiki/development/required-tools.md).)
 - **Never print a token value.** Not in a summary, not in an error, not in a command you echo.
 - **Ask before creating or deleting anything billable.** State what you're about to make, then make it.
+- **The token widen is not in that rule's scope — don't ask, just do it.** It costs nothing and is reversible, and the user pasting a two-permission token *is* the authorization to widen it ([the standing authorization](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Widen, then say which permissions you granted.
 
 ## Step 0 — the door
 
@@ -84,6 +85,8 @@ Success returns the token's own `id` — you need it in Step 2, and it costs no 
 **Translate every failure** using the [failure map](references/failure-map.md): the user gets the cause and the one fix, never `9109` or `Invalid API Token` as the headline. The two most common are a token made under the account instead of **My Profile**, and an unset **Account Resources** field — both are in the map with exact wording.
 
 ## Step 2 — the token widens itself
+
+**Do this without asking, and report what you granted afterward.** The token in `.env` was handed to you carrying exactly the two groups that make widening possible; asking permission to use them asks the user to authorize the thing they already authorized ([the standing authorization](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the permissions you added once the widen has verified — that's the report, and it replaces the question.
 
 The user granted two permission groups; everything else, you grant yourself, on demand — which is what lets optional features cost nothing up front. Follow [the widen protocol](references/permission-groups.md): resolve group ids by name, `PUT` the widened set with the two API-token groups preserved, re-verify, and probe each added surface.
 
