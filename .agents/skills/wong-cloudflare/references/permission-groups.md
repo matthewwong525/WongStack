@@ -14,6 +14,7 @@ Cloudflare permission groups are what a token's policy actually grants. The user
 
 ## The rules
 
+- **You are already authorized to do this — don't ask, and report what you granted.** A user who supplied a token carrying the two API-token groups granted the widen by supplying it; stopping to ask permission is a failure mode, not caution ([the standing authorization](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized), which owns the reasoning and the limits — billable resources still get asked about, and the rules below still stop a run that can't verify).
 - **Resolve ids by name at runtime**, from `/user/tokens/permission_groups`. The recorded values below are a fallback and a test fixture — never the lookup path. Ids drift, groups are added, and one name is genuinely ambiguous (see the traps). A hardcoded id that silently stops matching is worse than a lookup that fails loudly.
 - **The `PUT` replaces the policy list wholesale.** The new set must still contain `API Tokens Write` (user scope) and `Account API Tokens Write` (account scope) — drop them and the token can never widen again, including on the next run. Preserve the existing account `resources` block as-is rather than rebuilding it; that map is what ties the token to the account, and losing it produces a token that verifies but sees no accounts.
 - **Re-verify, then probe one endpoint per permission added.** A widen that "succeeded" but didn't take is how a half-provision starts.

@@ -71,6 +71,18 @@ The token rewrites its own permissions: it reads its own id and policy, looks pe
 
 The full protocol — the call sequence, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall — is owned by [the widen protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md). The practical payoff: someone who never wants authentication never grants anything Zero-Trust-shaped.
 
+### The widen is pre-authorized
+
+> **This page owns the standing authorization.** Providing a token that carries these two permission groups **is** the permission to widen it — the groups exist for no other purpose, and a token that couldn't widen itself would be useless here. An agent that reaches the widen performs it and reports which permissions it granted; it does not stop to ask whether it may change the token's scope. Every other surface that instructs an agent to widen — [the skill](../../.claude/skills/wong-cloudflare/SKILL.md), [the protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md) — restates that as a rule and links here for the reasoning.
+
+The authorization covers the widen and nothing else:
+
+- **Creating or deleting anything billable still asks first.** Widening costs nothing; a database is a different question.
+- **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set — see [the protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md).
+- **Narrowing back is still offered, never assumed.** Below.
+
+Read it against the trade-off two sections down: this is a real grant, on a token that is effectively account-root, and it's stated here so the permission and its cost are read together.
+
 ### Narrowing back
 
 The same call in reverse. Provision, then hand the extra permissions back; widen again next time you need them. Offered, never automatic. The one rule that must survive any hand-editing: the two API-token groups stay in the policy, or the token can never widen again (the wholesale-`PUT` rule in [the protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md)).
