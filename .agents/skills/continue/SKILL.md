@@ -14,7 +14,7 @@ This skill trusts the change as the source of truth. It deliberately does **not*
 
 > **OpenSpec never runs git — this skill owns it.** `openspec show`/`openspec list` only read the `openspec/` folder; the `git`/`gh` checkout is here. Repo is whatever `gh` resolves in the current directory — never hardcode owner/repo.
 >
-> `main` stands for the repo's default branch — substitute whatever `git symbolic-ref refs/remotes/origin/HEAD` resolves to.
+> `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
 
 ## Workflow
 

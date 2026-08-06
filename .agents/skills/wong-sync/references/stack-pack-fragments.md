@@ -51,7 +51,7 @@ This fragment is the **only thing in the payload that creates a wrangler config*
       "binding": "DB",
       "database_name": "<your-db-name>",
       "database_id": "<production database_id>",
-      "migrations_dir": "schema/migrations"
+      "migrations_dir": "../schema/migrations"
     }
   ],
   "env": {
@@ -62,7 +62,7 @@ This fragment is the **only thing in the payload that creates a wrangler config*
           "binding": "DB",
           "database_name": "<your-db-name>-staging",
           "database_id": "<staging database_id>",
-          "migrations_dir": "schema/migrations"
+          "migrations_dir": "../schema/migrations"
         }
       ],
       // Only if production declares crons — see the fifth rule below.
@@ -72,8 +72,10 @@ This fragment is the **only thing in the payload that creates a wrangler config*
 }
 ```
 
-Six rules the scripts depend on:
+Seven rules the scripts depend on:
 
+- **`migrations_dir` is written per layout, and the block above shows the `app/` one.** Wrangler resolves it relative to the **config file**, exactly like `main` — but unlike `main` the two layouts need *different* text, because the pack ships `schema/` at the **repo root** while the config sits beside the Worker. In the `app/` layout the app scaffold ships (the default for a repo that had no app of its own) that is `../schema/migrations`; where the Worker and its config sit at the repo root, drop the `../` and write `schema/migrations`.
+  Getting it wrong costs a build: a config in `app/` saying `schema/migrations` points at `app/schema/migrations`, which never exists, and `cf-build.sh` stops with `No migrations present at …` on the first change that carries one. It is not silent — the wrapper exits non-zero and CI goes red — but the path in the error is one the user never chose and cannot place.
 - **The fragment must describe a deployable Worker, not just bindings.** Nothing else in the payload creates a wrangler config — `app/wrangler.jsonc` is [deliberately not copied](payload-manifest.md#the-opt-in-app-scaffold), because it carries live `database_id`s — so a config produced from bindings alone has no entry point and `wrangler deploy` has nothing to build. To the user that is indistinguishable from a broken install: the provisioning run reports success and the address serves nothing. Hence `main`, `assets`, `compatibility_date`, and `compatibility_flags` above. `main` is resolved relative to the config file, so `worker/index.ts` is right for both layouts — the config sits beside the Worker either way. Set `compatibility_date` to the day you create the config, not to a date copied from elsewhere.
 - **`env.staging` needs its own `name`.** Without it the environment inherits production's, and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses to deploy when the staging environment resolves to production's name, so this fails loudly rather than silently — but declare the name and the check never has to fire.
 - **`env.staging` needs its own `d1_databases` entry**, with the staging database's own `database_name`. `cf-build.sh` and `reset-staging-d1.mjs` read the name from *inside* the environment block; without it they stop with an explicit error rather than touching production.

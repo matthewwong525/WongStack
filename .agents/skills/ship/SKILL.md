@@ -14,7 +14,7 @@ Ship runbook. Invoking it authorizes the push, merge, and archive in Steps 3–5
 
 Deeper code review (cleanliness, broad consolidation, downstream breakage) happens **out-of-band** — PR review, or a dedicated code-review pass — not as a `/ship` gate; `/ship` is the merge, not the review. Likewise seeing the change work in a browser: that's [`/walk`](../walk/SKILL.md), invoked when you want it, gating nothing here.
 
-> `main` stands for the repo's default branch — substitute whatever `git symbolic-ref refs/remotes/origin/HEAD` resolves to.
+> `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
 
 ## Step 1 — preflight
 
