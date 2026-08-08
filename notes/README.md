@@ -49,6 +49,11 @@ Notes are deliberately *unfiltered* relative to the wiki: `/save` compresses, `/
 durable-facts judgment happens at consolidation, where it stays repeatable — not once, on one
 machine, unrecoverably.
 
+Credential **context** is kept; credential **values** are not. A note may record that
+`SERVICE_TOKEN` rotated, what it is for, and where it comes from. It never records the old or new
+value, even when the user pasted that value into the conversation. The same exclusion applies to the
+change's Decision log, commit message, pull-request body, and checkpoint report.
+
 ## Frontmatter
 
 ```yaml

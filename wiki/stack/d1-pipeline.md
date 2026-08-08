@@ -346,7 +346,7 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
 It can't be automated. Cloudflare's Builds API triggers builds, patches existing triggers, and reads logs, but **cannot create the repository connection, set the production branch, or create the first trigger** — and the GitHub App it needs requires browser OAuth consent that `gh` cannot grant. That's three dashboard steps per repo, forever.
 
-Actions is `gh secret set` plus this file. It also produces a real pull-request check, and a red build is `gh run view --log-failed` — the surface `/save` and `/ship` already read, with no Cloudflare credential involved. The costs, plainly: Actions minutes are billable on private repos (2,000/month free; public unlimited), and the credentials also live in GitHub secrets.
+Actions is `gh secret set` plus this file. It also produces a real pull-request check, and a red build is `gh run view --log-failed` — the surface `/save` reads for ordinary checkpoints and on `/ship`'s behalf, with no Cloudflare credential involved. The costs, plainly: Actions minutes are billable on private repos (2,000/month free; public unlimited), and the credentials also live in GitHub secrets.
 
 Staying on Workers Builds is supported and needs no changes — point its build command at `scripts/cf-build.sh` and its deploy command at `scripts/cf-deploy.sh`, and don't add the workflow.
 

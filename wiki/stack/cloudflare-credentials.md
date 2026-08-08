@@ -1,6 +1,6 @@
 # Cloudflare credentials
 
-One token gets everything running. Create it with **two checkboxes**, paste it into `.env`, and the agent grants itself whatever else it needs — [provisioning](../../.claude/skills/wong-cloudflare/SKILL.md), deploys, build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall.
+One token gets everything running. Create it with **two checkboxes**, save it in the primary worktree's `.env`, and the agent grants itself whatever else it needs — [provisioning](../../.claude/skills/wong-cloudflare/SKILL.md), deploys, build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall.
 
 This page is the token screen in detail: where to click, what to tick, what it can do afterward, and the security trade-off that design makes. Values land in `.env` per the [secrets convention](../development/secrets.md); real values never touch git.
 
@@ -43,7 +43,7 @@ Follow this literally. It's four menu steps, two permission rows, and one field 
    → Continue to summary → Create Token → copy it (shown once)
 ```
 
-**Do not skip Account Resources.** Leaving it unset produces a token that verifies successfully and can see nothing — Cloudflare reports the out-of-scope account as *no accounts* rather than as an error, so it reads like an empty Cloudflare account. If that happens you can edit the existing token; you don't need a new one, and the value in `.env` stays valid because the token id doesn't change.
+**Do not skip Account Resources.** Leaving it unset produces a token that verifies successfully and can see nothing — Cloudflare reports the out-of-scope account as *no accounts* rather than as an error, so it reads like an empty Cloudflare account. If that happens you can edit the existing token; you don't need a new one, and the value in the primary worktree's `.env` stays valid because the token id doesn't change.
 
 Two checkboxes really is the whole ask. Everything else — Workers, D1, build logs, Zero Trust — the agent grants on demand.
 
@@ -57,17 +57,17 @@ CLOUDFLARE_API_TOKEN=
 CLOUDFLARE_ACCOUNT_ID=
 ```
 
-`.env.example` uses these same two names. Provisioning creates `.env` from it, confirms git ignores it, and fills `CLOUDFLARE_ACCOUNT_ID` for you once it knows which account you picked.
+`.env.example` uses these same two names, blank. Provisioning creates the primary worktree's durable `.env` from the active branch's example, confirms the destination is ignored, and fills `CLOUDFLARE_ACCOUNT_ID` once it knows which account you picked. The [secrets convention](../development/secrets.md) owns worktree resolution and duplicate-file handling.
 
 > **This page owns the token variable's name.** `CLOUDFLARE_API_TOKEN` is what wrangler reads natively, and what `scripts/cf-secrets.mjs`, `.github/workflows/deploy.yml`, `/wong-cloudflare`, and the GitHub repository secret all read. Every other surface that mentions it — the `.env.example` template, the [config fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#envexample--cloudflare-variables) — links here rather than restating it, so there is one place to change and no second definition to drift from.
 >
 > **Renaming it is a behavioural change, not a docs edit.** The name has flipped between `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_USER_TOKEN` three times across releases, in both directions, because a rename in a template looks exactly like prose in review. It isn't: it changes what a provisioned repo does. A change to this name requires a `VERSION` bump and a `CHANGELOG.md` entry like any other behavioural change — and the symptom when it's wrong is silent, since a token under an unread name looks identical to "not provisioned yet".
 
-CI gets its copy as **GitHub repository secrets** — provisioning sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` with `gh secret set`, so the pack's Actions workflow can deploy. The token therefore lives in exactly two places, neither committed: the git-ignored `.env`, and GitHub's sealed secret store. (A repo on the Workers Builds fallback needs neither: that CI runs inside Cloudflare.)
+CI gets its copy as **GitHub repository secrets** — provisioning sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` with `gh secret set`, so the pack's Actions workflow can deploy. The token therefore lives in exactly two authoritative places, neither committed: the primary worktree's git-ignored `.env`, and GitHub's sealed secret store. (A repo on the Workers Builds fallback needs neither: that CI runs inside Cloudflare.)
 
 ## How two checkboxes become enough
 
-The token rewrites its own permissions: it reads its own id and policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified working against the live API: a token with only `API Tokens Write` widened itself and nine endpoints went from `Authentication error` to resolving. **The token id doesn't change**, so `.env` is written once — no rotation, no second secret, no re-paste.
+The token rewrites its own permissions: it reads its own id and policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified working against the live API: a token with only `API Tokens Write` widened itself and nine endpoints went from `Authentication error` to resolving. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no second secret, no re-paste.
 
 The full protocol — the call sequence, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall — is owned by [the widen protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md). The practical payoff: someone who never wants authentication never grants anything Zero-Trust-shaped.
 
@@ -93,7 +93,7 @@ The same call in reverse. Provision, then hand the extra permissions back; widen
 
 Self-widening and least privilege are mutually exclusive, and this design chose usability: you visit the dashboard once either way, so ticking two boxes instead of nine saves a real step — and it means optional features cost nothing up front. If you'd rather have least privilege, grant the specific groups above by hand and skip the widening; everything downstream works the same.
 
-Treat the token like a root password. It lives in exactly one place — the git-ignored `.env` — and nothing copies it anywhere else.
+Treat the token like a root password. Its one machine-local copy lives in the primary worktree's git-ignored `.env`; provisioning also sends it directly to GitHub's sealed repository-secret store and never creates a linked-worktree copy.
 
 ## Access service token
 
@@ -127,7 +127,7 @@ So the assertion is the only signal that covers humans and machines both. In its
 
 ## Worker secrets are per environment
 
-The credentials above are yours — they live in `.env` and let *you* and an agent talk to Cloudflare. A **Worker secret** is different: it belongs to a deployed Worker, and the runtime reads it off `env`. An API key the Worker itself calls out with is this kind.
+The credentials above are yours — they live in the primary worktree's `.env` and let *you* and an agent talk to Cloudflare. A **Worker secret** is different: it belongs to a deployed Worker, and the runtime reads it off `env`. An API key the Worker itself calls out with is this kind.
 
 Secrets are scoped to a single Worker, and [staging is a separate Worker](d1-pipeline.md#why-staging-is-a-whole-worker). So every secret has to be put twice:
 

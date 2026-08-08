@@ -48,11 +48,15 @@ Don't duplicate across them: a fact about why the change is shaped that way live
 log, not the note. The convention is [`notes/README.md`](notes/README.md).
 
 **Credentials and config already live in the repo's environment files** — don't ask for a token or
-stub a call out when a task needs one. `.env.example` is the committed map: every variable the
-project reads, each with a comment on what it is and where it comes from. Read that to learn what a
-task needs; the filled-in values sit in a git-ignored `.env` at the repo root (or your stack's
-dotenv equivalent) for when you actually need to run something — a one-off script, a real API call.
-The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
+stub a call out when a task needs one. `.env.example` is the committed, values-blank map: every
+variable the project reads, each with a comment on what it is and where it comes from. Read that to
+learn what a task needs. Real values sit in the git-ignored `.env` at the **primary Git worktree**
+(or your stack's dotenv equivalent), so a linked worktree never becomes the only copy. When adding
+a variable, save its real value there and add the blank documented declaration to the active
+branch's example; a value-only rotation changes no example. `/save` is the universal checkpoint and
+must exclude credential values from notes, plans, commits, PR bodies, and output. The full rule,
+including worktree resolution and duplicate reconciliation, is
+[`wiki/development/secrets.md`](wiki/development/secrets.md).
 
 ## Rules
 
@@ -67,8 +71,9 @@ The convention is [`wiki/development/secrets.md`](wiki/development/secrets.md).
   `/explore` (think it through — `openspec-explore`), `/plan` (draft the change — `openspec-propose`),
   `/apply` (implement the tasks, then hand completed work to `/save` — `openspec-apply-change`), `/save` (sync specs + maintain the Status header +
   append to the Decision log + push + PR-body mirror + preview — `openspec-sync-specs`),
-  `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (merge + archive
-  — `openspec-archive-change`), `/dream` (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
+  `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (archive —
+  `openspec-archive-change` — then delegate its one checkpoint to `/save` and merge), `/dream`
+  (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Beside the loop: `/walk` (invoke `/save`, then drive the change's scenarios through a browser
   against the deployed preview and post the evidence to the PR — gates nothing, run it whenever).
