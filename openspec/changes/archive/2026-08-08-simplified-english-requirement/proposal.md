@@ -34,3 +34,4 @@ This change does not bundle the ASD-STE100 specification, add an automated confo
 ## Decision log
 
 - **2026-08-08** — Added the shared ASD-STE100 instruction as a best-effort rule because the user confirmed that formal verification is not required. Exact-text exceptions protect code, commands, identifiers, quotations, and prescribed text. Released the payload behavior as version 9.7.0.
+- **2026-08-08** — Archived the completed change for the `/ship` checkpoint. The `simplified-technical-english` capability was already synced to the main specifications, and all tasks were complete.
