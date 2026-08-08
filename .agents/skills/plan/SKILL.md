@@ -10,7 +10,17 @@ user-invocable: true
 
 `/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
-**Invoke the `openspec-propose` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:propose` and owns the actual behavior (naming the change, generating artifacts in dependency order, validating).
+**Invoke the `openspec-propose` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:propose` and owns the actual behavior (naming the change, generating artifacts in dependency order, validating), subject to the apply handoff below.
+
+## When `/apply` invokes `/plan`
+
+`/apply` may invoke this skill to make its selected line of work apply-ready before implementation. Treat the change name or implementation intent it passes as the user's chosen input, and return the exact resulting change name to `/apply`.
+
+- **No matching change exists** → create it through the ordinary `openspec-propose` artifact process.
+- **`/apply` explicitly selected an existing incomplete change** → complete that same change's missing artifacts in dependency order. The user's `/apply` request already answers the generated skill's “continue it or create new?” guardrail: continue it, and never create a duplicate.
+- **The required intent is unclear or artifact creation blocks** → pause and return the blocker; `/apply` will not start implementation.
+
+This handoff changes no standalone behavior: `/plan` invoked by itself creates the apply-ready artifacts and stops for review. It never invokes `/apply` automatically.
 
 ## UX stage (UI-bearing changes only)
 

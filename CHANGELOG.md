@@ -3,6 +3,26 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.6.0 — `/apply` plans first when needed
+
+**You can now go straight from `/explore` to `/apply`.** `/apply` resolves the line of work the
+current conversation actually established before it consults repository-wide active changes. When
+that work has no apply-ready OpenSpec change, it invokes `/plan` first and then passes the exact
+resulting change name into the generated OpenSpec apply skill. The ordinary plan still exists before
+code is written; the user no longer has to issue a second command just to create it.
+
+**An unrelated active change can no longer steal a new request.** Explicit change references win,
+then the current conversation, then a branch-matching active change. A sole active change is only the
+fallback when the conversation has not established different new work. An explicitly selected but
+incomplete change is completed in place through `/plan`, never duplicated; unresolved ambiguity or a
+planning blocker stops before implementation.
+
+**Every ownership boundary stays put.** `/plan` still owns OpenSpec artifact creation and, when
+invoked alone, stops for review. The generated apply skill still owns task execution, `/save` still
+owns the exactly-once completed checkpoint and every git operation, and `/continue` remains the cold
+session branch-checkout path. The canonical six stages are unchanged; `/explore → /apply` is a
+convenience path that composes them.
+
 ## 9.5.0 — secrets survive worktrees, and ship has one checkpoint
 
 **Real local credentials now have one durable home: the primary Git worktree.** An ignored `.env`

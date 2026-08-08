@@ -57,11 +57,13 @@ WongStack gives agents a small set of commands that match how work moves from id
 /explore -> /plan -> /apply -> /save -> /continue -> /ship
 ```
 
+Those are the durable stages, but you do not have to invoke every one. After `/explore`, you can run `/apply` directly: if the current work has no apply-ready change, it runs `/plan` first and then implements that exact plan. Invoke `/plan` yourself when you want to review the artifacts before implementation.
+
 | Command | Plain-language meaning |
 | --- | --- |
 | `/explore` | Think through the idea before deciding what to do. |
 | `/plan` | Write the plan, tasks, and important decisions. |
-| `/apply` | Do the planned work, then automatically save it once every task is complete. |
+| `/apply` | Ensure the current work has a plan, do it, then automatically save it once every task is complete. |
 | `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, which lands straight in the repo as a note with no branch or PR. |
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |

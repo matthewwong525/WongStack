@@ -1,16 +1,36 @@
 ---
 name: apply
-description: Implement the active OpenSpec change — work the tasks.md checklist, writing the code and flipping `- [ ]` → `- [x]` as each task lands, then automatically hand a completed change to /save. WongStack's name for OpenSpec's /opsx:apply and the implement stage of the change loop. Use when you want to implement, apply, or build the change, work the tasks, or start coding what /plan drafted. Resuming cold from another session or machine? /continue first — it checks out the branch, then hands off here.
+description: Implement the current line of work — use its apply-ready OpenSpec change when one exists, or run /plan first when it does not; work the tasks and automatically hand a completed change to /save. WongStack's name for OpenSpec's apply step and the implement stage of the change loop. Use when you want to implement, apply, or build work, including straight after /explore. Resuming a known change cold? /continue first — it checks out the branch, then hands off here.
 user-invocable: true
 ---
 
 # /apply
 
-`/apply` is the **implement stage** of the WongStack change loop — its name for OpenSpec's **apply** step. It works the change's `tasks.md`: reads the proposal + specs + design, implements each pending task, and checks off `- [x]` as it goes.
+`/apply` is the **implement stage** of the WongStack change loop — its name for OpenSpec's **apply** step. It ensures the current line of work has an apply-ready OpenSpec change, then works that change's `tasks.md`: reads the proposal + specs + design, implements each pending task, and checks off `- [x]` as it goes.
 
 `/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
-**Invoke the `openspec-apply-change` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:apply` and owns the actual behavior (reading the artifacts, working the task list, checking off tasks).
+## Resolve the plan first
+
+Before invoking the OpenSpec apply step, resolve the change that represents what the user is asking to implement. Use this priority order:
+
+1. An explicit existing change named by the user.
+2. The change created or discussed in this conversation.
+3. An active change whose name matches the current branch.
+4. A sole active change, but **only when the conversation does not establish different new work**.
+
+An argument that is a description rather than an existing change name is implementation intent for a new plan. Never let an unrelated sole `openspec list` entry override work the current conversation has just explored. If several candidates remain and the intent does not resolve one, ask the user; do not guess.
+
+For a resolved existing change, run `openspec status --change "<name>" --json` and inspect the schema-defined `applyRequires` artifacts:
+
+- **All required artifacts are done** → the change is apply-ready; continue directly.
+- **The explicitly or contextually selected change is incomplete** → invoke the [`plan` skill](../plan/SKILL.md) to complete that same change in place.
+- **No applicable change exists, but the implementation intent is clear** → invoke the `plan` skill with that intent to create one.
+- **Intent is unclear** → pause for clarification before writing a plan or code.
+
+The user's `/apply` invocation authorizes the plan-then-implement shortcut. After `/plan` returns, verify that its `applyRequires` artifacts are complete. If planning paused or remains blocked, report that and stop; do not begin implementation. Otherwise announce the planned change and pass its **exact name** into `openspec-apply-change`, so another active change cannot be selected between stages.
+
+**Invoke the `openspec-apply-change` skill** (via the Skill tool) and follow it verbatim — that generated skill owns the actual implementation behavior (reading the artifacts, working the task list, checking off tasks). `/apply` owns only the orchestration preflight above; it never authors artifacts itself.
 
 When it reaches an **all-tasks-complete** state — including when the selected change was already complete at invocation — immediately invoke the **`save` skill** and follow it verbatim. Invoke it exactly once, then report the implementation and checkpoint results together.
 
@@ -18,7 +38,7 @@ When it reaches an **all-tasks-complete** state — including when the selected 
 
 - **`/save` still owns all git.** `/apply` does not implement commit, push, branch, PR, preview, or CI mechanics itself; on complete it delegates them to `/save`.
 - **No automatic partial checkpoint.** If implementation pauses, is blocked, is interrupted, fails, or still has pending tasks, do not invoke `/save`. Report the remaining work and remind the user that they can run `/save` explicitly if they want an in-progress checkpoint.
-- **Assumes you're already on the change's branch.** In a live session right after `/plan`, you are. Resuming cold (a fresh clone, another machine, no scrollback)? Run `/continue <name>` instead — it loads the change, checks out the branch, then hands off here.
+- **Live-session entry point.** Use it after `/plan` or `/explore`, or with a clear new implementation request. Resuming a known change cold (a fresh clone, another machine, no scrollback)? Run `/continue <name>` instead — it loads the change, checks out the branch, then hands off here.
 - **Pause on ambiguity or blockers** — surface them rather than guessing; the proposal is the intent.
 
 Completed tasks automatically flow through **`/save`** to commit + push + open the PR + get a preview URL. At any earlier checkpoint, `/save` remains independently invocable. When everything is done and verified, **`/ship`** merges + archives the change.
