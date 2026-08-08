@@ -12,4 +12,4 @@ user-invocable: true
 
 It's a thinking partner, not a builder: use it to pull apart a problem, weigh options, and firm up scope *before* `/plan` writes a proposal. Nothing is committed and no specs are drafted.
 
-**Invoke the `openspec-explore` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:explore` and owns the actual behavior. When the shape of the work is clear, move on to [`/plan`](../plan/SKILL.md).
+**Invoke the `openspec-explore` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:explore` and owns the actual behavior. When the shape of the work is clear, move on to [`/plan`](../plan/SKILL.md) when the user wants to review the artifacts first, or straight to [`/apply`](../apply/SKILL.md), which invokes `/plan` before implementation when no apply-ready change exists.
