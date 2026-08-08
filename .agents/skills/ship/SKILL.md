@@ -8,7 +8,7 @@ user-invocable: true
 
 Ship runbook. Invoking it authorizes the archive, delegated `/save` checkpoint, merge, and remote-branch deletion below — don't re-prompt. Confirm anything outside this runbook (force push, hard reset).
 
-`/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes `/save --shipping <name>` so the archive and code receive one pushed PR/CI checkpoint, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/dream` for that).
+`/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/dream` for that).
 
 `/ship` merges through the [gate ladder](../../../wiki/development/the-change-loop.md#the-gate): its delegated `/save` call returns the branch gate result, then `/ship` merges only on `SUCCESS` or `NONE`. A rung a repo doesn't have is skipped, never failed. Never build/test locally.
 
@@ -39,15 +39,15 @@ The change is named like the current branch. Require `openspec/changes/$BRANCH/`
 
 ## Step 3 — delegate the checkpoint to /save
 
-**Invoke the `save` skill exactly once as `/save --shipping "$BRANCH"` and follow it verbatim.** Shipping context uses the explicit archive as the handoff, preserves and redacts named session secrets, captures the note, stages the implementation plus archive move, commits, pushes, creates or updates the PR body from the archive, and waits/auto-fixes CI. It never recreates an active change.
+**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim.** `/save` recognizes the single archived change matching the current branch as its handoff, preserves and redacts named session secrets, captures the note, stages the implementation plus archive move, commits, pushes, creates or updates the PR body from the archive, and waits/auto-fixes CI. It never recreates an active change.
 
 Consume its exact final result:
 
-- `SHIP_GATE_RESULT=SUCCESS` → proceed.
-- `SHIP_GATE_RESULT=NONE` → proceed; invoking `/ship` is the PR-review approval where no checks exist.
-- `SHIP_GATE_RESULT=UNKNOWN`, `TIMEOUT`, or `FAILURE` → stop before merge and report `/save`'s reason. Do not repeat, bypass, or reinterpret the gate.
+- `SAVE_GATE_RESULT=SUCCESS` → proceed.
+- `SAVE_GATE_RESULT=NONE` → proceed; invoking `/ship` is the PR-review approval where no checks exist.
+- `SAVE_GATE_RESULT=UNKNOWN`, `TIMEOUT`, or `FAILURE` → stop before merge and report `/save`'s reason. Do not repeat, bypass, or reinterpret the gate.
 
-`/ship` contains no separate dirty-tree commit, push, PR, preview, branch-CI wait, or auto-fix implementation. `/save` owns that logic for both ordinary and shipping checkpoints.
+`/ship` contains no separate dirty-tree commit, push, PR, preview, branch-CI wait, or auto-fix implementation. Ordinary `/save` owns that logic for every checkpoint.
 
 ## Step 4 — merge (worktree-safe)
 
@@ -59,7 +59,7 @@ git push origin --delete "$BRANCH"
 ```
 The squash carries the archived change onto the default branch.
 
-On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke `/save --shipping "$BRANCH"` again so the changed merge commit receives the same checkpoint and gate. Retry the merge only on its `SUCCESS` or `NONE`. Other failure (branch protection, draft) → surface the exact `gh` error.
+On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke ordinary `/save` again so the changed merge commit receives the same checkpoint and gate. Retry the merge only on its `SUCCESS` or `NONE`. Other failure (branch protection, draft) → surface the exact `gh` error.
 
 ## Step 5 — report
 
@@ -69,7 +69,7 @@ On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not
 
 ## Hard rules
 - Never ship onto a red default branch (when it has checks). **Never merge on an `UNKNOWN` check result** — unverified is not the same as no checks. Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. Never build/test locally — CI is the gate when present, else PR review.
-- **Never implement checkpoint mechanics.** Archive first, then delegate once to `/save --shipping`; merge only on its `SUCCESS` or `NONE` result.
+- **Never implement checkpoint mechanics.** Archive first, then delegate once to ordinary `/save`; merge only on its `SUCCESS` or `NONE` result.
 - **Never walk, and never require a walk.** Driving the app in a browser is [`/walk`](../walk/SKILL.md)'s job, it gates nothing, and `/ship` neither runs it nor checks whether it ran. Don't nudge about a missing walk.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - No GitHub summary issue and no docs distillation — the archived spec is the record; `/dream` handles the wiki.

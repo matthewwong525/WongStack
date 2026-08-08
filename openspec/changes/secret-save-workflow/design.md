@@ -64,9 +64,9 @@ This checkpoint was chosen over `/ship` as the owner because partial work and ab
 
 ### `/ship` delegates its checkpoint to `/save` after archiving
 
-`/ship` retains the responsibilities unique to shipping: verify that the current branch is shippable and the default branch is not red, invoke `openspec-archive-change`, merge through the API, and delete the remote branch worktree-safely. After the archive move, it invokes `/save` with an explicit shipping context carrying the branch/change name. In that context `/save` treats the archived change as the handoff record rather than interpreting the missing active change as a reason to create a replacement; it performs secret preservation/redaction, note capture, commit, push, PR creation/update, and CI wait/auto-fix once.
+`/ship` retains the responsibilities unique to shipping: verify that the current branch is shippable and the default branch is not red, invoke `openspec-archive-change`, merge through the API, and delete the remote branch worktree-safely. After the archive move, it invokes ordinary `/save` exactly once. When `/save` finds no active change for the current branch but finds exactly one matching archived change, it treats that archive as the handoff record rather than interpreting the missing active change as a reason to create a replacement. It then performs secret preservation/redaction, note capture, commit, push, PR creation/update, and CI wait/auto-fix through its normal interface.
 
-`/ship` consumes `/save`'s gate result: `SUCCESS` or `NONE` permits merge, while `UNKNOWN`, `TIMEOUT`, or an ordinary save failure stops shipping. It does not repeat PR or check-waiting logic. Archiving before the delegated checkpoint ensures the archive move is inside the exact commit and CI result that will merge. Having `/ship` call ordinary `/save` before archiving was rejected because the archive would create a second ungated commit; calling it both before and after was rejected as redundant.
+`/ship` consumes the ordinary save's gate result more strictly than a checkpoint-only caller: `SUCCESS` or `NONE` permits merge, while `UNKNOWN`, `TIMEOUT`, or a save failure stops shipping. It does not repeat PR or check-waiting logic. Archiving before the delegated checkpoint ensures the archive move is inside the exact commit and CI result that will merge. Having `/ship` call `/save` before archiving was rejected because the archive would create a second ungated commit; calling it both before and after was rejected as redundant; adding a `--shipping` mode was rejected because archive discovery can be safely derived from the current branch and repository state.
 
 ## Risks / Trade-offs
 
@@ -76,7 +76,7 @@ This checkpoint was chosen over `/ship` as the owner because partial work and ab
 - **[Frameworks normally search only the active checkout]** → Document the ignored-symlink/configuration option; do not impose it on stacks that already have their own secret loader.
 - **[Resolving a path can accidentally expose machine layout in durable prose]** → Commands may use absolute paths locally, but plans, notes, logs, and user-facing summaries refer to “the primary worktree” and never persist the path or any value.
 - **[`/save` could mistake an opaque string for a credential]** → Act only on an explicitly named secret addition or rotation; never heuristic-scan the conversation for token-shaped strings.
-- **[Shipping context could look like a missing active change]** → Pass the archived change name explicitly and forbid `/save`'s fallback change-authoring path in that context.
+- **[An archived change could look like a missing active change]** → Before fallback authoring, resolve exactly one archive whose suffix matches the current branch; ambiguity stops rather than guessing.
 
 ## Migration Plan
 
@@ -84,7 +84,7 @@ This checkpoint was chosen over `/ship` as the owner because partial work and ab
 2. On the first secret write or save from a linked worktree, create or narrowly update the primary file after proving it is ignored.
 3. If another worktree-local file exists, leave it in place and report the reconciliation action; do not automatically migrate unknown keys.
 4. Existing normal single-worktree repositories continue using the same root file and require no migration.
-5. Existing `/ship` callers need no new command syntax; the shipping-context invocation is internal to the runbook.
+5. Existing `/ship` and `/save` callers need no new command syntax; archive recognition is derived from repository state.
 6. Rollback restores active-checkout lookup and the prior ship steps; it does not delete the durable file or any preserved duplicate.
 
 ## Open Questions

@@ -72,7 +72,7 @@ including worktree resolution and duplicate reconciliation, is
   `/apply` (implement the tasks, then hand completed work to `/save` — `openspec-apply-change`), `/save` (sync specs + maintain the Status header +
   append to the Decision log + push + PR-body mirror + preview — `openspec-sync-specs`),
   `/continue [name]` (resume the branch cold, then hand off to `/apply`), `/ship` (archive —
-  `openspec-archive-change` — then delegate its one checkpoint to `/save` and merge), `/dream`
+  `openspec-archive-change` — then invoke ordinary `/save` once and merge), `/dream`
   (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   Beside the loop: `/walk` (invoke `/save`, then drive the change's scenarios through a browser

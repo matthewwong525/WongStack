@@ -14,7 +14,7 @@ Each linked worktree currently gets its own ignored secrets files, so an agent c
 - Clarify the committed example contract: a new secret adds its blank variable name and sourcing guidance to the active branch's `.env.example` (or equivalent), while rotations never put the value in git and need no template edit unless the contract changed.
 - Make Cloudflare provisioning write and reread the durable credential file and make the staging walkthrough find the same credentials from any worktree.
 - Make `/save` the universal checkpoint that preserves any explicitly supplied or rotated session secret in the durable file, maintains its blank example declaration when required, and excludes values from notes and other committed handoff surfaces.
-- Make `/ship` invoke `/save` in a shipping context after `/ship` performs its owned OpenSpec archive step, so commit, push, PR update, secret/note capture, and CI handling have one implementation before `/ship` merges.
+- Make `/ship` invoke ordinary `/save` exactly once after `/ship` performs its owned OpenSpec archive step, so commit, push, PR update, secret/note capture, and CI handling have one implementation before `/ship` merges without a special command mode.
 - Update the shipped guidance and examples, then release the payload with a version bump and changelog entry.
 - **Non-goals:** synchronizing secrets between machines, committing encrypted secret values, replacing platform secret stores, or making `.env` mandatory in repos that use another stack convention.
 
@@ -39,3 +39,4 @@ This changes the shipped secrets wiki page, the generic `WONG-STACK` agent guida
 ## Decision log
 
 - **2026-08-08** — Implemented the complete worktree-safe secret workflow and released it as 9.5.0. Git or agent hooks were rejected as the primary mechanism because they do not reliably observe ignored-file writes across agents; `/save` owns preservation and leak checks, with hooks left as optional defense-in-depth. `/ship` now performs its OpenSpec archive first and delegates the exact archive/code checkpoint to `/save --shipping`, eliminating duplicate commit, PR, and branch-CI logic while ensuring CI checks the commit that merges.
+- **2026-08-08** — Simplified the ship handoff after review: two saves were rejected as redundant, and the special `--shipping` interface was removed. `/ship` archives first and invokes ordinary `/save` exactly once; `/save` safely infers the uniquely matching archive from the current branch, while `/ship` applies the stricter merge interpretation to the returned gate result. This keeps the archive inside the tested commit without duplicating checkpoint logic or adding user-visible modes.

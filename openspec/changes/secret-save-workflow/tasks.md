@@ -40,3 +40,10 @@
 - [x] 7.1 Bump `VERSION` with the appropriate semver increment and add a newest-first `CHANGELOG.md` entry describing worktree-safe durable secret persistence, `/save` redaction/checkpointing, and `/ship` delegation.
 - [x] 7.2 Run `node scripts/check-payload-links.mjs`, validate `secret-save-workflow` with OpenSpec, and inspect the final diff for any credential value, absolute machine path, unmatched `.claude/` versus `.agents/` mirror, or changed path outside the planned surfaces.
 - [x] 7.3 Walk through normal `/save`, shipping-context `/save`, `/ship` after archive, linked-worktree credential lookup, missing credential, duplicate `.env`, and tracked-value leak scenarios without logging any test value.
+
+## 8. Simplify the Ship-to-Save Handoff
+
+- [x] 8.1 Remove `/save --shipping` and make ordinary `/save` recognize exactly one archived change matching the current branch before fallback authoring.
+- [x] 8.2 Update `/ship` to archive first, invoke ordinary `/save` exactly once, consume its gate result, and retain no duplicate checkpoint mechanics.
+- [x] 8.3 Align the change-loop guidance, setup playbook, generic agent block, changelog, and mirrored skill files with the flag-free single-save flow.
+- [x] 8.4 Validate the OpenSpec change, payload links, mirror equality, and textual ship order; confirm no `--shipping` or `shipping context` instruction remains.

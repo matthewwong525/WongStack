@@ -29,9 +29,9 @@ from notes, OpenSpec artifacts, staged tracked files, commit messages, PR bodies
 non-secret fact that a variable rotated remains capturable, so redaction does not erase the decision.
 
 **`/ship` no longer carries a second implementation of commit, push, PR, and branch CI.** It verifies
-the feature and default branches, performs its owned OpenSpec archive step, then invokes `/save` once
-in shipping context. That delegated checkpoint commits the archive and code, regenerates the PR from
-the archived handoff, and returns a merge-safe CI result. `/ship` only merges on `SUCCESS` or `NONE`,
+the feature and default branches, performs its owned OpenSpec archive step, then invokes ordinary
+`/save` exactly once. `/save` recognizes the archive matching the current branch, commits it with the
+code, regenerates the PR from that handoff, and reports the CI result. `/ship` only merges on `SUCCESS` or `NONE`,
 then deletes the remote branch worktree-safely. The exact commit that contains the archive is therefore
 the commit CI checked and the commit that merges.
 
