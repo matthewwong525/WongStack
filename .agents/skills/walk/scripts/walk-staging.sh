@@ -73,13 +73,41 @@ find_app_dir() {
   return 1
 }
 
-# The token comes from the environment or the repo's git-ignored .env — the same
-# credential the pack provisions; the walk asks for nothing new. Never printed.
-load_token() {
-  if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${1:-}" ] && [ -f "$1/.env" ]; then
-    CLOUDFLARE_API_TOKEN=$(grep -E '^CLOUDFLARE_API_TOKEN=' "$1/.env" | head -1 | cut -d= -f2-)
+# Resolve the durable credential root from Git, never from a worktree host's
+# directory convention. In a normal checkout git-dir == common-dir and the
+# active root is already primary. A linked worktree's common dir is the primary
+# checkout's .git directory.
+resolve_primary_root() {
+  local active_root="$1" git_dir common_dir primary_root resolved
+  git_dir=$(git -C "$active_root" rev-parse --path-format=absolute --git-dir 2>/dev/null) || return 1
+  common_dir=$(git -C "$active_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+  if [ "$git_dir" = "$common_dir" ]; then
+    primary_root="$active_root"
+  else
+    primary_root=$(dirname "$common_dir")
   fi
-  export CLOUDFLARE_API_TOKEN
+  resolved=$(git -C "$primary_root" rev-parse --show-toplevel 2>/dev/null) || return 1
+  [ "$resolved" = "$primary_root" ] || return 1
+  printf '%s' "$primary_root"
+}
+
+# Exported values win. Missing values come from the primary worktree's ignored
+# .env — the same durable store /wong-cloudflare provisions. Load only the
+# allowlisted credentials the runner understands; never source arbitrary shell
+# from a dotenv file and never print a value.
+load_credentials() {
+  local active_root="$1" primary_root env_file key value
+  primary_root=$(resolve_primary_root "$active_root") || return 1
+  env_file="$primary_root/.env"
+  if [ -f "$env_file" ]; then
+    for key in CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
+      if [ -z "${!key:-}" ]; then
+        value=$(grep -E "^${key}=" "$env_file" | head -1 | cut -d= -f2-)
+        printf -v "$key" '%s' "$value"
+      fi
+    done
+  fi
+  export CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
 }
 
 # One API call, same route the pack uses. A token that lists no accounts is the
@@ -129,12 +157,13 @@ preflight)
 
   # The browser is remote: Cloudflare Browser Run, reached with the pack's
   # token. Verify the credential where a binary used to be verified.
-  load_token "$ROOT"
+  load_credentials "$ROOT" || true
   if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
     emit UNKNOWN
     note "no CLOUDFLARE_API_TOKEN — the walk's browser runs on Cloudflare Browser Run,"
-    note "reached with the same token the stack pack provisions. See .env.example and"
-    note "wiki/stack/cloudflare-credentials.md, then run /walk again."
+    note "reached with the same token the stack pack provisions. No exported value or"
+    note "durable primary-worktree .env value was found; see the secrets convention"
+    note "and wiki/stack/cloudflare-credentials.md, then run /walk again."
     exit 0
   fi
   ACCOUNT_ID=$(resolve_account)
@@ -191,7 +220,7 @@ run)
   # The runner needs the pack's token and the account id. Re-derive both here
   # rather than trusting the caller to thread them through — `run` may be
   # invoked from a different shell than preflight was.
-  load_token "$ROOT"
+  load_credentials "$ROOT" || true
   ACCOUNT_ID="${WALK_CF_ACCOUNT_ID:-$(resolve_account)}"
 
   WALK_URL="$URL" \

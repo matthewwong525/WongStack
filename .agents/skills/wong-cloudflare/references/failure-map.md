@@ -55,12 +55,12 @@ This page maps what the API returns to **the one thing the user should change**.
 |---|---|---|
 | Push rejected: `refusing to allow an OAuth App to create or update workflow` | The `workflow` OAuth scope is missing | `gh auth refresh --scopes workflow` — a browser consent, a few seconds. [Why, and the plain-language framing](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope). Check for this **before** the first push, not after. |
 | `gh secret set` → `HTTP 403` | No admin rights on the repo | Secrets need admin. On someone else's repo, they have to set them. |
-| The workflow runs but Cloudflare auth fails | Secrets not set, or set on the wrong repo | `gh secret list` to confirm. The values live in `.env` and are re-settable at any time. |
+| The workflow runs but Cloudflare auth fails | Secrets not set, or set on the wrong repo | `gh secret list` to confirm. The values live in the primary worktree's `.env` per the secrets convention and are re-settable at any time. |
 | A feature branch deployed over production | `CF_PRODUCTION_BRANCH` doesn't match the repo's default branch | The workflow reads it from the repo, so this means the default branch was renamed. Check `cf-deploy.sh`'s log line, which prints both. |
 
 ## What not to do
 
 - **Don't retry a permission error.** It will fail identically. Fix the cause.
-- **Don't create a second token** when the first can be edited. Editing keeps `.env` correct — the id is stable, so the value already pasted stays valid.
+- **Don't create a second token** when the first can be edited. Editing keeps the primary worktree's `.env` correct — the id is stable, so the value already pasted stays valid.
 - **Don't paraphrase the dashboard.** "Set the account resources" isn't enough; name the field and the value, in the order they appear on screen.
 - **Don't print the token** while debugging. Print its id, which `/user/tokens/verify` returns and which is safe to show.

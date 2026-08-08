@@ -1,6 +1,6 @@
 ---
 name: save
-description: The end-to-end checkpoint skill — the git stage of the change loop, and the only skill that reads the conversation. Commits and pushes the current branch (auto-creating it + auto-committing a dirty tree), opens or updates a PR whose body mirrors the change, waits for CI when present (auto-fixing failures; no checks → PR review is the gate), and returns the per-commit preview URL. Before committing it syncs the OpenSpec change under openspec/changes/<branch>/ — updating the plan, maintaining its Status header, APPENDING a dated Decision-log entry, and folding delta specs into openspec/specs/ (/opsx:sync); when the session skipped /plan it authors the change via the same OpenSpec artifact process /plan uses. It also captures the session into notes/<slug>.md — a concise-but-lossless compression of the conversation that /dream later consolidates into the wiki from any machine. A prose-only save — every changed path inside the allowlist notes/** + wiki/**, so a conversation-only session or a /dream run — commits straight to the default branch: no change, no branch, no PR, no /ship. Routing is by path prefix and never by file extension; markdown under .claude/, openspec/, or the repo root keeps the full gate. Accepts an optional trailing note (/save <note>) that sets the status and seeds the log entry. Does NOT implement tasks (that's /apply), does NOT build locally, and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/snapshot the thread, save a conversation into the repo, push the work up, or get a shareable preview URL of in-progress work.
+description: The end-to-end checkpoint skill — the git stage of the change loop, the only skill that reads the conversation, and the single checkpoint /ship delegates after archiving. Preserves explicitly named session secrets in the primary worktree while excluding their values from every durable handoff. Commits and pushes the current branch (auto-creating it + auto-committing a dirty tree), opens or updates a PR whose body mirrors the active or just-archived change, waits for CI when present (auto-fixing failures; no checks → PR review is the gate), and returns the per-commit preview URL. Before committing it syncs the active OpenSpec change under openspec/changes/<branch>/ — updating the plan, maintaining its Status header, APPENDING a dated Decision-log entry, and folding delta specs into openspec/specs/ (/opsx:sync); when /ship has just archived that branch it recognizes and maintains the matching archive; when the session skipped /plan it authors the change via the same OpenSpec artifact process /plan uses. It also captures the session into notes/<slug>.md — a concise-but-lossless, credential-redacted compression of the conversation that /dream later consolidates into the wiki from any machine. A prose-only save — every changed path inside the allowlist notes/** + wiki/**, so a conversation-only session or a /dream run — commits straight to the default branch: no change, no branch, no PR, no /ship. Routing is by path prefix and never by file extension; markdown under .claude/, openspec/, or the repo root keeps the full gate. Accepts an optional trailing note (/save <note>) that sets the status and seeds the log entry. Does NOT implement tasks (that's /apply), does NOT build locally, and NEVER merges (that's /ship). Use whenever you want to save/checkpoint/snapshot the thread, save a conversation into the repo, push the work up, or get a shareable preview URL of in-progress work.
 user-invocable: true
 ---
 
@@ -16,7 +16,7 @@ The single checkpoint runbook. Invoking it authorizes the branch creation, commi
 2. A durable **OpenSpec change** under `openspec/changes/<branch>/` whose `proposal.md` *is* the current plan **plus its history**: a `**Status:**` header, the plan sections (kept current), and an append-only `## Decision log` (what happened along the way), with a `tasks.md` checklist — so a fresh session (another machine, no scrollback) can resume cold with `/continue` and know not just *what* to do but *why* it's shaped that way. Normally `/plan` drafted it and `/apply` checked off its tasks; `/save` **syncs** it. When the session skipped `/plan`, `/save` **authors it as a fallback via the same OpenSpec artifact process `/plan` uses**, so nothing gets pushed without its handoff. **The change is the plan — there is no GitHub handoff issue.** A session that produced *no code and no plan* gets no change at all (Step 2) — the note below is the whole output.
 3. A **session note** at `notes/<slug>.md` — the conversation itself, compressed into the repo. `/save` is the **only** skill that reads the conversation, which is what makes consolidation portable: `/dream` reads committed notes, never scrollback, so a session captured on one machine is consolidatable from any other. See [`notes/README.md`](../../../notes/README.md) for the convention.
 
-This save is checkpointed through the usual [gate](../../../wiki/development/the-change-loop.md#the-gate) — never a local build. Because the change lives *in the repo*, we author it **before** the commit so it ships in the same commit; the push then triggers CI, which we wait on in Step 6.
+This save is checkpointed through the usual [gate](../../../wiki/development/the-change-loop.md#the-gate) — never a local build. Because the change lives *in the repo*, we author it **before** the commit so it ships in the same commit. When `/ship` has already moved the current branch's change into the archive, this skill recognizes and maintains that archive instead. The push then triggers CI, which we wait on in Step 6.
 
 If a step other than CI fails, stop and surface the exact error. Never bypass with `--no-verify` or `--force`. A *CI* failure is not a stop — it's the auto-fix loop's job (Step 6).
 
@@ -25,6 +25,20 @@ If a step other than CI fails, stop and surface the exact error. Never bypass wi
 > **OpenSpec never runs git — this skill owns all of it.** `openspec` only reads/writes the `openspec/` folder; every `git`/`gh` action is here.
 >
 > `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` *fails* on a freshly created one (`gh repo create` doesn't record a head). Only where `main` doesn't exist locally or on the remote — an older repo on `master` — resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
+
+## Step 0 — preserve named secrets; exclude every value
+
+Because this is the only skill that reads the conversation, it is the universal checkpoint for credentials the user **explicitly supplied or rotated with a known variable name** during this session. Do not pattern-match token-shaped strings, guess a name for an opaque value, or treat every pasted string as a credential. A producer that needed the credential earlier (for example `/wong-cloudflare`) may already have saved it; verify the durable copy rather than creating another.
+
+For each explicitly named secret:
+
+1. Resolve `ACTIVE_ROOT`, absolute `GIT_DIR`, and absolute `COMMON_DIR` with Git exactly as the [secrets convention](../../../wiki/development/secrets.md) states. Equal git/common dirs mean the active root is primary; otherwise the parent of the common `.git` directory is the primary root. Verify `git -C "$PRIMARY_ROOT" rev-parse --show-toplevel` resolves to that same path. Failure stops the save before writing the value; never fall back to a linked checkout.
+2. Use the repo's declared live/example pair (`.env` / `.env.example` by default, or the stack's documented equivalent). Prove the live destination is ignored from the primary worktree. If the committed ignore rule exists only on the active branch, the repository-common `info/exclude` may receive the same wildcard/negation pair as immediate local protection; re-check and stop if the destination is still not ignored.
+3. Create the durable live file from the **active branch's** example when absent. Narrowly replace only the exact `KEY=` line or append that one line; preserve every unrelated line. Never regenerate the file or print the value.
+4. If a separate regular live file exists in the linked worktree, preserve it and report only that reconciliation is needed. Do not print or compare values, delete a file, or bulk-merge. An ignored symlink to the durable file is an option only after explicit reconciliation.
+5. If the variable contract is new, add a blank `KEY=` declaration to the active branch's example with what-it-is and where-to-get-it guidance. A value-only rotation makes no example diff.
+
+Keep the handled variable names and values only in ephemeral working memory for the leak check below. **Every real credential value supplied, rotated, read, or written in the session is forbidden from** the OpenSpec change or archive, Status, Decision log, tasks, session note, commit message, PR body, staged tracked files, and final report. Those surfaces may say that `SERVICE_TOKEN` rotated and retain its non-secret sourcing guidance; they never carry the value.
 
 ## Step 1 — preflight (read-only)
 
@@ -36,11 +50,18 @@ git log origin/main..HEAD --oneline 2>/dev/null   # commits ahead of main
 openspec list                                     # active change(s), if any
 ```
 
+At entry, set `NAME` to the current feature branch and resolve its handoff before routing:
+
+- `openspec/changes/$NAME/` exists → set it as `CHANGE_ROOT` and `ARCHIVED=false`.
+- No active change exists and exactly one `openspec/changes/archive/*-$NAME/` exists → set that path as `CHANGE_ROOT` and `ARCHIVED=true`. This is the ordinary `/save` call `/ship` makes immediately after archiving, or a later retry on the same branch.
+- No active or archived match → continue normally; Step 4b may author the missing change.
+- Multiple matching archives → stop and report the ambiguity; never guess which record to update.
+
 **Don't create a branch or commit yet.** The plan comes first (Step 2), the branch is *named from it* (Step 3), and the change is authored (Step 4) so it lands in the same commit as the code. Even a **plan-only** save (a freshly authored change, no code yet) is valid: the untracked change folder makes the tree dirty, so Step 5 commits and pushes it — that's exactly what makes the plan handoff-ready.
 
 ### The prose fast path
 
-Before anything else, decide which of two routes this save takes. Run the changed paths from `git status --porcelain` above against the **prose allowlist** — exactly two path prefixes:
+Before anything else, decide which of two routes this save takes. **An archived handoff always takes the normal route** because the archive move is outside the allowlist. Otherwise run the changed paths from `git status --porcelain` above against the **prose allowlist** — exactly two path prefixes:
 
 ```
 notes/**
@@ -61,6 +82,8 @@ Why the carve-out exists, and the full list of what stays gated: [the change loo
 ## Step 2 — establish the current plan
 
 The change's `proposal.md` *is* the plan — not a status report. The most concise, complete statement of what we're doing and how, so a cold reader can act.
+
+**Archived handoff:** `CHANGE_ROOT/proposal.md` is already the completed plan. Maintain it in place, set its status to `ready-to-ship`, and append the archive checkpoint to its Decision log; do not synthesize or replace plan sections from the conversation.
 
 - **Session used plan mode** → the plan is the **most recent** one you presented (the latest `ExitPlanMode` plan), updated for anything that changed since it was approved.
 - **Session never used plan mode** → synthesize a concise plan from the conversation + the diff: what this work is, and the steps to finish it. This skill is authorized to run non-interactively, so don't block on a plan-mode round-trip — write the plan directly. (Only pause if you genuinely can't tell what the work is.)
@@ -92,6 +115,8 @@ Keep the plan in its own shape — whatever headings it has. If a fact it relies
 3. **A single active `openspec list` entry** → use it.
 4. **None** → you're **creating new**; the change name is the branch name.
 
+**An archived handoff is the exception to item 4:** the resolved archived `CHANGE_ROOT` is the change, and the missing active folder is expected. Never run fallback authoring or recreate `openspec/changes/<name>/`.
+
 **On `main` or detached `HEAD`** → auto-create the feature branch now — do not prompt. **Name it from the plan**, not the machine: derive a short, descriptive kebab-case slug from the Step 2 plan's topic (a plan "add search to the receiving page" → `add-po-search`) — the slug becomes the change name, the branch, the PR, and the archive entry, so it must describe the *work*. Fall back to the worktree directory name **only** when the session is genuinely unreadable. If the slug already exists as a branch locally or on the remote, append `-<short-sha>`:
 
 ```bash
@@ -103,7 +128,7 @@ git rev-parse --abbrev-ref HEAD   # refresh the branch variable before continuin
 
 4a–4b sync or author the change; **4c writes the note**, and runs on *every* route — including the prose fast path, where it's the only part of Step 4 that happens. (On a `/dream`-only save there may be nothing new to capture; 4c's write-only-when-there's-something-to-write rule still applies.)
 
-If `/plan` already drafted the change and `/apply` has been checking off tasks, this is a light **sync**. Full authoring (4b) is the **fallback** for sessions that skipped `/plan`. Either way the shape is the same — and the prime directive is: **plan sections update in place; Status is maintained; the Decision log only ever appends.**
+If `/plan` already drafted the change and `/apply` has been checking off tasks, this is a light **sync**. Full authoring (4b) is the **fallback** for sessions that skipped `/plan`. For an archived handoff the archive is maintained in place and 4b is forbidden. In every mode the prime directive is: **plan sections update in place; Status is maintained; the Decision log only ever appends.**
 
 ### 4a. The change's living surfaces
 
@@ -111,6 +136,8 @@ If `/plan` already drafted the change and `/apply` has been checking off tasks, 
 - **Plan sections** (Why / What Changes / Impact, or whatever shape the plan has) — update **in place** to the latest plan from Step 2. These are the *current* intent; they're allowed to change.
 - **`## Decision log`** — the last section of `proposal.md`, **append-only**. Each save appends one dated bullet: `- **YYYY-MM-DD** — <what landed, what was decided or discovered and why, what was ruled out, what it's blocked on>`. Fold the `/save <note>` in. **Never rewrite, reorder, or delete prior entries** — the log is how a cold reader (or another team) gets the journey, not just the destination.
 - **`tasks.md`** — make the checklist reflect reality: check off `- [x]` what's done, add tasks the plan grew, group by the surface each touches.
+
+For an archived handoff these surfaces live under `CHANGE_ROOT`, Status is `ready-to-ship`, and the new Decision-log entry records the delegated archive checkpoint. Do not create or edit a parallel active change.
 
 ### 4b. Creating the change fresh (the skipped-`/plan` fallback)
 
@@ -155,6 +182,8 @@ Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug 
 - **The change carries delta specs** (`openspec/changes/<name>/specs/**`, written because it formally revises a capability's spec) → **invoke the `openspec-sync-specs` skill** (via the Skill tool) for `<name>` to fold them into `openspec/specs/`. This is OpenSpec's `/opsx:sync`.
 - **No delta specs** → skip; **most changes have none** — proposal + tasks are the whole plan.
 
+**Archived handoff:** skip 4d. `/ship`'s preceding `openspec-archive-change` invocation already synced delta specs; re-running sync against a missing active change is an error, not a check.
+
 Sanity-check with `openspec list` (it should show the change + task progress). **Only run `openspec validate "$NAME"` when the change carries delta specs** — `validate` errors with "must have at least one delta" for a proposal-only change, which is *expected*, not a failure; don't gate the save on it.
 
 ## Step 5 — commit (code + change) + push + PR (body mirrors the change)
@@ -179,12 +208,14 @@ The `git status --porcelain` line is not ceremony — it's the last chance to ca
 
 ### Normal variant
 
-Stage the code, the `openspec/` change, **and the note** **by path** (never `git add .`) so they land in one commit:
+Stage the code, the OpenSpec handoff, **and the note** **by path** (never `git add .`) so they land in one commit. An active handoff stages `openspec/changes/$NAME`; an archived handoff stages `CHANGE_ROOT` plus the corresponding removals already visible to `git add -u`:
 
 ```bash
 git add -u
 git add openspec/changes/"$NAME" notes/"$NAME".md <relevant new source/doc/config files by path>
 ```
+
+After staging and **before committing**, scan the index for each handled secret value without placing a value in a command argument or output: read it by exact key from the durable live file into a shell variable, then run `git grep --cached -l -F -- "$value"`. Output may contain paths only. An empty value is skipped. Any match stops the save, naming only the affected path; remove the value from the tracked surface and re-stage before continuing. Commit messages, generated PR text, and the final report receive the same manual exclusion check.
 
 - **Clean tree, 0 commits ahead of `origin/main`** → nothing to push; report the change you authored and stop (a pure research/decision session is a valid `/save` with no PR).
 - **Otherwise** commit with a one-line repo-style message (`feat: <topic> — <details>` / `fix: <topic> — <details>`; see `git log -5`), via HEREDOC with a `Co-Authored-By: Claude` trailer.
@@ -196,13 +227,13 @@ ROOT="$(git rev-parse --show-toplevel)"
 PREVIEW_URL=$(bash "$ROOT/.claude/skills/save/scripts/preview-url.sh")
 ```
 
-Then **follow [`references/git-gate.md`](references/git-gate.md) § 1** — the PR runbook `/save` and `/ship` share: open or update the PR, push, and regenerate the body from the change-mirror template (`PREVIEW_URL` above fills its Preview section). The body is generated, not curated.
+Then **follow [`references/git-gate.md`](references/git-gate.md) § 1** — `/save`'s PR runbook: open or update the PR, push, and regenerate the body from the change-mirror template (`PREVIEW_URL` above fills its Preview section). The body is generated, not curated. For an archived handoff its source and footer point at `CHANGE_ROOT`, and it offers no `/continue` command.
 
 **The push triggers CI** (where the repo has it). Go to Step 6 and wait on it.
 
 ## Step 6 — wait for CI (if any), auto-fix on failure
 
-**Follow [`references/git-gate.md`](references/git-gate.md) § 2** — wait on checks, read-fix-repush on red under a cap of 3. Its result table states `/save`'s outcomes directly: `UNKNOWN` is reported as **unverified, not absent** and does not block the checkpoint; `TIMEOUT` reports the PR link without blocking. Then Step 7.
+**Follow [`references/git-gate.md`](references/git-gate.md) § 2** — wait on checks, read-fix-repush on red under a cap of 3. `UNKNOWN` is reported as **unverified, not absent** and does not block the checkpoint; `TIMEOUT` reports the PR link without blocking. Always return the exact final gate result so a caller such as `/ship` can apply its stricter merge rule. Then Step 7.
 
 ## Step 7 — report
 
@@ -218,6 +249,8 @@ Keep it short — the user invoked this to get a URL + a saved change, not a wal
 - **CI** — ✅ green / 🔧 auto-fixed in N pushes / ❌ red after 3 (with the error) / ⏳ still running / — none configured (PR review is the gate) / ⚠️ unverified (`UNKNOWN`, with the reason). Never report `UNKNOWN` as "none configured" — one means the repo has no CI, the other means we failed to find out.
 - **Preview** — a markdown link whose visible text *is* the full URL (`[https://…](https://…)`); never bare or in a code block. None found → say so (check the PR's deploy comment).
 
+**Archived handoff:** report the same checkpoint facts, but name `CHANGE_ROOT` rather than an active resumable change. Every save report ends with one exact gate result: `SAVE_GATE_RESULT=SUCCESS`, `SAVE_GATE_RESULT=NONE`, `SAVE_GATE_RESULT=UNKNOWN`, `SAVE_GATE_RESULT=TIMEOUT`, or `SAVE_GATE_RESULT=FAILURE`. `/ship` consumes that result; other callers may treat it as checkpoint information. Never include a secret value in the report.
+
 ## Hard rules
 - Never `git push --force`. Never `--no-verify`.
 - **Never push to the default branch — branch off (Step 3) — with exactly one exception: a prose-only save**, routed by Step 1's path test. A rejected push (protected branch) falls back to a branch + PR — never forced.
@@ -227,3 +260,4 @@ Keep it short — the user invoked this to get a URL + a saved change, not a wal
 - **The Decision log is append-only.** Never rewrite, reorder, or delete prior entries; plan sections may change, history may not.
 - **The PR body is generated, not curated** — regenerate it from the change every save; never try to preserve manual body edits (reviewers comment instead).
 - **One change per line of work** — update the branch's existing `openspec/changes/<branch>/` rather than spawning duplicates. No GitHub handoff issues — the OpenSpec change is the plan.
+- **An archived handoff never recreates the active change.** The uniquely resolved archive is the handoff, and `/ship` alone performs the merge after consuming `SAVE_GATE_RESULT`.

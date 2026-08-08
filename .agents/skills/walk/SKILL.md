@@ -39,7 +39,7 @@ bash "$ROOT/.claude/skills/walk/scripts/walk-staging.sh" preflight
 
 **`RESULT: READY`** (also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`, `ACCOUNT_ID`) → Step 3.
 
-Preflight verifies the walk's browser can be had — the browser is a Cloudflare Browser Run session, opened with the pack's `CLOUDFLARE_API_TOKEN`, never a binary on this machine. A missing token, a token that lists no accounts, or an endpoint refusal are each `UNKNOWN` with the remedy named (most commonly: re-run `/wong-cloudflare`, whose widen grants Browser Rendering Edit).
+Preflight verifies the walk's browser can be had — the browser is a Cloudflare Browser Run session, opened with the pack's `CLOUDFLARE_API_TOKEN`, never a binary on this machine. Exported credentials take precedence; otherwise preflight resolves Git's primary worktree and reads the durable ignored `.env` there, including the optional Access service-token pair. It never creates a linked-worktree copy or prints a value. A missing token, an unresolvable durable store, a token that lists no accounts, or an endpoint refusal are each `UNKNOWN` with the remedy named (most commonly: re-run `/wong-cloudflare`, whose widen grants Browser Rendering Edit).
 
 ## Step 3 — walk and grade
 

@@ -3,6 +3,38 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.5.0 — secrets survive worktrees, and ship has one checkpoint
+
+**Real local credentials now have one durable home: the primary Git worktree.** An ignored `.env`
+inside a linked worktree is a separate file, so saving or rotating a token there made the credential
+disappear when that disposable checkout went away — or left several silent copies disagreeing about
+which value was current. The secrets convention now separates the two lifecycles deliberately: real
+values persist in the primary worktree's ignored live file, while the active branch carries blank,
+documented declarations in `.env.example`. Adding a variable updates both sides; rotating only its
+value creates no meaningless template diff. Existing duplicate files are preserved for explicit
+reconciliation, never printed or bulk-merged, and an ignored symlink is the supported end state for
+checkout-local tooling that insists on the conventional path.
+
+**The workflows that produce and consume credentials follow the same Git-derived location.**
+`/wong-cloudflare` resolves the primary checkout from the absolute per-worktree and common Git
+directories before it asks for a token, verifies ignore protection at that exact destination, and
+narrowly updates the durable file. `/walk` honors exported values first, then reads the same durable
+file — including the optional Access service-token pair — from any linked worktree. Neither workflow
+creates a second live copy or emits a value.
+
+**`/save` is now the universal credential-safe checkpoint.** It preserves only secrets the session
+explicitly identified by variable name; it never guesses from token-shaped strings. New contracts
+gain a blank example declaration, rotations do not churn the template, and handled values are barred
+from notes, OpenSpec artifacts, staged tracked files, commit messages, PR bodies, and reports. The
+non-secret fact that a variable rotated remains capturable, so redaction does not erase the decision.
+
+**`/ship` no longer carries a second implementation of commit, push, PR, and branch CI.** It verifies
+the feature and default branches, performs its owned OpenSpec archive step, then invokes ordinary
+`/save` exactly once. `/save` recognizes the archive matching the current branch, commits it with the
+code, regenerates the PR from that handoff, and reports the CI result. `/ship` only merges on `SUCCESS` or `NONE`,
+then deletes the remote branch worktree-safely. The exact commit that contains the archive is therefore
+the commit CI checked and the commit that merges.
+
 ## 9.4.0 — the walk's browser moves to Cloudflare, and the install step disappears
 
 **`/walk` no longer needs a browser on your machine.** The walkthrough's one machine-mutating

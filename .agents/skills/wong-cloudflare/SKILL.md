@@ -63,15 +63,39 @@ The `package.json` fragment's `db:migrate:staging` and `db:migrate:prod` are the
 
 ### 1a. Make the file, not the user
 
-Look for `.env` at the repo root. Absent → copy `.env.example` to `.env` yourself and say so plainly: *"I made a `.env` file for your settings. It's ignored by git, so what you put in it never leaves your machine."* Present → leave it alone.
+Resolve the durable credential file before asking for or accepting a value. Do not infer worktrees from a hosting tool's directory names; ask Git:
 
-Then confirm git actually ignores it: `git check-ignore -q .env`. If it does **not**, stop and fix `.gitignore` before asking for any secret. A token in a committed file is the one failure this skill must never cause.
+```bash
+ACTIVE_ROOT=$(git rev-parse --show-toplevel)
+GIT_DIR=$(git rev-parse --path-format=absolute --git-dir)
+COMMON_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
+
+if [ "$GIT_DIR" = "$COMMON_DIR" ]; then
+  PRIMARY_ROOT="$ACTIVE_ROOT"
+else
+  PRIMARY_ROOT=$(dirname "$COMMON_DIR")
+fi
+
+git -C "$PRIMARY_ROOT" rev-parse --show-toplevel
+DURABLE_ENV="$PRIMARY_ROOT/.env"
+ACTIVE_ENV="$ACTIVE_ROOT/.env"
+```
+
+The last command must resolve back to `PRIMARY_ROOT`. If any command fails or the paths disagree, stop **before** asking for the token: say the primary worktree could not be resolved safely. Never fall back to the linked checkout.
+
+Confirm Git ignores the destination from the checkout that will hold it: `git -C "$PRIMARY_ROOT" check-ignore -q .env`. The committed `.gitignore` fragment above is still required. If it is present only on the active branch and the primary checkout does not ignore `.env` yet, add the same `.env*` / `!.env.example` and `.dev.vars*` / `!.dev.vars.example` pairs to the repository-common file returned by `git rev-parse --path-format=absolute --git-path info/exclude`, then re-run the destination check. This is immediate local protection, not a substitute for the committed fragment. If the re-check fails, stop before accepting a secret.
+
+Look for `DURABLE_ENV`. Absent → copy the **active branch's** `.env.example` to it yourself (the branch may declare variables `main` does not have yet) and say plainly: *"I made the durable `.env` in the primary worktree. Git ignores it, so its values stay on this machine and survive disposal of this linked worktree."* Present → leave it alone.
+
+If `ACTIVE_ROOT` differs from `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file rather than a symlink, preserve it untouched and say: *"This linked worktree also has its own `.env`. I am using the durable primary-worktree copy and left the duplicate untouched; reconcile it before replacing it with an ignored symlink if local tooling needs this path."* Do not read values for comparison, print them, delete either file, or bulk-merge one into the other.
+
+Every later reference to `.env` in this run means `DURABLE_ENV`. When writing a variable, replace only its exact `KEY=` line or append that one line; preserve every unrelated line. Never regenerate the whole file from the example.
 
 ### 1b. Ask for the token
 
-If `CLOUDFLARE_API_TOKEN` in `.env` is empty, ask for it, giving the route from [the credentials page](../../../wiki/stack/cloudflare-credentials.md) — which owns the exact click path. The short form: **My Profile → API Tokens → Create Custom Token**, two permission rows (`User ▸ API Tokens ▸ Edit`, `Account ▸ API Tokens ▸ Edit`), and **Account Resources: Include → their account** — the field people miss, every time. They see the token once; two checkboxes is all it needs.
+If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it, giving the route from [the credentials page](../../../wiki/stack/cloudflare-credentials.md) — which owns the exact click path. The short form: **My Profile → API Tokens → Create Custom Token**, two permission rows (`User ▸ API Tokens ▸ Edit`, `Account ▸ API Tokens ▸ Edit`), and **Account Resources: Include → their account** — the field people miss, every time. They see the token once; two checkboxes is all it needs.
 
-Have them paste it into `.env` (or paste it to you and write it yourself). Then re-read `.env` and continue.
+Have them paste it into the durable file (or paste it to you and narrowly write the exact variable yourself). Re-read `DURABLE_ENV`, export the value for the API calls below without printing it, and continue.
 
 ### 1c. Verify before doing anything
 
@@ -86,7 +110,7 @@ Success returns the token's own `id` — you need it in Step 2, and it costs no 
 
 ## Step 2 — the token widens itself
 
-**Do this without asking, and report what you granted afterward.** The token in `.env` was handed to you carrying exactly the two groups that make widening possible; asking permission to use them asks the user to authorize the thing they already authorized ([the standing authorization](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the permissions you added once the widen has verified — that's the report, and it replaces the question.
+**Do this without asking, and report what you granted afterward.** The token in `DURABLE_ENV` was handed to you carrying exactly the two groups that make widening possible; asking permission to use them asks the user to authorize the thing they already authorized ([the standing authorization](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the permissions you added once the widen has verified — that's the report, and it replaces the question.
 
 The user granted two permission groups; everything else, you grant yourself, on demand — which is what lets optional features cost nothing up front. Follow [the widen protocol](references/permission-groups.md): resolve group ids by name, `PUT` the widened set with the two API-token groups preserved, re-verify, and probe each added surface.
 
@@ -103,7 +127,7 @@ curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
 - **More than one** → **stop and ask.** List them by name and id, wait for an explicit choice, and **create nothing until you have it** — not a database, not a Worker, not a secret. Never infer the account from the repo name, the email, or the order the API returned them. A personal token commonly sees a personal account *and* a shared work one; one adopter's run came within a step of provisioning a project into an unrelated organization's account. Undoing that means deleting resources from an account you may not administer.
 - **Zero, with a valid token** → the Account Resources miss ([failure map](references/failure-map.md)). Explain, offer to re-check once they've saved it. Create nothing.
 
-Write the chosen id to `CLOUDFLARE_ACCOUNT_ID` in `.env`.
+Write the chosen id narrowly to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV`.
 
 ## Step 4 — provision
 
@@ -137,8 +161,8 @@ Merge the `wrangler.jsonc` fragment from [`stack-pack-fragments.md`](../wong-syn
 ### 4d. GitHub secrets
 
 ```bash
-gh secret set CLOUDFLARE_API_TOKEN  --body "<value from .env>"
-gh secret set CLOUDFLARE_ACCOUNT_ID --body "<value from .env>"
+gh secret set CLOUDFLARE_API_TOKEN  --body "<value from DURABLE_ENV>"
+gh secret set CLOUDFLARE_ACCOUNT_ID --body "<value from DURABLE_ENV>"
 ```
 
 This needs nothing from the user — the `repo` scope `gh auth login` already grants covers it, and `gh` seals the value with the repository's public key before sending. Neither value enters a committed file.
@@ -151,7 +175,7 @@ Check `gh auth status` for the `workflow` scope; missing → offer `gh auth refr
 
 ### 4f. First deploy
 
-The workflow deploys on push, so the first deployment happens when `/save` pushes. Never push from here. A red build is `gh run view --log-failed` — the same surface `/save` and `/ship` already read; no Cloudflare credential needed to diagnose it.
+The workflow deploys on push, so the first deployment happens when `/save` pushes. Never push from here. A red build is `gh run view --log-failed` — the surface `/save` reads for ordinary checkpoints and on `/ship`'s behalf; no Cloudflare credential needed to diagnose it.
 
 Report the URLs — `GET /accounts/{account_id}/workers/subdomain` gives you `<subdomain>`; compute the patterns, don't ask:
 

@@ -33,7 +33,7 @@ There is **no manifest field, no config file, and no flag.** The dependency in y
 
 ### 2. Access service token — only if you have a login wall
 
-If you adopted [Cloudflare Access](cloudflare-access.md), your preview URLs sit behind a login and a headless browser gets challenged. Put the service token's two values in `.env` per the [secrets convention](../development/secrets.md):
+If you adopted [Cloudflare Access](cloudflare-access.md), your preview URLs sit behind a login and a headless browser gets challenged. Put the service token's two values in the primary worktree's durable `.env` per the [secrets convention](../development/secrets.md); `/walk` resolves that file even when invoked from a linked worktree:
 
 ```
 CF_ACCESS_CLIENT_ID=
