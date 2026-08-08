@@ -60,6 +60,9 @@ including worktree resolution and duplicate reconciliation, is
 
 ## Rules
 
+- **Always use ASD-STE100 Simplified Technical English** for user-facing prose and documentation.
+  Best-effort compliance is sufficient when the full standard or its controlled vocabulary is not
+  available. Keep code, commands, identifiers, quotations, and prescribed text exact.
 - **CI is the gate when present, else PR review; nothing builds locally as a prerequisite.** The
   ladder and what an unverifiable check means are stated in
   [the change loop](wiki/development/the-change-loop.md#the-gate) — the one place that owns them.

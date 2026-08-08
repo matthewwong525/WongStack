@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.7.0 — use Simplified Technical English
+
+**Agents now use ASD-STE100 Simplified Technical English for user-facing prose and documentation.**
+The shared `AGENTS.md` doctrine makes this a best-effort rule. Agents do not claim verified
+conformance when the full standard or its controlled vocabulary is not available.
+
+**Exact technical text stays exact.** The rule does not change code, commands, identifiers,
+quotations, or prescribed text. It applies to the prose around these items.
+
 ## 9.6.0 — `/apply` plans first when needed
 
 **You can now go straight from `/explore` to `/apply`.** `/apply` resolves the line of work the
