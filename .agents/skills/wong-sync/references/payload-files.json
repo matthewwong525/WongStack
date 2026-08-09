@@ -40,8 +40,7 @@
       "wiki/development/the-change-loop.md",
       "wiki/development/required-tools.md",
       "wiki/development/staging-walkthrough.md",
-      ".github/workflows/test.yml",
-      "package.json"
+      ".github/workflows/test.yml"
     ],
     "blocks": [
       {

@@ -3,6 +3,38 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 10.1.0 — tests belong to the app
+
+**No repo-root `package.json` is shipped any more.** It left the core payload one release after it
+joined it. The reason is the one v10.0.0 used to reject Playwright as the walk's engine: a
+dependency entry presumes a manifest, and presuming a manifest forces a Node toolchain into a
+Python, Rust, or Go repo that never asked for one — and the release then shipped exactly that
+manifest to those repos. **Nothing is removed from your repo.** A root `package.json` you already
+received is yours; the sync never deletes a file, and this one is simply never copied again.
+
+**The default suite ships with the app scaffold instead.** `app/package.json` declares `vitest` and
+a `test` script, and the scaffold now carries `app/vitest.config.ts` plus a starting suite for the
+Worker code it hands you. `.github/workflows/test.yml` is **unchanged** — its discovery already
+looked at the repo root *and then each immediate subdirectory*, which is what makes an app in `app/`
+findable with no root file at all. A repo with a `test` script anywhere still gets the check; a repo
+with none still gets an honest green.
+
+**What the shipped suite covers.** `worker/access.ts` first — the Cloudflare Access identity module,
+which ships inert and is the file the wiki records an adopter rewriting by hand into the header-trust
+version that silently locks out every machine caller, CI and `/walk` included. The suite pins its
+deny-by-default paths (unconfigured resolves to *no identity*, not to *allow*), its rejection of a
+malformed token or a non-`RS256` algorithm before any key is fetched, and the service-token identity
+that carries `common_name` and no email — the case the header-trust version breaks. Plus
+`worker/index.ts`'s routing contract.
+
+**Dropped: the toolkit-script tests.** WongStack's own root `package.json`, `vitest.config.js`, and
+`tests/` are deleted, so the tests over `check-payload-links.mjs`, `lib-wrangler-config.mjs`, and the
+walk scripts go with them. Two of those were near-ceremonial. One was not: `lib-wrangler-config.mjs`
+was pinned against answering with the *production* database when asked for staging, a wrong answer
+that resets the wrong database and errors nowhere. That check is gone, recorded rather than hidden —
+the deploy exercising it in CI is the remaining cover, and a pipeline-script suite of its own is the
+clean fix if it recurs. This repo's `Test` check now covers app code rather than toolkit scripts.
+
 ## 10.0.0 — the walk works in any repo, and the toolkit tests itself
 
 **`/walk` is now a core skill, not a stack-pack one.** Every repo gets it. Everything about the walk
