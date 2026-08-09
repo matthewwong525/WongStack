@@ -43,7 +43,10 @@ Either way, **nothing builds locally as a prerequisite.**
 
 **The ladder is CI-when-present → merge**, and a skipped rung is never a failure. Nothing else gates
 a merge. The app's own test suite is not a separate rung — it runs *inside* CI as an ordinary check,
-so a repo that has tests gates on them automatically and one that doesn't is not penalized.
+so a repo that has tests gates on them automatically and one that doesn't is not penalized. The
+check finds that suite by its `npm test` script, at the repo root **or in any immediate
+subdirectory**, so an app in `app/` is covered with nothing added at the root — no repo receives a
+package manifest on WongStack's behalf.
 
 **The staging walkthrough is not a rung either.** `/ship` runs [`/walk`](#walking-the-app) once for
 evidence, and merges on the gate result whatever the walk says. A walk that cannot run — not adopted,

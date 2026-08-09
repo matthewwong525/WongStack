@@ -4,5 +4,11 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
     "types": ["./worker-configuration.d.ts", "vite/client"],
   },
-  "include": ["worker"]
+  // The tests are excluded from the build, not merely unbundled: this project
+  // is what `tsc -b` typechecks before `vite build`, and it resolves modules the
+  // Node way, where a relative import needs a file extension. Vitest resolves
+  // them the Vite way and does not. Excluding them keeps the deployed bundle
+  // free of the runner and keeps the two resolution modes from arguing.
+  "include": ["worker"],
+  "exclude": ["worker/**/*.test.ts"]
 }

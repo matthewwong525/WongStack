@@ -70,16 +70,21 @@ The pack's `deploy.yml` SHALL NOT contain a `test` job, so a pack repo runs its 
 - **THEN** it commits, pushes, and gates as usual without authoring test files
 - **AND** any red `test` check is handled by the existing auto-fix path, not by writing new coverage at checkpoint time
 
-### Requirement: The payload ships a working default suite
+### Requirement: The default suite ships with the app, not with the repo root
 
-The payload SHALL ship a root `package.json` declaring `vitest` as a devDependency with a `test` script, copied only when the repo has no root `package.json` of its own. A repo that already has one SHALL be left untouched, and its existing `test` script SHALL be what the workflow runs. It SHALL NOT declare a browser library: the walkthrough's browser tool is installed at the machine level and is not a repository dependency.
+The payload SHALL NOT ship a repository-root `package.json`. A repo that has no npm toolchain SHALL receive no package manifest, no lockfile, and no test runner on WongStack's behalf. This follows the same rule that governs the walkthrough's browser: a dependency entry presumes a manifest, and presuming a manifest forces a language toolchain into repos that never chose one.
 
-WongStack SHALL use this suite on itself: the executable code it ships — the payload link checker's dead-versus-conditional classification, the wrangler-config helper's layout handling, and the walkthrough scripts' phase contract (verdict lines, refusal to remove a directory it did not create) — SHALL have real tests that run in its own CI. Where a shipped script is shell rather than JavaScript, the suite SHALL exercise it by invoking it, so coverage follows what is shipped rather than what is convenient to import. A toolkit that ships scripts and tests none of them cannot ask adopting repos to test theirs.
+The default suite SHALL instead ship **with the app scaffold**, in the app's own `package.json` — the one category where a manifest is already expected and already shipped. A repo that takes the scaffold SHALL receive a test runner and a starting suite for the code it just inherited; a repo that declines the scaffold SHALL receive neither.
 
-#### Scenario: A repo with no root manifest gets one
+The test pipeline SHALL remain able to find that suite without any root manifest, through the subdirectory discovery the workflow already performs. A repo whose application lives in a subdirectory SHALL be covered with no configuration and no file at its root.
 
-- **WHEN** WongStack is synced into a repo with no root `package.json`
-- **THEN** the payload's root `package.json` is copied in, and `npm test` runs the shipped suite
+WongStack SHALL use the suite on **its own application** — the Worker code the scaffold ships, whose identity module is the file an adopter is most likely to reimplement incorrectly. It SHALL NOT be required to test its own toolkit scripts; whether those deserve a suite of their own is a separate question this capability does not answer.
+
+#### Scenario: A repo with no npm toolchain receives no manifest
+
+- **WHEN** WongStack is installed or synced into a repo that has no `package.json` and no JavaScript
+- **THEN** no root `package.json`, lockfile, or test runner is written to it
+- **AND** the test workflow reports that no test script exists and exits green
 
 #### Scenario: A repo with its own manifest keeps it
 
@@ -87,8 +92,15 @@ WongStack SHALL use this suite on itself: the executable code it ships — the p
 - **THEN** that file is not modified or replaced
 - **AND** the workflow runs whatever `test` script it declares
 
-#### Scenario: WongStack tests its own shipped scripts
+#### Scenario: The suite is found in a subdirectory
+
+- **WHEN** a repo's application and its `test` script live in a subdirectory, with no root manifest
+- **THEN** the workflow's discovery finds that suite and runs it
+- **AND** nothing is added at the repo root to make it discoverable
+
+#### Scenario: WongStack tests its own application
 
 - **WHEN** WongStack's own CI runs
-- **THEN** the suite exercises the link checker's classification, the wrangler-config helper, and the walkthrough scripts' phase contract
-- **AND** a regression in any of them fails the check
+- **THEN** the suite exercises the Worker code the scaffold ships, including the Access identity module's rejection paths
+- **AND** a regression in it fails the check
+
