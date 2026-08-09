@@ -112,6 +112,8 @@ A **service token** is a machine credential — an ID/secret pair a non-interact
 
 Create it under **Zero Trust → Access → Service Auth**, then add a policy (or extend an existing one) that accepts that specific service token. The mechanics of storing its two values live on the [credentials page](cloudflare-credentials.md#access-service-token) — this step is just "make it exist and let it through the policy."
 
+If you skip this step, [`/walk`](staging-walkthrough.md#when-the-walk-cant-get-in) mints one the first time it meets the wall and stores it for you. Doing it here is still worth the minute: you pick the name and see the policy rule, rather than meeting both later in a walk report.
+
 ## Verify it works — in a browser
 
 **A terminal cannot verify this wall.** The `workers.dev` failure above passes every `curl` check while serving no human, so an anonymous `302` and a service-token `200` are *not* evidence that Access works. They are two of the three answers you need, and the one they cannot give you is the one that matters.

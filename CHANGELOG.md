@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
-## 9.8.0 — `/wong-sync` adapts by default
+## 9.10.0 — `/wong-sync` adapts by default
 
 **When in doubt, the sync now proposes.** The gap analysis prefers `adopt` when the evidence
 supports more than one verdict. `divergent` now requires a named, deliberate local alternative;
@@ -20,6 +20,62 @@ historical upstream version carries no local authorship, so the sync brings it c
 an uncommitted working-tree edit, listed in the report with its version span. One edited byte
 defeats the proof, and the file keeps the full never-overwrite guarantee. That guarantee is now
 scoped by authorship: the sync never modifies a file a human or another tool authored.
+
+## 9.9.0 — shipping shows its work, and CI runs your tests
+
+**`/ship` now walks the preview before it merges.** After the archive and the delegated `/save`
+checkpoint, `/ship` invokes `/walk` once and puts the evidence on the pull request. This is an
+evidence step, **not a gate**: `NONE`, `UNKNOWN`, and `TIMEOUT` are reported and the merge proceeds
+on the CI result, so a walk that cannot run still blocks nothing. Only a `FAILURE` stops, and it
+stops to **ask you** — fix, or merge anyway — rather than deciding for you. The walk-as-merge-gate
+that was removed earlier stays removed, and the runbook records why the evidence step is a different
+thing.
+
+**The pack's CI runs your test suite, in parallel.** `deploy.yml` gains a `test` job beside the
+existing build-and-deploy job, with no `needs:` edge between them, so the deploy is not one second
+slower. It runs `npm test` and finds the app by looking for a declared `test` script — repo root
+first, then each immediate subdirectory — so tests work before a repo is provisioned. **No test
+script reports why and exits green**, the same honest-check behavior an unprovisioned repo already
+gets from the build job. Because `/save` already waits on every check and auto-fixes failures, the
+suite is enforced on every save with no new skill logic.
+
+**Existing pack repos keep their own `deploy.yml`.** The workflow is copy-if-absent like the rest of
+the payload, so `/wong-sync` *offers* the `test` job through the adapt step and never writes it over
+your file.
+
+**Test coverage now grows in the loop.** `/plan` puts a test task in any change that touches
+behavior, and `/apply` writes those tests while implementing — when the context is richest. `/save`
+never authors tests; it stays a pure checkpoint. Prose-only changes get no test task.
+
+**`/ship` is shorter.** The repeated never-test/never-walk prose collapsed into the walk step plus
+one line pointing at the gate's owning page.
+
+## 9.8.0 — the walk gets cheap, and repairs its own way in
+
+**A change with nothing to walk now costs nothing.** `/walk` scouts the change's scenarios before it
+invokes `/save` and before it checks any credential. A change whose behavior all lives off the
+request path — a queue consumer, a cron trigger, backend work — reaches `NONE` after reading a few
+local files, with no push, no CI wait, and no browser session. Before, that answer arrived only after
+the two most expensive steps had already run.
+
+**The walk resolves the two blocks it holds the credential for.** When Cloudflare Browser Run refuses
+the token, `/walk` runs the widen protocol on the token itself and retries once. When the preview
+answers with a Cloudflare Access login wall and no service token is stored, it mints one named for
+the repo, confirms the policy accepts it, writes the pair to the primary worktree's durable `.env`,
+and retries once. Both repairs run under the standing authorization that already covers the token
+widen. The walk reports what it granted or minted and never prints a credential value. A block that
+survives its repair is still `UNKNOWN`, now naming the attempt — one heal and one retry per block,
+never a loop.
+
+**A failure inside the change's own code is fixed, not handed back.** On `FAILURE`, `/walk` resets
+staging as before, then judges scope: when the contradicted `THEN` belongs to this change and the fix
+lives in files the branch already touches, it fixes, runs `/save`, and walks again — at most twice.
+An out-of-scope failure keeps the old behavior exactly: reset, report, stop. The report states which
+way it judged, so the call can be contested.
+
+**New:** `walk-staging.sh scout-check` — the adoption half of preflight, with no credential
+resolution, so the cheap answer stays cheap. Existing repos need no action; the repairs activate only
+when their block occurs.
 
 ## 9.7.0 — use Simplified Technical English
 

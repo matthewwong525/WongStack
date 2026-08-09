@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The opt-in staging walkthrough, reached by invoking `/walk`: the change's own OpenSpec scenarios driven through a real browser against the deployed preview and graded against their written `THEN`. Covers how consent is detected from repo state, the `/save`-first ordering that makes a per-commit preview URL exist, how scenarios become browser journeys, what the walk captures, how it is graded, the five verdicts as *reports* rather than gates, failure recovery and reseeding, and where the evidence lands. It gates nothing: `/ship` merges on CI-green alone and never consults a walk.
+The opt-in staging walkthrough, reached by invoking `/walk`: the change's own OpenSpec scenarios driven through a real browser against the deployed preview and graded against their written `THEN`. Covers how consent is detected from repo state, the `/save`-first ordering that makes a per-commit preview URL exist, how scenarios become browser journeys, what the walk captures, how it is graded, the five verdicts as *reports* rather than gates, failure recovery and reseeding, and where the evidence lands. It gates nothing: `/ship` runs one walk for evidence and merges on the CI result regardless, stopping only to ask the user what to do about a `FAILURE`.
 
 ## Requirements
 
@@ -29,17 +29,23 @@ The walkthrough SHALL honor `CLOUDFLARE_API_TOKEN` and optional Access credentia
 
 ### Requirement: The walkthrough is a user-invoked verb
 
-The staging walkthrough SHALL be reached only by invoking `/walk`. No other skill SHALL run it: `/ship`, `/save`, `/apply`, and `/continue` SHALL NOT walk, prompt to walk, or warn that a walk did not happen.
+The staging walkthrough SHALL be reached by invoking `/walk`, or by `/ship`, which invokes `/walk` once as a non-gating evidence step between its delegated `/save` checkpoint and its merge. No other skill SHALL run it: `/save`, `/apply`, and `/continue` SHALL NOT walk, prompt to walk, or warn that a walk did not happen.
 
-`/walk` SHALL be invocable at any point in a change's life and any number of times, rather than only at merge time. Nothing in the skill SHALL limit how often it runs or treat a repeated invocation as an error.
+`/walk` SHALL be invocable at any point in a change's life and any number of times, rather than only at merge time. Nothing in the skill SHALL limit how often it runs or treat a repeated invocation as an error. `/ship`'s invocation SHALL be an ordinary walk — same scout, same verdicts, same PR evidence — not a variant.
 
 `/walk` SHALL be part of the opt-in stack pack, gated the same way `/wong-cloudflare` is: a repo whose `.claude/.wong-stack.json` does not have `components.stackPack: true` SHALL never receive the skill.
 
-#### Scenario: Shipping does not walk
+#### Scenario: Shipping walks as evidence
 
 - **WHEN** `/ship` runs in a repo that adopted the walkthrough
-- **THEN** no walk runs, no walk verdict is produced, and the merge proceeds on CI-green alone
-- **AND** no warning or nudge about the absent walk is emitted
+- **THEN** `/walk` runs once after the delegated `/save` and before the merge, and its evidence lands on the PR
+- **AND** a `NONE`, `UNKNOWN`, or `TIMEOUT` verdict changes nothing about the merge
+
+#### Scenario: Shipping in an unadopted repo does not nudge
+
+- **WHEN** `/ship` runs in a repo that has not adopted the walkthrough
+- **THEN** the walk step reports `NONE` in one line and the ship proceeds
+- **AND** no warning or adoption nudge is emitted
 
 #### Scenario: Walking repeatedly is normal
 
@@ -55,16 +61,24 @@ The staging walkthrough SHALL be reached only by invoking `/walk`. No other skil
 
 ### Requirement: /walk begins by invoking /save
 
-`/walk` SHALL invoke `/save` before walking, so the commit under test is pushed, CI has run, and the per-commit preview URL exists. `/walk` SHALL NOT implement any git action itself — it delegates, as `/apply` does when it hands completed work to `/save`.
+`/walk` SHALL scout the change's scenarios into candidate journeys **before** invoking `/save` and before any credential preflight. The scout reads only local files (the change's delta specs and any touched synced specs), so it costs no push, no CI wait, and no API call. When the scout finds no browser-observable scenario, the verdict SHALL be `NONE`, reported in one line, and `/save`, preflight, and every remote step SHALL be skipped.
+
+When at least one journey exists, `/walk` SHALL invoke `/save` before walking, so the commit under test is pushed, CI has run, and the per-commit preview URL exists. `/walk` SHALL NOT implement any git action itself — it delegates, as `/apply` does when it hands completed work to `/save`. Because the scout reads the same working tree that `/save` then commits, the journeys and the deployed commit SHALL describe the same change.
 
 The walk SHALL target the per-commit preview alias discovered by the existing preview-URL helper for the current head SHA. It SHALL NOT ask the user for a URL, and SHALL NOT construct one from a worker-name convention: a hand-built URL can address a commit that was never deployed and still answer `200`.
 
 When `/save` reports that CI is absent (`NONE`), `/walk` SHALL still proceed if a preview URL can be discovered, and SHALL treat an undiscoverable URL as a condition to report rather than a URL to guess.
 
-#### Scenario: Save runs first
+#### Scenario: Nothing browser-observable costs nothing
 
-- **WHEN** `/walk` is invoked on a branch with uncommitted work
-- **THEN** `/save` runs first — committing, pushing, waiting for CI, and resolving the preview URL
+- **WHEN** `/walk` is invoked on a change whose scenarios all live off the request path (queue consumers, cron, pure backend)
+- **THEN** the scout returns no journeys and the verdict is `NONE` with a one-line explanation
+- **AND** no `/save`, no credential preflight, and no Browser Run session occurs
+
+#### Scenario: Save runs first when there is something to walk
+
+- **WHEN** `/walk` is invoked on a branch with uncommitted work and at least one browser-observable scenario
+- **THEN** the scout runs, then `/save` runs — committing, pushing, waiting for CI, and resolving the preview URL
 - **AND** the walk targets the URL that `/save` resolved
 
 #### Scenario: The target URL is discovered, not configured
@@ -114,7 +128,9 @@ The walk SHALL drive a browser session on Cloudflare Browser Run, attached over 
 
 The runner SHALL open one Browser Run session per journey, so a session-duration limit bounds one journey's evidence rather than the walk, and concurrent-browser limits are never exceeded by a single walk.
 
-Preflight SHALL verify the credential instead of a binary: once the dependency signals adoption, a missing `CLOUDFLARE_API_TOKEN`, an unresolvable account id, or an endpoint refusal (auth failure, plan limit) SHALL each produce `UNKNOWN` with the specific remedy named — the credentials page for a missing token, a `/wong-cloudflare` re-run for a token lacking the Browser Rendering permission, the plan's limits page when the daily browser budget is exhausted. None of these SHALL be reported as a failing application.
+Preflight SHALL verify the credential instead of a binary: once the dependency signals adoption, a missing `CLOUDFLARE_API_TOKEN`, an unresolvable account id, or a plan-limit refusal SHALL each produce `UNKNOWN` with the specific remedy named — the credentials page for a missing token, the plan's limits page when the daily browser budget is exhausted. None of these SHALL be reported as a failing application.
+
+When the endpoint refuses the token with an authorization failure (the token was never widened into Browser Rendering Edit), `/walk` SHALL heal itself once: it SHALL follow the recorded widen protocol under the same standing authorization `/wong-cloudflare` uses — resolve the permission group by name, `PUT` the widened set preserving existing groups, re-verify — then retry the walk, and SHALL report which permission it granted. A refusal that survives the widen, or a widen the token cannot perform, SHALL produce `UNKNOWN` naming what was attempted and what still failed. There SHALL be exactly one widen-and-retry per invocation.
 
 #### Scenario: No browser on the machine
 
@@ -131,8 +147,14 @@ Preflight SHALL verify the credential instead of a binary: once the dependency s
 #### Scenario: Token lacks the Browser Rendering permission
 
 - **WHEN** the endpoint answers the runner's connection with an authorization failure
-- **THEN** the verdict is `UNKNOWN`, and the report names re-running `/wong-cloudflare` (whose widen grants the permission) as the fix
-- **AND** the failure is reported as unrunnable infrastructure, never as a failing journey
+- **THEN** `/walk` performs the widen protocol itself, reports the permission it granted, and retries the walk once
+- **AND** the heal is reported as infrastructure repair, never as a failing journey
+
+#### Scenario: The widen does not take
+
+- **WHEN** the widen fails or the endpoint still refuses after the single retry
+- **THEN** the verdict is `UNKNOWN`, naming the attempted widen and the surviving refusal
+- **AND** no second widen or retry is attempted in this invocation
 
 #### Scenario: A session dies mid-walk
 
@@ -225,15 +247,17 @@ The walk SHALL resolve to exactly one of five verdicts — `NONE`, `SUCCESS`, `F
 - **NONE** — not adopted, or adopted with no browser-observable scenarios. Report which, in one line.
 - **SUCCESS** — every journey satisfied its `THEN`.
 - **FAILURE** — at least one journey contradicted its `THEN`.
-- **UNKNOWN** — the walk could not run or could not be trusted: the browser is missing, the preview URL is undiscoverable, staging is unreachable, or the walk landed on a Cloudflare Access challenge page.
+- **UNKNOWN** — the walk could not run or could not be trusted after any permitted heal attempt: the browser is missing, the preview URL is undiscoverable, staging is unreachable, or an access block survived its single heal-and-retry.
 - **TIMEOUT** — the walk did not finish in its budget.
+
+When the walk lands on a Cloudflare Access challenge and no service-token pair exists in the durable store, `/walk` SHALL heal itself once before concluding `UNKNOWN`: mint a deterministically named service token through the Cloudflare Access API using `CLOUDFLARE_API_TOKEN` (widening into the Access permission groups first if needed, under the same standing authorization), ensure the Access policy accepts it, store the pair in the primary worktree's durable `.env` per the secrets convention without printing a value, and retry. A challenge that survives the mint-and-retry SHALL be `UNKNOWN`, naming what was attempted. There SHALL be exactly one mint-and-retry per invocation.
 
 `UNKNOWN` SHALL NOT be reported as `NONE`. Once a repo has adopted the walkthrough, a walk that cannot run is **unverified** rather than **absent**, and the report SHALL say so in those terms. This distinction SHALL survive as reporting honesty even though it no longer gates anything: an Access challenge screenshotted and described as "a page rendered" would convert an unchecked assumption into a checked-looking one, which is the failure mode the distinction exists to prevent.
 
 #### Scenario: A failing walk blocks nothing
 
 - **WHEN** a walk returns `FAILURE`
-- **THEN** the failure is reported and posted, and the skill stops
+- **THEN** the failure is reported and posted
 - **AND** no merge, push, or other skill is prevented from running afterwards
 
 #### Scenario: Adopted but nothing to walk
@@ -241,41 +265,51 @@ The walk SHALL resolve to exactly one of five verdicts — `NONE`, `SUCCESS`, `F
 - **WHEN** the scout finds no browser-observable scenarios in an adopted repo
 - **THEN** the verdict is `NONE` and one line explains why there was nothing to walk
 
-#### Scenario: An Access challenge is not a page
+#### Scenario: An Access challenge heals once
 
-- **WHEN** a walk against an Access-protected preview receives the Access login interstitial
+- **WHEN** a walk against an Access-protected preview receives the Access login interstitial and the durable store has no service-token pair
+- **THEN** `/walk` mints the service token, stores the pair per the secrets convention, and retries the walk once
+- **AND** no credential value is printed or committed
+
+#### Scenario: An Access challenge that survives the heal
+
+- **WHEN** the retry after the mint still lands on the Access interstitial
 - **THEN** the verdict is `UNKNOWN` rather than a passing or failing journey
-- **AND** the report names the missing service-token credentials as the likely cause
+- **AND** the report names the mint attempt and the surviving challenge
 
 #### Scenario: Unverified is reported as unverified
 
-- **WHEN** an adopted repo's walk cannot run because the browser binary is missing
+- **WHEN** an adopted repo's walk cannot run because the browser is unreachable
 - **THEN** the verdict is `UNKNOWN` and the report states the walk was not verified
 - **AND** it is not described as "nothing to walk"
 
-### Requirement: A failed walk resets staging, then stops
+### Requirement: A failed walk resets staging, then fixes in scope or stops
 
-On `FAILURE`, `/walk` SHALL reset the staging database using the stack pack's existing staging reset command, then stop. The reset SHALL run only on failure — a passing walk's data SHALL be left in place, staging being a fixture database rather than a preserved one.
+On `FAILURE`, `/walk` SHALL reset the staging database using the stack pack's existing staging reset command. The reset SHALL run only on failure — a passing walk's data SHALL be left in place, staging being a fixture database rather than a preserved one. The reset guarantees the next walk begins from the seeded fixture rather than from the partial state a failed walk left behind.
 
-The reset guarantees that the next walk begins from the seeded fixture rather than from the partial state a failed walk left behind, because a retry against half-mutated data produces a different failure and sends the reader after leftovers instead of the bug.
-
-`/walk` SHALL NOT fix, re-push, or re-walk automatically, and SHALL NOT carry a retry budget. The user fixes and invokes `/walk` again.
+After the reset, `/walk` SHALL judge scope. A failure is **in scope** when the contradicted `THEN` belongs to this change's own scenarios and the fix plausibly lives in files this branch already touches. For an in-scope failure, `/walk` SHALL fix the code, invoke `/save` (so the fix is pushed and gated normally), and re-walk — with at most **two** fix attempts per invocation, after which it stops and reports like any failure. For an out-of-scope failure (pre-existing behavior, infrastructure, another capability's scenario), `/walk` SHALL stop after the reset and report what failed and what to look at, exactly as before. The report SHALL state the scope judgement either way, so the reader can contest it. Genuinely ambiguous evidence SHALL still stop and ask the user.
 
 #### Scenario: Reset follows a failure
 
 - **WHEN** a journey fails
-- **THEN** the staging reset command runs before the skill stops
+- **THEN** the staging reset command runs before any fix attempt or stop
 
 #### Scenario: A passing walk leaves its data
 
 - **WHEN** a walk returns `SUCCESS` after journeys that created and deleted records
 - **THEN** no reset runs
 
-#### Scenario: No automatic retry
+#### Scenario: An in-scope failure gets a bounded fix loop
 
-- **WHEN** a walk returns `FAILURE`
-- **THEN** the skill does not attempt a fix, a re-push, or a second walk
-- **AND** it reports what failed and what the user should look at
+- **WHEN** a journey contradicts its `THEN` and the broken behavior belongs to this change's own code
+- **THEN** `/walk` resets staging, fixes the code, invokes `/save`, and walks again
+- **AND** after two fix attempts without a pass, it stops and reports
+
+#### Scenario: An out-of-scope failure stops
+
+- **WHEN** a journey fails because of behavior this change did not introduce
+- **THEN** the skill resets staging, reports the failure and the scope judgement, and stops
+- **AND** no fix, re-push, or re-walk is attempted
 
 ### Requirement: Evidence is posted on every verdict and degrades honestly
 

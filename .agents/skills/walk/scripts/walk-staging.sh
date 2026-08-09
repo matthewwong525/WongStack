@@ -3,11 +3,19 @@
 # same every time, so the only thing the agent authors per run is the journeys
 # themselves.
 #
-# `/walk` calls this, in three phases:
+# `/walk` calls this, in four phases:
 #
+#   walk-staging.sh scout-check          → is this repo adopted? (no credentials)
 #   walk-staging.sh preflight            → can we walk, and what do we walk?
 #   walk-staging.sh run <run-dir>        → drive the journeys, capture evidence
 #   walk-staging.sh cleanup <run-dir>    → leave no trace
+#
+# `scout-check` exists so that "there is nothing to walk" costs nothing. It
+# answers the one question the scout needs — did this repo opt in — while
+# touching no credential, no API, and no network. The skill runs it first,
+# scouts the change's scenarios, and only spends /save and preflight once it
+# knows at least one journey exists. A pure-backend change therefore reaches
+# NONE without a push, a CI wait, or a Browser Run session.
 #
 # ── What this script does NOT do ──────────────────────────────────────────────
 # It never decides whether a journey passed. It captures evidence; `/walk` reads
@@ -123,6 +131,27 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 
 case "$CMD" in
 # ──────────────────────────────────────────────────────────────────────────────
+# The cheap half of preflight: adoption only. Deliberately does NOT check the
+# installed library, the token, the account, or the URL — those all describe
+# whether a walk can *run*, and there is no point asking that before knowing
+# whether there is anything to walk. Splitting them is what lets a backend-only
+# change exit NONE for free.
+scout-check)
+  if [ -z "$ROOT" ]; then
+    emit UNKNOWN; note "not inside a git repository"; exit 0
+  fi
+  APP_DIR=$(find_app_dir "$ROOT")
+  if [ -z "${APP_DIR:-}" ]; then
+    # Not adopted. Say nothing beyond the verdict — the promise the opt-in makes
+    # is that a repo which never asked for this pays nothing, not even a nudge.
+    emit NONE
+    exit 0
+  fi
+  emit READY
+  echo "APP_DIR=$APP_DIR"
+  ;;
+
+# ──────────────────────────────────────────────────────────────────────────────
 preflight)
   # Only preflight needs the repo — it is the phase that asks what changed and
   # where the deploy for this commit went. `run`, `publish` and `cleanup` work
@@ -235,19 +264,21 @@ run)
     # case is worth its own exit code because it is the one failure that would
     # otherwise look like success: without the check, the walk screenshots a
     # login form and a grader could read "a page rendered" as a pass.
+    # Exit 3 and exit 4 are the two blocks /walk can resolve itself with the
+    # token it already holds, so each is reported here as a *cause*, not as a
+    # dead end. The skill mints (3) or widens (4), retries once, and only then
+    # reports UNKNOWN. Keeping the diagnosis in the script and the repair in the
+    # skill is deliberate: the script stays credential-free and side-effect-free.
     3)   emit UNKNOWN
          note "the preview answered with a Cloudflare Access login challenge."
-         note "Set CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (see"
-         note ".env.example and wiki/stack/cloudflare-access.md) so the walk can"
-         note "authenticate. Reporting UNVERIFIED rather than grading a login page." ;;
-    # Exit 4 is Browser Run refusing the token — the walk's browser could not be
-    # had at all. Infrastructure, never a failing journey: the fix is the widen
-    # (/wong-cloudflare grants Browser Rendering Edit) or the plan's budget.
+         note "BLOCK=access-challenge — /walk mints a service token and retries once."
+         note "If it has already retried: reporting UNVERIFIED rather than grading a"
+         note "login page (see wiki/stack/cloudflare-access.md)." ;;
     4)   emit UNKNOWN
          note "Cloudflare Browser Run refused the token, so no browser session could open."
-         note "Re-run /wong-cloudflare — its widen grants Browser Rendering Edit — or"
-         note "check the plan's browser budget (free: ~10 browser-min/day)."
-         note "Reporting UNVERIFIED; nothing was walked." ;;
+         note "BLOCK=browser-run-refused — /walk widens the token and retries once."
+         note "If it has already retried: the widen did not take, or the plan's browser"
+         note "budget is spent (free: ~10 browser-min/day). Nothing was walked." ;;
     *)   emit UNKNOWN; note "the runner exited $STATUS before finishing" ;;
   esac
   ;;
@@ -303,7 +334,7 @@ cleanup)
   ;;
 
 *)
-  echo "usage: walk-staging.sh {preflight|run <run-dir> <app-dir> <url> [minutes]|publish <run-dir>|cleanup <run-dir>}" >&2
+  echo "usage: walk-staging.sh {scout-check|preflight|run <run-dir> <app-dir> <url> [minutes]|publish <run-dir>|cleanup <run-dir>}" >&2
   exit 1
   ;;
 esac

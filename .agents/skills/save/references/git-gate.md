@@ -74,7 +74,7 @@ gh run view "$RUN_ID" --log-failed | tail -120
 
 **Cap: 3 attempts.** Still red → stop with the error and the checks link. A CI failure is not a stop condition until the cap is reached — fixing and re-pushing *is* the runbook. Never bypass with `--no-verify` or `--force`.
 
-This cap covers the CI fix-and-repush loop only. No caller runs a further retrying gate after it — `/walk` is invoked deliberately and carries no retry budget of its own.
+This cap covers the CI fix-and-repush loop only, and it is per `/save` invocation. The one caller with a budget of its own is [`/walk`](../../walk/SKILL.md), which may fix an in-scope failure and re-walk **twice**; each of those attempts invokes `/save`, so each gets its own fresh cap of 3. The budgets nest rather than share — a walk cannot spend `/save`'s attempts, and `/save` never re-walks.
 
 ## What each caller keeps
 
