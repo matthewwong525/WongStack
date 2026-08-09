@@ -3,6 +3,27 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.11.0 — the sync updates itself first and plans its whole run
+
+**`/wong-sync` now runs its own latest version.** Immediately after it refreshes the clone, and
+before it considers any other payload file, it brings its own `SKILL.md` and `references/` current,
+then re-reads them and follows the newer instructions for the rest of the run. Until now an
+improvement to the skill landed on disk unused and took effect only on the next invocation, so a
+repo that syncs monthly was always a release behind in behavior. The pass runs at most once per run
+and reuses the clone it already refreshed.
+
+**A customized `wong-sync` is never overwritten, and never silently bypassed.** One edited byte
+defeats the proof, the pass does not fire, and the run says which version it is running and why.
+The adaptation is then proposed through the ordinary `adopt` path, exactly as before.
+
+**Every run that changes anything now leaves one plan.** `openspec/changes/adopt-wongstack-<date>/`
+becomes `sync-wongstack-<date>/` and is written whenever the run copied a file, updated a file,
+self-updated, or has something to adopt. Its proposal enumerates the whole changeset — the version
+span, every file copied, every file updated with its span, the self-update, and each proposed
+adoption — so one document answers what the run did to your repo. Its tasks stay one per adoption,
+after a review task when files landed. A run that changes nothing still writes no folder, and the
+verdict record is still written every time. Folders from earlier versions keep their old name.
+
 ## 9.10.0 — `/wong-sync` adapts by default
 
 **When in doubt, the sync now proposes.** The gap analysis prefers `adopt` when the evidence

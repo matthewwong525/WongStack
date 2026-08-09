@@ -25,9 +25,9 @@ The premise is that updating is **adaptation, not replication**. A repo is up to
                                ▼
          ┌─────────────────────┴─────────────────────┐
          ▼                                           ▼
- .claude/wong-sync-verdicts.md      openspec/changes/adopt-wongstack-<date>/
-   (every run — every verdict,            (only when something is `adopt`
-    tick a box to overrule)                 — one task per `adopt`)
+ .claude/wong-sync-verdicts.md      openspec/changes/sync-wongstack-<date>/
+   (every run — every verdict,          (every run that did or proposes
+    tick a box to overrule)              anything — the whole changeset)
 ```
 
 ## Why two agents
@@ -144,19 +144,35 @@ Two artifacts, and nothing else. They have different lifecycles on purpose:
 
 ```
 .claude/wong-sync-verdicts.md                 ← EVERY run. Every verdict.
-openspec/changes/adopt-wongstack-<YYYY-MM-DD>/ ← only when something is `adopt`
-  proposal.md    why these capabilities, what each buys THIS repo
-  tasks.md       one task per `adopt`
+openspec/changes/sync-wongstack-<YYYY-MM-DD>/ ← every run that DID or PROPOSES anything
+  proposal.md    the whole changeset: copied, updated, self-updated, proposed
+  tasks.md       review task (when files landed) + one task per `adopt`
 ```
 
-The change folder is the *work*; the verdict record is the *picture*. A run can produce the second without the first, and on a repo that's already current that's the normal case.
+The change folder is the *run*; the verdict record is the *picture*. Only a run that changed nothing and proposes nothing produces the second without the first.
 
 **The change folder:**
 
+- **It covers the run, not just the adoptions** — hence `sync-`, not the old `adopt-`. Copies and direct updates are changes to this repo, and until they had a plan they existed only as working-tree edits plus chat output that scrolled away.
+- **Written whenever the run did or proposes anything**: it copied a file, updated a file, self-updated, or has at least one `adopt`.
+- **Nothing done and nothing to adopt → no folder.** An empty change is noise. Say the repo is current and point at the verdict record, which is written either way.
 - **Never overwrite an existing change folder.** If today's already exists, suffix it `-2`, `-3` — the existing one may be mid-flight.
-- **Nothing to adopt → no folder.** An empty change is noise. Say the repo is current and point at the verdict record, which is written either way.
+- **Leave old `adopt-wongstack-*` folders alone.** They're historical changes, often already archived; renaming shipped records buys nothing.
 - **No `openspec/changes/` in the target** → still write the verdict record, and explain why the change couldn't be written. (WongStack installs OpenSpec at setup, so this is rare.)
 - Write `proposal.md` and `tasks.md` only. If a graft turns out to be large, the repo's own `/plan` can deepen it.
+
+**`proposal.md` enumerates the entire changeset**, so one document answers "what did this run do to my repo":
+
+- the **version span** synced — from the manifest's version to the clone's;
+- every **file copied**, one line each;
+- every **file updated**, one line each with its version span;
+- the **self-update**, when it happened, and that the rest of the run followed the newer instructions;
+- each **proposed adoption** and what it buys *this* repo;
+- a pointer to `.claude/wong-sync-verdicts.md` for everything considered and not adopted.
+
+Copies and updates are already in the working tree when you write this, so **describe them as landed — never as tasks.** They're uncommitted, so review still comes before anything durable, and `/ship` then archives this folder as the record of that sync.
+
+**`tasks.md` is what's left to do:** one task per `adopt`, preceded by a single review task whenever any file change landed — *review the N files this sync landed, then `/save`*. That's what keeps a copy-only run actionable instead of an empty folder.
 
 ### The concreteness bar
 
@@ -198,7 +214,7 @@ A generated-file header, then one group per verdict. Every capability gets one l
 
 As of clone `a1b2c3d` (WongStack 8.3.0), 2026-08-02.
 
-## Adopted — written as tasks in openspec/changes/adopt-wongstack-2026-08-02/
+## Adopted — written as tasks in openspec/changes/sync-wongstack-2026-08-02/
 
 - `session-notes` — you capture sessions ad hoc in commit messages; `/save` writes notes/<slug>.md.
 
@@ -236,9 +252,9 @@ Ticking is the **only** edit the skill honors. Everything else in the file is re
 
 ## The report
 
-The record is the deliverable; the report is a summary that points at it. After Step 2's copied-files list:
+The record is the deliverable; the report is a summary that points at it. After Step 2's self-update line and copied/updated lists:
 
-- **Adopt** — each one, its reason, and the change folder that was written. Point at reviewing it and running `/apply`.
+- **Adopt** — each one, its reason, and the change folder that was written. Point at reviewing it and running `/apply`. The folder is written for a copy-only or self-update-only run too; name it either way, since it is the one document covering the whole run.
 - **Promoted by tick** — anything force-adopted from a ticked box, named, so the tick is visibly acted on.
 - **Divergent** and **not-applicable** — a count each, plus the pointer to `.claude/wong-sync-verdicts.md` for the lines and reasons. They're no longer chat-only, so they no longer need to be read out in full.
 - **Present** — a count is enough.
