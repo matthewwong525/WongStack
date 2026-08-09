@@ -1,9 +1,13 @@
-# Cloudflare stack pack — test, build, and deploy when the repo is provisioned.
+# Cloudflare stack pack — build and deploy when the repo is provisioned.
 #
-# Two jobs run in parallel, and neither waits for the other:
-#
-#   test   the app's own suite (`npm test`), green when no suite exists yet
 #   build  migrate + build + deploy, green when the repo is unprovisioned
+#
+# The test suite is NOT here. It runs in the core `test.yml` workflow, which
+# every repo receives whether or not it took this pack — so a commit is tested
+# once, in parallel with this deploy, and a repo with no Cloudflare account
+# still gets a test pipeline. This job never waits on that result: a staging
+# deploy of red code is harmless (staging is a fixture and /walk observes it),
+# and red code cannot reach production because merges require green CI.
 #
 # This workflow is a thin driver. The branch logic lives in the pack's scripts,
 # exactly as it does under Cloudflare Workers Builds:
@@ -80,69 +84,6 @@ jobs:
   # this job exists the suite is enforced on every save with no skill logic
   # anywhere. It keys on the `test` script, not on vitest specifically — any
   # runner behind `npm test` satisfies it.
-  test:
-    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      # Deliberately NOT cf-build.sh --app-dir: that resolves the app by its
-      # wrangler config, and a repo can have tests long before it is
-      # provisioned. Find the package.json that declares a `test` script —
-      # repo root first, then each immediate subdirectory.
-      - name: Locate the test suite
-        id: suite
-        run: |
-          has_test() {
-            node -e "process.exit(require('$1/package.json').scripts?.test?0:1)" 2>/dev/null
-          }
-          FOUND=""
-          if [ -f package.json ] && has_test "$PWD"; then
-            FOUND="$PWD"
-          else
-            for dir in */; do
-              case "$dir" in node_modules/|.*) continue ;; esac
-              if [ -f "$dir/package.json" ] && has_test "$PWD/${dir%/}"; then
-                FOUND="$PWD/${dir%/}"; break
-              fi
-            done
-          fi
-          if [ -z "$FOUND" ]; then
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            {
-              echo "### No test suite yet"
-              echo ""
-              echo "No \`package.json\` in this repo declares a \`test\` script,"
-              echo "so there is nothing to run."
-              echo ""
-              echo "Add one — \`/plan\` includes a test task for any change that"
-              echo "touches behavior — and this check runs it on every push."
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "No test script declared — nothing to run."
-            exit 0
-          fi
-          echo "found=true" >> "$GITHUB_OUTPUT"
-          echo "dir=$FOUND" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-node@v4
-        if: ${{ steps.suite.outputs.found == 'true' }}
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: ${{ steps.suite.outputs.dir }}/package-lock.json
-
-      - name: Install
-        if: ${{ steps.suite.outputs.found == 'true' }}
-        working-directory: ${{ steps.suite.outputs.dir }}
-        run: npm ci
-
-      - name: Test
-        if: ${{ steps.suite.outputs.found == 'true' }}
-        working-directory: ${{ steps.suite.outputs.dir }}
-        run: npm test
-
   build:
     # Same-repo pull requests are already covered by their push event; only a
     # fork PR, which fires no push here, needs the pull_request trigger.

@@ -1,14 +1,9 @@
-# ci-tests
+## RENAMED Requirements
 
-## Purpose
+- FROM: `### Requirement: The pack's CI runs the test suite in a parallel job`
+- TO: `### Requirement: A core workflow runs the test suite in every repo`
 
-A core workflow runs the repository's own test suite as an ordinary check on every commit, in every
-repo whether or not it took the stack pack, and the change loop grows that suite as a standing task
-convention. `npm test` is the whole contract, so any runner satisfies it. Distinct from the
-end-to-end evidence `/walk` produces: these tests accumulate, run on every push, and gate through CI,
-while a walk is throwaway acceptance for one change and gates nothing.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: A core workflow runs the test suite in every repo
 
@@ -50,25 +45,7 @@ The pack's `deploy.yml` SHALL NOT contain a `test` job, so a pack repo runs its 
 - **THEN** the staging deploy still completes
 - **AND** `/save`'s existing CI wait reports the failure and enters its auto-fix path, and `/ship` cannot merge until the check is green
 
-### Requirement: Test coverage grows in the loop, not at the checkpoint
-
-`/plan` SHALL include a standing task in `tasks.md` — add or extend test coverage for the changed behavior — whenever the proposed change touches behavior (code a test can exercise), and SHALL omit it for prose-only changes. `/apply` SHALL implement that task while implementing the change. `/save` SHALL NOT author tests: it remains a pure checkpoint, and its only relationship to the suite is the existing CI wait and auto-fix.
-
-#### Scenario: A behavioral change plans its tests
-
-- **WHEN** `/plan` drafts a change whose diff will touch app behavior
-- **THEN** `tasks.md` contains a task to add or extend test coverage for that behavior
-
-#### Scenario: A prose change plans no tests
-
-- **WHEN** `/plan` drafts a change that only touches wiki, notes, or skill prose
-- **THEN** no test task is added
-
-#### Scenario: Save never writes tests
-
-- **WHEN** `/save` checkpoints a session whose change lacks tests
-- **THEN** it commits, pushes, and gates as usual without authoring test files
-- **AND** any red `test` check is handled by the existing auto-fix path, not by writing new coverage at checkpoint time
+## ADDED Requirements
 
 ### Requirement: The payload ships a working default suite
 

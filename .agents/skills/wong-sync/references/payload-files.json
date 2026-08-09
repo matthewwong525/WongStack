@@ -2,25 +2,33 @@
   "$comment": [
     "The payload file list, machine-readable. This is the single store of WHICH",
     "files /wong-sync may copy into a target repo; payload-manifest.md beside it",
-    "holds the reasoning, the gating rules, and the exclusions — everything a flat",
+    "holds the reasoning, the gating rules, and the exclusions \u2014 everything a flat",
     "list cannot carry. Adding a payload file means adding it here once: the",
     "installing agent reads this, and so does scripts/check-payload-links.mjs.",
     "",
     "Categories gate what a given target receives. 'core' always ships. 'ui' ships",
     "only to a repo with a frontend. 'pack' ships only where the manifest has",
     "components.stackPack: true. 'scaffold' ships only where BOTH stackPack and",
-    "components.appScaffold are true — the pair is the gate, since the scaffold's",
+    "components.appScaffold are true \u2014 the pair is the gate, since the scaffold's",
     "build and deploy path is the pack.",
     "",
     "skillDirs are directory names under .claude/skills/, copied whole (references/",
     "and scripts/ included). dirs are copied whole from the repo root. Anything in",
     "'exclude' is removed after its directory is walked."
   ],
-
   "core": {
     "skillDirs": [
-      "explore", "plan", "apply", "save", "continue",
-      "ship", "dream", "improve", "wong-sync"
+      "explore",
+      "plan",
+      "apply",
+      "save",
+      "continue",
+      "ship",
+      "dream",
+      "improve",
+      "walk",
+      "wong-sync",
+      "agent-browser"
     ],
     "files": [
       "notes/README.md",
@@ -30,23 +38,31 @@
       "wiki/agent-knowledge-center.md",
       "wiki/development/secrets.md",
       "wiki/development/the-change-loop.md",
-      "wiki/development/required-tools.md"
+      "wiki/development/required-tools.md",
+      "wiki/development/staging-walkthrough.md",
+      ".github/workflows/test.yml",
+      "package.json"
     ],
     "blocks": [
       {
         "file": "CLAUDE.md",
-        "markers": ["WONG-STACK:BEGIN", "WONG-STACK:END"],
+        "markers": [
+          "WONG-STACK:BEGIN",
+          "WONG-STACK:END"
+        ],
         "note": "The block is the unit, not the file. No markers means insert the block; markers present means adapt, never rewrite in place."
       }
     ]
   },
-
   "ui": {
-    "files": ["wiki/ux-principles.md"]
+    "files": [
+      "wiki/ux-principles.md"
+    ]
   },
-
   "pack": {
-    "skillDirs": ["wong-cloudflare", "walk"],
+    "skillDirs": [
+      "wong-cloudflare"
+    ],
     "files": [
       "scripts/cf-build.sh",
       "scripts/cf-deploy.sh",
@@ -59,17 +75,21 @@
       "schema/migrations/.gitkeep",
       ".dev.vars.example"
     ],
-    "dirs": ["wiki/stack"]
+    "dirs": [
+      "wiki/stack"
+    ]
   },
-
   "scaffold": {
-    "dirs": ["app"],
-    "exclude": ["app/wrangler.jsonc"]
+    "dirs": [
+      "app"
+    ],
+    "exclude": [
+      "app/wrangler.jsonc"
+    ]
   },
-
   "seededBySetup": {
     "$comment": [
-      "Not payload — files /wong-setup writes itself, listed so the link check can",
+      "Not payload \u2014 files /wong-setup writes itself, listed so the link check can",
       "resolve links into them. An entry here is a CLAIM ABOUT wong-setup's",
       "BEHAVIOUR: it belongs only where a step in that skill demonstrably writes",
       "the path. Exempting a file nothing creates is what let this check report a",

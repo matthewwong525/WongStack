@@ -8,10 +8,15 @@ The external command-line tools the WongStack payload is allowed to depend on �
 
 ### Requirement: The payload depends only on git, gh, and openspec
 
+The WongStack **core** payload SHALL require no external command-line tools beyond `git`, `gh`, and `openspec`, with one named exception: **`/walk` requires the browser automation CLI it drives**, which it installs at the point of need. Every other core verb — `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/dream`, `/improve`, `/wong-sync` — SHALL continue to run on `git`, `gh`, and `openspec` alone, and a repo that never invokes `/walk` SHALL never acquire that tool.
 
-The WongStack **core** payload SHALL require no external command-line tools beyond `git`, `gh`, and `openspec`. No core payload script or skill SHALL invoke a standalone `jq`, `python`, `node`, or other interpreter to do work the agent or an already-required tool can do. The **opt-in Cloudflare stack pack** MAY require additional tools — `node`/`npm` and `wrangler` in that repo's own build/CI, and `curl` in the pack's own provisioning skill — but only in a repo that explicitly took the pack. A repo that did not take the pack SHALL still run the entire toolkit on `git`, `gh`, and `openspec` alone. The required-tools page SHALL state this split, and SHALL name `curl` explicitly as a pack-gated skill dependency rather than leaving the earlier "never in a WongStack skill" wording to be quietly contradicted.
+That exception SHALL be a **tool**, not a language toolchain: the walk's browser dependency SHALL NOT require a package manifest, a dependency entry, or a language runtime inside the repository. A repo in any language SHALL be able to walk without gaining a toolchain it does not otherwise use.
 
-Pack-gated skills and scripts MAY use `node` where it is the better tool, since a pack repo already requires it at its build boundary. Provisioning SHALL nonetheless use `curl` against the Cloudflare REST API rather than `wrangler` or a Node script, so that setting up the app requires no language runtime on the user's machine. The governing rule SHALL be stated on the required-tools page: use `node` where it is already required; never let a WongStack skill be the reason a runtime gets installed.
+No core payload script or skill outside `/walk` SHALL invoke a standalone `jq`, `python`, `node`, or other interpreter to do work the agent or an already-required tool can do.
+
+The **opt-in Cloudflare stack pack** MAY require additional tools — `node`/`npm` and `wrangler` in that repo's own build/CI, and `curl` in the pack's own provisioning skill — but only in a repo that explicitly took the pack. Provisioning SHALL use `curl` against the Cloudflare REST API rather than `wrangler` or a Node script, so that setting up the app requires no language runtime on the user's machine.
+
+The required-tools page SHALL state this split precisely: the three universal tools, the browser CLI scoped to `/walk`, and `curl` as a pack-gated skill dependency. The governing rule SHALL be stated there: use a tool where it is already required, and never let a WongStack skill be the reason a *runtime* gets installed without asking.
 
 #### Scenario: A pack-gated script uses node where node already exists
 
@@ -19,28 +24,22 @@ Pack-gated skills and scripts MAY use `node` where it is the better tool, since 
 - **THEN** it MAY use `node` for work `curl` and shell would do poorly, such as JSON assembly or editing `wrangler.jsonc`
 - **AND** no skill on the user's own machine gains a `node` dependency as a result
 
-#### Scenario: Target repo has gh but not jq
+#### Scenario: The walk's tool dependency is named, not hidden
 
-- **WHEN** any core WongStack skill or script runs in a repo on a machine where `git`, `gh`, and `openspec` are installed but `jq` is not
-- **THEN** every skill and script completes with correct results, invoking no command outside that set
+- **WHEN** a reader consults the required-tools page to learn what the toolkit needs
+- **THEN** the browser CLI is listed as required by `/walk` specifically
+- **AND** the rest of the core payload is still stated to need only `git`, `gh`, and `openspec`
 
-#### Scenario: Onboarding preflight
+#### Scenario: Walking adds no toolchain to the repo
 
-- **WHEN** `/wong-setup` runs its readiness check
-- **THEN** it checks for `git`, `gh` (installed and authenticated), a resolving `origin` remote, and `openspec`
-- **AND** it does not check for or require `jq`
+- **WHEN** `/walk` runs in a repo whose language is not JavaScript
+- **THEN** no package manifest, dependency entry, or language runtime is added to that repo
+- **AND** the browser tool is installed on the machine instead
 
-#### Scenario: Pack's extra tools are opt-in and repo-local
+#### Scenario: A repo that never walks needs no browser tool
 
-- **WHEN** a repo takes the stack pack
-- **THEN** the pack's scripts run `node`/`wrangler` in that repo's own build/CI, its provisioning skill runs `curl`, and the required-tools page documents all of these as pack-only additions
-- **AND** a repo that declined the pack still runs every WongStack skill on `git`, `gh`, and `openspec` alone
-
-#### Scenario: Provisioning needs no local runtime
-
-- **WHEN** a user provisions the Cloudflare app on a machine with no Node.js installed
-- **THEN** provisioning completes using `curl` and `gh` only
-- **AND** no step instructs the user to install a language runtime
+- **WHEN** a repo uses the loop without ever invoking `/walk`
+- **THEN** no browser tool or browser is installed on its behalf
 
 ### Requirement: JSON handling goes through gh's embedded filter
 
