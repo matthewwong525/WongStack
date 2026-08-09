@@ -1,0 +1,12 @@
+{
+  "name": "wongstack",
+  "private": true,
+  "type": "module",
+  "description": "Repo-native AI knowledge-center toolkit. This manifest exists to give the repo a test suite; the payload's skills need no dependency of their own.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

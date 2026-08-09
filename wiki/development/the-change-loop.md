@@ -28,7 +28,7 @@ Loop back any time: invoke `/save` as often as you like while building — each 
 
 **[`/walk`](../../.claude/skills/walk/SKILL.md)** sits *beside* the loop rather than in it. It scouts the change's own OpenSpec scenarios, and when any of them is browser-observable it invokes `/save`, drives them through a real browser against the deployed preview, and posts screenshots, video, and a verdict to the PR. A change with nothing to see costs nothing — the scout answers `NONE` before anything is pushed. Invoke it whenever you want to see the thing working — mid-change, twice in a row, or right before `/ship`.
 
-It **gates nothing**, which is what makes it safe to run early and often. `/ship` runs it once as an evidence step and merges on the CI gate regardless of the verdict; the single exception is a `FAILURE`, which stops to ask you whether to fix or merge anyway — a decision surfaced, not a rung applied. No verdict blocks a merge on its own, and no other verb consults its result. Opt-in per repo and detected from state; where the Cloudflare stack pack is installed, `wiki/stack/staging-walkthrough.md` is its runbook.
+It **gates nothing**, which is what makes it safe to run early and often. `/ship` runs it once as an evidence step and merges on the CI gate regardless of the verdict; the single exception is a `FAILURE`, which stops to ask you whether to fix or merge anyway — a decision surfaced, not a rung applied. No verdict blocks a merge on its own, and no other verb consults its result. It works in any repo on any stack — its browser is a standalone CLI installed on the machine, never a dependency added to your project — and [`staging-walkthrough.md`](staging-walkthrough.md) is its runbook.
 
 ## The gate
 

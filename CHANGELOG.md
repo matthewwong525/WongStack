@@ -3,6 +3,67 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 10.0.0 — the walk works in any repo, and the toolkit tests itself
+
+**`/walk` is now a core skill, not a stack-pack one.** Every repo gets it. Everything about the walk
+was always stack-agnostic — the scout reads local OpenSpec files, the preview URL comes from a helper
+that matches Vercel, Netlify, Render, Fly, Pages, and GitHub Pages — except where the browser came
+from. So that one thing changed.
+
+**The browser is [`agent-browser`](https://github.com/vercel-labs/agent-browser), running a real
+Chrome on your machine.** The Cloudflare Browser Run path is **removed entirely**: the CDP endpoint,
+the account lookup, the bearer token, and the permission widen that served it. `/walk` installs the
+CLI and its Chrome the first time it needs them and says so.
+
+**Nothing is added to your repository to make a walk possible.** No `devDependencies` entry, no
+lockfile change, no `package.json` created if you don't have one. That is the point of the engine
+choice: Playwright would have been a *repo* dependency, forcing a Node toolchain into Python, Rust,
+and Go repos — the very repos this release exists to serve. The walk's "writes nothing to the repo"
+rule survives intact instead of being weakened.
+
+**BREAKING — adoption no longer exists.** `playwright-core` in your app's `devDependencies` used to
+be the opt-in, because nothing would install it. With a machine-level tool there is no repo state to
+read, so the signal is gone and **`NONE` now means one thing only: this change has nothing a browser
+can see.** It never means "this repo didn't opt in." Nothing to migrate — a repo that had the
+dependency can keep or drop it; the walk ignores it either way.
+
+**BREAKING — no more video.** `agent-browser` captures screenshots, not video, so the per-journey
+video requirement is gone rather than softened. Full-page and annotated capture replace it, and the
+PR comment no longer links a recording or reports one as missing. Little is lost: a reviewer reads a
+screenshot against a written `THEN`, and GitHub never played walk videos inline anyway.
+
+**A new hard rule, learned the hard way: wait after anything that navigates, before screenshotting.**
+A screenshot taken before the destination paints captures the *previous page*. In testing, a click
+that navigated correctly produced two byte-identical screenshots of the page it had already left — a
+walk that would have graded confidently and wrongly. Every navigating step now carries an explicit
+wait.
+
+**Your tests run in every repo, not just Cloudflare ones.** The `test` job moves out of the pack's
+`deploy.yml` into a new core `.github/workflows/test.yml`, carrying the same one-run-per-commit
+collapse and the same honest-green behavior. A repo that never took the stack pack now has a test
+pipeline. `npm test` is still the whole contract, so any runner satisfies it.
+
+**WongStack tests its own shipped scripts.** A root `package.json` and a vitest suite arrive, and the
+repo now covers the payload link checker's dead-versus-conditional classification, the wrangler-config
+helper, and the walkthrough scripts' phase contract. A toolkit that ships scripts and tests none of
+them cannot ask your repo to test yours. The root manifest is copy-if-absent, so a repo that already
+has one keeps it.
+
+**The browser is yours for ordinary work too.** The vendored `agent-browser` skill ships in core, so
+opening a page, filling a form, or checking something rendered no longer needs a walk. It is a
+pointer, not a copy: it loads its usage from the installed CLI, so the instructions always match the
+tool and there is nothing to drift.
+
+**Two `/ship` defects fixed.** It now **retargets any open pull request based on the branch before
+deleting it** — deleting the base of an open PR closes that PR, and GitHub will neither reopen a PR
+whose base is gone nor retarget a closed one. And its walk step is skipped in one line where the
+skill is absent, instead of citing a skill the repo may not have yet.
+
+**Where things moved.** `wiki/stack/staging-walkthrough.md` → `wiki/development/staging-walkthrough.md`,
+because a core skill may not cite a page inside the pack-only `wiki/stack` directory. Its Cloudflare
+sections are marked pack-only. `/wong-cloudflare` no longer grants Browser Rendering Edit; a token
+widened by an earlier version keeps it harmlessly, and the narrow-back offer removes it.
+
 ## 9.9.0 — shipping shows its work, and CI runs your tests
 
 **`/ship` now walks the preview before it merges.** After the archive and the delegated `/save`

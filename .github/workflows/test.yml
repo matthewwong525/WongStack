@@ -1,0 +1,97 @@
+# The repo's own test suite, on every commit — in every repo, on any stack.
+#
+# This is a CORE payload workflow. It used to be a job inside the Cloudflare
+# pack's deploy workflow, which meant a repo that never took the pack had no
+# test pipeline at all — the opposite of the intent. Parallelism was never the
+# reason it lived there (separate workflows run in parallel too); the reason was
+# the double-fire collapse below, which is one copied condition.
+#
+# `npm test` is the entire contract. Any runner behind that script satisfies
+# this job — vitest is what the payload configures by default, not a
+# requirement. A repo with no `test` script gets a real check that explains
+# itself and passes, never a permanently red one.
+#
+# ---------------------------------------------------------------------------
+# Why one commit does not test twice
+#
+# `push` and `pull_request` both fire for a commit on a branch with an open PR.
+# The job-level `if` means only `push` — plus pull requests from FORKS, whose
+# pushes fire no event in this repo — actually runs; a same-repo PR is already
+# covered by its own push event. The concurrency group keys on the EVENT as well
+# as the branch for the same reason the deploy workflow does: `github.ref`
+# differs between the two triggers, so groups keyed on the branch alone never
+# match, and a key that DID match would let one run cancel the other — which
+# `gh pr checks` reports as `fail`, blocking /ship.
+
+name: Test
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: test-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
+jobs:
+  test:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Resolve the app by its test script, never by a stack's config file: a
+      # repo can have tests long before it is provisioned, or instead of ever
+      # being provisioned. Repo root first, then each immediate subdirectory.
+      - name: Locate the test suite
+        id: suite
+        run: |
+          has_test() {
+            node -e "process.exit(require('$1/package.json').scripts?.test?0:1)" 2>/dev/null
+          }
+          FOUND=""
+          if [ -f package.json ] && has_test "$PWD"; then
+            FOUND="$PWD"
+          else
+            for dir in */; do
+              case "$dir" in node_modules/|.*) continue ;; esac
+              if [ -f "$dir/package.json" ] && has_test "$PWD/${dir%/}"; then
+                FOUND="$PWD/${dir%/}"; break
+              fi
+            done
+          fi
+          if [ -z "$FOUND" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### No test suite yet"
+              echo ""
+              echo "No \`package.json\` in this repo declares a \`test\` script,"
+              echo "so there is nothing to run."
+              echo ""
+              echo "Add one — \`/plan\` includes a test task for any change that"
+              echo "touches behavior — and this check runs it on every push."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "No test script declared — nothing to run."
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "dir=$FOUND" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: ${{ steps.suite.outputs.found == 'true' }}
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ steps.suite.outputs.dir }}/package-lock.json
+
+      - name: Install
+        if: ${{ steps.suite.outputs.found == 'true' }}
+        working-directory: ${{ steps.suite.outputs.dir }}
+        run: npm ci
+
+      - name: Test
+        if: ${{ steps.suite.outputs.found == 'true' }}
+        working-directory: ${{ steps.suite.outputs.dir }}
+        run: npm test

@@ -10,6 +10,14 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 `/wong-setup` checks for these during its readiness step when it installs WongStack into a repo. Beyond them, no core payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.
 
+**One core verb adds one tool: [`/walk`](staging-walkthrough.md) needs `agent-browser`.**
+
+| Tool | Why |
+|---|---|
+| `agent-browser` | The browser [`/walk`](../../.claude/skills/walk/SKILL.md) drives, carrying its own Chrome. `/walk` installs it on the machine the first time it needs it, and says so. |
+
+It is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/walk` never acquires it, and every other core verb still needs only the three commands above. The browser is available for ordinary work too, not only inside a walk; `/walk` is just the surface that grades what it sees and posts the evidence.
+
 ## `gh` needs the `workflow` scope
 
 `gh auth login`'s minimum scope set is `repo`, `read:org`, `gist` — **`workflow` is not in it.** Without it, pushing any `.github/workflows/*.yml` file fails at *push* time, long after setup reported success, with wording a newcomer can't act on:
@@ -53,7 +61,7 @@ One exception, and it proves the rule by staying opt-in. The Cloudflare stack pa
 
 **Pack-gated scripts may use `node`** where it's the better tool — JSON assembly, editing `wrangler.jsonc` — because a pack repo already requires it at its build boundary. The governing rule:
 
-> Use `node` where it is already required. Never let a WongStack skill be the reason a runtime gets installed.
+> Use a tool where it is already required. A skill may install a **tool** it needs at the point of need and say so; never let a WongStack skill be the reason a **runtime** gets installed without asking.
 
 That's why provisioning is `curl`-first even though `npx wrangler` would be shorter: reaching for it would trigger an install during the one flow whose whole selling point is having no local setup.
 

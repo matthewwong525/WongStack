@@ -46,7 +46,9 @@ Consume its exact final result:
 
 ## Step 4 — walk the preview (evidence, not a gate)
 
-**Invoke the `walk` skill once** and follow it verbatim. It scouts first, so a change with nothing browser-observable costs nothing; when there are journeys it drives them against the commit `/save` just published and posts the evidence to the PR.
+**If this repo has the `walk` skill, invoke it once** and follow it verbatim. It scouts first, so a change with nothing browser-observable costs nothing; when there are journeys it drives them against the commit `/save` just published and posts the evidence to the PR.
+
+**No `walk` skill** (a repo that hasn't synced since it became core) → say so in one line and go to Step 5. A rung the repo lacks is skipped, never failed — and never installed to repair it.
 
 - `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue to the merge.
 - `FAILURE`, after `/walk`'s own two fix attempts → **stop and ask the user**: fix, or merge anyway.
@@ -61,9 +63,15 @@ Merge via the API, then delete the **remote** branch explicitly. **Never `gh pr 
 ```bash
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 gh pr merge --squash
+# Retarget anything stacked on this branch BEFORE deleting it (see below):
+for n in $(gh pr list --state open --base "$BRANCH" --json number --jq '.[].number'); do
+  gh api -X PATCH "repos/:owner/:repo/pulls/$n" -f base=main --jq '.number'
+done
 git push origin --delete "$BRANCH"
 ```
 The squash carries the archived change onto the default branch.
+
+**Retarget before you delete, always.** Deleting a branch that an open PR still uses as its base **closes that PR**, and the loss is unrecoverable: GitHub will not reopen a PR whose base branch is gone, nor retarget a closed one. Do not rely on GitHub's own auto-retarget — the delete races it, and the race has no completion signal to wait on. Name every PR you retargeted in the report.
 
 On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke ordinary `/save` again so the changed merge commit receives the same checkpoint and gate. Retry the merge only on its `SUCCESS` or `NONE`. Other failure (branch protection, draft) → surface the exact `gh` error.
 
@@ -72,11 +80,13 @@ On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not
 - PR number + URL, **merged (squash)** to the default branch.
 - **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch (`openspec list` no longer shows it; `openspec/specs/` holds the synced result).
 - **Checkpoint** — `/save` result and CI outcome, including auto-fix pushes.
-- **Walk** — the verdict, the evidence comment link, and — when a `FAILURE` was merged anyway — that the user chose to.
+- **Walk** — the verdict, the evidence comment link, and — when a `FAILURE` was merged anyway — that the user chose to. Where the skill was absent, one line saying so.
+- **Retargeted** — any pull request moved to the default branch before the branch was deleted.
 
 ## Hard rules
 - Never ship onto a red default branch (when it has checks). **Never merge on an `UNKNOWN` check result** — unverified is not the same as no checks. Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. **Never build or test locally** — CI is the gate when present, else PR review; the app's own suite runs there as an ordinary check.
 - **Never implement checkpoint mechanics.** Archive first, then delegate once to ordinary `/save`; merge only on its `SUCCESS` or `NONE` result.
 - **The walk informs, never blocks.** Run it once, report every verdict, and let no verdict but a user-answered `FAILURE` change what happens next. Never skip it to save time, and never re-run it hunting a greener result.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
+- **Never delete a branch another open PR is based on.** Retarget dependents to the default branch first; a closed-by-deletion PR cannot be recovered.
 - No GitHub summary issue and no docs distillation — the archived spec is the record; `/dream` handles the wiki.

@@ -1,10 +1,15 @@
-# staging-walkthrough Specification
+## RENAMED Requirements
 
-## Purpose
+- FROM: `### Requirement: The browser is remote, reached with the pack's credential`
+- TO: `### Requirement: The browser is driven by a standalone CLI, installed on the machine`
 
-The staging walkthrough, reached by invoking `/walk`: the change's own OpenSpec scenarios driven through a real browser against the deployed preview and graded against their written `THEN`. Ships in the core payload and works in a repo of any language on any stack, because the browser is a standalone CLI installed on the machine rather than a dependency added to the repository. Covers the `/save`-first ordering that makes a per-commit preview URL exist, how the walk provisions its own tool without touching the repo, how scenarios become declarative browser journeys, what the walk captures (screenshots, not video), how it is graded, the five verdicts as *reports* rather than gates, failure recovery, and where the evidence lands. It gates nothing: `/ship` runs one walk for evidence and merges on the CI result regardless, stopping only to ask the user what to do about a `FAILURE`.
+- FROM: `### Requirement: Adoption is detected from state, never configured`
+- TO: `### Requirement: The walk provisions its own tool, never a repo dependency`
 
-## Requirements
+- FROM: `### Requirement: Adoption is recommended and documented, never forced`
+- TO: `### Requirement: The runbook ships in core and records what was declined`
+
+## MODIFIED Requirements
 
 ### Requirement: Walkthrough credentials follow the durable worktree store
 
@@ -81,40 +86,6 @@ The browser tool the walk uses SHALL also be available for ordinary browser work
 - **THEN** the walk runs against whatever is deployed for the current commit
 - **AND** the incomplete state of the change is not treated as an error
 
-### Requirement: /walk begins by invoking /save
-
-`/walk` SHALL scout the change's scenarios into candidate journeys **before** invoking `/save` and before any credential preflight. The scout reads only local files (the change's delta specs and any touched synced specs), so it costs no push, no CI wait, and no API call. When the scout finds no browser-observable scenario, the verdict SHALL be `NONE`, reported in one line, and `/save`, preflight, and every remote step SHALL be skipped.
-
-When at least one journey exists, `/walk` SHALL invoke `/save` before walking, so the commit under test is pushed, CI has run, and the per-commit preview URL exists. `/walk` SHALL NOT implement any git action itself — it delegates, as `/apply` does when it hands completed work to `/save`. Because the scout reads the same working tree that `/save` then commits, the journeys and the deployed commit SHALL describe the same change.
-
-The walk SHALL target the per-commit preview alias discovered by the existing preview-URL helper for the current head SHA. It SHALL NOT ask the user for a URL, and SHALL NOT construct one from a worker-name convention: a hand-built URL can address a commit that was never deployed and still answer `200`.
-
-When `/save` reports that CI is absent (`NONE`), `/walk` SHALL still proceed if a preview URL can be discovered, and SHALL treat an undiscoverable URL as a condition to report rather than a URL to guess.
-
-#### Scenario: Nothing browser-observable costs nothing
-
-- **WHEN** `/walk` is invoked on a change whose scenarios all live off the request path (queue consumers, cron, pure backend)
-- **THEN** the scout returns no journeys and the verdict is `NONE` with a one-line explanation
-- **AND** no `/save`, no credential preflight, and no Browser Run session occurs
-
-#### Scenario: Save runs first when there is something to walk
-
-- **WHEN** `/walk` is invoked on a branch with uncommitted work and at least one browser-observable scenario
-- **THEN** the scout runs, then `/save` runs — committing, pushing, waiting for CI, and resolving the preview URL
-- **AND** the walk targets the URL that `/save` resolved
-
-#### Scenario: The target URL is discovered, not configured
-
-- **WHEN** the walk needs a URL
-- **THEN** it uses the per-commit preview URL produced by the preview-URL helper for the current head SHA
-- **AND** it neither prompts for a URL nor derives one from a naming convention
-
-#### Scenario: No discoverable preview URL
-
-- **WHEN** the repo's CI does not deploy, so no preview URL exists for this commit
-- **THEN** the verdict is `UNKNOWN` and the report names the missing deployment as the cause
-- **AND** no URL is guessed
-
 ### Requirement: The walk provisions its own tool, never a repo dependency
 
 `/walk` SHALL install what it needs to run rather than reporting its absence, and SHALL install it **at the machine level**. When the browser CLI or its browser is missing, the walk SHALL install them and state what it installed.
@@ -189,35 +160,6 @@ The driver SHALL be kept thin enough that replacing the browser tool means rewri
 - **THEN** that journey's evidence records the error and the remaining journeys run on fresh sessions
 - **AND** one lost session does not cost the walk
 
-### Requirement: Scenarios become journeys, scoped to the change
-
-A scout SHALL derive the journeys from the change's own OpenSpec scenarios rather than from the application's routes or components. Its inputs SHALL be the delta specs under `openspec/changes/<slug>/specs/**`, plus the scenarios of any capability in `openspec/specs/` that the branch diff touches. The full synced spec surface SHALL NOT be walked — the walk is acceptance for this change, not a regression suite whose cost grows with the app.
-
-The scout SHALL keep only scenarios observable through a browser against an HTTP-serving preview. Scenarios whose behavior lives outside the request path — queue consumers, cron triggers, alarms — SHALL be excluded, because a version alias serves HTTP only.
-
-Each journey SHALL carry the scenario's `WHEN` as its steps and the scenario's `THEN`, verbatim, as its pass criterion.
-
-#### Scenario: Scope is the change plus what the diff touches
-
-- **WHEN** the scout runs on a change with delta specs for one capability, whose diff also edits files covered by a second capability's spec
-- **THEN** the journeys cover the delta scenarios and the second capability's scenarios
-- **AND** capabilities unrelated to both are not walked
-
-#### Scenario: Non-browser scenarios are excluded
-
-- **WHEN** a change's scenarios describe a queue consumer's behavior
-- **THEN** the scout excludes them from the journeys and records why
-
-#### Scenario: The pass criterion is the scenario's own words
-
-- **WHEN** a journey is built from a scenario
-- **THEN** its expected outcome is the scenario's `THEN` text, not a restatement invented by the scout
-
-#### Scenario: Destructive journeys are walked
-
-- **WHEN** a scenario describes deleting a record
-- **THEN** the scout includes it as a journey rather than skipping it as unsafe
-
 ### Requirement: The walk is throwaway and saves nothing
 
 The walk SHALL leave the repository working tree exactly as it found it. It SHALL NOT create a test suite, a `tests/` directory, a config file, committed fixtures, a dependency entry, or any other artifact inside the repo — including the tool it installs, which is installed at the machine level for this reason.
@@ -252,25 +194,6 @@ Cleanup SHALL run on every exit path, including when the skill stops on `UNKNOWN
 
 - **WHEN** a walk stops early on `UNKNOWN`
 - **THEN** the temporary run directory is still removed
-
-### Requirement: The verdict is graded against the written expectation
-
-The pass or fail call for each journey SHALL be made by reading the captured evidence against the scenario's `THEN`. The judgement SHALL NOT rest on the absence of an exception, an HTTP status alone, or the agent's impression that the page "looks fine": a journey whose script completed without error but whose screenshots do not show what the `THEN` describes SHALL fail.
-
-No second judging subagent is required. The external check is that the expectation was written by `/plan`, before the walk existed, for reasons unrelated to passing it.
-
-Where the evidence is genuinely ambiguous, the walk SHALL stop and ask the user, presenting the screenshot and the `THEN` side by side, rather than resolving the ambiguity in either direction on its own.
-
-#### Scenario: A silent wrong result fails
-
-- **WHEN** a journey's script completes with no error, but the screenshot shows no validation message where the scenario's `THEN` requires one
-- **THEN** the journey fails
-
-#### Scenario: Ambiguity is escalated, not resolved
-
-- **WHEN** the captured evidence neither clearly satisfies nor clearly contradicts the scenario's `THEN`
-- **THEN** the walk stops and asks the user, showing the screenshot and the expectation
-- **AND** it does not resolve the ambiguity on its own judgement
 
 ### Requirement: Verdicts report, and gate nothing
 
@@ -321,34 +244,6 @@ When the walk lands on a Cloudflare Access challenge, the heal SHALL be gated on
 - **WHEN** a walk cannot run because the browser could not be obtained
 - **THEN** the verdict is `UNKNOWN` and the report states the walk was not verified
 - **AND** it is not described as "nothing to walk"
-
-### Requirement: A failed walk resets staging, then fixes in scope or stops
-
-On `FAILURE`, `/walk` SHALL reset the staging database using the stack pack's existing staging reset command. The reset SHALL run only on failure — a passing walk's data SHALL be left in place, staging being a fixture database rather than a preserved one. The reset guarantees the next walk begins from the seeded fixture rather than from the partial state a failed walk left behind.
-
-After the reset, `/walk` SHALL judge scope. A failure is **in scope** when the contradicted `THEN` belongs to this change's own scenarios and the fix plausibly lives in files this branch already touches. For an in-scope failure, `/walk` SHALL fix the code, invoke `/save` (so the fix is pushed and gated normally), and re-walk — with at most **two** fix attempts per invocation, after which it stops and reports like any failure. For an out-of-scope failure (pre-existing behavior, infrastructure, another capability's scenario), `/walk` SHALL stop after the reset and report what failed and what to look at, exactly as before. The report SHALL state the scope judgement either way, so the reader can contest it. Genuinely ambiguous evidence SHALL still stop and ask the user.
-
-#### Scenario: Reset follows a failure
-
-- **WHEN** a journey fails
-- **THEN** the staging reset command runs before any fix attempt or stop
-
-#### Scenario: A passing walk leaves its data
-
-- **WHEN** a walk returns `SUCCESS` after journeys that created and deleted records
-- **THEN** no reset runs
-
-#### Scenario: An in-scope failure gets a bounded fix loop
-
-- **WHEN** a journey contradicts its `THEN` and the broken behavior belongs to this change's own code
-- **THEN** `/walk` resets staging, fixes the code, invokes `/save`, and walks again
-- **AND** after two fix attempts without a pass, it stops and reports
-
-#### Scenario: An out-of-scope failure stops
-
-- **WHEN** a journey fails because of behavior this change did not introduce
-- **THEN** the skill resets staging, reports the failure and the scope judgement, and stops
-- **AND** no fix, re-push, or re-walk is attempted
 
 ### Requirement: Evidence is posted on every verdict and degrades honestly
 
@@ -413,4 +308,3 @@ It SHALL also record the decisions this capability **reversed or dropped, with t
 
 - **WHEN** a reader asks why this browser tool was chosen over the alternatives
 - **THEN** the runbook names the alternatives, the deciding argument, and what replacing the engine would cost
-

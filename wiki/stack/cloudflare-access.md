@@ -112,7 +112,7 @@ A **service token** is a machine credential — an ID/secret pair a non-interact
 
 Create it under **Zero Trust → Access → Service Auth**, then add a policy (or extend an existing one) that accepts that specific service token. The mechanics of storing its two values live on the [credentials page](cloudflare-credentials.md#access-service-token) — this step is just "make it exist and let it through the policy."
 
-If you skip this step, [`/walk`](staging-walkthrough.md#when-the-walk-cant-get-in) mints one the first time it meets the wall and stores it for you. Doing it here is still worth the minute: you pick the name and see the policy rule, rather than meeting both later in a walk report.
+If you skip this step, [`/walk`](../development/staging-walkthrough.md#when-the-walk-cant-get-in) mints one the first time it meets the wall and stores it for you. Doing it here is still worth the minute: you pick the name and see the policy rule, rather than meeting both later in a walk report.
 
 ## Verify it works — in a browser
 
@@ -143,7 +143,7 @@ On a Worker with no Access proxy in front, `Cf-Access-Authenticated-User-Email` 
 
 The Worker verifies the signed `Cf-Access-Jwt-Assertion` against your Access application. Two independent reasons, either sufficient:
 
-- **The header pattern locks out every machine caller — including WongStack's own [`/walk`](staging-walkthrough.md).** Access sets **no email header for a service token.** Such a request arrives carrying only `cf-access-jwt-assertion` and the ordinary `cf-*` headers (`cf-connecting-ip`, `cf-ipcountry`, `cf-ray`, `cf-visitor`), and the `CF-Access-Client-Id`/`Secret` it sent are stripped. So a Worker reading the email header `401`s CI and every automated caller. The JWT is the only signal that covers humans and machines both.
+- **The header pattern locks out every machine caller — including WongStack's own [`/walk`](../development/staging-walkthrough.md).** Access sets **no email header for a service token.** Such a request arrives carrying only `cf-access-jwt-assertion` and the ordinary `cf-*` headers (`cf-connecting-ip`, `cf-ipcountry`, `cf-ray`, `cf-visitor`), and the `CF-Access-Client-Id`/`Secret` it sent are stripped. So a Worker reading the email header `401`s CI and every automated caller. The JWT is the only signal that covers humans and machines both.
 - **Header trust rests on a precondition you cannot confirm.** It is safe *only* if the proxy provably covers every hostname reaching the Worker — and as the `workers.dev` case shows, a policy can silently fail to cover one. Verifying the signature checks the claim against *this application*, so it doesn't depend on a fact you can be wrong about.
 
 **One path serves both callers,** because the verified claims differ by exactly one field:
