@@ -34,6 +34,7 @@ here.
 - **The `scaffold` payload category copies `app/` as a whole directory** (`dirs: ["app"]`, with only
   `app/wrangler.jsonc` excluded). New files under `app/` need no manifest entry — a fact that is
   easy to get wrong, since `core` and `pack` are explicit file lists.
+- **A test file under `worker/` breaks `tsc -b` until the build project excludes it.** `tsconfig.worker.json` extends the Node config, so it resolves modules as `node16` and demands a file extension on every relative import (`TS2835`); vitest resolves the Vite way and demands none. The two only meet because the build typechecks the whole `worker` directory. Excluding `worker/**/*.test.ts` from the build project is the fix — writing `./access.js` in the imports would bend the tests to a compiler that never compiles them. The same collision is waiting for the first test added under `app/src/` and `tsconfig.app.json`. This is only visible in CI, since nothing local runs `tsc -b`.
 - **Node 22 runs the Worker's dependencies unmodified** — `atob`, `TextDecoder`, `crypto.subtle`,
   `Request`/`Response` are all global, so the suite needs no Worker runtime and `environment: "node"`
   is enough.
