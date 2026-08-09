@@ -87,13 +87,15 @@ including worktree resolution and duplicate reconciliation, is
   **by path prefix, never by file extension**, and the allowlist is closed: markdown under
   `.claude/**` or `openspec/**`, and the repo-root files, keep the full gate. Scope, rationale, and
   the exactness rule: [the change loop](wiki/development/the-change-loop.md#the-prose-allowlist).
-- **Stay in sync with WongStack** — `/wong-sync` copies in any payload file this repo doesn't have
-  yet, updates payload files that are provably unmodified (byte-identical to an upstream release),
-  then *adapts* rather than overwrites: it reads what upstream lets you do against what this repo
+- **Stay in sync with WongStack** — `/wong-sync` brings itself current first (so the run uses
+  upstream's latest logic, not the installed copy), copies in any payload file this repo doesn't
+  have yet, updates payload files that are provably unmodified (byte-identical to an upstream
+  release), then *adapts* rather than overwrites: it reads what upstream lets you do against what this repo
   already does, and proposes the worthwhile gap as an OpenSpec change you review and `/apply` —
   when in doubt, it proposes. It **never modifies a file with local authorship** — one edited byte
   defeats the proof — so local customization is safe and a capability you already solve your own
-  way, deliberately, is left alone. Everything it writes lands uncommitted; checkpoint
+  way, deliberately, is left alone. Every run that changes anything leaves one OpenSpec plan
+  enumerating the whole changeset. Everything it writes lands uncommitted; checkpoint
   it with `/save`. Sending an improvement the other way is a manual pull request — the bar and the
   route: [contributing](wiki/contributing.md).
 - **Don't edit `wiki/` mid-task** unless it's explicitly the task — reach for `/dream` when a
