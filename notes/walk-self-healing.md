@@ -79,11 +79,39 @@ suite, every `/save` proves it still passes.**
   separately from dead ones and exits non-zero only on dead. Conditional output is normal; 11 of them
   are pre-existing.
 
+## What shipped where
+
+Both changes were implemented and shipped in this session:
+
+- **`walk-self-healing`** → v9.8.0, merged via PR #58 (squash `e310684`).
+- **`ship-walks-and-ci-tests`** → v9.9.0, **stacked on** `walk-self-healing` rather than cut from
+  `main`, because both edit `wiki/stack/staging-walkthrough.md` and the walk skill.
+
+## Stacked-branch hazards, learned the hard way
+
+Shipping a stacked pair through squash-merge bit twice. Both are worth knowing before doing it again:
+
+1. **Deleting the base branch right after the squash closes the dependent PR.** `/ship` merges and
+   then immediately runs `git push origin --delete`, which beat GitHub's auto-retarget: PR #59 went
+   `CLOSED`, not retargeted to `main`. GitHub then refuses *both* recovery paths — it won't reopen a
+   PR whose base branch is deleted, and won't change the base of a closed PR. The escape is a fresh
+   PR (or restoring the deleted branch first). **The fix in `/ship` would be to delay the branch
+   deletion when any open PR targets that branch** — worth doing; it is not yet implemented.
+2. **Merging the new `main` back in resurrects an archived change folder.** Squash-merging means the
+   dependent branch's merge base is still the *old* `main`, so `openspec/changes/<name>/` (added on
+   the branch) and `openspec/changes/archive/YYYY-MM-DD-<name>/` (added by the squash) look like two
+   independent additions rather than a rename. Git keeps both, and `openspec list` shows a shipped
+   change as active again. **Check `openspec list` after merging `main` into any branch that predates
+   an archive move**, and delete the resurrected active copy — the archive is the record.
+
 ## Open threads
 
-- **`ship-walks-and-ci-tests` is planned, validated, and unimplemented** (13 tasks). It depends on
-  this change's fix loop and scout-first order, so ship this one first.
 - Branch `walk-token-fallback` was the session's starting branch and was never used — it has no
   commits ahead of `main`. Work moved to `walk-self-healing` to keep branch name = change name.
-- The changelog for change B should call out that **existing pack repos keep their own `deploy.yml`**
-  (copy-if-absent) and are offered the test job through `/wong-sync`'s adapt step, never given it.
+  Nothing was lost; it can be deleted.
+- **Neither change is walkable in this repo** — WongStack is the payload source and has no app, so
+  `/walk` answers `NONE` here. The new `test` job likewise reports "no test script" and exits green.
+  Both are exercised for real only in a target repo that took the stack pack.
+- The `/ship` skill ended up **net longer** (82 lines vs 75) despite the concise rewrite, because it
+  gained a whole step. The repetition the user objected to is gone — the never-test/never-walk stance
+  went from five restatements to two. Don't "fix" the line count by deleting Step 4.

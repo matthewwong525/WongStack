@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The opt-in staging walkthrough, reached by invoking `/walk`: the change's own OpenSpec scenarios driven through a real browser against the deployed preview and graded against their written `THEN`. Covers how consent is detected from repo state, the `/save`-first ordering that makes a per-commit preview URL exist, how scenarios become browser journeys, what the walk captures, how it is graded, the five verdicts as *reports* rather than gates, failure recovery and reseeding, and where the evidence lands. It gates nothing: `/ship` merges on CI-green alone and never consults a walk.
+The opt-in staging walkthrough, reached by invoking `/walk`: the change's own OpenSpec scenarios driven through a real browser against the deployed preview and graded against their written `THEN`. Covers how consent is detected from repo state, the `/save`-first ordering that makes a per-commit preview URL exist, how scenarios become browser journeys, what the walk captures, how it is graded, the five verdicts as *reports* rather than gates, failure recovery and reseeding, and where the evidence lands. It gates nothing: `/ship` runs one walk for evidence and merges on the CI result regardless, stopping only to ask the user what to do about a `FAILURE`.
 
 ## Requirements
 
@@ -29,17 +29,23 @@ The walkthrough SHALL honor `CLOUDFLARE_API_TOKEN` and optional Access credentia
 
 ### Requirement: The walkthrough is a user-invoked verb
 
-The staging walkthrough SHALL be reached only by invoking `/walk`. No other skill SHALL run it: `/ship`, `/save`, `/apply`, and `/continue` SHALL NOT walk, prompt to walk, or warn that a walk did not happen.
+The staging walkthrough SHALL be reached by invoking `/walk`, or by `/ship`, which invokes `/walk` once as a non-gating evidence step between its delegated `/save` checkpoint and its merge. No other skill SHALL run it: `/save`, `/apply`, and `/continue` SHALL NOT walk, prompt to walk, or warn that a walk did not happen.
 
-`/walk` SHALL be invocable at any point in a change's life and any number of times, rather than only at merge time. Nothing in the skill SHALL limit how often it runs or treat a repeated invocation as an error.
+`/walk` SHALL be invocable at any point in a change's life and any number of times, rather than only at merge time. Nothing in the skill SHALL limit how often it runs or treat a repeated invocation as an error. `/ship`'s invocation SHALL be an ordinary walk — same scout, same verdicts, same PR evidence — not a variant.
 
 `/walk` SHALL be part of the opt-in stack pack, gated the same way `/wong-cloudflare` is: a repo whose `.claude/.wong-stack.json` does not have `components.stackPack: true` SHALL never receive the skill.
 
-#### Scenario: Shipping does not walk
+#### Scenario: Shipping walks as evidence
 
 - **WHEN** `/ship` runs in a repo that adopted the walkthrough
-- **THEN** no walk runs, no walk verdict is produced, and the merge proceeds on CI-green alone
-- **AND** no warning or nudge about the absent walk is emitted
+- **THEN** `/walk` runs once after the delegated `/save` and before the merge, and its evidence lands on the PR
+- **AND** a `NONE`, `UNKNOWN`, or `TIMEOUT` verdict changes nothing about the merge
+
+#### Scenario: Shipping in an unadopted repo does not nudge
+
+- **WHEN** `/ship` runs in a repo that has not adopted the walkthrough
+- **THEN** the walk step reports `NONE` in one line and the ship proceeds
+- **AND** no warning or adoption nudge is emitted
 
 #### Scenario: Walking repeatedly is normal
 

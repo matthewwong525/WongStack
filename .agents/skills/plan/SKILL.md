@@ -31,4 +31,10 @@ When the change **adds or meaningfully restructures a user-facing screen** (a pa
 3. **Append + surface forks.** The main thread appends the final `## UX` section to design.md. If the critique exposed a genuine layout fork (e.g. table-with-drawer vs master-detail), surface it to the user as one AskUserQuestion before writing tasks.md; otherwise default to mirroring the named existing screen.
 4. **Tasks reference the section.** When drafting tasks.md, UI tasks point at the subsection they implement (per the `openspec/config.yaml` `tasks` rule), e.g. `- [ ] 3.2 Build list view per design.md ## UX — Wireframes`.
 
+## Tasks include their tests
+
+When the change touches **behavior a test can exercise**, `tasks.md` carries a task to add or extend that coverage — grouped with the surface it tests, not bolted on at the end. A prose-only change (wiki, notes, skill text) gets no such task.
+
+The tests are written by `/apply`, while it implements — the moment the context is richest. They are *not* written at checkpoint time: `/save` is a pure checkpoint and never authors tests. From then on the app's suite runs as an ordinary CI check on every push, so coverage ratchets up and nothing has to re-argue it.
+
 **Convention:** the change name *is* the branch name — when you start implementing, work happens on a branch named after the change. Once the proposal reads right, implement it with [`/apply`](../apply/SKILL.md) (which fronts `/opsx:apply` and automatically hands completed work to `/save`), checkpoint partial work at any time with [`/save`](../save/SKILL.md), and resume with [`/continue`](../continue/SKILL.md).
