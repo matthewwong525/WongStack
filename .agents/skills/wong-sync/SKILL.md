@@ -1,6 +1,6 @@
 ---
 name: wong-sync
-description: Bring this repo up to date with WongStack — the updater that replaced the installer's update mode and /contribute-wong-stack. Refreshes a cached WongStack clone, copies in any payload file this repo doesn't have yet, and then *adapts* rather than overwrites: two subagents map what WongStack lets you do and what this repo already does, and the gap becomes an OpenSpec change proposing what's worth adopting, in this repo's own terms. Every verdict — adopted or not — lands in .claude/wong-sync-verdicts.md, where ticking a box overrules the call on the next run. It never modifies a file it didn't generate and never opens a pull request. Use when you want to sync, update, or upgrade WongStack here, pull the latest skills, see what upstream has that this repo could take, or change what a previous sync decided.
+description: Bring this repo up to date with WongStack — the updater that replaced the installer's update mode and /contribute-wong-stack. Refreshes a cached WongStack clone, brings itself current first so the run uses upstream's latest logic rather than the installed copy, copies in any payload file this repo doesn't have yet, brings provably unmodified payload files current, and then *adapts* rather than overwrites: two subagents map what WongStack lets you do and what this repo already does, and the gap becomes an OpenSpec change proposing what's worth adopting, in this repo's own terms — when in doubt, it proposes. Every run that changes anything leaves one OpenSpec plan enumerating the whole changeset, every changelog entry since the last sync is accounted for in the report, and every verdict — adopted or not — lands in .claude/wong-sync-verdicts.md, where ticking a box overrules the call on the next run. It never modifies a file with local authorship and never opens a pull request. Use when you want to sync, update, or upgrade WongStack here, pull the latest skills, see what upstream has that this repo could take, or change what a previous sync decided.
 user-invocable: true
 ---
 
@@ -9,21 +9,21 @@ user-invocable: true
 Brings this repo up to date with WongStack in one pass. `/wong-setup` installs once; from then on this skill keeps the install current:
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ 1. Clone    refresh the cached WongStack clone ($WS)     │
-│ 2. Copy     payload files this repo doesn't have yet     │
-│ 3. Adapt    what it has → verdicts → record + change     │
-│ 4. Manifest record the version and commit installed      │
-│ 5. Report                                                │
-└──────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ 1. Clone    refresh the cached WongStack clone ($WS)       │
+│ 2. Update   this skill first, then copy in + refresh files │
+│ 3. Adapt    what it has → verdicts → record + change       │
+│ 4. Manifest record the version and commit installed        │
+│ 5. Report                                                  │
+└────────────────────────────────────────────────────────────┘
 ```
 
-Updating is **adaptation, not replication.** Convergence with WongStack doesn't mean your files match upstream's byte for byte — it means the *capability* is present here, in whatever form fits this repo. So a file you don't have is simply copied (there's nothing to reason about), and a file you do have is read for meaning against what upstream can do, producing a proposal rather than an overwrite.
+Updating is **adaptation, not replication.** Convergence with WongStack doesn't mean your files match upstream's byte for byte — it means the *capability* is present here, in whatever form fits this repo. So a file you don't have is simply copied (there's nothing to reason about), a file you provably never touched — byte-identical to some upstream release — is simply brought current, and a file you've made your own is read for meaning against what upstream can do, producing a proposal rather than an overwrite. This skill is itself such a file, so it brings **itself** current first and runs the rest of the pass under its own latest instructions.
 
 Three rules hold throughout:
 
-- **Never overwrite anything you didn't generate.** This skill does not modify or replace any file authored by a human or another tool. Its entire write scope is: payload files that were absent, the `WONG-STACK` block where no markers existed, the OpenSpec change it proposes, `.claude/.wong-stack.json`, and `.claude/wong-sync-verdicts.md`. The last two are files the skill generates and solely owns, so it rewrites them each run; the carve-out is scoped by **authorship**, not kept as a growing list of exceptions. There is no conflict prompt because there is no conflict — nothing you wrote is ever clobbered.
-- **No git here; read-only in the clone.** Copied files and the proposed change land in the working tree for you to review and `/save` — the branch → PR → CI gate stays the only way changes land here. The clone is fetched and reset, never branched, committed, or pushed.
+- **Never overwrite anything with local authorship.** This skill does not modify or replace any file authored by a human or another tool. Its entire write scope is: payload files that were absent, payload files that are provably unmodified — byte-identical to a historical upstream version, so every byte of them is upstream's authorship (Step 2) — the `WONG-STACK` block where no markers existed, the OpenSpec change it proposes, `.claude/.wong-stack.json`, and `.claude/wong-sync-verdicts.md`. The last two are files the skill generates and solely owns, so it rewrites them each run; the carve-out is scoped by **authorship**, not kept as a growing list of exceptions. There is no conflict prompt because there is no conflict — nothing you wrote is ever clobbered.
+- **No git here; read-only in the clone.** Copied files, files brought current, and the proposed change land in the working tree for you to review and `/save` — the branch → PR → CI gate stays the only way changes land here. The clone is fetched and reset, never branched, committed, or pushed; reading its history to prove a local file unmodified is a read, not a mutation.
 - **It proposes; it never implements.** The adapt step writes an OpenSpec change and stops. Grafting happens later through the normal loop.
 
 There is **no contribute leg** and no argument of any kind. Sending an improvement upstream is a manual pull request — see [`contributing.md`](../../../wiki/contributing.md) at the wiki root. If someone invokes `/wong-sync contribute` out of habit, stop and say so rather than running an ordinary sync on their behalf.
@@ -64,16 +64,45 @@ DEFAULT=$(git -C "$WS" symbolic-ref --short refs/remotes/origin/HEAD | cut -d/ -
 git -C "$WS" checkout "$DEFAULT" && git -C "$WS" reset --hard "origin/$DEFAULT"
 LATEST=$(cat "$WS/VERSION"); WS_HEAD=$(git -C "$WS" rev-parse HEAD)
 ```
-Show what's new since the installed version: the `$WS/CHANGELOG.md` entries newer than the manifest's `version`. This is context for the adapt step's report, not a decision.
+Collect what's new since the installed version: the `$WS/CHANGELOG.md` entries newer than the manifest's `version`. Hold onto the list — Step 3 must account for every one of these entries in its report, so a small upstream improvement cannot slip through unconsidered.
 
-## Step 2 — copy what's absent
+## Step 2 — update this skill, then copy what's absent and update what's provably untouched
 
-The file list — and nothing else — comes from [`references/payload-manifest.md`](references/payload-manifest.md). For each file in it:
+Two passes, in this order: **this skill's own files first** ([the self-update pass](#the-self-update-pass-first-and-once)), then every other file in the manifest. The file list — and nothing else — comes from [`references/payload-manifest.md`](references/payload-manifest.md). For each file in it:
 
 | locally | action |
 |---|---|
 | **absent** | copy it in verbatim — there is no local form to respect and nothing to reason about |
-| **present** | leave it exactly as it is; hand it to Step 3 |
+| **present, provably unmodified, stale** | update it to upstream's current version — every byte of it came from an upstream release, so nobody's work is at risk |
+| **present otherwise** | leave it exactly as it is; hand it to Step 3 |
+
+**The proof of "unmodified" is a blob-hash match.** A file is provably unmodified when its git blob hash equals the hash of some version of that path in the clone's default-branch history:
+
+```bash
+LOCAL=$(git hash-object "$ROOT/<path>")
+git -C "$WS" rev-list "$DEFAULT" -- "<path>" |
+  while read c; do git -C "$WS" rev-parse -q --verify "$c:<path>"; done | grep -qx "$LOCAL"
+```
+
+Match the *current* upstream blob → the file is current; do nothing. Match a *historical* blob only → provably unmodified and stale; write upstream's current version to the local path. No match → someone changed it; the file keeps the full never-overwrite guarantee and goes to Step 3. Any one-byte difference defeats the proof, and the fallback is always the status quo — never a wrong overwrite. For a renamed skill, look up history under the *upstream* path (via `SKILLMAP`) and write to the local path. The `WONG-STACK` block is excluded — it lives inside a co-authored file with no blob history of its own, so it always takes the adapt path. Updates are working-tree edits like every copy, awaiting `/save`.
+
+### The self-update pass: first, and once
+
+**Before any other payload file is considered**, apply the rule above to this skill's own directory — `SKILL.md` and `references/**` under the local `wong-sync` path. Nothing here is a second mechanism: it is the same proof, run first, on one directory.
+
+Why first: the instructions you are reading right now were loaded before this step ran. Handle `wong-sync` in the general loop and an improvement to it lands on disk unused, taking effect only on the *next* invocation — so a repo that syncs monthly is always a release behind in behavior even when its files are current.
+
+**Provably unmodified and stale → bring it current, then follow the new instructions for the rest of this run:**
+
+- **Re-read** `SKILL.md` and `references/**` from disk and discard the text you were running under — including any step this version doesn't have.
+- **Re-run Step 0** against the new text. It is a manifest read, and a newer version may consult a key the old one never looked at; carrying the old values forward would run new logic on an incomplete reading.
+- **Keep Step 1's clone** and everything derived from it — `LATEST`, `WS_HEAD`, the changelog list. Those are facts about the clone, true under either version's instructions. **Never fetch or reset a second time.**
+
+**Not provably unmodified → the pass does not fire, and the files are not touched.** Say so plainly and name the version you are running: *"continuing on the installed 9.9.0 — this repo's `wong-sync` has local edits."* Step 3 then proposes the adaptation through the ordinary `adopt` path. Silence is the failure mode here; a user who believes they are on current logic when they are not has no way to find out.
+
+**The pass runs at most once per run** — a hard rule, not an inference from the proof. After the write the local files match upstream's current blob, so a second pass would find nothing anyway; the rule exists so that a version-skew bug can't spin.
+
+Files handled here leave the general loop — nothing is considered twice.
 
 The threshold is **per file, not per repo**. A fresh install is just the case where every manifest file is absent — no separate mode, no collision walk, no rename prompt. A repo missing one new upstream skill gets that one skill copied and everything else adapted.
 
@@ -84,7 +113,7 @@ Three scoping rules:
 - **The opt-in stack pack** ([its files](references/payload-manifest.md#the-opt-in-stack-pack) — the three `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, and the whole `wiki/stack/` section) enters the file list **only when `$MF` has `components.stackPack: true`**. For any other repo they're outside the manifest — never copied, never analysed, never offered. Adopting the pack is not this skill's job: the door is `/wong-cloudflare` — or, where that skill isn't installed yet, setting `components.stackPack: true` and re-running the sync, which then copies the pack in; that copy is this skill's only part in adoption. When they are in scope they follow the same copy-if-absent / adapt-if-present rule as everything else. The pack's config fragments are *not* files in this list; they merge into files this repo owns, so they follow the guided-edit path and surface through Step 3.
 - **The opt-in app scaffold** ([its files](references/payload-manifest.md#the-opt-in-app-scaffold) — all of `app/` **except `app/wrangler.jsonc`**) enters the file list **only when `$MF` has both `components.appScaffold: true` and `components.stackPack: true`**. `app/wrangler.jsonc` is excluded even then: it carries live `database_id`s, and the target's config is created instead by `/wong-cloudflare` from the fragment. Every other scaffold file is ordinary copy-if-absent — a repo that already has a file at one of these paths keeps its own, byte for byte, so an existing application is never clobbered and a partial scaffold simply completes. With either flag absent, `app/` is outside the manifest entirely: not copied, not analysed, not offered.
 
-Say what was copied, in one line each. Copied files are working-tree edits only — no `git add`, no commit, no branch.
+Say what was copied and what was updated, in one line each. Copied and updated files are working-tree edits only — no `git add`, no commit, no branch.
 
 ## Step 3 — adapt what's present
 
@@ -97,7 +126,7 @@ In short: a *cartographer* reads only the clone and maps what WongStack lets you
 The step writes two things:
 
 - **`.claude/wong-sync-verdicts.md`** — every run, every capability, every verdict and reason. Non-`adopt` entries are checkboxes; **tick one to overrule the verdict** and the next run adopts it. This is the deliverable — the report is a summary of it.
-- **`openspec/changes/adopt-wongstack-<YYYY-MM-DD>/`** — only when something is `adopt`, one task each.
+- **`openspec/changes/sync-wongstack-<YYYY-MM-DD>/`** — the run's plan, written whenever it did or proposes anything (copied, updated, self-updated, or `adopt`). Its proposal enumerates the whole changeset; its tasks are one per `adopt`, after a review task when files landed. Nothing done and nothing to adopt → no folder.
 
 ## Step 4 — rewrite the manifest (always last)
 
@@ -119,20 +148,24 @@ Update `.claude/.wong-stack.json` to reflect what actually happened. This block 
 
 ## Step 5 — report
 
+- **Self-update** — whether this skill brought itself current before the run, its version span (`9.9.0 → 9.11.0`), and that everything after Step 1 followed the newer instructions. Where the pass couldn't fire, say which version ran and why: *"continuing on the installed 9.9.0 — local edits."* A run that behaved like two versions is exactly when a reader needs to know which text to consult.
 - **Copied** — the files that were absent and are now here, one line each, and that they await `/save`.
+- **Updated** — the provably unmodified files brought current, one line each with the version span (`9.2.0 → 9.7.0`), and that they await `/save` too.
+- **Planned** — the change folder written for this run, and that its proposal enumerates everything above. Point at reviewing it.
 - **Adapted** — a summary pointing at `.claude/wong-sync-verdicts.md`, which is the deliverable, per [`references/adapt.md`](references/adapt.md)'s report format: what's `adopt` (and the change folder written), anything promoted by a ticked box, counts for `divergent` / `not-applicable` / `present`, what was `declined` and why, and anything re-raised or retired. Say a box can be ticked to overrule any of it.
-- **Version** — the new manifest `version`/`commit`, and what the changelog walk showed.
+- **Version** — the new manifest `version`/`commit`, plus the changelog accounting: one line per entry between the previous version and this one, each mapped to reflected-here / adopt / updated-directly / outside-payload-scope, per [`references/adapt.md`](references/adapt.md). An unaccounted entry is a gap the run must show, not hide.
 
-If nothing was copied and nothing is `adopt`, say so plainly: this repo is current. No change folder is written in that case — but `.claude/wong-sync-verdicts.md` still is, and it's exactly the run where it matters most, since it's the only place the reasoning survives.
+If nothing was copied, nothing updated, nothing self-updated and nothing is `adopt`, say so plainly: this repo is current. No change folder is written in that case — but `.claude/wong-sync-verdicts.md` still is, and it's exactly the run where it matters most, since it's the only place the reasoning survives.
 
 ## Hard rules
 
-- **Never overwrite a file you didn't generate.** Copy only what's absent; everything present is adapted, not replaced. There is no three-way diff, no conflict prompt, and no keep-local / take-upstream question — those mechanisms managed a risk that no longer exists. The two generated files the skill owns — `.claude/.wong-stack.json` and `.claude/wong-sync-verdicts.md` — are rewritten each run; read the verdict record's ticked boxes *before* regenerating it, since ticking is the one edit that must survive.
+- **Never overwrite a file a human or another tool authored.** Copy what's absent; update what's provably unmodified — byte-identical to a historical upstream version, where any one-byte difference defeats the proof; everything else present is adapted, not replaced. There is no three-way diff, no conflict prompt, and no keep-local / take-upstream question — those mechanisms managed a risk that no longer exists, because authored content is never touched. The two generated files the skill owns — `.claude/.wong-stack.json` and `.claude/wong-sync-verdicts.md` — are rewritten each run; read the verdict record's ticked boxes *before* regenerating it, since ticking is the one edit that must survive.
+- **Update yourself first, at most once, and never against local edits.** Step 2's self-update pass precedes every other file; on firing, re-read this skill and `references/**`, re-run Step 0 against them, keep Step 1's clone, and follow the new text for the rest of the run. A `wong-sync` that fails the proof is never touched — say which version you are running and leave the adaptation to Step 3.
 - **Verdicts have one store.** `.claude/wong-sync-verdicts.md` holds every verdict, its reason, and the commit a `declined` was judged against. Never write a verdict into the manifest, and never read one from it except to migrate a pre-v8.5 `capabilities` key into the record.
 - **`declined` is only ever the user's word.** Never infer it. If you can't point to something the user actually said, the verdict is `not-applicable` — which is recomputed every run and therefore costs nothing to get wrong.
 - **No git in this repo.** Copied files, the verdict record, and the proposed change stay working-tree-only; `/save` is the gate.
 - **The clone is read-only.** Fetch, checkout, reset — never branch, commit, or push. Ask before resetting a dirty clone.
-- **It proposes; it never implements.** Step 3 writes the verdict record and — only when something is `adopt` — one OpenSpec change folder, never overwriting an existing one (suffix `-2`, `-3` on a date collision). Overruling a verdict is a tick plus a re-run, not an implementation.
+- **It proposes; it never implements.** Step 3 writes the verdict record and — whenever the run did or proposes anything — one OpenSpec change folder, never overwriting an existing one (suffix `-2`, `-3` on a date collision). *Grafts* are proposed, never performed: the folder's tasks describe what to adopt, and `/apply` does it. Overruling a verdict is a tick plus a re-run, not an implementation.
 - **No contribute leg, no arguments.** The skill never opens a pull request. `/wong-sync contribute` stops with a pointer to `contributing.md`'s manual route.
 - **The manifest bounds what's copied, not what's read.** Only manifest files are ever copied in. The surveyor reads this repo's process surfaces broadly — that's how it can tell you already solve something — and nothing it reads leaves the machine.
 - **Rewrite the manifest last**, reflecting what actually happened — install state only.

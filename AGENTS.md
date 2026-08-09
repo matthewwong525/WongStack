@@ -2,7 +2,7 @@
 
 ## What this is
 
-This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents can run the same workflows, preserve decisions, and improve the process as work happens. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/) (Claude Code's native skill location, also readable by other agents), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`wong-setup`](.claude/skills/wong-setup/SKILL.md) skill guides *other* repos through onboarding once (git, GitHub, OpenSpec, a seed manifest) and hands the install itself to `wong-sync`, which copies in every payload file the repo lacks; from then on [`wong-sync`](.claude/skills/wong-sync/SKILL.md) — itself part of the payload, with the canonical [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) inside it — keeps a repo current by copying in what's missing and *proposing* what's worth adopting, never overwriting. Sending improvements back up is a manual pull request ([contributing](wiki/contributing.md)). See the [README](README.md) for the user story.
+This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents can run the same workflows, preserve decisions, and improve the process as work happens. The whole payload is the repo root: [`.claude/skills/`](.claude/skills/) (Claude Code's native skill location, also readable by other agents), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/` plus the generated `.claude/commands/opsx/` and `openspec-*` skills), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. The [`wong-setup`](.claude/skills/wong-setup/SKILL.md) skill guides *other* repos through onboarding once (git, GitHub, OpenSpec, a seed manifest) and hands the install itself to `wong-sync`, which copies in every payload file the repo lacks; from then on [`wong-sync`](.claude/skills/wong-sync/SKILL.md) — itself part of the payload, with the canonical [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) inside it — keeps a repo current by copying in what's missing, updating what's provably untouched, and *proposing* what's worth adopting — never overwriting anything with local authorship. Sending improvements back up is a manual pull request ([contributing](wiki/contributing.md)). See the [README](README.md) for the user story.
 
 It's a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/wong-setup` or `/wong-sync` here; it's the source, not a target (both stop when the clone *is* the current repo).
 
@@ -87,11 +87,15 @@ including worktree resolution and duplicate reconciliation, is
   **by path prefix, never by file extension**, and the allowlist is closed: markdown under
   `.claude/**` or `openspec/**`, and the repo-root files, keep the full gate. Scope, rationale, and
   the exactness rule: [the change loop](wiki/development/the-change-loop.md#the-prose-allowlist).
-- **Stay in sync with WongStack** — `/wong-sync` copies in any payload file this repo doesn't have
-  yet, then *adapts* rather than overwrites: it reads what upstream lets you do against what this
-  repo already does, and proposes the worthwhile gap as an OpenSpec change you review and `/apply`.
-  It **never modifies a file that already exists**, so local customization is safe and a capability
-  you already solve your own way is left alone. Everything it writes lands uncommitted; checkpoint
+- **Stay in sync with WongStack** — `/wong-sync` brings itself current first (so the run uses
+  upstream's latest logic, not the installed copy), copies in any payload file this repo doesn't
+  have yet, updates payload files that are provably unmodified (byte-identical to an upstream
+  release), then *adapts* rather than overwrites: it reads what upstream lets you do against what this repo
+  already does, and proposes the worthwhile gap as an OpenSpec change you review and `/apply` —
+  when in doubt, it proposes. It **never modifies a file with local authorship** — one edited byte
+  defeats the proof — so local customization is safe and a capability you already solve your own
+  way, deliberately, is left alone. Every run that changes anything leaves one OpenSpec plan
+  enumerating the whole changeset. Everything it writes lands uncommitted; checkpoint
   it with `/save`. Sending an improvement the other way is a manual pull request — the bar and the
   route: [contributing](wiki/contributing.md).
 - **Don't edit `wiki/` mid-task** unless it's explicitly the task — reach for `/dream` when a

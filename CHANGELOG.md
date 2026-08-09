@@ -64,6 +64,45 @@ because a core skill may not cite a page inside the pack-only `wiki/stack` direc
 sections are marked pack-only. `/wong-cloudflare` no longer grants Browser Rendering Edit; a token
 widened by an earlier version keeps it harmlessly, and the narrow-back offer removes it.
 
+## 9.11.0 — the sync updates itself first and plans its whole run
+
+**`/wong-sync` now runs its own latest version.** Immediately after it refreshes the clone, and
+before it considers any other payload file, it brings its own `SKILL.md` and `references/` current,
+then re-reads them and follows the newer instructions for the rest of the run. Until now an
+improvement to the skill landed on disk unused and took effect only on the next invocation, so a
+repo that syncs monthly was always a release behind in behavior. The pass runs at most once per run
+and reuses the clone it already refreshed.
+
+**A customized `wong-sync` is never overwritten, and never silently bypassed.** One edited byte
+defeats the proof, the pass does not fire, and the run says which version it is running and why.
+The adaptation is then proposed through the ordinary `adopt` path, exactly as before.
+
+**Every run that changes anything now leaves one plan.** `openspec/changes/adopt-wongstack-<date>/`
+becomes `sync-wongstack-<date>/` and is written whenever the run copied a file, updated a file,
+self-updated, or has something to adopt. Its proposal enumerates the whole changeset — the version
+span, every file copied, every file updated with its span, the self-update, and each proposed
+adoption — so one document answers what the run did to your repo. Its tasks stay one per adoption,
+after a review task when files landed. A run that changes nothing still writes no folder, and the
+verdict record is still written every time. Folders from earlier versions keep their old name.
+
+## 9.10.0 — `/wong-sync` adapts by default
+
+**When in doubt, the sync now proposes.** The gap analysis prefers `adopt` when the evidence
+supports more than one verdict. `divergent` now requires a named, deliberate local alternative;
+a difference the sync cannot attribute to a local decision becomes a proposal. A graft the sync
+cannot yet describe becomes an `adopt` task that says to shape it with `/plan` — it is no longer
+filed as `not-applicable`, which now covers only an assumption the repo does not meet.
+
+**Every changelog entry is accounted for.** The report maps each entry between your installed
+version and the new one to one line: reflected here, adopted this run, updated directly, or
+outside payload scope. A missed improvement is now visible in the run's own output.
+
+**Provably unmodified payload files update without a round trip.** A file byte-identical to a
+historical upstream version carries no local authorship, so the sync brings it current directly —
+an uncommitted working-tree edit, listed in the report with its version span. One edited byte
+defeats the proof, and the file keeps the full never-overwrite guarantee. That guarantee is now
+scoped by authorship: the sync never modifies a file a human or another tool authored.
+
 ## 9.9.0 — shipping shows its work, and CI runs your tests
 
 **`/ship` now walks the preview before it merges.** After the archive and the delegated `/save`
