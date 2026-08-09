@@ -69,7 +69,7 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/ship` | Finish the change and preserve the record of what shipped. |
 | `/dream` | Turn saved session notes into reusable lessons and team conventions in the wiki — works from any machine, since it reads the repo rather than your chat history. |
 | `/improve` | Ask an agent to audit the project and write improvement plans without changing code. |
-| `/wong-sync` | Bring this repo up to date with WongStack — copy in what's missing, and propose what's worth adopting from what upstream can now do. Never overwrites your files. |
+| `/wong-sync` | Bring this repo up to date with WongStack — copy in what's missing, update what you provably never touched, and propose what's worth adopting from what upstream can now do. Never overwrites anything you authored. |
 
 Want your project to be a **real website people can open**? That's optional, and one command: `/wong-cloudflare` offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and puts the app online — whenever you're ready, including long after setup.
 

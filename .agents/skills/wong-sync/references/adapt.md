@@ -1,6 +1,6 @@
 # The adapt step
 
-How `/wong-sync` turns "what upstream can do" and "what this repo already does" into a proposal. This is Step 3 of the skill: it runs over every payload surface the repo **already has** (Step 2 already copied in the ones it didn't). It writes two things and nothing else — a verdict record every run, and an OpenSpec change when there's something to adopt.
+How `/wong-sync` turns "what upstream can do" and "what this repo already does" into a proposal. This is Step 3 of the skill: it runs over every payload surface the repo **already has** (Step 2 already copied in the ones it didn't, and brought the provably unmodified ones current). It writes two things and nothing else — a verdict record every run, and an OpenSpec change when there's something to adopt.
 
 The premise is that updating is **adaptation, not replication**. A repo is up to date when it *can do* what WongStack does — not when its files match upstream's byte for byte. Two repos can both be current and share almost no bytes.
 
@@ -98,18 +98,20 @@ The taxonomy splits on **who decided**, not on why. Four of the five verdicts ar
 | verdict | meaning | decided by | becomes a task? |
 |---|---|---|---|
 | **present** | the repo already has it, current | the skill | no |
-| **divergent** | solved differently here, and the local solution is legitimate | the skill | no |
-| **adopt** | missing, stale, or otherwise wanted here — and expressible in this repo | the skill | **yes** |
-| **not-applicable** | doesn't fit this repo: an `assumes` it doesn't meet, or a graft that can't be made concrete | the skill | no |
+| **divergent** | solved differently here, through a named, deliberate local alternative | the skill | no |
+| **adopt** | missing, stale, or otherwise wanted here | the skill | **yes** |
+| **not-applicable** | an `assumes` this repo doesn't meet | the skill | no |
 | **declined** | the user said no | **the user** | no |
+
+**When the evidence supports both `adopt` and another verdict, the verdict is `adopt`.** The costs are asymmetric: an `adopt` becomes one task in a proposal the user reviews before anything happens, while every other verdict is effectively final until someone rereads the record. A wrong `adopt` costs seconds in review; a wrong `divergent` or `present` hides the gap indefinitely. Justify *not* adopting, not adopting.
 
 **`declined` is only ever written from an actual refusal.** Never infer it. If you are reaching for `declined` and cannot point to something the user said, the verdict you want is `not-applicable`. The two used to be one slot, and collapsing them gave the skill's guesses the permanence that belongs only to the user's decisions.
 
-**`divergent` is the verdict that makes this step worth running.** It's how the sync says *"you already solve this — leave it alone"* instead of pitching a redundant graft. Name the local form in the reason ("you use a `Makefile` target where WongStack uses a skill"). It's kept distinct from `present` because the record needs to show *that the forms differ* — which matters when upstream later changes that capability.
+**`divergent` is the verdict that makes this step worth running — and it must be earned.** It's how the sync says *"you already solve this — leave it alone"* instead of pitching a redundant graft. It requires a **named, deliberate local alternative**: the reason line must name the local mechanism — a file, convention, or tool — that covers the capability ("you use a `Makefile` target where WongStack uses a skill"). A difference you cannot attribute to a local decision is `adopt`, not `divergent` — an accidental difference or a half-version of something old earns no protection. It's kept distinct from `present` because the record needs to show *that the forms differ* — which matters when upstream later changes that capability.
 
 **Check `assumes` before proposing.** A capability that assumes a frontend has no business in a CLI repo; one that assumes CI has no business in a repo with no forge checks. That's a `not-applicable` with the assumption named, not a task — and not a `declined`, because the user never said anything about it.
 
-**A stale-but-unmodified file is an ordinary `adopt`.** If the repo has a payload file it never touched and upstream has moved on, the verdict is `adopt` and its task says *take the upstream version verbatim*. There's no separate verdict for it — the difference lives in the task text, not the taxonomy. The file is **not** overwritten by the sync itself; it goes through review and `/apply` like everything else. That costs a round trip the old sync didn't, and it's the deliberate price of never clobbering work someone thought was theirs.
+**A stale file that isn't provably unmodified is an ordinary `adopt`.** A payload file byte-identical to a historical upstream version is updated directly at Step 2 (update-if-untouched) and never reaches this analysis as stale. What can still arrive here stale is a file whose content matches no upstream release — a copy from a fork, or an edited lineage. Its verdict is `adopt` and its task says *take the upstream version verbatim*. There's no separate verdict for it — the difference lives in the task text, not the taxonomy. The file is **not** overwritten by the sync itself; it goes through review and `/apply` like everything else — the deliberate price of never clobbering work someone may have thought was theirs.
 
 ### What the last run decided
 
@@ -124,6 +126,17 @@ That distinction matters most for **`not-applicable`, which turns on the *target
 A recorded id with **no counterpart in the new map** is reported as **retired** — upstream dropped or absorbed it. Say so; don't silently drop the entry.
 
 **Migrating a manifest ledger.** Earlier versions kept verdicts in `.claude/.wong-stack.json` under `capabilities`, alongside the record — two stores for one fact. If that key is still present, fold its entries into the record on this run and write the manifest without it (the manifest keeps install state only). Honor each migrated `declined` as a user refusal: a ledger written before the `declined` / `not-applicable` split could mean either "the user said no" or "the skill judged it a poor fit," and after the fact the two are indistinguishable. The conservative read keeps suppressing something that may have been suppressed on the skill's say-so; the alternative re-pitches things the user genuinely refused, which is the louder failure. Anyone who wants a clean slate can tick its box (below).
+
+### The changelog accounting
+
+Step 1 collected the `CHANGELOG.md` entries between the manifest's recorded version and the clone's current one. After verdicts are assigned, account for **every** entry with at least one line, one of:
+
+- **reflected here** — the entry's effect is already present locally; name the evidence.
+- **adopt** — covered by a verdict in this run; name the capability id.
+- **updated directly** — covered by Step 2's copy or update-if-untouched; name the file.
+- **outside payload scope** — the entry touches nothing the payload delivers to a target (`wong-setup`, source-repo tooling).
+
+The accounting goes in the report, not the verdict record — the record's shape doesn't change. An entry with no line is a visible gap in the run's own output, and that is the point: "the sync missed this" must be impossible to do silently. A seed manifest has no prior version, so it skips the walk and the accounting.
 
 ## The output
 
@@ -156,7 +169,7 @@ Every task must name its **capability id** and describe the graft **in this repo
        tells contributors to update the wiki by hand
 ```
 
-**If the graft can't be described concretely, the verdict is `not-applicable`, not a vague task.** A task nobody can act on is worse than an honest "this doesn't fit here" — it wastes an `/apply` and teaches people to skim the change folder. It's `not-applicable` rather than `declined` because *you* didn't turn it down; the skill couldn't express it. And since `not-applicable` is recomputed every run, a later run that can describe the graft will simply propose it.
+**If the graft can't be described concretely yet, the verdict is still `adopt` — and the task is to shape it.** Write the task as *run `/plan` to shape the graft for this capability*, naming what upstream offers and what is unclear about landing it here. That is still concrete: the actor knows exactly what to do next. `not-applicable` is reserved for a fit failure — an `assumes` this repo doesn't meet — and must never record the skill's own inability to express a graft; that mislabels an effort failure as a fit failure and buries the capability where nobody reviews it.
 
 ## The verdict record
 
@@ -232,6 +245,7 @@ The record is the deliverable; the report is a summary that points at it. After 
 - **Declined** — each with its reason. Still worth naming in the report: these are the user's own decisions being honored, and seeing them is how a wrong one gets noticed.
 - **Re-raised** — anything previously declined whose upstream expression has since changed, and what changed.
 - **Retired** — recorded ids upstream no longer has.
+- **Changelog accounting** — one line per `CHANGELOG.md` entry since the last synced version, each mapped to reflected-here / adopt / updated-directly / outside-payload-scope, so a missed entry is visible in the run's own output.
 
 Say where the record was written and that a box can be ticked to overrule any of it.
 

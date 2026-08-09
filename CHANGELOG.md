@@ -3,6 +3,24 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.8.0 — `/wong-sync` adapts by default
+
+**When in doubt, the sync now proposes.** The gap analysis prefers `adopt` when the evidence
+supports more than one verdict. `divergent` now requires a named, deliberate local alternative;
+a difference the sync cannot attribute to a local decision becomes a proposal. A graft the sync
+cannot yet describe becomes an `adopt` task that says to shape it with `/plan` — it is no longer
+filed as `not-applicable`, which now covers only an assumption the repo does not meet.
+
+**Every changelog entry is accounted for.** The report maps each entry between your installed
+version and the new one to one line: reflected here, adopted this run, updated directly, or
+outside payload scope. A missed improvement is now visible in the run's own output.
+
+**Provably unmodified payload files update without a round trip.** A file byte-identical to a
+historical upstream version carries no local authorship, so the sync brings it current directly —
+an uncommitted working-tree edit, listed in the report with its version span. One edited byte
+defeats the proof, and the file keeps the full never-overwrite guarantee. That guarantee is now
+scoped by authorship: the sync never modifies a file a human or another tool authored.
+
 ## 9.7.0 — use Simplified Technical English
 
 **Agents now use ASD-STE100 Simplified Technical English for user-facing prose and documentation.**
