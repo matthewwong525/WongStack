@@ -81,13 +81,28 @@ suite, every `/save` proves it still passes.**
 
 ## What shipped where
 
-Both changes were implemented in this session:
+Both changes were implemented and shipped in this session:
 
-- **`walk-self-healing`** → branch `walk-self-healing`, PR #58, v9.8.0, CI green.
-- **`ship-walks-and-ci-tests`** → branch `ship-walks-and-ci-tests`, **stacked on** `walk-self-healing`
-  rather than cut from `main`, because both edit `wiki/stack/staging-walkthrough.md` and the walk
-  skill. Its PR is based on the first branch, so **#58 must merge first** and the second PR's base
-  then needs retargeting to `main` (GitHub does this automatically on merge of the base branch).
+- **`walk-self-healing`** → v9.8.0, merged via PR #58 (squash `e310684`).
+- **`ship-walks-and-ci-tests`** → v9.9.0, **stacked on** `walk-self-healing` rather than cut from
+  `main`, because both edit `wiki/stack/staging-walkthrough.md` and the walk skill.
+
+## Stacked-branch hazards, learned the hard way
+
+Shipping a stacked pair through squash-merge bit twice. Both are worth knowing before doing it again:
+
+1. **Deleting the base branch right after the squash closes the dependent PR.** `/ship` merges and
+   then immediately runs `git push origin --delete`, which beat GitHub's auto-retarget: PR #59 went
+   `CLOSED`, not retargeted to `main`. GitHub then refuses *both* recovery paths — it won't reopen a
+   PR whose base branch is deleted, and won't change the base of a closed PR. The escape is a fresh
+   PR (or restoring the deleted branch first). **The fix in `/ship` would be to delay the branch
+   deletion when any open PR targets that branch** — worth doing; it is not yet implemented.
+2. **Merging the new `main` back in resurrects an archived change folder.** Squash-merging means the
+   dependent branch's merge base is still the *old* `main`, so `openspec/changes/<name>/` (added on
+   the branch) and `openspec/changes/archive/YYYY-MM-DD-<name>/` (added by the squash) look like two
+   independent additions rather than a rename. Git keeps both, and `openspec list` shows a shipped
+   change as active again. **Check `openspec list` after merging `main` into any branch that predates
+   an archive move**, and delete the resurrected active copy — the archive is the record.
 
 ## Open threads
 
