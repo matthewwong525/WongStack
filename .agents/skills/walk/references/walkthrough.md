@@ -2,7 +2,12 @@
 
 How `/walk` walks a change's own OpenSpec scenarios against the deployed preview and grades them. The skill owns *when* this runs, what each verdict reports, and the hard rules; this file owns *how* a walk is performed.
 
-Everything here runs only on `RESULT: READY` from `walk-staging.sh preflight` (which also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`, `ACCOUNT_ID`). On `RESULT: NONE` the skill has already reported and stopped, and nothing below applies.
+The phases split across two script calls, because scouting is cheap and running is not:
+
+- **§ a (scout)** runs on `RESULT: READY` from `walk-staging.sh scout-check` (which prints `APP_DIR`), *before* `/save` and before any credential check. It reads local files only.
+- **§§ b–f** run on `RESULT: READY` from `walk-staging.sh preflight` (which also prints `URL`, `RUN_DIR`, `SHA`, `ACCOUNT_ID`), which the skill calls only once § a produced at least one journey.
+
+On `RESULT: NONE` from either call — not adopted, or nothing browser-observable — the skill has already reported and stopped, and nothing below applies.
 
 The browser is a **Cloudflare Browser Run session**, attached over CDP with the pack's `CLOUDFLARE_API_TOKEN` — one session per journey, opened and closed by the runner. Journeys are written exactly as before; the only observable difference is that every action includes a round trip to the remote browser, which the 15-second step timeout already has headroom for. Don't tighten it.
 
@@ -18,6 +23,8 @@ The journeys come from the change's **own OpenSpec scenarios**, not from reading
 Do **not** walk the whole `openspec/specs/` surface. A delta-scoped walk stays flat while a full-surface walk grows with the app forever. Regression coverage, if it is ever wanted, belongs in CI as saved tests — a different decision, deliberately not this one.
 
 Then **keep only what a browser can see.** A per-commit alias serves HTTP and nothing else, so scenarios about queue consumers, cron triggers, and alarms are excluded — note which and why, so the report says "not walkable" rather than implying they passed.
+
+**Nothing left after that filter is the answer `NONE`,** reached here at the cost of reading a few local files. Report it in one line and stop: no `/save`, no preflight, no browser session. This is the common case for a pure-backend change, and it is why the scout runs first.
 
 **Destructive journeys are walked, not skipped.** Staging is a seeded fixture database; deleting things is often the scenario most worth walking, and there is no merge riding on the result to create pressure against it.
 
@@ -67,15 +74,24 @@ The verdict this produces feeds the table in [`SKILL.md`](../SKILL.md#verdicts),
 
 ## e — after a failure
 
-Post the evidence first (§ f — a failing walk's screenshots are the point), then reset staging and stop:
+Post the evidence first (§ f — a failing walk's screenshots are the point), then reset staging:
 
 ```bash
 (cd "$APP_DIR" && npm run db:reset:staging)   # only on failure, never on a pass
 ```
 
-**Do not fix, re-push, or re-walk.** Report what failed and what to look at; the user fixes and invokes `/walk` again. There is no retry budget to spend, because there is no automatic retry.
-
 The reset is not tidiness: a walk that begins against the half-mutated database the failed walk left behind produces a *different* failure than the first run, and you end up debugging leftovers. A **passing** walk's data is left exactly where it is — staging is a fixture, not a preserve.
+
+Then decide whether this failure is yours to fix. **Both halves of the test must hold:**
+
+1. the contradicted `THEN` is one of *this change's own* scenarios, and
+2. the fix plausibly lives in files this branch already touches (`git diff --name-only origin/main..HEAD`).
+
+**In scope** → fix the code, invoke `/save`, and walk again — at most **two** fix attempts per invocation, then stop and report like any failure. **Out of scope** → stop after the reset and report what failed and what to look at.
+
+State the judgement in the report either way, in one line: *"in scope — the empty-title check is this change's own code"*, or *"out of scope — the login form predates this branch"*. A reader who disagrees can then say so, which is not possible if the reasoning stayed in your head.
+
+Two failure shapes are almost always **out of scope** even when they look fixable: a journey that fails because staging's seed has nothing to act on (fix the seed deliberately, in its own change), and a `401` from the app itself with a valid service token (the Worker is authenticating the wrong way — see the runbook's note on verifying the signed assertion).
 
 ## f — post the evidence, then clean up
 
@@ -124,9 +140,12 @@ On **`UNKNOWN`** or **`TIMEOUT`** there may be no journeys to list. Say so in th
 
 **Not verified.** The walk could not run against <url> at `<short-sha>`.
 
-The preview responded with a Cloudflare Access challenge. Set `CF_ACCESS_CLIENT_ID`
-and `CF_ACCESS_CLIENT_SECRET` per the runbook, then run `/walk` again.
+The preview responded with a Cloudflare Access challenge. `/walk` minted a service
+token and retried once; the retry was challenged again, so the Access policy is
+not accepting it. Check the policy's service-token rule, then run `/walk` again.
 ```
+
+When a heal ran, **say so and say what it did** — "minted a service token and retried once", "granted Browser Rendering Edit and retried once". An `UNKNOWN` that hides its repair attempt reads as an untried walk, and the next reader repeats the work.
 
 Then the media:
 

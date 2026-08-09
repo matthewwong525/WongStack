@@ -244,7 +244,7 @@ One runbook step is **unverified**: creating the Zero Trust organization on an a
 
 Provisioning creates real, billable resources, so removing them is part of this skill rather than a follow-up. Given a repo it provisioned:
 
-1. **Enumerate** what a run creates — the two databases, both Workers, and any Access resources — and show the list.
+1. **Enumerate** what a run creates — the two databases, both Workers, and any Access resources — and show the list. Include any **service token `/walk` minted for itself** ([the walkthrough's self-repair](../../../wiki/stack/staging-walkthrough.md#when-the-walk-cant-get-in) creates one named for the repo when it meets the login wall), so a credential this pack caused to exist is not left behind by the pack that removes it.
 2. **Confirm** before deleting anything. Name each resource; deleting a database destroys its data.
 3. **Delete** what this repo created.
 4. **Report** what was removed *and what was skipped* — anything whose name doesn't match this repo, anything the user declined. Never delete by guess.

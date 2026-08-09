@@ -1,12 +1,12 @@
 ---
 name: walk
-description: Walk the deployed staging preview in a real browser and show what the change actually does — the on-demand evidence verb. Runs /save first (push, wait for CI, resolve the per-commit preview URL), scouts the change's own OpenSpec scenarios into browser journeys, drives them with Playwright against a remote browser on Cloudflare Browser Run (reached with the pack's CLOUDFLARE_API_TOKEN — no local browser exists or is looked for), capturing a screenshot per step and a video per journey, grades each against the scenario's written THEN, and posts the evidence as a PR comment on every verdict. Gates nothing — /ship merges on CI alone — so run it as often as you like, mid-change or right before shipping. Use when you want to walk the app, see it working, check whether it looks right, watch the change in a browser, screenshot or record the UI, get browser evidence onto the PR, or confirm a change does what its scenarios promised. Opt-in and detected, never configured — playwright-core (or playwright) in the app's devDependencies is the entire consent. Stack-pack repos only. Never installs anything, never writes inside the repo, and never merges.
+description: Walk the deployed staging preview in a real browser and show what the change actually does — the on-demand evidence verb. Scouts the change's own OpenSpec scenarios first, so a change with nothing browser-observable costs nothing; when there are journeys it runs /save (push, wait for CI, resolve the per-commit preview URL), drives them with Playwright against a remote browser on Cloudflare Browser Run (reached with the pack's CLOUDFLARE_API_TOKEN — no local browser exists or is looked for), capturing a screenshot per step and a video per journey, grades each against the scenario's written THEN, and posts the evidence as a PR comment on every verdict. Resolves its own access blocks with the token it already holds — it widens the token when Browser Run refuses it and mints an Access service token when it meets the login wall, once each, then reports UNKNOWN honestly. On a failure inside this change's own code it fixes, re-saves, and re-walks, at most twice. Gates nothing — /ship merges on CI alone — so run it as often as you like, mid-change or right before shipping. Use when you want to walk the app, see it working, check whether it looks right, watch the change in a browser, screenshot or record the UI, get browser evidence onto the PR, or confirm a change does what its scenarios promised. Opt-in and detected, never configured — playwright-core (or playwright) in the app's devDependencies is the entire consent. Stack-pack repos only. Never installs anything, never writes inside the repo, and never merges.
 user-invocable: true
 ---
 
 # /walk
 
-Walk runbook. Invoking it authorizes the `/save` in Step 1 — the commit, push, and PR that come with it — and the staging reset in Step 5. Confirm anything outside this runbook.
+Walk runbook. Invoking it authorizes the `/save` in Step 2 — the commit, push, and PR that come with it — the staging reset in Step 6, and the two self-heals in Step 4 (a token widen and an Access service-token mint, each under the [standing authorization](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Confirm anything outside this runbook.
 
 `/walk` produces **evidence, on request**: the change's own OpenSpec scenarios driven through a real browser against the deployed preview, graded against what those scenarios said would happen, with screenshots and video on the pull request.
 
@@ -20,7 +20,22 @@ It sits **outside** the loop (`/explore → /plan → /apply → /save → /cont
 
 The full rationale, the adoption rungs, and the deliberately declined options live in [the runbook](../../../wiki/stack/staging-walkthrough.md).
 
-## Step 1 — /save first
+## Step 1 — scout first, before spending anything
+
+```bash
+ROOT="$(git rev-parse --show-toplevel)"
+bash "$ROOT/.claude/skills/walk/scripts/walk-staging.sh" scout-check
+```
+
+**`RESULT: NONE`** → this repo did not adopt the walkthrough. Report it in one line and stop.
+
+**`RESULT: READY`** (prints `APP_DIR`) → scout the change's scenarios into candidate journeys now, per [§ a of the reference](references/walkthrough.md). This reads local files only — no push, no token, no network.
+
+**No browser-observable scenario** → verdict `NONE`. Say in one line what was there instead (queue consumers, cron triggers, pure backend work) and stop.
+
+This order is the whole reason a backend-only change is cheap: `/save` and the credential preflight are the expensive steps, and neither runs until at least one journey exists. The scout reads the same working tree `/save` is about to commit, so the journeys and the deployed commit describe the same change.
+
+## Step 2 — /save
 
 **Invoke the `save` skill** (via the Skill tool) and let it finish. It commits, pushes, opens or updates the PR, waits for CI, and returns the per-commit preview URL.
 
@@ -28,43 +43,59 @@ This ordering is load-bearing, not tidiness. **The preview alias only exists onc
 
 `/walk` implements no git of its own; it delegates, the same way `/apply` hands completed work to `/save`.
 
-## Step 2 — preflight
+## Step 3 — preflight
 
 ```bash
-ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/.claude/skills/walk/scripts/walk-staging.sh" preflight
 ```
 
-**`RESULT: NONE`** → report in one line which case it is (this repo hasn't adopted the walkthrough, or it has and there's nothing browser-observable to walk) and stop. Nothing failed.
+**`RESULT: READY`** (also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`, `ACCOUNT_ID`) → Step 4.
 
-**`RESULT: READY`** (also prints `APP_DIR`, `URL`, `RUN_DIR`, `SHA`, `ACCOUNT_ID`) → Step 3.
+**`RESULT: UNKNOWN`** → the walk cannot run. Report it as **unverified** with the remedy the script named, and stop.
 
-Preflight verifies the walk's browser can be had — the browser is a Cloudflare Browser Run session, opened with the pack's `CLOUDFLARE_API_TOKEN`, never a binary on this machine. Exported credentials take precedence; otherwise preflight resolves Git's primary worktree and reads the durable ignored `.env` there, including the optional Access service-token pair. It never creates a linked-worktree copy or prints a value. A missing token, an unresolvable durable store, a token that lists no accounts, or an endpoint refusal are each `UNKNOWN` with the remedy named (most commonly: re-run `/wong-cloudflare`, whose widen grants Browser Rendering Edit).
+Preflight verifies the walk's browser can be had — the browser is a Cloudflare Browser Run session, opened with the pack's `CLOUDFLARE_API_TOKEN`, never a binary on this machine. Exported credentials take precedence; otherwise preflight resolves Git's primary worktree and reads the durable ignored `.env` there, including the optional Access service-token pair. It never creates a linked-worktree copy or prints a value.
 
-## Step 3 — walk and grade
+## Step 4 — walk, healing the two blocks you can fix
 
-**Follow [`references/walkthrough.md`](references/walkthrough.md)** — it owns how a walk is performed: scouting the change's scenarios, writing the journeys, running them, and grading each against its written `THEN`. Come back here for what to do with the verdict.
+**Follow [`references/walkthrough.md`](references/walkthrough.md)** — it owns how a walk is performed: writing the journeys, running them, and grading each against its written `THEN`. Come back here for what to do with the verdict.
 
-## Step 4 — post the evidence, on every verdict
+Two failures are not the app's fault and not the user's errand — you hold the credential that fixes each. Heal **once per block per invocation**, then walk again:
+
+| The script says | What it means | Heal, then retry once |
+|---|---|---|
+| `BLOCK=browser-run-refused` (exit 4) | the token was never widened into Browser Rendering Edit | Follow [the widen protocol](../wong-cloudflare/references/permission-groups.md): resolve the group id by name, `PUT` the widened set with the existing groups preserved, re-verify. Report which permission you granted. |
+| `BLOCK=access-challenge` (exit 3) | the preview sits behind [Cloudflare Access](../../../wiki/stack/cloudflare-access.md) and no service token is stored | Mint a service token named for this repo through the Access API, confirm the Access policy accepts it, and store the pair in the **primary worktree's** durable `.env` per [the secrets convention](../../../wiki/development/secrets.md). Widen into the Access groups first if the token lacks them — that is part of the same single heal. |
+
+Both heals are pre-authorized: the user pasting a two-permission token *is* the authorization to widen it, and `/wong-cloudflare` grants itself permissions on demand for exactly this reason. Say what you granted or minted; never print or commit a credential value.
+
+**If the same block survives its retry → `UNKNOWN`**, naming what you attempted and what still failed. One heal and one retry per block — never a loop.
+
+## Step 5 — post the evidence, on every verdict
 
 Post the comment **whatever the verdict** — `SUCCESS`, `FAILURE`, `UNKNOWN`, or `TIMEOUT`. There is no merge being blocked that would otherwise carry the news, and a failed walk's screenshots are the most useful thing this skill can put on a PR. § f of the reference owns the comment's shape and the media publishing.
 
 One comment per invocation. Walking again appends another rather than editing the first — the PR should carry an honest log of attempts.
 
-## Step 5 — on FAILURE, reset staging, then stop
+## Step 6 — on FAILURE: reset, then fix in scope or stop
 
 ```bash
 (cd "$APP_DIR" && npm run db:reset:staging)   # only on FAILURE, never on a pass
 ```
 
-Then **stop**. Don't fix, don't re-push, don't re-walk — report what failed and what to look at. The user fixes and invokes `/walk` again.
-
 The reset isn't housekeeping: a walk that begins against the half-mutated database a failed walk left behind produces a *different* failure, and you end up debugging leftovers. A **passing** walk's data is left exactly where it is — staging is a fixture, not a preserve.
 
-## Step 6 — report
+Then judge scope, and **say which way you judged it** in the report either way:
+
+- **In scope** — the contradicted `THEN` belongs to this change's own scenarios *and* the fix plausibly lives in files this branch already touches. Fix the code, invoke `/save` (so the fix is pushed and gated normally), and walk again. **At most two fix attempts** per invocation; after that, report like any failure and stop.
+- **Out of scope** — pre-existing behavior, infrastructure, or another capability's scenario. Report what failed and what to look at, then stop. Do not fix, re-push, or re-walk.
+
+The bound is what keeps this from becoming a grinder. A walk that cannot fix its own change in two tries has found something worth a human reading it, and widening the change to chase an unrelated bug is how a walk quietly becomes a different change.
+
+## Step 7 — report
 
 - **Verdict**, and how many journeys were walked.
 - The **PR comment link**.
+- Anything **healed** (a permission granted, a service token minted) or **fixed** (each fix commit).
 - Anything **not walkable** and why (queue consumers, cron triggers — a preview alias serves HTTP only).
 - On `UNKNOWN`, say plainly that the walk was **not verified**, and what would make it runnable.
 
@@ -76,16 +107,18 @@ These describe what gets **reported**. None of them gates anything.
 |---|---|---|
 | **NONE** | not adopted, or nothing browser-observable | one line naming which |
 | **SUCCESS** | every journey satisfied its `THEN` | the evidence comment |
-| **FAILURE** | a journey contradicted its `THEN` | the evidence comment, then reset + stop |
-| **UNKNOWN** | the walk could not run or could not be trusted | **unverified** — the comment says so, and why |
+| **FAILURE** | a journey contradicted its `THEN` | the evidence comment, then reset + fix-in-scope or stop |
+| **UNKNOWN** | the walk could not run or could not be trusted, after any heal | **unverified** — the comment says so, and why |
 | **TIMEOUT** | the walk exceeded its budget | **unverified** — what completed, and where it stopped |
 
-**`UNKNOWN` is not `NONE`.** Once a repo has adopted the walkthrough, a walk that cannot run is *unverified*, not *absent*, and the report must use those words. This no longer decides a merge — it's now about honest reporting, and it matters most in the Cloudflare Access case: without the check, a walk screenshots a login form and a reader skimming the comment sees "a page rendered." The script exits `UNKNOWN` on that challenge by name. The same honesty applies to the browser itself: a missing `CLOUDFLARE_API_TOKEN`, a token Browser Run refuses (never widened into Browser Rendering Edit — re-run `/wong-cloudflare`), or an exhausted plan budget (free: ~10 browser-minutes/day) are each *unverified infrastructure*, reported with the specific fix, never graded as a failing app.
+**`UNKNOWN` is not `NONE`.** Once a repo has adopted the walkthrough, a walk that cannot run is *unverified*, not *absent*, and the report must use those words. This no longer decides a merge — it's now about honest reporting, and it matters most in the Access case: without the check, a walk screenshots a login form and a reader skimming the comment sees "a page rendered." A block that survived its heal is still `UNKNOWN`, and the report names the heal that did not take.
 
 ## Hard rules
 
-- **Never install anything** to make a walk run — not playwright-core, not a browser, not on a prompt. There is no browser to install anyway — it runs on Cloudflare Browser Run — and a missing dependency or credential is a statement about what the repo chose, or a condition to report.
-- **Never write inside the repo.** Journeys, screenshots, and video live in the temp run directory and leave with it, so the working tree is unchanged whatever the verdict. Run `cleanup` on **every** exit path — including stopping on `UNKNOWN` and pausing to ask the user a question.
+- **Never install anything** to make a walk run — not playwright-core, not a browser, not on a prompt. There is no browser to install anyway — it runs on Cloudflare Browser Run — and a missing dependency is a statement about what the repo chose.
+- **One heal and one retry per block; two fix attempts per walk.** No loop anywhere. A heal that does not take is `UNKNOWN`, not a second attempt.
+- **Never print or commit a credential value.** A minted service token goes to the primary worktree's durable `.env` and nowhere else — not to a linked worktree, a note, a comment, or the report.
+- **Never write inside the repo.** Journeys, screenshots, and video live in the temp run directory and leave with it. Run `cleanup` on **every** exit path — including stopping on `UNKNOWN` and pausing to ask the user a question.
 - **Reset staging only after a failed walk.** A passing walk leaves its data alone.
 - **"No exception was thrown" is not a pass.** A journey whose script completed cleanly but whose screenshot lacks what the `THEN` requires **fails**. That judgement is why the verdict is not in the script.
 - **Genuinely ambiguous evidence stops and asks the user**, showing the screenshot and the `THEN` side by side. Never resolve it in either direction alone.

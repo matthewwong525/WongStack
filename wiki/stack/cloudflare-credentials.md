@@ -115,6 +115,8 @@ CF_ACCESS_CLIENT_SECRET=
 
 Create it while you're setting up Access ([step 5](cloudflare-access.md#5-create-the-service-token-do-it-now)) — adding it later means re-opening the policy.
 
+**Or let `/walk` create it.** A walk that meets the login wall with no pair stored mints one named for the repo, confirms the policy accepts it, writes both values here, and retries — under the same [standing authorization](#the-widen-is-pre-authorized) that lets the token widen itself, and widening into the Access permission groups first if it has to. So this pair may appear in your `.env` without you putting it there; that's the walkthrough's [self-repair](staging-walkthrough.md#when-the-walk-cant-get-in), and it reports what it minted. A pair you set by hand is never replaced.
+
 ### What a service-token request looks like at the Worker
 
 This is the part that catches people out, because it is the opposite of what the two headers above suggest:

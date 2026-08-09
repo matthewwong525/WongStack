@@ -3,6 +3,33 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.8.0 — the walk gets cheap, and repairs its own way in
+
+**A change with nothing to walk now costs nothing.** `/walk` scouts the change's scenarios before it
+invokes `/save` and before it checks any credential. A change whose behavior all lives off the
+request path — a queue consumer, a cron trigger, backend work — reaches `NONE` after reading a few
+local files, with no push, no CI wait, and no browser session. Before, that answer arrived only after
+the two most expensive steps had already run.
+
+**The walk resolves the two blocks it holds the credential for.** When Cloudflare Browser Run refuses
+the token, `/walk` runs the widen protocol on the token itself and retries once. When the preview
+answers with a Cloudflare Access login wall and no service token is stored, it mints one named for
+the repo, confirms the policy accepts it, writes the pair to the primary worktree's durable `.env`,
+and retries once. Both repairs run under the standing authorization that already covers the token
+widen. The walk reports what it granted or minted and never prints a credential value. A block that
+survives its repair is still `UNKNOWN`, now naming the attempt — one heal and one retry per block,
+never a loop.
+
+**A failure inside the change's own code is fixed, not handed back.** On `FAILURE`, `/walk` resets
+staging as before, then judges scope: when the contradicted `THEN` belongs to this change and the fix
+lives in files the branch already touches, it fixes, runs `/save`, and walks again — at most twice.
+An out-of-scope failure keeps the old behavior exactly: reset, report, stop. The report states which
+way it judged, so the call can be contested.
+
+**New:** `walk-staging.sh scout-check` — the adoption half of preflight, with no credential
+resolution, so the cheap answer stays cheap. Existing repos need no action; the repairs activate only
+when their block occurs.
+
 ## 9.7.0 — use Simplified Technical English
 
 **Agents now use ASD-STE100 Simplified Technical English for user-facing prose and documentation.**
