@@ -90,8 +90,34 @@ check that caught it was trying to write the code, not re-reading the specs.
 - `check-payload-links.mjs` was *not* refactored to export its internals for testing. Tested by
   invoking it instead, which also happens to test the entry point a target repo runs.
 
+## Two mistakes I made about this repo, corrected at ship time
+
+I twice told the user this repo "has no app to deploy". **It has one** — `app/` is a
+provisioned Vite + React SPA with a Worker and `wrangler.jsonc`, 25 tracked files; it is the
+scaffold WongStack ships *and* dogfoods. The deploy job finds it, passes the secrets parity
+check, deploys, and publishes a preview.
+
+The root cause is worth keeping, because it is a trap in `/save` itself: I called
+`preview-url.sh` **after the commit but before the push**, got nothing, and read "no preview
+URL" as "no app". The helper resolves deployments for the head SHA, so before CI publishes one
+there is nothing to find. This is the exact ordering `/walk`'s runbook exists to warn about —
+*the preview only exists once CI has published this commit* — and I made it inside the skill
+that runs first. Run after CI, it resolved immediately.
+
+Consequence: the engine is verified against a **real deployment**, not just `example.com`. A
+journey against the live staging URL returned `RESULT: WALKED`, one full-page screenshot,
+browser local, and the app's own page rendered. That exercises install → `doctor` → `batch` →
+screenshot → landed-URL check against something real.
+
+Also checked, because it could have been a silent regression: `test.yml` discovers root-first,
+and this repo now has a root `package.json`. `app/package.json` declares **no** `test` script
+(`dev`, `build`, `lint`, `deploy`, …), so nothing is being skipped. Worth knowing that
+root-first means exactly one suite runs — a repo that later adds app-level tests alongside a
+root manifest must make them reachable from the root script.
+
 ## Open thread
 
-Nothing here is exercisable end to end: WongStack is the payload source with no app, so the
-real proof is a target repo that takes the stack and runs `/walk` against a live preview. The
-driver was verified against `example.com`, which proves the plumbing but not a graded journey.
+Still unproven: a **graded** multi-step journey — a scenario driven to a verdict against a
+written `THEN`. This change's own scenarios are payload behaviour (which skill lands in which
+category), none of which a browser can see, so a walk of it legitimately returns `NONE`. The
+plumbing is proven; the grading half needs a UI-bearing change to exercise it.
