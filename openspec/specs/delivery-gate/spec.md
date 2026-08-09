@@ -8,6 +8,8 @@ TBD - created by archiving change optional-ci-gate. Update Purpose after archive
 
 `/ship` SHALL retain its shipping-only responsibilities: verify the feature branch and default-branch state, invoke `openspec-archive-change`, merge the pull request, and delete the remote branch worktree-safely. After archiving and before merging, `/ship` SHALL invoke ordinary `/save` exactly once. When no active change matches the current branch and exactly one matching archive exists, `/save` SHALL use that archive as the handoff record, SHALL NOT author a replacement active change, and SHALL own secret preservation/redaction, session-note capture, commit, push, pull-request creation/update, and the CI wait/auto-fix path. `/ship` SHALL consume that result and SHALL NOT duplicate those checkpoint mechanics or require a special save flag.
 
+Between the delegated `/save` and the merge, `/ship` SHALL invoke `/walk` once as an evidence step. On `NONE`, `UNKNOWN`, or `TIMEOUT`, `/ship` SHALL report the verdict and merge on the save-gate result exactly as before. On `FAILURE` — after `/walk`'s own bounded fix loop is exhausted — `/ship` SHALL stop, present the evidence, and ask the user whether to fix or merge anyway; the user's answer, not the verdict, decides, and a merge-anyway is recorded in the ship report. When the walk's fix loop advanced HEAD, the fix's own delegated `/save` re-gated it, and `/ship` SHALL confirm the latest save-gate result is `SUCCESS` or `NONE` before merging.
+
 #### Scenario: Shipping checkpoints the archive through save
 
 - **WHEN** `/ship` archives a completed change
@@ -23,13 +25,25 @@ TBD - created by archiving change optional-ci-gate. Update Purpose after archive
 #### Scenario: Save returns a mergeable gate result
 
 - **WHEN** the delegated save finishes with `SUCCESS` or `NONE`
-- **THEN** `/ship` proceeds to its merge step without reopening the PR or waiting on the same checks itself
+- **THEN** `/ship` proceeds through the walk evidence step and, absent a walk `FAILURE`, merges without reopening the PR or waiting on the same checks itself
 
 #### Scenario: Save returns an unmergeable result
 
 - **WHEN** the delegated ordinary save returns `UNKNOWN`, `TIMEOUT`, or a checkpoint failure
 - **THEN** `/ship` stops before merge and reports that result
 - **AND** it does not bypass, repeat, or reinterpret the gate
+
+#### Scenario: A failed ship-time walk pauses for the user
+
+- **WHEN** the ship-time walk returns `FAILURE` with its fix attempts exhausted
+- **THEN** `/ship` stops before merging, presents the evidence, and asks whether to fix or merge anyway
+- **AND** merging anyway remains available and is recorded in the report
+
+#### Scenario: An unrunnable ship-time walk never blocks
+
+- **WHEN** the ship-time walk returns `UNKNOWN` or `TIMEOUT`
+- **THEN** `/ship` reports the walk as unverified and merges on the save-gate result alone
+
 ### Requirement: CI is optional, not required
 
 The WongStack doctrine SHALL treat GitHub Actions (and CI generally) as an optional accelerator that is honored when present and never required. The system's durable pillars SHALL be described as: pull requests, version control, OpenSpec, and everything-lives-in-the-repo.
@@ -115,9 +129,9 @@ The gate is not weakened by this. Neither surface carries behavior: a note is ra
 
 ### Requirement: No local build fallback
 
-The skills SHALL NOT build or test the project locally as a prerequisite for `/save` or `/ship`, whether or not CI is present. The absence of CI SHALL NOT trigger a local-verify gate. No skill SHALL run a compile, a unit-test suite, a linter, or a type-check as a condition of saving or shipping.
+The skills SHALL NOT build or test the project locally as a prerequisite for `/save` or `/ship`, whether or not CI is present. The absence of CI SHALL NOT trigger a local-verify gate. No skill SHALL run a compile, a unit-test suite, a linter, or a type-check as a condition of saving or shipping. Test suites run in CI (the `ci-tests` capability), where they are ordinary checks on the existing ladder.
 
-**The boundary is building versus exercising.** Driving a browser against an already-deployed staging environment is not a local build: nothing is compiled, nothing is installed, and the artifact under test is the one CI itself published. The opt-in staging walkthrough (`staging-walkthrough`) is therefore permitted, and is bounded by three properties that keep it from becoming a local-verify gate by another name — it SHALL run only against a deployment CI has already published, it SHALL never install a dependency, and it SHALL be absent entirely unless the repo adopted it. It SHALL NOT gate `/save` or `/ship`: it is reached only by invoking `/walk`, and its verdict conditions no merge.
+**The boundary is building versus exercising.** Driving a browser against an already-deployed staging environment is not a local build: nothing is compiled, nothing is installed, and the artifact under test is the one CI itself published. The opt-in staging walkthrough (`staging-walkthrough`) is therefore permitted, and is bounded by three properties that keep it from becoming a local-verify gate by another name — it SHALL run only against a deployment CI has already published, it SHALL never install a dependency, and it SHALL be absent entirely unless the repo adopted it. It is reached by invoking `/walk`, or by `/ship`'s single evidence step. Its verdict SHALL NOT function as a gate rung: an unrunnable or absent walk never blocks anything, and a walk `FAILURE` at ship time is surfaced as a user decision (fix or merge anyway) rather than consulted as a merge condition.
 
 The gate ladder is: **CI when present → merge.** A rung is skipped when its condition does not hold, and a skipped rung SHALL NOT be reported as a failure. Where no rung applies, PR review is the gate.
 
@@ -132,13 +146,14 @@ The gate ladder is: **CI when present → merge.** A rung is skipped when its co
 - **THEN** it compiles nothing, installs nothing, and runs no unit-test suite
 - **AND** it exercises the deployment CI already published rather than a locally produced artifact
 
-#### Scenario: The walkthrough does not gate the merge
+#### Scenario: The walk verdict is not a gate rung
 
-- **WHEN** an adopted repo runs `/ship` without having run `/walk`, or after a `/walk` that returned `FAILURE`
-- **THEN** `/ship` merges on green CI alone
-- **AND** the walk verdict is neither consulted nor reported
+- **WHEN** an adopted repo ships and the ship-time walk is `UNKNOWN`, `TIMEOUT`, or `NONE`
+- **THEN** `/ship` merges on green CI (or PR review) alone
+- **AND** the walk is reported, never counted as a failed check
 
 #### Scenario: A skipped rung is not a failure
 
 - **WHEN** a repo has CI configured
 - **THEN** `/ship` merges on green CI alone, reporting no gap
+

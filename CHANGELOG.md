@@ -3,6 +3,35 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 9.9.0 — shipping shows its work, and CI runs your tests
+
+**`/ship` now walks the preview before it merges.** After the archive and the delegated `/save`
+checkpoint, `/ship` invokes `/walk` once and puts the evidence on the pull request. This is an
+evidence step, **not a gate**: `NONE`, `UNKNOWN`, and `TIMEOUT` are reported and the merge proceeds
+on the CI result, so a walk that cannot run still blocks nothing. Only a `FAILURE` stops, and it
+stops to **ask you** — fix, or merge anyway — rather than deciding for you. The walk-as-merge-gate
+that was removed earlier stays removed, and the runbook records why the evidence step is a different
+thing.
+
+**The pack's CI runs your test suite, in parallel.** `deploy.yml` gains a `test` job beside the
+existing build-and-deploy job, with no `needs:` edge between them, so the deploy is not one second
+slower. It runs `npm test` and finds the app by looking for a declared `test` script — repo root
+first, then each immediate subdirectory — so tests work before a repo is provisioned. **No test
+script reports why and exits green**, the same honest-check behavior an unprovisioned repo already
+gets from the build job. Because `/save` already waits on every check and auto-fixes failures, the
+suite is enforced on every save with no new skill logic.
+
+**Existing pack repos keep their own `deploy.yml`.** The workflow is copy-if-absent like the rest of
+the payload, so `/wong-sync` *offers* the `test` job through the adapt step and never writes it over
+your file.
+
+**Test coverage now grows in the loop.** `/plan` puts a test task in any change that touches
+behavior, and `/apply` writes those tests while implementing — when the context is richest. `/save`
+never authors tests; it stays a pure checkpoint. Prose-only changes get no test task.
+
+**`/ship` is shorter.** The repeated never-test/never-walk prose collapsed into the walk step plus
+one line pointing at the gate's owning page.
+
 ## 9.8.0 — the walk gets cheap, and repairs its own way in
 
 **A change with nothing to walk now costs nothing.** `/walk` scouts the change's scenarios before it
