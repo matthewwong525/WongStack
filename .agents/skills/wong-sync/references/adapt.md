@@ -1,6 +1,6 @@
 # The adapt step
 
-How `/wong-sync` turns "what upstream can do" and "what this repo already does" into a plan. This is Step 3 of the skill: it runs over every payload surface the repo **already has** (Step 2 already classified the rest, writing nothing). It writes two things and nothing else — a verdict record every run, and an OpenSpec change whenever the run has anything to do.
+How `/wong-sync` turns "what upstream can do" and "what this repo already does" into a plan. This is Step 3 of the skill: it runs over every payload surface the repo **already has** (Step 2 already classified the rest, writing nothing). It produces two things and nothing else — a verdict record it writes every run, and, whenever the run has anything to do, an OpenSpec change it composes and hands to this repo's own plan skill to author.
 
 The premise is that updating is **adaptation, not replication**. A repo is up to date when it *can do* what WongStack does — not when its files match upstream's byte for byte. Two repos can both be current and share almost no bytes.
 
@@ -31,9 +31,11 @@ The premise is that updating is **adaptation, not replication**. A repo is up to
                                ▼
          ┌─────────────────────┴─────────────────────┐
          ▼                                           ▼
- .claude/wong-sync-verdicts.md      openspec/changes/sync-wongstack-<date>/
-   (every run — every verdict,          (every run with anything to do —
-    tick a box to overrule)              the after-picture + every task)
+ .claude/wong-sync-verdicts.md      INVOKE THE REPO'S PLAN SKILL
+   (every run — every verdict,        with one composed instruction →
+    tick a box to overrule)          openspec/changes/sync-wongstack-<date>/
+                                       (every run with anything to do —
+                                        the after-picture + every task)
 ```
 
 ## Why two agents
@@ -179,24 +181,64 @@ The accounting goes in the report, not the verdict record — the record's shape
 Two artifacts, and nothing else. They have different lifecycles on purpose:
 
 ```
-.claude/wong-sync-verdicts.md                 ← EVERY run. Every verdict.
+.claude/wong-sync-verdicts.md                 ← EVERY run. Every verdict. Written by the sync.
 openspec/changes/sync-wongstack-<YYYY-MM-DD>/ ← every run with ANYTHING to do
-  proposal.md    the after-picture: After · Gain · Lose · Resolution
-  tasks.md       the coarse file work, manifest last, then one task per `adopt`
+  proposal.md    the after-picture: After · Gain · Lose · Resolution   │ authored by
+  tasks.md       the coarse file work, manifest last, then one `adopt` │ the plan skill
 ```
 
 The change folder is the *run*; the verdict record is the *picture of what was judged*. Only a run with nothing to do produces the second without the first.
+
+### The change is authored by the repo's plan skill
+
+The sync does not write the change folder. It composes everything the change *says*, then **invokes this repo's own plan skill with one fully resolved instruction** — the same instruction a user holding all the facts would type. The order matters: research (cartographer + surveyor) → clarification → verdicts → invoke. Nothing is delegated until nothing is unknown.
+
+The split follows from what each side actually owns:
+
+| job | owner |
+|---|---|
+| the change's **name**, including a date collision | the sync |
+| **what the change says** — proposal body, task list, spec scoping | the sync |
+| the planning home, the change root, the artifact paths | the plan skill |
+| **writing** the artifacts, in dependency order and by this repo's own planning rules | the plan skill |
+| confirming the change is apply-ready | the plan skill |
+
+**The plan skill is not modified and needs no knowledge of the sync.** The delegation is an invocation, not a contract — which is what lets it work against whatever version the target has, including one with local edits this skill must never touch.
+
+**The instruction carries, explicitly:**
+
+- **the exact change name** — `sync-wongstack-<YYYY-MM-DD>`, already suffixed `-2`, `-3` when a folder for today exists. The sync resolves the collision *before* invoking, so the plan skill never faces one, never asks whether to continue an existing change, and never touches one that may be mid-flight.
+- **the composed `proposal.md` body, to be used verbatim** — the after-picture below, in its four regions. Say *verbatim*: a target's own proposal rules would otherwise reshape it, and the after-picture is the whole point of the document.
+- **the composed `tasks.md` body** — the task list below, as the task list, not a summary to be expanded from.
+- **the spec scoping** — the graft-only rule below, stated outright, because the default is to emit delta specs broadly.
+
+**Resolution.** Find the plan skill through the manifest's `components.skills` (`SKILLMAP`), so a locally renamed one is invoked under its local name.
+
+**No prompts, by construction.** Every question the plan skill could ask was already answered at the clarification stage and is in the instruction. A genuine blocker inside it returns to the sync, which **reports** it; the sync never falls back to prompting, and the approval gate stays the plan itself.
+
+**Degraded mode — no plan skill.** A target that has none falls back to the sync writing `proposal.md` and `tasks.md` itself at `openspec/changes/sync-wongstack-<YYYY-MM-DD>/`, as earlier versions did, and the report **names the degraded mode** so the difference is visible. A seed manifest is not this case: Step 2 copies the payload during the run, so the plan skill is there by the time Step 3 needs it.
+
+Everything below specifies the **bodies the sync composes**. It is what the instruction carries — not a second writer.
+
+### Delta specs are for grafts only
+
+The instruction scopes them, because an unscoped delegation emits them broadly:
+
+- **`adopt` grafts** → a delta spec is expected wherever the graft is concrete. The repo genuinely gains that capability and **owns** it from then on.
+- **payload copies and updates** → **no delta spec**. These are vendored files whose specification lives upstream; a copy of it in the target's `openspec/specs/` goes stale the moment upstream moves, and then two documents disagree with nobody owning either.
+
+`design.md` is optional — if the plan skill writes one, it is a **per-run snapshot**, never a store. `.claude/wong-sync-verdicts.md` remains the one authoritative record of verdicts: overruling one on the *next* run needs a living, tickable file, and an archived change cannot do that job.
 
 **The change folder:**
 
 - **It covers the whole run** — hence `sync-`, not the old `adopt-`. Copies and updates are changes to this repo, and they are tasks in this plan rather than edits that already happened.
 - **Written whenever the run has anything to do**: a file to copy, a file to update, a newer `wong-sync` to install, or at least one `adopt`.
 - **Nothing to do and nothing to adopt → no folder.** An empty change is noise. Say the repo is current and point at the verdict record, which is written either way.
-- **Never overwrite an existing change folder.** If today's already exists, suffix it `-2`, `-3` — the existing one may be mid-flight.
+- **Never overwrite an existing change folder.** If today's already exists, the sync suffixes the name `-2`, `-3` and passes that — the existing one may be mid-flight.
 - **An unapplied plan never suppresses a new one.** A repo may sit with a sync change nobody ran; write this run's plan anyway, because a changed situation deserves a changed plan. Name the older folder in the report so it stays visible rather than being quietly superseded.
 - **Leave old `adopt-wongstack-*` folders alone.** They're historical changes, often already archived; renaming shipped records buys nothing.
-- **No `openspec/changes/` in the target** → still write the verdict record, and explain why the change couldn't be written. (WongStack installs OpenSpec at setup, so this is rare.)
-- Write `proposal.md` and `tasks.md` only. If a graft turns out to be large, the repo's own `/plan` can deepen it.
+- **No `openspec/changes/` in the target** → still write the verdict record, and explain why the change couldn't be produced. (WongStack installs OpenSpec at setup, so this is rare.)
+- **The composed bodies are `proposal.md` and `tasks.md`.** Those two are what the instruction supplies; anything else the plan skill writes by its own rules is that repo's business, within the spec scoping above.
 
 ### `proposal.md` is an after-picture
 
