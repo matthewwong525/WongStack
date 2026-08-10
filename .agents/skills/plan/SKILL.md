@@ -37,4 +37,16 @@ When the change touches **behavior a test can exercise**, `tasks.md` carries a t
 
 The tests are written by `/apply`, while it implements — the moment the context is richest. They are *not* written at checkpoint time: `/save` is a pure checkpoint and never authors tests. From then on the app's suite runs as an ordinary CI check on every push, so coverage ratchets up and nothing has to re-argue it.
 
+## A task that needs the gate says so
+
+Some work can only be verified by pushing — a build that must pass, a preview that must deploy,
+browser evidence that must land on the PR. Nothing builds locally, so write such a task so it names
+`/save` as how the verification happens (e.g. `- [ ] 4.2 Confirm the migration runs on the preview
+— verified via /save`). That tells the implementer the task is completed by a checkpoint rather
+than a local command; `/apply` treats [that save as implementation, not as an
+exit](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task).
+
+Don't add one by reflex. Most changes need no gate result before their later tasks can proceed, and
+the automatic checkpoint at the end of `/apply` already covers them.
+
 **Convention:** the change name *is* the branch name — when you start implementing, work happens on a branch named after the change. Once the proposal reads right, implement it with [`/apply`](../apply/SKILL.md) (which fronts `/opsx:apply` and automatically hands completed work to `/save`), checkpoint partial work at any time with [`/save`](../save/SKILL.md), and resume with [`/continue`](../continue/SKILL.md).
