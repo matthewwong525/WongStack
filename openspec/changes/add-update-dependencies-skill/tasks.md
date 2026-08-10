@@ -18,4 +18,4 @@
 ## 3. Verification
 
 - [x] 3.1 Invoke `/update-dependencies` once end to end in this repo and confirm the five stages run, the survey report is complete, and the release question is answered — verified via `/save`.
-- [ ] 3.2 Confirm the run's own diff passes CI and that any payload file it touched carries the `VERSION` bump, `CHANGELOG.md` entry, and passing `node scripts/check-payload-links.mjs` that the release rules require — verified via `/save`.
+- [x] 3.2 Confirm the run's own diff passes CI and that any payload file it touched carries the `VERSION` bump, `CHANGELOG.md` entry, and passing `node scripts/check-payload-links.mjs` that the release rules require — verified via `/save`.
