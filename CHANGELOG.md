@@ -3,6 +3,40 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 11.1.0 — a task that needs the gate is finished by the gate
+
+**`/apply` could be told to do something it was forbidden to do.** Its boundary read *never invoke
+`/save` while pending tasks remain* — but the delivery doctrine on the same page says nothing builds
+locally and CI is the gate. So a task like *"confirm the build passes"* is not a local command, it is
+a push, and `/apply` owns no git. The task could not finish until `/save` ran, and `/save` was not
+allowed to run until the task finished. Faced with that, an agent either stalls or quietly breaks
+the stated rule.
+
+**The rule now names what it was actually protecting.** The banned thing was always `/apply`
+silently pushing half-done work *when it gives up* — a checkpoint used as an **exit**. "Tasks
+pending" was a proxy for that, and the proxy is what failed. The boundary is now **exit versus
+implementation**:
+
+- **No checkpoint-on-exit** — paused, blocked, interrupted, failed, or simply ending with work left:
+  `/apply` reports it and saves nothing. A `/apply` that gives up still leaves nothing pushed.
+- **A gate-requiring task is implemented by `/save`** — CI green, a live preview, browser evidence:
+  `/apply` invokes `/save`, reads the result, marks the task, and carries on down the list. A
+  failing or unverifiable result leaves the task unchecked and takes the ordinary blocked path.
+
+`/walk` has always worked this way — it invokes `/save` mid-change and gates nothing. This makes it
+the loop's rule rather than one skill's exception.
+
+**"Exactly once" is re-scoped, not removed.** It qualifies the completion handoff alone;
+task-driven saves are bounded by `tasks.md`. When the last task is itself gate-requiring, its save
+already covers that state and no second one follows.
+
+**`/plan` labels these tasks.** A task that can only be verified through the gate says so, naming
+`/save`. It stays optional — most changes need no gate result mid-list, and the completion handoff
+covers them.
+
+Touched: [`the-change-loop.md`](wiki/development/the-change-loop.md) (which owns the distinction),
+`.claude/skills/apply/`, `.claude/skills/plan/`, and the generated `openspec-apply-change` skill.
+
 ## 11.0.0 — the sync proposes, `/apply` disposes
 
 `/wong-sync` has always said *"it proposes; it never implements"* — and then copied files in before

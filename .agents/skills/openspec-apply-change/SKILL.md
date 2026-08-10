@@ -73,6 +73,7 @@ Implement tasks from an OpenSpec change.
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
+   - When the task's own definition of done needs the gate (a passing CI run, a deployed preview, pushed browser evidence), invoke the `save` skill to obtain it and read the result — that is how such a task is implemented, not a partial checkpoint
    - Mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
 
@@ -88,7 +89,7 @@ Implement tasks from an OpenSpec change.
    - Tasks completed this session
    - Overall progress: "N/M tasks complete"
    - If all done: invoke the `save` skill exactly once, follow it verbatim, then include its checkpoint result
-   - If paused with pending tasks: do not invoke `save`; explain why and remind the user that `/save` is available for an intentional partial checkpoint
+   - If paused with pending tasks: do not invoke `save` as a way of stopping; explain why and remind the user that `/save` is available for an intentional partial checkpoint
 
 **Output During Implementation**
 
@@ -147,7 +148,7 @@ What would you like to do?
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
 - Invoke the `save` skill exactly once whenever the selected change reaches or begins in the all-done state
-- Never invoke `save` automatically while pending tasks remain; the user can still request a partial checkpoint explicitly
+- Never invoke `save` as a way of stopping — paused, blocked, interrupted, or failed work is reported, and the user can still request a partial checkpoint explicitly. A task whose own definition of done needs the gate is the exception that proves it: invoking `save` there implements the task, so continue down the list afterwards. The `apply` skill owns this distinction; follow it
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
