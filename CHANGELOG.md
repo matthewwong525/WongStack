@@ -3,6 +3,33 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 11.4.0 — The app scaffold goes to latest
+
+**The [app scaffold](app/)'s dependencies moved to their latest versions, majors included.** A repo
+that took the scaffold and has not edited `app/package.json` is offered the new versions by
+`/wong-sync` like any other payload file; one that has edited it keeps its own and is left alone.
+
+- **TypeScript `~6.0.2` → `~7.0.2`** — the Go compiler. TypeScript 7 turns `strict` on by default
+  where a `tsconfig.json` does not set it, and the scaffold's three configs do not; they typecheck
+  clean under it regardless, so no config changed. It also drops `target: es5`, the `amd`/`umd`/
+  `systemjs`/`none` modules, and `moduleResolution: node10` — the scaffold uses `es2023` with
+  `bundler` and `nodenext`, so none of those apply. The `~` range is deliberate and was kept:
+  TypeScript does not follow semver.
+- **Vitest `^3.2.4` → `^4.1.10`** — a no-op for the scaffold's suite. Vitest 4 reworks browser mode,
+  renames `workspace` to `projects`, changes the v8 coverage pipeline and removes the `basic`
+  reporter; [`app/vitest.config.ts`](app/vitest.config.ts) uses none of them. It needs Vite ≥ 6 and
+  Node ≥ 20, and the scaffold is on Vite 8 with CI on Node 22.
+- **`@types/node` `^24.13.3` → `^26.2.0`** — two majors of type definitions. CI still runs Node 22,
+  so the types now describe a runtime newer than the one the suite executes on.
+- **Also bumped:** `react`/`react-dom` 19.2.8, `@cloudflare/vite-plugin` 1.51.2, `@types/react`
+  19.2.18, `@types/react-dom` 19.2.4, `@vitejs/plugin-react` 6.0.5, `oxlint` 1.78.0, `vite` 8.2.1,
+  `wrangler` 4.120.1.
+
+The bump was performed by a new meta-repo verb, `/update-dependencies`, which surveys installed
+against latest, updates, regenerates the OpenSpec layer, checks what rippled into the payload, and
+hands the diff to `/save`. **That skill is not payload** and never reaches a target repo — it
+maintains the WongStack clone itself. This entry exists because its run touched `app/`, which is.
+
 ## 11.3.0 — OpenSpec CLI 1.8.0
 
 **The planning layer moved from CLI 1.5.0 to 1.8.0** on the core profile, and the generated
