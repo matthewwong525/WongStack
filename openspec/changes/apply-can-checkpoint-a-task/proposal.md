@@ -1,6 +1,6 @@
 # apply-can-checkpoint-a-task
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Open questions:** none
 
 ## Why
@@ -71,3 +71,7 @@ _None._
   only and does **not** validate `#anchors`, so the three anchor links added here were checked by
   hand. Released as 10.2.0. Task 4.4 (confirm the gate) is the change dogfooding its own new rule —
   it is completed by this checkpoint, not by a local command.
+- **2026-08-10** — Gate green on PR #66, which completes task 4.4. The rule's first live
+  exercise worked exactly as written: `/apply` invoked `/save` to implement the final task rather
+  than to stop, and because that task was the last one, its checkpoint served as the completion
+  handoff with no second redundant save. Status: ready-to-ship.

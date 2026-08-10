@@ -20,4 +20,4 @@
 - [x] 4.1 Bump `VERSION` to `10.2.0` (behavioural payload change, backwards compatible).
 - [x] 4.2 Add the newest-first `CHANGELOG.md` entry for 10.2.0, explaining the deadlock and the exit-vs-implementation distinction in the voice of the existing entries.
 - [x] 4.3 Run `node scripts/check-payload-links.mjs` and fix any dead link it reports (this repo's payload check — it exits non-zero on a defect).
-- [ ] 4.4 Confirm the change passes the gate — push and read the CI result **via `/save`**; nothing builds locally here, so this task is completed by the checkpoint, not by a local command. (Doubles as the first live exercise of the rule this change adds.)
+- [x] 4.4 Confirm the change passes the gate — push and read the CI result **via `/save`**; nothing builds locally here, so this task is completed by the checkpoint, not by a local command. (Doubles as the first live exercise of the rule this change adds.)
