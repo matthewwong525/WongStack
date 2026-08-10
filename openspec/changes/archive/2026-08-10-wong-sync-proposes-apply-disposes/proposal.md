@@ -1,6 +1,6 @@
 # /wong-sync proposes, /apply disposes
 
-**Status:** ready-to-ship
+**Status:** ready-to-ship (archived 2026-08-10)
 **Open questions:** none
 
 ## Why
@@ -48,3 +48,4 @@ the approval path (which stays the plan review, never a prompt), the capability 
   - **Clarification stage added late, then unbounded.** Scoped to the three question kinds the evidence genuinely cannot settle, because the missing fact is intent. The initial cap of three was removed on review — a fixed number is wrong at both ends, and since unanswered already resolves toward `adopt`, the user is the real cap. Replaced with a per-question admission test plus one impact-ordered batch.
   - **Found during apply:** `wong-setup` linked the retired `#step-4--rewrite-the-manifest-always-last` anchor; the shipped `WONG-STACK` block still described the run as copying and updating; and `wiki/stack/d1-pipeline.md` carried one stale sentence. All three fixed as task group 4. Note `.claude` → `.agents` and `CLAUDE.md` → `AGENTS.md` are symlinks in this repo, so edits land in the tracked files directly.
   - **Not verifiable here.** The payload is prose and `/wong-sync` refuses to run against its own source, so nothing in this repo exercises the change. `node scripts/check-payload-links.mjs` passes in all four install shapes with no dead links; real verification is a target repo on 11.0.0.
+- **2026-08-10** — Archived by `/ship` and checkpointed. Delta specs were already folded into `openspec/specs/` during the preceding `/save`, so the archive re-applied nothing; the sync-state check confirmed both ADDED requirements, the REMOVED one, the RENAMED one, and the new `wong-sync-after-picture` spec all present. Merging squashes this record onto the default branch.
