@@ -78,3 +78,8 @@ _None._
 - **2026-08-10** — Archived to `openspec/changes/archive/2026-08-10-apply-can-checkpoint-a-task/`
   by `/ship`; `openspec/specs/apply-completion-handoff/` holds the synced result. Checkpointed by the
   ordinary `/save` that `/ship` delegates, then squash-merged on that gate result.
+- **2026-08-10** — Merge conflict with `main`, which had meanwhile shipped **v11.0.0** ("the sync
+  proposes, `/apply` disposes", PR #65). Resolved as the union of intent: v11.0.0 touched none of this
+  change's files — no semantic overlap, only `VERSION` and `CHANGELOG.md` collided. Renumbered this
+  release **10.2.0 → 11.1.0** and re-ordered the changelog newest-first. The earlier log entries say
+  10.2.0; **11.1.0 is the shipped version**, and `tasks.md` 4.1/4.2 name the pre-merge number.

@@ -61,6 +61,13 @@ it the loop's rule instead of one skill's exception.
   name `macabre-jellyfish`) did not match the change name. Renamed to the change name in `/save`
   Step 3 — free, since it had no commits and no remote.
 
+## Release numbering
+
+Shipped as **11.1.0**, not the 10.2.0 the plan and tasks name. `main` shipped v11.0.0 (the wong-sync
+"proposes, `/apply` disposes" change) while this branch was open, so the version was renumbered at
+merge-conflict resolution. v11.0.0 touched none of this change's files — the collision was `VERSION`
+and `CHANGELOG.md` only.
+
 ## Open thread
 
 `openspec list` shows a change named `improve-openspec-plans` with **no tasks** and an empty folder.
