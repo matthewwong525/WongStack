@@ -50,3 +50,6 @@ skill that every `openspec update` silently wiped — a maintenance trap with no
   `update` workflow (`openspec-update-change`) at the user's direction after it was initially
   skipped. Manifest, CLAUDE.md, change-loop wiki, wong-setup, VERSION 11.3.0, and CHANGELOG
   updated; link check green.
+- **2026-08-10** — Shipped: checkpointed on PR #68 (CI green, commit f94a95a), archived to
+  `openspec/changes/archive/2026-08-10-update-openspec-deps/` via `/ship`, no delta specs to
+  sync.
