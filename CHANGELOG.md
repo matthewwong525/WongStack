@@ -3,6 +3,32 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 11.3.0 — OpenSpec CLI 1.8.0
+
+**The planning layer moved from CLI 1.5.0 to 1.8.0** on the core profile, and the generated
+artifacts were refreshed with `openspec update`. What a repo on 1.8.0 looks like:
+
+- **The `.claude/commands/opsx/` directory is gone.** 1.8.0 delivers workflows only as skills, and
+  its updater deletes the `opsx/*.md` command files an older CLI generated. This repo's five
+  pointer commands went with it — deprecated commands are not kept deliberately. Nothing changes in
+  practice: the `openspec-*` skills own the behavior, and the WongStack verbs (`/explore` `/plan`
+  `/apply` `/save` `/ship`) front them as before. Docs that say "OpenSpec's `/opsx:propose`" keep
+  the name as a label for the step, not a command you can run.
+- **The generated `openspec-*` skills are pristine upstream output from now on.** This repo used to
+  carry local edits inside `openspec-apply-change` (the `/save` handoff), which every CLI update
+  silently wiped. The duplication is dropped: [`/apply`](.claude/skills/apply/SKILL.md) already owns
+  that behavior — the all-done handoff to `/save`, the gate-task exception, never-checkpoint-to-stop
+  — and wraps the generated skill with it. Customize the verb, regenerate the layer freely. The
+  [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) records the rule.
+- **The `update` workflow is adopted.** The profile moved to core, which adds a sixth generated
+  skill, `openspec-update-change` — revise an existing change's planning artifacts and keep them
+  coherent; it never edits code. No WongStack verb fronts it yet; it is available directly.
+- **Upstream 1.8.0 additions in the regenerated skills:** store-aware `planningHome.root` paths, a
+  sticky `--store` flag, stricter delta-spec selection during sync and archive, and new
+  `context`/`operationGuidance` prompt inputs. These skills are generated per repo, not payload — a
+  target picks them up by updating its own CLI
+  (`npm install -g @fission-ai/openspec@latest && openspec update`).
+
 ## 11.2.0 — the sync composes, your `/plan` authors
 
 **`/wong-sync` hand-rolled its own OpenSpec change.** It wrote `proposal.md` and `tasks.md` itself,

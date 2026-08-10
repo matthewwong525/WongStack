@@ -69,7 +69,7 @@ including worktree resolution and duplicate reconciliation, is
   Nothing else gates a merge; the staging walkthrough is `/walk`'s job and gates nothing.
 - **Use the WongStack skills** — a thin verb over each OpenSpec step, so the OpenSpec layer is
   something you drive through these verbs rather than invoke directly. (`openspec init` generates
-  five `openspec-*` skills, which the verbs below call; it generates no `/opsx:*` slash commands, so
+  six `openspec-*` skills, which the verbs below call; it generates no `/opsx:*` slash commands, so
   don't reach for one.)
   `/explore` (think it through — `openspec-explore`), `/plan` (draft the change — `openspec-propose`),
   `/apply` (ensure an apply-ready change, invoking `/plan` when needed; implement the tasks, then hand completed work to `/save` — `openspec-apply-change`), `/save` (sync specs + maintain the Status header +
