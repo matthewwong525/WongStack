@@ -41,6 +41,14 @@ Worth remembering as a general fact about this repo: **`app/**` is payload.** A 
 Current: openspec 1.8.0, agent-browser 0.33.2, git 2.53.0.
 Left behind deliberately, needing `sudo`/apt and therefore the user's call: **`gh` 2.46.0 → 2.97.0** and **Node 22.22.1 → 26.7.0**. CI pins Node 22 in both `test.yml` and `deploy.yml`, so a local Node bump would diverge from CI unless those move too — worth deciding together rather than separately.
 
+**The stale `gh` is already costing us.** During `/save`, `gh pr edit --body-file` failed outright:
+
+```
+GraphQL: Projects (classic) is being deprecated in favor of the new Projects experience [...] (repository.pullRequest.projectCards)
+```
+
+`gh` 2.46.0 requests `projectCards` in its PR mutation, and GitHub no longer serves it — so **`gh pr edit` is broken on this machine for every repo**, not just this one. Workaround that does work: `gh api -X PATCH repos/:owner/:repo/pulls/<n> -F body=@file`. Worth knowing because `/save` regenerates the PR body on every checkpoint, so this will recur until `gh` is upgraded.
+
 ## Open threads
 
 - The `gh`/Node question above.
