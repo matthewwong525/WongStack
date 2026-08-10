@@ -3,6 +3,44 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 11.2.0 — the sync composes, your `/plan` authors
+
+**`/wong-sync` hand-rolled its own OpenSpec change.** It wrote `proposal.md` and `tasks.md` itself,
+at a hardcoded path — duplicating authoring `/plan` already owns, ignoring the target repo's own
+planning configuration, and skipping the check that the change is apply-ready.
+
+**Now it delegates.** Everything before the change is unchanged — clone refresh, the
+newest-instructions rule, the blob-hash proof, cartographer and surveyor, the clarification stage,
+the verdicts, the changelog accounting, the verdict record. What changes is the last step: the sync
+composes the change name, the after-picture proposal body, the coarse task list, and the spec
+scoping, then invokes **this repo's own plan skill** with all of it as one fully resolved
+instruction — the same instruction a user holding all the facts would type.
+
+- **`/plan` is not modified.** The delegation is an invocation, not a contract, so it works with
+  whatever version a target has — including a locally edited one the sync must never touch. `/plan`
+  and `/apply` are untouched, and the fronted `openspec-propose` step stays verbatim.
+- **The collision is resolved sync-side.** The sync checks for an existing
+  `sync-wongstack-<YYYY-MM-DD>` folder and passes the already-suffixed `-2`/`-3` name, so the plan
+  skill never faces a collision and never asks whether to continue an existing, possibly mid-flight
+  change.
+- **No new prompts.** The invocation comes after the clarification stage, so every question is
+  already answered in the instruction. A blocker returns to the sync, which reports it; the approval
+  decision is still never a prompt.
+- **Delta specs for `adopt` grafts only.** Payload copies and updates are vendored files whose
+  specification lives upstream — a copy in the target's `openspec/specs/` goes stale the moment
+  upstream moves. Stated explicitly in the instruction, because the default is to emit them broadly.
+  `design.md`, if written, is a per-run snapshot; `.claude/wong-sync-verdicts.md` stays the one
+  authoritative store of verdicts.
+- **The plan skill is resolved through the manifest's `components.skills`**, so a local rename is
+  found under its local name. A target with **no** plan skill falls back to today's hand-rolled
+  write, named in the report as a degraded mode.
+
+The run still writes no payload file, still runs no git, and still changes nothing until you
+`/apply`.
+
+Touched: `.claude/skills/wong-sync/SKILL.md` and
+`.claude/skills/wong-sync/references/adapt.md`.
+
 ## 11.1.0 — a task that needs the gate is finished by the gate
 
 **`/apply` could be told to do something it was forbidden to do.** Its boundary read *never invoke
