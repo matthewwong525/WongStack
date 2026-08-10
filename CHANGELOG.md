@@ -3,6 +3,87 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 11.0.0 — the sync proposes, `/apply` disposes
+
+`/wong-sync` has always said *"it proposes; it never implements"* — and then copied files in before
+you had seen anything. The plan it wrote described a repo that had already changed, as a list of
+files rather than a picture of what your repo becomes, and it had nowhere to tell you what adopting
+would **cost** you. All three of those are fixed here, and all three are breaking.
+
+**BREAKING — the run writes no payload file.** It analyses, writes one OpenSpec change, and stops.
+Every copy, every update, the `WONG-STACK` block, a newer `wong-sync`, and the manifest rewrite are
+now **tasks in that plan**, performed by `/apply` and checkpointed by `/save`. So nothing in your
+repo changes until you approve the plan — and the gate is the loop you already run on, not a prompt:
+reviewable when you have time, editable before it runs, visible in the pull request diff. The run
+stays non-interactive about approval, so this is no longer a trade. **The one exception, stated in
+the skill's hard rules so it is never read as unconditional:** a *seed manifest* (`version` and
+`commit` both null, meaning `/wong-setup` just handed off) still copies during the run, because
+there the copy **is** the install and there is no repo state for it to supersede.
+
+**BREAKING — `proposal.md` is an after-picture, not a changeset list.** Four regions, always all
+present: **After** (how this repo works once this lands, in its own terms), **Gain** (grouped by
+what you'll be able to *do*, each naming what it replaces here — never a flat file list, so a
+sixty-file first sync reads the same as a two-file update), **Lose**, and **Resolution**.
+
+**The Lose region is new, and it is the point.** Losses were never absent — they were unaddable.
+"Never overwrite local authorship" covers the *file copy*, which is exactly where the losses aren't;
+the real ones live in the grafts, one per task, never totalled. Now they are: **superseded
+mechanisms** (a convention of yours stops being how things are done here), **new obligations** (work
+now passes through a branch, a PR, a CI gate), and **lost optionality**. An empty Lose region must
+say *why* it's empty — "nothing is overwritten" is not evidence that a sync costs nothing.
+**Resolution** is the honesty valve: a graft that can't be described concretely yet is named there,
+not smoothed into After. A narrative reads as more certain than a task list, and it's the thing
+being approved.
+
+**BREAKING — the self-update pass is retired.** It conflated two things that turn out to be
+separate: *following* upstream's newest instructions, and *installing* them. Following is a read of
+the clone you already fetched — no write at all. So the run now reads `SKILL.md` and `references/**`
+from the clone and obeys them, while installing them becomes an ordinary task in the plan. The same
+blob-hash proof still governs it (a locally edited `wong-sync` keeps its own logic and is never read
+over), the discard-and-re-read discipline is unchanged, and the version-skew disclosure stays. What
+goes away is the one write nobody could ever gate: the skill rewriting its own decision procedure
+before you'd seen a thing. The at-most-once guard goes too — with no write, there's nothing to loop
+on.
+
+**New: a clarification stage, before the plan exists.** Between the two subagents and verdict
+assignment, the sync may now ask you things — but only what the repo itself cannot answer, because
+the missing fact is your *intent*: is this local difference deliberate (which is what `divergent`
+requires), is this unmet assumption a gap or a choice (which decides `not-applicable`), which of two
+shapes should this graft take. It **never** asks whether you want a capability and never asks for
+approval; that stays the plan review. There's no fixed number — a cap is wrong at both ends — but
+each question must change the plan to be asked at all, and they arrive in one batch ordered by
+impact. **Answer the first few and stop:** unanswered resolves toward `adopt`, so a run nobody
+answers still finishes and still writes its plan, and a cron run asks nothing. Answers are recorded
+as *your* word with the clone commit, so they aren't asked again until upstream moves.
+
+**Refusing an adoption is now possible.** Every line in `.claude/wong-sync-verdicts.md` is a
+checkbox now, including the `adopt` group. Tick a non-`adopt` line to force it, as before; tick an
+`adopt` line to **decline** it, recorded against the clone commit. `declined` was previously
+near-unreachable — it may never be inferred, and nothing ever asked you. Deleting a task or never
+running `/apply` is still **not** a refusal: not yet done is not no, so those come back next run.
+
+**`present` must now name its evidence.** Its reason line has to say *where this repo expresses*
+the capability — a path, a convention, a tool — or the verdict is `adopt`. `divergent` has required
+a named local mechanism for a while; `present` was the one verdict with no bar, which made it the
+softest place for a gap to hide. Relatedly, an unmet `assumes` no longer disposes of a capability on
+its own: a repo with no CI may *want* CI, so that's a question or an `adopt`, not a silent
+`not-applicable`.
+
+**The manifest records payload state.** `version` and `commit` now mean *which upstream release this
+repo's files were brought to*, so the rewrite is the plan's last file task rather than a step of the
+run. An unapplied plan therefore leaves them alone and the next run walks the same changelog span
+again, instead of believing you're current. Take the files and only some grafts and nothing hides
+either — the verdict record recomputes everything except `declined` every run.
+
+**Also:** file work is one coarse task per kind rather than one per file (sixty tasks is a wall, and
+a scripted copy beats a hand-copied one); the *"review the N files this sync landed"* task is gone,
+because nothing lands unreviewed; and an unapplied sync plan no longer suppresses a new one — a
+changed situation deserves a changed plan, and the report names the older folder so it stays visible.
+
+**What you have to do: nothing.** An installed older `wong-sync` keeps working exactly as it did and
+proposes its own update on the next run. Existing `sync-wongstack-*` and `adopt-wongstack-*` folders
+are left alone.
+
 ## 10.1.0 — tests belong to the app
 
 **No repo-root `package.json` is shipped any more.** It left the core payload one release after it

@@ -352,7 +352,7 @@ Staying on Workers Builds is supported and needs no changes — point its build 
 
 ## Adopting the staging environment
 
-For a repo running the older model — one Worker, a `preview_database_id`, and a `swap-d1-id.js` that rewrote the binding on preview branches. [`/wong-sync`](../../.claude/skills/wong-sync/SKILL.md) never modifies a file you authored, so it copies in what's missing, updates only payload files that are provably unmodified, and leaves the rest to you. This is the sequence, ordered so that stopping partway leaves the repo behaving exactly as it did before:
+For a repo running the older model — one Worker, a `preview_database_id`, and a `swap-d1-id.js` that rewrote the binding on preview branches. [`/wong-sync`](../../.claude/skills/wong-sync/SKILL.md) never modifies a file you authored, so it proposes what's missing and the payload files that are provably unmodified, and leaves the rest to you. This is the sequence, ordered so that stopping partway leaves the repo behaving exactly as it did before:
 
 1. **Create the staging twins** — a D1 database (reuse the one `preview_database_id` already points at), plus a queue, bucket, or KV namespace for each stateful binding the Worker has. See [the twin table](#twin-every-stateful-binding).
 2. **Add the `env.staging` block** to `wrangler.jsonc`, redeclaring every stateful binding, and remove `preview_database_id`. Nothing changes yet — the deploy command is still the default.
