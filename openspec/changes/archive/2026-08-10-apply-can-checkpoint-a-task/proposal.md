@@ -75,3 +75,6 @@ _None._
   exercise worked exactly as written: `/apply` invoked `/save` to implement the final task rather
   than to stop, and because that task was the last one, its checkpoint served as the completion
   handoff with no second redundant save. Status: ready-to-ship.
+- **2026-08-10** — Archived to `openspec/changes/archive/2026-08-10-apply-can-checkpoint-a-task/`
+  by `/ship`; `openspec/specs/apply-completion-handoff/` holds the synced result. Checkpointed by the
+  ordinary `/save` that `/ship` delegates, then squash-merged on that gate result.
