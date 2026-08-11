@@ -3,27 +3,33 @@
 # same every time, so the only thing the agent authors per run is the journeys
 # themselves.
 #
-# `/walk` calls this, in four phases:
+# `/verify` calls this, in four phases:
 #
-#   walk-staging.sh scout-check          → can a walk start at all? (no network)
-#   walk-staging.sh preflight            → can we walk, and what do we walk?
-#   walk-staging.sh run <run-dir> <url>  → drive the journeys, capture evidence
-#   walk-staging.sh cleanup <run-dir>    → leave no trace
+#   verify-staging.sh scout-check          → can a walk start at all? (no network)
+#   verify-staging.sh preflight [--no-browser]
+#                                          → can we walk, and what do we walk?
+#   verify-staging.sh run <run-dir> <url>  → drive the journeys, capture evidence
+#   verify-staging.sh cleanup <run-dir>    → leave no trace
 #
 # `scout-check` exists so that "there is nothing to walk" costs nothing. It
 # answers the one question the scout needs before spending anything — are we in
 # a repository whose change we can read — while touching no credential, no API,
-# and no network. The skill runs it first, scouts the change's scenarios, and
-# only spends /save and preflight once it knows at least one journey exists. A
-# pure-backend change therefore reaches NONE without a push, a CI wait, or a
-# browser.
+# and no network. The skill runs it first, scouts the change's scenarios into
+# probes (browser journeys, request probes, state probes), and only spends
+# /save and preflight once it knows at least one journey exists. A change with
+# no probe-reachable scenario therefore reaches NONE without a push, a CI wait,
+# or a browser.
+#
+# `--no-browser` on preflight: an all-probe walk (requests and state reads
+# only) needs no browser, so the flag skips the agent-browser install and
+# check rather than failing the walk over a tool it will not use.
 #
 # ── What this script does NOT do ──────────────────────────────────────────────
-# It never decides whether a journey passed. It captures evidence; `/walk` reads
-# that evidence against the scenario's written THEN. So this script prints
-# NONE / UNKNOWN / TIMEOUT / READY / WALKED and deliberately never prints
-# SUCCESS or FAILURE — those two words belong to the grader, and printing them
-# here would let a run *look* graded when nothing had judged it.
+# It never decides whether a journey passed. It captures evidence; `/verify`
+# reads that evidence against the scenario's written THEN. So this script
+# prints NONE / UNKNOWN / TIMEOUT / READY / WALKED and deliberately never
+# prints SUCCESS or FAILURE — those two words belong to the grader, and
+# printing them here would let a run *look* graded when nothing had judged it.
 #
 #   RESULT: NONE     — there is nothing to walk.
 #   RESULT: READY    — preflight passed; the facts below say where to walk.
@@ -31,7 +37,7 @@
 #   RESULT: UNKNOWN  — the walk could not run or could not be trusted (no
 #                      browser, no URL, unreachable staging, an Access
 #                      challenge). UNVERIFIED, which is not the same as "there
-#                      was nothing to walk" — /walk must report it as such.
+#                      was nothing to walk" — /verify must report it as such.
 #   RESULT: TIMEOUT  — the walk did not finish inside its budget.
 #
 # After RESULT come indented human lines, then KEY=VALUE facts for the caller.
@@ -41,14 +47,16 @@
 # repo's consent, because nothing would install it. The browser is now
 # `agent-browser`, a standalone CLI installed on the machine and never added to
 # the repository, so there is no repo state left to read — and no need for one.
-# NONE now means exactly one thing: this change has no browser-observable
-# scenarios. It never means "this repo did not opt in".
+# NONE now means exactly one thing: this change has no scenario any probe can
+# reach. It never means "this repo did not opt in".
 #
 # This script DOES install its own tool, and says so. It never installs a
 # language runtime: that still asks first, per the toolchain convention.
 #
-# Depends on: git, agent-browser. (`publish` additionally uses wrangler, and is
-# optional and stack-pack-only — nothing else here needs it.)
+# Depends on: git, curl; agent-browser only when a browser journey exists.
+# (`publish` additionally uses wrangler, and is optional and stack-pack-only —
+# nothing else here needs it. Its WALK_MEDIA_* variables keep their historical
+# names: renaming a variable users already set breaks them silently.)
 set -uo pipefail
 
 CMD="${1:-preflight}"
@@ -101,7 +109,7 @@ case "$CMD" in
 # The cheap half of preflight. Deliberately does NOT check the browser, install
 # anything, or look for a URL — those all describe whether a walk can *run*, and
 # there is no point asking that before knowing whether there is anything to
-# walk. Splitting them is what lets a backend-only change exit NONE for free.
+# walk. Splitting them is what lets an unobservable change exit NONE for free.
 scout-check)
   if [ -z "$ROOT" ]; then
     emit UNKNOWN; note "not inside a git repository"; exit 0
@@ -120,38 +128,44 @@ preflight)
     emit UNKNOWN; note "not inside a git repository"; exit 0
   fi
 
-  # The browser is a tool on this machine, so install it when it is missing
-  # rather than reporting its absence. Nothing about this touches the
-  # repository: no manifest, no dependency entry, no lockfile.
-  INSTALLED=""
-  if ! command -v agent-browser >/dev/null 2>&1; then
-    if ! command -v npm >/dev/null 2>&1; then
-      emit UNKNOWN
-      note "agent-browser is not installed and no installer is available on this machine."
-      note "Install it with one of: npm i -g agent-browser · brew install agent-browser ·"
-      note "cargo install agent-browser — then run /walk again."
-      exit 0
-    fi
-    npm install -g agent-browser >/dev/null 2>&1
-    INSTALLED="agent-browser"
-    if ! command -v agent-browser >/dev/null 2>&1; then
-      emit UNKNOWN
-      note "installing agent-browser failed; nothing was walked."
-      exit 0
-    fi
-  fi
+  NEED_BROWSER=1
+  [ "${2:-}" = "--no-browser" ] && NEED_BROWSER=0
 
-  # `doctor` is a real check, not a version string: it launches a browser
-  # headlessly. That is why preflight can promise the walk will have a browser
-  # instead of discovering otherwise three journeys in.
-  if ! agent-browser doctor --json >/dev/null 2>&1; then
-    agent-browser install --with-deps >/dev/null 2>&1
-    INSTALLED="${INSTALLED:+$INSTALLED and }Chrome"
+  # The browser is a tool on this machine, so install it when it is missing
+  # rather than reporting its absence — but only when a browser journey needs
+  # it. Nothing about this touches the repository: no manifest, no dependency
+  # entry, no lockfile.
+  INSTALLED=""
+  if [ "$NEED_BROWSER" -eq 1 ]; then
+    if ! command -v agent-browser >/dev/null 2>&1; then
+      if ! command -v npm >/dev/null 2>&1; then
+        emit UNKNOWN
+        note "agent-browser is not installed and no installer is available on this machine."
+        note "Install it with one of: npm i -g agent-browser · brew install agent-browser ·"
+        note "cargo install agent-browser — then run /verify again."
+        exit 0
+      fi
+      npm install -g agent-browser >/dev/null 2>&1
+      INSTALLED="agent-browser"
+      if ! command -v agent-browser >/dev/null 2>&1; then
+        emit UNKNOWN
+        note "installing agent-browser failed; nothing was walked."
+        exit 0
+      fi
+    fi
+
+    # `doctor` is a real check, not a version string: it launches a browser
+    # headlessly. That is why preflight can promise the walk will have a browser
+    # instead of discovering otherwise three journeys in.
     if ! agent-browser doctor --json >/dev/null 2>&1; then
-      emit UNKNOWN
-      note "no browser could be obtained — agent-browser's own environment check failed."
-      note "Run 'agent-browser doctor' to see which check failed. Nothing was walked."
-      exit 0
+      agent-browser install --with-deps >/dev/null 2>&1
+      INSTALLED="${INSTALLED:+$INSTALLED and }Chrome"
+      if ! agent-browser doctor --json >/dev/null 2>&1; then
+        emit UNKNOWN
+        note "no browser could be obtained — agent-browser's own environment check failed."
+        note "Run 'agent-browser doctor' to see which check failed. Nothing was walked."
+        exit 0
+      fi
     fi
   fi
 
@@ -170,12 +184,16 @@ preflight)
     exit 0
   fi
 
-  RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/wong-walk-XXXXXX")
+  RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX")
   emit READY
   echo "URL=$URL"
   echo "RUN_DIR=$RUN_DIR"
   echo "SHA=$(git rev-parse HEAD)"
-  echo "BROWSER=local ($(agent-browser --version 2>/dev/null | head -1))"
+  if [ "$NEED_BROWSER" -eq 1 ]; then
+    echo "BROWSER=local ($(agent-browser --version 2>/dev/null | head -1))"
+  else
+    echo "BROWSER=none (not needed)"
+  fi
   [ -n "$INSTALLED" ] && echo "INSTALLED=$INSTALLED"
   ;;
 
@@ -185,14 +203,15 @@ run)
   URL="${3:-}"
   BUDGET="${4:-10}"   # minutes
   if [ -z "$RUN_DIR" ] || [ -z "$URL" ]; then
-    emit UNKNOWN; note "usage: walk-staging.sh run <run-dir> <url> [budget-minutes]"; exit 0
+    emit UNKNOWN; note "usage: verify-staging.sh run <run-dir> <url> [budget-minutes]"; exit 0
   fi
-  if ! ls "$RUN_DIR"/journeys/*.batch.json >/dev/null 2>&1; then
-    # Preflight succeeded but the scout found nothing browser-observable. That's
-    # a real answer, not a failure: a change whose scenarios all live off the
-    # request path (a queue consumer, a cron) has nothing a browser can see.
+  if ! ls "$RUN_DIR"/journeys/*.batch.json >/dev/null 2>&1 \
+     && ! ls "$RUN_DIR"/journeys/*.requests.txt >/dev/null 2>&1; then
+    # Preflight succeeded but the scout wrote no journeys. That's a real
+    # answer, not a failure: a change whose scenarios no probe can reach has
+    # nothing to drive.
     emit NONE
-    note "no journeys were written — nothing browser-observable in this change"
+    note "no journeys were written — no scenario any probe can reach in this change"
     exit 0
   fi
 
@@ -200,8 +219,8 @@ run)
   # preflight — `run` may be invoked from a different shell.
   load_credentials "$ROOT" || true
 
-  WALK_URL="$URL" \
-  timeout "${BUDGET}m" bash "$(dirname "${BASH_SOURCE[0]}")/walk-runner.sh" "$RUN_DIR"
+  VERIFY_URL="$URL" \
+  timeout "${BUDGET}m" bash "$(dirname "${BASH_SOURCE[0]}")/verify-runner.sh" "$RUN_DIR"
   STATUS=$?
 
   case "$STATUS" in
@@ -211,15 +230,15 @@ run)
     124) emit TIMEOUT; note "the walk exceeded its ${BUDGET}-minute budget" ;;
     # The driver exits 3 when it recognised a Cloudflare Access challenge. That
     # case is worth its own exit code because it is the one failure that would
-    # otherwise look like success: without the check, the walk screenshots a
-    # login form and a grader could read "a page rendered" as a pass.
+    # otherwise look like success: without the check, the walk screenshots (or
+    # curls) a login form and a grader could read "a page rendered" as a pass.
     # It is reported here as a *cause*, not as a dead end: where a Cloudflare
     # API token exists, the skill mints a service token, retries once, and only
     # then reports UNKNOWN. Keeping the diagnosis in the script and the repair
     # in the skill is deliberate — the script stays side-effect-free.
     3)   emit UNKNOWN
          note "the preview answered with a Cloudflare Access login challenge."
-         note "BLOCK=access-challenge — with a Cloudflare API token, /walk mints a"
+         note "BLOCK=access-challenge — with a Cloudflare API token, /verify mints a"
          note "service token and retries once. Without one the heal is unavailable."
          note "Either way this is UNVERIFIED, never a graded login page." ;;
     *)   emit UNKNOWN; note "the driver exited $STATUS before finishing" ;;
@@ -230,7 +249,8 @@ run)
 # Optional, and stack-pack-only. Uploads the run's screenshots to a public
 # bucket so the PR comment can show them instead of naming local paths, and
 # prints a `<local-path><TAB><public-url>` line per file for the caller to
-# substitute.
+# substitute. Request- and state-probe evidence is text, quoted inline in the
+# comment, and never uploaded.
 #
 # Nothing depends on this. With no bucket configured the comment cites local
 # paths, which is a rung down, not a failure — the prose carries the record and
@@ -271,14 +291,16 @@ cleanup)
   # Only ever remove a directory this script made, under the system temp dir.
   # Nothing the walkthrough writes has ever been inside the repo, so there is
   # nothing here that could touch the working tree even if this were wrong.
+  # The wong-walk-* pattern is accepted alongside wong-verify-* so a run
+  # directory left by the previous skill name can still be cleaned.
   case "$RUN_DIR" in
-    */wong-walk-*) rm -rf "$RUN_DIR"; echo "cleaned $RUN_DIR" ;;
+    */wong-verify-*|*/wong-walk-*) rm -rf "$RUN_DIR"; echo "cleaned $RUN_DIR" ;;
     *) echo "refusing to remove '$RUN_DIR' — not a walkthrough run directory" >&2; exit 1 ;;
   esac
   ;;
 
 *)
-  echo "usage: walk-staging.sh {scout-check|preflight|run <run-dir> <url> [minutes]|publish <run-dir>|cleanup <run-dir>}" >&2
+  echo "usage: verify-staging.sh {scout-check|preflight [--no-browser]|run <run-dir> <url> [minutes]|publish <run-dir>|cleanup <run-dir>}" >&2
   exit 1
   ;;
 esac

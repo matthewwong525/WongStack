@@ -5,7 +5,7 @@
 A core workflow runs the repository's own test suite as an ordinary check on every commit, in every
 repo whether or not it took the stack pack, and the change loop grows that suite as a standing task
 convention. `npm test` is the whole contract, so any runner satisfies it. Distinct from the
-end-to-end evidence `/walk` produces: these tests accumulate, run on every push, and gate through CI,
+end-to-end evidence `/verify` produces: these tests accumulate, run on every push, and gate through CI,
 while a walk is throwaway acceptance for one change and gates nothing.
 
 ## Requirements

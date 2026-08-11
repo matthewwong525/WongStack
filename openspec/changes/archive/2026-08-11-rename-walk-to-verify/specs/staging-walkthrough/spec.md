@@ -1,10 +1,4 @@
-# staging-walkthrough Specification
-
-## Purpose
-
-The staging walkthrough, reached by invoking `/verify`: the change's own OpenSpec scenarios exercised end to end against the deployed preview — each matched to the strongest probe that can observe it (a real browser for UI journeys, direct HTTP requests for the request path, existing commands reading deployed state for the rest) — and graded against their written `THEN`. Ships in the core payload and works in a repo of any language on any stack, because the browser is a standalone CLI installed on the machine only when a browser journey needs it, rather than a dependency added to the repository. Covers the `/save`-first ordering that makes a per-commit preview URL exist, how the walk provisions its own tool without touching the repo, how scenarios become declarative journeys, what the walk captures (screenshots and captured responses, not video), how it is graded, the five verdicts as *reports* rather than gates, failure recovery, and where the evidence lands — including the by-name listing of scenarios no probe can reach. It gates nothing: `/ship` runs one walk for evidence and merges on the CI result regardless, stopping only to ask the user what to do about a `FAILURE`.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Walkthrough credentials follow the durable worktree store
 
@@ -80,40 +74,6 @@ The browser tool the walk uses SHALL also be available for ordinary browser work
 - **WHEN** `/verify` is invoked on a branch whose `tasks.md` still has unchecked tasks
 - **THEN** the walk runs against whatever is deployed for the current commit
 - **AND** the incomplete state of the change is not treated as an error
-
-### Requirement: /verify begins by invoking /save
-
-`/verify` SHALL scout the change's scenarios into candidate journeys **before** invoking `/save` and before any credential preflight. The scout reads only local files (the change's delta specs and any touched synced specs), so it costs no push, no CI wait, and no API call. When the scout finds no scenario that any probe can reach, the verdict SHALL be `NONE`, reported in one line, and `/save`, preflight, and every remote step SHALL be skipped.
-
-When at least one journey exists, `/verify` SHALL invoke `/save` before walking, so the commit under test is pushed, CI has run, and the per-commit preview URL exists. `/verify` SHALL NOT implement any git action itself — it delegates, as `/apply` does when it hands completed work to `/save`. Because the scout reads the same working tree that `/save` then commits, the journeys and the deployed commit SHALL describe the same change.
-
-The walk SHALL target the per-commit preview alias discovered by the existing preview-URL helper for the current head SHA. It SHALL NOT ask the user for a URL, and SHALL NOT construct one from a worker-name convention: a hand-built URL can address a commit that was never deployed and still answer `200`.
-
-When `/save` reports that CI is absent (`NONE`), `/verify` SHALL still proceed if a preview URL can be discovered, and SHALL treat an undiscoverable URL as a condition to report rather than a URL to guess.
-
-#### Scenario: Nothing observable costs nothing
-
-- **WHEN** `/verify` is invoked on a change whose scenarios have no deployed surface any probe can reach (pure library code, behavior observable only by local execution)
-- **THEN** the scout returns no journeys and the verdict is `NONE` with a one-line explanation
-- **AND** no `/save`, no credential preflight, and no browser or probe session occurs
-
-#### Scenario: Save runs first when there is something to walk
-
-- **WHEN** `/verify` is invoked on a branch with uncommitted work and at least one probe-reachable scenario
-- **THEN** the scout runs, then `/save` runs — committing, pushing, waiting for CI, and resolving the preview URL
-- **AND** the walk targets the URL that `/save` resolved
-
-#### Scenario: The target URL is discovered, not configured
-
-- **WHEN** the walk needs a URL
-- **THEN** it uses the per-commit preview URL produced by the preview-URL helper for the current head SHA
-- **AND** it neither prompts for a URL nor derives one from a naming convention
-
-#### Scenario: No discoverable preview URL
-
-- **WHEN** the repo's CI does not deploy, so no preview URL exists for this commit
-- **THEN** the verdict is `UNKNOWN` and the report names the missing deployment as the cause
-- **AND** no URL is guessed
 
 ### Requirement: The walk provisions its own tool, never a repo dependency
 
@@ -194,54 +154,6 @@ The driver SHALL be kept thin enough that replacing the browser tool means rewri
 - **WHEN** every journey the scout emits is a request or state probe
 - **THEN** preflight skips the browser check and the walk proceeds
 - **AND** no browser is installed or launched for it
-
-### Requirement: Scenarios become journeys, matched to the strongest probe
-
-A scout SHALL derive the journeys from the change's own OpenSpec scenarios rather than from the application's routes or components. Its inputs SHALL be the delta specs under `openspec/changes/<slug>/specs/**`, plus the scenarios of any capability in `openspec/specs/` that the branch diff touches. The full synced spec surface SHALL NOT be walked — the walk is acceptance for this change, not a regression suite whose cost grows with the app.
-
-The scout SHALL match each scenario to the **strongest probe that can observe it end to end** against the deployed preview, rather than keeping only what a browser can see:
-
-- **Browser journey** — the scenario is observable through rendered UI. Driven with the browser CLI.
-- **Request probe** — the scenario is observable on the request path but not through UI: an API endpoint, a webhook, a redirect, a header, a status code. Driven as direct HTTP requests against the preview URL, with each request and response captured as evidence. No browser is required.
-- **State probe** — the scenario's effect is observable through a command that already exists at the machine level or in the stack pack, applied to deployed state — for example, a triggering request followed by a query of the staging database. The walk SHALL NOT add tooling to the repository to make a scenario observable.
-
-A scenario no probe can reach — behavior with no deployed surface, or observable only by building or executing the repository's code locally — SHALL be excluded from the journeys and listed **by name** in the report as unverified, so the exclusion is visible rather than silent.
-
-Each journey SHALL carry the scenario's `WHEN` as its steps and the scenario's `THEN`, verbatim, as its pass criterion, whatever the probe.
-
-#### Scenario: Scope is the change plus what the diff touches
-
-- **WHEN** the scout runs on a change with delta specs for one capability, whose diff also edits files covered by a second capability's spec
-- **THEN** the journeys cover the delta scenarios and the second capability's scenarios
-- **AND** capabilities unrelated to both are not walked
-
-#### Scenario: An API scenario is probed without a browser
-
-- **WHEN** a change's scenario describes an endpoint's status code and response body, with no UI
-- **THEN** the scout emits a request probe rather than excluding the scenario
-- **AND** the captured request and response are its evidence
-
-#### Scenario: An off-request-path effect is probed through state
-
-- **WHEN** a scenario describes a queue consumer whose effect lands in the staging database, and an existing stack-pack command can query that database
-- **THEN** the scout emits a state probe — the triggering request, then the query
-- **AND** no tooling is added to the repository to make the observation possible
-
-#### Scenario: The unreachable is listed, not dropped
-
-- **WHEN** a scenario is observable only by executing the repository's code locally
-- **THEN** it is excluded from the journeys
-- **AND** the report lists it by name as unverified
-
-#### Scenario: The pass criterion is the scenario's own words
-
-- **WHEN** a journey is built from a scenario
-- **THEN** its expected outcome is the scenario's `THEN` text, not a restatement invented by the scout
-
-#### Scenario: Destructive journeys are walked
-
-- **WHEN** a scenario describes deleting a record
-- **THEN** the scout includes it as a journey rather than skipping it as unsafe
 
 ### Requirement: The walk is throwaway and saves nothing
 
@@ -455,3 +367,101 @@ It SHALL also record the decisions this capability **reversed or dropped, with t
 
 - **WHEN** a reader asks why this browser tool was chosen over the alternatives
 - **THEN** the runbook names the alternatives, the deciding argument, and what replacing the engine would cost
+
+## ADDED Requirements
+
+### Requirement: /verify begins by invoking /save
+
+`/verify` SHALL scout the change's scenarios into candidate journeys **before** invoking `/save` and before any credential preflight. The scout reads only local files (the change's delta specs and any touched synced specs), so it costs no push, no CI wait, and no API call. When the scout finds no scenario that any probe can reach, the verdict SHALL be `NONE`, reported in one line, and `/save`, preflight, and every remote step SHALL be skipped.
+
+When at least one journey exists, `/verify` SHALL invoke `/save` before walking, so the commit under test is pushed, CI has run, and the per-commit preview URL exists. `/verify` SHALL NOT implement any git action itself — it delegates, as `/apply` does when it hands completed work to `/save`. Because the scout reads the same working tree that `/save` then commits, the journeys and the deployed commit SHALL describe the same change.
+
+The walk SHALL target the per-commit preview alias discovered by the existing preview-URL helper for the current head SHA. It SHALL NOT ask the user for a URL, and SHALL NOT construct one from a worker-name convention: a hand-built URL can address a commit that was never deployed and still answer `200`.
+
+When `/save` reports that CI is absent (`NONE`), `/verify` SHALL still proceed if a preview URL can be discovered, and SHALL treat an undiscoverable URL as a condition to report rather than a URL to guess.
+
+#### Scenario: Nothing observable costs nothing
+
+- **WHEN** `/verify` is invoked on a change whose scenarios have no deployed surface any probe can reach (pure library code, behavior observable only by local execution)
+- **THEN** the scout returns no journeys and the verdict is `NONE` with a one-line explanation
+- **AND** no `/save`, no credential preflight, and no browser or probe session occurs
+
+#### Scenario: Save runs first when there is something to walk
+
+- **WHEN** `/verify` is invoked on a branch with uncommitted work and at least one probe-reachable scenario
+- **THEN** the scout runs, then `/save` runs — committing, pushing, waiting for CI, and resolving the preview URL
+- **AND** the walk targets the URL that `/save` resolved
+
+#### Scenario: The target URL is discovered, not configured
+
+- **WHEN** the walk needs a URL
+- **THEN** it uses the per-commit preview URL produced by the preview-URL helper for the current head SHA
+- **AND** it neither prompts for a URL nor derives one from a naming convention
+
+#### Scenario: No discoverable preview URL
+
+- **WHEN** the repo's CI does not deploy, so no preview URL exists for this commit
+- **THEN** the verdict is `UNKNOWN` and the report names the missing deployment as the cause
+- **AND** no URL is guessed
+
+### Requirement: Scenarios become journeys, matched to the strongest probe
+
+A scout SHALL derive the journeys from the change's own OpenSpec scenarios rather than from the application's routes or components. Its inputs SHALL be the delta specs under `openspec/changes/<slug>/specs/**`, plus the scenarios of any capability in `openspec/specs/` that the branch diff touches. The full synced spec surface SHALL NOT be walked — the walk is acceptance for this change, not a regression suite whose cost grows with the app.
+
+The scout SHALL match each scenario to the **strongest probe that can observe it end to end** against the deployed preview, rather than keeping only what a browser can see:
+
+- **Browser journey** — the scenario is observable through rendered UI. Driven with the browser CLI.
+- **Request probe** — the scenario is observable on the request path but not through UI: an API endpoint, a webhook, a redirect, a header, a status code. Driven as direct HTTP requests against the preview URL, with each request and response captured as evidence. No browser is required.
+- **State probe** — the scenario's effect is observable through a command that already exists at the machine level or in the stack pack, applied to deployed state — for example, a triggering request followed by a query of the staging database. The walk SHALL NOT add tooling to the repository to make a scenario observable.
+
+A scenario no probe can reach — behavior with no deployed surface, or observable only by building or executing the repository's code locally — SHALL be excluded from the journeys and listed **by name** in the report as unverified, so the exclusion is visible rather than silent.
+
+Each journey SHALL carry the scenario's `WHEN` as its steps and the scenario's `THEN`, verbatim, as its pass criterion, whatever the probe.
+
+#### Scenario: Scope is the change plus what the diff touches
+
+- **WHEN** the scout runs on a change with delta specs for one capability, whose diff also edits files covered by a second capability's spec
+- **THEN** the journeys cover the delta scenarios and the second capability's scenarios
+- **AND** capabilities unrelated to both are not walked
+
+#### Scenario: An API scenario is probed without a browser
+
+- **WHEN** a change's scenario describes an endpoint's status code and response body, with no UI
+- **THEN** the scout emits a request probe rather than excluding the scenario
+- **AND** the captured request and response are its evidence
+
+#### Scenario: An off-request-path effect is probed through state
+
+- **WHEN** a scenario describes a queue consumer whose effect lands in the staging database, and an existing stack-pack command can query that database
+- **THEN** the scout emits a state probe — the triggering request, then the query
+- **AND** no tooling is added to the repository to make the observation possible
+
+#### Scenario: The unreachable is listed, not dropped
+
+- **WHEN** a scenario is observable only by executing the repository's code locally
+- **THEN** it is excluded from the journeys
+- **AND** the report lists it by name as unverified
+
+#### Scenario: The pass criterion is the scenario's own words
+
+- **WHEN** a journey is built from a scenario
+- **THEN** its expected outcome is the scenario's `THEN` text, not a restatement invented by the scout
+
+#### Scenario: Destructive journeys are walked
+
+- **WHEN** a scenario describes deleting a record
+- **THEN** the scout includes it as a journey rather than skipping it as unsafe
+
+## REMOVED Requirements
+
+### Requirement: /walk begins by invoking /save
+
+**Reason**: The verb renames to `/verify`, and the requirement's `NONE` trigger changes meaning — from "no browser-observable scenario" to "no scenario any probe can reach" — so its "Nothing browser-observable costs nothing" scenario states a claim the probe ladder makes false. The save-first ordering itself survives unchanged.
+
+**Migration**: Replaced by the ADDED requirement `/verify begins by invoking /save`, identical except for the verb and the `NONE` trigger; the old scenario's cost guarantee lives on as "Nothing observable costs nothing".
+
+### Requirement: Scenarios become journeys, scoped to the change
+
+**Reason**: The requirement's core constraint — keep only scenarios observable through a browser, exclude everything off the request path — is exactly what the broadening removes, and its "Non-browser scenarios are excluded" scenario would contradict the request- and state-probe behavior.
+
+**Migration**: Replaced by the ADDED requirement "Scenarios become journeys, matched to the strongest probe", which keeps the change-scoping and verbatim-`THEN` rules and replaces the browser-only filter with the probe ladder.

@@ -8,7 +8,7 @@
 // WHY VERIFY RATHER THAN READ A HEADER
 //
 //   1. Access sets NO email header for a service token. A machine caller — CI,
-//      /walk, any non-interactive client — arrives carrying only
+//      /verify, any non-interactive client — arrives carrying only
 //      `cf-access-jwt-assertion` plus the ordinary cf-* headers; the
 //      CF-Access-Client-Id/Secret it sent are stripped at the edge. A Worker
 //      reading `Cf-Access-Authenticated-User-Email` therefore 401s every machine.

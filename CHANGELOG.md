@@ -3,6 +3,34 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.0.0 — /walk becomes /verify, and verifies more than a browser can see
+
+**BREAKING: the evidence verb `/walk` is renamed `/verify`.** The skill moved from
+`.claude/skills/walk/` to `.claude/skills/verify/` (scripts included: `walk-staging.sh` →
+`verify-staging.sh`, `walk-runner.sh` → `verify-runner.sh`). On your next sync, `verify` arrives as
+a missing file and your untouched `walk` copy is proposed for removal as a stale orphan; a `walk`
+you edited locally is left alone, as always. Muscle memory is the loss: `/walk` stops resolving
+once the old directory is removed. The optional `WALK_MEDIA_BUCKET` / `WALK_MEDIA_BASE_URL`
+variables **keep their names** — renaming a variable users already set breaks them silently.
+
+**The scout now matches every scenario to the strongest probe, not just the browser-visible ones.**
+Before, a scenario a browser couldn't see fell out of the walk entirely. Now:
+
+- **Browser journey** — UI scenarios, driven with `agent-browser` as before.
+- **Request probe** — request-path scenarios with no UI (endpoints, webhooks, redirects, headers),
+  driven as plain HTTP requests against the preview URL with each request and response captured as
+  evidence. Needs only `curl` — a walk with no UI journeys skips the browser install entirely.
+- **State probe** — effects an **existing** machine-level or stack-pack command can read from
+  deployed state (trigger over HTTP, then e.g. the staging-database query). Nothing is ever added
+  to your repo to make a scenario observable.
+
+Scenarios no probe can reach are **listed by name in the PR comment as unverified** instead of
+silently dropped, and `NONE` narrows to "no scenario any probe can reach". Grading stays strict and
+probe-generic: a bare `200` without the body the `THEN` describes fails. What you gain: e2e
+evidence for API-only and backend changes that used to produce none. What does not change: the five
+verdicts, the non-gating stance, the Access self-heal, the two-attempt fix loop, and the rule that
+no probe builds or executes your repo's code locally.
+
 ## 11.4.0 — The app scaffold goes to latest
 
 **The [app scaffold](app/)'s dependencies moved to their latest versions, majors included.** A repo

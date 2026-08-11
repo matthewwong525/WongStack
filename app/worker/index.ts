@@ -9,7 +9,7 @@
 // When you do adopt it, use `./access.ts` — it ships beside this file, inert.
 // It VERIFIES the signed `Cf-Access-Jwt-Assertion` rather than trusting a plain
 // header, which is what makes it correct for machine callers too: Access sets no
-// email header for a service token, so the header pattern 401s CI and /walk.
+// email header for a service token, so the header pattern 401s CI and /verify.
 export default {
   fetch(request) {
     const url = new URL(request.url);

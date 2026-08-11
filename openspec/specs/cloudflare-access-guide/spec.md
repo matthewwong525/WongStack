@@ -50,7 +50,7 @@ The runbook SHALL describe the auth model the setup implies, and that model SHAL
 
 **A plain-header pattern SHALL NOT be given as the recommended implementation**, for two independent reasons the runbook SHALL both state:
 
-- **It locks out every machine caller.** Access strips `CF-Access-Client-Id` and sets no email header for a service-token request, which arrives carrying only `cf-access-jwt-assertion` and the ordinary `cf-*` request headers. Code requiring the email header therefore `401`s CI, and `/walk` — WongStack's own browser-evidence verb — is one of the callers it rejects.
+- **It locks out every machine caller.** Access strips `CF-Access-Client-Id` and sets no email header for a service-token request, which arrives carrying only `cf-access-jwt-assertion` and the ordinary `cf-*` request headers. Code requiring the email header therefore `401`s CI, and `/verify` — WongStack's own browser-evidence verb — is one of the callers it rejects.
 - **It is unsound off the proxy.** On a hostname the Access policy does not actually cover, the header is an ordinary request header any caller can set, so trusting it grants impersonation of any user. Given that a policy can silently fail to cover a hostname, the pattern's safety rests on a condition the reader cannot reliably confirm.
 
 The runbook SHALL specify that a request whose assertion is missing or fails verification is rejected (`401`), and that only an explicit `SKIP_AUTH` development escape substitutes a fallback identity — never a silent default in production.
@@ -68,7 +68,7 @@ Because the provisioned app is public by default, the scaffold's Worker SHALL NO
 
 #### Scenario: The machine caller is not locked out
 
-- **WHEN** CI or `/walk` calls the app with a service token
+- **WHEN** CI or `/verify` calls the app with a service token
 - **THEN** the request is authenticated from the verified assertion
 - **AND** it is not rejected for the absence of `Cf-Access-Authenticated-User-Email`
 

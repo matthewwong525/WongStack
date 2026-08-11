@@ -12,7 +12,7 @@ The repository SHALL provide a skill at `.claude/skills/update-dependencies/`, i
 
 The pass SHALL cover, in order:
 
-1. **Survey** — report installed version against latest available for: the OpenSpec CLI, the browser automation CLI `/walk` drives, `gh`, `git`, `node`, every dependency in `app/package.json`, and the generated `openspec-*` skill layer.
+1. **Survey** — report installed version against latest available for: the OpenSpec CLI, the browser automation CLI `/verify` drives, `gh`, `git`, `node`, every dependency in `app/package.json`, and the generated `openspec-*` skill layer.
 2. **Machine** — update the machine's tools to latest and report each as `old → new`.
 3. **Regen** — regenerate the OpenSpec-generated layer, then check what rippled.
 4. **Deps** — bump `app/` to latest, majors included, reading each major's changelog and fixing what breaks.

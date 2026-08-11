@@ -66,7 +66,7 @@ including worktree resolution and duplicate reconciliation, is
 - **CI is the gate when present, else PR review; nothing builds locally as a prerequisite.** The
   ladder and what an unverifiable check means are stated in
   [the change loop](wiki/development/the-change-loop.md#the-gate) — the one place that owns them.
-  Nothing else gates a merge; the staging walkthrough is `/walk`'s job and gates nothing.
+  Nothing else gates a merge; the staging walkthrough is `/verify`'s job and gates nothing.
 - **Use the WongStack skills** — a thin verb over each OpenSpec step, so the OpenSpec layer is
   something you drive through these verbs rather than invoke directly. (`openspec init` generates
   six `openspec-*` skills, which the verbs below call; it generates no `/opsx:*` slash commands, so
@@ -79,8 +79,9 @@ including worktree resolution and duplicate reconciliation, is
   (consolidate `notes/` into the wiki + garden it), `/improve` (read-only advisor; `/improve docs`
   for the wiki). Full loop: `/explore → /plan → /apply → /save → /continue → /ship`.
   In a live session `/explore → /apply` is also valid: `/apply` performs the `/plan` stage first when needed.
-  Beside the loop: `/walk` (invoke `/save`, then drive the change's scenarios through a browser
-  against the deployed preview and post the evidence to the PR — gates nothing, run it whenever).
+  Beside the loop: `/verify` (invoke `/save`, then exercise the change's scenarios end to end
+  against the deployed preview — a browser for UI journeys, direct requests and existing commands
+  for the rest — and post the evidence to the PR — gates nothing, run it whenever).
   Branch name = change name = note name ties a branch to its plan and its session context.
 - **Prose goes straight to `main`.** A `/save` whose entire diff sits inside the prose allowlist —
   `notes/**` + `wiki/**` — commits to the default branch with no branch, PR, or `/ship`. Routing is

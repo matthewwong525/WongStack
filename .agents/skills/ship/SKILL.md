@@ -44,14 +44,14 @@ Consume its exact final result:
 - `SUCCESS` → proceed. `NONE` → proceed; invoking `/ship` is the PR-review approval where no checks exist.
 - `UNKNOWN`, `TIMEOUT`, or `FAILURE` → stop before merge and report `/save`'s reason. Do not repeat, bypass, or reinterpret the gate.
 
-## Step 4 — walk the preview (evidence, not a gate)
+## Step 4 — verify the preview (evidence, not a gate)
 
-**If this repo has the `walk` skill, invoke it once** and follow it verbatim. It scouts first, so a change with nothing browser-observable costs nothing; when there are journeys it drives them against the commit `/save` just published and posts the evidence to the PR.
+**If this repo has the `verify` skill, invoke it once** and follow it verbatim. It scouts first, so a change with nothing any probe can reach costs nothing; when there are journeys it drives them against the commit `/save` just published and posts the evidence to the PR.
 
-**No `walk` skill** (a repo that hasn't synced since it became core) → say so in one line and go to Step 5. A rung the repo lacks is skipped, never failed — and never installed to repair it.
+**No `verify` skill** (a repo that hasn't synced since the verb landed) → say so in one line and go to Step 5. A rung the repo lacks is skipped, never failed — and never installed to repair it.
 
 - `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue to the merge.
-- `FAILURE`, after `/walk`'s own two fix attempts → **stop and ask the user**: fix, or merge anyway.
+- `FAILURE`, after `/verify`'s own two fix attempts → **stop and ask the user**: fix, or merge anyway.
 
 **The verdict is not a rung.** An unrunnable walk never blocks a merge — the property whose absence made the old walk-*gate* worth removing. A `FAILURE` pause is a decision surfaced to the user, not a gate applied to them: *merge anyway* is a first-class answer, and the report records that it was taken.
 

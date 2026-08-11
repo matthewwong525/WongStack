@@ -10,13 +10,13 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 `/wong-setup` checks for these during its readiness step when it installs WongStack into a repo. Beyond them, no core payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.
 
-**One core verb adds one tool: [`/walk`](staging-walkthrough.md) needs `agent-browser`.**
+**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys.**
 
 | Tool | Why |
 |---|---|
-| `agent-browser` | The browser [`/walk`](../../.claude/skills/walk/SKILL.md) drives, carrying its own Chrome. `/walk` installs it on the machine the first time it needs it, and says so. |
+| `agent-browser` | The browser [`/verify`](../../.claude/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. `/verify` installs it on the machine the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 
-It is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/walk` never acquires it, and every other core verb still needs only the three commands above. The browser is available for ordinary work too, not only inside a walk; `/walk` is just the surface that grades what it sees and posts the evidence.
+It is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` never acquires it, and every other core verb still needs only the three commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
 ## `gh` needs the `workflow` scope
 

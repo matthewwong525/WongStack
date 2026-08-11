@@ -20,7 +20,7 @@ The diagram shows the durable stages, not a command tollbooth. In a live session
 - **[`/apply`](../../.claude/skills/apply/SKILL.md)** — ensure the current work has an apply-ready plan, invoking `/plan` first when it does not; then implement the exact change's `tasks.md`, writing the code and checking off `- [x]` as each task lands. Fronts the `openspec-apply-change` skill for implementation, then invokes `/save` exactly once when every task is complete. Where the `/save` boundary falls mid-list is [one distinction](#apply-never-saves-to-stop-but-may-save-to-finish-a-task), stated below.
 - **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint, the git stage: preserve explicitly named session secrets in the primary worktree while excluding their values from every durable surface; commit code + change together; push; open/update a PR whose body **mirrors the change**; wait for CI when present (auto-fixing failures; no checks → PR review is the gate); and return a preview URL. Before committing it **syncs the change** — plan sections update in place, the `**Status:**` header is maintained, a dated entry is **appended** to the `## Decision log`, and delta specs (if any) fold into `openspec/specs/` (the `openspec-sync-specs` skill). Skipped `/plan`? `/save` authors the change from your session as a fallback, so nothing ships without its handoff. It also writes the credential-redacted **session note** (`notes/<slug>.md`) — the conversation compressed into the repo, which is what lets `/dream` consolidate from another machine. After `/ship` archives, ordinary `/save` recognizes that branch's archive and checkpoints it, so the git/PR/CI logic exists once.
 - **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name (= branch), by PR, or from the `openspec list` menu (which shows each change's Status): check out its branch, recap the proposal + the tail of its Decision log + the session note when one exists, run a counts-only drift check, then hand off to `/apply`. Picks up cold on any machine from a fresh clone.
-- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — verify the feature/default branches, archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/` through `openspec-archive-change`, invoke ordinary `/save` exactly once so that exact archive commit is pushed and gated, run [`/walk`](#walking-the-app) once for evidence, then squash-merge and delete the remote branch worktree-safely. It owns no duplicate commit, PR, or branch-CI implementation. The walk is evidence, not a rung: every verdict but `FAILURE` reports and the merge proceeds on the gate result, and a `FAILURE` asks you whether to fix or merge anyway.
+- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — verify the feature/default branches, archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/` through `openspec-archive-change`, invoke ordinary `/save` exactly once so that exact archive commit is pushed and gated, run [`/verify`](#verifying-the-app) once for evidence, then squash-merge and delete the remote branch worktree-safely. It owns no duplicate commit, PR, or branch-CI implementation. The walk is evidence, not a rung: every verdict but `FAILURE` reports and the merge proceeds on the gate result, and a `FAILURE` asks you whether to fix or merge anyway.
 
 Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
 
@@ -40,15 +40,15 @@ save is unbounded — `tasks.md` bounds it — while "exactly once" qualifies th
 alone; when the final task is itself gate-requiring, its save already checkpointed that state and no
 second one follows. A task-driven save that comes back failing or unverifiable is the ordinary
 blocked path: the task stays unchecked, `/apply` reports and stops, and adds no exit checkpoint on
-top. [`/walk`](#walking-the-app) has always worked this way — it invokes `/save` mid-change and
+top. [`/verify`](#verifying-the-app) has always worked this way — it invokes `/save` mid-change and
 gates nothing — and this is the same rule, stated for the whole loop.
 
 `/plan` writes such a task so it says so, naming `/save` as how the verification happens. Most
 changes have none: the completion handoff covers them.
 
-### Walking the app
+### Verifying the app
 
-**[`/walk`](../../.claude/skills/walk/SKILL.md)** sits *beside* the loop rather than in it. It scouts the change's own OpenSpec scenarios, and when any of them is browser-observable it invokes `/save`, drives them through a real browser against the deployed preview, and posts screenshots, video, and a verdict to the PR. A change with nothing to see costs nothing — the scout answers `NONE` before anything is pushed. Invoke it whenever you want to see the thing working — mid-change, twice in a row, or right before `/ship`.
+**[`/verify`](../../.claude/skills/verify/SKILL.md)** sits *beside* the loop rather than in it. It scouts the change's own OpenSpec scenarios and matches each to the strongest probe that can observe it end to end — a browser journey for UI, a direct HTTP request probe for the request path, an existing command reading deployed state for the rest — and when any scenario is reachable it invokes `/save`, drives the journeys against the deployed preview, and posts the evidence and a verdict to the PR. Scenarios no probe reaches are listed by name as unverified. A change with nothing observable costs nothing — the scout answers `NONE` before anything is pushed. Invoke it whenever you want to see the thing working — mid-change, twice in a row, or right before `/ship`.
 
 It **gates nothing**, which is what makes it safe to run early and often. `/ship` runs it once as an evidence step and merges on the CI gate regardless of the verdict; the single exception is a `FAILURE`, which stops to ask you whether to fix or merge anyway — a decision surfaced, not a rung applied. No verdict blocks a merge on its own, and no other verb consults its result. It works in any repo on any stack — its browser is a standalone CLI installed on the machine, never a dependency added to your project — and [`staging-walkthrough.md`](staging-walkthrough.md) is its runbook.
 
@@ -70,7 +70,7 @@ check finds that suite by its `npm test` script, at the repo root **or in any im
 subdirectory**, so an app in `app/` is covered with nothing added at the root — no repo receives a
 package manifest on WongStack's behalf.
 
-**The staging walkthrough is not a rung either.** `/ship` runs [`/walk`](#walking-the-app) once for
+**The staging walkthrough is not a rung either.** `/ship` runs [`/verify`](#verifying-the-app) once for
 evidence, and merges on the gate result whatever the walk says. A walk that cannot run — not adopted,
 no credential, budget spent — never blocks anything; that property is exactly what the old
 walk-as-gate lacked, and why it was removed. The one place a walk changes what happens is a

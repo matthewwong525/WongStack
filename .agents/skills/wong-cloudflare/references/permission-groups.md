@@ -55,7 +55,7 @@ These two are the whole ask on the token screen. Every other group below, the sk
 | `User Details Read` | user | self-verification | `8acbe5bb0d54464ab867149d7f7cf8ac` |
 | `Workers R2 Storage Write` | account | only when the app adds an R2 bucket | `bf7481a1826f439697cb59a20b22293e` |
 
-**`Browser Rendering Write` is no longer granted.** It existed for one consumer — `/walk`'s remote browser on Cloudflare Browser Run — and `/walk` now drives a local browser through `agent-browser`, so the group has no user. Granting a permission nothing consumes contradicts the narrow-token principle this widen and its narrow-back offer exist to serve. A token widened by an earlier version still carries it; that is harmless, and the existing narrow-back offer removes it along with every other group the skill granted.
+**`Browser Rendering Write` is no longer granted.** It existed for one consumer — the walkthrough's remote browser on Cloudflare Browser Run — and `/verify` now drives a local browser through `agent-browser`, so the group has no user. Granting a permission nothing consumes contradicts the narrow-token principle this widen and its narrow-back offer exist to serve. A token widened by an earlier version still carries it; that is harmless, and the existing narrow-back offer removes it along with every other group the skill granted.
 
 ### The opt-in Access branch
 
