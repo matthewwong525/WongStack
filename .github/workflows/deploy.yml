@@ -6,7 +6,7 @@
 # every repo receives whether or not it took this pack — so a commit is tested
 # once, in parallel with this deploy, and a repo with no Cloudflare account
 # still gets a test pipeline. This job never waits on that result: a staging
-# deploy of red code is harmless (staging is a fixture and /walk observes it),
+# deploy of red code is harmless (staging is a fixture and /verify observes it),
 # and red code cannot reach production because merges require green CI.
 #
 # This workflow is a thin driver. The branch logic lives in the pack's scripts,
@@ -51,7 +51,7 @@
 #      double deploy in place.
 #
 # `push` stays the deploying event, so the preview URL attaches to the branch
-# head SHA — which is the SHA /save and /walk look the preview up by.
+# head SHA — which is the SHA /save and /verify look the preview up by.
 
 name: Deploy
 
@@ -71,7 +71,7 @@ jobs:
   # it. Two deliberate properties:
   #
   #   - No `needs:` edge. A staging deploy of red code is harmless — staging is
-  #     a seeded fixture and /walk observes it — and red code cannot reach
+  #     a seeded fixture and /verify observes it — and red code cannot reach
   #     production anyway, because merging needs green checks. Gating the deploy
   #     on tests would slow every push to buy something the merge gate already
   #     guarantees.
@@ -190,7 +190,7 @@ jobs:
       # Under Cloudflare Workers Builds this step is unnecessary — Cloudflare's
       # own GitHub integration attaches the URL to the commit. Actions has no
       # such integration, so without this the URL exists only in a job log:
-      # `/save` reports no preview, and `/walk` — including the evidence step
+      # `/save` reports no preview, and `/verify` — including the evidence step
       # `/ship` runs — reports UNKNOWN because there is nothing to walk against.
       # A GitHub Deployment is what
       # `.claude/skills/save/scripts/preview-url.sh` looks for first.

@@ -90,7 +90,7 @@ The app scaffold SHALL include a Worker-side Access verification module (`worker
 
 It SHALL ship **inert**: present in the scaffold, enforcing nothing, and not wired into the request path until Access is adopted. The provisioned app is public by default, and a scaffold that enforced identity out of the box would reject every caller of an app with no Access in front.
 
-Shipping the module rather than a documented snippet is deliberate. The correct implementation is not obvious — the header-based version reads as simpler and is what an adopter writes when left to it, and it silently locks out every machine caller including `/walk`. An adopter who followed the documented snippet had to write this module from scratch after diagnosing the lockout.
+Shipping the module rather than a documented snippet is deliberate. The correct implementation is not obvious — the header-based version reads as simpler and is what an adopter writes when left to it, and it silently locks out every machine caller including `/verify`. An adopter who followed the documented snippet had to write this module from scratch after diagnosing the lockout.
 
 #### Scenario: A scaffolded public app rejects nobody
 

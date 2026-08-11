@@ -132,7 +132,7 @@ These come out of the research and the conversation, not out of the payload — 
 
   **On a no (or no answer):** leave `stackPack` false and touch none of it. Declining never gates the rest of setup, and the door stays open: taking the pack later is setting `components.stackPack: true` in `.claude/.wong-stack.json`, running `/wong-sync` to land the files, then `/wong-cloudflare` to configure and provision.
 
-  **Don't offer the [staging walkthrough](../../../wiki/development/staging-walkthrough.md) here.** It only means anything once the repo has an app with screens and preview URLs, which on a fresh setup it doesn't — offering it now buys a yes to something they can't use, or a no to something they'd have wanted later. Name it once, as a thing that exists, and move on: *"Later on, once there's something to look at, `/walk` can drive the app in a browser and show you screenshots of it working. Worth knowing about; nothing to do now."* There is nothing to adopt and nothing to record: `/walk` installs its own browser on the machine when they first use it.
+  **Don't offer the [staging walkthrough](../../../wiki/development/staging-walkthrough.md) here.** It only means anything once the repo has an app with screens and preview URLs, which on a fresh setup it doesn't — offering it now buys a yes to something they can't use, or a no to something they'd have wanted later. Name it once, as a thing that exists, and move on: *"Later on, once there's something to look at, `/verify` can drive the app in a browser and show you screenshots of it working. Worth knowing about; nothing to do now."* There is nothing to adopt and nothing to record: `/verify` installs its own browser on the machine when they first use it.
 
 ## Step 7 — bootstrap, seed, hand off
 

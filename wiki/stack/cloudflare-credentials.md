@@ -115,14 +115,14 @@ CF_ACCESS_CLIENT_SECRET=
 
 Create it while you're setting up Access ([step 5](cloudflare-access.md#5-create-the-service-token-do-it-now)) — adding it later means re-opening the policy.
 
-**Or let `/walk` create it.** A walk that meets the login wall with no pair stored mints one named for the repo, confirms the policy accepts it, writes both values here, and retries — under the same [standing authorization](#the-widen-is-pre-authorized) that lets the token widen itself, and widening into the Access permission groups first if it has to. So this pair may appear in your `.env` without you putting it there; that's the walkthrough's [self-repair](../development/staging-walkthrough.md#when-the-walk-cant-get-in), and it reports what it minted. A pair you set by hand is never replaced.
+**Or let `/verify` create it.** A walk that meets the login wall with no pair stored mints one named for the repo, confirms the policy accepts it, writes both values here, and retries — under the same [standing authorization](#the-widen-is-pre-authorized) that lets the token widen itself, and widening into the Access permission groups first if it has to. So this pair may appear in your `.env` without you putting it there; that's the walkthrough's [self-repair](../development/staging-walkthrough.md#when-the-walk-cant-get-in), and it reports what it minted. A pair you set by hand is never replaced.
 
 ### What a service-token request looks like at the Worker
 
 This is the part that catches people out, because it is the opposite of what the two headers above suggest:
 
 - **The two headers you sent are stripped at the edge.** `CF-Access-Client-Id` and `CF-Access-Client-Secret` do not reach your Worker; Access consumes them.
-- **No email header is set.** Access sets `Cf-Access-Authenticated-User-Email` for a *human* who signed in through your identity provider. A service token has no email, so the header is simply absent. A Worker that authenticates by reading it therefore rejects **every machine caller** — CI, scripts, and WongStack's own [`/walk`](../development/staging-walkthrough.md) — with a `401`, while working fine in your browser. That asymmetry is why the header pattern looks correct right up until automation needs in.
+- **No email header is set.** Access sets `Cf-Access-Authenticated-User-Email` for a *human* who signed in through your identity provider. A service token has no email, so the header is simply absent. A Worker that authenticates by reading it therefore rejects **every machine caller** — CI, scripts, and WongStack's own [`/verify`](../development/staging-walkthrough.md) — with a `401`, while working fine in your browser. That asymmetry is why the header pattern looks correct right up until automation needs in.
 - **What does arrive** is `cf-access-jwt-assertion` — the signed assertion — alongside the ordinary `cf-connecting-ip`, `cf-ipcountry`, `cf-ray`, and `cf-visitor`.
 
 So the assertion is the only signal that covers humans and machines both. In its verified claims, a human carries `email` and a service token carries `common_name` (the token's Client ID, with `sub` an empty string) — one code path, both callers. That is what [`app/worker/access.ts`](cloudflare-access.md#the-auth-model-verify-the-signed-assertion) does, and why the Access runbook rejects plain header trust.

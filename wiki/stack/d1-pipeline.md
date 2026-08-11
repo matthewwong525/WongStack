@@ -95,7 +95,7 @@ Use the alias URL for UI review — it's per-commit, so two branches never colli
 
 #### How the alias URL reaches the tooling
 
-`/save` prints a preview link and the [staging walkthrough](../development/staging-walkthrough.md) that `/walk` runs walks one, and both find it the same way — by asking GitHub what was deployed for this commit. Which CI backend you're on decides who tells GitHub:
+`/save` prints a preview link and the [staging walkthrough](../development/staging-walkthrough.md) that `/verify` runs walks one, and both find it the same way — by asking GitHub what was deployed for this commit. Which CI backend you're on decides who tells GitHub:
 
 - **Workers Builds** — Cloudflare's GitHub integration attaches the URL to the commit itself. Nothing in the pack has to do anything.
 - **GitHub Actions** — there is no such integration. `cf-deploy.sh` therefore **harvests the URL out of `wrangler versions upload`'s own output** and hands it to the workflow, which publishes a GitHub Deployment carrying it as `environment_url`.
@@ -340,7 +340,7 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
 [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) writes the config and sets the secrets; after it runs, the workflow deploys.
 
-**One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.claude/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/walk` look it up by.
+**One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.claude/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
 
 ### Why not Cloudflare's own Workers Builds
 

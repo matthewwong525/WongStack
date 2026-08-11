@@ -74,7 +74,7 @@ gh run view "$RUN_ID" --log-failed | tail -120
 
 **Cap: 3 attempts.** Still red → stop with the error and the checks link. A CI failure is not a stop condition until the cap is reached — fixing and re-pushing *is* the runbook. Never bypass with `--no-verify` or `--force`.
 
-This cap covers the CI fix-and-repush loop only, and it is per `/save` invocation. The one caller with a budget of its own is [`/walk`](../../walk/SKILL.md), which may fix an in-scope failure and re-walk **twice**; each of those attempts invokes `/save`, so each gets its own fresh cap of 3. The budgets nest rather than share — a walk cannot spend `/save`'s attempts, and `/save` never re-walks.
+This cap covers the CI fix-and-repush loop only, and it is per `/save` invocation. The one caller with a budget of its own is [`/verify`](../../verify/SKILL.md), which may fix an in-scope failure and re-walk **twice**; each of those attempts invokes `/save`, so each gets its own fresh cap of 3. The budgets nest rather than share — a walk cannot spend `/save`'s attempts, and `/save` never re-walks.
 
 ## What each caller keeps
 
@@ -82,4 +82,4 @@ This runbook does **not** own, and each skill states for itself:
 
 - **`/save`** — the preview-URL discovery, staging by path (never `git add .`), the prose fast path, the session note, and the OpenSpec sync.
 - **`/ship`** — the default-branch-CI preflight, OpenSpec archive invocation, strict interpretation of `SAVE_GATE_RESULT`, worktree-safe merge, and remote-branch deletion. The archive commit/push/PR/branch-CI checkpoint belongs to its delegated ordinary `/save` call.
-- **`/walk`** — the staging walkthrough, which it runs after invoking `/save`; it gates nothing here.
+- **`/verify`** — the staging walkthrough, which it runs after invoking `/save`; it gates nothing here.
