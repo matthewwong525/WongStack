@@ -31,6 +31,10 @@ When the change **adds or meaningfully restructures a user-facing screen** (a pa
 3. **Append + surface forks.** The main thread appends the final `## UX` section to design.md. If the critique exposed a genuine layout fork (e.g. table-with-drawer vs master-detail), surface it to the user as one AskUserQuestion before writing tasks.md; otherwise default to mirroring the named existing screen.
 4. **Tasks reference the section.** When drafting tasks.md, UI tasks point at the subsection they implement (per the `openspec/config.yaml` `tasks` rule), e.g. `- [ ] 3.2 Build list view per design.md ## UX — Wireframes`.
 
+## Ask whether it should be code
+
+Before the tasks are written, weigh a deterministic script against a step that calls a model every run. A process that repeats belongs in `tasks.md` as a script to write once, not as a task that asks an agent to redo the same judgment every time. [The principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai) own the rule; `/explore` raises it first when the session starts there.
+
 ## Tasks include their tests
 
 When the change touches **behavior a test can exercise**, `tasks.md` carries a task to add or extend that coverage — grouped with the surface it tests, not bolted on at the end. A prose-only change (wiki, notes, skill text) gets no such task.

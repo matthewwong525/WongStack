@@ -2,9 +2,9 @@
 
 WongStack turns a repo into an AI knowledge center.
 
-Agents need shared knowledge to do useful work. WongStack helps teams centralize their processes inside the repo, then gives AI agents a repeatable way to run those processes, improve them, and capture new knowledge as work happens.
+Agents need shared knowledge to do useful work. WongStack keeps a team's processes inside the repo, then gives agents a repeatable way to run those processes and write down what the work teaches.
 
-That is the first step toward becoming AI-native: make the process visible, make it runnable, and let every project leave the next person or agent smarter than the last one.
+This is one way of working, not the only one. [The principles behind it](wiki/agent-knowledge-center.md) explain the reasoning — adapt what fits your team.
 
 ## Start here
 
@@ -20,34 +20,34 @@ The agent will take it from there. It will look at your project, explain what it
 
 ## What you get
 
-- **Centralized process memory.** Your team's way of working lives in the repo, not scattered across chats, docs, and people's heads.
-- **Agent-runnable workflows.** Agents get concrete commands for exploring, planning, implementing, saving, resuming, and shipping work.
-- **Knowledge captured while work happens.** Plans, decisions, shipped records, and reusable lessons are written down as part of the workflow.
-- **Faster future work.** Each finished change improves the context available to the next teammate or agent.
-- **A reviewable work trail.** Work can be saved in a package your team can inspect before it becomes part of the main project.
-- **Agent-agnostic foundations.** Claude Code is one way to run WongStack. The durable system is files, instructions, and process inside the repo.
+- **Process in the repo.** Your team's way of working lives in the repo, not scattered across chats, docs, and people's heads.
+- **Commands agents can run.** Exploring, planning, implementing, saving, resuming, and shipping each have one.
+- **A record written during the work.** Plans, decisions, shipped changes, and reusable lessons get written down as part of the workflow, not afterwards.
+- **A reviewable work trail.** Work arrives as a package your team can inspect before it joins the main project.
+- **More context for the next change.** Each finished change leaves the repo knowing more than it did.
+- **No lock-in to one agent.** Claude Code is one way to run WongStack. The durable part is the files, instructions, and process in the repo.
 
-## The compounding loop
+## How the pieces fit
 
-WongStack is built around one idea: centralize the process, let agents run it, then improve the process from what the work teaches you.
+Keep the process in the repo, let agents run it, then improve the process from what the work teaches you.
 
 ```text
-centralize process
+process in the repo
         |
         v
-make it agent-runnable
+agents can run it
         |
         v
-capture plans and decisions
+plans and decisions captured
         |
         v
-preserve reusable lessons
+reusable lessons kept
         |
         v
-future work starts with more context
+next change starts with more context
 ```
 
-The code is one output. The more durable value is the knowledge system that makes the next change easier.
+The code is one output. The other is a repo that makes the next change easier.
 
 ## The workflow
 
@@ -71,7 +71,7 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/improve` | Ask an agent to audit the project and write improvement plans without changing code. |
 | `/wong-sync` | Bring this repo up to date with WongStack — copy in what's missing, update what you provably never touched, and propose what's worth adopting from what upstream can now do. Never overwrites anything you authored. |
 
-Want your project to be a **real website people can open**? That's optional, and one command: `/wong-cloudflare` offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and puts the app online — whenever you're ready, including long after setup.
+To put the project online as a website people can open, run `/wong-cloudflare`. It offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Optional, and you can run it long after setup.
 
 ## Where the knowledge lives
 
@@ -82,7 +82,7 @@ Want your project to be a **real website people can open**? That's optional, and
 - **Archived changes** preserve what shipped and why.
 - **Skills** are repeatable workflows agents can run.
 
-For the deeper philosophy, read [AI knowledge centers](wiki/agent-knowledge-center.md). For the operational loop, read [the change loop](wiki/development/the-change-loop.md).
+For the principles behind these choices, read [AI knowledge centers](wiki/agent-knowledge-center.md). For the operational loop, read [the change loop](wiki/development/the-change-loop.md).
 
 ## A few terms the agent may introduce
 
@@ -97,7 +97,7 @@ You do not need these before starting, but they help explain what WongStack sets
 ## Learn more
 
 - [Wiki](wiki/README.md) - the progressive-disclosure guide to WongStack's process.
-- [AI knowledge centers](wiki/agent-knowledge-center.md) - the philosophy behind the repo-native knowledge layer.
+- [AI knowledge centers](wiki/agent-knowledge-center.md) - the six principles behind WongStack, and the mechanism that applies each one.
 - [The change loop](wiki/development/the-change-loop.md) - how work moves from idea to shipped record.
 - [Working on WongStack](wiki/development/README.md) - how to change the toolkit itself.
 - [Changelog](CHANGELOG.md) - what changed between releases.
