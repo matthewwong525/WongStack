@@ -37,6 +37,10 @@ The misinterpretation line was kept nearly verbatim on the page because it is th
 - **The 10x claim was softened** to "ten times faster at higher quality" as an aim rather than a promise. Nobody asked for this; revisit if the maintainer wants the original punch.
 - **The philosophy page now links three times into `wiki/stack/`**, which only exists in repos that took the Cloudflare pack. This is allowed (the link checker reports conditional links and passes), and the prose marks them optional, but a core page depending on an opt-in section is a pattern worth watching if it spreads.
 
+## Unrelated finding, worth someone's attention
+
+`openspec validate --specs` reports **`spec/wiki-root` failing**: "Spec must have at least one requirement." The file has a Purpose and nothing else. It predates this session and this change never touched it, so it was left alone — but it means the repo's spec suite does not validate clean, and anyone who runs `--specs` will keep seeing one red entry. Either the requirements were never written or the capability should be retired.
+
 ## Process observations
 
 The change was planned as five principles and grew to six *during* implementation, before any file had been edited. Folding it in cost nothing because the interruption arrived while reading rulebooks rather than mid-write — the plan artifacts (proposal, delta spec, design, tasks) were updated first, then implementation started from the corrected plan.
