@@ -12,4 +12,8 @@ user-invocable: true
 
 It's a thinking partner, not a builder: use it to pull apart a problem, weigh options, and firm up scope *before* `/plan` writes a proposal. Nothing is committed and no specs are drafted.
 
+## Ask whether it should be code
+
+When the work is a process that will run more than once, weigh a deterministic script against a step that calls a model every run. Code is fast, costs nothing to run again, and gives the same answer twice; keep AI for the parts that need judgment. Raise the fork here, while the scope is still open — [the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai) own the rule.
+
 **Invoke the `openspec-explore` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:explore` and owns the actual behavior. When the shape of the work is clear, move on to [`/plan`](../plan/SKILL.md) when the user wants to review the artifacts first, or straight to [`/apply`](../apply/SKILL.md), which invokes `/plan` before implementation when no apply-ready change exists.

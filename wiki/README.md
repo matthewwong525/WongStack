@@ -1,10 +1,10 @@
 # Docs
 
-This wiki is WongStack's process memory: the reusable knowledge a human or agent should read before acting. Start with the [AI knowledge center](agent-knowledge-center.md) philosophy, then follow the inline links down into whatever you need. Each page stands on its own and breaks down into more detail. How to add without breaking that: [wiki style](wiki-style.md) for a page's shape, [voice](voice.md) for how its sentences read, [contributing](contributing.md) for sending a payload improvement upstream. Building UI? [UX principles](ux-principles.md) for what a screen should *be* before any component is picked.
+This wiki is WongStack's process memory: the reusable knowledge a human or agent should read before acting. Start with [AI knowledge centers](agent-knowledge-center.md) — the six principles behind WongStack and the mechanism that applies each one — then follow the inline links down into whatever you need. Each page stands on its own and breaks down into more detail. How to add without breaking that: [wiki style](wiki-style.md) for a page's shape, [voice](voice.md) for how its sentences read, [contributing](contributing.md) for sending a payload improvement upstream. Building UI? [UX principles](ux-principles.md) for what a screen should *be* before any component is picked.
 
 ## Where to find things
 
-- [AI knowledge centers](agent-knowledge-center.md) — why WongStack centralizes process knowledge in the repo and makes it runnable by agents.
+- [AI knowledge centers](agent-knowledge-center.md) — the six working principles, and why WongStack keeps process knowledge in the repo and makes it runnable by agents.
 - [Contributing upstream](contributing.md) — how to send a workflow improvement back to WongStack by hand, and the generality bar it has to clear.
 - [Development](development/README.md) — working on WongStack itself: editing the payload and cutting a release.
 

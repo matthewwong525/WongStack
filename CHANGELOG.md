@@ -3,6 +3,34 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.1.0 — the reasoning, stated plainly, and one principle that changes planning
+
+**[AI knowledge centers](wiki/agent-knowledge-center.md) now states the six working principles
+behind WongStack**, each with the mechanism that applies it:
+
+1. **Building in-house isn't about saving money** — it's a faster, better process.
+2. **Most process improvements shouldn't use AI** — they should just be code.
+3. **Consolidate the processes and the data in one place you own** — a process written as code is
+   also the record of how the work is done, and the business data sits behind that code. An agent
+   that reads both together is where the power comes from.
+4. **Using AI shouldn't need a complicated setup** — nothing builds locally, few dependencies.
+5. **Context has to survive the session.**
+6. **Give AI as much access as you can, and as little autonomy as it needs** — an agent won't
+   refuse your instruction, it'll misinterpret it, so humans sit at standard points: the plan, PR
+   review, tests, and the login wall.
+
+The page presents this as one way of working that you adapt, not a doctrine.
+
+**`/explore` and `/plan` now ask whether it should be code.** Both carry a short "Ask whether it
+should be code" section: when a process will run more than once, weigh a deterministic script
+against a step that calls a model every run, and prefer the script. `/explore` raises the fork
+while scope is open; `/plan` applies it as tasks are written. This is guidance, not a gate — it
+changes what gets proposed, not what is allowed.
+
+**The README is matter-of-fact.** "AI-native" and "the compounding loop" are gone, the sales-style
+bullets read as statements, and the opening links to the principles. What you lose: nothing
+functional — the loop, the verbs, and every file path are unchanged.
+
 ## 12.0.0 — /walk becomes /verify, and verifies more than a browser can see
 
 **BREAKING: the evidence verb `/walk` is renamed `/verify`.** The skill moved from
