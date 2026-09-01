@@ -341,7 +341,8 @@ describe("getAccessIdentity — the service-token identity", () => {
   });
 
   it("rejects an expired or not-yet-valid assertion", async () => {
-    const now = Math.floor(Date.now() / 1000);
+    const now = 1_800_000_000;
+    vi.spyOn(Date, "now").mockReturnValue(now * 1000);
     const expired = makeToken(
       { alg: "RS256", kid: KID },
       { ...claims({ common_name: "client-id-1" }), exp: now - 1 },
