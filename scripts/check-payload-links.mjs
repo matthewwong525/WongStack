@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Resolve every internal link in the payload AS A TARGET REPO WOULD SEE IT.
+// Resolve every internal link and import in the payload AS A TARGET REPO WOULD SEE IT.
 //
 // WHY THIS CANNOT BE A PLAIN LINK CHECK IN THIS REPO
 //
@@ -77,6 +77,7 @@ function payloadFor({ pack, scaffold, ui }) {
 }
 
 const LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+const IMPORT = /(?:^|[ \t])@((?:\.{1,2}\/)[A-Za-z0-9_./-]*[A-Za-z0-9_/-])/gm;
 
 function checkLinks(files) {
   const dangling = [];
@@ -103,7 +104,12 @@ function checkLinks(files) {
       .replace(/```[\s\S]*?```/g, "")
       .replace(/`[^`\n]*`/g, "");
 
-    for (const [, target] of body.matchAll(LINK)) {
+    const references = [
+      ...[...body.matchAll(LINK)].map((match) => match[1]),
+      ...[...body.matchAll(IMPORT)].map((match) => match[1]),
+    ];
+
+    for (const target of references) {
       if (/^(https?:|mailto:|#)/.test(target)) continue;
       const path = target.split("#")[0];
       if (!path) continue;

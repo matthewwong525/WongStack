@@ -3,9 +3,10 @@
 ## 1. Path-scoped rules (`.agents/rules/`, cited as `.claude/rules/`)
 
 - [x] 1.1 Create `.agents/rules/code.md` — frontmatter `paths: ["app/**", "scripts/**", ".github/workflows/**"]`; body owns the write-less-code standard per specs/path-scoped-rules (least code that does the job; decompose-first; Edit over Write; verify after substantive edits; no `any`, `unknown` only narrowed; numeric limits are the CI gates' job — link to `app/package.json`'s test chain rather than restating numbers); one line telling targets to adjust `paths:` to their layout; run `/simplify` before `/save` on code changes.
-- [x] 1.2 Create `.agents/rules/wiki.md` — frontmatter `paths: ["wiki/**"]`; thin pointer to `wiki/wiki-style.md` and `wiki/voice.md`, plus the don't-edit-wiki-mid-task rule by link to its owner (CLAUDE.md's Rules), restating nothing.
-- [x] 1.3 Create `.agents/rules/notes.md` — frontmatter `paths: ["notes/**"]`; thin pointer to `notes/README.md`, restating nothing.
+- [x] 1.2 Create `.agents/rules/wiki.md` — frontmatter `paths: ["wiki/**"]`; thin import of `wiki/wiki-style.md` and `wiki/voice.md`, plus the don't-edit-wiki-mid-task rule by link to its owner (CLAUDE.md's Rules), restating nothing.
+- [x] 1.3 Create `.agents/rules/notes.md` — frontmatter `paths: ["notes/**"]`; thin import of `notes/README.md`, restating nothing.
 - [x] 1.4 Verify each rule loads: from a fresh session context check (`/context` per docs) or by confirming frontmatter parses (valid YAML, glob list) and paths resolve through the `.claude` symlink.
+- [x] 1.5 Replace the wiki and notes links with inline `@path` imports, update the plan and release wording, and verify every import resolves relative to `.claude/rules/`.
 
 ## 2. Quality gates in `app/` (opt-in scaffold category)
 
@@ -30,3 +31,4 @@
 - [x] 4.2 Add the newest-first `CHANGELOG.md` entry: the rules mechanism, the gate chain, what a target gains (context-loaded conventions, day-one-compliant scaffold) and loses (slower `npm test` on the scaffold; nothing else — copy-if-absent as always).
 - [x] 4.3 Run `node scripts/check-payload-links.mjs` — zero dead links; rules→wiki links must resolve in every install shape, rules→`app/` links may be conditional.
 - [x] 4.4 Restore the `wiki-root` main spec requirements from the archived `rename-docs-to-wiki` delta so the existing empty-spec drift no longer breaks whole-store validation.
+- [x] 4.5 Extend `scripts/check-payload-links.mjs` to validate relative `@path` imports through every install shape, then run it with zero dead references.

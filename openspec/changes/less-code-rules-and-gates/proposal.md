@@ -9,10 +9,10 @@ Agents write too much code — speculative helpers, defensive branches, `any` es
 
 ## What Changes
 
-- **New payload category: path-scoped rules.** `.claude/rules/` (real directory `.agents/rules/` — `.claude` is a symlink) ships three rule files, each a thin pointer to the owning doc, never a restatement:
+- **New payload category: path-scoped rules.** `.claude/rules/` (real directory `.agents/rules/` — `.claude` is a symlink) ships three rule files. A rule imports its owning docs instead of restating them:
   - `code.md` — scoped to `app/**`, `scripts/**`, `.github/workflows/**`: the write-less-code standard (least code that does the job and none that doesn't; decompose-first; prefer Edit over Write; verify after substantive edits; no `any`, `unknown` only when narrowed; the numeric limits are CI's job, not the agent's memory).
-  - `wiki.md` — scoped to `wiki/**`: read [wiki style](../../../wiki/wiki-style.md) and [voice](../../../wiki/voice.md) first; don't edit the wiki mid-task unless it is the task (`/dream` is the write path).
-  - `notes.md` — scoped to `notes/**`: follow the [notes convention](../../../notes/README.md); `/save` writes notes, one note per line of work.
+  - `wiki.md` — scoped to `wiki/**`: import [wiki style](../../../wiki/wiki-style.md) and [voice](../../../wiki/voice.md); don't edit the wiki mid-task unless it is the task (`/dream` is the write path).
+  - `notes.md` — scoped to `notes/**`: import the [notes convention](../../../notes/README.md); `/save` writes notes, one note per line of work.
 - **The app scaffold gains deterministic quality gates**, chained into its existing `npm test` script so `test.yml`'s single `npm test` contract stays the whole CI interface — no new workflow:
   - lint gates via the already-installed oxlint: cyclomatic complexity < 22, max 500 lines per file, `no-explicit-any` as error (cognitive complexity < 22 only if oxlint ships a rule for it — no second linter);
   - 100% test coverage via `@vitest/coverage-v8` thresholds;
@@ -28,7 +28,7 @@ Agents write too much code — speculative helpers, defensive branches, `any` es
 
 ### New Capabilities
 
-- `path-scoped-rules`: the payload ships `.claude/rules/` as a core category — path-scoped, thin-pointer rule files that load conventions into an agent's context when it works with matching files.
+- `path-scoped-rules`: the payload ships `.claude/rules/` as a core category — path-scoped, thin rule files that import conventions into an agent's context when it works with matching files.
 
 ### Modified Capabilities
 
@@ -46,3 +46,4 @@ Agents write too much code — speculative helpers, defensive branches, `any` es
 
 - **2026-09-01** — Added the three core path-scoped rules and the complete scaffold gate chain. The final local chain passes with 100% coverage, zero dead-code findings, zero duplicated blocks, and all 170 mutants killed. Oxlint has no cognitive-complexity rule, and Stryker uses its supported in-place mode to stay compatible with TypeScript 7. Spec sync also restored the four `wiki-root` requirements from the archived `rename-docs-to-wiki` delta; that main spec had an empty Requirements section and blocked whole-store validation. CI verification remains.
 - **2026-09-01** — CI passed on the pushed implementation. The full `npm test` gate chain is green, all 19 tasks are complete, and the change is ready to ship.
+- **2026-09-01** — The user asked the wiki and notes rules to auto-load their owners. Both rules now use relative `@path` imports, which stay conditional on each rule's path scope. The payload link checker also validates relative imports in every install shape. All 21 tasks are complete.

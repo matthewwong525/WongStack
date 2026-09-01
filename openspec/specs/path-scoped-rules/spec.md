@@ -25,7 +25,7 @@ A target repo that already has any of these files SHALL keep its own copy untouc
 #### Scenario: An agent touches the wiki or notes
 
 - **WHEN** an agent reads a file under `wiki/` or `notes/`
-- **THEN** the matching rule directs it to the owning convention page for that surface
+- **THEN** the matching rule imports the owning convention pages into context for that surface
 
 #### Scenario: A target repo receives the rules
 
@@ -33,18 +33,18 @@ A target repo that already has any of these files SHALL keep its own copy untouc
 - **THEN** the file is proposed as a missing payload file
 - **AND** a locally authored rule of the same name is never overwritten
 
-### Requirement: A rule is a thin pointer, except for the fact it owns
+### Requirement: A rule is a thin importer, except for the fact it owns
 
-A rule file SHALL NOT restate a convention another payload file owns — it SHALL name the owning doc and link to it, keeping each rule short enough to cost little context. Where a rule states a fact no other file owns, the rule file itself SHALL be that fact's single owner. Specifically:
+A rule file SHALL NOT restate a convention another payload file owns — it SHALL name the owning doc and import it with Claude Code's `@path` syntax, keeping each rule short and loading the full convention only when its path scope matches. Where a rule states a fact no other file owns, the rule file itself SHALL be that fact's single owner. Specifically:
 
 - `code.md` SHALL own the write-less-code standard — the least code that does the job and none that doesn't; decompose branchy code into named helpers as it is written; prefer surgical edits over file rewrites; verify with the project's own checks after substantive edits; no `any`, and `unknown` only where it is narrowed before use — and SHALL state that the numeric limits are enforced by the repo's CI gates, not by the agent's memory.
-- `wiki.md` SHALL point to the wiki style and voice pages and restate nothing from them.
-- `notes.md` SHALL point to the notes convention and restate nothing from it.
+- `wiki.md` SHALL import the wiki style and voice pages and restate nothing from them.
+- `notes.md` SHALL import the notes convention and restate nothing from it.
 
 #### Scenario: A rule names an owned convention
 
 - **WHEN** a rule needs the reader to follow a convention another file owns
-- **THEN** it links to the owning file rather than restating its scope or exceptions
+- **THEN** it imports the owning file rather than restating its scope or exceptions
 
 #### Scenario: The code rule states the standard
 

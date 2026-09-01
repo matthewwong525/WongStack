@@ -7,7 +7,7 @@
 
 **Path-scoped rules now ship as core payload.** The new `.claude/rules/code.md`, `wiki.md`, and
 `notes.md` files load the matching convention when an agent reads code, wiki, or note paths. The
-files point to existing owners where one exists; `code.md` owns the new write-less-code standard.
+wiki and notes rules import their existing owners; `code.md` owns the new write-less-code standard.
 A target gains conventions in context at the time of an edit.
 
 **The opt-in app scaffold now enforces deterministic quality gates through its existing `npm test`
