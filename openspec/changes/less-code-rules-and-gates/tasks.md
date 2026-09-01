@@ -17,7 +17,7 @@
 - [x] 2.6 Configure jscpd on source only (exclude `*.test.*`), threshold 0 duplicated blocks.
 - [x] 2.7 Configure Stryker (`app/stryker.conf.json`): vitest runner, mutate the same file set as coverage, `thresholds.break: 100`; extend tests until zero mutants survive.
 - [x] 2.8 Chain the gates into the `test` script, cheap→expensive: `oxlint` (reuse `lint`) → `vitest run --coverage` → `knip` → `jscpd` → `stryker run`. No new workflow; `test.yml` untouched.
-- [ ] 2.9 Confirm the full chain passes in CI on the pushed branch — verified via /save.
+- [x] 2.9 Confirm the full chain passes in CI on the pushed branch — verified via /save.
 
 ## 3. Payload manifest + docs
 

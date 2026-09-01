@@ -1,6 +1,6 @@
 # Less code: path-scoped rules and deterministic quality gates
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Open questions:** none
 
 ## Why
@@ -45,3 +45,4 @@ Agents write too much code — speculative helpers, defensive branches, `any` es
 ## Decision log
 
 - **2026-09-01** — Added the three core path-scoped rules and the complete scaffold gate chain. The final local chain passes with 100% coverage, zero dead-code findings, zero duplicated blocks, and all 170 mutants killed. Oxlint has no cognitive-complexity rule, and Stryker uses its supported in-place mode to stay compatible with TypeScript 7. Spec sync also restored the four `wiki-root` requirements from the archived `rename-docs-to-wiki` delta; that main spec had an empty Requirements section and blocked whole-store validation. CI verification remains.
+- **2026-09-01** — CI passed on the pushed implementation. The full `npm test` gate chain is green, all 19 tasks are complete, and the change is ready to ship.
