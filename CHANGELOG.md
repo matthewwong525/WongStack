@@ -3,6 +3,22 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.2.0 — conventions load with the path, and the scaffold proves its code
+
+**Path-scoped rules now ship as core payload.** The new `.claude/rules/code.md`, `wiki.md`, and
+`notes.md` files load the matching convention when an agent reads code, wiki, or note paths. The
+wiki and notes rules import their existing owners; `code.md` owns the new write-less-code standard.
+A target gains conventions in context at the time of an edit.
+
+**The opt-in app scaffold now enforces deterministic quality gates through its existing `npm test`
+contract.** Oxlint caps complexity and file size and rejects explicit `any`; Vitest enforces 100%
+coverage; knip rejects dead code; jscpd rejects duplicated blocks; and Stryker requires a 100%
+mutation score. The shipped scaffold passes every gate. No workflow changes.
+
+A target that takes the scaffold gains a compliant starting point and loses only test speed because
+mutation testing adds work. It owns its copied chain and can retune it as the app grows. All new and
+changed payload files keep the usual copy-if-absent and never-overwrite behavior.
+
 ## 12.1.0 — the reasoning, stated plainly, and one principle that changes planning
 
 **[AI knowledge centers](wiki/agent-knowledge-center.md) now states the six working principles

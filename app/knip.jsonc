@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "worker/index.ts",
+    // This Access module ships inert until a target adopts the login wall.
+    "worker/access.ts"
+  ],
+  "project": ["worker/**/*.ts", "src/**/*.{ts,tsx}"],
+  "vite": {
+    "config": ["vite.config.ts"]
+  },
+  "vitest": {
+    "config": ["vitest.config.ts"]
+  }
+}

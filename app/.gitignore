@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
+reports
+.stryker-tmp
 *.local
 
 # Editor directories and files

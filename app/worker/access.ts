@@ -84,7 +84,7 @@ async function getSigningKeys(teamDomain: string, forceRefresh = false): Promise
   if (fresh && !forceRefresh) return keyCache!.keys;
 
   const response = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
-  if (!response.ok) throw new Error(`Access certs fetch failed: ${response.status}`);
+  if (!response.ok) return new Map();
 
   // `kid` is what maps a token to its key, and the runtime's JsonWebKey type
   // doesn't declare it — the certs endpoint always sends it.
@@ -116,6 +116,30 @@ function base64UrlDecode(segment: string): Uint8Array {
 
 function decodeJson<T>(segment: string): T {
   return JSON.parse(new TextDecoder().decode(base64UrlDecode(segment))) as T;
+}
+
+function identityFromClaims(
+  claims: AccessClaims,
+  audience: string,
+  teamDomain: string,
+): AccessIdentity | null {
+  // Audience: this assertion must be for THIS application. Without it, a valid
+  // token for any other app in the same org would be accepted here.
+  const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!audiences.includes(audience)) return null;
+
+  // Issuer: our own Access organization.
+  if (claims.iss !== `https://${teamDomain}`) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof claims.exp !== "number" || claims.exp <= now) return null;
+  if (typeof claims.nbf === "number" && claims.nbf > now) return null;
+
+  // One path, both callers: `email` for a human, `common_name` for a service
+  // token. A service-token assertion has no email and an empty `sub`.
+  if (claims.email) return { id: claims.email, kind: "user", claims };
+  if (claims.common_name) return { id: claims.common_name, kind: "service", claims };
+  return null;
 }
 
 /**
@@ -170,25 +194,7 @@ export async function getAccessIdentity(
     );
     if (!verified) return null;
 
-    const claims = decodeJson<AccessClaims>(payloadSegment);
-
-    // Audience: this assertion must be for THIS application. Without it, a valid
-    // token for any other app in the same org would be accepted here.
-    const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-    if (!audiences.includes(audience)) return null;
-
-    // Issuer: our own Access organization.
-    if (claims.iss !== `https://${teamDomain}`) return null;
-
-    const now = Math.floor(Date.now() / 1000);
-    if (typeof claims.exp !== "number" || claims.exp <= now) return null;
-    if (typeof claims.nbf === "number" && claims.nbf > now) return null;
-
-    // One path, both callers: `email` for a human, `common_name` for a service
-    // token. A service-token assertion has no email and an empty `sub`.
-    if (claims.email) return { id: claims.email, kind: "user", claims };
-    if (claims.common_name) return { id: claims.common_name, kind: "service", claims };
-    return null;
+    return identityFromClaims(decodeJson<AccessClaims>(payloadSegment), audience, teamDomain);
   } catch {
     // Malformed token, unreachable certs endpoint, bad JSON — all fail closed.
     return null;

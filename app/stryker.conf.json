@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "inPlace": true,
+  "mutate": [
+    "worker/**/*.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "!src/main.tsx",
+    "!**/*.test.*",
+    "!**/*.d.ts"
+  ],
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "break": 100
+  }
+}

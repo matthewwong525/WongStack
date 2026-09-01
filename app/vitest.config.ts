@@ -8,5 +8,22 @@ export default defineConfig({
   test: {
     include: ["worker/**/*.test.ts", "src/**/*.test.{ts,tsx}"],
     environment: "node",
+    coverage: {
+      provider: "v8",
+      include: ["worker/**/*.ts", "src/**/*.ts", "src/**/*.tsx"],
+      exclude: [
+        "src/main.tsx",
+        "**/*.test.*",
+        "**/*.d.ts",
+        "src/**/*.css",
+        "src/assets/**",
+      ],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
+    },
   },
 });

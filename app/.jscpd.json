@@ -1,0 +1,8 @@
+{
+  "threshold": 0,
+  "path": ["src", "worker"],
+  "pattern": "**/*.{ts,tsx}",
+  "ignore": ["**/*.test.ts", "**/*.test.tsx"],
+  "reporters": ["console"],
+  "gitignore": true
+}

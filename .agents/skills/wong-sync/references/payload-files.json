@@ -31,6 +31,9 @@
       "agent-browser"
     ],
     "files": [
+      ".claude/rules/code.md",
+      ".claude/rules/wiki.md",
+      ".claude/rules/notes.md",
       "notes/README.md",
       "wiki/wiki-style.md",
       "wiki/voice.md",
