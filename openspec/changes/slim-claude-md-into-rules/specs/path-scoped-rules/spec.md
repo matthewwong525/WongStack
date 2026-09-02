@@ -1,10 +1,6 @@
-# path-scoped-rules Specification
+# path-scoped-rules Delta
 
-## Purpose
-
-The payload ships path-scoped rule files under `.claude/rules/` that load the owning convention into an agent's context exactly when it works with matching files — so conventions surface at the moment of the edit instead of relying on the agent to go find them.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: The payload ships path-scoped rules in the core category
 
@@ -65,6 +61,8 @@ A rule file SHALL NOT restate a convention another payload file owns — it SHAL
 - **WHEN** an agent loads `code.md`
 - **THEN** the write-less-code standard is stated there in full, because no other file owns it
 - **AND** every numeric limit is attributed to the CI gate that enforces it, not restated as a number the agent must track
+
+## ADDED Requirements
 
 ### Requirement: Meta-only rules stay out of the manifest
 

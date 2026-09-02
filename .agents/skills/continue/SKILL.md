@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Resume an OpenSpec change and pick up the work. Use whenever you want to continue, resume, or rehydrate a thread — by change name (which is also the branch name), a PR number/URL, or from the openspec list menu when given no argument. Loads the change (proposal + tasks) from openspec/changes/<name>/ plus the session note at notes/<name>.md when one exists, checks out the branch, recaps the plan + the tail of its Decision log + the session context, runs a counts-only drift check, then hands off to /apply to work the tasks. Accepts an optional explicit instruction after the reference (/continue <name> <instruction>) to steer what gets done. Pairs with /save.
+description: Resume an OpenSpec change and pick up the work — by change name (also the branch name), a PR number/URL, or from a menu when given no argument. Loads the change and the session note, checks out the branch, recaps the plan and Decision log, runs a drift check, then hands off to /apply to work the tasks. Accepts an optional instruction (/continue <name> <instruction>). Pairs with /save. Use whenever you want to continue, resume, or rehydrate a thread.
 user-invocable: true
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: wong-setup
-description: The WongStack front door — guided setup for turning a repo into an AI knowledge center. It researches the repo, listens for how the team works, maps process needs to WongStack's verbs and knowledge surfaces, then sets up the ground — git repo, GitHub access, OpenSpec, the authored CLAUDE.md and wiki seeds, a seed manifest — before handing the install itself to /wong-sync, which copies in every payload file the repo doesn't have yet — which, on a fresh repo, is all of them. Hard mismatches still stop safely before changes. Fresh integrations only — a repo with a real manifest skips onboarding and goes straight to /wong-sync. Use when considering, evaluating, or setting up WongStack in a new or existing repo.
+description: The WongStack front door — guided setup for turning a repo into an AI knowledge center. Researches the repo, listens for how the team works, sets up the ground (git, GitHub access, OpenSpec, the authored CLAUDE.md and wiki seeds, a seed manifest), then hands the install to /wong-sync, which copies in every payload file the repo lacks. Hard mismatches stop safely before changes. Fresh integrations only — a repo with a real manifest goes straight to /wong-sync. Use when considering, evaluating, or setting up WongStack in a new or existing repo.
 user-invocable: true
 ---
 

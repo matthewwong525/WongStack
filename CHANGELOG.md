@@ -3,6 +3,28 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.3.0 — a slimmer always-on context, and rules that cover every surface
+
+**The `WONG-STACK` block in `CLAUDE.md` is now orientation only.** It keeps the four knowledge
+surfaces, the loop in one line, the git-ownership boundary, and one-line rules with links to their
+owners. The per-verb prose and the `/wong-sync` paragraph are gone: the skill descriptions already
+load in every session and say the same things, and [the change
+loop](wiki/development/the-change-loop.md) owns the detail. Every fact cut from the block has a
+surviving owner that loads on file touch (a rule), on invocation (a skill), or by link (a wiki
+page). A target adopts the slimmer block through the usual adapt-never-rewrite path and gains
+context budget in every session.
+
+**Two new path-scoped rules ship as core payload.** `.claude/rules/openspec.md` (scoped to
+`openspec/**`) owns cross-surface routing — Decision log vs note vs wiki — and the no-git,
+no-`/opsx:*` boundaries. `.claude/rules/secrets.md` (scoped to env files) points at the secrets
+convention before an agent edits `.env.example`. Both link instead of `@`-import, so they add no
+launch-time context.
+
+**WongStack-authored skill descriptions are trimmed to triggers** (≤600 characters each; ~36%
+smaller in total). Every behavior detail a description dropped remains stated in its skill body,
+which loads on invocation. Generated `openspec-*` skills and the vendored `agent-browser` skill are
+untouched.
+
 ## 12.2.0 — conventions load with the path, and the scaffold proves its code
 
 **Path-scoped rules now ship as core payload.** The new `.claude/rules/code.md`, `wiki.md`, and
