@@ -1,6 +1,6 @@
 ---
 name: update-dependencies
-description: Bring the WongStack meta-repo's own toolchain and dependencies to their latest versions in one pass — survey installed vs latest for the OpenSpec CLI, agent-browser, gh, git, node, the app/ npm dependencies and the generated openspec-* skill layer; update the machine's tools; run openspec update and check what rippled into the payload; bump app/ to latest including majors, reading each major's migration guide and fixing what breaks; then hand the diff to /save, where CI is the gate. Use when asked to update or bump dependencies, upgrade the tools, check whether we are on the latest OpenSpec or agent-browser, take the app to the newest versions, or find out what is out of date. Meta-repo only — this skill is not part of the payload and never reaches a target repo. On demand only; it schedules nothing.
+description: Bring the WongStack meta-repo's own toolchain and dependencies to their latest versions in one pass — survey installed vs latest (OpenSpec CLI, agent-browser, gh, git, node, app/ npm deps, the generated openspec-* layer), update the tools, run openspec update, bump app/ including majors, then hand the diff to /save where CI is the gate. Meta-repo only; never reaches a target repo. On demand only. Use when asked to update or bump dependencies, upgrade the tools, or find out what is out of date.
 user-invocable: true
 ---
 

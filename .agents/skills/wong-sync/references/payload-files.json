@@ -34,6 +34,8 @@
       ".claude/rules/code.md",
       ".claude/rules/wiki.md",
       ".claude/rules/notes.md",
+      ".claude/rules/openspec.md",
+      ".claude/rules/secrets.md",
       "notes/README.md",
       "wiki/wiki-style.md",
       "wiki/voice.md",
