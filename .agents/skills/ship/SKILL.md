@@ -1,12 +1,12 @@
 ---
 name: ship
-description: Ship the current branch — archive the OpenSpec change, delegate the one commit/push/PR/CI checkpoint to /save, walk the deployed preview for evidence, then squash-merge and delete the remote branch worktree-safely. Given an intent (/ship <intent>), it first pulls in /apply — and through it /plan and /explore's question round — so one invocation carries a task from idea to merge. Never merges as a way of stopping. Does NOT build or test locally: CI is the gate when present, else PR review. Use when you want work shipped, merged, and archived.
+description: Ship the current branch — archive the OpenSpec change, delegate the one commit/push/PR/CI checkpoint to /save, walk the deployed preview for evidence, squash-merge and delete the remote branch worktree-safely, then fast-forward the durable checkout's default branch to the merge. Given an intent (/ship <intent>), it first pulls in /apply — and through it /plan and /explore's question round — so one invocation carries a task from idea to merge. Never merges as a way of stopping. Does NOT build or test locally: CI is the gate when present, else PR review. Use when you want work shipped, merged, and archived.
 user-invocable: true
 ---
 
 # /ship
 
-Ship runbook. Invoking it authorizes the archive, the delegated `/save` checkpoint, the walk, the merge, and the remote-branch deletion below — don't re-prompt. Invoking it **with an intent** (`/ship <intent>`) also authorizes the [pulled-in stage](#the-pull-in-ship-intent): explore, plan, implement, and their saves, with no re-prompt between stages. Confirm anything outside this runbook (force push, hard reset).
+Ship runbook. Invoking it authorizes the archive, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync below — don't re-prompt. Invoking it **with an intent** (`/ship <intent>`) also authorizes the [pulled-in stage](#the-pull-in-ship-intent): explore, plan, implement, and their saves, with no re-prompt between stages. Confirm anything outside this runbook (force push, hard reset).
 
 `/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, walks the preview for evidence, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/dream` for that).
 
@@ -88,13 +88,36 @@ The squash carries the archived change onto the default branch.
 
 On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke ordinary `/save` again so the changed merge commit receives the same checkpoint and gate. Retry the merge only on its `SUCCESS` or `NONE`. Other failure (branch protection, draft) → surface the exact `gh` error.
 
-## Step 6 — report
+## Step 6 — sync the durable checkout
+
+The merge moved `main` on the remote, and the delete made `origin/$BRANCH` stale. Bring the checkout that owns `main` up to the commit you just merged:
+
+```bash
+git fetch origin --prune                  # refresh origin/main; drop the deleted branch's ref
+MAIN_WT=$(git worktree list --porcelain \
+  | awk '/^worktree /{p=$2} /^branch refs\/heads\/main$/{print p}')
+
+if [ -n "$MAIN_WT" ]; then
+  # some checkout has main out — fast-forward it there, but only if it is clean
+  [ -z "$(git -C "$MAIN_WT" status --porcelain)" ] && git -C "$MAIN_WT" merge --ff-only origin/main
+else
+  # nothing has main out — advance the ref in place, without switching branches
+  git fetch origin main:main
+fi
+```
+
+Ask **which checkout has `main` out**, not whether you are in a worktree — a primary checkout parked on some other branch is neither shape. Worktrees share the object store, so the one `git fetch` above already refreshed `origin/main` for every sibling; the merge needs no network.
+
+**Any obstacle skips, and the skip is one line.** A dirty target checkout, a diverged `main`, a `merge --ff-only` that refuses — leave that checkout alone and say why in the report. The pull request is already merged, so **nothing after Step 5 can fail the ship**. Never check out, switch, stash, reset, or force a branch to make the sync succeed, and never delete a local branch.
+
+## Step 7 — report
 
 - PR number + URL, **merged (squash)** to the default branch.
 - **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch (`openspec list` no longer shows it; `openspec/specs/` holds the synced result).
 - **Checkpoint** — `/save` result and CI outcome, including auto-fix pushes.
 - **Walk** — the verdict, the evidence comment link, and — when a `FAILURE` was merged anyway — that the user chose to. Where the skill was absent, one line saying so.
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.
+- **Synced** — the checkout whose `main` advanced to the merged commit, or the one-line reason the sync was skipped.
 
 ## Hard rules
 - Never ship onto a red default branch (when it has checks). **Never merge on an `UNKNOWN` check result** — unverified is not the same as no checks. Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. **Never build or test locally** — CI is the gate when present, else PR review; the app's own suite runs there as an ordinary check.
@@ -103,4 +126,5 @@ On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not
 - **The walk informs, never blocks.** Run it once, report every verdict, and let no verdict but a user-answered `FAILURE` change what happens next. Never skip it to save time, and never re-run it hunting a greener result.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - **Never delete a branch another open PR is based on.** Retarget dependents to the default branch first; a closed-by-deletion PR cannot be recovered.
+- **The post-merge sync is fast-forward only, and never a gate.** It touches one other checkout, so it requires a clean tree there and skips with a reason on any obstacle. It deletes no local branch, and it cannot fail a ship that has already merged.
 - No GitHub summary issue and no docs distillation — the archived spec is the record; `/dream` handles the wiki.

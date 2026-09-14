@@ -3,6 +3,25 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.6.0 — a ship leaves your checkout in sync
+
+**`/ship` now ends with `main` already up to date.** After the squash-merge and the remote-branch
+delete, a new step brings the checkout that owns the default branch up to the commit just merged,
+and prunes the remote-tracking refs the delete made stale. Work in throwaway worktrees and the
+checkout that survives the session is the one that goes stale; now it doesn't, and the next session
+starts without a pull.
+
+The step asks **which checkout has `main` out**, not whether you are in a worktree. One does — the
+primary checkout, in a worktree session — so `main` is fast-forwarded there. None does, as in a
+plain checkout sitting on your feature branch, so the local ref advances in place. Either way you
+are still standing on the same branch afterwards: nothing is checked out, switched, stashed, reset,
+or force-updated, and no local branch is deleted.
+
+It is fast-forward only, and it is **not a gate**. A dirty target checkout, a diverged `main`, or a
+refused fast-forward leaves that checkout untouched and reports the reason in one line — the pull
+request is already merged, so nothing after the merge can fail a ship. The report names the outcome
+either way.
+
 ## 12.5.0 — the OpenSpec steps leave the menu
 
 **The six generated `openspec-*` skills are hidden from the `/` menu.** They were never doors for
