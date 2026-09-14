@@ -3,6 +3,39 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.4.0 — ask up front, then ship in one go
+
+**`/explore` owns the loop's question round, and it always runs.** At its exit — you say you're
+ready to plan, or a bounded pass ends — it puts the unresolved forks to you as **one**
+multiple-choice question set: at most four questions, recommended option first, and nothing the
+conversation already settled. Zero questions is the normal outcome after a real exploration. The bar
+is the 80/20 test: ask where a wrong guess makes the artifacts *wrong*, not merely *different*.
+Scope, observable behavior, compatibility, and acceptance criteria are questions; naming, placement,
+and wording are assumptions to record. Where nobody can answer — a scheduled run, a remote agent —
+the recommended option is taken and marked **assumed**, so a run never hangs and a reviewer can still
+tell a decision from a default.
+
+**`/plan` invokes `/explore` first, every time**, in a new bounded mode: read the conversation,
+investigate only the gap, ask once, summarize, return. It writes nothing; `/plan` records each answer
+in the proposal's Decision log. Standalone `/explore` keeps its open thinking-partner stance and
+gains the same exit round. `/explore` is no longer described as optional.
+
+**`/ship <intent>` runs the whole cycle.** Given an intent on a branch with nothing to ship, `/ship`
+now invokes `/apply` — which already invokes `/plan`, which now invokes `/explore` — then continues
+into its own archive, checkpoint, walk, and merge. One invocation carries a task from idea to merge,
+with the questions landing before any code is written. Bare `/ship` keeps every stop it had.
+
+**One rule for the whole loop:** a verb whose precondition is missing invokes the verb before it to
+produce it — `/ship` → `/apply` → `/plan` → `/explore`. Entering late skips no stop: **no verb merges
+as a way of stopping.** A paused plan, an apply that ends with tasks pending, or a failing checkpoint
+inside the chain reports the blocker and stops before the archive; a partial change is never archived
+or merged. A one-go run still has two checkpoints and still merges on the ordinary gate, and a red
+`/verify` still pauses to ask you.
+
+No new verb, no new flag, no new file. `/apply` and `/save` are untouched, and the generated
+`openspec-*` skills stay pristine. A target repo gains the three skill updates and the change-loop
+page on its next `/wong-sync`.
+
 ## 12.3.0 — a slimmer always-on context, and rules that cover every surface
 
 **The `WONG-STACK` block in `CLAUDE.md` is now orientation only.** It keeps the four knowledge

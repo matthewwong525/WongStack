@@ -1,12 +1,12 @@
 ---
 name: ship
-description: Ship the current branch — verify the default branch, archive the OpenSpec change (/opsx:archive), delegate the one commit/push/PR/CI checkpoint to /save, walk the deployed preview once for evidence, then squash-merge and delete the remote branch worktree-safely. Does NOT build or test locally — CI is the gate when present, else PR review. The walk gates nothing: an unrunnable walk never blocks, and a failed one pauses to ask you rather than deciding for you. Use when you're done iterating on a branch and want it shipped, merged, and archived.
+description: Ship the current branch — archive the OpenSpec change, delegate the one commit/push/PR/CI checkpoint to /save, walk the deployed preview for evidence, then squash-merge and delete the remote branch worktree-safely. Given an intent (/ship <intent>), it first pulls in /apply — and through it /plan and /explore's question round — so one invocation carries a task from idea to merge. Never merges as a way of stopping. Does NOT build or test locally: CI is the gate when present, else PR review. Use when you want work shipped, merged, and archived.
 user-invocable: true
 ---
 
 # /ship
 
-Ship runbook. Invoking it authorizes the archive, the delegated `/save` checkpoint, the walk, the merge, and the remote-branch deletion below — don't re-prompt. Confirm anything outside this runbook (force push, hard reset).
+Ship runbook. Invoking it authorizes the archive, the delegated `/save` checkpoint, the walk, the merge, and the remote-branch deletion below — don't re-prompt. Invoking it **with an intent** (`/ship <intent>`) also authorizes the [pulled-in stage](#the-pull-in-ship-intent): explore, plan, implement, and their saves, with no re-prompt between stages. Confirm anything outside this runbook (force push, hard reset).
 
 `/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, walks the preview for evidence, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/dream` for that).
 
@@ -24,10 +24,23 @@ git log origin/main..HEAD --oneline
 gh api repos/:owner/:repo/commits/main/check-runs \
   --jq '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)'
 ```
-- On the default branch → **stop** (`/ship` runs on a feature branch).
-- Clean tree and 0 commits ahead → **stop** (there is nothing to ship). A dirty feature branch with 0 commits is valid: the delegated `/save` below will create its first commit.
-- Default branch's CI is `failure` → **stop**; fix it first (`ok`/empty = proceed).
+- On the default branch → **stop**, unless an intent was given (`/ship` runs on a feature branch).
+- Clean tree and 0 commits ahead → **stop**, unless an intent was given (there is nothing to ship). A dirty feature branch with 0 commits is valid: the delegated `/save` below will create its first commit.
+- Default branch's CI is `failure` → **stop**; fix it first (`ok`/empty = proceed). An intent does **not** override this one.
 - Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`. Do not commit, push, open a PR, or wait on branch checks here — those are `/save`'s single checkpoint after the archive move.
+
+### The pull-in: `/ship <intent>`
+
+**When an intent was given *and* either stop condition above holds** — on the default branch, or a clean tree with 0 commits ahead — there is nothing to ship *yet*, so make it: **invoke the [`apply` skill](../apply/SKILL.md) with the argument verbatim**, then **re-run this preflight** on the branch `/save` created and continue to Step 2.
+
+Pass the argument through untouched. `/apply` resolves what it means under its own rules, invokes [`/plan`](../plan/SKILL.md) — and therefore [`/explore`](../explore/SKILL.md)'s question round — when no apply-ready change exists, works the tasks, and hands completion to `/save`. `/ship` resolves nothing itself and adds no planning, implementation, or git behavior of its own.
+
+This is the loop's one rule, applied one verb further out: **when a verb's precondition is missing, it invokes the verb before it to produce it** — `/ship` → `/apply` → `/plan` → `/explore`. [The change loop](../../../wiki/development/the-change-loop.md) owns the rule.
+
+- **Bare `/ship`** keeps every stop above exactly as before. A merge is never started by inference — only an explicit intent begins the chain.
+- **A feature branch that already has work** (commits ahead or a dirty tree) runs the ordinary runbook; the pull-in doesn't fire, whether or not an intent was given.
+
+**Never merge as a way of stopping.** If `/plan` pauses on unclear intent, `/apply` ends with tasks pending, or any `/save` inside the chain returns a failing or unverifiable result, **report that blocker and stop before Step 2**. Do not archive, checkpoint, or merge a partial change. The chain either reaches a complete implementation or it reports why it didn't.
 
 ## Step 2 — archive the change (/opsx:archive)
 
@@ -86,6 +99,7 @@ On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not
 ## Hard rules
 - Never ship onto a red default branch (when it has checks). **Never merge on an `UNKNOWN` check result** — unverified is not the same as no checks. Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. **Never build or test locally** — CI is the gate when present, else PR review; the app's own suite runs there as an ordinary check.
 - **Never implement checkpoint mechanics.** Archive first, then delegate once to ordinary `/save`; merge only on its `SUCCESS` or `NONE` result.
+- **Never merge as a way of stopping.** A pulled-in `/plan` that pauses, an `/apply` that ends with tasks pending, or a chain `/save` that comes back failing or unverifiable stops `/ship` before the archive. A partial change is never archived, checkpointed, or merged. The two checkpoints of a one-go run — `/apply`'s completion save and this runbook's archive save — both stand; never collapse them.
 - **The walk informs, never blocks.** Run it once, report every verdict, and let no verdict but a user-answered `FAILURE` change what happens next. Never skip it to save time, and never re-run it hunting a greener result.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - **Never delete a branch another open PR is based on.** Retarget dependents to the default branch first; a closed-by-deletion PR cannot be recovered.
