@@ -102,7 +102,7 @@ The file list — and nothing else — comes from [`references/payload-manifest.
 | **present, provably unmodified, stale** | update it to upstream's current version — every byte of it came from an upstream release, so nobody's work is at risk |
 | **present otherwise** | leave it exactly as it is; hand it to Step 3's analysis |
 
-⑂ On a **seed manifest** only, the copies are performed here rather than planned.
+⑂ On a **seed manifest** only, the copies are performed here rather than planned. Once they are done, run `"$(git rev-parse --show-toplevel)"/.claude/skills/wong-sync/scripts/hide-openspec-skills.sh` and report its `patched N, already-hidden M` line — on this path there is no plan to carry the task, so the install hides the generated `openspec-*` skills itself.
 
 ### The proof of "unmodified"
 
@@ -137,6 +137,8 @@ The step produces two things and nothing else:
 
 - **`.claude/wong-sync-verdicts.md`** — every run, every capability, every verdict and reason. Written by the sync itself. Every entry is a checkbox; **tick one to overrule the verdict** — a non-`adopt` line to force it, an `adopt` line to refuse it.
 - **`openspec/changes/sync-wongstack-<YYYY-MM-DD>/`** — the run's plan, produced whenever it has anything to do, and **authored by this repo's own plan skill**, which the sync invokes with one fully composed instruction. Its proposal is the **after-picture**: how this repo works once this lands, what you gain, what you lose, and how sharp the picture is. Its tasks are the coarse file work, the manifest rewrite last among them, then one per `adopt`. Nothing to do and nothing to adopt → no folder.
+
+  Where the file work brings in or updates `scripts/hide-openspec-skills.sh`, the plan also carries a task to **run** it — `"$(git rev-parse --show-toplevel)"/.claude/skills/wong-sync/scripts/hide-openspec-skills.sh` — so the generated `openspec-*` skills leave the `/` menu. The sync proposes that run and never performs it: a script run is a write, and this skill writes no payload file.
 
 **The sync composes; the plan skill authors.** Naming, content, and scoping are the sync's product — it passes the exact change name, the proposal body to use **verbatim**, the task list, and the rule that delta specs are for `adopt` grafts only. Locating the planning home, writing the artifacts, and confirming the change is apply-ready are the plan skill's, which is what it already does for every other change in this repo. Three things keep the seam clean:
 

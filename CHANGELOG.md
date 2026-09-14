@@ -3,6 +3,29 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.5.0 — the OpenSpec steps leave the menu
+
+**The six generated `openspec-*` skills are hidden from the `/` menu.** They were never doors for
+you to open: WongStack fronts each one with a verb — `/explore`, `/plan`, `/apply`, `/ship` — that
+owns behavior the raw step does not, like the `/save` handoff and the git boundary. Reaching for
+`/openspec-propose` instead of `/plan` got you the bare step with none of it, and nothing said so.
+Each generated skill now carries `user-invocable: false`: gone from your menu, still invocable by
+the verbs through the Skill tool, so every handoff works exactly as before. No capability is
+removed — only the wrong door.
+
+**The patch is a script, because `openspec update` wipes it.** The generated skills are rewritten
+from CLI templates on every regeneration, so a hand edit lasts until the next one.
+`wong-sync/scripts/hide-openspec-skills.sh` re-applies the key, is safe to run twice, finds its
+targets by glob (a CLI release that adds a seventh skill is covered without touching the script),
+and refuses to edit a file whose frontmatter it cannot parse rather than mangling it. `/wong-setup`
+runs it after `openspec init` and `/update-dependencies` after `openspec update`. `/wong-sync`
+proposes the run as a task in its plan instead of performing it — a script run is a write, and that
+skill writes no payload file — except on a fresh install, where the copy *is* the install.
+
+**`disable-model-invocation` is still the wrong lever, now on record twice.** It hides a skill from
+you *and* blocks the Skill tool, which would sever every verb-to-step handoff. `user-invocable:
+false` was probed against a control before anything was built, and it leaves the Skill tool intact.
+
 ## 12.4.0 — ask up front, then ship in one go
 
 **`/explore` owns the loop's question round, and it always runs.** At its exit — you say you're
