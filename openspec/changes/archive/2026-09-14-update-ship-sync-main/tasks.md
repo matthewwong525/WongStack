@@ -9,6 +9,6 @@
 
 ## 2. Release ritual
 
-- [x] 2.1 Bump `VERSION` to `12.5.0`.
-- [x] 2.2 Add the newest-first `CHANGELOG.md` entry for 12.5.0.
+- [x] 2.1 Bump `VERSION` to `12.6.0`.
+- [x] 2.2 Add the newest-first `CHANGELOG.md` entry for 12.6.0.
 - [x] 2.3 Run `node scripts/check-payload-links.mjs` and confirm it reports no dead links.

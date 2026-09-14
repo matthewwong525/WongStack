@@ -52,6 +52,8 @@ Report the resulting versions even where nothing moved.
 
 Run `openspec update` to regenerate the OpenSpec instruction layer. **Run it every pass**, not only when the CLI version moved — a generated layer can drift from the installed CLI on its own, and regenerating corrects that for free.
 
+Then **re-hide the generated skills**: run `"$(git rev-parse --show-toplevel)"/.claude/skills/wong-sync/scripts/hide-openspec-skills.sh` and report its `patched N, already-hidden M` line as part of this stage. Regeneration rewrites the six from CLI templates and discards their `user-invocable: false`, which is why the patch is a script re-run here rather than an edit someone maintains. Run it every pass too: a plain `openspec update` is a no-op when the CLI is already current and leaves the key intact, so `already-hidden 6` is the ordinary result and `patched 6` means the layer really was rewritten.
+
 Then the **ripple check**, which asks what the regeneration changed *beyond* the generated files. A link checker cannot see a wrong count, so check names and counts by reading:
 
 1. **The set of generated skills and commands** — `.claude/skills/openspec-*/` and `.claude/commands/opsx/`. Compare the names against what the repo's prose says they are, and **report any name that was added, removed, or renamed**. A CLI release that changes this set invalidates every page that lists them.
