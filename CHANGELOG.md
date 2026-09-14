@@ -3,6 +3,34 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 12.7.0 — a wireframe you can click
+
+**A change that touches a screen now carries a mock-up you open and walk.** The UX stage of
+`/plan` used to sketch screens in ASCII inside `design.md`. A reviewer could read that and no
+more — no clicking through the flow, no seeing the empty state beside the full one, nothing to
+show a stakeholder. It now writes `openspec/changes/<name>/wireframe.html` as well: every screen
+in the flow, each with the empty, loading, and error states the flow names, and one primary
+action per screen that navigates to the next.
+
+The file is **self-contained** — no CDN, no web font, no remote image — so it renders from a
+clone with no server, no network, and no build, including years later out of the change's
+archive folder. A forge shows it as source rather than rendering it, so the pull-request body's
+new `## Wireframe` section links it and says to open it locally. Each screen carries its
+use-case brief and numbered callouts beside it, so the file stands alone for a reader who never
+opens `design.md`.
+
+It is **low fidelity on purpose**: grey boxes, no brand, no design tokens. A wireframe that looks
+finished gets reviewed for its paint job instead of its flow. The new kit at
+`.claude/skills/plan/references/wireframe-kit.html` owns the chrome, the primitives, and the
+routing, and the design subagent only fills it — so every wireframe in every repo reads the same
+way, and the critic's checks become mechanical (two primary actions on one screen, a declared
+state with no markup, a screen nothing navigates to).
+
+`design.md` keeps the judgment as text — the brief, the flow, the hierarchy, the components —
+and only its `### Wireframes` subsection becomes a link plus `#/<screen>/<state>` anchors that a
+task can cite. **UI-less repos see no change at all**: the UX stage already skipped worker, CLI,
+and library changes, and it skips the wireframe with it.
+
 ## 12.6.0 — a ship leaves your checkout in sync
 
 **`/ship` now ends with `main` already up to date.** After the squash-merge and the remote-branch
