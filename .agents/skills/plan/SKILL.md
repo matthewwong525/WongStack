@@ -10,6 +10,16 @@ user-invocable: true
 
 `/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
+## Explore first, always
+
+**Invoke the [`explore` skill](../explore/SKILL.md) in bounded mode before you draft anything** — whether `/plan` was invoked by the user, by [`/apply`](../apply/SKILL.md), or through [`/ship`](../ship/SKILL.md). It reads the conversation, investigates only what the conversation doesn't answer, then runs its **exit round**: one question set, at most four questions, recommended option first. A fork the conversation already settled is never asked, so a `/plan` that follows a thorough `/explore` session asks nothing and costs a short pass.
+
+Then invoke the propose step with the intent **and the answers**.
+
+**Record every answer in the proposal's `## Decision log`** — `asked X → chose Y`, or `asked X → assumed Y (non-interactive)` where nobody could answer and `/explore` took the recommended option. Keep the two distinguishable: a reviewer must be able to tell a decision from a default.
+
+`/plan` asks no clarification questions of its own. `/explore` owns the round; the single exception is the [UX layout fork](#ux-stage-ui-bearing-changes-only) below, which can only be seen after the design is drafted.
+
 **Invoke the `openspec-propose` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:propose` and owns the actual behavior (naming the change, generating artifacts in dependency order, validating), subject to the apply handoff below.
 
 ## When `/apply` invokes `/plan`
@@ -19,6 +29,8 @@ user-invocable: true
 - **No matching change exists** → create it through the ordinary `openspec-propose` artifact process.
 - **`/apply` explicitly selected an existing incomplete change** → complete that same change's missing artifacts in dependency order. The user's `/apply` request already answers the generated skill's “continue it or create new?” guardrail: continue it, and never create a duplicate.
 - **The required intent is unclear or artifact creation blocks** → pause and return the blocker; `/apply` will not start implementation.
+
+**The bounded [`/explore`](#explore-first-always) pass still runs on this path**, so the questions reach the user before any code is written — that's the whole point of asking at the front of the chain rather than in review.
 
 This handoff changes no standalone behavior: `/plan` invoked by itself creates the apply-ready artifacts and stops for review. It never invokes `/apply` automatically.
 
