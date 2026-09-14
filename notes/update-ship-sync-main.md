@@ -60,7 +60,9 @@ Two mechanics chosen deliberately:
 ## Loose ends
 
 - This ship is the first real end-to-end exercise of the `/ship <intent>` chain that v12.4.0 added —
-  the previous change shipped by hand because the chain did not exist yet when its work started.
+  the previous change shipped by hand because the chain did not exist yet when its work started. It
+  held: one `/ship <intent>` invocation ran explore's question round, plan, apply, the completion
+  save, the archive, the archive save, and the merge, with no re-prompt between stages.
 - `openspec/changes/improve-openspec-plans/` is still an empty scaffold holding only `.openspec.yaml`.
   It showed up in `openspec list` again this session. It was noticed and left alone in the v12.4.0
   change too; nobody has claimed removing it.
