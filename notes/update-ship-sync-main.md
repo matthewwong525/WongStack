@@ -66,3 +66,21 @@ Two mechanics chosen deliberately:
 - `openspec/changes/improve-openspec-plans/` is still an empty scaffold holding only `.openspec.yaml`.
   It showed up in `openspec list` again this session. It was noticed and left alone in the v12.4.0
   change too; nobody has claimed removing it.
+
+## Two gaps this ship's own merge exposed
+
+Shipping this change hit a real `/ship` failure, worth a follow-up change of its own:
+
+- **The merge's exit status is not checked before the branch delete.** Step 5 runs
+  `gh pr merge --squash` then `git push origin --delete "$BRANCH"` as separate lines. The merge
+  failed on a conflict, the delete ran anyway, and **GitHub closed pull request #76** — deleting the
+  *head* branch of an open PR closes it, just as deleting its base does. Recovered by re-pushing the
+  branch and `gh pr reopen 76`; no commit was lost, but the runbook only warns about base branches
+  and says nothing about gating the delete on the merge succeeding.
+- **Concurrent worktrees collide on `VERSION`.** The sibling worktree
+  `/root/.paseo/worktrees/2b9tffs3/hallowed-rabbit` shipped `hide-openspec-skills` as **12.5.0**
+  (#75) while this change was in flight, so both claimed 12.5.0 and `CHANGELOG.md` conflicted. This
+  change renumbered to **12.6.0**. The payload rule ("every payload edit is a release") gives no
+  guidance on picking a version when two branches are open at once; the collision is only visible at
+  merge time.
+
