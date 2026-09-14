@@ -1,6 +1,6 @@
 # UX principles
 
-How to decide what a screen should *be* — who it serves, what job it accomplishes, and how the layout earns its shape — before any component gets picked. This is the judgment layer beside your stack's UI/component conventions (which own the mechanics: which component, which token, which library). Every UI-bearing change applies these principles in a `## UX` section of its design.md (see [the change loop](development/the-change-loop.md)); the section template is at the [bottom of this page](#the--ux-section-in-designmd).
+How to decide what a screen should *be* — who it serves, what job it accomplishes, and how the layout earns its shape — before any component gets picked. This is the judgment layer beside your stack's UI/component conventions (which own the mechanics: which component, which token, which library). Every UI-bearing change applies these principles in a `## UX` section of its design.md (see [the change loop](development/the-change-loop.md)); the section template is at the [bottom of this page](#the--ux-section-in-designmd). Such a change also carries [a clickable wireframe file](#the-wireframe-file) a reviewer opens and walks, so the layout is argued from a picture rather than a paragraph.
 
 **This page is conditional.** It applies only to changes that add or restructure a user-facing screen. A repo with no UI — a CLI, a library, a backend service — can ignore it entirely.
 
@@ -53,12 +53,25 @@ where edge cases branch off.
 Per screen: the one primary action; what gets de-emphasized.
 
 ### Wireframes
-ASCII sketches of the main states — including empty,
-loading, and error states.
+A link to wireframe.html, and its screens and states
+listed as #/<screen>/<state> anchors. No sketches here —
+the file is the picture.
 
 ### Components
 The existing components used (per your UI conventions);
 anything new being created and why.
 ```
 
-Worker-only or UI-less changes skip the section entirely. UI tasks in tasks.md reference the `## UX` subsection they implement, so the spec is in hand at implementation time. Prefer mirroring the closest existing screen over inventing a new pattern — name which screen in the brief.
+Worker-only or UI-less changes skip the section entirely, and get no wireframe. Prefer mirroring the closest existing screen over inventing a new pattern — name which screen in the brief.
+
+### The wireframe file
+
+The picture lives beside the section, at `openspec/changes/<name>/wireframe.html` — one clickable mock-up filled from [the plan skill's kit](../.claude/skills/plan/references/wireframe-kit.html), which owns the chrome, the primitives, and the routing. What it must hold:
+
+- **Every screen in the flow**, each with the empty, loading, and error states the flow names. A state a reviewer cannot reach is a state nobody designed.
+- **One primary action visible at a time**, clickable through to the next screen, so the flow can be walked rather than read. Count per state: a header button that shows in every state plus an inline button in the empty state is two.
+- **A numbered callout per layout choice** that matters, with its reasoning in the notes block beside the screen — the file has to stand alone for a reader who never opens design.md.
+- **Low fidelity, enforced by the kit**: grey boxes, no brand, no design tokens, no product typography. It is a layout argument, not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
+- **No network reference of any kind**, so it opens from a clone with no server and still renders years later out of the change's archive folder.
+
+UI tasks in tasks.md cite the screen and state they implement (`wireframe.html#/list/empty`), so the picture and the brief are both in hand at implementation time.
