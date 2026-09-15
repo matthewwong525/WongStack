@@ -139,6 +139,15 @@ If `/plan` already drafted the change and `/apply` has been checking off tasks, 
 
 For an archived handoff these surfaces live under `CHANGE_ROOT`, Status is `ready-to-ship`, and the new Decision-log entry records the delegated archive checkpoint. Do not create or edit a parallel active change.
 
+**Then resync the review page.** `review.html` shows the proposal's Why and What Changes beside the visuals, so it goes stale the moment the plan sections above change. One script puts it right — run it on every route that has a change, active or archived:
+
+```bash
+ROOT="$(git rev-parse --show-toplevel)"
+node "$ROOT/.claude/skills/save/scripts/sync-review-proposal.mjs" "$CHANGE_ROOT"
+```
+
+It is a text splice between two markers, not a judgment — a change with no `review.html`, or one predating the markers, prints one line and exits 0. It never gates the save. The file is staged with the change folder in Step 5, so the resync rides the same commit.
+
 ### 4b. Creating the change fresh (the skipped-`/plan` fallback)
 
 Author it **via the same OpenSpec artifact process `/plan` uses** — don't freehand the shape:

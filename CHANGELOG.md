@@ -3,6 +3,53 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 13.0.0 — every change gets a review page
+
+**BREAKING (for the planning artifact, not for your code):** `wireframe.html` becomes
+**`review.html`**, and every change gets one — not only the ones that touch a screen.
+The kit moves with it: `.claude/skills/plan/references/wireframe-kit.html` is now
+`review-kit.html`.
+
+**The What Changes list is the navigation.** Open the page and you get the proposal's Why
+and a numbered list of what changes. Click an entry and the stage shows a picture of *that*
+change, with the parts it touches outlined. A sentence like "the list rule now says a search
+box above the rows" stops being something you have to imagine.
+
+Four kinds of picture, because most bullets in most changes are not screens:
+
+| Kind | Shows |
+|---|---|
+| `screen` | a UI screen at low fidelity, with its empty, loading, and error states — the wireframe as before |
+| `flow` | a sequence of steps, as a today lane and an after lane |
+| `diff` | before-and-after text: a rule, a config value, a template, prose |
+| `tree` | files added, edited, removed |
+
+A bullet with nothing to draw opens a text stage, so no click is ever dead.
+
+**Annotate it, then paste it back.** Turn on Annotate, click anything, type what should
+change. Notes become numbered pins that stay in your browser and never touch a repo file.
+**Copy notes** puts them on your clipboard as a `/continue <change>` command — paste it and
+the notes are folded into the change's artifacts before any task resumes. Review in a
+browser, land the feedback in the plan, no PR round trip.
+
+**It works on a phone.** Below 760px the stage takes the width, the list becomes a sheet
+behind a Changes button, and `‹ ›` step through the changes with the note box docked to the
+bottom. A lot of review happens on a phone, so the page is built for it. Screens get the same
+treatment from the other side: a View toggle walks any screen at phone width from a desktop,
+`phone-only` and `desktop-only` let one screen carry both layouts, and when the use-case brief
+says the job is done on a phone, the phone layout is what gets drawn first.
+
+**The page never lags the proposal.** `/save` runs a new script,
+`.claude/skills/save/scripts/sync-review-proposal.mjs`, which splices the current Why and
+What Changes into the page at every checkpoint — the same rule the PR body follows. It is a
+text splice between two markers, so it is a script rather than a step that asks a model to
+copy text. The PR body's `## Wireframe` section becomes `## Review`.
+
+**If you have a change in flight** whose folder holds a `wireframe.html`, it keeps rendering
+and keeps its anchors; it simply is not resynced. Rename it to `review.html` and add the
+`proposal:start` / `proposal:end` markers from the kit, or replan the change. A stale
+`wireframe-kit.html` left in your skills directory is an ordinary orphan — delete it.
+
 ## 12.7.0 — a wireframe you can click
 
 **A change that touches a screen now carries a mock-up you open and walk.** The UX stage of
