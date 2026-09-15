@@ -2,7 +2,6 @@
 slug: walk-self-healing
 started: 2026-08-09
 updated: 2026-08-09
-consolidated:
 ---
 
 # Walk self-healing (and the ship/CI change it split from)

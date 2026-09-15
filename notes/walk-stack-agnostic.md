@@ -2,7 +2,6 @@
 slug: walk-stack-agnostic
 started: 2026-08-09
 updated: 2026-08-09
-consolidated:
 ---
 
 # Making /walk work in any repo

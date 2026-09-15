@@ -3,6 +3,30 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 14.0.0 — retire `/dream` and `/improve`
+
+**BREAKING:** WongStack no longer installs the `/dream` and `/improve` skills. Both were
+large, separate workflows that saw little use and overlapped work the main loop already
+supports.
+
+- **Use `/explore` → `/plan` for improvement work.** Investigate a codebase without edits,
+  then turn the selected work into the normal reviewable OpenSpec change. The separate
+  advisor plan format and its variants are removed.
+- **Session notes are permanent cold-resume context.** `/save` still writes them and
+  `/continue` still reads them, but notes no longer carry a `consolidated:` watermark or wait
+  for an automatic note-to-wiki step. Request wiki audits and edits explicitly; the wiki
+  rules still load for that work.
+- **Existing installations retire safely.** `/wong-sync` proposes deletion only when every
+  file in an installed retired skill matches upstream history and the directory has no extra
+  file. A customized copy stays byte-for-byte unchanged as a local unmanaged skill. In both
+  cases, the rewritten manifest drops the retired WongStack mapping.
+- **The prose fast path stays.** A `/save` whose changed paths are only under `notes/**` and
+  `wiki/**` still goes directly to the default branch. This is a path rule, not a feature of
+  either retired command.
+
+Historical changelog entries and archived OpenSpec changes still name the commands as they
+existed when those releases shipped.
+
 ## 13.0.0 — every change gets a review page
 
 **BREAKING (for the planning artifact, not for your code):** `wireframe.html` becomes

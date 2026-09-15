@@ -2,7 +2,6 @@
 slug: philosophy-docs-integration
 started: 2026-08-12
 updated: 2026-08-12
-consolidated:
 ---
 
 # Stating the working principles in the docs

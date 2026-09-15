@@ -43,7 +43,7 @@ When the answer is no, setup doesn't dead-end — the layers degrade cleanly:
 
 ```
    git + gh + an agent   →  CLAUDE.md, wiki/, notes/, the skills,
-                            /save, /continue, /dream          ← zero runtime
+                            /save, /continue                  ← zero runtime
    + node → openspec     →  /plan, /apply, /ship
    + a Cloudflare token  →  the running app                   ← nothing local
 ```

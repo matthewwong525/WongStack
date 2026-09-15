@@ -2,7 +2,6 @@
 slug: setup-sync-consolidation
 started: 2026-08-02
 updated: 2026-08-02
-consolidated:
 ---
 
 # Setup/sync/cloudflare consolidation (v8.6.0)

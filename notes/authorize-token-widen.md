@@ -2,7 +2,6 @@
 slug: authorize-token-widen
 started: 2026-08-06
 updated: 2026-08-06
-consolidated:
 ---
 
 # The payload has to say what an agent is allowed to do, not just what it should do

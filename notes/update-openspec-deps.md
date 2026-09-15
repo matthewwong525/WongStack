@@ -2,7 +2,6 @@
 slug: update-openspec-deps
 started: 2026-08-10
 updated: 2026-08-10
-consolidated:
 ---
 
 # OpenSpec CLI 1.5.0 → 1.8.0

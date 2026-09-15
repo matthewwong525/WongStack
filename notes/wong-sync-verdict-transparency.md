@@ -2,7 +2,6 @@
 slug: wong-sync-verdict-transparency
 started: 2026-08-02
 updated: 2026-08-02
-consolidated:
 ---
 
 # /wong-sync was deciding for the user, and hiding that it had

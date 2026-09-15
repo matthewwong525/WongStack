@@ -2,7 +2,6 @@
 slug: rename-walk-to-verify
 started: 2026-08-11
 updated: 2026-08-11
-consolidated:
 ---
 
 # Rename /walk to /verify, and the probe ladder

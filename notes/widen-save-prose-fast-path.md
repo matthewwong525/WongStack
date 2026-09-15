@@ -2,7 +2,6 @@
 slug: widen-save-prose-fast-path
 started: 2026-07-30
 updated: 2026-07-30
-consolidated:
 ---
 
 # Widening `/save`'s fast path to prose

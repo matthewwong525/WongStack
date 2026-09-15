@@ -2,7 +2,6 @@
 slug: apply-can-checkpoint-a-task
 started: 2026-08-10
 updated: 2026-08-10
-consolidated:
 ---
 
 # apply-can-checkpoint-a-task

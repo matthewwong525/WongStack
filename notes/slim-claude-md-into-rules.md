@@ -2,7 +2,6 @@
 slug: slim-claude-md-into-rules
 started: 2026-09-02
 updated: 2026-09-02
-consolidated:
 ---
 
 # Slim CLAUDE.md into comprehensive path-scoped rules

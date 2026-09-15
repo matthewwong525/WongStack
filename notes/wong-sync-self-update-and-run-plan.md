@@ -2,7 +2,6 @@
 slug: wong-sync-self-update-and-run-plan
 started: 2026-08-09
 updated: 2026-08-09
-consolidated:
 ---
 
 # /wong-sync updates itself first and plans its whole run

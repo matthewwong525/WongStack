@@ -18,7 +18,7 @@ The repo is the shared memory for humans and agents. Before any non-trivial chan
 |---|---|---|
 | `openspec/changes/<slug>/` | the plan, and why this change is shaped this way | ships, then archives |
 | `notes/<slug>.md` | everything else the session produced ([convention](notes/README.md)) | permanent, mutable |
-| `wiki/` | what survived consolidation — how we do things ([philosophy](wiki/agent-knowledge-center.md), [style](wiki/wiki-style.md)) | canonical, curated |
+| `wiki/` | reusable process and conventions — how we do things ([philosophy](wiki/agent-knowledge-center.md), [style](wiki/wiki-style.md)) | canonical, curated |
 | `openspec/specs/` + archive | what shipped | immutable record |
 
 Don't duplicate a fact across surfaces. `openspec list` shows active changes; `openspec show <name>` reads one.
@@ -28,12 +28,12 @@ Credentials already live in the repo's environment files — `.env.example` is t
 ## Rules
 
 - **Always use ASD-STE100 Simplified Technical English** for user-facing prose and documentation. Best-effort compliance is sufficient without the full standard. Keep code, commands, identifiers, quotations, and prescribed text exact.
-- **Drive work through the WongStack verbs**: `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence, `/dream` to consolidate notes into the wiki, and `/improve` as read-only advisor. **A verb whose precondition is missing invokes the verb before it**, so `/ship <intent>` runs the whole cycle and `/explore` always asks its questions before anything is drafted. Each verb's loaded description says when to use it; [the change loop](wiki/development/the-change-loop.md) owns what each verb does and where the git boundary falls. Branch name = change name = note name.
+- **Drive work through the WongStack verbs**: `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence and `/wong-sync` for upstream updates. Use `/explore` for read-only investigation and `/plan` for selected improvement work. **A verb whose precondition is missing invokes the verb before it**, so `/ship <intent>` runs the whole cycle and `/explore` always asks its questions before anything is drafted. Each verb's loaded description says when to use it; [the change loop](wiki/development/the-change-loop.md) owns what each verb does and where the git boundary falls. Branch name = change name = note name.
 - **The WongStack skills own all git; OpenSpec never runs git.** `/save`·`/continue`·`/ship` own every git action; `/explore`·`/plan`·`/apply` implement none.
 - **CI is the gate when present, else PR review; nothing builds locally.** The ladder: [the gate](wiki/development/the-change-loop.md#the-gate). `/verify` gates nothing.
 - **Prose goes straight to `main`.** A `/save` whose entire diff sits in `notes/**` + `wiki/**` commits to the default branch — no branch, PR, or `/ship`. Routing is by path prefix, never file extension: [the prose allowlist](wiki/development/the-change-loop.md#the-prose-allowlist).
 - **Stay in sync with WongStack with `/wong-sync`** — it proposes one reviewable OpenSpec change and never modifies a file with local authorship. Sending an improvement back is a manual pull request: [contributing](wiki/contributing.md).
-- **Don't edit `wiki/` mid-task** unless it's explicitly the task — that's `/dream`'s job, and it documents general, reusable processes only; a change's specifics live in its proposal and archive.
+- **Don't edit `wiki/` mid-task** unless it's explicitly the task. The wiki documents general, reusable processes only; a change's specifics live in its proposal and archive.
 - **Path-scoped conventions load from [`.claude/rules/`](.claude/rules/)** when you work with matching files. An agent that doesn't auto-load them: read the rules whose `paths:` match the files you touch.
 
 <!-- WONG-STACK:END -->

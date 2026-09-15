@@ -2,7 +2,6 @@
 slug: browser-run-testing
 started: 2026-08-06
 updated: 2026-08-06
-consolidated:
 ---
 
 # Browser Run testing — moving /walk's browser to Cloudflare

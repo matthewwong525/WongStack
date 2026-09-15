@@ -2,7 +2,6 @@
 slug: zero-dependency-onboarding
 started: 2026-08-01
 updated: 2026-08-01
-consolidated:
 ---
 
 # Zero-dependency onboarding

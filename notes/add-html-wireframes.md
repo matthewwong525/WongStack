@@ -2,7 +2,6 @@
 slug: add-html-wireframes
 started: 2026-09-14
 updated: 2026-09-14
-consolidated:
 ---
 
 # Clickable HTML wireframes instead of ASCII sketches
