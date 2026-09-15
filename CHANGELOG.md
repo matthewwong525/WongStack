@@ -3,6 +3,36 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 14.0.1 — four things that were failing quietly
+
+All four shipped with the review page in 13.0.0, and every one of them failed
+**silently**: nothing errored, nothing logged, the artifact just did less than it said.
+
+**Your per-artifact rules were being ignored.** One unquoted `: ` in
+`openspec/config.yaml` — inside the design rule, in `…/review-kit.html: one visual per` —
+makes YAML read the line as a mapping key. The OpenSpec CLI could not parse the file, so
+it printed a warning and carried on **with no rules at all**. Every change drafted since
+13.0.0 was written against defaults. If you synced 13.0.0 or 14.0.0, you have the same
+broken stanza; the fix rides in on your next `/wong-sync`. To check before then:
+`node scripts/check-openspec-config.mjs`.
+
+**A screen state could only be called one of four things.** The kit hid every state block
+and revealed four by name — `default`, `empty`, `loading`, `error` — while `data-states`
+accepts any name and the fill rules say so. A screen declaring `annotating` or `phone`
+rendered an **empty frame**, with the markup right there in the file. Any name works now.
+
+**The critic was checking the wrong thing.** Its state check looked for a declared state
+with no matching markup block, which passes a screen whose block exists and still shows
+nothing — it passed the defect above. It now judges the rendered state.
+
+**A bullet with no visual left the previous highlight set.** Nothing visible, since the
+highlighted elements were hidden, but state outliving what set it is a bug in waiting.
+
+**New:** `scripts/check-openspec-config.mjs`, a release check that asks the OpenSpec CLI
+whether it can read the planning config and fails when it cannot. Run it beside
+`check-payload-links.mjs` on every payload change. Both exist for the same reason: this
+repo cannot see either failure by looking.
+
 ## 14.0.0 — retire `/dream` and `/improve`
 
 **BREAKING:** WongStack no longer installs the `/dream` and `/improve` skills. Both were

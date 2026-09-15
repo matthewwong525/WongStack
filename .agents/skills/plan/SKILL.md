@@ -61,7 +61,7 @@ A bullet with nothing to draw needs no visual — it opens a text stage on its o
    - a bullet anchor that resolves to no visual, state, or mark, and a visual or mark no bullet references;
    - a mark that shares a name with one of its visual's states (the router reads it as the state and highlights nothing);
    - more than one `.btn.primary` visible in a single state (markup outside the state blocks shows in all of them, so a header button plus an inline empty-state button is two);
-   - a state named in `data-states` with no matching `.state-<name>` block;
+   - a declared state that **renders an empty frame** — judged from the rendered page, not from the markup, because a state can have its `.state-<name>` block and still show nothing;
    - a screen nothing navigates to;
    - any state that overflows at phone width, when the brief says phone;
    - any style, colour, or network reference added to the kit.

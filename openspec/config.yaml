@@ -27,7 +27,8 @@ rules:
       states is read as a mark. A bullet with nothing to show carries none.
   design:
     - Every change gets a review page at openspec/changes/<name>/review.html,
-      filled from .claude/skills/plan/references/review-kit.html: one visual per
+      filled from the review kit at .claude/skills/plan/references/review-kit.html —
+      one visual per
       "What Changes" bullet that has something to show, of kind screen (a
       low-fidelity UI wireframe with its empty/loading/error states and one
       clickable primary action per state), flow (steps, today vs after), diff
