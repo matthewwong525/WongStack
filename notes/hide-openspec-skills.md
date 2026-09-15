@@ -2,7 +2,6 @@
 slug: hide-openspec-skills
 started: 2026-09-14
 updated: 2026-09-14
-consolidated:
 ---
 
 # Hiding the generated OpenSpec skills

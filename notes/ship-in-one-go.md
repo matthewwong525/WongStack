@@ -2,7 +2,6 @@
 slug: ship-in-one-go
 started: 2026-09-13
 updated: 2026-09-14
-consolidated:
 ---
 
 # Ask up front, then ship in one go

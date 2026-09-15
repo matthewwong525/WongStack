@@ -232,7 +232,7 @@ The instruction scopes them, because an unscoped delegation emits them broadly:
 **The change folder:**
 
 - **It covers the whole run** — hence `sync-`, not the old `adopt-`. Copies and updates are changes to this repo, and they are tasks in this plan rather than edits that already happened.
-- **Written whenever the run has anything to do**: a file to copy, a file to update, a newer `wong-sync` to install, or at least one `adopt`.
+- **Written whenever the run has anything to do**: a file to copy, update, or remove, a retired manifest mapping to drop, a newer `wong-sync` to install, or at least one `adopt`.
 - **Nothing to do and nothing to adopt → no folder.** An empty change is noise. Say the repo is current and point at the verdict record, which is written either way.
 - **Never overwrite an existing change folder.** If today's already exists, the sync suffixes the name `-2`, `-3` and passes that — the existing one may be mid-flight.
 - **An unapplied plan never suppresses a new one.** A repo may sit with a sync change nobody ran; write this run's plan anyway, because a changed situation deserves a changed plan. Name the older folder in the report so it stays visible rather than being quietly superseded.
@@ -272,9 +272,9 @@ The version span synced, the files to copy and update, and a pointer to `.claude
 
 Everything the sync wants done, in dependency order:
 
-1. **One coarse task for the copies** — *copy the N files listed in `proposal.md`* — and one for the updates. Not one task per file: sixty tasks is a wall, and a model hand-copying files is slower and less reliable than the scripted operation it replaces.
+1. **One coarse task for the copies** — *copy the N files listed in `proposal.md`* — and one each for the updates and safe retired-skill removals. Not one task per file: sixty tasks is a wall, and a model hand-copying files is slower and less reliable than the scripted operation it replaces.
 2. **One task to install a newer `wong-sync`**, when the run followed the clone's instructions without installing them.
-3. **The manifest rewrite, last among the file tasks**, so it records what actually landed.
+3. **The manifest rewrite, last among the file tasks**, so it records what actually landed and drops retired skill mappings whether their directories were removed or preserved.
 4. **One task per `adopt`**, at the concreteness bar below.
 
 There is **no** "review the N files this sync landed" task any more. It existed because files landed before anyone reviewed them; now nothing lands unreviewed, so the review is the plan itself.
@@ -284,10 +284,10 @@ There is **no** "review the N files this sync landed" task any more. It existed 
 Every adoption task must name its **capability id** and describe the graft **in this repo's terms** — which file or convention it touches, and what done looks like.
 
 ```
-✗  - [ ] 1.1 Adopt the dream skill
-✓  - [ ] 1.1 [wiki-consolidation] Install .claude/skills/dream/ and add a
-       "when to run /dream" line to docs/conventions.md, which currently
-       tells contributors to update the wiki by hand
+✗  - [ ] 1.1 Adopt the release process
+✓  - [ ] 1.1 [release-checkpoint] Add the repository's existing release
+       verification command to docs/conventions.md, which currently tells
+       contributors to publish without naming a check
 ```
 
 **If the graft can't be described concretely yet, the verdict is still `adopt` — and the task is to shape it.** Write the task as *run `/plan` to shape the graft for this capability*, naming what upstream offers and what is unclear about landing it here, and name it in the proposal's Resolution region. That is still concrete: the actor knows exactly what to do next. `not-applicable` is reserved for a fit failure — an `assumes` this repo doesn't meet — and must never record the skill's own inability to express a graft; that mislabels an effort failure as a fit failure and buries the capability where nobody reviews it.

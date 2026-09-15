@@ -2,7 +2,6 @@
 slug: wong-sync-adapt-by-default
 started: 2026-08-09
 updated: 2026-08-09
-consolidated:
 ---
 
 # /wong-sync adapts by default

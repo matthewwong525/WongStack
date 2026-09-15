@@ -2,7 +2,6 @@
 slug: add-review-html
 started: 2026-09-14
 updated: 2026-09-15
-consolidated:
 ---
 
 # From a wireframe on the side to a review page per change

@@ -22,11 +22,11 @@ The WongStack repo's progressive-disclosure wiki SHALL live at `wiki/` at the re
 
 ### Requirement: The wiki-root resolution rule is unchanged
 
-The skills SHALL continue to resolve a repo's wiki root generically — `wiki/` if present, otherwise `docs/`. This change SHALL NOT narrow that rule to `wiki/` only. A target repo that installed WongStack before the rename and kept its wiki at `docs/` SHALL keep working with no action from its owner.
+WongStack SHALL continue to resolve a target repo's wiki root generically — `wiki/` if present, otherwise `docs/`. This change SHALL NOT narrow that rule to `wiki/` only. A target repo that installed WongStack before the rename and kept its wiki at `docs/` SHALL keep working with no action from its owner.
 
 #### Scenario: An un-renamed target still works
 
-- **WHEN** `/dream` or `/improve docs` runs in a target repo whose wiki is still at `docs/`
+- **WHEN** `/wong-sync` runs in a target repo whose wiki is still at `docs/`
 - **THEN** it resolves the wiki root to `docs/` and behaves exactly as before
 
 #### Scenario: Convention pages sync to the resolved root
@@ -41,11 +41,11 @@ Every live payload file — the skills under `.claude/skills/`, `CLAUDE.md`, `RE
 #### Scenario: Repo-wide link check
 
 - **WHEN** the repo is grepped for `docs/` outside `CHANGELOG.md` and `openspec/changes/archive/`
-- **THEN** the only remaining hits are generic fallback mentions (`wiki/`, falling back to `docs/`), unrelated paths (e.g. `docs/adr/` globs in `improve`), and the `docs` variant name of `/improve docs`
+- **THEN** the only remaining hits are generic fallback mentions (`wiki/`, falling back to `docs/`) and unrelated paths
 
 #### Scenario: Relative skill links resolve
 
-- **WHEN** `plan/SKILL.md` and `dream/SKILL.md` link the rulebook and `ux-principles.md` by relative path
+- **WHEN** a payload skill links the rulebook or `ux-principles.md` by relative path
 - **THEN** those paths point at files that exist under `wiki/`
 
 ### Requirement: The rename is a payload release

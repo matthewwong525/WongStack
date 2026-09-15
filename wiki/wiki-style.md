@@ -69,4 +69,4 @@ Open a section with a `mermaid` diagram when a picture helps see the whole flow 
 
 ## Keeping it tidy
 
-In WongStack, [the wiki](README.md) is gardened with **`/dream`**: it captures what the session's conversation said that's durably true — extending the page that owns each fact (or, rarely, adding a properly-placed and linked new one) — then consolidates the whole tree: duplicates merged, contradictions resolved newest-wins, stale content pruned, links repaired — following exactly the rules above. The discipline is: document **general, reusable processes only**; a change's specifics live in its proposal and specs (preserved in `openspec/changes/archive/` when it ships), never the wiki. One topic, one page; link, don't restate.
+Garden [the wiki](README.md) as explicit work: extend the page that owns each durable fact, merge duplicates, resolve contradictions newest-wins, prune stale content, and repair links under the rules above. Document **general, reusable processes only**; a change's specifics live in its proposal and specs (preserved in `openspec/changes/archive/` when it ships), never the wiki. One topic, one page; link, don't restate.

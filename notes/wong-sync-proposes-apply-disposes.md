@@ -2,7 +2,6 @@
 slug: wong-sync-proposes-apply-disposes
 started: 2026-08-09
 updated: 2026-08-10
-consolidated:
 ---
 
 # /wong-sync proposes, /apply disposes

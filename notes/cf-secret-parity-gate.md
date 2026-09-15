@@ -2,7 +2,6 @@
 slug: cf-secret-parity-gate
 started: 2026-08-01
 updated: 2026-08-01
-consolidated:
 ---
 
 # Secrets and parity across the two-Worker stack

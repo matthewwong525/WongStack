@@ -2,7 +2,6 @@
 slug: first-time-install-audit
 started: 2026-08-05
 updated: 2026-08-05
-consolidated:
 ---
 
 # First-time install audit

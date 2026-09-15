@@ -4,6 +4,7 @@
 How WongStack presents and documents its core philosophy: a repo-native AI knowledge center where processes, active work, shipped decisions, and reusable lessons are centralized in files that humans can review and agents can run.
 
 ## Requirements
+
 ### Requirement: WongStack documents the repo as an AI knowledge center
 
 WongStack SHALL define itself in user-facing docs as a repo-native AI knowledge center: a system where processes, active work, shipped decisions, and reusable lessons are centralized in files that humans can review and agents can run.
@@ -83,9 +84,10 @@ WongStack SHALL describe Claude Code as a supported starting point, not the boun
 
 ### Requirement: Knowledge capture happens during the work
 
-WongStack SHALL explain that knowledge capture happens through the work, not only as a separate documentation chore. Plans, decision logs, archived changes, and `/dream` SHALL be presented as the mechanism that lets each project leave more useful context for the next person or agent.
+WongStack SHALL explain that knowledge capture happens through the work, not only as a separate documentation chore. Plans, decision logs, archived changes, and session notes SHALL be presented as the mechanisms that let each project leave more useful context for the next person or agent. Reusable wiki knowledge SHALL be added through explicit wiki work rather than an automatic consolidation workflow.
 
 #### Scenario: Reader understands why capture pays off
 
 - **WHEN** a reader reviews the README or philosophy page
 - **THEN** they see, in plain terms, that the process is written down, agents run it, what happens is captured, and future work starts with more context
+- **AND** no command is presented as an automatic bridge from notes into the wiki

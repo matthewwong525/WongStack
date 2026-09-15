@@ -2,7 +2,6 @@
 slug: ship-staging-tests
 started: 2026-08-02
 updated: 2026-08-02
-consolidated:
 ---
 
 # A walkthrough gate on /ship

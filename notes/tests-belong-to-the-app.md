@@ -2,7 +2,6 @@
 slug: tests-belong-to-the-app
 started: 2026-08-09
 updated: 2026-08-09
-consolidated:
 ---
 
 # tests belong to the app

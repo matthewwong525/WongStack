@@ -92,7 +92,7 @@ No payload surface SHALL assert CI as the sole or required gate, state the carve
 
 #### Scenario: The carve-out has one owner
 
-- **WHEN** a reader reviews `CLAUDE.md`, `notes/README.md`, and the `save` and `dream` skills
+- **WHEN** a reader reviews `CLAUDE.md`, `notes/README.md`, and the `save` skill
 - **THEN** each either links to `wiki/development/the-change-loop.md` or carries one summarizing line naming it
 - **AND** no surface other than `save/SKILL.md`'s single operational statement reproduces the allowlist's scope, exceptions, or rationale
 
@@ -115,7 +115,7 @@ No payload surface SHALL assert CI as the sole or required gate, state the carve
 
 Routing SHALL NOT key on file extension. Markdown outside the allowlist — `.claude/**` (the shipped payload, whose edit is a release), `openspec/**` (the specs), `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and any config file — keeps the full gate.
 
-The gate is not weakened by this. Neither surface carries behavior: a note is raw, unconsolidated, and non-canonical, and a wiki page is prose a human already reviewed in-session on the diff `/dream` produced. Nothing in either surface executes, deploys, or changes what the tooling does.
+The gate is not weakened by this. Neither surface carries behavior: a note is raw, permanent session context, and a wiki page is prose reviewed in the diff that produced it. Nothing in either surface executes, deploys, or changes what the tooling does.
 
 #### Scenario: Repo has CI configured
 
@@ -135,7 +135,7 @@ The gate is not weakened by this. Neither surface carries behavior: a note is ra
 
 #### Scenario: Wiki-only save bypasses the gate
 
-- **WHEN** `/dream` has consolidated notes into `wiki/` and `/save` runs with every changed path under `wiki/` (optionally alongside the `consolidated:` frontmatter updates in `notes/`)
+- **WHEN** `/save` runs and every changed path is under `wiki/`
 - **THEN** it commits and pushes directly to the default branch, opening no PR and requiring no `/ship`
 
 #### Scenario: A single non-allowlisted path restores the gate

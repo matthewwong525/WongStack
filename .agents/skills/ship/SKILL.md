@@ -8,7 +8,7 @@ user-invocable: true
 
 Ship runbook. Invoking it authorizes the archive, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync below — don't re-prompt. Invoking it **with an intent** (`/ship <intent>`) also authorizes the [pulled-in stage](#the-pull-in-ship-intent): explore, plan, implement, and their saves, with no re-prompt between stages. Confirm anything outside this runbook (force push, hard reset).
 
-`/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, walks the preview for evidence, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue, no docs distillation (use `/dream` for that).
+`/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, walks the preview for evidence, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue and no automatic docs distillation.
 
 The merge rides the [gate ladder](../../../wiki/development/the-change-loop.md#the-gate) and nothing else: merge only on `/save`'s `SUCCESS` or `NONE`, and a rung the repo lacks is skipped, never failed. `/ship` is the merge, not the review — cleanliness, consolidation, and downstream breakage belong in PR review.
 
@@ -127,4 +127,4 @@ Ask **which checkout has `main` out**, not whether you are in a worktree — a p
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - **Never delete a branch another open PR is based on.** Retarget dependents to the default branch first; a closed-by-deletion PR cannot be recovered.
 - **The post-merge sync is fast-forward only, and never a gate.** It touches one other checkout, so it requires a clean tree there and skips with a reason on any obstacle. It deletes no local branch, and it cannot fail a ship that has already merged.
-- No GitHub summary issue and no docs distillation — the archived spec is the record; `/dream` handles the wiki.
+- No GitHub summary issue and no automatic docs distillation — the archived spec is the record; wiki updates are explicit work.

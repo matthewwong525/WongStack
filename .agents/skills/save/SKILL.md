@@ -14,7 +14,7 @@ The single checkpoint runbook. Invoking it authorizes the branch creation, commi
 
 1. A pushed branch + PR with a per-commit **preview URL** (auto-discovered) and a **PR body that mirrors the change**, so a forge alone is a complete handoff surface — no clone or CLI needed to read the plan. This is `/save`'s headline job: the git mechanics of the loop (drafting is `/plan`, implementing is `/apply`).
 2. A durable **OpenSpec change** under `openspec/changes/<branch>/` whose `proposal.md` *is* the current plan **plus its history**: a `**Status:**` header, the plan sections (kept current), and an append-only `## Decision log` (what happened along the way), with a `tasks.md` checklist — so a fresh session (another machine, no scrollback) can resume cold with `/continue` and know not just *what* to do but *why* it's shaped that way. Normally `/plan` drafted it and `/apply` checked off its tasks; `/save` **syncs** it. When the session skipped `/plan`, `/save` **authors it as a fallback via the same OpenSpec artifact process `/plan` uses**, so nothing gets pushed without its handoff. **The change is the plan — there is no GitHub handoff issue.** A session that produced *no code and no plan* gets no change at all (Step 2) — the note below is the whole output.
-3. A **session note** at `notes/<slug>.md` — the conversation itself, compressed into the repo. `/save` is the **only** skill that reads the conversation, which is what makes consolidation portable: `/dream` reads committed notes, never scrollback, so a session captured on one machine is consolidatable from any other. See [`notes/README.md`](../../../notes/README.md) for the convention.
+3. A **session note** at `notes/<slug>.md` — the conversation itself, compressed into the repo as permanent context. `/continue` reads the committed note with the change, so a fresh session on another machine can resume without scrollback. See [`notes/README.md`](../../../notes/README.md) for the convention.
 
 This save is checkpointed through the usual [gate](../../../wiki/development/the-change-loop.md#the-gate) — never a local build. Because the change lives *in the repo*, we author it **before** the commit so it ships in the same commit. When `/ship` has already moved the current branch's change into the archive, this skill recognizes and maintains that archive instead. The push then triggers CI, which we wait on in Step 6.
 
@@ -68,14 +68,14 @@ notes/**
 wiki/**
 ```
 
-- **Every changed path is inside the allowlist** → the **prose fast path**. Write the note if there's one to write (Step 4c), then commit and push **directly to the default branch**: no feature branch, no OpenSpec change, no PR, no CI wait, and no `/ship` afterwards. Jump to Step 5's prose variant. Two sessions land here: a conversation that produced only understanding (just `notes/<slug>.md`), and a `/dream` run (wiki pages plus the `consolidated:` stamps it wrote into `notes/`).
+- **Every changed path is inside the allowlist** → the **prose fast path**. Write the note if there's one to write (Step 4c), then commit and push **directly to the default branch**: no feature branch, no OpenSpec change, no PR, no CI wait, and no `/ship` afterwards. Jump to Step 5's prose variant. This includes a conversation that produced only understanding (`notes/<slug>.md`) and explicit wiki work with no other changed path.
 - **Anything else** → the normal flow. Continue to Step 2.
 
 Three rules bind this decision:
 
 - **It is by path prefix, and it is exact.** One changed path outside the allowlist — a source edit, a skill, a change folder, a version bump — and the **whole save** takes the normal flow, with the prose riding along on the branch. Never split a mixed diff into two commits to send the prose half down the fast path; the mixed save is one save.
 - **Never route on file extension.** `*.md` is not a proxy for prose — markdown outside the two prefixes keeps the full gate, and the allowlist is closed.
-- **`wiki/` means the literal prefix `wiki/`.** A repo that keeps its prose somewhere else — `docs/`, `handbook/` — keeps the full gate. (`/improve docs` falls back to `docs/`; this route does not.) Don't re-litigate this per save.
+- **`wiki/` means the literal prefix `wiki/`.** A repo that keeps its prose somewhere else — `docs/`, `handbook/` — keeps the full gate. Don't re-litigate this per save.
 
 Why the carve-out exists, and the full list of what stays gated: [the change loop](../../../wiki/development/the-change-loop.md#the-prose-allowlist). Don't restate it here — this step is the routing test, not the doctrine.
 
@@ -94,7 +94,7 @@ The change's `proposal.md` *is* the plan — not a status report. The most conci
 |---|---|---|---|
 | Code, or a plan for code | yes — sync or author it | if there's context beyond the diff and the Decision log | normal flow |
 | Conversation only — no diff outside `notes/` | **no** | yes | prose fast path (Step 1) |
-| Wiki edits (a `/dream` run) and nothing else | **no** | the `consolidated:` stamps only | prose fast path (Step 1) |
+| Wiki edits and nothing else | **no** | only if the session has context beyond the diff | prose fast path (Step 1) |
 | Prose *plus* anything outside the allowlist | yes | yes | normal flow — the prose rides along |
 | Nothing at all — nothing learned, decided, or done | no | no | say so and stop |
 
@@ -126,7 +126,7 @@ git rev-parse --abbrev-ref HEAD   # refresh the branch variable before continuin
 
 ## Step 4 — sync the OpenSpec change (append, never rewrite) + write the session note
 
-4a–4b sync or author the change; **4c writes the note**, and runs on *every* route — including the prose fast path, where it's the only part of Step 4 that happens. (On a `/dream`-only save there may be nothing new to capture; 4c's write-only-when-there's-something-to-write rule still applies.)
+4a–4b sync or author the change; **4c writes the note**, and runs on *every* route — including the prose fast path, where it's the only part of Step 4 that happens. On wiki-only work there may be nothing beyond the diff to capture; 4c's write-only-when-there's-something-to-write rule still applies.
 
 If `/plan` already drafted the change and `/apply` has been checking off tasks, this is a light **sync**. Full authoring (4b) is the **fallback** for sessions that skipped `/plan`. For an archived handoff the archive is maintained in place and 4b is forbidden. In every mode the prime directive is: **plan sections update in place; Status is maintained; the Decision log only ever appends.**
 
@@ -167,11 +167,11 @@ Then write the artifacts (OpenSpec never runs git; you write the files):
 
 ### 4c. Write the session note
 
-**You are the only skill that reads the conversation.** `/dream` consolidates the wiki from committed notes and never touches scrollback or transcript files — so whatever you don't write here is lost the moment this session ends, and unreachable from any other machine even now.
+**You are the only skill that reads the conversation.** Whatever you do not write here is lost when this session ends and is unreachable from another machine. The note is permanent cold-resume context for `/continue` and for any later work that needs the session's understanding.
 
 Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug (prose fast path, so no change: derive the slug from the topic, exactly as Step 3 would). Read [`notes/README.md`](../../../notes/README.md) for the full convention; the rules that bind this step:
 
-- **Update in place, never a file per save.** A second save on the same slug revises what's now better understood and appends what's new. No date in the filename; dates live in frontmatter (`slug`, `started`, `updated`, and an empty `consolidated:` that `/dream` fills in later).
+- **Update in place, never a file per save.** A second save on the same slug revises what's now better understood and appends what's new. No date in the filename; dates live in frontmatter (`slug`, `started`, and `updated`).
 - **Write only when there's something to write.** If the session produced nothing beyond what the diff and the Decision log already say, **skip the note** and report that in Step 7. A `/save` run three times an hour shouldn't leave three restatements of the commit.
 - **Don't duplicate the Decision log.** If a fact is about why *this change* is shaped that way, it belongs in `proposal.md` and the note doesn't repeat it. The note carries the surrounding context the change deliberately doesn't hold.
 
@@ -184,7 +184,7 @@ Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug 
 | specifics: names, repo-relative paths, numbers, versions, error strings | the back-and-forth of arriving somewhere (keep the destination + why) |
 | open threads and unresolved questions | anything already true in the repo |
 
-**Do not pre-apply `/dream`'s durable-facts filter.** That filter ("will this still be true next month, in a different task?") belongs at consolidation, not capture. Applying it here makes the judgment once, on this machine, unrecoverably — record both the durable conventions and the change-specific context, and let `/dream` select.
+**Preserve the full cold-resume context.** Record both durable conventions and change-specific context when they are needed to reach the same understanding. Do not filter the note to facts that belong in the wiki; an explicit wiki task can make that separate judgment later.
 
 ### 4d. Sync delta specs, if any
 
@@ -208,7 +208,7 @@ git commit -m "<msg>"             # HEREDOC, with the Co-Authored-By: Claude tra
 git push origin HEAD:main         # substitute the repo's actual default branch
 ```
 
-Message convention by what the save carries: notes only → `notes: <topic>`; wiki pages (a `/dream` run) → `docs: <what was consolidated or gardened>`; both → `docs: <topic>`.
+Message convention by what the save carries: notes only → `notes: <topic>`; wiki pages → `docs: <topic>`; both → `docs: <topic>`.
 
 The `git status --porcelain` line is not ceremony — it's the last chance to catch a stray file that would put an unreviewed non-prose path on the default branch. If anything outside the allowlist is staged, unstage it and take the normal flow for the whole save.
 

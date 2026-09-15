@@ -14,18 +14,15 @@ dates live in the frontmatter and in the entries.
 ## Who writes it, who reads it
 
 ```
-conversation ──▶ /save ──▶ notes/<slug>.md ──▶ git ──▶ /dream ──▶ wiki/
-                 (capture)   committed              (consolidate)   (canonical)
-                                    │
-                                    └──────────────────▶ /continue
-                                                         (cold resume)
+conversation ──▶ /save ──▶ notes/<slug>.md ──▶ git ──▶ /continue
+                 (capture)   committed                 (cold resume)
 ```
 
 `/save` is the **only** skill that reads the conversation. It writes the note as part of the
-checkpoint. `/dream` never reads a conversation, scrollback, or transcript file — it reads committed
-notes, which is what lets you capture on one machine and consolidate on another. `/continue` reads
-the note alongside the change so a cold resume inherits the session's understanding, not just its
-plan.
+checkpoint. `/continue` reads the committed note alongside the change, so a cold resume on another
+machine inherits the session's understanding, not only its plan. An explicit wiki task can use notes
+as ordinary repo context when reusable documentation needs an update; no automatic consolidation
+step owns that transfer.
 
 ## The bar: concise, without losing context
 
@@ -45,9 +42,9 @@ without the transcript.
 - the back-and-forth shape of arriving somewhere — keep the destination and the why
 - anything already true in the repo
 
-Notes are deliberately *unfiltered* relative to the wiki: `/save` compresses, `/dream` selects. The
-durable-facts judgment happens at consolidation, where it stays repeatable — not once, on one
-machine, unrecoverably.
+Notes are deliberately *unfiltered* relative to the wiki. `/save` keeps the context a cold reader
+needs. A later wiki task makes its own durable-facts judgment instead of changing the note into a
+queue for another command.
 
 Credential **context** is kept; credential **values** are not. A note may record that
 `SERVICE_TOKEN` rotated, what it is for, and where it comes from. It never records the old or new
@@ -61,21 +58,16 @@ change's Decision log, commit message, pull-request body, and checkpoint report.
 slug: add-po-search
 started: 2026-07-28
 updated: 2026-07-29
-consolidated:            # date /dream folded this into wiki/; absent until then
 ---
 ```
-
-`consolidated:` is the watermark, and it lives **in each note** rather than in a central ledger —
-a shared file appended by every machine would merge-conflict in exactly the multi-machine case this
-directory exists to serve.
 
 ## Lifecycle
 
 Subsequent saves **update the same note in place**: revise what's now better understood, append
 what's new. Never a new file per save.
 
-Notes are **kept forever**, including after consolidation — they stay referenceable, and the wiki
-only carries what survived the filter. `/dream` marks them rather than deleting them.
+Notes are **kept forever**. They stay referenceable as the session record and remain available to
+`/continue` and later explicit work.
 
 ## Where a fact belongs
 
@@ -83,7 +75,7 @@ only carries what survived the filter. `/dream` marks them rather than deleting 
 |---|---|---|
 | `openspec/changes/<slug>/proposal.md` | why **this change** is shaped this way | ships, then archives — immutable after |
 | `notes/<slug>.md` | everything else the session produced | permanent, mutable |
-| `wiki/` | what survived consolidation | canonical, curated |
+| `wiki/` | reusable process and conventions | canonical, curated |
 
 Don't duplicate across them. If a fact is about why the change is shaped that way, it belongs in the
 proposal's Decision log and the note doesn't repeat it. A conversation-only session writes only the
@@ -93,8 +85,7 @@ note; a code session writes both.
 
 Notes are inside the **prose allowlist**, so a `/save` whose entire diff sits in `notes/**` +
 `wiki/**` commits **directly to the default branch** — no branch, no PR, no `/ship`. A
-conversation-only session (just a note) takes that route, and so does a `/dream` run (wiki pages
-plus the `consolidated:` stamps this directory's notes pick up).
+conversation-only session (just a note) takes that route, as does explicit wiki-only work.
 
 What makes a note safe to send that way is what this page is about: it is one additive, slug-unique
 file, raw and non-canonical by design, carrying no code, config, or spec — so there is nothing in it

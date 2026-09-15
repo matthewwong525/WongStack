@@ -2,7 +2,6 @@
 slug: staging-worker-env
 started: 2026-08-01
 updated: 2026-08-01
-consolidated:
 ---
 
 # Staging as its own Cloudflare Worker

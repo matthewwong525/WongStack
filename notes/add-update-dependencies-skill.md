@@ -2,7 +2,6 @@
 slug: add-update-dependencies-skill
 started: 2026-08-10
 updated: 2026-08-10
-consolidated:
 ---
 
 # Adding /update-dependencies

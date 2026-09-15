@@ -36,9 +36,9 @@ Pick **2–4**, phrased around what the research (Step 2) actually found — cit
 | "Plans live in a chat window / my head" | `/plan` | drafts proposal, specs, design, and tasks under `openspec/changes/<name>/` before any code — reviewable, diffable, in the repo |
 | "I can't tell what changed or why last month" | `/save` + the archive | the PR body mirrors the change, every checkpoint appends to a Decision log, and `/ship` archives the spec as the durable record of what shipped |
 | "Shipping is manual and scary" / "I forget steps" | `/save` + `/ship` | `/ship` archives, invokes ordinary `/save` once for commit, push, PR, and CI, then squash-merges on green — or on PR review where there's no CI |
-| "Our docs rot" / "the wiki lies" | `/dream` | one deliberate write path: captures durable facts from the session, then gardens the whole wiki — merges duplicates, prunes stale pages, reality-checks cited paths against the code |
+| "Our docs rot" / "the wiki lies" | explicit wiki work | ask the agent to audit or edit the wiki; the repo's wiki rules load automatically and keep structure, links, and voice consistent |
 | "Work spans machines, sessions, parallel agents" | branch = change + `/continue` | the branch name *is* the change name; any clone can `openspec list`, pick a change, and resume it |
-| "I want a second opinion on where this codebase hurts" | `/improve` | read-only senior-advisor audit that writes prioritized, self-contained plans for another agent (or you) to execute |
+| "I want a second opinion on where this codebase hurts" | `/explore` → `/plan` | investigate the codebase without edits, then turn the selected findings into the normal reviewable change |
 | "I fixed my workflow tooling but the fix dies in this repo" | `/wong-sync` + [contributing](../../../../wiki/contributing.md) | the sync pulls upstream improvements down and proposes what's worth adopting; sending your own fix up is a manual PR, per the contributing page |
 | "I'm starting from zero — no repo, no GitHub" | the setup itself | Step 5 bootstraps git, `gh`, auth, and the remote one plain-language rung at a time |
 

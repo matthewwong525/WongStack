@@ -2,7 +2,6 @@
 slug: payload-hardening-9-1-0
 started: 2026-08-02
 updated: 2026-08-02
-consolidated:
 ---
 
 # Five payload fixes shipped as one 9.1.0 release

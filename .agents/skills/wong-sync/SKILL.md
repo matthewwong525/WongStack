@@ -118,6 +118,16 @@ Match the *current* upstream blob → the file is current; plan nothing. Match a
 
 The threshold is **per file, not per repo**. A fresh install is just the case where every manifest file is absent — no separate mode, no collision walk, no rename prompt. A repo missing one new upstream skill gets that one skill planned as a copy and everything else adapted.
 
+### Retire removed managed skills
+
+After classifying the current manifest, inspect `components.skills` for the retired upstream names `dream` and `improve`, resolving any recorded local rename. These directories are no longer payload files, so never copy or update them and never send them through the capability analysis.
+
+- **Missing locally** → plan no file action; remove the retired mapping in the manifest task.
+- **Every file is provably unmodified and no extra file exists** → add one reviewable removal task for the whole local skill directory. Apply the same historical blob proof to every file, using its former upstream path; one unmatched or extra file defeats the proof for the whole directory.
+- **Any file has local authorship** → preserve the directory byte-for-byte, report that it becomes a local unmanaged skill, and remove only the retired mapping in the manifest task.
+
+The run still writes nothing here. A removal is file work in the plan, and it makes the change folder non-empty even when there is nothing to copy, update, or adopt. On a seed manifest there can be no retired managed skill, because the seed's skills list comes from the current manifest.
+
 Three scoping rules:
 
 - **`CLAUDE.md`'s unit is the block, not the file.** No `WONG-STACK:BEGIN/END` markers (or no file at all) → plan to insert the block, markers included, creating the file if needed and leaving every byte outside the markers untouched. Markers present → the block goes to Step 3 and is never rewritten in place.
@@ -154,7 +164,7 @@ The step produces two things and nothing else:
 { "version": "<LATEST>", "commit": "<WS_HEAD>",
   "installedAt": "<existing>", "updatedAt": "<the day the task runs>",
   "upstream": { "repo": "<UPSTREAM>", "fork": "<preserved as-is, or null>", "clone": "<WS path>" },
-  "components": { "skills": ["explore","plan","apply","save","continue","ship","dream","improve","wong-sync"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent>, "appScaffold": <true if this repo took the app scaffold, else omit> } }
+  "components": { "skills": ["explore","plan","apply","save","continue","ship","verify","wong-sync","agent-browser"], "claudeMd": true, "docs": true, "openspec": true, "stackPack": <true if this repo took the Cloudflare stack pack, else false/absent>, "appScaffold": <true if this repo took the app scaffold, else omit> } }
 ```
 
 - **`version` and `commit` record which upstream release this repo's payload files were brought to** — a fact about files, not about what a run examined. So an unapplied plan leaves them alone, and the next run walks the same changelog span again instead of believing this repo is current. Apply the files but only some grafts and nothing hides either: the verdict record recomputes every verdict except `declined` on every run, so what you didn't take is re-proposed regardless.
@@ -162,18 +172,18 @@ The step produces two things and nothing else:
 - **`appScaffold` is preserved, never inferred.** Write it as it was; a repo that took the scaffold keeps the flag, and a repo whose manifest has no such key gets none written — the absence is what makes every pre-9.1 install behave exactly as it did. Never set it because `app/` happens to exist: the flag records a decision, and plenty of repos have an `app/` directory they wrote themselves. Setting it is the job of `/wong-setup` and `/wong-cloudflare`, which ask first.
 - **`upstream.fork`** is preserved byte-for-byte where an older version recorded one, and is never written or used. Nothing in this skill forks anything.
 - ⑂ A seed manifest's null `version`/`commit` are filled with `$LATEST`/`$WS_HEAD` — keep its `installedAt` and any renames it recorded.
-- Older manifests just gain the new keys; nothing breaks on a v1 manifest. If the repo still carries a `contribute-wong-stack` skill or symlink, the plan offers to remove it — `/wong-sync` supersedes it.
+- Older manifests just gain the new keys; nothing breaks on a v1 manifest. The manifest task drops retired `dream` and `improve` mappings after the safe retirement check above. If the repo still carries a `contribute-wong-stack` skill or symlink, the plan offers to remove it — `/wong-sync` supersedes it.
 
 ## Step 4 — report
 
 - **Which logic ran** — whether the run followed the clone's `wong-sync` instructions, its version span (`10.1.0 → 11.0.0`), and that every decision after Step 1 came from the newer text. Where it couldn't, say which version ran and why: *"continuing on the installed 10.1.0 — local edits."* A run that behaved like a version other than the installed one is exactly when a reader needs to know which text to consult.
 - **Questions** — anything asked, how each was answered, and how the unanswered ones resolved. A skipped question is not a failure; say what it fell back to.
-- **Planned** — the change folder written for this run, what its proposal says this repo becomes, and that reviewing it and running `/apply` is what makes any of it happen. Name the file counts (copies, updates) rather than listing every path; the proposal has the lists.
+- **Planned** — the change folder written for this run, what its proposal says this repo becomes, and that reviewing it and running `/apply` is what makes any of it happen. Name the file counts (copies, updates, and safe removals) rather than listing every path; the proposal has the lists. Name any retired skill preserved as local because it has authored content.
 - **Adapted** — a summary pointing at `.claude/wong-sync-verdicts.md`, per [`references/adapt.md`](references/adapt.md)'s report format: what's `adopt`, anything promoted or declined by a ticked box, counts for `divergent` / `not-applicable` / `present`, what was `declined` and why, and anything re-raised or retired. Say a box can be ticked to overrule any of it.
 - **Already waiting** — any `sync-wongstack-*` folder this run did not write, so an unapplied plan is visible rather than quietly superseded.
 - **Version** — what the plan's manifest task will record, plus the changelog accounting: one line per entry between the previous version and this one, each mapped to reflected-here / adopt / planned-directly / outside-payload-scope, per [`references/adapt.md`](references/adapt.md). An unaccounted entry is a gap the run must show, not hide.
 
-If there's nothing to copy, nothing to update, no newer `wong-sync` to install and nothing is `adopt`, say so plainly: this repo is current. No change folder is written in that case — but `.claude/wong-sync-verdicts.md` still is, and it's exactly the run where it matters most, since it's the only place the reasoning survives.
+If there's nothing to copy, update, or remove, no manifest mapping to retire, no newer `wong-sync` to install, and nothing is `adopt`, say so plainly: this repo is current. No change folder is written in that case — but `.claude/wong-sync-verdicts.md` still is, and it's exactly the run where it matters most, since it's the only place the reasoning survives.
 
 ## Hard rules
 

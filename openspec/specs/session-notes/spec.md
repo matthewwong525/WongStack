@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define `notes/` — the repo-committed surface that holds the raw record of what a session figured out, one note per line of work keyed by the same slug as the branch and the OpenSpec change. `/save` is the sole capture point; `/dream` consolidates from the repo (never from a transcript), so the record travels to any clone.
+Define `notes/` — the repo-committed surface that holds the permanent record of what a session figured out, one note per line of work keyed by the same slug as the branch and the OpenSpec change. `/save` is the sole capture point, and `/continue` reads the note with the change so the record travels to any clone.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ When `/save` compresses the conversation into a session note, it SHALL exclude e
 
 ### Requirement: Session notes live in a repo-committed `notes/` surface
 
-The payload SHALL define a top-level `notes/` directory holding one markdown note per line of work at `notes/<slug>.md`, where `<slug>` is the same kebab-case slug used for the branch and the OpenSpec change. Notes SHALL be committed to the repo so they are readable from any clone, and SHALL NOT be deleted after consolidation.
+The payload SHALL define a top-level `notes/` directory holding one markdown note per line of work at `notes/<slug>.md`, where `<slug>` is the same kebab-case slug used for the branch and the OpenSpec change. Notes SHALL be committed to the repo so they are readable from any clone, and SHALL remain in the repo as permanent session context.
 
 #### Scenario: A note is keyed to its line of work
 
@@ -40,22 +40,8 @@ The payload SHALL define a top-level `notes/` directory holding one markdown not
 
 #### Scenario: Notes survive consolidation
 
-- **WHEN** `/dream` has consolidated a note's facts into `wiki/`
-- **THEN** the note file remains in the repo for future reference
-
-### Requirement: Note state is tracked in per-note frontmatter
-
-Each note SHALL carry its consolidation state in its own YAML frontmatter — unconsolidated until `/dream` records a `consolidated:` date in it. The payload SHALL NOT use a central ledger file to track which notes have been consolidated.
-
-#### Scenario: An unconsolidated note is identifiable
-
-- **WHEN** `/dream` scans `notes/`
-- **THEN** it selects notes whose frontmatter carries no `consolidated:` date
-
-#### Scenario: Two machines consolidate without conflicting
-
-- **WHEN** notes written on different machines are consolidated and the results merged
-- **THEN** each note's state lives in its own file, so no shared ledger line conflicts
+- **WHEN** later work needs the context from an earlier session, whether or not its reusable facts were also written into the wiki
+- **THEN** the note remains in the repo for future reference
 
 ### Requirement: `/save` is the sole conversation capture point
 
@@ -79,7 +65,7 @@ Each note SHALL carry its consolidation state in its own YAML frontmatter — un
 
 ### Requirement: Notes are a compression of the session, not a summary or a transcript
 
-A note SHALL preserve what the user stated, decisions with their rationale, what was ruled out and why, concrete specifics (names, repo-relative paths, numbers, versions, error strings), and open threads — such that a cold reader on another machine reaches the same understanding without the transcript. It SHALL omit tool-call mechanics, file dumps, the assistant's reasoning-out-loud, and facts already true in the repo. `/save` SHALL NOT pre-apply `/dream`'s durable-facts filter when writing the note.
+A note SHALL preserve what the user stated, decisions with their rationale, what was ruled out and why, concrete specifics (names, repo-relative paths, numbers, versions, error strings), and open threads — such that a cold reader on another machine reaches the same understanding without the transcript. It SHALL omit tool-call mechanics, file dumps, the assistant's reasoning-out-loud, and facts already true in the repo.
 
 #### Scenario: Rationale is preserved
 
@@ -89,7 +75,7 @@ A note SHALL preserve what the user stated, decisions with their rationale, what
 #### Scenario: Selection is deferred to consolidation
 
 - **WHEN** `/save` writes a note containing both durable conventions and change-specific context
-- **THEN** it records both, leaving the durable-fact selection to `/dream`
+- **THEN** it records both when they are needed for a cold reader to reach the same understanding, without filtering for a later consolidation command
 
 ### Requirement: A conversation-only session does not produce an OpenSpec change
 
@@ -115,8 +101,8 @@ If the direct push is rejected (protected default branch, required reviews, non-
 
 #### Scenario: A dream session lands in one command
 
-- **WHEN** `/save` runs after `/dream`, and the diff is wiki pages plus the `consolidated:` frontmatter stamps in `notes/`
-- **THEN** every path is in the allowlist, so the whole diff is committed and pushed to the default branch
+- **WHEN** `/save` runs after explicit wiki work and every changed path is under `wiki/`
+- **THEN** the whole diff is committed and pushed to the default branch
 - **AND** no branch is created, no PR is opened, and the user is not asked to run `/ship`
 
 #### Scenario: Mixed session keeps the gate
@@ -141,47 +127,6 @@ If the direct push is rejected (protected default branch, required reviews, non-
 - **THEN** `/save` cuts a branch, opens a PR whose body is the prose change, and states that the default branch is protected
 - **AND** it never force-pushes
 
-### Requirement: `/dream` consolidates from the repo only
-
-`/dream`'s capture phase SHALL read unconsolidated notes from the repo's `notes/` directory and SHALL NOT read the current conversation, scrollback, or machine-local transcript files. After consolidating a note's qualifying facts into `wiki/`, it SHALL record the `consolidated:` date in that note's frontmatter.
-
-`/dream` SHALL run no git itself — its edits stay in the working tree for `/save` to commit. Its stated reason SHALL be the division of labour (the git skills own git), NOT a claim that wiki edits need a pull request; under the prose allowlist a wiki-only `/save` lands on the default branch.
-
-#### Scenario: Consolidating on a different machine
-
-- **WHEN** a session is captured on machine A, pushed, and `/dream` is run on machine B after pulling
-- **THEN** `/dream` consolidates that session's facts from `notes/`, with no access to machine A's transcript
-
-#### Scenario: A consumed note is marked
-
-- **WHEN** `/dream` finishes consolidating a note
-- **THEN** that note's frontmatter carries a `consolidated:` date
-
-#### Scenario: `/dream` does not claim wiki edits need a PR
-
-- **WHEN** the `/dream` skill's no-git rule is read
-- **THEN** it states that `/save` commits and `/ship` merges
-- **AND** it contains no claim that a wiki edit is gated behind a branch and pull request
-
-### Requirement: `/dream` gardens with or without new notes
-
-`/dream`'s consolidation phase SHALL run regardless of whether any unconsolidated notes exist. "No new notes" SHALL be a normal, successful outcome rather than a reason to skip gardening.
-
-#### Scenario: Gardening with an empty inbox
-
-- **WHEN** `/dream` runs and every note is already consolidated
-- **THEN** it still merges duplicates, prunes, repairs links, and reality-checks the wiki against the code
-- **AND** reports that there was nothing new to capture
-
-### Requirement: Sweep mode is removed from `/dream`
-
-The `/dream` skill SHALL NOT describe or implement a mode that enumerates machine-local transcript directories. Reaching sessions the repo never consolidated SHALL be structural — committed notes make them visible to a plain `/dream` run from any clone.
-
-#### Scenario: No transcript enumeration remains
-
-- **WHEN** the `/dream` skill is read
-- **THEN** it contains no sweep mode section and no reference to enumerating transcript folders
-
 ### Requirement: `/continue` reads the note alongside the change
 
 When resuming a change, `/continue` SHALL read `notes/<slug>.md` if it exists and fold its context into the recap, so a cold resume inherits the session understanding that the change deliberately does not hold.
@@ -198,7 +143,7 @@ When resuming a change, `/continue` SHALL read `notes/<slug>.md` if it exists an
 
 ### Requirement: `notes/` is a payload surface installed by `/wong-sync`
 
-The payload manifest SHALL list the `notes/` directory and its `README.md`, so `/wong-sync` copies them into a target repo that lacks them. The README SHALL state the convention: the slug key, the compression bar, the frontmatter watermark, and the boundary against the change's Decision log and `wiki/`. As with every manifest file, an existing file SHALL NOT be overwritten.
+The payload manifest SHALL list `notes/README.md`, so `/wong-sync` copies it into a target repo that lacks it and thereby creates the notes convention surface. The README SHALL state the slug key, compression bar, permanent lifecycle, and boundary against the change's Decision log and `wiki/`. As with every manifest file, an existing file SHALL NOT be overwritten.
 
 #### Scenario: Target repo without notes
 

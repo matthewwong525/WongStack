@@ -67,8 +67,6 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, which lands straight in the repo as a note with no branch or PR. |
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
-| `/dream` | Turn saved session notes into reusable lessons and team conventions in the wiki — works from any machine, since it reads the repo rather than your chat history. |
-| `/improve` | Ask an agent to audit the project and write improvement plans without changing code. |
 | `/wong-sync` | Bring this repo up to date with WongStack — copy in what's missing, update what you provably never touched, and propose what's worth adopting from what upstream can now do. Never overwrites anything you authored. |
 
 To put the project online as a website people can open, run `/wong-cloudflare`. It offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Optional, and you can run it long after setup.
