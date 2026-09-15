@@ -45,3 +45,4 @@ This changes the payload under `.agents/` (and therefore `.claude/`), the setup 
 - **2026-09-15** — Asked whether to clean history; assumed historical archives and changelog entries stay immutable, while current specs and the empty active scaffold are removed or revised.
 - **2026-09-15** — Treated the removal of two public commands as a breaking release and selected version 14.0.0.
 - **2026-09-15** — Completed all implementation tasks, synchronized the seven capability deltas into the current specifications, and retired the now-empty `improve-plan-output` capability. Payload links and strict OpenSpec validation pass.
+- **2026-09-15** — Archived the completed change after the implementation checkpoint passed CI; the archive is the durable shipping record.
