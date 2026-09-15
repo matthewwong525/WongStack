@@ -21,21 +21,33 @@ context: |
 rules:
   proposal:
     - Keep it tight — what changes and why, plus a Non-goals line.
+    - Each "What Changes" bullet that has a picture on the change's review page
+      ends with its anchor, '(review.html#/<visual>[/<state>][/<mark>])'. The
+      state segment is optional; a segment that is not one of the visual's
+      states is read as a mark. A bullet with nothing to show carries none.
   design:
+    - Every change gets a review page at openspec/changes/<name>/review.html,
+      filled from .claude/skills/plan/references/review-kit.html: one visual per
+      "What Changes" bullet that has something to show, of kind screen (a
+      low-fidelity UI wireframe with its empty/loading/error states and one
+      clickable primary action per state), flow (steps, today vs after), diff
+      (before/after text) or tree (files added/edited/removed). Put data-mark on
+      the elements each bullet changes. A bullet with nothing to draw needs no
+      visual. Low fidelity, no network reference, and never hand-edit the
+      machine-filled proposal block.
     - If the change adds or meaningfully restructures a user-facing screen (a page
-      or component — not merely touching a UI file), include a "## UX" section
+      or component — not merely touching a UI file), also include a "## UX" section
       following wiki/ux-principles.md — use-case brief (who, the job, what done
       looks like, context of use, common vs edge case, stated frequency assumptions),
       the shortest flow from intent to done, hierarchy (the one primary action per
-      screen), the component inventory, and a "### Wireframes" subsection linking
-      wireframe.html. Also write that file at openspec/changes/<name>/wireframe.html,
-      filled from .claude/skills/plan/references/wireframe-kit.html — every screen in
-      the flow, each with its empty/loading/error states, one clickable primary action
-      per screen, low fidelity, and no network reference. Prefer mirroring the closest
-      existing screen; name it in the brief. Skip the section and the file for UI-less
-      changes (worker, CLI, library).
+      screen), the component inventory, and a "### Review" subsection linking
+      review.html by anchor. Prefer mirroring the closest existing screen; name it
+      in the brief. When the brief says the job is done on a phone, draw the phone
+      layout first using the kit's phone-only/desktop-only helpers. A UI-less change
+      (worker, CLI, library) skips this section and draws no screen visual — it
+      still gets the review page.
   tasks:
     - Group tasks by the surface they touch (skill, script, docs, CLAUDE.md).
-    - UI tasks reference the wireframe screen and state they implement
-      (e.g. 'Build the list view per wireframe.html#/list/default').
+    - A task that builds or edits something the review page shows cites its
+      anchor (e.g. 'Build the list view per review.html#/list/default').
     - A payload change is not done until VERSION and CHANGELOG.md are updated.

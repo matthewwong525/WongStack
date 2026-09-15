@@ -1,103 +1,4 @@
-# ux-wireframes Specification
-
-## Purpose
-
-The review stage of `/plan` gives every change one self-contained HTML review page — `review.html`, whose What Changes list is the navigation and whose stage shows a low-fidelity picture of each change (a screen wireframe, a flow, a diff, a file tree) — that a reviewer opens on a laptop or a phone, walks, annotates, and copies notes from back into `/continue`. It is committed with the change and archived with it. (The capability keeps its `ux-wireframes` name from when it covered wireframes alone.)
-
-## Requirements
-
-### Requirement: A UI-bearing change carries one wireframe file
-
-Every change `/plan` drafts SHALL carry `openspec/changes/<name>/review.html`. The file SHALL be self-contained: it SHALL load no script, style, font, or image from a network address, so it renders when opened from disk with no server. A change that adds or restructures a user-facing screen SHALL draw that screen as a `screen` visual and SHALL keep a `## UX` section in `design.md`; a UI-less change SHALL have no `## UX` section and no `screen` visual, and SHALL still have the file with its other visual kinds.
-
-#### Scenario: A screen is added
-
-- **WHEN** `/plan` drafts a change whose design adds a page or component
-- **THEN** `review.html` exists when the plan is apply-ready and contains a `screen` visual for it
-- **AND** the file is committed and archived with the change like `design.md`
-
-#### Scenario: The file opens from disk
-
-- **WHEN** a reviewer opens `review.html` from a clone with no server running and no network
-- **THEN** every visual and state renders and navigation works
-
-#### Scenario: A UI-less change
-
-- **WHEN** `/plan` drafts a worker-only, CLI, library, or prose change
-- **THEN** `review.html` exists with `flow`, `diff`, `tree`, or text visuals and no `screen`, and `design.md` has no `## UX` section
-
-### Requirement: The wireframe covers the flow at low fidelity
-
-A `screen` visual SHALL follow the design's flow: every screen in the flow appears, each with its empty, loading, and error states where the design names them. At most one primary action SHALL be visible at a time, counted per state rather than per screen, because markup outside a state block shows in every state; clicking it SHALL navigate to the next screen in the flow. The rendering SHALL be grey-box: no brand colours, no design-system tokens, no product typography.
-
-#### Scenario: Every state is reachable
-
-- **WHEN** the design's flow names a list screen with empty and error states
-- **THEN** the file offers a state switch for that screen that shows each state
-- **AND** each state is addressable by URL fragment `#/<screen>/<state>`
-
-#### Scenario: The primary action navigates
-
-- **WHEN** a reviewer clicks the screen's one primary action
-- **THEN** the file shows the screen the flow says comes next
-
-#### Scenario: Two filled buttons in one state
-
-- **WHEN** a screen's header carries a primary action and its empty state adds an inline one
-- **THEN** the critic counts two primary actions visible in the empty state
-- **AND** the critique names it as a hierarchy violation and the revision round removes one
-
-### Requirement: Screens carry the reasoning beside them
-
-Each `screen` visual SHALL carry a notes block with the use-case brief in one line and numbered callouts that explain the layout choices that matter. Other visual kinds MAY carry a notes block. A reader SHALL get the intent without opening `design.md`.
-
-#### Scenario: A reviewer reads a callout
-
-- **WHEN** a visual marks an element with a numbered callout
-- **THEN** the notes block below that visual has a matching numbered entry
-
-### Requirement: The design text links the file instead of sketching
-
-The `### Review` subsection of a UI-bearing `design.md` SHALL link `review.html` and list its screens and states by anchor. It SHALL NOT contain ASCII sketches. The brief, flow, hierarchy, and components subsections SHALL stay in `design.md` as text.
-
-#### Scenario: The critic reads both
-
-- **WHEN** the critic subagent reviews the review stage output
-- **THEN** it reads the `## UX` text, when present, and the file
-- **AND** it judges whether every screen serves the stated job from both
-
-### Requirement: Tasks and the PR body point at the wireframe
-
-A task that builds or edits something a visual shows SHALL cite it as a `review.html#/<visual>[/<state>][/<mark>]` anchor. The PR body that `/save` regenerates SHALL carry a `## Review` section linking `openspec/changes/<name>/review.html` on the branch when the file exists, saying to open it, walk it, annotate, and paste the notes into `/continue`, and SHALL omit the section when it does not.
-
-#### Scenario: A UI task cites its screen
-
-- **WHEN** `/plan` writes a task that builds a screen
-- **THEN** the task names the anchor, for example `Build the list view per review.html#/list/default`
-
-#### Scenario: The PR body links the file
-
-- **WHEN** `/save` regenerates the PR body for a change with `review.html`
-- **THEN** the body has a `## Review` section whose link resolves to the file on the branch
-
-#### Scenario: No wireframe on the branch
-
-- **WHEN** `/save` regenerates the PR body for a change without `review.html`
-- **THEN** the body has no `## Review` section
-
-### Requirement: The wireframe is filled from a fixed kit
-
-The plan skill SHALL ship a review kit that owns the reviewer chrome, the routing, the panel and landing, the four visual kinds and their primitives, the callout and notes conventions, the mark highlight, and the annotate layer. The design subagent SHALL fill the kit with visuals and `data-mark` tags and SHALL NOT restyle it, add dependencies to it, or raise its fidelity. The proposal block SHALL be filled by the sync script, not by hand. The kit SHALL reach every repo that installs the plan skill.
-
-#### Scenario: Two changes look alike
-
-- **WHEN** two different changes produce review files from the kit
-- **THEN** both show the same chrome, panel, primitives, pin and callout style, and differ only in visuals, marks, and proposal text
-
-#### Scenario: The kit installs with the skill
-
-- **WHEN** `/wong-sync` copies or adapts the plan skill into a target
-- **THEN** the kit arrives with it under the skill's `references/` directory
+## ADDED Requirements
 
 ### Requirement: The What Changes list is the navigation
 
@@ -249,3 +150,98 @@ The kit SHALL execute no statement at load time that can throw before the first 
 
 - **WHEN** a statement in the kit throws at load
 - **THEN** the panel shows the message and line instead of a blank stage
+
+## MODIFIED Requirements
+
+### Requirement: A UI-bearing change carries one wireframe file
+
+Every change `/plan` drafts SHALL carry `openspec/changes/<name>/review.html`. The file SHALL be self-contained: it SHALL load no script, style, font, or image from a network address, so it renders when opened from disk with no server. A change that adds or restructures a user-facing screen SHALL draw that screen as a `screen` visual and SHALL keep a `## UX` section in `design.md`; a UI-less change SHALL have no `## UX` section and no `screen` visual, and SHALL still have the file with its other visual kinds.
+
+#### Scenario: A screen is added
+
+- **WHEN** `/plan` drafts a change whose design adds a page or component
+- **THEN** `review.html` exists when the plan is apply-ready and contains a `screen` visual for it
+- **AND** the file is committed and archived with the change like `design.md`
+
+#### Scenario: The file opens from disk
+
+- **WHEN** a reviewer opens `review.html` from a clone with no server running and no network
+- **THEN** every visual and state renders and navigation works
+
+#### Scenario: A UI-less change
+
+- **WHEN** `/plan` drafts a worker-only, CLI, library, or prose change
+- **THEN** `review.html` exists with `flow`, `diff`, `tree`, or text visuals and no `screen`, and `design.md` has no `## UX` section
+
+### Requirement: The wireframe covers the flow at low fidelity
+
+A `screen` visual SHALL follow the design's flow: every screen in the flow appears, each with its empty, loading, and error states where the design names them. At most one primary action SHALL be visible at a time, counted per state rather than per screen, because markup outside a state block shows in every state; clicking it SHALL navigate to the next screen in the flow. The rendering SHALL be grey-box: no brand colours, no design-system tokens, no product typography.
+
+#### Scenario: Every state is reachable
+
+- **WHEN** the design's flow names a list screen with empty and error states
+- **THEN** the file offers a state switch for that screen that shows each state
+- **AND** each state is addressable by URL fragment `#/<screen>/<state>`
+
+#### Scenario: The primary action navigates
+
+- **WHEN** a reviewer clicks the screen's one primary action
+- **THEN** the file shows the screen the flow says comes next
+
+#### Scenario: Two filled buttons in one state
+
+- **WHEN** a screen's header carries a primary action and its empty state adds an inline one
+- **THEN** the critic counts two primary actions visible in the empty state
+- **AND** the critique names it as a hierarchy violation and the revision round removes one
+
+### Requirement: Screens carry the reasoning beside them
+
+Each `screen` visual SHALL carry a notes block with the use-case brief in one line and numbered callouts that explain the layout choices that matter. Other visual kinds MAY carry a notes block. A reader SHALL get the intent without opening `design.md`.
+
+#### Scenario: A reviewer reads a callout
+
+- **WHEN** a visual marks an element with a numbered callout
+- **THEN** the notes block below that visual has a matching numbered entry
+
+### Requirement: The design text links the file instead of sketching
+
+The `### Review` subsection of a UI-bearing `design.md` SHALL link `review.html` and list its screens and states by anchor. It SHALL NOT contain ASCII sketches. The brief, flow, hierarchy, and components subsections SHALL stay in `design.md` as text.
+
+#### Scenario: The critic reads both
+
+- **WHEN** the critic subagent reviews the review stage output
+- **THEN** it reads the `## UX` text, when present, and the file
+- **AND** it judges whether every screen serves the stated job from both
+
+### Requirement: Tasks and the PR body point at the wireframe
+
+A task that builds or edits something a visual shows SHALL cite it as a `review.html#/<visual>[/<state>][/<mark>]` anchor. The PR body that `/save` regenerates SHALL carry a `## Review` section linking `openspec/changes/<name>/review.html` on the branch when the file exists, saying to open it, walk it, annotate, and paste the notes into `/continue`, and SHALL omit the section when it does not.
+
+#### Scenario: A UI task cites its screen
+
+- **WHEN** `/plan` writes a task that builds a screen
+- **THEN** the task names the anchor, for example `Build the list view per review.html#/list/default`
+
+#### Scenario: The PR body links the file
+
+- **WHEN** `/save` regenerates the PR body for a change with `review.html`
+- **THEN** the body has a `## Review` section whose link resolves to the file on the branch
+
+#### Scenario: No wireframe on the branch
+
+- **WHEN** `/save` regenerates the PR body for a change without `review.html`
+- **THEN** the body has no `## Review` section
+
+### Requirement: The wireframe is filled from a fixed kit
+
+The plan skill SHALL ship a review kit that owns the reviewer chrome, the routing, the panel and landing, the four visual kinds and their primitives, the callout and notes conventions, the mark highlight, and the annotate layer. The design subagent SHALL fill the kit with visuals and `data-mark` tags and SHALL NOT restyle it, add dependencies to it, or raise its fidelity. The proposal block SHALL be filled by the sync script, not by hand. The kit SHALL reach every repo that installs the plan skill.
+
+#### Scenario: Two changes look alike
+
+- **WHEN** two different changes produce review files from the kit
+- **THEN** both show the same chrome, panel, primitives, pin and callout style, and differ only in visuals, marks, and proposal text
+
+#### Scenario: The kit installs with the skill
+
+- **WHEN** `/wong-sync` copies or adapts the plan skill into a target
+- **THEN** the kit arrives with it under the skill's `references/` directory

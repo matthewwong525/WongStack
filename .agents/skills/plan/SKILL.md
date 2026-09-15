@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Draft an OpenSpec change — proposal, specs, design, and tasks — in one step, ready to implement. A change that touches a screen also gets a clickable low-fidelity wireframe.html a reviewer can open and walk. WongStack's name for OpenSpec's /opsx:propose. Use when you want to plan or spec out what to build before writing code, or to mock up a UX before building it; pairs with /apply to implement and /ship to archive.
+description: Draft an OpenSpec change — proposal, specs, design, and tasks — in one step, ready to implement. Every change also gets review.html, a page whose What Changes list is the navigation: click a change, see a picture of it (a wireframe screen, a flow, a diff, a file tree), annotate it, and copy the notes back as a /continue command. WongStack's name for OpenSpec's /opsx:propose. Use when you want to plan or spec out what to build before writing code, or to mock up a UX before building it; pairs with /apply to implement and /ship to archive.
 user-invocable: true
 ---
 
@@ -34,18 +34,52 @@ Then invoke the propose step with the intent **and the answers**.
 
 This handoff changes no standalone behavior: `/plan` invoked by itself creates the apply-ready artifacts and stops for review. It never invokes `/apply` automatically.
 
-## UX stage (UI-bearing changes only)
+## Review stage (every change)
 
-When the change **adds or meaningfully restructures a user-facing screen** (a page or component — not merely touching a UI file), run this stage after design.md's first draft and **before tasks.md**, so tasks can reference the result. It produces two things: the `## UX` section of design.md, in the shape defined by [`wiki/ux-principles.md`](../../../wiki/ux-principles.md) (which the `openspec/config.yaml` `design` rule also enforces for any author outside this skill), and **`openspec/changes/<name>/wireframe.html`** — one clickable, low-fidelity mock-up a reviewer opens and walks. **Worker-only, CLI, library, or otherwise UI-less changes skip this stage entirely** — most repos won't run it every change, and they get no wireframe.
+After design.md's first draft and **before tasks.md**, draw the change. This stage writes **`openspec/changes/<name>/review.html`** — the reviewer's page for this change, filled from [the review kit](references/review-kit.html). The proposal's What Changes list is its navigation: a reviewer clicks a change and sees a picture of *that* change, annotates it in place, and copies the notes back as a `/continue` command.
 
-1. **UX-design subagent.** Spawn a subagent (Agent tool) that reads: the change's proposal.md + draft design.md, `wiki/ux-principles.md`, [the wireframe kit](references/wireframe-kit.html), your repo's UI/component conventions doc if it has one, and the 1–2 closest analogous existing screens (name them in the prompt — design by mirroring, not by inventing). It does two things:
-   - **Writes `openspec/changes/<name>/wireframe.html`** — a copy of the kit filled with every screen in the flow, each carrying the empty, loading, and error states the flow names, one primary action per screen wired with `data-go` so the flow is clickable, and a numbered callout per layout choice with its matching notes line. It follows the kit's fill rules, which forbid new CSS, colour, fonts, and any network load. This is the **one file it writes**.
-   - **Returns the `## UX` section text** — use-case brief with stated frequency assumptions, flow from intent to done, hierarchy map (the one primary action per screen), component inventory, and a `### Wireframes` subsection that **links `wireframe.html` and lists its screens and states as `#/<screen>/<state>` anchors** rather than sketching them.
-2. **Critic subagent.** Spawn a second subagent with the draft section, the written `wireframe.html`, and `wiki/ux-principles.md` that answers exactly two questions: *does every screen serve the stated job?* and *where does this violate ux-principles.md?* The fixed kit makes part of that mechanical — flag more than one `.btn.primary` visible in a single state (markup outside the state blocks shows in all of them, so a header button plus an inline empty-state button is two), a state named in `data-states` with no matching `.state-<name>` block, a screen nothing navigates to, and any style, colour, or network reference added to the kit. Feed its findings into a single revision round (rerun the design subagent with the critique). One round only — don't loop.
-3. **Append + surface forks.** The revision round rewrites the wireframe file as well as the text. The main thread **confirms `wireframe.html` exists**, then appends the final `## UX` section to design.md. If the critique exposed a genuine layout fork (e.g. table-with-drawer vs master-detail), surface it to the user as one AskUserQuestion before writing tasks.md; otherwise default to mirroring the named existing screen.
-4. **Tasks reference the screen they build.** When drafting tasks.md, UI tasks point at the wireframe screen and state they implement (per the `openspec/config.yaml` `tasks` rule), e.g. `- [ ] 3.2 Build the list view per wireframe.html#/list/default`.
+**Every change gets one**, not only UI-bearing ones — most bullets in most changes are not screens, and a bullet that changes a rule or a runbook is exactly as hard to picture from a sentence. The kit has four kinds:
 
-The file is committed with the change and moves into `openspec/changes/archive/` with it, so it stays the record of what was planned. It is self-contained, so a reviewer opens it straight from a clone with no server — a forge shows it as source rather than rendering it.
+| Kind | For |
+|---|---|
+| `screen` | a UI screen, with its empty, loading, and error states — the wireframe as before |
+| `flow` | a sequence of steps, with a today lane and an after lane |
+| `diff` | before-and-after text: a rule, a config value, a template, prose |
+| `tree` | files added, edited, removed |
+
+A bullet with nothing to draw needs no visual — it opens a text stage on its own, so a click is never dead. Two bullets may share one visual.
+
+**A change that adds or meaningfully restructures a screen** (a page or component — not merely touching a UI file) *also* gets the `## UX` section of design.md, in the shape defined by [`wiki/ux-principles.md`](../../../wiki/ux-principles.md) (which the `openspec/config.yaml` `design` rule also enforces for any author outside this skill). A worker-only, CLI, library, or prose change writes no `## UX` section and no `screen` visual — it still gets the page.
+
+1. **Design subagent.** Spawn a subagent (Agent tool) that reads: the change's proposal.md + draft design.md, [the review kit](references/review-kit.html), and — when the change touches a screen — `wiki/ux-principles.md`, your repo's UI/component conventions doc if it has one, and the 1–2 closest analogous existing screens (name them in the prompt — design by mirroring, not by inventing). It does two things:
+   - **Writes `openspec/changes/<name>/review.html`** — a copy of the kit with one visual per What Changes bullet that has something to show, each of the four kinds used where it fits, `data-mark` on the elements each bullet changes, and a numbered callout per choice that matters with its matching notes line. A `screen` visual carries every screen in the flow with the states the design names and one primary action per state wired with `data-go`. It follows the kit's fill rules, which forbid new CSS, colour, fonts, and any network load, and it leaves the machine-filled proposal block alone. This is the **one file it writes**.
+   - **Returns the bullet-to-anchor map** — for each What Changes bullet, the `review.html#/<visual>[/<state>][/<mark>]` anchor it should carry, or "no visual" — **and**, for a screen-bearing change, the `## UX` section text: use-case brief with stated frequency assumptions, flow from intent to done, hierarchy map (the one primary action per screen), component inventory, and a `### Review` subsection that **links `review.html` and lists its screens and states by anchor** rather than sketching them.
+
+   **The brief decides the phone.** When the use-case brief says the job is done on a phone, the screen is drawn phone-first, using the kit's `phone-only` and `desktop-only` helpers to carry both layouts in one screen. A reviewer walks either through the chrome's View toggle.
+
+2. **Critic subagent.** Spawn a second subagent with the written `review.html`, the anchor map, the proposal, and — for a screen-bearing change — the draft `## UX` section and `wiki/ux-principles.md`. It answers: *does every visual actually show what its bullet claims?* and, where there are screens, *does every screen serve the stated job, and where does this violate ux-principles.md?* The fixed kit makes much of that mechanical — flag:
+   - a bullet anchor that resolves to no visual, state, or mark, and a visual or mark no bullet references;
+   - a mark that shares a name with one of its visual's states (the router reads it as the state and highlights nothing);
+   - more than one `.btn.primary` visible in a single state (markup outside the state blocks shows in all of them, so a header button plus an inline empty-state button is two);
+   - a state named in `data-states` with no matching `.state-<name>` block;
+   - a screen nothing navigates to;
+   - any state that overflows at phone width, when the brief says phone;
+   - any style, colour, or network reference added to the kit.
+
+   Feed its findings into a single revision round (rerun the design subagent with the critique). One round only — don't loop.
+
+3. **Anchor the bullets + surface forks.** The revision round rewrites the file as well as the text. The main thread then **confirms `review.html` exists**, **appends each bullet's anchor to its What Changes bullet in `proposal.md`** as a trailing `(review.html#/…)`, runs the sync script so the page's panel matches the proposal —
+
+   ```bash
+   ROOT="$(git rev-parse --show-toplevel)"
+   node "$ROOT/.claude/skills/save/scripts/sync-review-proposal.mjs" "openspec/changes/<name>"
+   ```
+
+   — and appends the `## UX` section to design.md when there is one. If the critique exposed a genuine layout fork (e.g. table-with-drawer vs master-detail), surface it to the user as one AskUserQuestion before writing tasks.md; otherwise default to mirroring the named existing screen.
+
+4. **Tasks reference what they build.** When drafting tasks.md, a task that builds or edits something a visual shows points at it (per the `openspec/config.yaml` `tasks` rule), e.g. `- [ ] 3.2 Build the list view per review.html#/list/default`.
+
+The file is committed with the change and moves into `openspec/changes/archive/` with it, so it stays the record of what was planned. It is self-contained, so a reviewer opens it straight from a clone with no server, on a laptop or a phone — a forge shows it as source rather than rendering it.
 
 ## Ask whether it should be code
 
