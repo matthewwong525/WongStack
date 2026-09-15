@@ -29,7 +29,12 @@
        id="<slug>"            the anchor: #/<slug>
        data-kind="screen|flow|diff|tree"    which of the four kinds it is
        data-states="a b c"    only for a visual with more than one state;
-                              the first listed is the landing state
+                              the first listed is the landing state. Any names
+                              you like — "default empty loading error" for a
+                              screen's usual set, but "annotating phone" or
+                              "after today" are equally valid. Each one needs
+                              its own <div class="state state-<name>"> block,
+                              or that state shows an empty frame.
        data-state="<first>"   the state it opens in
   4. Anchor each bullet in proposal.md by appending
        (review.html#/<visual>[/<state>][/<mark>])
@@ -159,10 +164,7 @@
   .caption { max-width:960px; margin:24px auto 0; font-size:12px; color:#666; }
   .caption + .frame { margin-top:6px; }
   .state { display:none; }
-  .screen[data-state="default"] .state-default,
-  .screen[data-state="empty"]   .state-empty,
-  .screen[data-state="loading"] .state-loading,
-  .screen[data-state="error"]   .state-error { display:block; }
+  .state[data-on] { display:block; }
 
   /* lo-fi screen primitives — the screen visual's vocabulary */
   .topbar { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:2px solid var(--line); background:var(--fill2); }
@@ -521,7 +523,11 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
     const v = r ? r.v : visuals.find(x => x.id === (id === '_text' ? '_text' : '_landing'));
     const state = r ? r.state : 'default', mark = r ? r.mark : null;
     visuals.forEach(x => x.toggleAttribute('data-active', x === v));
-    if (v.classList.contains('screen')) v.dataset.state = state;
+    if (v.classList.contains('screen')) {
+      v.dataset.state = state;
+      // reveal the block whose class matches the state name — any name, not a fixed four
+      v.querySelectorAll('.state').forEach(function (b) { b.toggleAttribute('data-on', b.classList.contains('state-' + state)); });
+    }
     current = { id: v.id, state, mark };
     document.querySelectorAll('.marked').forEach(x => x.classList.remove('marked'));
     if (mark) v.querySelectorAll('[data-mark="' + mark + '"]').forEach(x => x.classList.add('marked'));
@@ -537,6 +543,7 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
     const b = bullets[i];
     document.getElementById('textframe').innerHTML = '<p class="muted">Change ' + (i + 1) + ' · no visual — behaviour only</p><h1>' + inline(b.text) + '</h1>';
     current = { id: '_text', state: 'default', mark: null, bullet: i };
+    document.querySelectorAll('.marked').forEach(function (x) { x.classList.remove('marked'); });
     visuals.forEach(x => x.toggleAttribute('data-active', x.id === '_text'));
     renderStates(null); renderPanelState(); renderPins();
     try { history.replaceState(null, '', '#/change/' + (i + 1)); } catch (e) { location.hash = '#/change/' + (i + 1); }

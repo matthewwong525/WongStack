@@ -35,6 +35,8 @@ The **Cloudflare stack pack** is a manifest category gated on a flag: its files 
 
 The pack's **drop-in files** (whole files the target owns after install):
 
+> `scripts/check-payload-links.mjs` and `scripts/check-openspec-config.mjs` are **meta-repo release checks, not payload** — they verify this repo before it ships and have nothing to do in a target. Same carve-out as the meta-only rules below.
+
 - `scripts/cf-build.sh`, `scripts/cf-deploy.sh`, `scripts/reset-staging-d1.mjs`, `scripts/cf-secrets.mjs` — the four zero-config pipeline scripts (build, deploy, staging reset, secrets push/parity-check), plus the two helper libraries they share, `scripts/lib-wrangler-config.sh` and `scripts/lib-wrangler-config.mjs`.
   `cf-secrets.mjs` imports only the library exports that have existed since v8 and does its own config parsing, so it works the moment it lands in a repo whose library copy predates this release — copy-if-absent never gets to update that library.
   A repo that installed the pack before v8 also has `scripts/swap-d1-id.js`, which the pack no longer ships. The sync neither deletes it nor rewrites the scripts around it — retiring it is a step in the [adoption runbook](../../../../wiki/stack/d1-pipeline.md#adopting-the-staging-environment), surfaced through the adapt step like any other present-file gap.
