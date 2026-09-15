@@ -3,6 +3,28 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 14.1.0 — a bare `/ship` finishes the thread
+
+`/ship` no longer asks you to retype, as an argument, the intent you settled a minute ago.
+
+- **A bare `/ship` continues what the session established.** On a clean branch — or on the
+  default branch — with nothing to ship, it invokes `/apply` with no argument whenever
+  `/apply`'s own resolve order lands on a change you named, a change discussed this
+  session, or an active change matching the current branch. The nesting
+  `/ship → /apply → /plan → /explore` is now one rule with no argument carve-out.
+- **A cold `/ship` still stops, and now says why.** Where the only candidate is a lone
+  entry in `openspec list`, or nothing resolves at all, it stops and reports that it found
+  nothing to continue. A stray active change never starts a merge. `/ship` resolves
+  nothing itself — it reads `/apply`'s written order rather than adding a second one.
+- **An unfinished change is finished, not archived.** `/ship` reads `tasks.md` before the
+  archive and pulls in `/apply` when tasks are unchecked. The archive step warns and asks
+  you to confirm; `/ship`'s standing authorization used to answer that question for you,
+  so a change at 7 of 20 tasks could reach a squash-merge with nobody deciding to. That
+  authorization now covers the archive of a **complete** change only.
+
+Nothing breaks: `/ship <intent>` behaves exactly as before, and a branch that already has
+work runs the ordinary runbook untouched.
+
 ## 14.0.1 — four things that were failing quietly
 
 All four shipped with the review page in 13.0.0, and every one of them failed
