@@ -1,7 +1,14 @@
 # Changelog
 
 `/wong-sync` reads the entries newer than your installed version
-(`.claude/.wong-stack.json`) and walks you through each change. Newest first.
+(`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
+
+## 15.0.0 — setup and sync use the normal workflow
+
+- **`/wong-sync` gets the latest source and invokes `/explore`.** The normal skills own questions, planning, implementation, and saving.
+- **`/wong-setup` uses the same skills.** Fresh targets use source skills until their own are installed; an installation request continues through the normal change loop.
+- **Remove the separate adaptation and setup playbooks.** No required classifications, verdict files, fixed interviews, or sync-specific proposal format. Existing user choices remain context.
+- Keep the payload inventory and install record, preserve local work and optional component choices, and update the Cloudflare source lookup for the shorter sync skill.
 
 ## 14.2.0 — structured questions throughout exploration
 

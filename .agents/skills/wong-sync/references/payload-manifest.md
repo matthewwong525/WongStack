@@ -1,10 +1,10 @@
 # The payload manifest
 
-The single source of truth for **which files `/wong-sync` may copy into a target repo**. Step 2 walks this list: a file on it that the target doesn't have is copied in verbatim; a file on it that the target does have is left alone and handed to [the adapt step](adapt.md). Nothing outside this list is ever copied, so upstream cannot drop files into parts of a repo it doesn't own.
+The single source of truth for **which upstream files belong in a target repo**. Setup and sync pass this inventory to the normal workflow. `/plan` defines the agreed changes and `/apply` installs or adapts the files, preserving local work.
 
 > **The paths themselves live in [`payload-files.json`](payload-files.json)** — read that when you need the list; read this page when you need to know *why* a file is on it, which category gates it, or what is deliberately excluded. Splitting them this way is the same rule this manifest applies to everything else: one store per fact. Copying the list into a third place (a script's constants, an agent's working notes) is how it drifts — `scripts/check-payload-links.mjs` used to keep exactly such a copy.
 
-**This list bounds copying, not reading.** The adapt step's surveyor reads the target's process surfaces broadly — that is the whole point of it, since a repo that already solves something usually solves it somewhere upstream never heard of. That's safe because there is no outbound path: `/wong-sync` has no contribute leg, opens no pull request, and writes nothing to the clone, so nothing the surveyor reads leaves the machine. Sending an improvement upstream is a manual PR ([`contributing.md`](../../../../wiki/contributing.md)).
+**This list bounds copying, not reading.** `/explore` can read the target broadly to understand its existing process. The normal workflow decides how the listed payload fits that repo.
 
 ## In the manifest
 
@@ -38,15 +38,15 @@ The pack's **drop-in files** (whole files the target owns after install):
 > `scripts/check-payload-links.mjs` and `scripts/check-openspec-config.mjs` are **meta-repo release checks, not payload** — they verify this repo before it ships and have nothing to do in a target. Same carve-out as the meta-only rules below.
 
 - `scripts/cf-build.sh`, `scripts/cf-deploy.sh`, `scripts/reset-staging-d1.mjs`, `scripts/cf-secrets.mjs` — the four zero-config pipeline scripts (build, deploy, staging reset, secrets push/parity-check), plus the two helper libraries they share, `scripts/lib-wrangler-config.sh` and `scripts/lib-wrangler-config.mjs`.
-  `cf-secrets.mjs` imports only the library exports that have existed since v8 and does its own config parsing, so it works the moment it lands in a repo whose library copy predates this release — copy-if-absent never gets to update that library.
-  A repo that installed the pack before v8 also has `scripts/swap-d1-id.js`, which the pack no longer ships. The sync neither deletes it nor rewrites the scripts around it — retiring it is a step in the [adoption runbook](../../../../wiki/stack/d1-pipeline.md#adopting-the-staging-environment), surfaced through the adapt step like any other present-file gap.
-- `.github/workflows/deploy.yml` — the pack's CI. Two parallel jobs, neither waiting on the other. **`build`** is a thin driver: it sets `CF_BRANCH` and runs the build and deploy wrappers, which own the branch split, so choosing Actions changes no deploy behavior. **`test`** runs the app's own suite via `npm test`. Both report green rather than red when their prerequisite is absent — no wrangler config reports why and exits green, a config with no secrets builds without deploying, and no declared `test` script says so and exits green. The `test` job finds its app by looking for a `test` script (root, then each immediate subdirectory) rather than by wrangler config, so a repo can have tests before it is provisioned; and `build` carries no `needs:` edge to it, because a staging deploy of red code is harmless while merges still require green checks. The workflow also collapses the `push`/`pull_request` double-fire so one commit deploys once. Copy-if-absent like everything else — which means an existing pack repo keeps its own `deploy.yml` and is *offered* these fixes, the `test` job included, through the adapt step, never given them.
+  `cf-secrets.mjs` imports only the library exports that have existed since v8 and does its own config parsing, so it works the moment it lands in a repo whose library copy predates this release — an older target may still have that library.
+  A repo that installed the pack before v8 also has `scripts/swap-d1-id.js`, which the pack no longer ships. The sync neither deletes it nor rewrites the scripts around it — retiring it is a step in the [adoption runbook](../../../../wiki/stack/d1-pipeline.md#adopting-the-staging-environment), surfaced through `/explore` like any other present-file gap.
+- `.github/workflows/deploy.yml` — the pack's CI. Two parallel jobs, neither waiting on the other. **`build`** is a thin driver: it sets `CF_BRANCH` and runs the build and deploy wrappers, which own the branch split, so choosing Actions changes no deploy behavior. **`test`** runs the app's own suite via `npm test`. Both report green rather than red when their prerequisite is absent — no wrangler config reports why and exits green, a config with no secrets builds without deploying, and no declared `test` script says so and exits green. The `test` job finds its app by looking for a `test` script (root, then each immediate subdirectory) rather than by wrangler config, so a repo can have tests before it is provisioned; and `build` carries no `needs:` edge to it, because a staging deploy of red code is harmless while merges still require green checks. The workflow also collapses the `push`/`pull_request` double-fire so one commit deploys once. Updates to an existing `deploy.yml` are planned through the normal workflow.
 - `schema/seed.sql` and `schema/migrations/.gitkeep` — the seed template and the migrations directory.
 - `.dev.vars.example` — the committed, values-blank list of the secret **names** the Worker reads, mirroring the `.env.example` convention. `secrets:check` reads it to warn about keys neither Worker holds. It carries no value, so copying it into a repo discloses nothing.
 - `.claude/skills/wong-cloudflare/` (plus its `references/`) — the provisioning skill. Gated on the pack because it's meaningless without it; a repo that declined never sees the command.
 - The whole `wiki/stack/` section (hub + `getting-started.md`, `core-stack.md`, `d1-pipeline.md`, `cloudflare-access.md`, `cloudflare-credentials.md`) — the human walkthrough, the pipeline and Cloudflare-setup docs, and the opt-in staging walkthrough. (The provisioning runbook is the `wong-cloudflare` skill itself, not a wiki page.)
 
-The pack's **config fragments** are **not** manifest files. `package.json` scripts, the `wrangler.jsonc` bindings and `env.staging` block, `.env.example` variables, and the `.gitignore` entries covering both secrets files (`.env*` and `.dev.vars*`, each with its `!*.example` negation) must *merge* into files the target already owns, so they are never whole-file copies. They are applied as guided edits by `/wong-cloudflare`, following the `CLAUDE.md`-block precedent (show → apply with confirmation → never blind-write), from [`stack-pack-fragments.md`](stack-pack-fragments.md). When upstream changes a fragment, it surfaces through the adapt step rather than being merged automatically.
+The pack's **config fragments** are **not** manifest files. `package.json` scripts, the `wrangler.jsonc` bindings and `env.staging` block, `.env.example` variables, and the `.gitignore` entries covering both secrets files (`.env*` and `.dev.vars*`, each with its `!*.example` negation) must *merge* into files the target already owns, so they are never whole-file copies. They are applied as guided edits by `/wong-cloudflare`, following the `CLAUDE.md`-block precedent (show → apply with confirmation → never blind-write), from [`stack-pack-fragments.md`](stack-pack-fragments.md). When upstream changes a fragment, it surfaces through `/explore` rather than being merged automatically.
 
 ## The opt-in app scaffold
 
@@ -67,13 +67,37 @@ That generalizes to an invariant worth stating on its own: **no copied payload f
 
 ## Not in the manifest
 
-- **`wong-setup`** — source-only tooling; never copied into a target (offered as a symlink instead). It copies no payload file except the `wong-sync` skill (the bootstrap that makes the first sync possible); everything else arrives through Step 2's copy-if-absent walk.
+- **`wong-setup`** — source-only tooling; never copied into a target (offered as a symlink instead). It invokes the normal workflow from the source checkout until target skills are available; `/apply` performs the install.
 - **The `openspec-*` skills** — produced in each repo by `openspec init`, not copied, so they always match the installed CLI. On CLI 1.8.0 with the core profile that is six skills (`openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-update-change`, `openspec-sync-specs`, `openspec-archive-change`) and **no `.claude/commands/opsx/` directory** — 1.8.0 delivers only skills, and its `openspec update` deletes any `opsx/*.md` commands an older CLI generated. A target repo therefore has the skills and no `/opsx:*` slash commands; don't promise it any.
   **The generated skills' description and body are pristine upstream output — never edit them.** `openspec update` rewrites them from templates, so a local edit is wiped on the next CLI update. WongStack behavior lives in the fronting verbs instead: `/apply` owns the `/save` handoff (the all-done checkpoint, the gate-task exception, never-checkpoint-to-stop) and wraps `openspec-apply-change` with it. Want different behavior around an OpenSpec step? Edit the verb skill, then regenerate freely.
 
-  **The one carve-out is `user-invocable: false`**, applied to each generated skill's frontmatter by [`scripts/hide-openspec-skills.sh`](../scripts/hide-openspec-skills.sh). It keeps the six out of the user's `/` menu — they are handoff targets for the verbs, never doors a user should open — while leaving the Skill tool able to invoke them. The carve-out proves the rule rather than breaking it: the key is applied *by script, after every regeneration*, precisely because a hand edit would be wiped. `/wong-setup` runs the script after `openspec init`, `/update-dependencies` after `openspec update`; `/wong-sync` proposes the run as a task instead of performing it, except on a fresh install. Nothing else in a generated file may be touched, and `agent-browser` takes no patch at all — it ships its own visibility setting from upstream.
+  **The one carve-out is `user-invocable: false`**, applied to each generated skill's frontmatter by [`scripts/hide-openspec-skills.sh`](../scripts/hide-openspec-skills.sh). It keeps the six out of the user's `/` menu — they are handoff targets for the verbs, never doors a user should open — while leaving the Skill tool able to invoke them. The carve-out proves the rule rather than breaking it: the key is applied *by script, after every regeneration*, precisely because a hand edit would be wiped. Run the script after `openspec init` or `openspec update`; if it is not installed yet, run the source checkout copy against the target. Include the run in installation and update tasks when generated skills change. Nothing else in a generated file may be touched, and `agent-browser` takes no patch at all — it ships its own visibility setting from upstream.
 - **`VERSION` and `CHANGELOG.md`** — WongStack's release record; never copied into a target. `/wong-sync` reads them in the clone (the changelog walk) and writes neither, anywhere.
 - **The target's own notes** — `notes/*.md` other than `README.md`. A repo's captured sessions belong to it; only the convention page is payload.
-- **The sync's own generated files** — `.claude/.wong-stack.json` and `.claude/wong-sync-verdicts.md`. Both are written per repo from that repo's state, not shipped from upstream, so they are outside the manifest in both directions: never copied in, and never read from the clone. They're the one place `/wong-sync` rewrites an existing file, which it may do precisely because it generated them.
+- **The install record and legacy verdict files** — `.claude/.wong-stack.json` is maintained by installation or update tasks. Existing `.claude/wong-sync-verdicts.md` files can supply prior user choices; new runs do not generate them. Neither file is copied from upstream.
 - **`app/wrangler.jsonc`** — the one file inside a manifest category that is nonetheless excluded, because it carries live `database_id`s. See [the app scaffold](#the-opt-in-app-scaffold); `/wong-cloudflare` creates the target's from the fragment.
-- **Everything else** — app skills, business docs, `.claude/settings.json`, the target's `openspec/` content, and any application source outside the gated `app/` scaffold. The surveyor may *read* a repo's process surfaces to understand it; nothing here is ever *copied*.
+- **Everything else** — app skills, business docs, `.claude/settings.json`, the target's `openspec/` content, and any application source outside the gated `app/` scaffold. `/explore` may *read* a repo's process surfaces to understand it; nothing here is ever *copied*.
+
+
+## Install record
+
+`.claude/.wong-stack.json` records the implemented source. Installation and update tasks write it after the agreed file changes complete; exploration and an unapplied plan do not advance it.
+
+```json
+{
+  "version": "<source VERSION>",
+  "commit": "<source commit>",
+  "installedAt": "<YYYY-MM-DD>",
+  "updatedAt": "<YYYY-MM-DD>",
+  "upstream": { "repo": "<source URL>", "fork": null, "clone": "<source path>" },
+  "components": {
+    "skills": ["<installed skill names or existing rename mappings>"],
+    "claudeMd": true,
+    "docs": true,
+    "openspec": true,
+    "stackPack": false
+  }
+}
+```
+
+Preserve existing dates, skill renames, component choices, unknown fields, and `upstream.fork`. Set `updatedAt` to the implementation date. Populate `components.skills` from what was actually installed. Preserve `appScaffold` when present; enable it only with an explicit scaffold choice and `stackPack: true`, never because `app/` exists. A legacy record with null version and commit is an incomplete installation, not permission to copy files during exploration.
