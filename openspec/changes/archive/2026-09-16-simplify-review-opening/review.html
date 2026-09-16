@@ -20,7 +20,7 @@
     layer and the pins. Reviewer chrome, not the product. Leave it alone.
 
   HOW TO FILL IT
-  1. Title: replace CHANGE-NAME in the <title> and in the chrome with the
+  1. Title: replace simplify-review-opening in the <title> and in the chrome with the
      change name. The page reads the change name from the title.
   2. One <section class="visual"> per What Changes bullet that has something
      to show. Two bullets may share one visual. A bullet with nothing to draw
@@ -116,7 +116,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — CHANGE-NAME</title>
+<title>Review — simplify-review-opening</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -304,7 +304,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · CHANGE-NAME</b>
+  <b>Review · simplify-review-opening</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -328,19 +328,15 @@
 <!-- proposal:start -->
 ## Why
 
-Operators find a purchase order by scrolling the whole list. With 400 open orders that is a two-minute hunt ~50 times a day. A search box and a designed empty state turn it into a five-second lookup.
+The first review page repeats the full Why and What Changes list in both columns. This makes the page hard to scan and delays the first useful view.
 
 ## What Changes
 
-- **A search box above the rows** on the orders list, filtering by reference and supplier as you type. (review.html#/list/search)
-- **An empty state that starts the job**: no matches offers the create action inline instead of announcing absence. (review.html#/list/empty/create)
-- **Receiving takes four steps, not six.** The detail page opens from a row click and carries the one primary action for the order's status. (review.html#/receive-flow/after/new)
-- **The list rule in `openspec/config.yaml`** says a list screen has a search box above the rows. (review.html#/list-rule/added)
-- **Files touched**: one new component, two edited screens, one rule. (review.html#/files)
-- **Keyboard focus lands in the search box** on page load — behaviour only, no visual.
-- **Release ritual:** `VERSION` bump and a newest-first `CHANGELOG.md` entry. (review.html#/list/default/nope)
+- Open the first change in the center and select its sidebar item. Keep direct links to other changes working. (review.html#/opening/first)
+- Replace the repeated landing summary with a short fallback message. Keep the sidebar as the proposal navigation and stop Previous at the first change. (review.html#/fallback/invalid/guidance)
+- Keep the phone toolbar on one compact row. Put state selection and note actions behind a Tools button. (review.html#/phone/collapsed/compact)
 
-**Non-goals:** saved searches, bulk actions, changes to the supplier pages.
+**Non-goals:** redesigning the sidebar, changing annotations, or rewriting archived review pages.
 <!-- proposal:end -->
 </script>
 
@@ -358,139 +354,46 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   <div class="frame" id="textframe"></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 1 · kind=screen — replace with your own ══════════
-     The pattern to copy: a list that is searched, with all four states, one
-     primary action per state, and a phone layout beside the desktop one. -->
-<section class="visual screen" id="list" data-kind="screen" data-title="Orders" data-states="default empty loading error" data-state="default">
+<!-- Change visuals: current content, short fallbacks, and phone tools. -->
+<section class="visual screen" id="opening" data-kind="screen">
+  <p class="caption">Open the review: change 1 is selected and its picture is visible.</p>
   <div class="frame">
-    <div class="topbar">
-      <div class="logo"></div>
-      <div class="nav desktop-only"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div>
-      <span class="phone-only" style="margin-left:auto">☰</span>
-    </div>
+    <div class="topbar"><span class="tag">Changes</span><span class="muted">‹</span><span>1&nbsp;/&nbsp;3</span><span class="tag" data-go="fallback">›</span><span class="phone-only">Tools</span></div>
     <div class="body">
-      <div class="row between">
-        <h1>Purchase orders</h1>
-        <span class="btn" data-go="detail">+ New order <i class="callout">1</i></span>
+      <div class="row desktop-only" data-mark="first">
+        <div><b>Why</b><p class="muted">Make the review easier to scan.</p><b>What Changes</b><p><span class="tag">1 · Selected</span> <i class="callout">1</i></p><p>2 · Short fallback</p><p>3 · Phone tools</p></div>
+        <div><h1>First change <i class="callout">2</i></h1><p>The picture for this change opens here.</p><div class="hero"></div><p class="muted">Change navigation stays in the sidebar.</p></div>
       </div>
-      <div class="row" style="margin-top:14px">
-        <span class="input" data-mark="search">Search orders… <i class="callout">2</i></span>
-        <span class="btn">Status: Any ▾</span>
-      </div>
-      <div class="state state-default">
-        <table>
-          <thead><tr><th>Ref</th><th class="desktop-only">Supplier</th><th>Lines</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr class="click" data-go="detail"><td>PO-003<span class="phone-only muted"><br>Third supplier</span></td><td class="desktop-only">Third supplier</td><td>3 lines · 40 units</td><td><span class="tag">Open</span></td></tr>
-            <tr class="click" data-go="detail"><td>PO-002</td><td>Second supplier</td><td>8 lines · 120 units</td><td><span class="tag">Open</span></td></tr>
-            <tr class="click" data-go="detail"><td>PO-001</td><td>First supplier</td><td>1 line · 5 units</td><td><span class="tag">Received</span></td></tr>
-          </tbody>
-        </table>
-        <p class="muted">Showing 3 of 3 · <span class="btn ghost">Load more</span></p>
-      </div>
-      <div class="state state-empty">
-        <div class="box" data-mark="create">
-          <p><b>No orders match.</b></p>
-          <p class="muted">Search for something else, or clear the status filter.</p>
-          <span class="btn primary" data-go="detail">+ New order <i class="callout">3</i></span>
-        </div>
-      </div>
-      <div class="state state-loading">
-        <div class="skeleton"></div><div class="skeleton s"></div><div class="skeleton"></div><div class="skeleton s"></div>
-      </div>
-      <div class="state state-error">
-        <div class="box"><p><b>Could not load orders.</b></p><p class="muted">The server did not answer. Your search and filter are kept.</p><span class="btn">Retry</span></div>
-      </div>
+      <div class="phone-only" data-mark="first"><h1>First change <i class="callout">1</i></h1><p>The picture for this change opens here. <i class="callout">2</i></p><div class="hero"></div><p class="muted">Use Changes to open the navigation sheet.</p></div>
+      <p><span class="btn primary" data-go="fallback">Next change</span></p>
     </div>
   </div>
-  <div class="notes">
-    <p class="brief"><b>Who / job:</b> an operator finding one order to receive it. <b>Done:</b> the order's detail is open. <b>Frequency:</b> ~50×/day.</p>
-    <ol>
-      <li>Secondary, not primary: this screen's job is finding an order, so creating one is the smaller action.</li>
-      <li>Search is the job, so it sits above the rows rather than behind a menu.</li>
-      <li>The empty state starts the job instead of announcing absence, so here the create action is the one filled button.</li>
-      <li>On a phone the supplier folds under the reference and the nav becomes a menu; the job is the same, so the primary action does not move. (Toggle View: Phone.)</li>
-    </ol>
-  </div>
+  <div class="notes"><p class="brief">Reviewers can start reading as soon as the page opens.</p><ol><li>The first sidebar item is selected. Previous stops here.</li><li>The center shows the selected change. The proposal summary stays in the navigation.</li></ol></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 2 · kind=screen — the click target, so the flow is
-     walkable. A screen nothing navigates to is a dead end the critic looks
-     for, which is why this thin second screen exists. -->
-<section class="visual screen" id="detail" data-kind="screen" data-title="Order" data-states="default loading" data-state="default">
-  <div class="frame">
-    <div class="topbar"><div class="logo"></div><div class="nav"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div></div>
-    <div class="body">
-      <p class="muted"><span class="btn ghost" data-go="list">← Orders</span></p>
-      <div class="state state-default">
-        <div class="row between">
-          <h1>PO-003 · Third supplier <span class="tag">Open</span></h1>
-          <span class="btn primary" data-mark="finish">Receive order <i class="callout">1</i></span>
-        </div>
-        <dl class="kv"><dt>Supplier</dt><dd>Third supplier</dd><dt>Expected</dt><dd>Next Tuesday</dd></dl>
-        <div class="hero"></div>
-      </div>
-      <div class="state state-loading"><div class="skeleton s"></div><div class="skeleton"></div></div>
-    </div>
-  </div>
-  <div class="notes">
-    <p class="brief"><b>Who / job:</b> the same operator, receiving the order they found.</p>
-    <ol><li>The primary action follows the order's status, so there is never more than one filled button.</li></ol>
-  </div>
+<section class="visual screen" id="fallback" data-kind="screen" data-states="invalid empty" data-state="invalid">
+  <p class="caption">Short fallback states keep navigation available.</p>
+  <div class="frame"><div class="body">
+    <div class="state state-invalid" data-mark="guidance"><h1>Choose a change <i class="callout">1</i></h1><p class="muted">Use the change list to open a visual.</p><span class="btn primary" data-go="opening">Open first change</span></div>
+    <div class="state state-empty" data-mark="guidance"><h1>No changes to review <i class="callout">2</i></h1><p class="muted">This proposal has no What Changes entries yet.</p></div>
+  </div></div>
+  <div class="notes"><ol><li>An invalid direct link shows short guidance. The sidebar still provides a route to each change. A bullet with no valid visual shows its own text when selected.</li><li>An empty proposal explains why no visual is shown. Both step buttons are disabled. There is no action to start until the proposal has a change.</li></ol></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 3 · kind=flow — two lanes argue a process change.
-     Note data-states="after today": "after" is first, so it is what opens. -->
-<section class="visual flow" id="receive-flow" data-kind="flow" data-states="after today">
-  <p class="caption">Receiving an order — the steps an operator takes, today and after this change.</p>
+<section class="visual screen" id="phone" data-kind="screen" data-states="collapsed expanded" data-state="collapsed">
+  <p class="caption">Phone toolbar: one compact row; open Tools when needed. <i class="callout">1</i></p>
   <div class="frame">
-    <div class="lane today">
-      <span class="label">Today</span>
-      <span class="step">Open list</span><span class="arrow"></span>
-      <span class="step">Scroll</span><span class="arrow"></span>
-      <span class="step">Scroll more</span><span class="arrow"></span>
-      <span class="step">Open order</span><span class="arrow"></span>
-      <span class="step">Actions ▾</span><span class="arrow"></span>
-      <span class="step">Receive</span>
+    <div class="state state-collapsed">
+      <div class="topbar" data-mark="compact"><span class="tag">Changes</span><span class="muted">‹</span><span>1&nbsp;/&nbsp;3</span><a href="#/fallback" aria-label="Next change">›</a><a href="#/phone/expanded" class="tag">Tools</a></div>
+      <div class="body"><h1>Current change</h1><p>The visual has room to read.</p><div class="hero"></div><span class="btn primary" data-go="fallback">Next change</span></div>
     </div>
-    <div class="lane after">
-      <span class="label">After</span>
-      <span class="step">Open list</span><span class="arrow"></span>
-      <span class="step" data-mark="new">Type "PO-003"</span><span class="arrow"></span>
-      <span class="step">Open order</span><span class="arrow"></span>
-      <span class="step" data-mark="new">Receive</span>
+    <div class="state state-expanded">
+      <div class="topbar" data-mark="compact"><span class="tag">Changes</span><span class="muted">‹</span><span>1&nbsp;/&nbsp;3</span><a href="#/fallback" aria-label="Next change">›</a><a href="#/phone/collapsed" class="tag">Tools</a></div>
+      <div class="body" data-mark="compact"><p><b>Tools <i class="callout">2</i></b></p><p><span class="tag">default</span> <span class="tag">empty</span> <span class="tag">error</span></p><p><span class="btn">Annotate</span> <span class="btn">Copy notes</span></p></div>
+      <div class="body"><h1>Current change</h1><p>The same visual stays open below the tools.</p><div class="hero"></div><span class="btn primary" data-go="fallback">Next change</span></div>
     </div>
   </div>
-  <div class="notes"><ol><li>Two scroll steps become one typed search; the actions menu goes because Receive is the screen's one primary action.</li></ol></div>
-</section>
-
-<!-- ══ EXAMPLE VISUAL 4 · kind=diff — before and after text. Marks go on
-     the added lines, so the bullet lights exactly what arrives. -->
-<section class="visual diff-visual" id="list-rule" data-kind="diff">
-  <p class="caption"><code>openspec/config.yaml</code> — the design rule for list screens.</p>
-  <div class="frame">
-    <div class="diff">
-      <div><div class="label">Before</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line del">    a filter menu.</span></pre></div>
-      <div><div class="label">After</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line add" data-mark="added">    a search box above them; filters</span><span class="line add" data-mark="added">    stay in a menu.</span></pre></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ EXAMPLE VISUAL 5 · kind=tree — what the change adds, edits and
-     removes. Note the deliberately dead anchor in the example proposal
-     above (#/list/default/nope): the panel shows it struck through, which is
-     what a reviewer sees when an anchor names nothing. -->
-<section class="visual tree" id="files" data-kind="tree">
-  <p class="caption">Files this change adds, edits, and removes.</p>
-  <div class="frame">
-    <ul>
-      <li class="add">app/src/components/SearchBox.tsx <span class="why">new — mirrors the supplier search</span></li>
-      <li class="edit">app/src/pages/Orders.tsx <span class="why">search above rows, empty state</span></li>
-      <li class="edit">app/src/pages/Order.tsx <span class="why">one primary action</span></li>
-      <li class="edit">openspec/config.yaml <span class="why">list rule</span></li>
-      <li class="del">app/src/components/FilterMenu.tsx <span class="why">folded into the status chip</span></li>
-    </ul>
-  </div>
+  <div class="notes"><ol><li>Changes, the stepper, and Tools stay on one row. The long title and hint are hidden on phones. The actual toolbar target is at most 56 pixels high when closed.</li><li>Tools opens state selection and note actions. Tap Tools again to close them. Desktop controls remain exposed.</li></ol></div>
 </section>
 
 </div><!-- /stage -->
