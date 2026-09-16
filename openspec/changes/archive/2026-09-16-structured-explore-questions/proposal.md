@@ -41,3 +41,4 @@ The implementation edits `.agents/skills/explore/SKILL.md` and `.agents/skills/p
 
 - **2026-09-16** — Implemented all nine tasks for 14.2.0. Updated the authored skills and scoped process documentation; synced explore-clarification. Required payload checks and strict OpenSpec validation passed. Quoted the existing plan description to repair its YAML syntax; kept the supported user-invocable field.
 - **2026-09-16** — Integrated the 14.1.1 review-page fix from main. Kept both changelog entries and the planned 14.2.0 version. The existing review artifact retains its reviewed kit, as earlier review pages do.
+- **2026-09-16** — Archived the completed change after implementation and conflict-resolution checkpoints passed CI. The synced capability retains all six revised requirements and the existing always-run rule. Final archive checkpoint is ready for merge.
