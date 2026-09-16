@@ -40,3 +40,5 @@ Non-goals: change the core workflow skills, install WongStack into this source r
 - **2026-09-16** — The payload link check found existing wiki links to adapt.md. Keep a short pointer at that path and preserve two old setup anchors; the retired process itself is removed.
 
 - **2026-09-16** — Implemented both handoffs and release 15.0.0. The read-only scenario review found and resolved a legacy-record routing loop. Skill validation, payload links, OpenSpec config, and change validation pass; save syncs the four capability records.
+
+- **2026-09-16** — `/ship` confirmed all six tasks complete and all four delta specs synced, then archived this change. `/save` checkpoints the archive for CI before squash merge.
