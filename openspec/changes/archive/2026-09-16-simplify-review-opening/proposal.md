@@ -35,3 +35,5 @@ The shared review kit in `.agents/skills/plan/references/review-kit.html` (also 
 - **2026-09-16** — The user also reported that the phone toolbar takes too much space. Keep change navigation visible and disclose the secondary tools on demand.
 
 - **2026-09-16** — Implemented the opening route, short fallback, and compact phone toolbar. Browser and payload checks passed. Released as 14.1.1; synced the ux-wireframes navigation and phone requirements.
+
+- **2026-09-16** — Archived the complete change for the ship checkpoint. All five tasks are complete and both changed requirements match the main spec.
