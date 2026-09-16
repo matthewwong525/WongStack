@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Draft an OpenSpec change — proposal, specs, design, and tasks — in one step, ready to implement. Every change also gets review.html, a page whose What Changes list is the navigation: click a change, see a picture of it (a wireframe screen, a flow, a diff, a file tree), annotate it, and copy the notes back as a /continue command. WongStack's name for OpenSpec's /opsx:propose. Use when you want to plan or spec out what to build before writing code, or to mock up a UX before building it; pairs with /apply to implement and /ship to archive.
+description: "Draft an OpenSpec change — proposal, specs, design, and tasks — in one step, ready to implement. Every change also gets review.html, a page whose What Changes list is the navigation: click a change, see a picture of it (a wireframe screen, a flow, a diff, a file tree), annotate it, and copy the notes back as a /continue command. WongStack's name for OpenSpec's /opsx:propose. Use when you want to plan or spec out what to build before writing code, or to mock up a UX before building it; pairs with /apply to implement and /ship to archive."
 user-invocable: true
 ---
 
@@ -12,15 +12,13 @@ user-invocable: true
 
 ## Explore first, always
 
-**Invoke the [`explore` skill](../explore/SKILL.md) in bounded mode before you draft anything** — whether `/plan` was invoked by the user, by [`/apply`](../apply/SKILL.md), or through [`/ship`](../ship/SKILL.md). It reads the conversation, investigates only what the conversation doesn't answer, then runs its **exit round**: one question set, at most four questions, recommended option first. A fork the conversation already settled is never asked, so a `/plan` that follows a thorough `/explore` session asks nothing and costs a short pass.
+**Invoke the [`explore` skill](../explore/SKILL.md) in bounded mode before drafting** — whether the user enters `/plan` directly or a later step such as [`/apply`](../apply/SKILL.md) or [`/ship`](../ship/SKILL.md) invokes it. Read the conversation and investigate only its gaps. Follow explore's [exit-round policy](../explore/SKILL.md#the-exit-round): at most one clarification group for this transition, recommended choices first, within the active question mechanism's limits. Skip settled questions. Count an exit round already completed for this work; nested calls cannot reset the allowance.
 
-Then invoke the propose step with the intent **and the answers**.
+Then invoke the propose step with the intent, answers, and assumptions. After the round, fill remaining and later gaps with supported assumptions and reasons. `/plan` asks no clarification questions of its own, including during UX review. An explicit user return to standalone `/explore` permits more discussion groups. Action authorization and delivery gates keep their own rules.
 
-**Record every answer in the proposal's `## Decision log`** — `asked X → chose Y`, or `asked X → assumed Y (non-interactive)` where nobody could answer and `/explore` took the recommended option. Keep the two distinguishable: a reviewer must be able to tell a decision from a default.
+**Record answers from the full exploration in the proposal's `## Decision log`** — include earlier groups, custom answers, and the exit round, even when the exit asked nothing. Write `asked X → chose Y` for a user answer and `X → assumed Y (<reason>)` for a default or later gap. Preserve custom-answer meaning and keep assumptions distinct from user choices.
 
-`/plan` asks no clarification questions of its own. `/explore` owns the round; the single exception is the [UX layout fork](#ux-stage-ui-bearing-changes-only) below, which can only be seen after the design is drafted.
-
-**Invoke the `openspec-propose` skill** (via the Skill tool) and follow it verbatim — that skill is OpenSpec's `/opsx:propose` and owns the actual behavior (naming the change, generating artifacts in dependency order, validating), subject to the apply handoff below.
+**Invoke the `openspec-propose` skill** through the host's skill mechanism. It owns naming the change, generating artifacts in dependency order, and validating. Apply this wrapper's clarification limit and apply handoff where its instructions differ; keep the generated skill unchanged.
 
 ## When `/apply` invokes `/plan`
 
@@ -68,14 +66,14 @@ A bullet with nothing to draw needs no visual — it opens a text stage on its o
 
    Feed its findings into a single revision round (rerun the design subagent with the critique). One round only — don't loop.
 
-3. **Anchor the bullets + surface forks.** The revision round rewrites the file as well as the text. The main thread then **confirms `review.html` exists**, **appends each bullet's anchor to its What Changes bullet in `proposal.md`** as a trailing `(review.html#/…)`, runs the sync script so the page's panel matches the proposal —
+3. **Anchor the bullets + record layout decisions.** The revision round rewrites the file as well as the text. The main thread then **confirms `review.html` exists**, **appends each bullet's anchor to its What Changes bullet in `proposal.md`** as a trailing `(review.html#/…)`, runs the sync script so the page's panel matches the proposal —
 
    ```bash
    ROOT="$(git rev-parse --show-toplevel)"
    node "$ROOT/.claude/skills/save/scripts/sync-review-proposal.mjs" "openspec/changes/<name>"
    ```
 
-   — and appends the `## UX` section to design.md when there is one. If the critique exposed a genuine layout fork (e.g. table-with-drawer vs master-detail), surface it to the user as one AskUserQuestion before writing tasks.md; otherwise default to mirroring the named existing screen.
+   — and appends the `## UX` section to design.md when there is one. If the critique exposes a layout choice (e.g. table-with-drawer vs master-detail), select the best supported option and record it as an assumption with its reason in the Decision log. Prefer the named existing screen when it meets the job. Do not start another clarification round before writing tasks.md.
 
 4. **Tasks reference what they build.** When drafting tasks.md, a task that builds or edits something a visual shows points at it (per the `openspec/config.yaml` `tasks` rule), e.g. `- [ ] 3.2 Build the list view per review.html#/list/default`.
 

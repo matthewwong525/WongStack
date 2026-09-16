@@ -1,10 +1,86 @@
-# explore-clarification Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Explore asks related questions in small structured groups
 
-`/explore` owns the clarification round of the loop: it puts the material forks to the user as one structured question set before any artifact is drafted, and it always runs before `/plan`, invoked for the user when they skip it.
+During standalone discussion, `/explore` SHALL present material clarification questions in small groups of related questions through an available structured question tool. A group SHALL normally contain two or three questions, SHALL contain only one when only one matters, and SHALL NOT exceed the active tool's capacity. `/explore` SHALL NOT add questions to fill a group or ask again about decisions the conversation already settled. Findings and explanations SHALL remain conversational; the questions SHALL follow this policy instead of appearing as broad questions in chat when a structured tool is usable.
 
-## Requirements
+Questions in a group SHALL be answerable together. `/explore` SHALL wait for their answers before asking dependent questions or making dependent decisions. While the user remains in standalone exploration, it SHALL allow several groups and adapt later questions to the user's answers instead of following a fixed interview script. Every group SHALL follow the useful-suggested-answers policy. The repeated-group allowance SHALL NOT apply to bounded exploration invoked by planning.
+
+#### Scenario: Standalone exploration continues across groups
+
+- **WHEN** the user remains in standalone `/explore` and earlier answers reveal further material decisions
+- **THEN** `/explore` can ask another small group of related questions
+- **AND** the new group again provides recommendations, short tradeoffs, and a custom-answer path
+
+#### Scenario: Two related decisions are open
+
+- **WHEN** the discussion reveals two related material decisions that can be answered together and the tool supports both
+- **THEN** `/explore` asks them in one structured call
+- **AND** it waits for the answers before asking follow-up questions that depend on them
+
+#### Scenario: Only one decision matters
+
+- **WHEN** only one material question remains during the discussion
+- **THEN** `/explore` asks only that question
+- **AND** it adds no filler questions
+
+#### Scenario: One answer determines the next question
+
+- **WHEN** a later question depends on the user's answer to an earlier one
+- **THEN** `/explore` keeps the later question out of the current group
+- **AND** it uses the answer to decide whether and how to ask that later question
+
+#### Scenario: A question tool returns before the user answers
+
+- **WHEN** an asynchronous tool accepts a question group but no user answer has arrived
+- **THEN** `/explore` keeps the group pending and proceeds only with independent work
+- **AND** neither elapsed time nor a preselected option is treated as the user's answer
+
+### Requirement: Explore supplies useful suggested answers
+
+Each question with meaningful alternatives SHALL offer two or three choices. The recommended choice SHALL be first and labelled `(Recommended)`. Each choice SHALL state a short tradeoff. The user SHALL be able to give a custom answer. `/explore` SHALL use a tool's built-in custom-answer facility when available, without adding a duplicate Other option. If meaningful choices cannot be formed, `/explore` SHALL use a structured free-text question instead of inventing alternatives.
+
+#### Scenario: The user chooses a suggested option
+
+- **WHEN** a question has several meaningful alternatives
+- **THEN** the question shows two or three choices with brief tradeoffs and the recommended choice first
+- **AND** the user can answer by selecting a choice
+
+#### Scenario: The user supplies a different direction
+
+- **WHEN** the user gives a custom answer instead of selecting a suggested choice
+- **THEN** `/explore` uses that answer in the discussion and preserves its meaning in the handoff
+- **AND** it does not force the answer into one of the suggested choices
+
+#### Scenario: Options would be artificial
+
+- **WHEN** a material unknown requires an answer that cannot be represented by meaningful choices
+- **THEN** `/explore` asks a free-text question through the structured tool
+- **AND** it does not invent alternatives only to satisfy a multiple-choice format
+
+### Requirement: Explore uses the available question mechanism
+
+`/explore` SHALL use `AskUserQuestion` when available or an available equivalent structured question tool. It SHALL follow the active tool's schema, mode restrictions, and capacity. If no structured question tool is usable but the session is interactive, `/explore` SHALL present the same small groups as numbered questions and choices in chat, with a custom-answer path, and wait for answers before dependent work. The absence of the named tool SHALL NOT by itself cause user choices to be replaced with assumptions. In a session where nobody can answer, `/explore` SHALL take recommended defaults, mark them **assumed**, and continue without waiting.
+
+#### Scenario: Another host has an equivalent tool
+
+- **WHEN** `AskUserQuestion` is unavailable but the host provides a usable structured question tool
+- **THEN** `/explore` uses that equivalent tool within its limits
+- **AND** it does not fall back to assumed answers merely because the tool has another name
+
+#### Scenario: Only chat is available
+
+- **WHEN** no structured question tool is usable and the user can answer in chat
+- **THEN** `/explore` shows numbered questions with suggested choices and a custom-answer path
+- **AND** it waits for answers before dependent work
+
+#### Scenario: Nobody can answer
+
+- **WHEN** the session is non-interactive and nobody can answer
+- **THEN** `/explore` uses recommended defaults without waiting
+- **AND** it labels them assumed rather than chosen
+
+## MODIFIED Requirements
 
 ### Requirement: Explore puts unresolved material forks to the user in one call
 
@@ -124,92 +200,3 @@ Bounded mode SHALL write no file and SHALL create no OpenSpec artifact. It SHALL
 
 - **WHEN** the user answered all material questions during the discussion and the exit asks nothing
 - **THEN** `/plan` still records those earlier answers in its Decision log
-
-### Requirement: The loop states that explore always runs
-
-The change loop page and the loop line in the `WONG-STACK` block of `CLAUDE.md` SHALL describe `/explore` as always running before `/plan`, invoked for the user when they skip it, and SHALL NOT describe it as optional.
-
-#### Scenario: A reader checks whether explore is optional
-
-- **WHEN** a reader opens the change loop page
-- **THEN** the `/explore` step says it always runs and that `/plan` invokes it when skipped
-
-### Requirement: Explore asks related questions in small structured groups
-
-During standalone discussion, `/explore` SHALL present material clarification questions in small groups of related questions through an available structured question tool. A group SHALL normally contain two or three questions, SHALL contain only one when only one matters, and SHALL NOT exceed the active tool's capacity. `/explore` SHALL NOT add questions to fill a group or ask again about decisions the conversation already settled. Findings and explanations SHALL remain conversational; the questions SHALL follow this policy instead of appearing as broad questions in chat when a structured tool is usable.
-
-Questions in a group SHALL be answerable together. `/explore` SHALL wait for their answers before asking dependent questions or making dependent decisions. While the user remains in standalone exploration, it SHALL allow several groups and adapt later questions to the user's answers instead of following a fixed interview script. Every group SHALL follow the useful-suggested-answers policy. The repeated-group allowance SHALL NOT apply to bounded exploration invoked by planning.
-
-#### Scenario: Standalone exploration continues across groups
-
-- **WHEN** the user remains in standalone `/explore` and earlier answers reveal further material decisions
-- **THEN** `/explore` can ask another small group of related questions
-- **AND** the new group again provides recommendations, short tradeoffs, and a custom-answer path
-
-#### Scenario: Two related decisions are open
-
-- **WHEN** the discussion reveals two related material decisions that can be answered together and the tool supports both
-- **THEN** `/explore` asks them in one structured call
-- **AND** it waits for the answers before asking follow-up questions that depend on them
-
-#### Scenario: Only one decision matters
-
-- **WHEN** only one material question remains during the discussion
-- **THEN** `/explore` asks only that question
-- **AND** it adds no filler questions
-
-#### Scenario: One answer determines the next question
-
-- **WHEN** a later question depends on the user's answer to an earlier one
-- **THEN** `/explore` keeps the later question out of the current group
-- **AND** it uses the answer to decide whether and how to ask that later question
-
-#### Scenario: A question tool returns before the user answers
-
-- **WHEN** an asynchronous tool accepts a question group but no user answer has arrived
-- **THEN** `/explore` keeps the group pending and proceeds only with independent work
-- **AND** neither elapsed time nor a preselected option is treated as the user's answer
-
-### Requirement: Explore supplies useful suggested answers
-
-Each question with meaningful alternatives SHALL offer two or three choices. The recommended choice SHALL be first and labelled `(Recommended)`. Each choice SHALL state a short tradeoff. The user SHALL be able to give a custom answer. `/explore` SHALL use a tool's built-in custom-answer facility when available, without adding a duplicate Other option. If meaningful choices cannot be formed, `/explore` SHALL use a structured free-text question instead of inventing alternatives.
-
-#### Scenario: The user chooses a suggested option
-
-- **WHEN** a question has several meaningful alternatives
-- **THEN** the question shows two or three choices with brief tradeoffs and the recommended choice first
-- **AND** the user can answer by selecting a choice
-
-#### Scenario: The user supplies a different direction
-
-- **WHEN** the user gives a custom answer instead of selecting a suggested choice
-- **THEN** `/explore` uses that answer in the discussion and preserves its meaning in the handoff
-- **AND** it does not force the answer into one of the suggested choices
-
-#### Scenario: Options would be artificial
-
-- **WHEN** a material unknown requires an answer that cannot be represented by meaningful choices
-- **THEN** `/explore` asks a free-text question through the structured tool
-- **AND** it does not invent alternatives only to satisfy a multiple-choice format
-
-### Requirement: Explore uses the available question mechanism
-
-`/explore` SHALL use `AskUserQuestion` when available or an available equivalent structured question tool. It SHALL follow the active tool's schema, mode restrictions, and capacity. If no structured question tool is usable but the session is interactive, `/explore` SHALL present the same small groups as numbered questions and choices in chat, with a custom-answer path, and wait for answers before dependent work. The absence of the named tool SHALL NOT by itself cause user choices to be replaced with assumptions. In a session where nobody can answer, `/explore` SHALL take recommended defaults, mark them **assumed**, and continue without waiting.
-
-#### Scenario: Another host has an equivalent tool
-
-- **WHEN** `AskUserQuestion` is unavailable but the host provides a usable structured question tool
-- **THEN** `/explore` uses that equivalent tool within its limits
-- **AND** it does not fall back to assumed answers merely because the tool has another name
-
-#### Scenario: Only chat is available
-
-- **WHEN** no structured question tool is usable and the user can answer in chat
-- **THEN** `/explore` shows numbered questions with suggested choices and a custom-answer path
-- **AND** it waits for answers before dependent work
-
-#### Scenario: Nobody can answer
-
-- **WHEN** the session is non-interactive and nobody can answer
-- **THEN** `/explore` uses recommended defaults without waiting
-- **AND** it labels them assumed rather than chosen

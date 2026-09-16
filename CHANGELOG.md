@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) and walks you through each change. Newest first.
 
+## 14.2.0 — structured questions throughout exploration
+
+- **Standalone `/explore` asks small related groups.** Each group offers recommended choices, short tradeoffs, and custom answers. Later groups use earlier answers; settled decisions are not asked again.
+- **Planning gets one clarification round.** Direct `/plan` entry and later steps that invoke planning use at most one round before drafting. Nested calls cannot reset it. Remaining and later gaps, including UX layout choices, become recorded assumptions.
+- **Use the available question tool.** `AskUserQuestion` or an equivalent follows the host's limits. Interactive sessions without a usable tool get numbered choices in chat. Asynchronous questions stay pending until answered; non-interactive defaults are marked assumed.
+- **The full discussion reaches the plan.** The Decision log keeps earlier choices and custom answers even when the final round is empty, and distinguishes them from assumptions.
+
 ## 14.1.1 — clearer review opening and compact phone tools
 
 - Review pages open the first change with its sidebar item selected. The center no longer repeats the full proposal summary, and Previous stops at the first change.
