@@ -41,7 +41,7 @@ Read `.claude/.wong-stack.json` (no manifest at all → WongStack isn't installe
 
 > *"Do you want this to be a real website people can open at an address? I can set up the hosting, the data storage, and automatic publishing — so every change you make gets its own link to look at before it goes live. It needs a free Cloudflare account and a few minutes. Totally optional; everything else works either way."*
 
-**Does this repo have an app of its own?** Decide before you ask, on the same three signals `/wong-setup` uses — a `package.json` with a build script, an application entry point of any kind, or a wrangler config. Only the absence of all three makes it appless; lean toward "has one" when uncertain. Where it has none, the same one question also covers the starter site, because the pack alone would land a pipeline with nothing to run through it:
+**Does this repo have an app of its own?** Decide before you ask, from these three signals — a `package.json` with a build script, an application entry point of any kind, or a wrangler config. Only the absence of all three makes it appless; lean toward "has one" when uncertain. Where it has none, the same one question also covers the starter site, because the pack alone would land a pipeline with nothing to run through it:
 
 > *"…automatic publishing. There's nothing to publish yet, so I'll also set up a starter site you can change — that way there's something real at the address from day one."*
 
@@ -50,7 +50,7 @@ Still one question — don't ask separately about an app, and don't name a frame
 Keep product names and file lists out of the prompt; have them ready for a user who asks. On a **no**, stop — nothing changes. On a **yes**:
 
 1. Set `components.stackPack: true` in `.claude/.wong-stack.json` — plus `components.appScaffold: true` when the offer included the starter site. The two are set together and only together; `appScaffold` without `stackPack` is not a valid state.
-2. Land the pack's drop-in files: read and follow `.claude/skills/wong-sync/SKILL.md` **Steps 1–2 only** — refresh the cached clone, copy what's absent. The adapt step is not part of this. With `appScaffold` set, that same copy-if-absent walk lands the [app scaffold](../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) too, so provisioning has something to deploy.
+2. Land the pack's drop-in files: obtain the [latest source](../wong-sync/references/latest-source.md), then use the [payload inventory](../wong-sync/references/payload-manifest.md) to copy the selected pack files that are absent, preserving existing files. With `appScaffold` set, that same copy-if-absent walk lands the [app scaffold](../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) too, so provisioning has something to deploy.
 3. Continue below.
 
 **Whether the flag was just set or set long ago**, make sure the pack's config wiring is in: apply any missing **id-free fragments** — `package.json` scripts, `.env.example` variables, the `.gitignore` entries — as guided edits from [`stack-pack-fragments.md`](../wong-sync/references/stack-pack-fragments.md) (show → confirm → merge, never blind-write). The `wrangler.jsonc` block waits for Step 4, where the real ids exist; a missing wrangler config is created there from the fragment, not a reason to stop.

@@ -1,110 +1,10 @@
 # install-onboarding Specification
 
 ## Purpose
-How `wong-setup` — the guided front door — welcomes someone considering WongStack: it researches the repo first, listens for how the team works, maps process needs to WongStack's verbs and knowledge surfaces, and stops safely before changes when a hard mismatch means the workflow cannot operate. When setup proceeds it makes `/wong-sync` runnable and hands the install to its fresh mode. It bootstraps from zero (no repo/git/GitHub), narrates setup in plain language one thing at a time, ends by handing over a concrete first command, and is fronted by a warm one-paste README door that any capable coding agent can execute.
+
+Adopt WongStack through the normal workflow skills, using current source skills when a new target has no installed workflow yet.
+
 ## Requirements
-
-### Requirement: Research before the conversation
-
-`wong-setup` SHALL run its deep-research step (the target-repo survey: what the app is, how it ships, CLAUDE.md, the wiki at its resolved root — `wiki/`, falling back to `docs/` — skills, OpenSpec, legacy traces, GitHub readiness) *before* any discovery conversation, and SHALL use the findings to make its questions specific to the repo rather than generic.
-
-#### Scenario: Informed discovery
-
-- **WHEN** the skill runs in a repo with no CI and a stale wiki folder
-- **THEN** the discovery questions reference those findings (e.g. asking how they verify a change today) instead of asking from a blank script
-
-### Requirement: Pain discovery and diagnosis via the fit playbook
-
-`wong-setup` SHALL hold a short discovery conversation — how the user works with a coding agent today and where it hurts — and SHALL map the surfaced pains to the specific WongStack verbs that address them, using the pain→verb map in its `references/fit-playbook.md`. The playbook SHALL carry the discovery question bank, the pain→verb map, and the disqualifiers with alternatives; SKILL.md SHALL NOT inline that content. The skill's prose SHALL stay in a consultative register — asking, diagnosing, recommending — with no marketing language.
-
-#### Scenario: Pain maps to a verb
-
-- **WHEN** the user says work gets lost between agent sessions
-- **THEN** the skill connects that pain to change folders plus `/continue`, per the playbook's map, in plain factual language
-
-### Requirement: Honest fit verdict with a first-class not-a-fit exit
-
-After research and any discovery, `wong-setup` SHALL guide the user through onboarding and process alignment. It SHALL stop without changing the repo when a hard playbook disqualifier holds (e.g. a non-GitHub forge, no willingness to use git, a locked-in workflow the loop would fight, no ongoing changes to manage), explain the mismatch plainly, and suggest an alternative from the playbook. Public-facing wording SHALL NOT repeatedly foreground fit verdicts or make setup feel like an admissions test; mismatch handling remains a safety exit for cases where the workflow cannot operate.
-
-#### Scenario: Hard mismatch stops setup
-
-- **WHEN** discovery reveals the team hosts on a non-GitHub forge and won't move
-- **THEN** the skill states the mismatch plainly, offers what to consider instead, and makes no changes to the repo
-
-#### Scenario: Normal onboarding is not framed as denial
-
-- **WHEN** the README or setup runbook introduces WongStack to a newcomer
-- **THEN** it presents setup as guided onboarding into a repo-native knowledge workflow
-- **AND** it does not repeatedly emphasize "not a good fit" as the main product promise
-
-#### Scenario: Recommendation still maps user needs to verbs
-
-- **WHEN** discovery surfaces pains the verbs address and no disqualifier holds
-- **THEN** the skill summarizes how WongStack's commands and knowledge surfaces address those needs and proceeds to setup after consent
-
-### Requirement: Consultation is skippable
-
-`wong-setup` SHALL run the discovery-and-diagnosis consultation by **default**, and SHALL fast-path straight to setup **only** when the user gives an explicit skip signal — asking to skip the questions or to just install it. A request that merely names WongStack or asks to set it up (e.g. the README paste, "set up WongStack in this repo") SHALL NOT count as a skip signal; it SHALL run the consultation. The consultation SHALL never be a toll gate: an explicit skip is always honored immediately.
-
-#### Scenario: Default paste runs the consultation
-
-- **WHEN** the user hands the skill a plain setup request ("set up WongStack in this repo", or the README paste prompt) with no skip signal
-- **THEN** the skill runs discovery, diagnosis, and the fit verdict before any setup work
-
-#### Scenario: Explicit skip is honored
-
-- **WHEN** the user asks to skip the questions or says "just install it"
-- **THEN** the skill proceeds directly to setup without requiring the discovery conversation
-
-### Requirement: Setup scope is making wong-sync runnable, then handing off
-
-
-On a yes (or the fast path), `wong-setup` SHALL NOT copy the payload itself. It SHALL reach these outcomes — a git repo with at least one commit; `gh` installed, authed, and an `origin` remote that resolves (offered one plain-language rung at a time, only after the verdict, never during the consultation); the OpenSpec CLI present and `openspec init` run with the tools the user's agent(s) need; the authored content in place (CLAUDE.md "What this is" from the research + conversation, a wiki hub README when none exists); the `wong-sync` skill copied in (its only payload file operation); and a **seed manifest** written (`commit: null`, `version: null`, the `upstream` block, and any skill renames agreed during collision discussion). It SHALL then hand off to `/wong-sync` — by file path, "read and follow `.claude/skills/wong-sync/SKILL.md`" — whose fresh mode performs the install, and SHALL close with the real-first-step report after wong-sync finishes.
-
-When `gh` authentication is established or repaired during setup, it SHALL request the `workflow` scope alongside the defaults (`gh auth login --scopes workflow`). The scope is not in `gh auth login`'s minimum set, and without it any later push of a `.github/workflows/*.yml` file fails with `refusing to allow an OAuth App to create or update workflow` — at push time, long after setup reported success. Requesting it during the browser visit setup already performs costs the user no additional step. For a user already authenticated without it, `gh auth refresh --scopes workflow` SHALL be the documented repair.
-
-The OpenSpec CLI outcome SHALL be reached without pre-emptively installing a language runtime; when Node is absent, setup asks at the point of need per the runtime-install requirement, and completes the runtime-free layer if the user declines.
-
-#### Scenario: Fresh repo, sold user
-
-- **WHEN** the verdict is yes in a repo with no WongStack presence
-- **THEN** wong-setup bootstraps the environment outcomes, authors the non-payload content, copies in `wong-sync`, writes the seed manifest, and hands off to `/wong-sync` — which pulls the whole payload as its fresh-mode sync
-
-#### Scenario: No payload copy-loop
-
-- **WHEN** wong-setup's setup phase completes
-- **THEN** the only payload file it has copied is the `wong-sync` skill; every other payload file arrives via wong-sync's manifest-driven pull
-
-#### Scenario: gh auth is established during setup
-
-- **WHEN** setup runs `gh auth login` because `gh` is unauthenticated
-- **THEN** it requests the `workflow` scope in the same browser consent, so a later workflow-file push succeeds
-
-#### Scenario: Already authenticated without the workflow scope
-
-- **WHEN** `gh` is already authenticated but the stored credentials lack `workflow`, in a repo that took or is taking the stack pack
-- **THEN** setup detects this and offers `gh auth refresh --scopes workflow`, explaining in plain language that pushing the deploy workflow needs it
-- **AND** the failure is surfaced during setup rather than at the first push
-
-### Requirement: Agent-agnostic runbook
-
-The `wong-setup` runbook SHALL be executable by any coding agent that can run shell commands and edit files — not only Claude. Claude-specific affordances (AskUserQuestion, subagents, the Skill tool) SHALL be phrased as "if available" with plain fallbacks. The runbook SHALL state outcomes to reach rather than command sequences, keeping verbatim only the shared clone cache path (a marked copy of the value `wong-sync` owns) and the few commands handed to the user to run themselves. The seed-manifest schema SHALL NOT be restated in `wong-setup`: the manifest schema has one owner in the `wong-sync` skill, and setup SHALL reference it, writing the same shape with `version` and `commit` null. Setup SHALL ask which agent(s) drive the repo, pass them to `openspec init --tools`, and — when the answer is not (only) Claude — note where the skills live and offer an AGENTS.md pointer to them.
-
-#### Scenario: Executed by a non-Claude agent
-
-- **WHEN** a Codex-style agent reads the paste-prompt URL and follows the runbook
-- **THEN** every step is achievable with shell + file edits and plain-text questions; nothing requires a Claude-only tool
-
-#### Scenario: Non-Claude repo tooling
-
-- **WHEN** the user says their repo is driven by an agent other than Claude
-- **THEN** setup passes that tool to `openspec init --tools` and offers an AGENTS.md pointer to `.claude/skills/`
-
-#### Scenario: The seed manifest matches wong-sync's schema by construction
-
-- **WHEN** `wong-setup` writes the seed manifest
-- **THEN** it follows the schema stated in the `wong-sync` skill, with `version` and `commit` null
-- **AND** no second copy of the schema exists in the payload to drift
 
 ### Requirement: install-wong-stack is removed outright
 
@@ -114,112 +14,6 @@ The `install-wong-stack` skill SHALL be deleted — directory and all live refer
 
 - **WHEN** the payload ships at 6.0.0
 - **THEN** `.claude/skills/install-wong-stack/` does not exist and the only remaining mentions of the name are historical CHANGELOG entries and archived changes
-
-### Requirement: Bootstrap from zero
-
-The `wong-setup` skill SHALL treat "no git repository yet" (an empty or non-repo folder) as a first-class, supported starting point, and SHALL NOT assume the user is already inside a git repo. When no repo exists, it SHALL offer, in plain language and only after confirmation, to create one and continue the setup — never failing or dead-ending the newcomer.
-
-Because an empty folder has nothing to commit, the initial commit SHALL be made
-**after** the authoring and seeding steps have written files, not as a bare rung
-ahead of them. Setup SHALL NOT invent a placeholder file to commit, and SHALL NOT
-leave the repo commit-less.
-
-#### Scenario: Empty folder, never touched git
-
-- **WHEN** the skill runs in a folder with no `.git` and the user has never used git
-- **THEN** it explains in plain language that it will set up a repo for them, offers to create it (with an initial commit), and — only on confirmation — proceeds into the rest of the setup
-
-#### Scenario: Already in a repo
-
-- **WHEN** the skill runs inside an existing git repo
-- **THEN** it skips the bootstrap-from-zero path and proceeds as before, without asking repo-creation questions
-
-#### Scenario: Nothing exists to commit yet
-
-- **WHEN** the repo is initialized in a folder with no files at all
-- **THEN** the initial commit waits until the seeded files exist, rather than failing on an empty index or committing a placeholder
-
-### Requirement: Plain-language, one-thing-at-a-time narration
-
-The skill SHALL present its newcomer-facing setup (GitHub readiness and setup questions) as a guided conversation that explains *why* each piece is needed and asks about one thing at a time, rather than presenting a wall of tool checks at once. It SHALL state in plain language what it is about to set up before it begins changing anything. The underlying outcomes and checks SHALL remain intact and precise for the executing agent.
-
-#### Scenario: GitHub not yet set up
-
-- **WHEN** the newcomer lacks `gh`, auth, or a remote
-- **THEN** the skill introduces each missing piece with a one-line plain-language reason, offers to handle it, and waits — rather than listing all gaps as raw tool-check output
-
-#### Scenario: Setup preamble
-
-- **WHEN** setup begins after the verdict
-- **THEN** before any change is made, the skill tells the user in plain language what it is about to set up and confirms readiness
-
-#### Scenario: Checks preserved
-
-- **WHEN** the friendlier narration is applied
-- **THEN** every readiness outcome is still reached; only the human-facing framing changes
-
-### Requirement: End with a real first step
-
-On successful setup, the skill SHALL end by handing the user a concrete first command to run (e.g. a suggested `/plan ...`, ideally tied to the first pain they named) so a newcomer knows exactly how to get started, rather than only reporting what was installed.
-
-#### Scenario: Setup completes
-
-- **WHEN** the setup finishes successfully (after wong-sync's fresh-mode pull)
-- **THEN** the closing report includes an explicit, copy-pasteable first command the user can run next
-
-### Requirement: wong-setup offers the stack pack as an opt-in
-
-`wong-setup` SHALL offer the Cloudflare stack pack once during setup, as a single plain-language prompt, framed as optional with decline as the safe default. On acceptance it SHALL record `components.stackPack: true` in the seed manifest so `/wong-sync`'s pull installs the pack's files alongside the rest of the payload; on decline it SHALL leave `components.stackPack` false/absent and install no pack file. The offer SHALL NOT be a gate — declining never blocks or complicates the rest of setup.
-
-The offer SHALL be phrased as an **outcome the user recognizes**, not an inventory of what ships. It SHALL NOT lead with product or component names (`D1`, `Workers`, "pipeline scripts", "seed template") — the audience is someone who does not know what those are, decline is the documented safe default, and a jargon-first offer therefore converts the target user into a decline by confusion. It SHALL name the practical cost honestly (a free Cloudflare account, a few minutes) and the practical result (a live address other people can open). Technical detail SHALL remain available for a user who asks, as a follow-up rather than as the prompt.
-
-**The offer SHALL include the app scaffold when, and only when, the repo has no application of its own.** Research SHALL determine this before the offer is made, from the absence of an application to build — no build script in a `package.json`, no application entry point, and no wrangler config. Where that holds, accepting the offer SHALL install the scaffold too, and the seed manifest SHALL record both `components.stackPack: true` and `components.appScaffold: true`. Where the repo already has an application, the scaffold SHALL NOT be mentioned and the manifest SHALL record `stackPack` alone.
-
-The scaffold SHALL NOT be raised as a second question. It is part of what the one outcome-shaped offer delivers, not a separate decision the user is asked to adjudicate — a repo with nothing to deploy cannot honour "a real website people can open at an address" without an app, so bundling it is what makes the existing promise true. The prompt SHALL remain free of product and component vocabulary when the scaffold is included; describing it as *"I'll set up a starter site you can change"* satisfies this, while naming React, Vite, or a Worker does not.
-
-`wong-setup` SHALL NOT apply the pack's config fragments. On acceptance it SHALL name `/wong-cloudflare` as the follow-on step that configures and provisions, runnable whenever the user has a Cloudflare account. On decline it SHALL name the late-adoption route that actually works (per the stack-pack capability) rather than implying `/wong-sync` will offer the pack.
-
-#### Scenario: User accepts the pack
-
-- **WHEN** the user accepts the stack-pack offer during `wong-setup`
-- **THEN** the seed manifest records `components.stackPack: true`
-- **AND** the `/wong-sync` pull installs the pack's files with the rest of the payload
-- **AND** setup applies no config fragment, telling the user `/wong-cloudflare` configures and provisions whenever they have a Cloudflare account
-
-#### Scenario: A repo with no app accepts the offer
-
-- **WHEN** research finds no build script, no application entry point, and no wrangler config, and the user accepts the offer
-- **THEN** the seed manifest records both `components.stackPack: true` and `components.appScaffold: true`
-- **AND** the `/wong-sync` pull installs the app scaffold alongside the pack
-
-#### Scenario: A repo that already has an app is never offered the scaffold
-
-- **WHEN** research finds an application the repo already builds
-- **THEN** the offer covers the pack only and never mentions the scaffold
-- **AND** an acceptance records `components.stackPack` alone
-
-#### Scenario: The scaffold does not add a question
-
-- **WHEN** the scaffold is included in the offer
-- **THEN** the user is asked exactly one question, about the outcome
-- **AND** they are not asked to decide separately about an application, a framework, or a Worker
-
-#### Scenario: User declines the pack
-
-- **WHEN** the user declines the offer
-- **THEN** setup proceeds normally, `components.stackPack` stays false/absent, and no pack file is installed
-- **AND** any mention of taking the pack later names the working route
-
-#### Scenario: The offer is not a toll gate
-
-- **WHEN** the user declines or ignores the pack offer
-- **THEN** the rest of setup completes exactly as it would for a repo that was never offered the pack
-
-#### Scenario: A non-technical user meets the offer
-
-- **WHEN** the offer is shown to someone who does not know what a database or a Worker is
-- **THEN** the prompt describes the outcome in words they already understand and states what it will cost them
-- **AND** it does not require them to recognize any product, component, or file name in order to answer
 
 ### Requirement: Warm one-paste front door
 
@@ -256,44 +50,6 @@ This document SHALL be the reference the end-to-end fresh-repo test is run again
 - **THEN** it follows this walkthrough as written
 - **AND** any divergence found is corrected in the walkthrough rather than left as tribal knowledge
 
-### Requirement: Git identity is derived from GitHub, not requested
-
-`wong-setup` SHALL ensure `user.name` and `user.email` resolve before it makes any
-commit, and where they do not, SHALL derive them from the authenticated GitHub
-account rather than asking the user. It SHALL state what it set.
-
-`gh auth login` does not set a git identity, so a machine that has only ever
-authenticated to GitHub still fails — and without one `git commit` aborts with
-*"Author identity unknown / Please tell me who you are"*, a wall precisely at the
-newcomer the skill is written for.
-
-The account already holds both values, so asking is a question with a knowable
-answer. `gh api user` returns `name` and `login`; `email` is commonly `null`,
-because keeping the address private is GitHub's default. The identity SHALL
-therefore use the account's **noreply address**, formed from the numeric id and
-login, which always works for pushes and discloses no personal address. Setup
-SHALL fall back to asking only where `gh` is unauthenticated or the call fails.
-
-#### Scenario: Fresh machine, GitHub authenticated
-
-- **WHEN** setup reaches the initial commit with no identity set at any scope and `gh` authenticated
-- **THEN** it sets `user.name` and `user.email` from the account without asking, names the values it set in one plain line, and commits
-
-#### Scenario: The account hides its email
-
-- **WHEN** the account's `email` is `null`
-- **THEN** the noreply address formed from the account's id and login is used, and nothing is asked
-
-#### Scenario: Identity already configured
-
-- **WHEN** an identity resolves globally or in the repo
-- **THEN** it is left alone and nothing is asked or announced
-
-#### Scenario: GitHub not available to read from
-
-- **WHEN** no identity is set and `gh` is unauthenticated or its call fails
-- **THEN** setup asks for a name and email as the fallback, rather than committing without one
-
 ### Requirement: The default branch is main unless the repo says otherwise
 
 The skills SHALL treat `main` as the default branch, and SHALL determine it another
@@ -320,38 +76,47 @@ another name, which is the only case where the question is real.
 - **WHEN** `main` does not exist in the repo
 - **THEN** the actual default is resolved and used, and the resolution is not assumed to succeed silently
 
-### Requirement: Setup seeds every wiki hub the payload links to
+### Requirement: Setup enters the normal workflow
 
-`wong-setup` SHALL seed a hub at each wiki directory a payload page links to — today
-`wiki/README.md` **and** `wiki/development/README.md` — not only the wiki root.
+`/wong-setup` SHALL obtain current WongStack source and invoke `/explore` with the intent to adopt WongStack in the target repo. It SHALL use local workflow skills where present and source skills where absent, resolving source references in the source checkout while keeping all planned work scoped to the target. It SHALL delegate later stages to the normal skills according to user intent.
 
-Shipped payload pages link to `wiki/development/README.md`: `secrets.md` closes with
-*"Other development processes live in [Development](README.md)"* and
-`required-tools.md` carries the same pointer. Nothing creates it, so it is a dead
-link in every install. The rule the manifest already states — a cited owner is a
-shipped owner — extends to a cited hub.
+#### Scenario: New repo without installed skills
+- **WHEN** the user asks to evaluate WongStack in a target without workflow skills
+- **THEN** setup invokes the source `/explore` skill against the target
+- **AND** no payload or seed record is written during exploration
 
-#### Scenario: Fresh repo with no wiki
+#### Scenario: User requests installation
+- **WHEN** the user has asked to install WongStack
+- **THEN** setup carries that intent through `/explore`, `/plan`, `/apply`, and `/save`
+- **AND** required planning tools are prepared at the point of need before the target plan is drafted
 
-- **WHEN** setup seeds the wiki for a repo that has none
-- **THEN** it writes both `wiki/README.md` and `wiki/development/README.md`, each with real content drawn from the research rather than an empty stub
+#### Scenario: Existing installation
+- **WHEN** a real install record exists
+- **THEN** setup invokes `/wong-sync` with the existing context
 
-#### Scenario: A payload page gains a link to a new section hub
+### Requirement: Installation preserves the target and records the result
 
-- **WHEN** a payload page is added that links to a section hub not yet seeded
-- **THEN** that hub joins the set setup seeds, and the release check fails until it does
+The normal installation plan SHALL use the payload inventory, preserve existing repo content, include required wiki hubs and environment ignore rules, and record the completed install version and commit. Git and GitHub work SHALL remain with `/save`, `/continue`, or `/ship`. Optional Cloudflare work SHALL use `/wong-cloudflare` when requested. Setup itself SHALL remain source-only.
 
-### Requirement: Setup corrects OpenSpec's closing instruction
+#### Scenario: Empty folder
+- **WHEN** the target has no repo or planning layer
+- **THEN** setup prepares planning prerequisites when needed and includes target initialization in the workflow
+- **AND** `/save` owns repo initialization, identity, commits, and remote setup
 
-After running `openspec init`, `wong-setup` SHALL tell the user which verb to
-actually use, because the CLI closes by printing *"Start your first change:
-/opsx:propose"* — a slash command WongStack states `openspec init` does not
-generate and that agents are told not to reach for.
+#### Scenario: Existing project
+- **WHEN** the target already has instructions, docs, or skills
+- **THEN** the plan adapts the payload to those files and preserves local content outside the agreed change
+- **AND** optional hosting or scaffold components stay disabled unless selected
 
-The correction is one line, and it is the last thing the user reads on that step,
-so it SHALL come after the init output rather than before it.
+#### Scenario: Completed install
+- **WHEN** `/apply` completes the installation tasks
+- **THEN** the target has its required wiki hubs, environment ignore rules, and an install record for the implemented source
+- **AND** the normal `/save` checkpoint follows
 
-#### Scenario: init prints its own getting-started line
+### Requirement: Setup supports the active coding agent
 
-- **WHEN** `openspec init` completes and prints its `/opsx:propose` suggestion
-- **THEN** setup immediately says that this repo drives OpenSpec through `/plan`, and that the `/opsx:*` commands are not installed here
+Setup SHALL work with any coding agent that can read skills, edit files, and run shell commands. Missing host skill invocation tools SHALL fall back to reading and following the relevant SKILL.md. The target planning home SHALL be initialized for the active agent.
+
+#### Scenario: Non-Claude setup
+- **WHEN** the user runs setup in another capable coding agent
+- **THEN** source skill files provide a usable workflow and planning is configured for that agent

@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.clau
 to install WongStack in this repo and walk me through the first workflow.
 ```
 
-The agent will take it from there. It will look at your project, explain what it is about to set up, ask before changing files, and leave you with the first process to run.
+The agent uses the normal workflow: explore your project, plan the install, apply it, and save the result. It asks about unresolved choices through `/explore`.
 
 ## What you get
 
@@ -67,7 +67,7 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, which lands straight in the repo as a note with no branch or PR. |
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
-| `/wong-sync` | Bring this repo up to date with WongStack — copy in what's missing, update what you provably never touched, and propose what's worth adopting from what upstream can now do. Never overwrites anything you authored. |
+| `/wong-sync` | Get the latest WongStack source and explore the update through the normal workflow. |
 
 To put the project online as a website people can open, run `/wong-cloudflare`. It offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Optional, and you can run it long after setup.
 
