@@ -10,6 +10,12 @@
 - **Use the available question tool.** `AskUserQuestion` or an equivalent follows the host's limits. Interactive sessions without a usable tool get numbered choices in chat. Asynchronous questions stay pending until answered; non-interactive defaults are marked assumed.
 - **The full discussion reaches the plan.** The Decision log keeps earlier choices and custom answers even when the final round is empty, and distinguishes them from assumptions.
 
+## 14.1.1 — clearer review opening and compact phone tools
+
+- Review pages open the first change with its sidebar item selected. The center no longer repeats the full proposal summary, and Previous stops at the first change.
+- The phone toolbar keeps Changes, the step controls, and Tools on one row. Tools opens state selection and note actions when needed.
+- Empty proposals and invalid direct links show short guidance. Existing archived review pages keep their original layout.
+
 ## 14.1.0 — a bare `/ship` finishes the thread
 
 `/ship` no longer asks you to retype, as an argument, the intent you settled a minute ago.
