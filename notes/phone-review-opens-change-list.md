@@ -40,15 +40,17 @@ wrapped remainder spills below the list as a loose paragraph. The first draft of
 proposal was wrapped at ~95 columns and **every one of its five bullets rendered dead** — the whole
 navigation gone, with no error anywhere.
 
-Every archived change happens to write each bullet on one unwrapped line, so the convention is real
-but nowhere written down. Nothing detects a violation: `openspec validate` passes, the link checker
-passes, and the page renders "fine" — just empty of navigation.
+Every archived change happens to write each bullet on one unwrapped line, so the convention was
+real but nowhere written down, and nothing detected a violation: `openspec validate` passed, the
+link checker passed, and the page rendered "fine" — just empty of navigation.
 
-**Open thread:** this belongs in the wiki (it is a general authoring rule, not a fact about this
-change) or, better, in the two release check scripts as a detector — the same argument
-`.claude/rules/payload.md` already makes for the link check and the config check: *the failure is
-invisible by inspection, so a script has to be the detector.* Not done here; wiki edits were not
-this task.
+**Resolved upstream while this change was in flight.** `main` gained
+[#85](https://github.com/matthewwong525/WongStack/pull/85), v15.0.1 — "a wrapped What Changes bullet
+keeps its picture" — which folds a wrapped bullet back onto one line before parsing (a blank line
+ends a bullet; nothing else does) and says so in the kit's authoring header. It arrived
+independently, from the same failure. This change merged with it: the kit now carries both the fold
+and the phone router. **No open thread remains** — the unwrapping done here is belt-and-braces, not
+a requirement.
 
 ## Smaller things that cost time
 
