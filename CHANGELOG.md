@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 15.1.0 — a phone review opens on the change list
+
+- **A review page opened on a phone shows What Changes first.** With no fragment, the list opens over the landing stage, no change is selected, and the counter reads the change count. The reviewer taps a change to open it, or taps Next for the first one.
+- **`#/` means "no change chosen" at phone width**, so closing a change or going back to `#/` opens the list again.
+- **Desktop is unchanged.** With the list already beside the stage, a page with no fragment still opens the first change and selects it. A direct link to a visual, state, or mark keeps its target at both widths.
+- Review pages already written keep their own copy of the kit, so they open as they did before.
+
 ## 15.0.0 — setup and sync use the normal workflow
 
 - **`/wong-sync` gets the latest source and invokes `/explore`.** The normal skills own questions, planning, implementation, and saving.

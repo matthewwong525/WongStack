@@ -116,7 +116,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — CHANGE-NAME</title>
+<title>Review — phone-review-opens-change-list</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -304,7 +304,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · CHANGE-NAME</b>
+  <b>Review · phone-review-opens-change-list</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -328,19 +328,19 @@
 <!-- proposal:start -->
 ## Why
 
-Operators find a purchase order by scrolling the whole list. With 400 open orders that is a two-minute hunt ~50 times a day. A search box and a designed empty state turn it into a five-second lookup.
+A review page opened on a phone drops the reviewer straight into change 1, on a stage the width of
+the screen, with the What Changes list hidden behind a button. They see one picture and no idea how
+many more there are or what the argument was — the opposite of what the list-is-the-navigation
+design promises. On a desktop the list sits beside the stage and that jump costs nothing; on a phone
+the list and the stage cannot share the screen, so the first thing shown has to be the list.
 
 ## What Changes
 
-- **A search box above the rows** on the orders list, filtering by reference and supplier as you type. (review.html#/list/search)
-- **An empty state that starts the job**: no matches offers the create action inline instead of announcing absence. (review.html#/list/empty/create)
-- **Receiving takes four steps, not six.** The detail page opens from a row click and carries the one primary action for the order's status. (review.html#/receive-flow/after/new)
-- **The list rule in `openspec/config.yaml`** says a list screen has a search box above the rows. (review.html#/list-rule/added)
-- **Files touched**: one new component, two edited screens, one rule. (review.html#/files)
-- **Keyboard focus lands in the search box** on page load — behaviour only, no visual.
-- **Release ritual:** `VERSION` bump and a newest-first `CHANGELOG.md` entry. (review.html#/list/default/nope)
-
-**Non-goals:** saved searches, bulk actions, changes to the supplier pages.
+- **At phone width, a review page opened with no fragment — or at `#/` — shows the What Changes sheet over the landing stage.** No bullet is selected, the counter reads `<n> changes`, and the reviewer taps a change to open it. (review.html#/phone-open/after/sheet)
+- **`#/` always means "no change chosen" at phone width**, so closing a change or stepping back to `#/` reopens the sheet rather than leaving a near-empty stage. (review.html#/route-flow/after/list)
+- **Desktop is unchanged** — with no fragment it still opens bullet 1 and selects it in the panel, because there the list is already on screen. (review.html#/desktop-open/panel)
+- **A direct link keeps its target on a phone.** A fragment naming a visual, state, or mark opens that visual with the sheet closed, exactly as it does today. (review.html#/phone-open/direct/target)
+- **Release the payload:** bump `VERSION`, add the newest-first `CHANGELOG.md` entry, and run the link check and the OpenSpec config check. (review.html#/files/release)
 <!-- proposal:end -->
 </script>
 
@@ -358,138 +358,187 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   <div class="frame" id="textframe"></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 1 · kind=screen — replace with your own ══════════
-     The pattern to copy: a list that is searched, with all four states, one
-     primary action per state, and a phone layout beside the desktop one. -->
-<section class="visual screen" id="list" data-kind="screen" data-title="Orders" data-states="default empty loading error" data-state="default">
+<!-- ══ VISUAL 1 · kind=screen — the review page on a phone: what a reviewer
+     lands on today, what they land on after this change, and what a direct
+     link still does. Phone-first: this screen's whole job happens at 390px. -->
+<section class="visual screen" id="phone-open" data-kind="screen" data-title="Review on a phone" data-states="after today direct" data-state="after">
+  <p class="caption">The review page at phone width. The What Changes sheet overlays the stage from the bottom edge, and the landing sits muted behind it. Phone here is the <code>(max-width: 760px)</code> media query the sheet already uses, not the chrome's View toggle. <i class="callout">1</i> Today: <a href="#/phone-open/today">#/phone-open/today</a> · Direct link: <a href="#/phone-open/direct/target">#/phone-open/direct/target</a> · Desktop: <a href="#/desktop-open/panel">#/desktop-open</a>.</p>
   <div class="frame">
-    <div class="topbar">
-      <div class="logo"></div>
-      <div class="nav desktop-only"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div>
-      <span class="phone-only" style="margin-left:auto">☰</span>
-    </div>
-    <div class="body">
-      <div class="row between">
-        <h1>Purchase orders</h1>
-        <span class="btn" data-go="detail">+ New order <i class="callout">1</i></span>
+
+    <div class="state state-after">
+      <div class="topbar">
+        <span class="tag">Changes</span>
+        <span class="muted">‹</span>
+        <span data-mark="sheet">5 changes <i class="callout">2</i></span>
+        <span class="tag">› <i class="callout">3</i></span>
+        <span class="tag">Tools</span>
       </div>
-      <div class="row" style="margin-top:14px">
-        <span class="input" data-mark="search">Search orders… <i class="callout">2</i></span>
-        <span class="btn">Status: Any ▾</span>
-      </div>
-      <div class="state state-default">
-        <table>
-          <thead><tr><th>Ref</th><th class="desktop-only">Supplier</th><th>Lines</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr class="click" data-go="detail"><td>PO-003<span class="phone-only muted"><br>Third supplier</span></td><td class="desktop-only">Third supplier</td><td>3 lines · 40 units</td><td><span class="tag">Open</span></td></tr>
-            <tr class="click" data-go="detail"><td>PO-002</td><td>Second supplier</td><td>8 lines · 120 units</td><td><span class="tag">Open</span></td></tr>
-            <tr class="click" data-go="detail"><td>PO-001</td><td>First supplier</td><td>1 line · 5 units</td><td><span class="tag">Received</span></td></tr>
-          </tbody>
-        </table>
-        <p class="muted">Showing 3 of 3 · <span class="btn ghost">Load more</span></p>
-      </div>
-      <div class="state state-empty">
-        <div class="box" data-mark="create">
-          <p><b>No orders match.</b></p>
-          <p class="muted">Search for something else, or clear the status filter.</p>
-          <span class="btn primary" data-go="detail">+ New order <i class="callout">3</i></span>
+      <div class="body" style="display:flex;flex-direction:column;min-height:520px">
+        <div class="muted">
+          <h1 data-mark="sheet">Choose a change <i class="callout">4</i></h1>
+          <p>Use the change list or Next to open a visual.</p>
+        </div>
+        <div style="margin-top:auto" data-mark="sheet">
+          <div class="topbar"><b>What Changes</b><span class="muted" style="margin-left:auto">Tap a change to open it</span></div>
+          <table>
+            <tbody>
+              <tr class="click" data-go="phone-open"><td>1</td><td>Phone opens on the change list <span class="muted">· screen</span></td></tr>
+              <tr class="click" data-go="route-flow"><td>2</td><td>#/ means no change chosen <span class="muted">· flow</span></td></tr>
+              <tr class="click" data-go="desktop-open"><td>3</td><td>Desktop is unchanged <span class="muted">· screen</span></td></tr>
+              <tr class="click" data-go="phone-open"><td>4</td><td>A direct link keeps its target <span class="muted">· screen</span></td></tr>
+              <tr class="click" data-go="files"><td>5</td><td>Release the payload <span class="muted">· tree</span></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
-      <div class="state state-loading">
-        <div class="skeleton"></div><div class="skeleton s"></div><div class="skeleton"></div><div class="skeleton s"></div>
+    </div>
+
+    <div class="state state-today">
+      <div class="topbar">
+        <span class="tag" data-mark="sheet" data-go="phone-open">Changes</span>
+        <span class="muted">‹</span>
+        <span>1 / 5</span>
+        <span class="tag">›</span>
+        <span class="tag">Tools</span>
       </div>
-      <div class="state state-error">
-        <div class="box"><p><b>Could not load orders.</b></p><p class="muted">The server did not answer. Your search and filter are kept.</p><span class="btn">Retry</span></div>
+      <div class="body">
+        <p class="muted">Change 1 · screen</p>
+        <h1>Phone opens on the change list</h1>
+        <div class="hero"></div>
+        <p class="muted">Today a phone lands here: one picture the reviewer did not choose, and no sight of the other four changes. The list is behind <span class="btn ghost" data-go="phone-open">Changes</span>.</p>
       </div>
     </div>
+
+    <div class="state state-direct">
+      <div class="topbar">
+        <span class="tag">Changes</span>
+        <span class="muted">‹</span>
+        <span>2 / 5</span>
+        <span class="tag">›</span>
+        <span class="tag">Tools</span>
+      </div>
+      <div class="body">
+        <p class="muted">Opened link: <code>review.html#/route-flow/after/list</code> <i class="callout">5</i></p>
+        <p class="muted">Change 2 · flow</p>
+        <h1 data-mark="target">#/ means no change chosen</h1>
+        <div class="hero" data-mark="target"></div>
+        <p class="muted">The sheet stays shut: the link named a target, so the target opens. Step back to <span class="btn ghost" data-go="phone-open">the change list</span> whenever the reviewer wants the rest.</p>
+      </div>
+    </div>
+
   </div>
   <div class="notes">
-    <p class="brief"><b>Who / job:</b> an operator finding one order to receive it. <b>Done:</b> the order's detail is open. <b>Frequency:</b> ~50×/day.</p>
+    <p class="brief"><b>Who / job:</b> a reviewer on a phone, opening a review link to judge what a change proposes. <b>Done:</b> they have seen every change and left their notes. <b>Context:</b> a phone, away from the desk, usually a link from chat; the list and the stage cannot share the screen. <b>Common case:</b> a link with no fragment — read the whole list. <b>Edge case:</b> a deep link to one visual. <b>Frequency:</b> assumed a few reviews a day per reviewer, most of them on a desktop; the phone read is the one that fails today. <b>Primary action:</b> choose a change — the sheet's rows are the target, so the chrome keeps no filled button of its own.</p>
     <ol>
-      <li>Secondary, not primary: this screen's job is finding an order, so creating one is the smaller action.</li>
-      <li>Search is the job, so it sits above the rows rather than behind a menu.</li>
-      <li>The empty state starts the job instead of announcing absence, so here the create action is the one filled button.</li>
-      <li>On a phone the supplier folds under the reference and the nav becomes a menu; the job is the same, so the primary action does not move. (Toggle View: Phone.)</li>
+      <li>Phone is the <code>(max-width: 760px)</code> media query, not the chrome's View toggle. The toggle redraws a screen visual at phone width while the page layout stays desktop, so a desktop reviewer who toggles View must not lose the panel they are reading. The media query is the same one the sheet's own CSS keys off, so the router and the layout can never disagree.</li>
+      <li>No bullet is current, so the counter falls to the kit's existing <code>&lt;n&gt; changes</code> branch and Previous to its existing disabled branch. Nothing new is drawn — a state the kit already had becomes reachable on a phone.</li>
+      <li>Next from the empty selection opens change 1. A reviewer who wants the first change taps twice, and the second tap is always in the same place.</li>
+      <li>The landing stays behind the sheet, muted, with no change pre-selected. A change 1 opened behind the sheet is the same problem one layer down: a change the reviewer never chose.</li>
+      <li>State <b>direct</b>: a fragment that names a visual, a state, or a mark opens that target with the sheet shut. Opening the sheet on every phone load would bury the target of a link someone sent you.</li>
     </ol>
   </div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 2 · kind=screen — the click target, so the flow is
-     walkable. A screen nothing navigates to is a dead end the critic looks
-     for, which is why this thin second screen exists. -->
-<section class="visual screen" id="detail" data-kind="screen" data-title="Order" data-states="default loading" data-state="default">
-  <div class="frame">
-    <div class="topbar"><div class="logo"></div><div class="nav"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div></div>
-    <div class="body">
-      <p class="muted"><span class="btn ghost" data-go="list">← Orders</span></p>
-      <div class="state state-default">
-        <div class="row between">
-          <h1>PO-003 · Third supplier <span class="tag">Open</span></h1>
-          <span class="btn primary" data-mark="finish">Receive order <i class="callout">1</i></span>
-        </div>
-        <dl class="kv"><dt>Supplier</dt><dd>Third supplier</dd><dt>Expected</dt><dd>Next Tuesday</dd></dl>
-        <div class="hero"></div>
-      </div>
-      <div class="state state-loading"><div class="skeleton s"></div><div class="skeleton"></div></div>
-    </div>
-  </div>
-  <div class="notes">
-    <p class="brief"><b>Who / job:</b> the same operator, receiving the order they found.</p>
-    <ol><li>The primary action follows the order's status, so there is never more than one filled button.</li></ol>
-  </div>
-</section>
-
-<!-- ══ EXAMPLE VISUAL 3 · kind=flow — two lanes argue a process change.
-     Note data-states="after today": "after" is first, so it is what opens. -->
-<section class="visual flow" id="receive-flow" data-kind="flow" data-states="after today">
-  <p class="caption">Receiving an order — the steps an operator takes, today and after this change.</p>
+<!-- ══ VISUAL 2 · kind=flow — how a reviewer reaches a change, and what
+     coming back to #/ gives them. Today lane dashed, after lane solid. -->
+<section class="visual flow" id="route-flow" data-kind="flow" data-states="after today" data-state="after">
+  <p class="caption">Reaching a change on a phone, and what <code>#/</code> means when the reviewer comes back. The screen: <a href="#/phone-open/after/sheet">#/phone-open</a>.</p>
   <div class="frame">
     <div class="lane today">
       <span class="label">Today</span>
-      <span class="step">Open list</span><span class="arrow"></span>
-      <span class="step">Scroll</span><span class="arrow"></span>
-      <span class="step">Scroll more</span><span class="arrow"></span>
-      <span class="step">Open order</span><span class="arrow"></span>
-      <span class="step">Actions ▾</span><span class="arrow"></span>
-      <span class="step">Receive</span>
+      <span class="step">Open the page</span><span class="arrow"></span>
+      <span class="step">Change 1 on the stage</span><span class="arrow"></span>
+      <span class="step gone">Tap Changes to find the list</span><span class="arrow"></span>
+      <span class="step">Tap a change</span><span class="arrow"></span>
+      <span class="step">Change on the stage</span><span class="arrow"></span>
+      <span class="step">Back to #/ · near-empty stage</span>
     </div>
     <div class="lane after">
       <span class="label">After</span>
-      <span class="step">Open list</span><span class="arrow"></span>
-      <span class="step" data-mark="new">Type "PO-003"</span><span class="arrow"></span>
-      <span class="step">Open order</span><span class="arrow"></span>
-      <span class="step" data-mark="new">Receive</span>
+      <span class="step">Open the page</span><span class="arrow"></span>
+      <span class="step" data-mark="list">The list, over the landing</span><span class="arrow"></span>
+      <span class="step">Tap a change</span><span class="arrow"></span>
+      <span class="step">Change on the stage</span><span class="arrow"></span>
+      <span class="step" data-mark="list">Back to #/ · the list again <i class="callout">1</i></span>
     </div>
   </div>
-  <div class="notes"><ol><li>Two scroll steps become one typed search; the actions menu goes because Receive is the screen's one primary action.</li></ol></div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> the same phone reviewer, finding the next change and coming back for it.</p>
+    <ol>
+      <li>One rule, not a first-load special case: <code>#/</code> means no change is chosen. The branch sits in the router's hash handler, so first load, the back button, and a change closing all land on the list. Today the same route still ends on a near-empty stage.</li>
+    </ol>
+  </div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 4 · kind=diff — before and after text. Marks go on
-     the added lines, so the bullet lights exactly what arrives. -->
-<section class="visual diff-visual" id="list-rule" data-kind="diff">
-  <p class="caption"><code>openspec/config.yaml</code> — the design rule for list screens.</p>
+<!-- ══ VISUAL 3 · kind=screen — desktop width, unchanged. It is here to
+     show why the two widths differ: the list is already on screen. -->
+<section class="visual screen" id="desktop-open" data-kind="screen" data-title="Review on a desktop">
+  <p class="caption">The same page at desktop width — this change leaves it alone. Phone width: <a href="#/phone-open/after/sheet">#/phone-open</a>.</p>
   <div class="frame">
-    <div class="diff">
-      <div><div class="label">Before</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line del">    a filter menu.</span></pre></div>
-      <div><div class="label">After</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line add" data-mark="added">    a search box above them; filters</span><span class="line add" data-mark="added">    stay in a menu.</span></pre></div>
+    <div class="topbar">
+      <div class="logo"></div>
+      <div class="nav"><span class="on">Review · phone-review-opens-change-list</span></div>
+      <span class="muted desktop-only" style="margin-left:auto">‹ 1 / 5 › · State · View · ✎ Annotate · Copy notes</span>
     </div>
+    <div class="body">
+      <div class="desktop-only">
+        <div class="row" style="align-items:flex-start">
+          <div data-mark="panel">
+            <p class="muted"><b>Why</b></p>
+            <div class="skeleton"></div><div class="skeleton s"></div>
+            <p class="muted"><b>What Changes</b> <i class="callout">1</i></p>
+            <p><span class="tag">1 · Phone opens on the change list</span></p>
+            <p class="muted">2 · #/ means no change chosen</p>
+            <p class="muted">3 · Desktop is unchanged</p>
+            <p class="muted">4 · A direct link keeps its target</p>
+            <p class="muted">5 · Release the payload</p>
+          </div>
+          <div style="flex:1">
+            <p class="muted">Change 1 · screen</p>
+            <h1>Phone opens on the change list</h1>
+            <div class="hero"></div>
+            <p class="muted">No fragment still opens bullet 1 and marks it current.</p>
+          </div>
+        </div>
+      </div>
+      <div class="phone-only" data-mark="panel">
+        <p class="muted">Desktop width only — the layout above does not exist here.</p>
+        <dl class="kv">
+          <dt>Desktop</dt><dd>The list sits beside the stage, so no fragment opens change 1 and marks it current.</dd>
+          <dt>Phone</dt><dd>The list becomes the sheet, so no fragment opens the list instead.</dd>
+        </dl>
+        <p class="muted">The phone rule: <a href="#/phone-open/after/sheet">#/phone-open</a>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a reviewer at a desk, the same job on a screen wide enough for the list and the picture together. <b>Frequency:</b> assumed most reviews. <b>Primary action:</b> choose a change, in a panel that is always on screen.</p>
+    <ol>
+      <li>The list is already beside the stage, so opening change 1 costs the reviewer nothing and saves a click. The phone rule changes nothing here: the desktop path stays as it is.</li>
+    </ol>
   </div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 5 · kind=tree — what the change adds, edits and
-     removes. Note the deliberately dead anchor in the example proposal
-     above (#/list/default/nope): the panel shows it struck through, which is
-     what a reviewer sees when an anchor names nothing. -->
+<!-- ══ VISUAL 4 · kind=tree — the files this change touches. -->
 <section class="visual tree" id="files" data-kind="tree">
-  <p class="caption">Files this change adds, edits, and removes.</p>
+  <p class="caption">Files this change touches. One code file; the rest is the plan and the payload release.</p>
   <div class="frame">
     <ul>
-      <li class="add">app/src/components/SearchBox.tsx <span class="why">new — mirrors the supplier search</span></li>
-      <li class="edit">app/src/pages/Orders.tsx <span class="why">search above rows, empty state</span></li>
-      <li class="edit">app/src/pages/Order.tsx <span class="why">one primary action</span></li>
-      <li class="edit">openspec/config.yaml <span class="why">list rule</span></li>
-      <li class="del">app/src/components/FilterMenu.tsx <span class="why">folded into the status chip</span></li>
+      <li class="edit">.claude/skills/plan/references/review-kit.html <i class="callout">1</i> <span class="why">the fromHash branch: no first segment and a phone → the landing, sheet open</span></li>
+      <li class="edit" data-mark="release">VERSION <i class="callout">2</i> <span class="why">payload release</span></li>
+      <li class="edit" data-mark="release">CHANGELOG.md <span class="why">newest-first entry</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/proposal.md <span class="why">why and what changes</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/design.md <span class="why">decisions, and the UX section</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/specs/ux-wireframes/spec.md <span class="why">two modified requirements</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/tasks.md <span class="why">the work</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/review.html <span class="why">this page</span></li>
     </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The kit is the only code file. Every page <code>/plan</code> draws from now on inherits the rule, and pages already written keep their own copy of the kit — so nothing rewrites the record of what was planned.</li>
+      <li>The release is more than these two files: <code>node scripts/check-payload-links.mjs</code> and <code>node scripts/check-openspec-config.mjs</code> both run before the change ships, and both must pass.</li>
+    </ol>
   </div>
 </section>
 
