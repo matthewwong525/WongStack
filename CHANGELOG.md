@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 15.0.1 — a wrapped What Changes bullet keeps its picture
+
+- **The review page reads a bullet, not a line.** A hard-wrapped bullet in `proposal.md` lost its trailing `(review.html#/…)` anchor, because the anchor is at the end of the bullet, on its last line, and the parser tested each line on its own. Every wrapped bullet then showed `no visual`, its text stopped at the first line, and the rest of it fell below the list as loose paragraphs with the raw anchor in view.
+- **The failure was silent.** `dead link` only fires for an anchor that parsed, and `no visual` is a state the kit uses on purpose, so a broken bullet looked like an intended one.
+- **A blank line ends a bullet; nothing else does.** Indented and unindented wrapping both fold back. An unwrapped proposal parses exactly as before, and a `**Non-goals:**` paragraph still renders below the list.
+- **The authoring header now says so**, in step 4 beside the warning about a mark that shares a state's name.
+- Pages already written keep their own copy of the parser. Archived changes are unchanged.
+
 ## 15.0.0 — setup and sync use the normal workflow
 
 - **`/wong-sync` gets the latest source and invokes `/explore`.** The normal skills own questions, planning, implementation, and saving.
