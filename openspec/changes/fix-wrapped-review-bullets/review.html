@@ -117,7 +117,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — CHANGE-NAME</title>
+<title>Review — fix-wrapped-review-bullets</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -305,7 +305,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · CHANGE-NAME</b>
+  <b>Review · fix-wrapped-review-bullets</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -329,19 +329,16 @@
 <!-- proposal:start -->
 ## Why
 
-Operators find a purchase order by scrolling the whole list. With 400 open orders that is a two-minute hunt ~50 times a day. A search box and a designed empty state turn it into a five-second lookup.
+A hard-wrapped What Changes bullet loses its picture, and nobody is told. The review kit's parser reads the section one line at a time and assumes one bullet is one line, so a wrapped bullet's trailing `(review.html#/…)` anchor — which sits at the end of the bullet, hence on its last line — is never seen. The page then reports `no visual`, a state the kit uses deliberately elsewhere, so the reviewer cannot tell a broken bullet from an intentional one. Wrapping a Markdown list item is ordinary, and every other reader of `proposal.md` renders it correctly.
 
 ## What Changes
 
-- **A search box above the rows** on the orders list, filtering by reference and supplier as you type. (review.html#/list/search)
-- **An empty state that starts the job**: no matches offers the create action inline instead of announcing absence. (review.html#/list/empty/create)
-- **Receiving takes four steps, not six.** The detail page opens from a row click and carries the one primary action for the order's status. (review.html#/receive-flow/after/new)
-- **The list rule in `openspec/config.yaml`** says a list screen has a search box above the rows. (review.html#/list-rule/added)
-- **Files touched**: one new component, two edited screens, one rule. (review.html#/files)
-- **Keyboard focus lands in the search box** on page load — behaviour only, no visual.
-- **Release ritual:** `VERSION` bump and a newest-first `CHANGELOG.md` entry. (review.html#/list/default/nope)
+- **A wrapped bullet is folded back to one bullet before parsing.** `parseProposal()` joins each continuation line onto the bullet above it, so the anchor is read from the end of the whole bullet instead of the end of a line. (review.html#/parse/after/fold)
+- **A blank line still ends a bullet**, so the `**Non-goals:**` paragraph below the list reaches the tail slot exactly as today, and an unwrapped proposal parses byte-identically. (review.html#/parse/after/boundary)
+- **The authoring header says a bullet may wrap.** Step 4 of the kit's fill instructions states that the anchor is read from the end of the whole bullet, so the rule stops being folklore. (review.html#/header)
+- **Release ritual:** `VERSION` 15.0.0 → 15.0.1 and a newest-first `CHANGELOG.md` entry. (review.html#/files/release)
 
-**Non-goals:** saved searches, bulk actions, changes to the supplier pages.
+**Non-goals:** no new validation or warning machinery in `sync-review-proposal.mjs` or the page; no retro-fix of the `review.html` copies already in `openspec/changes/archive/`.
 <!-- proposal:end -->
 </script>
 
@@ -359,138 +356,69 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   <div class="frame" id="textframe"></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 1 · kind=screen — replace with your own ══════════
-     The pattern to copy: a list that is searched, with all four states, one
-     primary action per state, and a phone layout beside the desktop one. -->
-<section class="visual screen" id="list" data-kind="screen" data-title="Orders" data-states="default empty loading error" data-state="default">
+<!-- ══ VISUAL 1 · kind=flow — the parser's journey for a hard-wrapped
+     What Changes bullet. data-states="after today": "after" is first, so
+     the page opens on the repaired lane. -->
+<section class="visual flow" id="parse" data-kind="flow" data-states="after today" data-state="after">
+  <p class="caption">A hard-wrapped What Changes bullet through <code>parseProposal()</code> — today, and after the fold pass.</p>
   <div class="frame">
-    <div class="topbar">
-      <div class="logo"></div>
-      <div class="nav desktop-only"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div>
-      <span class="phone-only" style="margin-left:auto">☰</span>
+    <div class="lane today">
+      <span class="label">Today</span>
+      <span class="step">Walk the section<br>one line at a time</span><span class="arrow"></span>
+      <span class="step">Line 1 matches <code>- </code><br>the bullet text stops there</span><span class="arrow"></span>
+      <span class="step">Lines 2…n miss the match<br>they fall to <code>tail</code></span><span class="arrow"></span>
+      <span class="step">The anchor is on the last line,<br>so nothing reads it</span><span class="arrow"></span>
+      <span class="step">Panel shows <b>no visual</b><br>the rest renders as loose paragraphs</span>
     </div>
-    <div class="body">
-      <div class="row between">
-        <h1>Purchase orders</h1>
-        <span class="btn" data-go="detail">+ New order <i class="callout">1</i></span>
-      </div>
-      <div class="row" style="margin-top:14px">
-        <span class="input" data-mark="search">Search orders… <i class="callout">2</i></span>
-        <span class="btn">Status: Any ▾</span>
-      </div>
-      <div class="state state-default">
-        <table>
-          <thead><tr><th>Ref</th><th class="desktop-only">Supplier</th><th>Lines</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr class="click" data-go="detail"><td>PO-003<span class="phone-only muted"><br>Third supplier</span></td><td class="desktop-only">Third supplier</td><td>3 lines · 40 units</td><td><span class="tag">Open</span></td></tr>
-            <tr class="click" data-go="detail"><td>PO-002</td><td>Second supplier</td><td>8 lines · 120 units</td><td><span class="tag">Open</span></td></tr>
-            <tr class="click" data-go="detail"><td>PO-001</td><td>First supplier</td><td>1 line · 5 units</td><td><span class="tag">Received</span></td></tr>
-          </tbody>
-        </table>
-        <p class="muted">Showing 3 of 3 · <span class="btn ghost">Load more</span></p>
-      </div>
-      <div class="state state-empty">
-        <div class="box" data-mark="create">
-          <p><b>No orders match.</b></p>
-          <p class="muted">Search for something else, or clear the status filter.</p>
-          <span class="btn primary" data-go="detail">+ New order <i class="callout">3</i></span>
-        </div>
-      </div>
-      <div class="state state-loading">
-        <div class="skeleton"></div><div class="skeleton s"></div><div class="skeleton"></div><div class="skeleton s"></div>
-      </div>
-      <div class="state state-error">
-        <div class="box"><p><b>Could not load orders.</b></p><p class="muted">The server did not answer. Your search and filter are kept.</p><span class="btn">Retry</span></div>
-      </div>
+    <div class="lane after">
+      <span class="label">After</span>
+      <span class="step" data-mark="fold">A fold pass runs first<br>a bullet opens</span><span class="arrow"></span>
+      <span class="step" data-mark="fold">Each following non-blank line<br>that is not itself a bullet joins it</span><span class="arrow"></span>
+      <span class="step" data-mark="boundary">A blank line closes the bullet <i class="callout">1</i></span><span class="arrow"></span>
+      <span class="step">The existing per-line loop<br>now sees one whole bullet</span><span class="arrow"></span>
+      <span class="step">The anchor is read from<br>the end of the bullet — the visual resolves</span><span class="arrow"></span>
+      <span class="step" data-mark="boundary">The <b>Non-goals:</b> paragraph<br>stays a paragraph in <code>tail</code></span>
     </div>
   </div>
   <div class="notes">
-    <p class="brief"><b>Who / job:</b> an operator finding one order to receive it. <b>Done:</b> the order's detail is open. <b>Frequency:</b> ~50×/day.</p>
+    <p class="brief"><b>Who / job:</b> a reviewer who opens the page and must see a picture for each bullet. <b>Done:</b> every anchored bullet opens its visual.</p>
     <ol>
-      <li>Secondary, not primary: this screen's job is finding an order, so creating one is the smaller action.</li>
-      <li>Search is the job, so it sits above the rows rather than behind a menu.</li>
-      <li>The empty state starts the job instead of announcing absence, so here the create action is the one filled button.</li>
-      <li>On a phone the supplier folds under the reference and the nav becomes a menu; the job is the same, so the primary action does not move. (Toggle View: Phone.)</li>
+      <li>The boundary is the blank line, not the indent. A hard wrap at a column limit gives no indent to the lines that follow, so an indent rule repairs only some wrapped bullets. A blank line always comes before the <b>Non-goals:</b> paragraph, so that paragraph still reaches <code>tail</code>. An unwrapped proposal has no lines to join, so the fold does nothing to it.</li>
     </ol>
   </div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 2 · kind=screen — the click target, so the flow is
-     walkable. A screen nothing navigates to is a dead end the critic looks
-     for, which is why this thin second screen exists. -->
-<section class="visual screen" id="detail" data-kind="screen" data-title="Order" data-states="default loading" data-state="default">
+<!-- ══ VISUAL 2 · kind=diff — step 4 of the kit's authoring header, before
+     and after. The added line is what arrives. -->
+<section class="visual diff-visual" id="header" data-kind="diff">
+  <p class="caption">Step 4 of the authoring header in <code>.agents/skills/plan/references/review-kit.html</code>.</p>
   <div class="frame">
-    <div class="topbar"><div class="logo"></div><div class="nav"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div></div>
-    <div class="body">
-      <p class="muted"><span class="btn ghost" data-go="list">← Orders</span></p>
-      <div class="state state-default">
-        <div class="row between">
-          <h1>PO-003 · Third supplier <span class="tag">Open</span></h1>
-          <span class="btn primary" data-mark="finish">Receive order <i class="callout">1</i></span>
-        </div>
-        <dl class="kv"><dt>Supplier</dt><dd>Third supplier</dd><dt>Expected</dt><dd>Next Tuesday</dd></dl>
-        <div class="hero"></div>
-      </div>
-      <div class="state state-loading"><div class="skeleton s"></div><div class="skeleton"></div></div>
+    <div class="diff">
+      <div><div class="label">Before</div><pre><span class="line">4. Anchor each bullet in proposal.md by</span><span class="line">   appending</span><span class="line">     (review.html#/&lt;visual&gt;[/&lt;state&gt;][/&lt;mark&gt;])</span><span class="line">   The state segment is optional — a segment</span><span class="line">   that is not one of the visual's states is</span><span class="line">   read as a mark. So #/list/search,</span><span class="line">   #/list/empty/create and</span><span class="line">   #/receive-flow/after/new all work.</span><span class="line">   A MARK MUST NEVER SHARE A NAME WITH A</span><span class="line">   STATE of the same visual, or the router</span><span class="line">   reads it as the state and highlights</span><span class="line">   nothing.</span></pre></div>
+      <div><div class="label">After</div><pre><span class="line">4. Anchor each bullet in proposal.md by</span><span class="line">   appending</span><span class="line">     (review.html#/&lt;visual&gt;[/&lt;state&gt;][/&lt;mark&gt;])</span><span class="line">   The state segment is optional — a segment</span><span class="line">   that is not one of the visual's states is</span><span class="line">   read as a mark. So #/list/search,</span><span class="line">   #/list/empty/create and</span><span class="line">   #/receive-flow/after/new all work.</span><span class="line">   A MARK MUST NEVER SHARE A NAME WITH A</span><span class="line">   STATE of the same visual, or the router</span><span class="line">   reads it as the state and highlights</span><span class="line">   nothing.</span><span class="line add">   A bullet can wrap. The anchor is read from</span><span class="line add">   the end of the whole bullet.</span></pre></div>
     </div>
   </div>
   <div class="notes">
-    <p class="brief"><b>Who / job:</b> the same operator, receiving the order they found.</p>
-    <ol><li>The primary action follows the order's status, so there is never more than one filled button.</li></ol>
+    <p class="brief">The header is where the author reads the rule, so the rule goes there. One line, beside the warning about a mark that shares a state's name. No other text in step 4 moves.</p>
   </div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 3 · kind=flow — two lanes argue a process change.
-     Note data-states="after today": "after" is first, so it is what opens. -->
-<section class="visual flow" id="receive-flow" data-kind="flow" data-states="after today">
-  <p class="caption">Receiving an order — the steps an operator takes, today and after this change.</p>
-  <div class="frame">
-    <div class="lane today">
-      <span class="label">Today</span>
-      <span class="step">Open list</span><span class="arrow"></span>
-      <span class="step">Scroll</span><span class="arrow"></span>
-      <span class="step">Scroll more</span><span class="arrow"></span>
-      <span class="step">Open order</span><span class="arrow"></span>
-      <span class="step">Actions ▾</span><span class="arrow"></span>
-      <span class="step">Receive</span>
-    </div>
-    <div class="lane after">
-      <span class="label">After</span>
-      <span class="step">Open list</span><span class="arrow"></span>
-      <span class="step" data-mark="new">Type "PO-003"</span><span class="arrow"></span>
-      <span class="step">Open order</span><span class="arrow"></span>
-      <span class="step" data-mark="new">Receive</span>
-    </div>
-  </div>
-  <div class="notes"><ol><li>Two scroll steps become one typed search; the actions menu goes because Receive is the screen's one primary action.</li></ol></div>
-</section>
-
-<!-- ══ EXAMPLE VISUAL 4 · kind=diff — before and after text. Marks go on
-     the added lines, so the bullet lights exactly what arrives. -->
-<section class="visual diff-visual" id="list-rule" data-kind="diff">
-  <p class="caption"><code>openspec/config.yaml</code> — the design rule for list screens.</p>
-  <div class="frame">
-    <div class="diff">
-      <div><div class="label">Before</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line del">    a filter menu.</span></pre></div>
-      <div><div class="label">After</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line add" data-mark="added">    a search box above them; filters</span><span class="line add" data-mark="added">    stay in a menu.</span></pre></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ EXAMPLE VISUAL 5 · kind=tree — what the change adds, edits and
-     removes. Note the deliberately dead anchor in the example proposal
-     above (#/list/default/nope): the panel shows it struck through, which is
-     what a reviewer sees when an anchor names nothing. -->
+<!-- ══ VISUAL 3 · kind=tree — what the release touches. -->
 <section class="visual tree" id="files" data-kind="tree">
-  <p class="caption">Files this change adds, edits, and removes.</p>
+  <p class="caption">Files this release edits — patch 15.0.0 → 15.0.1.</p>
   <div class="frame">
     <ul>
-      <li class="add">app/src/components/SearchBox.tsx <span class="why">new — mirrors the supplier search</span></li>
-      <li class="edit">app/src/pages/Orders.tsx <span class="why">search above rows, empty state</span></li>
-      <li class="edit">app/src/pages/Order.tsx <span class="why">one primary action</span></li>
-      <li class="edit">openspec/config.yaml <span class="why">list rule</span></li>
-      <li class="del">app/src/components/FilterMenu.tsx <span class="why">folded into the status chip</span></li>
+      <li class="edit">.agents/skills/plan/references/review-kit.html <i class="callout">1</i> <span class="why">the fold pass, plus the step 4 line — <code>.claude/</code> is a symlink to <code>.agents/</code>, so one file</span></li>
+      <li class="edit" data-mark="release">VERSION <span class="why">15.0.0 → 15.0.1</span></li>
+      <li class="edit" data-mark="release">CHANGELOG.md <span class="why">newest-first entry for the patch</span></li>
+      <li class="edit">openspec/specs/ux-wireframes/spec.md <span class="why">one requirement gains two scenarios, synced at archive</span></li>
     </ul>
+  </div>
+  <div class="notes">
+    <p class="brief">Nothing is added and nothing is removed. The change edits four files.</p>
+    <ol>
+      <li>Each review page is a copy of the kit, so the fix reaches every future change and no past one. The copies already in <code>openspec/changes/archive/</code> keep the old parser — the archive is the record of what the reviewer saw.</li>
+    </ol>
   </div>
 </section>
 
