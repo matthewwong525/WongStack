@@ -17,7 +17,7 @@ if (!record.upstream?.repo || !/wongstack/i.test(record.upstream.repo)) {
   process.exit(2);
 }
 const skillRoots = [...new Set(['.claude/skills', '.agents/skills']
-  .map(path => join(root, path)).filter(existsSync).map(realpathSync))];
+  .map(path => join(root, path)).filter(existsSync).map(path => realpathSync(path)))];
 const found = [];
 const unresolved = [];
 for (const skillRoot of skillRoots) {

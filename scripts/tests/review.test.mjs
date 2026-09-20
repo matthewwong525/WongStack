@@ -14,6 +14,9 @@ const { JSDOM } = requireFromApp('jsdom');
 const checker = readFileSync(resolve(here, '../../.agents/skills/plan/scripts/check-review.js'), 'utf8');
 const proposal = '## Why\n\nReduce repeated work.\n\n## What Changes\n\n- A new flow. (review.html#/flow/after/new)\n';
 const fragment = '<section class="visual flow" id="flow" data-kind="flow" data-states="after today"><div class="frame"><div class="lane today"><span class="step">Old</span></div><div class="lane"><span class="step" data-mark="new">New</span></div></div><div class="notes"><ol><li>Less work.</li></ol></div></section>\n';
+const browserOptions = { url: 'https://review.test/', runScripts: 'dangerously', beforeParse(window) {
+  window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
+} };
 
 function fixture(fn) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-review-'));
@@ -25,7 +28,7 @@ function fixture(fn) {
 }
 
 function inspect(html) {
-  const dom = new JSDOM(html, { url: 'https://review.test/', runScripts: 'dangerously' });
+  const dom = new JSDOM(html, browserOptions);
   const output = JSON.parse(runInNewContext(checker, { document: dom.window.document }));
   dom.window.close();
   return output;
@@ -49,7 +52,7 @@ test('assembly is portable, deterministic, and structurally valid', () => fixtur
 test('proposal script delimiters remain visible text', () => fixture(root => {
   writeFileSync(join(root, 'proposal.md'), proposal.replace('Reduce repeated work.', 'Show </script><script>window.injection=1</script> as text.'));
   buildReview(root);
-  const dom = new JSDOM(readFileSync(join(root, 'review.html'), 'utf8'), { url: 'https://review.test/', runScripts: 'dangerously' });
+  const dom = new JSDOM(readFileSync(join(root, 'review.html'), 'utf8'), browserOptions);
   assert.equal(dom.window.injection, undefined);
   assert.match(dom.window.document.querySelector('#panel').textContent, /<\/script><script>window.injection=1<\/script>/);
   dom.window.close();
