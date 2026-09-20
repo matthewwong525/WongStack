@@ -106,6 +106,7 @@ test('change navigation and step Details work while annotation is active', async
   assert.equal(await page.locator('.popover').count(), 0);
   assert.match(await page.locator('#item-title').innerText(), /Receive an order/);
   assert.equal(await page.locator('#annotate').getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction(() => document.activeElement.id === 'item-title');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'item-title');
   await context.close();
 });
