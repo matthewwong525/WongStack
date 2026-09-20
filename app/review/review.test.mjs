@@ -94,7 +94,7 @@ test('change navigation and step Details work while annotation is active', async
   await page.locator('#receive-flow .state-after .flow-card h3').first().click();
   assert.equal(await page.locator('.popover').count(), 1);
   await page.locator('.popover .close').click();
-  await page.getByRole('button', { name: 'branches' }).click();
+  await page.getByRole('button', { name: 'branches', exact: true }).click();
   assert.match(page.url(), /#\/receive-flow\/branches/);
   assert.match(await page.locator('#panel ol.changes li.on').innerText(), /Follow a workflow/);
   await page.locator('#receive-flow .state-branches .flow-branch summary').first().click();
@@ -156,7 +156,7 @@ test('state and target switches retain separate drafts', async () => {
   await page.locator('#annotate').click();
   await page.locator('#receive-flow .state-after [data-target-id="flow-search"] h3').click();
   await page.locator('.popover textarea').fill('First state draft');
-  await page.getByRole('button', { name: 'branches' }).click();
+  await page.getByRole('button', { name: 'branches', exact: true }).click();
   assert.equal(await page.locator('.popover').count(), 0);
   await page.locator('#receive-flow .state-branches [data-target-id="branch-open"] h3').click();
   await page.locator('.popover textarea').fill('Second state draft');
