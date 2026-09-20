@@ -3,6 +3,11 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.1.0 — branch names can differ from change names
+
+- `/apply`, `/save`, and `/ship` select a unique OpenSpec change from uncommitted files and the branch diff. `/save` records the actual feature branch in the proposal; `/continue` uses that field or a PR head to resume it.
+- A branch can use any name while its OpenSpec change and session note keep their own shared name. Multiple changed active changes stop `/ship` before archive or merge. Existing same-name handoffs still work.
+
 ## 16.0.0 — one workflow and one review builder
 
 - **Breaking for agents that call generated `openspec-*` skills:** WongStack now uses the OpenSpec CLI directly. Its six generated OpenSpec skills and visibility patch leave the source payload. Public `/explore`, `/plan`, `/apply`, `/save`, `/continue`, and `/ship` commands remain.

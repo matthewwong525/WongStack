@@ -1,0 +1,83 @@
+<section class="visual flow" id="select" data-kind="flow" data-title="Select the current change" data-states="after today">
+  <p class="caption">How a workflow finds the OpenSpec change that belongs to the current work.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <h3>Path A · a change is already selected</h3>
+        <div class="step flow-card" data-target-id="select-intent">
+          <h3>Use a selected change <span class="tag">Changed</span></h3>
+          <p>Keep the explicit user choice or current-session choice and proceed with that OpenSpec folder.</p>
+          <details><summary>Details</summary><p>This path is complete. Its change name identifies the folder and note, even if the branch has another name.</p></details>
+        </div>
+        <h3>Path B · no change is selected</h3>
+        <div class="step flow-card" data-target-id="select-inspect" data-mark="evidence">
+          <h3>Inspect changed folders <span class="tag">Changed</span><i class="callout">1</i></h3>
+          <p>Check active OpenSpec folders in the worktree, index, and branch diff against the default branch.</p>
+          <details><summary>Details</summary><p>This includes untracked plans and committed changes. A branch name is not required to match a change name.</p></details>
+        </div>
+        <p class="flow-connector">↓ Resolve the evidence</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="select-unique">
+            <h3>One changed folder</h3><p>Select that change and proceed.</p>
+            <details><summary>Details</summary><p>A unique changed OpenSpec folder identifies the current work even when the branch has another name.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="select-many">
+            <h3>Several changed folders</h3><p>Stop and ask which change to use.</p>
+            <details><summary>Details</summary><p>Do not infer one change from its name or merge several changes automatically.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="select-none">
+            <h3>No changed folder</h3><p>Try a saved Branch field, then a legacy same-name match. Stop and ask if neither identifies one change.</p>
+            <details><summary>Details</summary><p>For a cold ship, a sole unrelated active change is not evidence. Only a unique match can proceed.</p></details>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="select-today-branch"><h3>Read the branch name</h3><p>Expect the OpenSpec folder to have the same name.</p><details><summary>Details</summary><p>A branch and a change share one slug under the current rule.</p></details></div>
+        <p class="flow-connector">↓ Names differ</p>
+        <div class="step flow-card" data-target-id="select-today-stop"><h3>Stop the workflow</h3><p>The current work cannot ship under its different change name.</p><details><summary>Details</summary><p>The user must identify the change even when one changed folder is visible.</p></details></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><ol><li>Changed OpenSpec folders give direct evidence. The branch name remains separate, so a unique folder can proceed and several folders require a choice.</li></ol></div>
+</section>
+
+<section class="visual flow" id="resume" data-kind="flow" data-title="Save and resume the branch association" data-states="after today">
+  <p class="caption">How a saved change finds its feature branch after the worktree is clean.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="resume-save" data-mark="save">
+          <h3>Save the selected change <span class="tag">Changed</span><i class="callout">1</i></h3>
+          <p>Record <strong>Branch:</strong> <code>actual-feature-branch</code> in its proposal before committing.</p>
+          <details><summary>Details</summary><p>The proposal stores this as <code>**Branch:** actual-feature-branch</code>. Each save refreshes it from the current feature branch. The change folder and note keep the change name.</p></details>
+        </div>
+        <p class="flow-connector">↓ Later, in a fresh session</p>
+        <div class="step flow-card" data-target-id="resume-request">
+          <h3>Resume by change name or PR <span class="tag">Changed</span></h3>
+          <p><code>/continue</code> loads the selected change and finds its saved branch or the PR head.</p>
+          <details><summary>Details</summary><p>For older proposals without a Branch field, a same-named branch remains the fallback.</p></details>
+        </div>
+        <p class="flow-connector">↓ Check the branch</p>
+        <div class="step flow-card" data-target-id="resume-checkout">
+          <h3>Check out and continue <span class="tag">Changed</span><i class="callout">2</i></h3>
+          <p>Confirm the branch exists, check it out, then resume the change's remaining tasks.</p>
+          <details><summary>Details</summary><p>Check available local and remote branches before checkout. A planned change that has not been saved can stay in the current checkout; its first save records the branch.</p></details>
+        </div>
+      </div>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="resume-today-save"><h3>Save with one shared name</h3><p>Branch, OpenSpec folder, and note use the same slug.</p><details><summary>Details</summary><p>The proposal does not record a separate feature branch.</p></details></div>
+        <p class="flow-connector">↓ Later</p>
+        <div class="step flow-card" data-target-id="resume-today-lookup"><h3>Find the same-named branch</h3><p>A differently named branch has no durable link to the change.</p><details><summary>Details</summary><p>A clean worktree no longer shows which change the branch carried.</p></details></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><ol><li>The proposal records the real branch at save time, so committing the files does not erase the change-to-branch link.</li><li>Resume checks the saved branch before checkout. Older same-name changes still work.</li></ol></div>
+</section>

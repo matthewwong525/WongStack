@@ -4,8 +4,8 @@ Conversations hold understanding that no diff can express: why an option was rej
 said the constraint actually is, the dead end that cost an hour. That understanding used to live in
 one machine's scrollback and die there. This directory is where it enters the repo.
 
-**One note per line of work, at `notes/<slug>.md`** — keyed by the same slug as the branch and the
-OpenSpec change, so `notes/add-po-search.md` sits parallel to `openspec/changes/add-po-search/`.
+**One note per line of work, at `notes/<slug>.md`** — keyed by the OpenSpec change name, so
+`notes/add-po-search.md` sits parallel to `openspec/changes/add-po-search/` even when the feature branch has another name.
 A conversation that produced no change still gets a note, named for its topic.
 
 No date in the filename. A note that spans three days shouldn't be stamped with the first one —

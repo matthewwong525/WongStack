@@ -1,10 +1,4 @@
-# apply-plan-handoff Specification
-
-## Purpose
-
-Define how `/apply` resolves or creates the applicable OpenSpec plan before implementation while preserving the existing workflow ownership boundaries.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Apply ensures an applicable plan exists
 
@@ -45,34 +39,3 @@ Define how `/apply` resolves or creates the applicable OpenSpec plan before impl
 - **WHEN** `/apply` has neither clear implementation intent nor an unambiguous applicable change
 - **THEN** it asks the user to identify the work or change
 - **AND** it does not plan or implement an inferred unrelated change
-
-### Requirement: Planning and implementation remain delegated
-
-The shortcut SHALL invoke the existing `/plan` workflow for artifact authoring and the existing OpenSpec apply workflow for implementation. It SHALL pass the planned change name explicitly into the apply workflow so another active change cannot be selected between the two stages.
-
-#### Scenario: Automatic planning completes
-
-- **WHEN** `/apply` invokes `/plan` and the change becomes apply-ready
-- **THEN** `/apply` announces the planned change
-- **AND** it invokes the OpenSpec apply workflow with that exact change name
-
-#### Scenario: Automatic planning pauses
-
-- **WHEN** `/plan` pauses because required intent is unclear or artifact creation is blocked
-- **THEN** `/apply` does not begin implementation
-- **AND** it reports the planning blocker
-
-### Requirement: The shortcut preserves workflow ownership
-
-Automatic planning SHALL NOT move artifact-authoring behavior into `/apply`, move git behavior out of `/save`, or make standalone `/plan` automatically implement its output. A completed implementation SHALL continue to invoke `/save` exactly once under the existing `apply-completion-handoff` contract.
-
-#### Scenario: User invokes plan by itself
-
-- **WHEN** the user invokes `/plan` without asking to apply
-- **THEN** the workflow creates the apply-ready artifacts and stops before implementation
-
-#### Scenario: Auto-planned apply completes all tasks
-
-- **WHEN** `/apply` planned the work automatically and completes every task
-- **THEN** it invokes `/save` exactly once
-- **AND** `/save` remains the owner of branch, commit, push, pull-request, preview, and CI mechanics

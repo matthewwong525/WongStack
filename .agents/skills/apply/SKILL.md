@@ -16,10 +16,11 @@ Before invoking the OpenSpec apply step, resolve the change that represents what
 
 1. An explicit existing change named by the user.
 2. The change created or discussed in this conversation.
-3. An active change whose name matches the current branch.
-4. A sole active change, but **only when the conversation does not establish different new work**.
+3. A unique active change folder touched by local work or the current branch's diff from the default branch. Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active`; it reads Git but changes no Git state. More than one candidate is ambiguous unless steps 1 or 2 selected one.
+4. An active change whose proposal records the current branch on its `**Branch:**` line, or whose name matches the branch under the older naming convention. More than one recorded match is ambiguous.
+5. A sole active change, but **only when the conversation does not establish different new work**.
 
-An argument that is a description rather than an existing change name is implementation intent for a new plan. Never let an unrelated sole `openspec list` entry override work the current conversation has just explored. If several candidates remain and the intent does not resolve one, ask the user; do not guess.
+An argument that is a description rather than an existing change name is implementation intent for a new plan. Never let an unrelated sole `openspec list` entry override work the current conversation has just explored. If several candidates remain and the intent does not resolve one, ask the user; do not guess. A different branch and change name is valid.
 
 For a resolved existing change, run `openspec status --change "<name>" --json` and inspect the schema-defined `applyRequires` artifacts:
 
@@ -36,7 +37,7 @@ When it reaches an **all-tasks-complete** state — including when the selected 
 
 ## Boundaries
 
-- **`/save` still owns all git.** `/apply` does not implement commit, push, branch, PR, preview, or CI mechanics itself; on complete it delegates them to `/save`.
+- **`/save` still owns git changes.** `/apply` may read branch evidence through the helper above, but does not implement commit, push, branch, PR, preview, or CI mechanics itself; on complete it delegates them to `/save`.
 - **Never checkpoint as a way of stopping.** If implementation pauses, is blocked, is interrupted, fails, or simply ends with tasks still pending, do not invoke `/save`. Report the remaining work and remind the user that they can run `/save` explicitly if they want an in-progress checkpoint.
 - **But a task may need the gate, and then `/save` is how you implement it.** When a task's own definition of done requires a passing CI run, a deployed preview, or pushed browser evidence, invoke `/save` to obtain it, read the result, mark the task, and continue with the remaining tasks — `/apply` owns no git and nothing builds locally. This is not a partial checkpoint, and the rule above does not apply to it. A task-driven save that comes back failing or unverifiable leaves the task unchecked and takes the ordinary blocked path: report and stop, with no exit checkpoint on top. Task-driven saves are unbounded; `tasks.md` bounds them. The whole distinction is [exit versus implementation](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task), which the change loop owns.
 - **Live-session entry point.** Use it after `/plan` or `/explore`, or with a clear new implementation request. Resuming a known change cold (a fresh clone, another machine, no scrollback)? Run `/continue <name>` instead — it loads the change, checks out the branch, then hands off here.

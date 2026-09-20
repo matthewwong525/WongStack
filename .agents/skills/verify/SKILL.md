@@ -24,6 +24,8 @@ The full rationale, the engine choice, and the deliberately declined options liv
 
 ## Step 1 — scout first, before spending anything
 
+Select the change whose scenarios this invocation will scout. Use an explicit user or current-session selection first. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active` and use its unique active change; then use a unique proposal `**Branch:**` match or legacy same-name match. If `/ship` called this after archive, use the exact archive path it handed off; otherwise a unique changed archive folder can identify a manual post-archive walk. Ask when several changes remain plausible. Keep the selected OpenSpec path separate from the current branch name.
+
 ```bash
 ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" scout-check

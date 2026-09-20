@@ -9,8 +9,9 @@ context: |
   gate when checks exist, else PR review is; nothing builds locally either way.
 
   Planning runs on OpenSpec: a change is openspec/changes/<name>/ (proposal,
-  specs, design, tasks). Changes live on the default branch (main) so they are
-  visible from any clone; code lives on a feature branch named after the change.
+  specs, design, tasks). An active change is saved with its code on a feature
+  branch; its archive reaches the default branch after merge. The proposal
+  records the actual feature branch. Branch and change names may differ.
   The WongStack skills own all git — OpenSpec never runs git itself.
 
   Editing the payload is a release: bump VERSION (semver) and add a newest-first
