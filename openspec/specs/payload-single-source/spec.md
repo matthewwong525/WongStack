@@ -23,28 +23,6 @@ An owner MAY be quoted in a single short summarizing line (one sentence, naming 
 - **WHEN** a review finds the same rule written in two payload files
 - **THEN** that is a defect to resolve by choosing an owner and replacing the other with a link, whether or not the two statements currently agree
 
-### Requirement: A command that fronts a skill is a pointer to it
-
-Where the payload ships both a command file and a skill that perform the same operation, the **skill** SHALL own the behavior and the command file SHALL contain only its frontmatter plus a single line invoking that skill and directing the agent to follow it verbatim. The command file SHALL NOT contain a second copy of the runbook.
-
-This applies to `.claude/commands/opsx/*.md`, each of which fronts the correspondingly named `.claude/skills/openspec-*` skill. Both remain vendored in the repository; nothing SHALL depend on `openspec init` regenerating either.
-
-#### Scenario: A user invokes the raw command
-
-- **WHEN** a user runs `/opsx:apply`
-- **THEN** the command invokes the `openspec-apply-change` skill and follows it
-- **AND** the resulting behavior is identical to the skill being invoked directly, including the completion handoff to `/save`
-
-#### Scenario: The skill's runbook changes
-
-- **WHEN** an `openspec-*` skill's runbook is edited
-- **THEN** no corresponding edit to the command file is required for the two entry points to stay in agreement
-
-#### Scenario: The vendored layer is not regenerated
-
-- **WHEN** the repository is used without running `openspec init`
-- **THEN** both the command files and the `openspec-*` skills are present and functional from the repository itself
-
 ### Requirement: A skill delegates its long runbooks to references
 
 A `SKILL.md` SHALL state what the skill is, its boundaries, its decision points, and its consequences. A procedure long enough that it displaces those — as a guide, a stage exceeding roughly forty lines — SHALL live in `references/<name>.md` inside the skill directory, with `SKILL.md` retaining the invocation, the verdict or outcome table, and the hard rules.

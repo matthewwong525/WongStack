@@ -16,6 +16,6 @@ Work through it in order:
 
 4. **Update the user-facing surfaces.** Add the skill to the [`README.md`](../../README.md) "What you get" table **and** its "Layout" tree, and to the skills list inside the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../CLAUDE.md) — the block the installer lifts verbatim into a target repo. These are what a reader, and a freshly installed repo, see, so they must name every skill.
 
-5. **Carry attribution for adapted work.** If the skill adapts external, licensed work, keep the required license material with the skill and record a `license:` field and source metadata in the SKILL frontmatter. [`openspec-apply-change`](../../.claude/skills/openspec-apply-change/SKILL.md) is the worked example: its frontmatter names the MIT license and OpenSpec as its source.
+5. **Carry attribution for adapted work.** If the skill adapts external, licensed work, keep the required license material with the skill and record a `license:` field and source metadata in the SKILL frontmatter.
 
 Part of [working on WongStack](README.md).

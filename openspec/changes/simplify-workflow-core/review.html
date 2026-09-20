@@ -1,3 +1,4 @@
+<!-- wong-review:2 -->
 <!doctype html>
 <!--
   WongStack review kit. Shared offline viewer code lives here.
@@ -10,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — CHANGE-NAME</title>
+<title>Review — simplify-workflow-core</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -198,7 +199,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · CHANGE-NAME</b>
+  <b>Review · simplify-workflow-core</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -222,19 +223,18 @@
 <!-- proposal:start -->
 ## Why
 
-Operators find a purchase order by scrolling the whole list. With 400 open orders that is a two-minute hunt ~50 times a day. A search box and a designed empty state turn it into a five-second lookup.
+WongStack and its generated OpenSpec skills define overlapping workflows, which increases agent context and creates conflicting instructions. Review pages are the main human review surface, but their shared code and mechanical checks still require repeated agent work.
 
 ## What Changes
 
-- **A search box above the rows** on the orders list, filtering by reference and supplier as you type. (review.html#/list/search)
-- **An empty state that starts the job**: no matches offers the create action inline instead of announcing absence. (review.html#/list/empty/create)
-- **Receiving takes four steps, not six.** The detail page opens from a row click and carries the one primary action for the order's status. (review.html#/receive-flow/after/new)
-- **The list rule in `openspec/config.yaml`** says a list screen has a search box above the rows. (review.html#/list-rule/added)
-- **Files touched**: one new component, two edited screens, one rule. (review.html#/files)
-- **Keyboard focus lands in the search box** on page load — behaviour only, no visual.
-- **Release ritual:** `VERSION` bump and a newest-first `CHANGELOG.md` entry. (review.html#/list/default/nope)
+- Call OpenSpec's CLI directly from the WongStack verbs, with one short reference for the shared command contract and each verb owning its own decisions. Keep the public commands, CLI validation, records, and delivery behavior. (review.html#/direct-cli/after/contract)
+- **BREAKING:** Stop installing or regenerating the six internal `openspec-*` skills. Retire their visibility patch and target marker; migrate known generated files without deleting local custom work or existing OpenSpec records. (review.html#/retire-layer/migration)
+- Keep `review.html` required for every planned change. Generate it from one shared template, the proposal, and change-specific visual markup; preserve offline viewing, mobile navigation, annotations, and copied feedback. (review.html#/review-assembly/after/builder)
+- Check review structure with code: anchors, states, marks, navigation, shared template integrity, and prohibited resource loads. Keep rendered visual critique for meaning, layout, and usable states. (review.html#/review-checks/checks)
+- Route planning, checkpoint refresh, and pasted review feedback through the same review-generation path. Support existing review pages without bulk regeneration of the archive. (review.html#/shared-refresh/refresh)
+- Shorten the affected skills and owner documents, remove stale generated-layer instructions, and include migration guidance, regression coverage, and a versioned payload release. (review.html#/concise-owners/owners)
 
-**Non-goals:** saved searches, bulk actions, changes to the supplier pages.
+**Non-goals:** Replace OpenSpec, rename public verbs, change the delivery gate or checkpoint policy, make HTML review optional, redesign the review interface, reorganize Cloudflare or browser modules, refactor Cloudflare scripts, trim the starter app, or rewrite historical records.
 <!-- proposal:end -->
 </script>
 
@@ -252,7 +252,70 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   <div class="frame" id="textframe"></div>
 </section>
 
-<!-- review:visuals -->
+<!-- Change visuals: authoring and workflow only; the viewer stays unchanged. -->
+<section class="visual flow" id="direct-cli" data-kind="flow" data-states="after today">
+  <p class="caption">One workflow owner. Each WongStack verb calls the OpenSpec CLI.</p>
+  <div class="frame">
+    <div class="lane today"><span class="label">Today</span><span class="step">WongStack verb</span><span class="arrow"></span><span class="step">Generated skill</span><span class="arrow"></span><span class="step">Wrapper overrides</span><span class="arrow"></span><span class="step">OpenSpec CLI</span></div>
+    <div class="lane after"><span class="label">After</span><span class="step">WongStack verb</span><span class="arrow"></span><span class="step" data-mark="contract">Shared CLI contract <i class="callout">1</i></span><span class="arrow"></span><span class="step">OpenSpec CLI</span><span class="arrow"></span><span class="step">Validated records <i class="callout">2</i></span></div>
+  </div>
+  <div class="notes"><ol><li>The shared reference owns command mechanics. Each verb owns its decisions; it does not load another workflow runbook.</li><li>Keep public commands, custom schemas, selected stores, artifact dependencies, and existing delivery behavior. Spec reconciliation still needs a semantic procedure: there is no CLI sync command.</li></ol></div>
+</section>
+
+<section class="visual tree" id="retire-layer" data-kind="tree">
+  <p class="caption">Retire the generated instruction layer. Preserve records and local work.</p>
+  <div class="frame">
+    <div class="label">Source payload</div>
+    <ul data-mark="migration">
+      <li class="del">Six generated skill directories <i class="callout">1</i><br><span class="why">Remove the known openspec-* layer.</span></li>
+      <li class="del">.openspec-target<br><span class="why">Remove the obsolete marker.</span></li>
+      <li class="del">hide-openspec-skills.sh<br><span class="why">Remove the visibility patch.</span></li>
+      <li class="edit">Setup and update instructions <i class="callout">2</i><br><span class="why">Initialize with --tools none; check the CLI contract after updates.</span></li>
+    </ul>
+    <p><b>Keep:</b> config, schemas, changes, specs, archives, and notes.</p>
+  </div>
+  <div class="notes"><ol><li>For installed targets, remove only content identified as known generated files, allowing the old visibility patch. Names alone do not authorize deletion. Keep modified, unknown, and independently installed skills; report them for a migration decision.</li><li>Stop regeneration at its source so later updates do not restore the retired layer. Preserve symlink layouts and merge only relevant config rules.</li></ol></div>
+</section>
+
+<section class="visual flow" id="review-assembly" data-kind="flow" data-states="after today">
+  <p class="caption">Every plan still has an interactive HTML review. Shared code is assembled once.</p>
+  <div class="frame">
+    <div class="lane today"><span class="label">Today</span><span class="step">Copy full review kit</span><span class="arrow"></span><span class="step">Agent edits examples</span><span class="arrow"></span><span class="step">Separate proposal splice</span></div>
+    <div class="lane after"><span class="label">Inputs</span><span class="step">Shared template</span><span class="step">proposal.md</span><span class="step">review-visuals.html <i class="callout">1</i></span></div>
+    <div class="lane after"><span class="label">After</span><span class="step" data-mark="builder">One builder <i class="callout">2</i></span><span class="arrow"></span><span class="step">Standalone review.html</span><span class="arrow"></span><span class="step">Review and annotate <i class="callout">3</i></span></div>
+  </div>
+  <div class="notes"><ol><li>The agent writes visuals, states, and callouts in the fragment. Why and What Changes come from the proposal; do not maintain them twice.</li><li>Validate inputs before an atomic write. Invalid input keeps the previous page. Equal output produces no file change. Escape embedded proposal text safely.</li><li>Keep offline viewing, mobile navigation, annotation storage, and copied /continue feedback. Bundle the runtime in each output so an archived file stays portable.</li></ol></div>
+</section>
+
+<section class="visual diff-visual" id="review-checks" data-kind="diff">
+  <p class="caption">Automate repeatable checks. Keep visual judgment with the critic.</p>
+  <div class="frame"><div class="diff">
+    <div><div class="label">Today: agent checklist</div><pre><span class="line del">Check anchor targets</span><span class="line del">Check state and mark names</span><span class="line del">Check primary action counts</span><span class="line del">Inspect shared code and loads</span><span class="line">Judge meaning and layout</span></pre></div>
+    <div><div class="label">After: split by evidence</div><pre data-mark="checks"><span class="line add">Code: anchors, states, marks</span><span class="line add">Code: navigation and actions</span><span class="line add">Code: template and load rules <i class="callout">1</i></span><span class="line">Rendered: empty frames, overflow</span><span class="line">Critic: meaning and layout <i class="callout">2</i></span></pre></div>
+  </div></div>
+  <div class="notes"><ol><li>Use the browser DOM for structure and CI fixtures for regressions. Check forbidden author styles and handlers in source or an inert DOM before runtime: the kit itself adds inline styles. Do not add a custom HTML parser or a dependency to target applications. A normal link is not an automatic resource load.</li><li>Retain one critic and one revision round. A structural pass does not prove usable rendering or meaning. Report missing browser checks as unverified. Existing checkpoint and merge policy stays the same.</li></ol></div>
+</section>
+
+<section class="visual flow" id="shared-refresh" data-kind="flow">
+  <p class="caption">Plan, save, and pasted feedback use the same refresh path.</p>
+  <div class="frame">
+    <div class="lane"><span class="label">Entry</span><span class="step">Plan writes visuals</span><span class="step">Save reconciles artifacts</span><span class="step">Continue applies feedback</span></div>
+    <div class="lane"><span class="label">Shared</span><span class="step" data-mark="refresh">One review builder <i class="callout">1</i></span><span class="arrow"></span><span class="step">Select supported format</span></div>
+    <div class="lane"><span class="label">Current</span><span class="step">Template + proposal + fragment</span><span class="arrow"></span><span class="step">Build complete page</span></div>
+    <div class="lane"><span class="label">Legacy</span><span class="step">Supported proposal markers</span><span class="arrow"></span><span class="step">Refresh proposal only <i class="callout">2</i></span></div>
+    <div class="lane"><span class="label">Unknown</span><span class="step">No supported markers or page</span><span class="arrow"></span><span class="step">Report; leave untouched</span></div>
+  </div>
+  <div class="notes"><ol><li>The old sync command becomes a compatibility adapter. A current-format change with a missing input is an error, not a legacy skip.</li><li>Keep legacy visuals and runtime intact. Do not invent visuals or bulk rebuild archived pages. Archive moves the standalone page and its fragment together.</li></ol></div>
+</section>
+
+<section class="visual diff-visual" id="concise-owners" data-kind="diff">
+  <p class="caption">Shorter instructions, explicit ownership, and a versioned migration.</p>
+  <div class="frame"><div class="diff">
+    <div><div class="label">Today</div><pre><span class="line del">Generated runbooks + overrides</span><span class="line del">Payload paths repeated in prose</span><span class="line del">Stale generation instructions</span><span class="line del">Agent repeats structural checks</span></pre></div>
+    <div><div class="label">After</div><pre data-mark="owners"><span class="line add">Verb: workflow decisions</span><span class="line add">CLI reference: shared mechanics</span><span class="line add">Payload JSON: file inventory</span><span class="line add">Builder/checker: repeatable work</span><span class="line add">Owner docs: reusable explanation <i class="callout">1</i></span><span class="line add">Major release: migration notes <i class="callout">2</i></span></pre></div>
+  </div></div>
+  <div class="notes"><ol><li>Measure the same instruction inventory before and after, including new references and removed skills. Require a net reduction and no normal generated-skill handoffs. These are word counts, not measured runtime token savings.</li><li>Cover fresh installs, target migration, CLI behavior, and new/legacy reviews in CI. Release the next major version, expected 16.0.0 from 15.1.0; resolve concurrent version changes at release time. Preserve historical records.</li></ol></div>
+</section>
 
 </div><!-- /stage -->
 </div><!-- /layout -->

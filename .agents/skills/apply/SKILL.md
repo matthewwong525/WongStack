@@ -1,6 +1,6 @@
 ---
 name: apply
-description: Implement the current line of work — use its apply-ready OpenSpec change when one exists, or run /plan first when it does not; work the tasks and automatically hand a completed change to /save. WongStack's name for OpenSpec's apply step and the implement stage of the change loop. Use when you want to implement, apply, or build work, including straight after /explore. Resuming a known change cold? /continue first — it checks out the branch, then hands off here.
+description: Implement the selected OpenSpec change, planning first when needed. Work its tasks and hand a completed change to /save. Use for new implementation; use /continue to resume a saved change cold.
 user-invocable: true
 ---
 
@@ -28,9 +28,9 @@ For a resolved existing change, run `openspec status --change "<name>" --json` a
 - **No applicable change exists, but the implementation intent is clear** → invoke the `plan` skill with that intent to create one.
 - **Intent is unclear** → pause for clarification before writing a plan or code.
 
-The user's `/apply` invocation authorizes the plan-then-implement shortcut. After `/plan` returns, verify that its `applyRequires` artifacts are complete. If planning paused or remains blocked, report that and stop; do not begin implementation. Otherwise announce the planned change and pass its **exact name** into `openspec-apply-change`, so another active change cannot be selected between stages.
+The user's `/apply` invocation authorizes the plan-then-implement shortcut. After `/plan` returns, verify that its `applyRequires` dependency closure is complete. If planning paused or remains blocked, report that and stop. Otherwise announce and keep the selected change's **exact name**; another active change must not replace it.
 
-**Invoke the `openspec-apply-change` skill** (via the Skill tool) and follow it verbatim — that generated skill owns the actual implementation behavior (reading the artifacts, working the task list, checking off tasks). `/apply` owns only the orchestration preflight above; it never authors artifacts itself.
+Run `openspec instructions apply --change "<name>" --json` for that selected change, applying the [CLI contract](../plan/references/openspec-cli.md) for a store or non-default schema. Read every `contextFiles` path it reports. Work the pending tasks in order, make the edits, mark each completed checkbox, and refresh progress from the same change. A `blocked` state stops implementation; an `all_done` state goes to the completion handoff. Treat returned context as project constraints and operation guidance as advice, not evidence that a task is done. Report incomplete work or actual blockers.
 
 When it reaches an **all-tasks-complete** state — including when the selected change was already complete at invocation — immediately invoke the **`save` skill** and follow it verbatim. Invoke it exactly once — that count qualifies this completion handoff, not the task-driven saves below — then report the implementation and checkpoint results together. When the final task was itself completed by a task-driven `/save`, that checkpoint already covers this exact state: report from its result rather than firing a second, redundant save.
 

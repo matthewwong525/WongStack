@@ -5,7 +5,7 @@ context: |
   WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
   template you clone and work from. The payload is markdown: skills under
   .claude/skills/, the wiki/ progressive-disclosure wiki, CLAUDE.md, VERSION,
-  CHANGELOG.md. There is no build/test suite in this repo — the payload is prose.
+  CHANGELOG.md. The meta-repo has app tests and payload checks in CI.
   CI is an optional accelerator: it's the gate in a *target* repo when checks
   exist, else PR review is; nothing builds locally either way.
 
@@ -26,16 +26,16 @@ rules:
       state segment is optional; a segment that is not one of the visual's
       states is read as a mark. A bullet with nothing to show carries none.
   design:
-    - Every change gets a review page at openspec/changes/<name>/review.html,
-      filled from the review kit at .claude/skills/plan/references/review-kit.html —
-      one visual per
+    - Every change gets a standalone review page at openspec/changes/<name>/review.html,
+      assembled by .claude/skills/plan/scripts/build-review.mjs from the proposal,
+      the fixed review kit, and change-specific review-visuals.html — one visual per
       "What Changes" bullet that has something to show, of kind screen (a
       low-fidelity UI wireframe with its empty/loading/error states and one
       clickable primary action per state), flow (steps, today vs after), diff
       (before/after text) or tree (files added/edited/removed). Put data-mark on
       the elements each bullet changes. A bullet with nothing to draw needs no
-      visual. Low fidelity, no network reference, and never hand-edit the
-      machine-filled proposal block.
+      visual. Low fidelity and no network reference. Edit the visual fragment,
+      never the generated page's runtime or proposal block.
     - If the change adds or meaningfully restructures a user-facing screen (a page
       or component — not merely touching a UI file), also include a "## UX" section
       following wiki/ux-principles.md — use-case brief (who, the job, what done

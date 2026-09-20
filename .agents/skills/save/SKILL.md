@@ -139,31 +139,32 @@ If `/plan` already drafted the change and `/apply` has been checking off tasks, 
 
 For an archived handoff these surfaces live under `CHANGE_ROOT`, Status is `ready-to-ship`, and the new Decision-log entry records the delegated archive checkpoint. Do not create or edit a parallel active change.
 
-**Then resync the review page.** `review.html` shows the proposal's Why and What Changes beside the visuals, so it goes stale the moment the plan sections above change. One script puts it right — run it on every route that has a change, active or archived:
+**Then refresh the review page.** The shared builder reads the proposal and the change's visual input. Run it for an active or just-archived handoff:
 
 ```bash
 ROOT="$(git rev-parse --show-toplevel)"
-node "$ROOT/.claude/skills/save/scripts/sync-review-proposal.mjs" "$CHANGE_ROOT"
+node "$ROOT/.claude/skills/plan/scripts/build-review.mjs" "$CHANGE_ROOT"
 ```
 
-It is a text splice between two markers, not a judgment — a change with no `review.html`, or one predating the markers, prints one line and exits 0. It never gates the save. The file is staged with the change folder in Step 5, so the resync rides the same commit.
+Current-format pages regenerate from the shared kit and `review-visuals.html`; unchanged output is not rewritten. A legacy page with proposal markers gets a proposal-only refresh. Missing legacy pages and unsupported markers are reported and left alone. A current-format page with missing or invalid input leaves the old file intact and **must be reported as stale**, even when the checkpoint continues under the existing save policy. Stage the resulting page and its visual input with the change.
 
 ### 4b. Creating the change fresh (the skipped-`/plan` fallback)
 
-Author it **via the same OpenSpec artifact process `/plan` uses** — don't freehand the shape:
+Author it via the [CLI artifact contract](../plan/references/openspec-cli.md) that `/plan` uses:
 
 ```bash
 NAME=$(git rev-parse --abbrev-ref HEAD)
 [ -d "openspec/changes/$NAME" ] || openspec new change "$NAME"
 openspec status --change "$NAME" --json          # artifact build order
-openspec instructions proposal --change "$NAME"  # exact sections + config context
+openspec instructions proposal --change "$NAME" --json
 ```
 
-Then write the artifacts (OpenSpec never runs git; you write the files):
+Complete the schema's required artifact dependencies from CLI instructions; do not stop at a tasks file whose dependencies are missing. Then write the artifacts (OpenSpec never runs git):
 
 - **`proposal.md`** — the plan per the instructions' sections, self-contained, repo-relative paths, led by **what changes and why** — plus the Status/Open-questions header and an initial Decision-log entry (4a).
 - **`tasks.md`** — the `- [ ]` checklist per 4a, with already-done work checked off.
 - **`design.md`** — only when the change warrants it (cross-cutting, new pattern, real trade-offs) — same bar `/plan` applies.
+- **`review-visuals.html` + `review.html`** — required for a new plan. Use the plan skill's fixed kit and builder; a fallback save does not make a new change review-free.
 
 ### 4c. Write the session note
 
@@ -188,10 +189,10 @@ Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug 
 
 ### 4d. Sync delta specs, if any
 
-- **The change carries delta specs** (`openspec/changes/<name>/specs/**`, written because it formally revises a capability's spec) → **invoke the `openspec-sync-specs` skill** (via the Skill tool) for `<name>` to fold them into `openspec/specs/`. This is OpenSpec's `/opsx:sync`.
+- **The change carries delta specs** → follow [the spec-sync reference](references/spec-sync.md). Read concrete delta paths from the selected change's CLI status, reconcile each with its main spec, then validate. The installed CLI has no standalone sync command; no generated skill is needed.
 - **No delta specs** → skip; **most changes have none** — proposal + tasks are the whole plan.
 
-**Archived handoff:** skip 4d. `/ship`'s preceding `openspec-archive-change` invocation already synced delta specs; re-running sync against a missing active change is an error, not a check.
+**Archived handoff:** skip 4d. The CLI archive operation already handled delta specs; re-running sync against a missing active change is an error.
 
 Sanity-check with `openspec list` (it should show the change + task progress). **Only run `openspec validate "$NAME"` when the change carries delta specs** — `validate` errors with "must have at least one delta" for a proposal-only change, which is *expected*, not a failure; don't gate the save on it.
 

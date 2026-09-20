@@ -1,0 +1,28 @@
+name: Payload checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  payload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+        working-directory: app
+      - name: Install supported OpenSpec CLI
+        run: npm install -g @fission-ai/openspec@1.8.0
+      - name: Review assembly and migration fixtures
+        run: node --test scripts/tests/*.test.mjs
+      - name: Release checks
+        run: |
+          node scripts/check-payload-links.mjs
+          node scripts/check-openspec-config.mjs

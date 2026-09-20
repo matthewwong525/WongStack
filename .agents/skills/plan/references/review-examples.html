@@ -1,0 +1,23 @@
+<!-- Examples only. Copy the useful section into a change's review-visuals.html,
+     then replace every id, label, route, and mark with change-specific content. -->
+<section class="visual screen" id="example-screen" data-kind="screen" data-states="default empty">
+  <div class="frame">
+    <div class="topbar"><span class="logo">Example</span></div>
+    <div class="state state-default"><h1>Items</h1><button class="btn primary" data-go="example-flow" data-mark="action">Add item</button></div>
+    <div class="state state-empty"><h1>No items yet</h1><button class="btn primary" data-go="example-flow">Add the first item</button></div>
+  </div>
+  <div class="notes"><ol><li><i class="callout">1</i> The primary action stays visible in either state.</li></ol></div>
+</section>
+<section class="visual flow" id="example-flow" data-kind="flow" data-states="after today">
+  <div class="frame">
+    <div class="lane today"><span class="step">Old step</span></div>
+    <div class="lane after"><span class="step" data-mark="fewer-steps">Shorter step <i class="callout">1</i></span></div>
+  </div>
+  <div class="notes"><ol><li>1. The new path removes a handoff.</li></ol></div>
+</section>
+<section class="visual diff-visual" id="example-diff" data-kind="diff">
+  <div class="frame diff"><div><div class="label">Before</div><pre><span class="line del">old rule</span></pre></div><div><div class="label">After</div><pre data-mark="rule"><span class="line add">new rule</span></pre></div></div>
+</section>
+<section class="visual tree" id="example-tree" data-kind="tree">
+  <div class="frame tree"><ul data-mark="files"><li class="add">new-file.md</li><li class="edit">changed-file.md</li><li class="del">retired-file.md</li></ul></div>
+</section>

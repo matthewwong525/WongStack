@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.0.0 — one workflow and one review builder
+
+- **Breaking for agents that call generated `openspec-*` skills:** WongStack now uses the OpenSpec CLI directly. Its six generated OpenSpec skills and visibility patch leave the source payload. Public `/explore`, `/plan`, `/apply`, `/save`, `/continue`, and `/ship` commands remain.
+- **Every new change keeps a standalone interactive `review.html`.** The plan skill writes `review-visuals.html`; one shared builder combines it with the proposal and fixed viewer. Reviewers still navigate What Changes, annotate the page, and copy feedback for `/continue`. `/save` refreshes the same page. Marked older pages get a proposal-only refresh without changing their visuals.
+- **Fresh targets use `openspec init --tools none`.** Existing targets keep their changes, specs, archives, schemas, notes, and local skill names. On `/wong-sync`, inspect the old layer with `retire-generated-openspec.mjs` and apply only the reviewed known-file removals. Customized or independently installed integrations remain in place and must be resolved before the install record advances.
+- Meta-only CI checks the CLI contract, review assembly and diagnostics, migration safety, payload links, and OpenSpec config. Routine dependency updates check CLI compatibility without regenerating skills.
+
 ## 15.1.0 — a phone review opens on the change list
 
 - **A review page opened on a phone shows What Changes first.** With no fragment, the list opens over the landing stage, no change is selected, and the counter reads the change count. The reviewer taps a change to open it, or taps Next for the first one.
