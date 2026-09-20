@@ -5,7 +5,7 @@ context: |
   WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
   template you clone and work from. The payload is markdown: skills under
   .claude/skills/, the wiki/ progressive-disclosure wiki, CLAUDE.md, VERSION,
-  CHANGELOG.md. This meta-repo has an app/ test suite that CI runs. CI is the
+  CHANGELOG.md. This meta-repo has app and payload checks in CI. CI is the
   gate when checks exist, else PR review is; nothing builds locally either way.
 
   Planning runs on OpenSpec: a change is openspec/changes/<name>/ (proposal,
@@ -25,9 +25,9 @@ rules:
       state segment is optional; a segment that is not one of the visual's
       states is read as a mark. A bullet with nothing to show carries none.
   design:
-    - Every change gets a review page at openspec/changes/<name>/review.html,
-      filled from the review kit at .claude/skills/plan/references/review-kit.html —
-      one visual per
+    - Every change gets a standalone review page at openspec/changes/<name>/review.html,
+      assembled by .claude/skills/plan/scripts/build-review.mjs from the proposal,
+      the fixed review kit, and change-specific review-visuals.html — one visual per
       "What Changes" bullet that has something to show, of kind screen (a
       low-fidelity UI wireframe with its empty/loading/error states and one
       primary action per state when the job calls for one), flow (connected
@@ -40,9 +40,9 @@ rules:
       within one border. Branches name each condition and their common join.
       Use stable data-target-id values for note targets. Check ordinary
       vertical scrolling at phone and desktop widths. Low fidelity, no network
-      reference, and never hand-edit the machine-filled proposal block.
-      New kit behavior applies only to newly created review pages; do not
-      rewrite existing active or archived review files.
+      reference. Edit only review-visuals.html; never hand-edit the generated
+      page's runtime or proposal block. New kit behavior applies to pages
+      generated from the current kit. Do not rewrite historical archives.
     - If the change adds or meaningfully restructures a user-facing screen (a page
       or component — not merely touching a UI file), also include a "## UX" section
       following wiki/ux-principles.md — use-case brief (who, the job, what done

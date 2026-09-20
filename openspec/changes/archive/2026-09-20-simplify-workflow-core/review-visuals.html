@@ -1,0 +1,85 @@
+<!-- Change visuals: authoring and workflow only; the viewer stays unchanged. -->
+<section class="visual flow" id="direct-cli" data-kind="flow" data-states="after today">
+  <p class="caption">One workflow owner. Each WongStack verb calls the OpenSpec CLI.</p>
+  <div class="frame">
+    <div class="state state-after"><div class="flow-sequence">
+      <div class="flow-card" data-target-id="cli-verb"><h3>WongStack verb <span class="tag">Kept</span></h3><p>Owns the workflow decision and selects one change.</p><details><summary>Details</summary><p>Public commands and their delivery behavior remain available.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="flow-card" data-target-id="cli-contract" data-mark="contract"><h3>Shared CLI contract <span class="tag">New</span> <i class="callout">1</i></h3><p>Resolves the planning root, schema paths, and artifact dependencies.</p><details><summary>Details</summary><p>One short reference replaces repeated generated runbooks.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="flow-card" data-target-id="cli-records"><h3>OpenSpec CLI <span class="tag">Kept</span> <i class="callout">2</i></h3><p>Validates and archives the existing records.</p><details><summary>Details</summary><p>Selected stores, custom schemas, and semantic spec reconciliation remain supported.</p></details></div>
+    </div></div>
+    <div class="state state-today"><div class="flow-sequence">
+      <div class="flow-card"><h3>WongStack verb</h3><p>Starts the work.</p></div><p class="flow-connector">↓</p>
+      <div class="flow-card"><h3>Generated skill</h3><p>Loads another workflow runbook.</p></div><p class="flow-connector">↓</p>
+      <div class="flow-card"><h3>Wrapper overrides</h3><p>Repeats and sometimes conflicts with the runbook.</p></div><p class="flow-connector">↓</p>
+      <div class="flow-card"><h3>OpenSpec CLI</h3><p>Maintains the plan.</p></div>
+    </div></div>
+  </div>
+  <div class="notes"><ol><li>The shared reference owns command mechanics. Each verb owns its decisions; it does not load another workflow runbook.</li><li>Keep public commands, custom schemas, selected stores, artifact dependencies, and existing delivery behavior. Spec reconciliation still needs a semantic procedure: there is no CLI sync command.</li></ol></div>
+</section>
+
+<section class="visual tree" id="retire-layer" data-kind="tree">
+  <p class="caption">Retire the generated instruction layer. Preserve records and local work.</p>
+  <div class="frame">
+    <div class="label">Source payload</div>
+    <ul data-mark="migration">
+      <li class="del">Six generated skill directories <i class="callout">1</i><br><span class="why">Remove the known openspec-* layer.</span></li>
+      <li class="del">.openspec-target<br><span class="why">Remove the obsolete marker.</span></li>
+      <li class="del">hide-openspec-skills.sh<br><span class="why">Remove the visibility patch.</span></li>
+      <li class="edit">Setup and update instructions <i class="callout">2</i><br><span class="why">Initialize with --tools none; check the CLI contract after updates.</span></li>
+    </ul>
+    <p><b>Keep:</b> config, schemas, changes, specs, archives, and notes.</p>
+  </div>
+  <div class="notes"><ol><li>For installed targets, remove only content identified as known generated files, allowing the old visibility patch. Names alone do not authorize deletion. Keep modified, unknown, and independently installed skills; report them for a migration decision.</li><li>Stop regeneration at its source so later updates do not restore the retired layer. Preserve symlink layouts and merge only relevant config rules.</li></ol></div>
+</section>
+
+<section class="visual flow" id="review-assembly" data-kind="flow" data-states="after today">
+  <p class="caption">Every plan still has an interactive HTML review. Shared code is assembled once.</p>
+  <div class="frame">
+    <div class="state state-after"><div class="flow-sequence">
+      <div class="flow-card" data-target-id="review-inputs"><h3>Three owned inputs <span class="tag">New</span> <i class="callout">1</i></h3><p>Shared kit, proposal.md, and review-visuals.html.</p><details><summary>Details</summary><p>The fragment holds visuals only. Why and What Changes come from the proposal.</p></details></div><p class="flow-connector">↓</p>
+      <div class="flow-card" data-target-id="review-builder" data-mark="builder"><h3>One builder <span class="tag">New</span> <i class="callout">2</i></h3><p>Checks the inputs, then writes only when the output changes.</p><details><summary>Details</summary><p>Invalid input keeps the last page. Embedded proposal text is escaped.</p></details></div><p class="flow-connector">↓</p>
+      <div class="flow-card" data-target-id="review-output"><h3>Standalone review.html <span class="tag">Kept</span> <i class="callout">3</i></h3><p>Review the full item text, visual, and saved or draft notes offline.</p><details><summary>Details</summary><p>The embedded viewer uses the focused reading and draft controls from version 15.2.</p></details></div>
+    </div></div>
+    <div class="state state-today"><div class="flow-sequence">
+      <div class="flow-card"><h3>Copy the full kit</h3><p>Start each page from the example viewer.</p></div><p class="flow-connector">↓</p>
+      <div class="flow-card"><h3>Edit example visuals</h3><p>Mix shared shell and change-specific content.</p></div><p class="flow-connector">↓</p>
+      <div class="flow-card"><h3>Splice proposal separately</h3><p>Maintain a second refresh path.</p></div>
+    </div></div>
+  </div>
+  <div class="notes"><ol><li>The agent writes visuals, states, and callouts in the fragment. Why and What Changes come from the proposal; do not maintain them twice.</li><li>Validate inputs before an atomic write. Invalid input keeps the previous page. Equal output produces no file change. Escape embedded proposal text safely.</li><li>Keep offline viewing, focused reading, mobile navigation, draft and saved-note storage, and copied /continue feedback. Bundle the runtime in each output so an archived file stays portable.</li></ol></div>
+</section>
+
+<section class="visual diff-visual" id="review-checks" data-kind="diff">
+  <p class="caption">Automate repeatable checks. Keep visual judgment with the critic.</p>
+  <div class="frame"><div class="diff">
+    <div><div class="label">Today: agent checklist</div><pre><span class="line del">Check anchor targets</span><span class="line del">Check state and mark names</span><span class="line del">Check primary action counts</span><span class="line del">Inspect shared code and loads</span><span class="line">Judge meaning and layout</span></pre></div>
+    <div><div class="label">After: split by evidence</div><pre data-mark="checks"><span class="line add">Code: anchors, states, marks</span><span class="line add">Code: navigation and actions</span><span class="line add">Code: template and load rules <i class="callout">1</i></span><span class="line">Rendered: empty frames, overflow</span><span class="line">Critic: meaning and layout <i class="callout">2</i></span></pre></div>
+  </div></div>
+  <div class="notes"><ol><li>Use the browser DOM for structure and CI fixtures for regressions. Check forbidden author styles and handlers in source or an inert DOM before runtime: the kit itself adds inline styles. Do not add a custom HTML parser or a dependency to target applications. A normal link is not an automatic resource load.</li><li>Retain one critic and one revision round. A structural pass does not prove usable rendering or meaning. Report missing browser checks as unverified. Existing checkpoint and merge policy stays the same.</li></ol></div>
+</section>
+
+<section class="visual flow" id="shared-refresh" data-kind="flow">
+  <p class="caption">Plan, save, and pasted feedback use the same refresh path.</p>
+  <div class="frame"><div class="flow-sequence">
+    <div class="flow-card" data-target-id="refresh-entry"><h3>Plan, save, or continue <span class="tag">Entry</span></h3><p>Write visuals, reconcile artifacts, or apply review feedback.</p><details><summary>Details</summary><p>Each public verb keeps its own workflow decisions.</p></details></div><p class="flow-connector">↓</p>
+    <div class="flow-card" data-target-id="refresh-builder" data-mark="refresh"><h3>One review builder <span class="tag">Shared</span> <i class="callout">1</i></h3><p>Select the supported format and refresh the page.</p><details><summary>Details</summary><p>Current-format pages use the kit, proposal, and fragment. Legacy marked pages receive a proposal-only splice.</p></details></div><p class="flow-connector">↓ Format path</p>
+    <div class="flow-branches">
+      <div class="flow-branch" data-target-id="refresh-current"><h3>Current format</h3><p>Build the complete standalone page.</p></div>
+      <div class="flow-branch" data-target-id="refresh-legacy"><h3>Legacy markers <i class="callout">2</i></h3><p>Refresh proposal only, preserving older visuals.</p></div>
+      <div class="flow-branch" data-target-id="refresh-unknown"><h3>Unknown format</h3><p>Report the limit and leave the page untouched.</p></div>
+    </div><p class="flow-connector">↓ Paths rejoin at the checkpoint report</p>
+    <div class="flow-card"><h3>Report the result</h3><p>Name any stale or unsupported review clearly.</p></div>
+  </div></div>
+  <div class="notes"><ol><li>The old sync command becomes a compatibility adapter. A current-format change with a missing input is an error, not a legacy skip.</li><li>Keep legacy visuals and runtime intact. Do not invent visuals or bulk rebuild archived pages. Archive moves the standalone page and its fragment together.</li></ol></div>
+</section>
+
+<section class="visual diff-visual" id="concise-owners" data-kind="diff">
+  <p class="caption">Shorter instructions, explicit ownership, and a versioned migration.</p>
+  <div class="frame"><div class="diff">
+    <div><div class="label">Today</div><pre><span class="line del">Generated runbooks + overrides</span><span class="line del">Payload paths repeated in prose</span><span class="line del">Stale generation instructions</span><span class="line del">Agent repeats structural checks</span></pre></div>
+    <div><div class="label">After</div><pre data-mark="owners"><span class="line add">Verb: workflow decisions</span><span class="line add">CLI reference: shared mechanics</span><span class="line add">Payload JSON: file inventory</span><span class="line add">Builder/checker: repeatable work</span><span class="line add">Owner docs: reusable explanation <i class="callout">1</i></span><span class="line add">Major release: migration notes <i class="callout">2</i></span></pre></div>
+  </div></div>
+  <div class="notes"><ol><li>Measure the same instruction inventory before and after, including new references and removed skills. Require a net reduction and no normal generated-skill handoffs. These are word counts, not measured runtime token savings.</li><li>Cover fresh installs, target migration, CLI behavior, and new/legacy reviews in CI. Release the next major version, 16.0.0 from the merged 15.2.0 baseline; resolve concurrent version changes at release time. Preserve historical records.</li></ol></div>
+</section>

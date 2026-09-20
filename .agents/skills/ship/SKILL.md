@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Ship the current branch — archive the OpenSpec change, delegate the one commit/push/PR/CI checkpoint to /save, walk the deployed preview for evidence, squash-merge and delete the remote branch worktree-safely, then fast-forward the durable checkout's default branch to the merge. When there is nothing to ship yet it first pulls in /apply — and through it /plan and /explore's question round — so one invocation carries a task from idea to merge, whether you gave it an intent or it is continuing what this session established. Finishes an unfinished change rather than archiving it. Never merges as a way of stopping. Does NOT build or test locally: CI is the gate when present, else PR review. Use when you want work shipped, merged, and archived.
+description: Ship a completed change through archive, /save checkpoint, CI or PR review, preview evidence, and squash merge. If the change is unfinished, invoke /apply first; /apply can invoke /plan and /explore. Use when you want work shipped, merged, and archived.
 user-invocable: true
 ---
 
@@ -55,7 +55,7 @@ The change is named like the current branch. Require `openspec/changes/$BRANCH/`
 
 An incomplete change is never archived. The archive step itself warns and **asks you to confirm** — a question this runbook's standing authorization would otherwise answer on your behalf, which is how a change at 7 of 20 tasks used to reach a squash-merge with nobody deciding to. The guard removes the condition rather than the question. If `/apply` ends with tasks still pending, report that work and stop here — the [never merge as a way of stopping](#hard-rules) rule, at the second place it applies.
 
-**Invoke the `openspec-archive-change` skill** (via the Skill tool) for `$BRANCH`. That skill is OpenSpec's `/opsx:archive`: it moves `openspec/changes/<name>/` → `openspec/changes/archive/YYYY-MM-DD-<name>/`, syncing any un-synced delta specs into `openspec/specs/` first. Capture the exact archive path it reports and verify exactly one `openspec/changes/archive/*-$BRANCH/` exists. Do **not** commit the move here.
+Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$BRANCH" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$BRANCH" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$BRANCH" --json` for any applicable context. Run `openspec archive "$BRANCH" --yes` only after the task check and validation. If the deltas were already synced by `/save` and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$BRANCH/` exists. Do **not** commit the move here.
 
 ## Step 3 — delegate the checkpoint to /save
 

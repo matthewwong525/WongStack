@@ -66,28 +66,28 @@ Worker-only or UI-less changes skip the section entirely, and draw no screen —
 
 ### The review file
 
-The picture lives beside the section, at `openspec/changes/<name>/review.html` — one page per change, filled from [the plan skill's kit](../.claude/skills/plan/references/review-kit.html), which owns the chrome, the panel, the primitives, and the routing. **The proposal's What Changes list is the navigation:** a reviewer clicks a change and the stage shows a picture of that change, so the argument and the evidence are never more than one click apart.
+The picture lives beside the section, at `openspec/changes/<name>/review.html` — one page per change, built from [the plan skill's kit](../.claude/skills/plan/references/review-kit.html), `proposal.md`, and the change's `review-visuals.html`. The kit owns the chrome, panel, primitives, and routing; the [visual author guide](../.claude/skills/plan/references/review-author.md) owns the fragment format. **The proposal's What Changes list is the navigation:** a reviewer clicks a change and the stage shows a picture of that change, so the argument and the evidence are never more than one click apart.
 
 Four kinds of visual, and a change uses whichever fits each bullet:
 
 | Kind | Shows |
 |---|---|
 | `screen` | a UI screen at low fidelity, with the empty, loading, and error states the flow names |
-| `flow` | a sequence of steps, as a today lane and an after lane |
+| `flow` | connected step cards, with today and after states or labeled paths that split and rejoin |
 | `diff` | before-and-after text — a rule, a config value, a template, prose |
 | `tree` | files added, edited, removed |
 
 What a `screen` must hold is what the rest of this page argues for:
 
 - **Every screen in the flow**, each with the empty, loading, and error states the flow names. A state a reviewer cannot reach is a state nobody designed.
-- **One primary action visible at a time**, clickable through to the next screen, so the flow can be walked rather than read. Count per state: a header button that shows in every state plus an inline button in the empty state is two.
+- **One primary action visible at a time**, with local controls that show the next state of the selected item. Count per state: a header button that shows in every state plus an inline button in the empty state is two.
 - **A phone layout when the brief says phone** — see [context of use](#part-1--start-from-the-use-case) above.
 - **A numbered callout per layout choice** that matters, with its reasoning in the notes block beside it — the page has to stand alone for a reader who never opens design.md.
 - **Low fidelity, enforced by the kit**: grey boxes, no brand, no design tokens, no product typography. It is an argument about the change, not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
 - **No network reference of any kind**, so it opens from a clone with no server and still renders years later out of the change's archive folder.
 
-**What an author does:** write the visuals, put `data-mark` on the elements each bullet changes, and anchor each What Changes bullet with `(review.html#/<visual>[/<state>][/<mark>])`. A mark must never share a name with one of that visual's states. **What the tooling does:** `/plan` draws the page and appends those anchors; `/save` keeps the page's Why and What Changes equal to `proposal.md`; the page itself renders the panel, highlights a bullet's marks, and carries the annotate layer.
+**What an author does:** write one visual per pictured What Changes bullet in `review-visuals.html`, put `data-mark` on changed elements, give note targets stable `data-target-id` values, and anchor each bullet with `(review.html#/<visual>[/<state>][/<mark>])`. A mark must never share a name with one of that visual's states. The viewer shows the selected bullet's full text above its visual; draw no second change list inside it. **What the tooling does:** `/plan` builds the page from the fragment and proposal; `/save` refreshes it from the same inputs. The page renders the panel, highlights a bullet's marks, and carries the annotate layer.
 
-**A reviewer annotates in place.** Turn on Annotate, click anything on a visual or in the list, type what should change. Notes become numbered pins and stay in the browser, never in a repo file. **Copy notes** puts them on the clipboard as a `/continue <change>` command — paste it back and the notes are folded into the change before any task resumes.
+**A reviewer annotates in place.** Turn on Annotate and click a target inside the selected visual. The outer change list stays navigation. Unfinished text remains a draft on its original target; Save makes it feedback, and Copy notes includes saved feedback only. Notes and drafts stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
 
 Tasks cite what they build (`review.html#/list/empty`), so the picture and the brief are both in hand at implementation time.

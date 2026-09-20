@@ -8,28 +8,24 @@ How the WongStack meta-repo keeps its own tools, generated layers, and app depen
 
 ### Requirement: An on-demand verb brings this repo's dependencies to latest
 
-The repository SHALL provide a skill at `.claude/skills/update-dependencies/`, invoked as `/update-dependencies`, that performs one complete update pass over this repo's toolchain and dependencies. It SHALL run only when a user invokes it. It SHALL NOT install itself on a schedule, register a cron entry, or arrange any recurring execution.
+The repo SHALL provide the meta-only update-dependencies skill for a complete on-demand toolchain and dependency update. It SHALL not schedule itself. The pass SHALL survey the OpenSpec CLI, browser CLI, gh, git, node, and app dependencies; update the machine tools; check the direct OpenSpec CLI contract; update app dependencies including majors with their migration notes; and hand the result to the ordinary checkpoint. It SHALL not regenerate OpenSpec agent skills or apply a visibility patch.
 
-The pass SHALL cover, in order:
-
-1. **Survey** — report installed version against latest available for: the OpenSpec CLI, the browser automation CLI `/verify` drives, `gh`, `git`, `node`, every dependency in `app/package.json`, and the generated `openspec-*` skill layer.
-2. **Machine** — update the machine's tools to latest and report each as `old → new`.
-3. **Regen** — regenerate the OpenSpec-generated layer, then check what rippled.
-4. **Deps** — bump `app/` to latest, majors included, reading each major's changelog and fixing what breaks.
-5. **Hand off** — hand the diff to `/save` and let the gate decide.
-
-A stage with nothing to do SHALL be reported as up to date rather than silently omitted, so the run's output is a complete picture of currency whether or not anything changed.
+A stage with nothing to do SHALL be reported as current. The existing major-update policy and CI delivery gate SHALL remain unchanged.
 
 #### Scenario: A run with nothing out of date
 
-- **WHEN** `/update-dependencies` runs and every surveyed tool and dependency is already at latest
-- **THEN** it reports each one as current
-- **AND** it changes no file and does not invoke `/save`
+- **WHEN** every surveyed tool and dependency is current
+- **THEN** the skill reports them as current, changes no file, and does not invoke save
 
 #### Scenario: The user asks for a scheduled run
 
-- **WHEN** a user asks for this verb to run automatically on an interval
-- **THEN** the skill states that scheduling is not part of it and the verb is invoked on demand
+- **WHEN** a user asks for automatic updates on an interval
+- **THEN** the skill states that it is an on-demand operation
+
+#### Scenario: The CLI is upgraded
+
+- **WHEN** an update installs a newer OpenSpec CLI
+- **THEN** the direct CLI contract is checked without generating an agent workflow layer
 
 ### Requirement: Updates go to latest, including majors, with CI as the only gate
 
@@ -60,26 +56,6 @@ The skill SHALL state plainly that CI coverage is the real ceiling on what break
 - **THEN** it names CI's coverage as the limit of what was verified
 - **AND** it does not claim the majors are proven safe
 
-### Requirement: Regeneration is followed by a ripple check that flags a release
-
-After regenerating the OpenSpec-generated layer, the skill SHALL check what the regeneration changed beyond the generated files themselves: the number and names of generated skills and commands, the entries in the payload manifest, and any payload page that cites those names or counts.
-
-When the run changes any payload file, the skill SHALL flag that the run **is a release** and SHALL carry out the release rules that apply to it — a `VERSION` bump, a newest-first `CHANGELOG.md` entry, and the payload link check — rather than leaving the payload edited without them.
-
-When the run changes no payload file, the skill SHALL say so explicitly, so the absence of a version bump is a stated conclusion rather than an oversight.
-
-#### Scenario: A CLI upgrade adds a generated skill
-
-- **WHEN** regeneration produces a generated skill or command that did not exist before
-- **THEN** the skill reports the new name
-- **AND** it checks the payload manifest and every payload page that lists those names or counts
-- **AND** it flags the run as a release and performs the release steps
-
-#### Scenario: A regeneration changes only generated files
-
-- **WHEN** regeneration rewrites generated files but no payload file changes
-- **THEN** the skill states that the run is not a release and that no `VERSION` bump is due
-
 ### Requirement: The verb is scoped to this repo and stays out of the payload
 
 The skill SHALL be **meta-repo-only**. It SHALL NOT appear in the payload manifest, so `/wong-sync` — which copies only manifest files — SHALL never deliver it to a target repo. Its own text SHALL state this scope and the mechanism that enforces it, so a later reader does not "fix" the missing manifest entry.
@@ -104,3 +80,17 @@ The skill SHALL be free to reference payload doctrine that other files own — t
 
 - **WHEN** someone reads the skill and looks for its manifest entry
 - **THEN** the skill's own text explains that the omission is deliberate and is what scopes the verb to this repo
+
+### Requirement: CLI updates check compatibility and report payload releases
+
+After a CLI update, the skill SHALL inspect whether the commands, output fields, and schema behavior used by WongStack still satisfy the direct CLI contract. Any required payload changes SHALL follow the ordinary release rules, including version, changelog, and release checks. If no payload file changes, the skill SHALL explicitly report that no payload release is needed. The check SHALL not create a new local test gate.
+
+#### Scenario: A CLI contract changes
+
+- **WHEN** a CLI update changes an output field required by the workflow
+- **THEN** the payload integration is adapted, the change is reported as a release, and validation follows the ordinary CI path
+
+#### Scenario: The CLI remains compatible
+
+- **WHEN** the CLI changes but its required contract remains compatible and no payload file changes
+- **THEN** the skill reports that no payload version bump is due

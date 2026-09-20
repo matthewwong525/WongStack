@@ -8,4 +8,4 @@ Route each fact to its one surface. Why *this change* is shaped this way goes in
 
 OpenSpec never runs git. The WongStack skills (`/save`, `/continue`, `/ship`) own every git action; keep git out of change artifacts and out of OpenSpec steps.
 
-Drive OpenSpec through the WongStack verbs. `openspec init` generates `openspec-*` skills, which the verbs invoke — it generates no `/opsx:*` slash commands, so don't reach for one.
+Drive OpenSpec through the WongStack verbs, which use the CLI and its reported paths directly. Read the [shared CLI contract](../skills/plan/references/openspec-cli.md) for schema and store handling. Setup uses `openspec init --tools none`; no generated `openspec-*` layer is part of this workflow.

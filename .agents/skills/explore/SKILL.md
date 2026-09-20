@@ -1,6 +1,6 @@
 ---
 name: explore
-description: Think through an idea, problem, or requirement — a thinking partner that clarifies scope and surfaces options without writing code or specs. Asks small groups of related multiple-choice questions with recommendations throughout standalone exploration. Direct planning or later entry gets at most one clarification round, then recorded assumptions. Always runs before /plan, which invokes it for you when you skip it. WongStack's name for OpenSpec's /opsx:explore. Use when you want to explore, investigate, or clarify before proposing a change.
+description: Investigate an idea or problem before planning. Read the repo, weigh options, and clarify material choices without writing files. Use before /plan or when the user wants to think through a change.
 user-invocable: true
 ---
 
@@ -71,6 +71,6 @@ Write no file and create no OpenSpec artifact. The summary is the return signal.
 
 When the work is a process that will run more than once, weigh a deterministic script against a step that calls a model every run. Code is fast, costs nothing to run again, and gives the same answer twice; keep AI for the parts that need judgment. Raise the fork here, while the scope is still open — [the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai) own the rule.
 
-**Invoke the `openspec-explore` skill** through the host's skill mechanism. It owns OpenSpec's thinking-partner stance. This wrapper owns question presentation, pacing, the exit round, and bounded mode; apply these rules where its conversational question examples differ. Keep the generated skill unchanged.
+Use `openspec list --json` and `openspec context --json` for relevant existing work, following the shared [CLI contract](../plan/references/openspec-cli.md) when a registered store is selected. Read relevant artifacts and repo files, compare real options, and write nothing. This skill owns exploration; no generated workflow skill is invoked.
 
 When the shape of the work is clear, run the exit round, then move on to [`/plan`](../plan/SKILL.md) to review the artifacts first, or straight to [`/apply`](../apply/SKILL.md), which invokes `/plan` for you. One invocation of [`/ship`](../ship/SKILL.md) with an intent runs the whole chain from here to the merge.

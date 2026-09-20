@@ -1,0 +1,133 @@
+<!-- ══ EXAMPLE VISUAL 1 · kind=screen — replace with your own ══════════
+     The pattern to copy: a list that is searched, with all four states, one
+     primary action per state, and a phone layout beside the desktop one. -->
+<section class="visual screen" id="list" data-kind="screen" data-title="Orders" data-states="default empty create loading error" data-state="default">
+  <div class="frame">
+    <div class="topbar">
+      <div class="logo"></div>
+      <div class="nav desktop-only"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div>
+      <span class="phone-only">☰</span>
+    </div>
+    <div class="body">
+      <div class="row between">
+        <h1>Purchase orders</h1>
+        <span class="btn">+ New order <i class="callout">1</i></span>
+      </div>
+      <div class="row">
+        <span class="input" data-mark="search">Search orders… <i class="callout">2</i></span>
+        <span class="btn">Status: Any ▾</span>
+      </div>
+      <div class="state state-default">
+        <table>
+          <thead><tr><th>Ref</th><th class="desktop-only">Supplier</th><th>Lines</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>PO-003<span class="phone-only muted"><br>Third supplier</span></td><td class="desktop-only">Third supplier</td><td>3 lines · 40 units</td><td><span class="tag">Open</span></td></tr>
+            <tr><td>PO-002</td><td>Second supplier</td><td>8 lines · 120 units</td><td><span class="tag">Open</span></td></tr>
+            <tr><td>PO-001</td><td>First supplier</td><td>1 line · 5 units</td><td><span class="tag">Received</span></td></tr>
+          </tbody>
+        </table>
+        <p class="muted">Showing 3 of 3 · <a href="#/list/empty/create">See empty state</a></p>
+      </div>
+      <div class="state state-empty">
+        <div class="box" data-mark="create">
+          <p><b>No orders match.</b></p>
+          <p class="muted">Search for something else, or clear the status filter.</p>
+          <span class="btn primary" data-local-state="create">+ New order <i class="callout">3</i></span>
+        </div>
+      </div>
+      <div class="state state-create"><h2>New order</h2><p>Enter the order details.</p><span class="btn primary" data-local-state="default">Save order</span></div>
+      <div class="state state-loading">
+        <div class="skeleton"></div><div class="skeleton s"></div><div class="skeleton"></div><div class="skeleton s"></div>
+      </div>
+      <div class="state state-error">
+        <div class="box"><p><b>Could not load orders.</b></p><p class="muted">The server did not answer. Your search and filter are kept.</p><span class="btn">Retry</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> an operator finding one order to receive it. <b>Done:</b> the order's detail is open. <b>Frequency:</b> ~50×/day.</p>
+    <ol>
+      <li>Secondary, not primary: this screen's job is finding an order, so creating one is the smaller action.</li>
+      <li>Search is the job, so it sits above the rows rather than behind a menu.</li>
+      <li>The empty state starts the job instead of announcing absence, so here the create action is the one filled button.</li>
+      <li>On a phone the supplier folds under the reference and the nav becomes a menu; the job is the same, so the primary action does not move. (Toggle View: Phone.)</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ EXAMPLE VISUAL 2 · kind=screen — another change's own view. -->
+<section class="visual screen" id="detail" data-kind="screen" data-title="Order" data-states="default loading" data-state="default">
+  <div class="frame">
+    <div class="topbar"><div class="logo"></div><div class="nav"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div></div>
+    <div class="body">
+      <p class="muted">Order detail</p>
+      <div class="state state-default">
+        <div class="row between">
+          <h1>PO-003 · Third supplier <span class="tag">Open</span></h1>
+          <span class="btn primary" data-mark="finish" data-local-state="loading">Receive order <i class="callout">1</i></span>
+        </div>
+        <dl class="kv"><dt>Supplier</dt><dd>Third supplier</dd><dt>Expected</dt><dd>Next Tuesday</dd></dl>
+        <div class="hero"></div>
+      </div>
+      <div class="state state-loading"><div class="skeleton s"></div><div class="skeleton"></div></div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> the same operator, receiving the order they found.</p>
+    <ol><li>The primary action follows the order's status, so there is never more than one filled button.</li></ol>
+  </div>
+</section>
+
+<!-- ══ EXAMPLE VISUAL 3 · kind=flow — connected cards and a branch.
+     Note data-states="after today branches": "after" opens first. -->
+<section class="visual flow" id="receive-flow" data-kind="flow" data-states="after today branches">
+  <p class="caption">Receiving an order — the steps an operator takes, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="flow-search" data-mark="new"><h3>Find the order <span class="tag">Changed</span></h3><p>Search by reference or supplier.</p><details><summary>Details</summary><p>Actor: operator. Action: search the list. Result: the matching order appears.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="flow-receive" data-mark="new"><h3>Receive the order <span class="tag">Changed</span></h3><p>Open it and use its primary action.</p><details><summary>Details</summary><p>Actor: operator. Action: receive. Result: status updates.</p></details></div>
+    </div><p><a href="#/receive-flow/branches">See a branch example</a></p></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card"><h3>Find the order</h3><p>Scroll the full list until the order appears.</p><details><summary>Details</summary><p>Actor: operator. Action: scroll. Result: the order may be found.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card"><h3>Receive</h3><p>Open the actions menu, then choose Receive.</p><details><summary>Details</summary><p>Actor: operator. Action: open menu. Result: receive starts.</p></details></div>
+    </div></div>
+    <div class="state state-branches"><h2>Example: a decision with three paths</h2>
+      <div class="step flow-card">Start: open order</div><p class="flow-connector">↓</p>
+      <div class="step flow-card">Decision: what is its status?</div><p class="flow-connector">↓ Choose one path</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="branch-open"><h3>If open</h3><p>Receive the order.</p><details><summary>Details</summary><p>Actor: operator. Action: receive. Result: status updates.</p></details></div>
+        <div class="flow-branch" data-target-id="branch-pending"><h3>If pending</h3><p>Check the expected date.</p><details><summary>Details</summary><p>Actor: operator. Action: check. Result: date is known.</p></details></div>
+        <div class="flow-branch" data-target-id="branch-done"><h3>If received</h3><p>Review the receipt.</p><details><summary>Details</summary><p>Actor: operator. Action: review. Result: receipt is known.</p></details></div>
+      </div><p class="flow-connector">↓ All paths rejoin here</p><div class="step flow-card">Finish: return to the order list</div>
+    </div>
+  </div>
+  <div class="notes"><ol><li>Each step keeps its summary and Details in one box. Branches name their conditions and meet at one outcome.</li></ol></div>
+</section>
+
+<!-- ══ EXAMPLE VISUAL 4 · kind=diff — before and after text. Marks go on
+     the added lines, so the bullet lights exactly what arrives. -->
+<section class="visual diff-visual" id="list-rule" data-kind="diff">
+  <p class="caption"><code>openspec/config.yaml</code> — the design rule for list screens.</p>
+  <div class="frame">
+    <div class="diff">
+      <div><div class="label">Before</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line del">    a filter menu.</span></pre></div>
+      <div><div class="label">After</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line add" data-mark="added">    a search box above them; filters</span><span class="line add" data-mark="added">    stay in a menu.</span></pre></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ EXAMPLE VISUAL 5 · kind=tree — what the change adds, edits and removes. -->
+<section class="visual tree" id="files" data-kind="tree">
+  <p class="caption">Files this change adds, edits, and removes.</p>
+  <div class="frame">
+    <ul>
+      <li class="add">app/src/components/SearchBox.tsx <span class="why">new — mirrors the supplier search</span></li>
+      <li class="edit">app/src/pages/Orders.tsx <span class="why">search above rows, empty state</span></li>
+      <li class="edit">app/src/pages/Order.tsx <span class="why">one primary action</span></li>
+      <li class="edit">openspec/config.yaml <span class="why">list rule</span></li>
+      <li class="del">app/src/components/FilterMenu.tsx <span class="why">folded into the status chip</span></li>
+    </ul>
+  </div>
+</section>

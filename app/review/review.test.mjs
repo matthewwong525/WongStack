@@ -1,14 +1,15 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
+import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
-const kit = readFileSync(join(root, '.agents/skills/plan/references/review-kit.html'), 'utf8');
+const examples = readFileSync(join(root, '.agents/skills/plan/references/review-examples.html'), 'utf8');
 const sync = join(root, '.agents/skills/save/scripts/sync-review-proposal.mjs');
 const files = [];
 let browser;
@@ -29,15 +30,14 @@ Reviewers need to read one complete change at a time.
 `;
 
 function fixture(source = proposal, change = '') {
-  const dir = mkdtempSync(join(tmpdir(), 'wong-review-'));
-  files.push(dir);
-  let html = kit;
-  const start = html.indexOf('<!-- proposal:start -->');
-  const end = html.indexOf('<!-- proposal:end -->', start);
-  html = html.slice(0, start + '<!-- proposal:start -->'.length) + '\n' + source + '\n' + html.slice(end);
-  html = html.replaceAll('CHANGE-NAME', change || 'review-fixture');
+  const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const dir = join(temp, change || 'review-fixture');
+  mkdirSync(dir);
+  files.push(temp);
+  writeFileSync(join(dir, 'proposal.md'), source);
+  writeFileSync(join(dir, 'review-visuals.html'), examples);
+  buildReview(dir, { requireCurrent: true });
   const path = join(dir, 'review.html');
-  writeFileSync(path, html);
   return { path, url: pathToFileURL(path).href };
 }
 
