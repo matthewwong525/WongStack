@@ -35,3 +35,4 @@ The `/apply`, `/save`, `/continue`, `/ship`, and `/verify` skills; the change lo
 
 - **2026-09-20** — Asked whether a unique OpenSpec change should ship when its name differs from the branch. The user chose yes. Use local and branch changes to select work, and persist the branch for cold resume after the working tree becomes clean.
 - **2026-09-20** — Implemented the read-only changed-folder helper and updated the workflow skills and docs. Added fixture coverage for untracked, committed, and multiple changes; the OpenSpec and payload checks passed. `/save` records this change on feature branch `clarify-branch-openspec-naming`.
+- **2026-09-20** — `/ship` confirmed all nine tasks complete, the default branch checks green, and each delta requirement equal to its main spec. Archived the change with `--skip-specs`; this `/save` checkpoints that archive on the existing feature branch before merge.
