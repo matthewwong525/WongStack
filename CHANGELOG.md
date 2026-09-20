@@ -1,5 +1,12 @@
 # Changelog
 
+## 15.2.0 — clearer review pages for new changes
+
+- New review pages show the complete selected What Changes item above its visual. The single Changes list remains the navigation on desktop and phone; visual controls stay within that item.
+- Workflow steps use connected cards with title, summary, change label, and expandable Details inside each card. Labeled branches split and rejoin, and stack for narrow screens without sideways scrolling.
+- Annotation leaves navigation and Details usable. Unfinished notes remain drafts on their original targets, while Copy notes includes saved feedback only. The page states when browser storage is unavailable.
+- CI now checks routing, drafts, interactions, and responsive layout in a real browser. Existing active and archived review files keep their embedded kit and are not rewritten.
+
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 

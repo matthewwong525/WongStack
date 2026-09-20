@@ -23,8 +23,8 @@
   1. Title: replace CHANGE-NAME in the <title> and in the chrome with the
      change name. The page reads the change name from the title.
   2. One <section class="visual"> per What Changes bullet that has something
-     to show. Each item owns one visual; states and controls within it stay
-     inside that item. A bullet with nothing to draw opens a text stage.
+     to show. Two bullets may share one visual. A bullet with nothing to draw
+     needs no section — it opens a text stage on its own.
   3. Give every visual:
        id="<slug>"            the anchor: #/<slug>
        data-kind="screen|flow|diff|tree"    which of the four kinds it is
@@ -46,31 +46,23 @@
      A bullet can wrap. The anchor is read from the end of the whole bullet.
   5. Mark what the bullet changes with data-mark="<mark>" on the elements it
      touches. Choosing that bullet outlines every one of them.
-     Give annotatable steps and branches stable data-target-id values.
   6. Mark the layout choices that matter with <i class="callout">N</i> and put
      a matching numbered line in that visual's .notes block.
-  7. Keep controls inside the selected item. A link may show another state of
-     the same visual; only the outer change list and Previous/Next select an
-     item. The shared kit puts the item's full text above the visual, so do
-     not draw another change list or copy the item text inside the visual.
-  8. Delete the example visuals below. Keep the <style> and <script> untouched.
+  7. Delete the example visuals below. Keep the <style> and <script> untouched.
 
   THE FOUR VISUAL KINDS
     screen  a low-fidelity wireframe of a UI screen, with its states. Every
             screen in the flow, each with the empty, loading and error states
             the design names. Exactly ONE .btn.primary visible at a time —
             counted per state, because markup outside a state block shows in
-            every state. Use data-local-state="<state>" to show a state of
-            this item; visual controls never select another change.
+            every state. Give it data-go="<id>" so the flow is clickable.
             A change that adds or restructures a screen uses this kind, and
             wiki/ux-principles.md governs what the screen should be.
-    flow    today and after sequences of connected .flow-card boxes. Each card
-            contains a title, short description, optional change .tag, and
-            its own <details><summary>Details</summary>…</details>. Use
-            .flow-connector between cards. For a decision, show a shared
-            start, the decision, a .flow-branches group with two or more
-            condition-named .flow-branch cards, a labeled join, and the common
-            result. Branches stack on phones under “Choose one path”.
+    flow    a sequence of steps, as .lane rows of .step boxes and .arrow
+            separators. Use two lanes with data-states="after today" to argue
+            a process change: the .lane.today row draws dashed and muted.
+            This is the kind for a skill, a runbook, or any change to how a
+            job gets done.
     diff    before and after text, as two labelled <pre> columns whose lines
             are .line, and .del or .add for what goes and what arrives. The
             kind for a rule, a config value, a template, or prose.
@@ -110,8 +102,7 @@
             .hero                                         image placeholder
             .kv (dt/dd)                                   label-value pairs
             .tag                                          status chip
-    flow:   .flow-sequence, .flow-card.step, .flow-connector,
-            .flow-branches > .flow-branch, .tag, details > summary
+    flow:   .lane (+ .today), .lane .label, .step (+ .gone), .arrow
     diff:   .diff > div > .label + pre > .line (+ .add / .del)
     tree:   .tree ul > li.add / li.edit / li.del + .why
     any:    .row / .row.between, .muted, .caption, .phone-only,
@@ -126,7 +117,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — CHANGE-NAME</title>
+<title>Review — improve-review-usability</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -164,24 +155,16 @@
   .panel .notes-list { margin:0; padding-left:18px; }
   .panel .notes-list li { margin:0 0 6px; cursor:pointer; }
   .panel .notes-list .where { color:#666; font-size:11px; display:block; }
-  .panel .notes-list button { border:0; background:none; color:var(--ink); text-align:left; cursor:pointer; font:inherit; padding:0; }
-  .panel .draft-list { margin:0; padding-left:18px; }
-  .panel .draft-list li { margin:0 0 6px; }
-  .panel .draft-list button { border:0; background:none; color:var(--ink); text-align:left; text-decoration:underline; cursor:pointer; font:inherit; padding:0; }
-  .panel .draft-count { display:inline-block; margin-left:6px; padding:0 6px; border:1px solid var(--line); border-radius:12px; white-space:nowrap; }
   .panel .empty { color:#666; list-style:none; margin-left:-18px; }
   .stage { flex:1; min-width:0; }
-  .item-header { max-width:960px; margin:24px auto 0; padding:20px 24px; background:#fff; border:2px solid var(--line); overflow-wrap:anywhere; }
-  .item-header[hidden] { display:none; }
-  .item-header h1 { margin:0; font-size:20px; scroll-margin-top:calc(var(--chrome-h, 41px) + 12px); }
-  .item-header .position { margin:0 0 10px; color:#666; font-size:13px; }
 
   /* one visual at a time */
-  .visual:not([data-active]) { display:none !important; }
-  .visual[data-active] { display:block !important; }
-  .frame { max-width:960px; margin:12px auto 24px; background:#fff; border:2px solid var(--line); box-shadow:0 2px 0 #bbb; overflow-wrap:anywhere; }
+  .visual { display:none; }
+  .visual[data-active] { display:block; }
+  .frame { max-width:960px; margin:24px auto; background:#fff; border:2px solid var(--line); box-shadow:0 2px 0 #bbb; }
+  .visual.screen .frame { min-height:0; }
   .visual:not(.screen) .frame { padding:24px; }
-  .caption { max-width:960px; margin:12px auto 0; font-size:12px; color:#666; }
+  .caption { max-width:960px; margin:24px auto 0; font-size:12px; color:#666; }
   .caption + .frame { margin-top:6px; }
   .state { display:none; }
   .state[data-on] { display:block; }
@@ -227,22 +210,25 @@
   .lane .label { flex:0 0 70px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#666; }
   .lane.today .step { color:#777; border-style:dashed; }
   .step { padding:8px 12px; border:2px solid var(--line); border-radius:3px; background:var(--fill2); }
-  .flow-sequence { max-width:720px; margin:0 auto; }
-  .flow-card, .flow-branch { display:block; padding:14px; min-width:0; overflow-wrap:anywhere; border:2px solid var(--line); border-radius:3px; background:var(--fill2); }
-  .flow-card h3, .flow-branch h3 { margin:0 0 7px; font-size:15px; }
-  .flow-card p, .flow-branch p { margin:0; }
-  .flow-card details, .flow-branch details { border-top:1px solid #d5d5d5; margin-top:11px; padding-top:9px; }
-  .flow-card details p, .flow-branch details p { margin-top:8px; }
-  .flow-connector { text-align:center; margin:10px 0; color:#666; font-weight:600; }
-  .flow-branches { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:12px; }
+  #workflow .flow-sequence { max-width:720px; margin:0 auto; }
+  #workflow .flow-card { display:block; padding:14px; min-width:0; overflow-wrap:anywhere; }
+  #workflow .flow-card h3 { margin:0 0 7px; font-size:15px; }
+  #workflow .flow-card p { margin:0; }
+  #workflow .flow-card details { border-top:1px solid #d5d5d5; margin-top:11px; padding-top:9px; }
+  #workflow .flow-card details p { margin-top:8px; }
+  #workflow .flow-connector { text-align:center; margin:10px 0; color:#666; font-weight:600; }
+  #workflow .flow-branches { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  #workflow .flow-branch { border:2px solid var(--line); background:var(--fill2); padding:12px; min-width:0; overflow-wrap:anywhere; }
+  #workflow .flow-branch h3 { margin:0 0 8px; font-size:14px; }
+  #workflow .flow-branch p { margin:0; }
   .step.gone { text-decoration:line-through; color:#999; }
   .arrow { color:#999; }
   .arrow::before { content:"→"; }
 
   /* diff: before / after text */
-  .diff { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  .diff { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .diff > div > .label, .tree .label { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#666; margin-bottom:6px; }
-  .diff pre { margin:0; padding:10px 12px; background:var(--fill2); border:1px solid #ddd; font:12px/1.5 Menlo, Consolas, monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .diff pre { margin:0; padding:10px 12px; background:var(--fill2); border:1px solid #ddd; font:12px/1.5 Menlo, Consolas, monospace; white-space:pre-wrap; }
   .diff .line { display:block; }
   .diff .del { color:#999; text-decoration:line-through; }
   .diff .add { border-left:3px solid var(--mark); margin-left:-12px; padding-left:9px; background:var(--markbg); }
@@ -282,8 +268,6 @@
   .popover button { font:inherit; padding:4px 10px; border:1px solid var(--line); background:#fff; border-radius:3px; cursor:pointer; }
   .popover button.save { background:var(--mark); color:#fff; border-color:var(--mark); }
   .popover .del { margin-left:auto; color:#c00; }
-  .popover .status { margin:8px 0 0; color:#666; }
-  .storage-status { font-size:12px; color:#666; }
   .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#222; color:#eee; padding:8px 14px; border-radius:3px; font-size:13px; z-index:11; opacity:0; transition:opacity .2s; pointer-events:none; }
   .toast.show { opacity:1; }
   #copybuf { position:fixed; left:-9999px; top:0; }
@@ -295,9 +279,9 @@
   .panel { top:var(--chrome-h, 41px); max-height:calc(100vh - var(--chrome-h, 41px)); }
 
   /* viewport: walk a screen at phone width from a desktop */
-  body[data-viewport="phone"] .visual.screen .frame { max-width:390px; }
+  body[data-viewport="phone"] .visual.screen .frame { max-width:390px; min-height:0; }
   body[data-viewport="phone"] .desktop-only, body[data-viewport="desktop"] .phone-only { display:none !important; }
-  .visual.screen .body { min-width:0; overflow-wrap:anywhere; }
+  .visual.screen .body { overflow-x:auto; }
 
   /* phone: stage full width, the list is a sheet, the note box docks to the bottom */
   @media (max-width: 760px) {
@@ -315,16 +299,15 @@
     body.menu .panel { display:block; }
     .panel ol.changes li { padding:10px 10px 10px 32px; }
     .frame { margin:12px 8px; }
-    .item-header { margin:12px 8px 0; padding:14px; }
     .caption { margin:12px 8px 0; }
     .notes { margin:0 8px 24px; }
     .visual:not(.screen) .frame { padding:14px; }
+    .visual.screen .frame { min-height:0; }
     .body { padding:14px; }
     .diff { grid-template-columns:1fr; }
-    .flow-branches { grid-template-columns:1fr; }
+    #workflow .flow-branches { grid-template-columns:1fr; }
     .textstage p, .textstage ol { font-size:16px; }
     .popover { left:8px !important; right:8px; bottom:8px; top:auto !important; width:auto; }
-    body.editor-open .stage { padding-bottom:240px; }
     .popover textarea { font-size:16px; height:90px; }
     .popover button { padding:8px 14px; }
     .chrome button { min-height:40px; min-width:40px; padding:6px 8px; }
@@ -334,7 +317,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · CHANGE-NAME</b>
+  <b>Review · improve-review-usability</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -344,7 +327,6 @@
   <div class="group">
     <button class="annotate" id="annotate" aria-pressed="false">✎ Annotate</button>
     <button id="copy">Copy notes</button>
-    <span class="storage-status" id="storage-status" hidden>Notes and drafts last for this session only.</span>
   </div>
   </div>
   <span class="hint">Click a change on the left. Grey = layout only. Blue = what changes. Red dots = reasoning below.</span>
@@ -359,26 +341,23 @@
 <!-- proposal:start -->
 ## Why
 
-Operators find a purchase order by scrolling the whole list. With 400 open orders that is a two-minute hunt ~50 times a day. A search box and a designed empty state turn it into a five-second lookup.
+Review pages can separate explanations from their visuals, show unrelated content, and block change navigation while the reviewer adds notes. Reviewers need to read the full change text, understand its workflow, and leave feedback in one clear scrolling view on a phone or desktop.
 
 ## What Changes
 
-- **A search box above the rows and a useful empty state** on the orders list. (review.html#/list/default/search)
-- **The order detail has one primary action** for the order's status. (review.html#/detail/default/finish)
-- **Receiving takes fewer steps.** The workflow has a clear sequence and labeled branches. (review.html#/receive-flow/after/new)
-- **The list rule in `openspec/config.yaml`** says a list screen has a search box above the rows. (review.html#/list-rule/added)
-- **Files touched**: one new component, two edited screens, one rule. (review.html#/files)
-- **Keyboard focus lands in the search box** on page load — behaviour only, no visual.
-- **Release ritual:** `VERSION` bump and a newest-first `CHANGELOG.md` entry.
+- Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page's single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual. (review.html#/focused/default/reading)
+- Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling. (review.html#/workflow/default/ordered)
+- Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note. (review.html#/annotation/editor/controls)
+- Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only. (review.html#/drafts/default/retained)
+- Apply the new layout and interactions to pages created from the updated shared kit. Guard visual visibility against layout-class collisions and add repeatable coverage for layout, navigation, and drafts. (review.html#/rollout/new-pages)
 
-**Non-goals:** saved searches, bulk actions, changes to the supplier pages.
+**Non-goals:** Pan or zoom controls, dragging or rearranging content, an overview board, upgrading existing or archived review pages, a new hosting service, and collaborative or server-stored notes.
 <!-- proposal:end -->
 </script>
 
 <div class="layout">
 <aside class="panel" id="panel"></aside>
 <div class="stage" id="stage">
-<header class="item-header" id="item-header" hidden><p class="position" id="item-position"></p><h1 id="item-title" tabindex="-1"></h1></header>
 
 <!-- short fallback for an empty proposal or an invalid direct link -->
 <section class="visual textstage" id="_landing" data-kind="text">
@@ -390,139 +369,112 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   <div class="frame" id="textframe"></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 1 · kind=screen — replace with your own ══════════
-     The pattern to copy: a list that is searched, with all four states, one
-     primary action per state, and a phone layout beside the desktop one. -->
-<section class="visual screen" id="list" data-kind="screen" data-title="Orders" data-states="default empty create loading error" data-state="default">
-  <div class="frame">
-    <div class="topbar">
-      <div class="logo"></div>
-      <div class="nav desktop-only"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div>
-      <span class="phone-only" style="margin-left:auto">☰</span>
-    </div>
-    <div class="body">
-      <div class="row between">
-        <h1>Purchase orders</h1>
-        <span class="btn">+ New order <i class="callout">1</i></span>
-      </div>
-      <div class="row" style="margin-top:14px">
-        <span class="input" data-mark="search">Search orders… <i class="callout">2</i></span>
-        <span class="btn">Status: Any ▾</span>
-      </div>
-      <div class="state state-default">
-        <table>
-          <thead><tr><th>Ref</th><th class="desktop-only">Supplier</th><th>Lines</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr><td>PO-003<span class="phone-only muted"><br>Third supplier</span></td><td class="desktop-only">Third supplier</td><td>3 lines · 40 units</td><td><span class="tag">Open</span></td></tr>
-            <tr><td>PO-002</td><td>Second supplier</td><td>8 lines · 120 units</td><td><span class="tag">Open</span></td></tr>
-            <tr><td>PO-001</td><td>First supplier</td><td>1 line · 5 units</td><td><span class="tag">Received</span></td></tr>
-          </tbody>
-        </table>
-        <p class="muted">Showing 3 of 3 · <a href="#/list/empty/create">See empty state</a></p>
-      </div>
-      <div class="state state-empty">
-        <div class="box" data-mark="create">
-          <p><b>No orders match.</b></p>
-          <p class="muted">Search for something else, or clear the status filter.</p>
-          <span class="btn primary" data-local-state="create">+ New order <i class="callout">3</i></span>
-        </div>
-      </div>
-      <div class="state state-create"><h2>New order</h2><p>Enter the order details.</p><span class="btn primary" data-local-state="default">Save order</span></div>
-      <div class="state state-loading">
-        <div class="skeleton"></div><div class="skeleton s"></div><div class="skeleton"></div><div class="skeleton s"></div>
-      </div>
-      <div class="state state-error">
-        <div class="box"><p><b>Could not load orders.</b></p><p class="muted">The server did not answer. Your search and filter are kept.</p><span class="btn">Retry</span></div>
-      </div>
-    </div>
-  </div>
-  <div class="notes">
-    <p class="brief"><b>Who / job:</b> an operator finding one order to receive it. <b>Done:</b> the order's detail is open. <b>Frequency:</b> ~50×/day.</p>
-    <ol>
-      <li>Secondary, not primary: this screen's job is finding an order, so creating one is the smaller action.</li>
-      <li>Search is the job, so it sits above the rows rather than behind a menu.</li>
-      <li>The empty state starts the job instead of announcing absence, so here the create action is the one filled button.</li>
-      <li>On a phone the supplier folds under the reference and the nav becomes a menu; the job is the same, so the primary action does not move. (Toggle View: Phone.)</li>
-    </ol>
-  </div>
+<section class="visual screen" id="focused" data-kind="screen" data-states="default empty-notes text-only" data-state="default">
+<p class="caption">One selected change, with its complete text and one visual below it.</p>
+<div class="frame"><div class="body">
+<div class="state state-default" data-mark="reading">
+<p class="muted">Change 1 of 5</p><h1>Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page&#x27;s single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual.</h1><h2>Selected change</h2><div class="box">The visual for this change sits below its complete proposal text. Its details stay here.</div><p>The page scrolls through one change and its reasons.</p><p><i class="callout">1</i> The page's only Changes list is outside this visual.</p><p><a class="btn primary" href="#/focused/empty-notes">See empty notes</a></p>
+</div>
+<div class="state state-empty-notes" data-mark="reading">
+<p class="muted">Change 1 of 5</p><h1>Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page&#x27;s single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual.</h1><h2>No notes yet</h2><p>Inspect this change, then add a note to part of its visual.</p><p><a class="btn primary" href="#/focused/text-only">See text-only case</a></p>
+</div>
+<div class="state state-text-only" data-mark="reading">
+<p class="muted">Change 1 of 5</p><h1>Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page&#x27;s single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual.</h1><h2>No visual for this change</h2><p>The complete change text still appears at the top.</p><p><a class="btn primary" href="#/focused/default">Back to visual</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>The outer Changes list selects an item. The stage shows its full text and visual together, with no second list.</li></ol></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 2 · kind=screen — another change's own view. -->
-<section class="visual screen" id="detail" data-kind="screen" data-title="Order" data-states="default loading" data-state="default">
-  <div class="frame">
-    <div class="topbar"><div class="logo"></div><div class="nav"><span class="on">Orders</span><span>Suppliers</span><span>Settings</span></div></div>
-    <div class="body">
-      <p class="muted">Order detail</p>
-      <div class="state state-default">
-        <div class="row between">
-          <h1>PO-003 · Third supplier <span class="tag">Open</span></h1>
-          <span class="btn primary" data-mark="finish" data-local-state="loading">Receive order <i class="callout">1</i></span>
-        </div>
-        <dl class="kv"><dt>Supplier</dt><dd>Third supplier</dd><dt>Expected</dt><dd>Next Tuesday</dd></dl>
-        <div class="hero"></div>
-      </div>
-      <div class="state state-loading"><div class="skeleton s"></div><div class="skeleton"></div></div>
-    </div>
-  </div>
-  <div class="notes">
-    <p class="brief"><b>Who / job:</b> the same operator, receiving the order they found.</p>
-    <ol><li>The primary action follows the order's status, so there is never more than one filled button.</li></ol>
-  </div>
+<section class="visual screen" id="workflow" data-kind="screen" data-states="default details branches" data-state="default">
+<p class="caption">A readable step sequence and a three-path branch example, all inside this change.</p>
+<div class="frame"><div class="body">
+<div class="state state-default">
+<p class="muted">Change 2 of 5</p><h1>Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling.</h1>
+<h2>Today</h2>
+<div class="flow-sequence">
+  <div class="step flow-card"><h3>Open review</h3><p>Search the page for a visual that explains the change.</p></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card"><h3>Find the explanation elsewhere</h3><p>Match the visual to text in another part of the page.</p></div>
+</div>
+<h2>Proposed</h2>
+<div class="flow-sequence">
+  <div class="step flow-card" data-mark="ordered"><h3>Select this change <span class="tag">Changed</span></h3><p>Choose one item from the page's Changes list.</p><details><summary>Details</summary><p>Actor: reviewer. Action: choose this item in the outer list. Result: its full text and visual open here.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Read its full text <span class="tag">Added</span></h3><p>Understand the proposed change before inspecting its visual.</p><details><summary>Details</summary><p>Actor: reviewer. Action: read the proposal text above. Result: the intent is clear before inspecting the workflow.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Inspect the visual <span class="tag">Changed</span></h3><p>Follow the steps and open more detail where needed.</p><details><summary>Details</summary><p>Actor: reviewer. Action: open Details for a step. Result: the explanation appears without leaving this change.</p></details></div>
+</div>
+<p><span class="tag">Removed</span> Searching across unrelated visuals.</p><p><i class="callout">1</i> Each step keeps its title, summary, change label, and Details inside one box.</p><p><a class="btn ghost" href="#/workflow/branches">See three-way branch</a></p><p><a class="btn primary" href="#/workflow/details">View expanded steps</a></p>
+</div>
+<div class="state state-details">
+<p class="muted">Change 2 of 5</p><h1>Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling.</h1>
+<h2>Proposed workflow · expanded</h2>
+<div class="flow-sequence">
+  <div class="step flow-card" data-mark="ordered"><h3>Select this change <span class="tag">Changed</span></h3><p>Choose one item from the page's Changes list.</p><details open><summary>Details</summary><p>Actor: reviewer. Action: choose this item in the outer list. Result: its full text and visual open here.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Read its full text <span class="tag">Added</span></h3><p>Understand the proposed change before inspecting its visual.</p><details open><summary>Details</summary><p>Actor: reviewer. Action: read the proposal text above. Result: the intent is clear before inspecting the workflow.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Inspect the visual <span class="tag">Changed</span></h3><p>Follow the steps and open more detail where needed.</p><details open><summary>Details</summary><p>Actor: reviewer. Action: open Details for a step. Result: the explanation appears without leaving this change.</p></details></div>
+</div>
+<p><a class="btn ghost" href="#/workflow/branches">See branched flow</a></p><p><a class="btn primary" href="#/workflow/default">Collapse details</a></p>
+</div>
+<div class="state state-branches">
+<p class="muted">Change 2 of 5</p><h1>Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling.</h1>
+<h2>Example: three paths that rejoin</h2>
+<div class="step">Start: select this change</div>
+<p class="flow-connector">↓</p>
+<div class="step">Decision: what kind of change is it?</div>
+<p class="flow-connector">↓ Choose one of these paths</p>
+<div class="flow-branches">
+  <div class="flow-branch" data-mark="branching"><h3>If it changes a screen</h3><p>Inspect the default, empty, and error states.</p><details><summary>Details</summary><p>Actor: reviewer. Action: inspect each screen state. Result: note any missing action or content.</p></details></div>
+  <div class="flow-branch" data-mark="branching"><h3>If it changes a workflow</h3><p>Follow its steps and labeled decisions.</p><details><summary>Details</summary><p>Actor: reviewer. Action: follow each path. Result: note any unclear branch or dead end.</p></details></div>
+  <div class="flow-branch" data-mark="branching"><h3>If it changes a rule</h3><p>Compare the before and after text.</p><details><summary>Details</summary><p>Actor: reviewer. Action: read the text diff. Result: note any missing rule or exception.</p></details></div>
+</div>
+<p class="flow-connector">↓ All three paths rejoin here</p>
+<div class="step">Finish: save feedback for this change</div>
+<p><i class="callout">2</i> Branch conditions and the join stay visible. On a phone, the alternatives stack vertically.</p>
+<p><a class="btn primary" href="#/workflow/default">Return to ordered steps</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>Each step is one box with a title, short description, change label, and Details inside it.</li><li>Each branch names its condition, and the paths meet at one outcome; the phone view stacks the alternatives.</li></ol></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 3 · kind=flow — connected cards and a branch.
-     Note data-states="after today branches": "after" opens first. -->
-<section class="visual flow" id="receive-flow" data-kind="flow" data-states="after today branches">
-  <p class="caption">Receiving an order — the steps an operator takes, today and after this change.</p>
-  <div class="frame">
-    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
-      <div class="step flow-card" data-target-id="flow-search" data-mark="new"><h3>Find the order <span class="tag">Changed</span></h3><p>Search by reference or supplier.</p><details><summary>Details</summary><p>Actor: operator. Action: search the list. Result: the matching order appears.</p></details></div>
-      <p class="flow-connector">↓</p>
-      <div class="step flow-card" data-target-id="flow-receive" data-mark="new"><h3>Receive the order <span class="tag">Changed</span></h3><p>Open it and use its primary action.</p><details><summary>Details</summary><p>Actor: operator. Action: receive. Result: status updates.</p></details></div>
-    </div><p><a href="#/receive-flow/branches">See a branch example</a></p></div>
-    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
-      <div class="step flow-card"><h3>Find the order</h3><p>Scroll the full list until the order appears.</p><details><summary>Details</summary><p>Actor: operator. Action: scroll. Result: the order may be found.</p></details></div>
-      <p class="flow-connector">↓</p>
-      <div class="step flow-card"><h3>Receive</h3><p>Open the actions menu, then choose Receive.</p><details><summary>Details</summary><p>Actor: operator. Action: open menu. Result: receive starts.</p></details></div>
-    </div></div>
-    <div class="state state-branches"><h2>Example: a decision with three paths</h2>
-      <div class="step flow-card">Start: open order</div><p class="flow-connector">↓</p>
-      <div class="step flow-card">Decision: what is its status?</div><p class="flow-connector">↓ Choose one path</p>
-      <div class="flow-branches">
-        <div class="flow-branch" data-target-id="branch-open"><h3>If open</h3><p>Receive the order.</p><details><summary>Details</summary><p>Actor: operator. Action: receive. Result: status updates.</p></details></div>
-        <div class="flow-branch" data-target-id="branch-pending"><h3>If pending</h3><p>Check the expected date.</p><details><summary>Details</summary><p>Actor: operator. Action: check. Result: date is known.</p></details></div>
-        <div class="flow-branch" data-target-id="branch-done"><h3>If received</h3><p>Review the receipt.</p><details><summary>Details</summary><p>Actor: operator. Action: review. Result: receipt is known.</p></details></div>
-      </div><p class="flow-connector">↓ All paths rejoin here</p><div class="step flow-card">Finish: return to the order list</div>
-    </div>
-  </div>
-  <div class="notes"><ol><li>Each step keeps its summary and Details in one box. Branches name their conditions and meet at one outcome.</li></ol></div>
+<section class="visual screen" id="annotation" data-kind="screen" data-states="editor idle editing-saved" data-state="editor">
+<p class="caption">The outer Changes list is navigation only, including while annotation is on.</p>
+<div class="frame"><div class="body">
+<div class="state state-editor" data-mark="controls">
+<p class="muted">Change 3 of 5</p><h1>Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note.</h1><p><span class="tag">Annotation on</span></p><h2>Note on this change's step</h2><p class="step">Step: inspect this visual and its details</p><details><summary>Details for this step</summary><p>Actor: reviewer. Action: inspect the selected change. Result: feedback stays attached here.</p></details><p class="muted">Selecting a change in the outer list never opens this editor.</p><p class="input">Please make this step easier to understand.</p><p><i class="callout">1</i> Click a step to write a note; use Details to inspect it.</p><p><a class="btn primary" href="#/annotation/idle">Save note</a></p>
+</div>
+<div class="state state-idle" data-mark="controls">
+<p class="muted">Change 3 of 5</p><h1>Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note.</h1><p><span class="tag">Annotation on</span></p><h2>Ready to inspect</h2><p>Click a target in this visual to add a note. The outer Changes list only selects an item.</p><p><a class="btn primary" href="#/annotation/editor">Open note on this change</a></p><p><a class="btn ghost" href="#/annotation/editing-saved">See saved-note edit</a></p>
+</div>
+<div class="state state-editing-saved" data-mark="controls">
+<p class="muted">Change 3 of 5</p><h1>Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note.</h1><p><span class="tag">Annotation on</span></p><h2>Edit saved note</h2><p class="muted">This note belongs to Change 3 and its own step.</p><p class="step">Step: inspect this visual and its details</p><p class="input">Explain who completes this step.</p><p>The saved wording stays in copied feedback until Save.</p><p><a class="btn primary" href="#/annotation/idle">Save edit</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>Navigation and Details keep their actions during annotation. The outer change list is never an annotation target.</li></ol></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 4 · kind=diff — before and after text. Marks go on
-     the added lines, so the bullet lights exactly what arrives. -->
-<section class="visual diff-visual" id="list-rule" data-kind="diff">
-  <p class="caption"><code>openspec/config.yaml</code> — the design rule for list screens.</p>
-  <div class="frame">
-    <div class="diff">
-      <div><div class="label">Before</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line del">    a filter menu.</span></pre></div>
-      <div><div class="label">After</div><pre><span class="line">design:</span><span class="line">  - A list screen shows its rows and</span><span class="line add" data-mark="added">    a search box above them; filters</span><span class="line add" data-mark="added">    stay in a menu.</span></pre></div>
-    </div>
-  </div>
+<section class="visual screen" id="drafts" data-kind="screen" data-states="default storage-unavailable unresolved saved" data-state="default">
+<p class="caption">Draft feedback stays on this selected change and its original target.</p>
+<div class="frame"><div class="body">
+<div class="state state-default" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Draft on this change</h2><p><span class="tag">1 draft</span> <span class="tag">0 saved</span></p><p class="step">Target: this change's step<br>Please show the result of this step.</p><p>Closing the editor or selecting another change keeps this draft here. Copy notes includes saved feedback only.</p><p><i class="callout">1</i> A draft is separate from a saved note.</p><p><a class="btn primary" href="#/drafts/saved">Save this draft</a></p><p><a class="btn ghost" href="#/drafts/storage-unavailable">See storage error</a> · <a class="btn ghost" href="#/drafts/unresolved">See moved target</a></p>
+</div>
+<div class="state state-storage-unavailable" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Storage unavailable</h2><p>The draft remains available in this tab. Copy saved notes before closing the page.</p><p class="step">Target: this change's step<br>Please show the result of this step.</p><p><a class="btn primary" href="#/drafts/default">Return to draft</a></p>
+</div>
+<div class="state state-unresolved" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Draft target moved</h2><p>The original step cannot be found. The draft text remains here and is not attached to another target.</p><p class="step">Please show the result of this step.</p><p><a class="btn primary" href="#/drafts/default">Return to draft</a></p>
+</div>
+<div class="state state-saved" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Saved feedback</h2><p><span class="tag">0 drafts</span> <span class="tag">1 saved</span></p><p class="step">Target: this change's step<br>Please show the result of this step.</p><p>Copy notes includes this saved text. An unfinished edit remains a draft until Save.</p><p><a class="btn primary" href="#/drafts/default">Review draft behavior</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>Draft, saved, storage-error, and moved-target states all belong to the same change. Only saved feedback enters the copied command.</li></ol></div>
 </section>
 
-<!-- ══ EXAMPLE VISUAL 5 · kind=tree — what the change adds, edits and removes. -->
-<section class="visual tree" id="files" data-kind="tree">
-  <p class="caption">Files this change adds, edits, and removes.</p>
-  <div class="frame">
-    <ul>
-      <li class="add">app/src/components/SearchBox.tsx <span class="why">new — mirrors the supplier search</span></li>
-      <li class="edit">app/src/pages/Orders.tsx <span class="why">search above rows, empty state</span></li>
-      <li class="edit">app/src/pages/Order.tsx <span class="why">one primary action</span></li>
-      <li class="edit">openspec/config.yaml <span class="why">list rule</span></li>
-      <li class="del">app/src/components/FilterMenu.tsx <span class="why">folded into the status chip</span></li>
-    </ul>
-  </div>
-</section>
+<section class="visual tree" id="rollout" data-kind="tree"><p class="caption">The shared kit applies this layout to future generated pages.</p><div class="frame"><p class="muted">Change 5 of 5</p><h1>Apply the new layout and interactions to pages created from the updated shared kit. Guard visual visibility against layout-class collisions and add repeatable coverage for layout, navigation, and drafts.</h1><h2>New-page rollout</h2><p data-mark="new-pages">Updated kit → future review.html pages <i class="callout">1</i></p><p>Existing review pages keep their embedded version.</p><ul><li class="edit">review-kit.html <span class="why">one change list, local interactions, note behavior</span></li><li class="edit">plan/SKILL.md <span class="why">author and critic guidance</span></li><li class="edit">openspec/config.yaml <span class="why">review contract</span></li><li class="add">review behavior coverage <span class="why">navigation, drafts, responsive layout</span></li><li class="edit">VERSION and CHANGELOG.md <span class="why">payload release</span></li></ul></div><div class="notes"><ol><li>Change the source kit once. No workflow rewrites existing review files.</li></ol></div></section>
 
 </div><!-- /stage -->
 </div><!-- /layout -->
@@ -543,7 +495,7 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   const visuals = [...document.querySelectorAll('.visual')];
   const $states = document.getElementById('states');
   const $panel = document.getElementById('panel');
-  let current = { id: '_landing', state: 'default', mark: null, bullet: -1 };
+  let current = { id: '_landing', state: 'default', mark: null };
   let bullets = [];   // [{text, anchor, id, state, mark, ok}]
 
   function statesOf(v) { return (v.dataset.states || 'default').split(' '); }
@@ -559,32 +511,34 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
     if (mark && !v.querySelector('[data-mark="' + mark + '"]')) return null;
     return { v, state, mark };
   }
-  function ownerIndex(id) { return bullets.findIndex(x => x.ok && x.id === id); }
   function show(id, a, b) {
-    if ($pop) closePopover(false);
     const r = resolve(id, a, b);
     const v = r ? r.v : visuals.find(x => x.id === (id === '_text' ? '_text' : '_landing'));
     const state = r ? r.state : 'default', mark = r ? r.mark : null;
     visuals.forEach(x => x.toggleAttribute('data-active', x === v));
-    v.dataset.state = state;
-    v.querySelectorAll('.state').forEach(function (block) { block.toggleAttribute('data-on', block.classList.contains('state-' + state)); });
-    current = { id: v.id, state, mark, bullet: r ? ownerIndex(v.id) : -1 };
+    if (v.classList.contains('screen')) {
+      v.dataset.state = state;
+      // reveal the block whose class matches the state name — any name, not a fixed four
+      v.querySelectorAll('.state').forEach(function (b) { b.toggleAttribute('data-on', b.classList.contains('state-' + state)); });
+    }
+    current = { id: v.id, state, mark };
     document.querySelectorAll('.marked').forEach(x => x.classList.remove('marked'));
     if (mark) v.querySelectorAll('[data-mark="' + mark + '"]').forEach(x => x.classList.add('marked'));
+    if (v.classList.contains('flow')) v.querySelectorAll('.lane').forEach(l => l.style.opacity = (state === 'today' && !l.classList.contains('today')) || (state === 'after' && l.classList.contains('today')) ? .45 : 1);
     renderStates(v, state);
-    renderHeader();
     renderPanelState();
-    renderFeedback();
+    renderPins();
     const multi = statesOf(v).length > 1;
     const want = v.id[0] === '_' ? '#/' : '#/' + v.id + (multi && (state !== statesOf(v)[0] || mark) ? '/' + state : '') + (mark ? '/' + mark : '');
     if (location.hash !== want) { try { history.replaceState(null, '', want); } catch (e) { location.hash = want; } }
   }
   function showText(i) {      // a bullet with no visual
-    document.getElementById('textframe').innerHTML = '<p class="muted">No visual for this change. Read its full text above and leave feedback if needed.</p>';
+    const b = bullets[i];
+    document.getElementById('textframe').innerHTML = '<p class="muted">Change ' + (i + 1) + ' · no visual — behaviour only</p><h1>' + inline(b.text) + '</h1>';
     current = { id: '_text', state: 'default', mark: null, bullet: i };
     document.querySelectorAll('.marked').forEach(function (x) { x.classList.remove('marked'); });
     visuals.forEach(x => x.toggleAttribute('data-active', x.id === '_text'));
-    renderStates(null); renderHeader(); renderPanelState(); renderFeedback();
+    renderStates(null); renderPanelState(); renderPins();
     try { history.replaceState(null, '', '#/change/' + (i + 1)); } catch (e) { location.hash = '#/change/' + (i + 1); }
   }
   function renderStates(v, state) {
@@ -594,7 +548,7 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
     statesOf(v).forEach(st => {
       const b = document.createElement('button');
       b.textContent = st; b.setAttribute('aria-pressed', st === state);
-      b.onclick = () => { show(v.id, st, null); requestAnimationFrame(() => window.scrollTo(0, 0)); }; $states.appendChild(b);
+      b.onclick = () => { show(v.id, st, current.mark); requestAnimationFrame(() => window.scrollTo(0, 0)); }; $states.appendChild(b);
     });
   }
   function fromHash() {
@@ -616,14 +570,6 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-  }
-  function renderHeader() {
-    const header = document.getElementById('item-header');
-    const b = bullets[current.bullet];
-    header.hidden = !b;
-    if (!b) return;
-    document.getElementById('item-position').textContent = 'Change ' + (current.bullet + 1) + ' of ' + bullets.length;
-    document.getElementById('item-title').innerHTML = inline(b.text);
   }
   function parseProposal() {
     const raw = document.getElementById('proposal').textContent.replace(/<!--[\s\S]*?-->/g, '');
@@ -651,8 +597,6 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
         bullets.push({ text: li[1].slice(0, m.index).trim(), anchor: '#/' + [m[1], m[2], m[3]].filter(Boolean).join('/'), id: m[1], state: r ? r.state : null, mark: r ? r.mark : null, ok: !!r, kind: r ? r.v.dataset.kind : null });
       } else bullets.push({ text: li[1].trim(), anchor: null });
     });
-    const seen = new Set();
-    bullets.forEach(b => { if (!b.ok) return; if (seen.has(b.id)) b.ok = false; else seen.add(b.id); });
     return { why, tail: tail.map(t => '<p>' + inline(t) + '</p>').join('') };
   }
   function renderPanel() {
@@ -661,9 +605,9 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
     bullets.forEach((b, i) => {
       const cls = !b.anchor ? 'text' : b.ok ? '' : 'dead';
       const kind = !b.anchor ? 'no visual' : b.ok ? b.kind + ' · ' + b.anchor : 'dead link · ' + b.anchor + ' — no such visual, state, or mark';
-      html += '<li class="' + cls + '" data-i="' + i + '" role="button" tabindex="0" aria-current="false">' + inline(b.text) + '<span class="kind">' + kind + '</span><span class="draft-count" hidden></span></li>';
+      html += '<li class="' + cls + '" data-i="' + i + '">' + inline(b.text) + '<span class="kind">' + kind + '</span></li>';
     });
-    html += '</ol>' + p.tail + '<h2>Notes <span id="notecount"></span></h2><ol class="notes-list" id="notelist"></ol><h2>Drafts <span id="draftcount"></span></h2><ol class="draft-list" id="draftlist"></ol>';
+    html += '</ol>' + p.tail + '<h2>Notes <span id="notecount"></span></h2><ol class="notes-list" id="notelist"></ol>';
     $panel.innerHTML = html;
     document.getElementById('landing').innerHTML = bullets.length
       ? '<h1>Choose a change</h1><p class="muted">Use the change list or Next to open a visual.</p>'
@@ -672,55 +616,40 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   function renderPanelState() {
     $panel.querySelectorAll('ol.changes li').forEach((li, i) => {
       const b = bullets[i];
-      const on = current.bullet === i;
+      const on = current.id === '_text' ? current.bullet === i
+        : !!b.anchor && b.id === current.id;
       li.classList.toggle('on', on);
-      li.setAttribute('aria-current', on ? 'true' : 'false');
     });
     renderCount();
   }
-  function goBullet(i) {
-    const b = bullets[i]; if (!b) return;
-    closePopover(); setMenu(false);
-    if (!b.anchor || !b.ok) showText(i); else show(b.id, b.state, b.mark);
-    requestAnimationFrame(() => { window.scrollTo(0, 0); document.getElementById('item-title').focus({ preventScroll:true }); });
-  }
+  function goBullet(i) { const b = bullets[i]; setMenu(false); if (!b.anchor || !b.ok) showText(i); else show(b.id, b.state, b.mark); window.scrollTo(0, 0); }
 
-  // ── annotation and browser-local feedback ──
-  const ANNOTATABLE = '.btn, .input, tr, .box, .tag, .hero, .kv dt, .kv dd, h1, .nav span, .logo, .notes li, .notes .brief, .step, .flow-branch, .diff .line, .diff pre, .tree li, .caption, .textstage p';
+  // ── annotate ──
+  const ANNOTATABLE = '.btn, .input, tr, .box, .tag, .hero, .kv dt, .kv dd, h1, .nav span, .logo, .notes li, .notes .brief, .step, #workflow .flow-branch, .lane .label, .diff .line, .diff pre, .tree li, .caption, .textstage p';
   const KEY = 'rv-notes:' + CHANGE;
-  const DRAFT_KEY = 'rv-drafts:v1:' + CHANGE;
-  let storageAvailable = true;
-  function readStored(key, fallback) {
-    try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
-    catch (e) { storageAvailable = false; return fallback; }
-  }
-  let notes = readStored(KEY, []);
-  if (!Array.isArray(notes)) notes = [];
-  const draftStore = readStored(DRAFT_KEY, { version:1, drafts:[] });
-  let drafts = draftStore && draftStore.version === 1 && Array.isArray(draftStore.drafts) ? draftStore.drafts : [];
-  function persist() {
-    if (storageAvailable) {
-      try {
-        localStorage.setItem(KEY, JSON.stringify(notes));
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ version:1, drafts:drafts }));
-      } catch (e) { storageAvailable = false; }
-    }
-    document.getElementById('storage-status').hidden = storageAvailable;
-    renderFeedback();
-  }
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } },
+    set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+  };
+  let notes = store.get();
+  let annotating = false;
   const $ann = document.getElementById('annotate');
-  let annotating = false, $pop = null, editor = null, editorTrigger = null;
   $ann.onclick = () => setAnnotating(!annotating);
   function setAnnotating(on) {
-    annotating = on; $ann.setAttribute('aria-pressed', String(on)); document.body.classList.toggle('annotating', on);
-    closePopover(false); document.querySelectorAll('.hovering').forEach(x => x.classList.remove('hovering'));
+    annotating = on; $ann.setAttribute('aria-pressed', on); document.body.classList.toggle('annotating', on);
+    closePopover(); document.querySelectorAll('.hovering').forEach(x => x.classList.remove('hovering'));
   }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePopover(); return; }
+    if (e.key === 'a' && !e.target.matches('textarea,input')) setAnnotating(!annotating);
+  });
   function target(el) {
-    if (el.closest('.popover, .chrome, .pin, details, a[href^="#/"]')) return null;
+    if (el.closest('.popover, .chrome, .pin')) return null;
+    if (el.closest('#workflow details')) return null;
     const scope = el.closest('.visual[data-active]');
     if (!scope) return null;
-    const t = el.closest('.flow-card, .flow-branch') || el.closest(ANNOTATABLE);
-    return t && scope.contains(t) ? { scope:scope, el:t } : null;
+    const t = el.closest(ANNOTATABLE);
+    return t && scope.contains(t) ? { scope, el: t } : null;
   }
   document.addEventListener('mouseover', e => {
     if (!annotating) return;
@@ -732,203 +661,105 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
     for (let n = el; n && n !== scope; n = n.parentElement) steps.unshift([...n.parentElement.children].indexOf(n));
     return steps.join('.');
   }
-  function elAt(scope, path) {
-    if (!scope || !path) return null;
-    let n = scope;
-    for (const i of path.split('.')) n = n && n.children[+i];
-    return n || null;
-  }
+  function elAt(scope, path) { let n = scope; for (const i of path.split('.')) n = n && n.children[i]; return n || null; }
   function labelOf(el) {
-    const c = el.cloneNode(true);
-    c.querySelectorAll('.pin, .callout, .kind, .why').forEach(x => x.remove());
+    const c = el.cloneNode(true); c.querySelectorAll('.pin, .callout, .kind, .why').forEach(x => x.remove());
     if (el.matches('.flow-card, .flow-branch')) c.querySelectorAll('details').forEach(x => x.remove());
-    const content = el.tagName === 'TR' ? [...c.cells].map(td => td.textContent.trim()).join(' · ') : c.textContent;
-    const value = content.replace(/\s+/g, ' ').trim().slice(0, 60);
+    const text = (el.tagName === 'TR' ? [...c.cells].map(td => td.textContent.trim()).join(' · ') : c.textContent).replace(/\s+/g, ' ').trim().slice(0, 60);
     const kind = el.classList.contains('btn') ? 'button' : el.classList.contains('input') ? 'input' : el.tagName === 'TR' ? 'row'
-      : el.classList.contains('box') ? 'panel' : el.tagName === 'H1' ? 'heading' : el.classList.contains('flow-branch') ? 'branch'
-      : el.classList.contains('step') ? 'step' : el.classList.contains('line') ? 'line' : el.closest('.tree') ? 'file' : el.tagName.toLowerCase();
-    return kind + ' "' + value + '"';
-  }
-  function recordFor(el) {
-    const scope = el.closest('.visual[data-active]');
-    return { itemId:current.id === '_text' ? '_text:' + current.bullet : current.id,
-      scope:'visual', visual:current.id, state:current.state, targetId:el.dataset.targetId || null,
-      path:pathOf(scope, el), label:labelOf(el) };
-  }
-  function sameTarget(a, b) {
-    return a.itemId === b.itemId && a.visual === b.visual && a.state === b.state &&
-      (a.targetId && b.targetId ? a.targetId === b.targetId : a.path === b.path && a.label === b.label);
-  }
-  function findTarget(n) {
-    const scope = document.getElementById(n.visual);
-    if (!scope) return null;
-    let el = null;
-    if (n.targetId) el = [...scope.querySelectorAll('[data-target-id]')].find(x => x.dataset.targetId === n.targetId && (!x.closest('.state') || x.closest('.state').classList.contains('state-' + n.state)));
-    if (!el && !n.targetId) el = elAt(scope, n.path);
-    return el && labelOf(el) === n.label ? el : null;
+      : el.classList.contains('box') ? 'panel' : el.tagName === 'H1' ? 'heading' : el.classList.contains('flow-branch') ? 'branch' : el.classList.contains('step') ? 'step'
+      : el.classList.contains('line') ? 'line' : el.closest('.tree') ? 'file' : el.closest('.panel') ? 'bullet' : el.tagName.toLowerCase();
+    return kind + ' "' + text + '"';
   }
   function whereOf(n) {
-    if (n.visual === '_text') return '#/change/' + (Number(String(n.itemId).split(':')[1]) + 1);
+    if (n.scope === 'panel') return 'What Changes';
     const v = visuals.find(x => x.id === n.visual);
     return '#/' + n.visual + (v && statesOf(v).length > 1 ? '/' + n.state : '');
   }
-  function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-  function newId() { return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8); }
-  function renderFeedback() {
-    document.querySelectorAll('.pin').forEach(p => p.remove());
-    const list = document.getElementById('notelist'), draftList = document.getElementById('draftlist');
-    if (!list || !draftList) return;
-    list.innerHTML = ''; draftList.innerHTML = '';
-    document.getElementById('notecount').textContent = notes.length ? '(' + notes.length + ')' : '';
-    document.getElementById('draftcount').textContent = drafts.length ? '(' + drafts.length + ')' : '';
-    notes.forEach((n, i) => {
-      const el = findTarget(n), stale = !el;
-      if (el) {
-        const pin = document.createElement('button'); pin.className = 'pin'; pin.dataset.note = n.id;
-        pin.setAttribute('aria-label', 'Open note ' + (i + 1)); pin.textContent = String(i + 1);
-        (el.tagName === 'TR' ? el.cells[0] : el).appendChild(pin);
-      }
-      const li = document.createElement('li');
-      const button = document.createElement('button'); button.type = 'button';
-      button.innerHTML = '<span class="where">' + escapeHtml(whereOf(n)) + ' · ' + escapeHtml(n.label) + (stale ? ' · moved target' : '') + '</span>' + escapeHtml(n.text);
-      button.onclick = () => openRecord(n, false);
-      li.appendChild(button); list.appendChild(li);
-    });
-    if (!notes.length) list.innerHTML = '<li class="empty">No saved notes yet.</li>';
-    drafts.forEach(d => {
-      const li = document.createElement('li'), button = document.createElement('button'); button.type = 'button';
-      button.textContent = whereOf(d) + ' · ' + d.label + (findTarget(d) ? '' : ' · moved target');
-      button.onclick = () => openRecord(d, true);
-      li.appendChild(button); draftList.appendChild(li);
-    });
-    if (!drafts.length) draftList.innerHTML = '<li class="empty">No drafts.</li>';
-    $panel.querySelectorAll('ol.changes li').forEach((li, i) => {
-      const b = bullets[i], itemId = b && b.ok ? b.id : '_text:' + i;
-      const count = drafts.filter(d => d.itemId === itemId).length;
-      const badge = li.querySelector('.draft-count'); badge.hidden = !count;
-      badge.textContent = count + (count === 1 ? ' draft' : ' drafts');
-    });
-    document.getElementById('storage-status').hidden = storageAvailable;
-  }
-  function closePopover(restore) {
-    if ($pop) $pop.remove();
-    $pop = null; editor = null; document.body.classList.remove('editor-open');
-    if (restore && editorTrigger && editorTrigger.isConnected) editorTrigger.focus();
-    editorTrigger = null;
-  }
-  function openRecord(n, isDraft) {
-    closePopover(false); setMenu(false);
-    if (n.visual === '_text') goBullet(Number(String(n.itemId).split(':')[1]));
-    else show(n.visual, n.state, null);
-    const el = findTarget(n);
-    if (el) el.scrollIntoView({ block:'center' });
-    const saved = isDraft && n.savedId ? notes.find(x => x.id === n.savedId) : !isDraft ? n : null;
-    openPopover(isDraft ? n : saved || n, el, saved || null);
-  }
-  function openPopover(record, anchorEl, saved) {
-    closePopover(false);
-    const original = record || recordFor(anchorEl);
-    const prior = saved || (record && record.id ? record : null);
-    const matching = drafts.find(d => sameTarget(d, original) && (d.savedId || null) === (prior ? prior.id : null));
-    editor = { meta:{ itemId:original.itemId, scope:'visual', visual:original.visual, state:original.state,
-      targetId:original.targetId || null, path:original.path, label:original.label },
-      savedId:prior ? prior.id : null, draftId:matching ? matching.id : (record && record.savedId !== undefined ? record.id : null) };
-    editorTrigger = anchorEl;
-    const initial = matching ? matching.text : (record && record.text !== undefined ? record.text : prior ? prior.text : '');
-    $pop = document.createElement('div'); $pop.className = 'popover';
-    const moved = !anchorEl ? '<p class="status">Original target moved. This draft stays here until you choose a new target.</p>' : '';
-    $pop.innerHTML = '<div class="where">' + escapeHtml(whereOf(original)) + ' · ' + escapeHtml(original.label) + '</div>' + moved
-      + '<textarea aria-label="Note text" placeholder="What should change here?"></textarea>'
-      + '<div class="row"><button class="save">Save</button><button class="close">Close</button><button class="discard">Discard draft</button>'
-      + (prior ? '<button class="del">Delete saved note</button>' : '') + '</div><p class="status">Drafts are excluded from Copy notes.'
-      + (storageAvailable ? '' : ' Notes and drafts last for this session only.') + '</p>';
-    const ta = $pop.querySelector('textarea'); ta.value = initial;
-    ta.oninput = () => {
-      const text = ta.value;
-      let d = drafts.find(x => x.id === editor.draftId);
-      if (!text.trim() && !editor.savedId) {
-        if (d) drafts = drafts.filter(x => x.id !== d.id);
-        editor.draftId = null;
-      } else if (d) d.text = text;
-      else { d = Object.assign({ id:newId(), savedId:editor.savedId, text:text }, editor.meta); drafts.push(d); editor.draftId = d.id; }
-      persist();
-    };
-    $pop.querySelector('.save').onclick = () => {
-      const text = ta.value.trim(); if (!text) return;
-      const id = editor.savedId || newId();
-      const savedNote = Object.assign({ id:id, text:text }, editor.meta);
-      const index = notes.findIndex(x => x.id === id);
-      if (index < 0) notes.push(savedNote); else notes[index] = savedNote;
-      drafts = drafts.filter(x => x.id !== editor.draftId);
-      closePopover(true); persist();
-    };
-    $pop.querySelector('.close').onclick = () => closePopover(true);
-    $pop.querySelector('.discard').onclick = () => { drafts = drafts.filter(x => x.id !== editor.draftId); closePopover(true); persist(); };
-    const del = $pop.querySelector('.del');
-    if (del) del.onclick = () => { notes = notes.filter(x => x.id !== editor.savedId); drafts = drafts.filter(x => x.id !== editor.draftId); closePopover(true); persist(); };
-    ta.onkeydown = ev => { if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); $pop.querySelector('.save').click(); } };
-    document.body.appendChild($pop); document.body.classList.add('editor-open');
-    if (!phoneMedia.matches) {
-      const r = anchorEl ? anchorEl.getBoundingClientRect() : document.getElementById('item-header').getBoundingClientRect();
-      const W = 300, H = $pop.offsetHeight || 190;
-      let top = r.top, left = r.right + 10;
-      if (left + W > innerWidth) { left = Math.max(8, Math.min(r.left, innerWidth - W - 8)); top = r.bottom + 8; if (top + H > innerHeight) top = r.top - H - 8; }
-      $pop.style.top = Math.max(50, top) + 'px'; $pop.style.left = left + 'px';
-    }
-    ta.focus();
-  }
-  let touchStart = null, touchMoved = false;
-  document.addEventListener('touchstart', e => { const t = e.touches[0]; if (t) { touchStart = { x:t.clientX, y:t.clientY }; touchMoved = false; } }, { passive:true });
-  document.addEventListener('touchmove', e => { const t = e.touches[0]; if (t && touchStart && Math.hypot(t.clientX - touchStart.x, t.clientY - touchStart.y) > 8) touchMoved = true; }, { passive:true });
+
   document.addEventListener('click', e => {
     if (e.target.closest('.popover')) return;
     const pin = e.target.closest('.pin');
-    if (pin) { e.preventDefault(); const n = notes.find(x => x.id === pin.dataset.note); if (n) openRecord(n, false); return; }
+    if (pin) { e.preventDefault(); openPopover(notes.find(n => n.id === pin.dataset.note), pin); return; }
     const li = e.target.closest('.panel ol.changes li');
     if (li) { goBullet(+li.dataset.i); return; }
-    const panelLink = e.target.closest('.panel a[href*="#/"]');
-    if (panelLink) { e.preventDefault(); const s = panelLink.getAttribute('href').split('#/')[1].split('/'); show(s[0], s[1], s[2]); return; }
+    const a = e.target.closest('.panel a[href*="#/"]');
+    if (a) { e.preventDefault(); const s = a.getAttribute('href').split('#/')[1].split('/'); show(s[0], s[1], s[2]); return; }
     const local = e.target.closest('.visual[data-active] a[href^="#/"]');
     if (local) {
-      e.preventDefault(); const s = local.getAttribute('href').split('#/')[1].split('/');
-      if (s[0] === current.id) { show(s[0], s[1], s[2]); requestAnimationFrame(() => window.scrollTo(0, 0)); }
-      else toast('Use Changes to select another change.');
-      return;
+      const s = local.getAttribute('href').split('#/')[1].split('/');
+      if (s[0] === current.id) { e.preventDefault(); show(s[0], s[1], s[2]); requestAnimationFrame(() => window.scrollTo(0, 0)); return; }
     }
-    if (e.target.closest('details')) return;
-    if (touchMoved) { touchMoved = false; return; }
     if (annotating) {
       const t = target(e.target);
-      if (t) { e.preventDefault(); openPopover(recordFor(t.el), t.el, null); }
+      if (t) {
+        e.preventDefault();
+        const scope = t.scope.classList.contains('panel') ? 'panel' : 'visual';
+        openPopover({ id: null, scope, visual: current.id, state: current.state, path: pathOf(t.scope, t.el), label: labelOf(t.el), text: '' }, t.el);
+        return;
+      }
       return;
     }
-    const localState = e.target.closest('.visual[data-active] [data-local-state]');
-    if (localState) { show(current.id, localState.dataset.localState, null); return; }
-    const step = e.target.closest('.visual[data-active] .flow-card, .visual[data-active] .flow-branch');
-    if (step) { const detail = step.querySelector('details'); if (detail) detail.open = !detail.open; }
+    const go = e.target.closest('[data-go]');
+    if (go) show(go.dataset.go, null, null);
   });
-  document.addEventListener('keydown', e => {
-    const editing = e.target.matches('textarea,input,[contenteditable="true"]') || !!e.target.closest('[contenteditable="true"]');
-    if (e.key === 'Escape') { if ($pop) closePopover(true); return; }
-    if (editing) return;
-    if (e.key === 'a') { setAnnotating(!annotating); return; }
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.panel ol.changes li')) { e.preventDefault(); goBullet(+e.target.dataset.i); return; }
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.flow-card, .flow-branch')) {
-      e.preventDefault();
-      if (annotating) openPopover(recordFor(e.target), e.target, null);
-      else { const detail = e.target.querySelector('details'); if (detail) { detail.open = !detail.open; detail.querySelector('summary').focus(); } }
-    }
-  });
-  document.querySelectorAll('.flow-card, .flow-branch').forEach(el => { if (!el.hasAttribute('tabindex')) el.tabIndex = 0; });
+
+  let $pop = null;
+  function openPopover(note, anchorEl) {
+    closePopover();
+    $pop = document.createElement('div'); $pop.className = 'popover';
+    $pop.innerHTML = '<div class="where">' + whereOf(note) + ' · ' + inline(note.label) + '</div>'
+      + '<textarea placeholder="What should change here?"></textarea>'
+      + '<div class="row"><button class="save">Save</button><button class="cancel">Cancel</button>' + (note.id ? '<button class="del">Delete</button>' : '') + '</div>';
+    const ta = $pop.querySelector('textarea'); ta.value = note.text;
+    $pop.querySelector('.save').onclick = () => {
+      const text = ta.value.trim(); if (!text) return closePopover();
+      if (note.id) note.text = text; else { note.id = String(Date.now()); note.text = text; notes.push(note); }
+      persist(); closePopover();
+    };
+    $pop.querySelector('.cancel').onclick = closePopover;
+    const del = $pop.querySelector('.del'); if (del) del.onclick = () => { notes = notes.filter(n => n.id !== note.id); persist(); closePopover(); };
+    ta.onkeydown = ev => { if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) $pop.querySelector('.save').click(); };
+    document.body.appendChild($pop);
+    // beside the element: right if there is room, else below, else above — never over it
+    if (phoneMedia.matches) { ta.focus(); return; }
+    const r = anchorEl.getBoundingClientRect(), W = 300, H = $pop.offsetHeight || 160;
+    let top = r.top, left = r.right + 10;
+    if (left + W > innerWidth) { left = Math.max(8, Math.min(r.left, innerWidth - W - 8)); top = r.bottom + 8; if (top + H > innerHeight) top = r.top - H - 8; }
+    if (top < 50) top = 50;
+    $pop.style.top = top + 'px'; $pop.style.left = left + 'px';
+    ta.focus();
+  }
+  function closePopover() { if ($pop) { $pop.remove(); $pop = null; } }
+  function persist() { store.set(notes); renderPins(); }
+  function renderPins() {
+    document.querySelectorAll('.pin').forEach(p => p.remove());
+    const $list = document.getElementById('notelist'); if (!$list) return;
+    $list.innerHTML = '';
+    document.getElementById('notecount').textContent = notes.length ? '(' + notes.length + ')' : '';
+    if (!notes.length) $list.innerHTML = '<li class="empty">Turn on Annotate, click a visual element, and type. The change list only navigates. Copy notes puts saved feedback on your clipboard as a /continue command.</li>';
+    notes.forEach((n, i) => {
+      const scope = n.scope === 'panel' ? $panel : document.getElementById(n.visual);
+      const el = scope && elAt(scope, n.path);
+      const stale = !el || labelOf(el) !== n.label;
+      if (el) { const pin = document.createElement('i'); pin.className = 'pin' + (stale ? ' stale' : ''); pin.dataset.note = n.id; pin.textContent = i + 1; (el.tagName === 'TR' ? el.cells[0] : el).appendChild(pin); }
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="where">' + whereOf(n) + ' · ' + inline(n.label) + (stale ? ' · <b>moved?</b>' : '') + '</span>' + inline(n.text);
+      li.onclick = () => { if (n.scope === 'visual') show(n.visual, n.state, null); const p = document.querySelector('.pin[data-note="' + n.id + '"]'); if (p) { p.scrollIntoView({ block: 'center' }); openPopover(n, p); } };
+      $list.appendChild(li);
+    });
+  }
+
+  // ── copy: a runnable /continue block ──
   function notesText() {
     const lines = ['/continue ' + CHANGE, 'Review notes from ' + FILE + ' (' + notes.length + '):'];
     notes.forEach((n, i) => lines.push((i + 1) + '. ' + whereOf(n) + ' · ' + n.label + ' — ' + n.text));
     return lines.join('\n');
   }
   document.getElementById('copy').onclick = function () {
-    if (!notes.length) return toast('No saved notes yet');
+    if (!notes.length) return toast('No notes yet');
     const text = notesText(), buf = document.getElementById('copybuf'); buf.value = text;
-    const done = () => toast('Copied ' + notes.length + ' saved note' + (notes.length === 1 ? '' : 's'));
+    const done = () => toast('Copied ' + notes.length + ' note' + (notes.length === 1 ? '' : 's') + ' — paste into Claude');
     const fallback = () => { buf.select(); buf.setSelectionRange(0, 99999); document.execCommand('copy'); done(); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
   };
@@ -959,7 +790,7 @@ Operators find a purchase order by scrolling the whole list. With 400 open order
   }
   document.getElementById('prev').onclick = () => { const i = currentBullet(); if (i > 0) goBullet(i - 1); };
   document.getElementById('next').onclick = () => { const i = currentBullet(); if (i < bullets.length - 1) goBullet(i + 1); };
-  document.addEventListener('keydown', e => { if (e.target.matches('textarea,input,[contenteditable="true"]') || e.target.closest('[contenteditable="true"]')) return; if (e.key === 'ArrowRight') document.getElementById('next').click(); if (e.key === 'ArrowLeft') document.getElementById('prev').click(); });
+  document.addEventListener('keydown', e => { if (e.target.matches('textarea,input')) return; if (e.key === 'ArrowRight') document.getElementById('next').click(); if (e.key === 'ArrowLeft') document.getElementById('prev').click(); });
 
   // ── viewport: phone or desktop layout of a screen; a phone is a phone already ──
   const phoneMedia = matchMedia('(max-width: 760px)');
