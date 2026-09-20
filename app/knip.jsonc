@@ -3,9 +3,10 @@
   "entry": [
     "worker/index.ts",
     // This Access module ships inert until a target adopts the login wall.
-    "worker/access.ts"
+    "worker/access.ts",
+    "review/*.test.mjs"
   ],
-  "project": ["worker/**/*.ts", "src/**/*.{ts,tsx}"],
+  "project": ["worker/**/*.ts", "src/**/*.{ts,tsx}", "review/**/*.mjs"],
   "vite": {
     "config": ["vite.config.ts"]
   },

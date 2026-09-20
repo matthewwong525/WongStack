@@ -5,9 +5,8 @@ context: |
   WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
   template you clone and work from. The payload is markdown: skills under
   .claude/skills/, the wiki/ progressive-disclosure wiki, CLAUDE.md, VERSION,
-  CHANGELOG.md. The meta-repo has app tests and payload checks in CI.
-  CI is an optional accelerator: it's the gate in a *target* repo when checks
-  exist, else PR review is; nothing builds locally either way.
+  CHANGELOG.md. This meta-repo has app and payload checks in CI. CI is the
+  gate when checks exist, else PR review is; nothing builds locally either way.
 
   Planning runs on OpenSpec: a change is openspec/changes/<name>/ (proposal,
   specs, design, tasks). Changes live on the default branch (main) so they are
@@ -31,11 +30,19 @@ rules:
       the fixed review kit, and change-specific review-visuals.html — one visual per
       "What Changes" bullet that has something to show, of kind screen (a
       low-fidelity UI wireframe with its empty/loading/error states and one
-      clickable primary action per state), flow (steps, today vs after), diff
+      primary action per state when the job calls for one), flow (connected
+      today/after step cards and labeled branches), diff
       (before/after text) or tree (files added/edited/removed). Put data-mark on
       the elements each bullet changes. A bullet with nothing to draw needs no
-      visual. Low fidelity and no network reference. Edit the visual fragment,
-      never the generated page's runtime or proposal block.
+      visual. The kit shows the complete selected bullet text above the visual.
+      Draw no second change list inside it and no link to another bullet.
+      Workflow cards keep title, short description, change label, and Details
+      within one border. Branches name each condition and their common join.
+      Use stable data-target-id values for note targets. Check ordinary
+      vertical scrolling at phone and desktop widths. Low fidelity, no network
+      reference. Edit only review-visuals.html; never hand-edit the generated
+      page's runtime or proposal block. New kit behavior applies to pages
+      generated from the current kit. Do not rewrite historical archives.
     - If the change adds or meaningfully restructures a user-facing screen (a page
       or component — not merely touching a UI file), also include a "## UX" section
       following wiki/ux-principles.md — use-case brief (who, the job, what done

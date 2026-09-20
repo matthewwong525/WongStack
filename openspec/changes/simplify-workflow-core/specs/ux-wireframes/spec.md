@@ -50,6 +50,25 @@ When continue receives an instruction beginning with `Review notes from review.h
 - **THEN** the affected proposal, design, specs, tasks, and visual input are reconciled before implementation resumes
 - **AND** the Decision log records the disposition and the review displays the accepted changes
 
+### Requirement: The revised kit applies to newly created pages
+
+The focused layout, local controls, connected workflow cards, and draft-note behavior SHALL live in the shared kit used for newly assembled review pages. The builder SHALL combine that kit with the current proposal and change-specific visual fragment. Generated pages SHALL remain self-contained without an external runtime. Refreshing a selected current-format change MAY rebuild its embedded viewer from the shared kit; marked older pages SHALL receive proposal-only refresh, and archived pages SHALL NOT be bulk regenerated.
+
+#### Scenario: A new review is generated
+
+- **WHEN** a future plan builds a review from the shared kit and its visual fragment
+- **THEN** the page provides full selected-item text, responsive layout, annotation-safe navigation, and drafts without an external runtime load
+
+#### Scenario: An older page is refreshed
+
+- **WHEN** save refreshes a marked page that has no visual fragment
+- **THEN** it updates only the proposal block and preserves that page's embedded controls and styles
+
+#### Scenario: Archived pages remain historical
+
+- **WHEN** the shared kit changes
+- **THEN** archived pages are not rebuilt merely because the kit changed
+
 ## ADDED Requirements
 
 ### Requirement: Review assembly is deterministic and preserves authored input

@@ -92,15 +92,21 @@ Before and after implementation, count whitespace-delimited words across the sam
 2. Change the verbs to direct CLI use and the common review refresh path. Preserve standalone plan stopping, apply completion, feedback handling, and save/ship outcomes.
 3. Update setup, sync, dependency maintenance, config, rules, and owner docs. Remove the known source generated layer and its patch machinery. Include target migration tasks rather than changing target files during exploration.
 4. Validate the change and payload links/config, exercise the new and legacy review paths, and record context counts through the normal CI checkpoint.
-5. Release as the next major version, expected 16.0.0 from the current baseline, with explicit migration notes. Resolve a concurrent version change at release time.
+5. Release as version 16.0.0 from the merged 15.2.0 baseline, with explicit migration notes.
 
 Rollback restores the prior released skill payload and update instructions. Keep all existing records. Newly generated `review.html` files remain standalone if their authoring tooling is rolled back; legacy workflows can still view them. No remote data or Cloudflare resource migration is involved.
 
 ## Implementation measurements
 
-The source instruction inventory uses whitespace-delimited words, not runtime tokens. Before this change it contained 30,339 words: 14,788 in the eight core WongStack skill bodies, 9,194 in six generated OpenSpec skill bodies, and 6,357 in three linked workflow references. The same core skills and references, with the new shared CLI, review-author, and spec-sync references included, now contain 18,447 words: 13,526 in the eight core skills and 4,921 in six references. That is 11,892 fewer source words, or 39% less than the baseline. Always-discovered core descriptions fell from 661 to 412 words; the longest authored description is 580 characters. Generated HTML and the meta-only test fixture are outside this prose inventory.
+The source instruction inventory uses whitespace-delimited words, not runtime tokens. Before this change it contained 30,339 words: 14,788 in the eight core WongStack skill bodies, 9,194 in six generated OpenSpec skill bodies, and 6,357 in three linked workflow references. The same core skills and references, with the new shared CLI, review-author, and spec-sync references included, now contain 18,528 words: 13,547 in the eight core skills and 4,981 in six references. That is 11,811 fewer source words, or 39% less than the baseline. Always-discovered core descriptions fell from 661 to 412 words; the longest authored description is 580 characters. Generated HTML and the meta-only test fixture are outside this prose inventory.
 
 The generated review passed the structural checker with no diagnostics. Browser inspection opened all six visuals and eight declared states at 390px phone and desktop widths with nonempty frames and no horizontal overflow. An annotation survived reload, Copy notes produced the `/continue simplify-workflow-core` block, and a copied page opened offline without adjacent proposal or visual input. These are rendered and interaction checks; whether the pictures explain the change remains a human review judgment. The CLI contract, migration, and review fixtures passed in Payload checks on PR #87 at commit `046bcbd`; the existing Test and Deploy workflows passed on that commit too. The final handoff edit still requires its own checkpoint gate.
+
+## Integration with 15.2.0
+
+PR #88 merged the focused review viewer before this change shipped. Its shared runtime owns full selected-item text, local state controls, connected workflow cards, draft persistence, and saved-only copy. The 16.0 builder keeps that runtime intact and fills it from `proposal.md` and `review-visuals.html`. The kit's rich examples move to `review-examples.html`; the app's browser fixtures use that fragment through the same builder rather than testing an example-filled shell. The selected active review is intentionally rebuilt with the new viewer for this combined change; historical archives stay byte-identical. Legacy marked pages still get proposal-only refresh.
+
+The rebuilt page passed the structural checker and displayed all six visuals and eight states at desktop and 390px phone widths without page-level overflow. A draft survived item navigation and reload; saving it made Copy notes produce the established `/continue` block. A copy of the page opened from a directory with no adjacent inputs. The archived PR #88 review is byte-identical to `origin/main`. These checks do not replace human judgment about the pictures. The merged branch still needs its app, payload, and deployment CI gate.
 
 ## Review
 

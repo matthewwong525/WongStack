@@ -7,8 +7,16 @@
 
 - **Breaking for agents that call generated `openspec-*` skills:** WongStack now uses the OpenSpec CLI directly. Its six generated OpenSpec skills and visibility patch leave the source payload. Public `/explore`, `/plan`, `/apply`, `/save`, `/continue`, and `/ship` commands remain.
 - **Every new change keeps a standalone interactive `review.html`.** The plan skill writes `review-visuals.html`; one shared builder combines it with the proposal and fixed viewer. Reviewers still navigate What Changes, annotate the page, and copy feedback for `/continue`. `/save` refreshes the same page. Marked older pages get a proposal-only refresh without changing their visuals.
+- The builder uses the review viewer introduced in 15.2.0: full item text above each visual, local state controls, connected workflow cards, and saved-note drafts. Its examples live outside the shared shell, and the app's browser checks exercise generated pages.
 - **Fresh targets use `openspec init --tools none`.** Existing targets keep their changes, specs, archives, schemas, notes, and local skill names. On `/wong-sync`, inspect the old layer with `retire-generated-openspec.mjs` and apply only the reviewed known-file removals. Customized or independently installed integrations remain in place and must be resolved before the install record advances.
 - Meta-only CI checks the CLI contract, review assembly and diagnostics, migration safety, payload links, and OpenSpec config. Routine dependency updates check CLI compatibility without regenerating skills.
+
+## 15.2.0 — clearer review pages for new changes
+
+- New review pages show the complete selected What Changes item above its visual. The single Changes list remains the navigation on desktop and phone; visual controls stay within that item.
+- Workflow steps use connected cards with title, summary, change label, and expandable Details inside each card. Labeled branches split and rejoin, and stack for narrow screens without sideways scrolling.
+- Annotation leaves navigation and Details usable. Unfinished notes remain drafts on their original targets, while Copy notes includes saved feedback only. The page states when browser storage is unavailable.
+- CI now checks routing, drafts, interactions, and responsive layout in a real browser. Existing active and archived review files keep their embedded kit and are not rewritten.
 
 ## 15.1.0 — a phone review opens on the change list
 

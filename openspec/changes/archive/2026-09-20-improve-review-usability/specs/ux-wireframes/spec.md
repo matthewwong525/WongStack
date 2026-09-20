@@ -1,30 +1,4 @@
-# ux-wireframes Specification
-
-## Purpose
-
-The review stage of `/plan` gives every change one self-contained HTML review page — `review.html`, whose What Changes list is the navigation and whose stage shows a low-fidelity picture of each change (a screen wireframe, a flow, a diff, a file tree) — that a reviewer opens on a laptop or a phone, walks, annotates, and copies notes from back into `/continue`. It is committed with the change and archived with it. (The capability keeps its `ux-wireframes` name from when it covered wireframes alone.)
-
-## Requirements
-
-### Requirement: A UI-bearing change carries one wireframe file
-
-Every change `/plan` drafts SHALL carry `openspec/changes/<name>/review.html`. The file SHALL be self-contained: it SHALL load no script, style, font, or image from a network address, so it renders when opened from disk with no server. A change that adds or restructures a user-facing screen SHALL draw that screen as a `screen` visual and SHALL keep a `## UX` section in `design.md`; a UI-less change SHALL have no `## UX` section and no `screen` visual, and SHALL still have the file with its other visual kinds.
-
-#### Scenario: A screen is added
-
-- **WHEN** `/plan` drafts a change whose design adds a page or component
-- **THEN** `review.html` exists when the plan is apply-ready and contains a `screen` visual for it
-- **AND** the file is committed and archived with the change like `design.md`
-
-#### Scenario: The file opens from disk
-
-- **WHEN** a reviewer opens `review.html` from a clone with no server running and no network
-- **THEN** every visual and state renders and navigation works
-
-#### Scenario: A UI-less change
-
-- **WHEN** `/plan` drafts a worker-only, CLI, library, or prose change
-- **THEN** `review.html` exists with `flow`, `diff`, `tree`, or text visuals and no `screen`, and `design.md` has no `## UX` section
+## MODIFIED Requirements
 
 ### Requirement: The wireframe covers the flow at low fidelity
 
@@ -57,64 +31,6 @@ A `screen` visual SHALL follow the design's flow: every screen in the flow appea
 
 - **WHEN** a visual contains a link to a different What Changes item
 - **THEN** the critic flags it and the author replaces it with a local state or detail action
-
-### Requirement: Screens carry the reasoning beside them
-
-Each `screen` visual SHALL carry a notes block with the use-case brief in one line and numbered callouts that explain the layout choices that matter. Other visual kinds MAY carry a notes block. A reader SHALL get the intent without opening `design.md`.
-
-#### Scenario: A reviewer reads a callout
-
-- **WHEN** a visual marks an element with a numbered callout
-- **THEN** the notes block below that visual has a matching numbered entry
-
-### Requirement: The design text links the file instead of sketching
-
-The `### Review` subsection of a UI-bearing `design.md` SHALL link `review.html` and list its screens and states by anchor. It SHALL NOT contain ASCII sketches. The brief, flow, hierarchy, and components subsections SHALL stay in `design.md` as text.
-
-#### Scenario: The critic reads both
-
-- **WHEN** the critic subagent reviews the review stage output
-- **THEN** it reads the `## UX` text, when present, and the file
-- **AND** it judges whether every screen serves the stated job from both
-
-### Requirement: Tasks and the PR body point at the wireframe
-
-A task that builds or edits something a visual shows SHALL cite it as a `review.html#/<visual>[/<state>][/<mark>]` anchor. The PR body that `/save` regenerates SHALL carry a `## Review` section linking `openspec/changes/<name>/review.html` on the branch when the file exists, saying to open it, walk it, annotate, and paste the notes into `/continue`, and SHALL omit the section when it does not.
-
-#### Scenario: A UI task cites its screen
-
-- **WHEN** `/plan` writes a task that builds a screen
-- **THEN** the task names the anchor, for example `Build the list view per review.html#/list/default`
-
-#### Scenario: The PR body links the file
-
-- **WHEN** `/save` regenerates the PR body for a change with `review.html`
-- **THEN** the body has a `## Review` section whose link resolves to the file on the branch
-
-#### Scenario: No wireframe on the branch
-
-- **WHEN** `/save` regenerates the PR body for a change without `review.html`
-- **THEN** the body has no `## Review` section
-
-### Requirement: The wireframe is filled from a fixed kit
-
-The plan skill SHALL ship one review kit that owns the reviewer chrome, routing, panel and landing, four visual kinds and their primitives, callouts, notes, mark highlights, and annotation layer. The design subagent SHALL author only the change-specific visual input with its marks and SHALL NOT restyle the kit, add runtime dependencies, or raise its fidelity. Shared tooling SHALL assemble the kit, visual input, and current proposal into a standalone page. The kit and assembly tooling SHALL reach every repo that installs the plan skill. A critic SHALL still judge the rendered visuals against their proposal and design after the mechanical checks, with one revision round.
-
-#### Scenario: Two changes look alike
-
-- **WHEN** two changes produce review files from the kit
-- **THEN** both have the same chrome, panel, primitives, pin and callout styles and differ only in their change-specific content
-
-#### Scenario: The kit installs with the skill
-
-- **WHEN** a target installs or updates the plan skill
-- **THEN** the shared kit, assembly tooling, and relevant authoring instructions arrive together
-
-#### Scenario: A visual author prepares a change
-
-- **WHEN** the author adds a new flow or screen visual
-- **THEN** it writes the change-specific input and does not copy or edit the viewer runtime
-- **AND** shared tooling produces the required standalone page
 
 ### Requirement: The What Changes list is the navigation
 
@@ -222,55 +138,6 @@ The kit SHALL provide four visual kinds, each self-contained: `screen`, the low-
 - **THEN** the alternatives stack under a label that says to choose one path and the join follows the last alternative
 - **AND** no step box or Details control overlaps another or forces page-level horizontal scrolling
 
-### Requirement: A bullet links its visual
-
-A What Changes bullet with a visual SHALL end with `(review.html#/<visual>[/<state>][/<mark>])`. A bullet MAY wrap across lines: the page SHALL read each bullet as the whole list item, so the anchor SHALL be taken from the end of the bullet rather than the end of a line, and the bullet's text SHALL be shown in full. A line that follows a bullet with no blank line between SHALL belong to that bullet, whether or not it is indented; a blank line SHALL end the bullet, so a paragraph below the list SHALL stay a paragraph. When the segment after the visual names one of its states it SHALL be read as the state; otherwise it SHALL be read as a mark and the state SHALL default. A mark SHALL NOT share a name with a state of the same visual. The panel SHALL render the bullet as a link and SHALL show an anchor that names no visual, state, or mark as dead with the reason. The URL fragment SHALL accept the same form so a view is addressable.
-
-#### Scenario: The state is omitted
-
-- **WHEN** a bullet's anchor is `#/list/search` and `search` is not a state of `list`
-- **THEN** choosing it shows `list` in its default state with the `search` elements highlighted
-
-#### Scenario: A deep link
-
-- **WHEN** the file is opened at `review.html#/list/empty/create`
-- **THEN** the `list` screen shows its empty state with the `create` elements highlighted and the matching bullet is current
-
-#### Scenario: A dead anchor
-
-- **WHEN** a bullet's anchor names a mark no element in that visual carries
-- **THEN** the panel shows the anchor struck through with the reason and the critic names the bullet
-
-#### Scenario: A bullet wraps across lines
-
-- **WHEN** a bullet is hard-wrapped so its `(review.html#/…)` anchor falls on the last of several lines, indented or not
-- **THEN** the panel lists one bullet carrying its full text, the anchor resolves to its visual, and no continuation line appears below the list
-
-#### Scenario: A paragraph below the list
-
-- **WHEN** a blank line separates the `**Non-goals:**` paragraph from the last bullet
-- **THEN** the paragraph renders below the list and the bullet count is unchanged
-
-### Requirement: The proposal text is resynced by `/save`
-
-The generated page SHALL contain the proposal's current Why and What Changes and SHALL render paragraphs, lists, bold, inline code, and links. Plan and save SHALL use one shared refresh implementation. Current-format pages SHALL be assembled from their inputs. Legacy pages with `proposal:start` and `proposal:end` markers SHALL receive the existing proposal-only refresh; legacy pages without supported markers and older changes without a page SHALL be reported and left untouched. A new-format missing input SHALL be reported as an error, not a legacy skip. New plans SHALL always include a page.
-
-#### Scenario: The proposal changes after the file was written
-
-- **WHEN** What Changes is edited during implementation and save runs
-- **THEN** the page displays the proposal's current Why and What Changes
-
-#### Scenario: No file or no markers
-
-- **WHEN** save runs for an older change without a page or supported proposal markers
-- **THEN** the legacy page is not rewritten and the checkpoint reports the limitation and proceeds
-
-#### Scenario: A current-format refresh fails
-
-- **WHEN** the new page's required visual input is missing
-- **THEN** refresh preserves the last output and reports the failure
-- **AND** the checkpoint does not claim the review is current
-
 ### Requirement: A reviewer annotates in place and copies the notes
 
 `review.html` SHALL offer an annotate mode that is off when the file opens. When it is off, a click SHALL navigate as before. When it is on, a click on an annotatable element of the active visual SHALL open a note box near that element without following its mock product navigation. Review controls SHALL keep their normal action: change-list labels, Previous, Next, Changes, Tools, local state controls, Details, and saved-note or draft actions SHALL remain operable. The entire outer What Changes panel, including its labels and background, SHALL be navigation and reading space only; no click there SHALL create a note. A draft indicator on a list item MAY navigate to that item and reopen its draft in the visual. The annotation setting SHALL remain active across change and state navigation. The editor SHALL appear beside the target on desktop without covering it, and SHALL dock on a phone as defined by the phone requirement. Saving SHALL attach a numbered pin to the element and list the note in the panel. Saved notes SHALL persist across reloads on the same machine, keyed by change name, and SHALL NOT be written to any repository file. A copy action SHALL place on the clipboard a block whose first line is `/continue <change-name>`, whose second line is `Review notes from review.html (<n>):`, and which then carries one numbered line per saved note as `<location> · <element label> — <text>`, where the location is `#/<visual>[/<state>]` or the panel. A pin whose element no longer matches its saved label SHALL be shown as possibly moved.
@@ -321,16 +188,6 @@ The generated page SHALL contain the proposal's current Why and What Changes and
 
 - **WHEN** the reviewer scrolls by dragging across an annotatable step
 - **THEN** the page scrolls without creating a note from the scroll gesture
-
-### Requirement: The copied block is a `/continue` instruction
-
-When continue receives an instruction beginning with `Review notes from review.html`, it SHALL reconcile those notes into the affected existing artifacts using CLI-provided paths before implementation. It SHALL record which notes changed what or why a note was declined. It SHALL refresh the review through the shared assembly path and SHALL not depend on a generated update skill.
-
-#### Scenario: A review block is pasted
-
-- **WHEN** a reviewer runs continue for a change with a copied review block
-- **THEN** the affected proposal, design, specs, tasks, and visual input are reconciled before implementation resumes
-- **AND** the Decision log records the disposition and the review displays the accepted changes
 
 ### Requirement: The page works on a phone
 
@@ -389,72 +246,7 @@ Below a phone-width breakpoint, `review.html` SHALL show the stage at full width
 - **THEN** the draft text, Save, and close or discard actions remain reachable
 - **AND** the reviewer can scroll the review content without losing the draft
 
-### Requirement: A screen can be walked at phone width
-
-A `screen` visual SHALL be walkable at phone width. The chrome SHALL offer a View toggle, Desktop or Phone, whenever the active visual is a screen; at phone width the phone view SHALL apply without the toggle. The kit SHALL provide `phone-only` and `desktop-only` helpers so one screen carries both layouts. When the use-case brief says the job is done on a phone, the review stage SHALL draw the phone layout first and the critic SHALL check the screen at phone width.
-
-#### Scenario: Phone view from a desktop
-
-- **WHEN** a reviewer on a desktop chooses Phone with a screen on the stage
-- **THEN** the frame narrows to phone width, `desktop-only` elements hide, and `phone-only` elements show
-
-#### Scenario: A phone-first brief
-
-- **WHEN** a design's brief says operators use the screen on a phone
-- **THEN** the screen visual carries a phone layout, and the critic reports any state that overflows at phone width
-
-### Requirement: The file cannot fail silently
-
-The kit SHALL execute no statement at load time that can throw before the first render on `file://`; storage and history access SHALL be guarded with fallbacks. A script error SHALL be written into the panel with its line number. The script SHALL parse in an older embedded engine, using no optional chaining or optional catch binding.
-
-#### Scenario: Storage is refused
-
-- **WHEN** the browser refuses localStorage on `file://`
-- **THEN** the file renders, notes work until reload, and no error is shown
-
-#### Scenario: A script error
-
-- **WHEN** a statement in the kit throws at load
-- **THEN** the panel shows the message and line instead of a blank stage
-
-### Requirement: A state may carry any name
-
-A `screen` visual's `data-states` SHALL accept any state name, not a fixed vocabulary. The state whose name is current SHALL render and every other state SHALL be hidden, whatever those names are. A state that is declared, has markup, and still renders nothing is a defect.
-
-#### Scenario: A state outside the common four
-
-- **WHEN** a screen declares `data-states="default annotating phone"` and carries a block for each
-- **THEN** choosing `annotating` renders that block and hides the others
-- **AND** choosing `phone` renders that block instead
-
-#### Scenario: The common four still work
-
-- **WHEN** a screen declares `data-states="default empty loading error"`
-- **THEN** each state renders as before
-
-### Requirement: A bullet with no visual clears the highlight
-
-When a What Changes bullet with no anchor opens the text stage, any highlight left by the previously shown visual SHALL be cleared.
-
-#### Scenario: From a highlighted visual to a text bullet
-
-- **WHEN** a reviewer opens a bullet whose mark highlights elements, then opens a bullet with no visual
-- **THEN** no element anywhere in the page is left highlighted
-
-### Requirement: A release check reads the planning config
-
-The repository SHALL carry a release check that confirms the OpenSpec CLI can read `openspec/config.yaml`, and it SHALL fail when the CLI reports that it could not. The payload release ritual SHALL name it alongside the link check.
-
-#### Scenario: The config cannot be parsed
-
-- **WHEN** `openspec/config.yaml` contains a line the CLI cannot parse
-- **THEN** the check fails and names the file
-- **AND** the release does not pass on that state
-
-#### Scenario: The config is readable
-
-- **WHEN** the file parses
-- **THEN** the check passes and says so
+## ADDED Requirements
 
 ### Requirement: Review layout keeps each item's content together
 
@@ -545,92 +337,19 @@ Navigation, step details, comment actions, and draft actions SHALL be reachable 
 
 ### Requirement: The revised kit applies to newly created pages
 
-The focused layout, local controls, connected workflow cards, and draft-note behavior SHALL live in the shared kit used for newly assembled review pages. The builder SHALL combine that kit with the current proposal and change-specific visual fragment. Generated pages SHALL remain self-contained without an external runtime. Refreshing a selected current-format change MAY rebuild its embedded viewer from the shared kit; marked older pages SHALL receive proposal-only refresh, and archived pages SHALL NOT be bulk regenerated.
+The new layout and interaction behavior SHALL be supplied by the shared kit for newly generated review pages. This change SHALL NOT upgrade, regenerate, or rewrite existing active or archived review files. The page SHALL remain self-contained and usable from a clone without a server or network. Existing proposal synchronization SHALL continue to update proposal text without replacing an older page's embedded controls or styles.
 
 #### Scenario: A new review is generated
 
-- **WHEN** a future plan builds a review from the shared kit and its visual fragment
-- **THEN** the page provides full selected-item text, responsive layout, annotation-safe navigation, and drafts without an external runtime load
+- **WHEN** a future plan copies the revised kit
+- **THEN** its review page provides the full selected-item text, responsive layout, annotation-safe navigation, and drafts without an external runtime load
 
-#### Scenario: An older page is refreshed
+#### Scenario: Existing pages remain unchanged
 
-- **WHEN** save refreshes a marked page that has no visual fragment
-- **THEN** it updates only the proposal block and preserves that page's embedded controls and styles
+- **WHEN** the shared kit is updated
+- **THEN** no existing active or archived review file is migrated as part of that update
 
-#### Scenario: Archived pages remain historical
+#### Scenario: Proposal sync on an older page
 
-- **WHEN** the shared kit changes
-- **THEN** archived pages are not rebuilt merely because the kit changed
-
-### Requirement: Review assembly is deterministic and preserves authored input
-
-Assembly SHALL read the shared template, current proposal sections, and authored visual input. The proposal text SHALL have no separately maintained copy. Repeated assembly of identical inputs SHALL produce identical output without rewriting it. Invalid inputs SHALL report a useful error and preserve the previous output. Embedded content SHALL be escaped so proposal text cannot introduce executable markup.
-
-#### Scenario: The inputs do not change
-
-- **WHEN** the same review is assembled twice
-- **THEN** the second invocation makes no byte or modification-time change
-
-#### Scenario: The proposal contains markup delimiters
-
-- **WHEN** a proposal includes literal script-closing text or HTML-like examples
-- **THEN** the page displays the intended text without executing it or breaking the document
-
-#### Scenario: A current-format input is missing
-
-- **WHEN** a current-format change lacks its required visual input or has invalid template boundaries
-- **THEN** assembly returns an error identifying the input and does not overwrite its existing review
-
-### Requirement: Mechanical defects have deterministic diagnostics
-
-Review checks SHALL identify duplicate visual IDs, unresolved anchors, missing declared screen states, state/mark collisions, invalid navigation targets, unreferenced visuals or marks, excess primary actions per screen state, unauthorized template changes, and prohibited resource loads or executable visual input. Checks SHALL respect the existing visual-kind semantics, including flow lanes for today/after states. Diagnostics SHALL identify the affected visual or source. A structural pass SHALL NOT be reported as proof of semantic or visual correctness.
-
-#### Scenario: An anchor does not exist
-
-- **WHEN** a proposal bullet names a missing visual, state, or mark
-- **THEN** the check reports that bullet's target as invalid
-
-#### Scenario: A shared header creates two primary actions
-
-- **WHEN** a screen has a primary action outside its state blocks and another inside its empty state
-- **THEN** the check reports two primary actions for the empty state
-
-#### Scenario: Visual input changes shared behavior
-
-- **WHEN** a fragment adds a script, an event handler, a style override, or a remote automatically loaded resource
-- **THEN** the check rejects that input with a named diagnostic
-
-#### Scenario: The unchanged viewer applies its own inline styles
-
-- **WHEN** the shared runtime sets flow opacity or toolbar sizing after loading valid visual input
-- **THEN** author-input checks do not reject those runtime-generated styles
-- **AND** styles introduced by the visual author are still rejected before execution
-
-#### Scenario: A valid structure still shows the wrong change
-
-- **WHEN** the structural checks pass but a visual does not explain its proposal bullet
-- **THEN** the critic can still reject the visual and require the single revision round
-
-### Requirement: Review generation preserves portable history
-
-The generated review SHALL remain the primary human review surface, showing the proposal and visual explanations without needing adjacent source files. It SHALL preserve the existing interaction and annotation identity when a page is refreshed. Migration SHALL NOT bulk regenerate archived pages. A structural or source-only check SHALL NOT be reported as a completed rendered review.
-
-#### Scenario: A reviewer opens only the HTML file
-
-- **WHEN** a reviewer opens a generated page without its proposal, template, or visual-input file beside it
-- **THEN** the explanation, visuals, navigation, and annotation controls remain available
-
-#### Scenario: A proposal-only refresh preserves annotations
-
-- **WHEN** a current-format review is refreshed after a proposal text edit
-- **THEN** stable visual identifiers and annotation storage identity remain unchanged
-
-#### Scenario: Existing archives are migrated
-
-- **WHEN** the WongStack integration is migrated
-- **THEN** existing archived review pages remain byte-identical and readable without the new authoring tooling
-
-#### Scenario: No browser is available for rendered inspection
-
-- **WHEN** source checks complete but rendered browser inspection cannot run
-- **THEN** the report names the rendered checks as unverified rather than claiming that every state was inspected
+- **WHEN** the existing proposal sync runs on an older review file
+- **THEN** it updates the machine-filled proposal block as before without upgrading that file's embedded review UI

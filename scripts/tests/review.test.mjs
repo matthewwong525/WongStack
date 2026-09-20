@@ -13,9 +13,11 @@ const requireFromApp = createRequire(resolve(here, '../../app/package.json'));
 const { JSDOM } = requireFromApp('jsdom');
 const checker = readFileSync(resolve(here, '../../.agents/skills/plan/scripts/check-review.js'), 'utf8');
 const proposal = '## Why\n\nReduce repeated work.\n\n## What Changes\n\n- A new flow. (review.html#/flow/after/new)\n';
-const fragment = '<section class="visual flow" id="flow" data-kind="flow" data-states="after today"><div class="frame"><div class="lane today"><span class="step">Old</span></div><div class="lane"><span class="step" data-mark="new">New</span></div></div><div class="notes"><ol><li>Less work.</li></ol></div></section>\n';
+const fragment = '<section class="visual flow" id="flow" data-kind="flow" data-states="after today"><div class="frame"><div class="state state-after"><div class="flow-card" data-target-id="new" data-mark="new">New</div></div><div class="state state-today"><div class="flow-card">Old</div></div></div><div class="notes"><ol><li>Less work.</li></ol></div></section>\n';
 const browserOptions = { url: 'https://review.test/', runScripts: 'dangerously', beforeParse(window) {
   window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
+  window.requestAnimationFrame = callback => callback();
+  window.scrollTo = () => {};
 } };
 
 function fixture(fn) {
@@ -90,7 +92,9 @@ test('diagnostics distinguish broken routes, state collisions, and valid links',
   const html = readFileSync(join(root, 'review.html'), 'utf8');
   assert.deepEqual(inspect(html.replace('data-mark="new"', 'data-mark="after"')).issues.map(x => x.code).sort(), ['dead-anchor', 'missing-mark', 'state-mark-collision', 'unreferenced-mark']);
   assert.deepEqual(inspect(html.replace('id="flow"', 'id="other"')).issues.map(x => x.code).sort(), ['dead-anchor', 'missing-visual', 'unreferenced-mark', 'unreferenced-visual']);
-  assert.deepEqual(inspect(html.replace('New</span>', 'New <a href="https://example.test/">Help</a></span>')), { ok: true, issues: [] });
+  assert.deepEqual(inspect(html.replace('New</div>', 'New <a href="https://example.test/">Help</a></div>')), { ok: true, issues: [] });
+  assert.ok(inspect(html.replace('data-mark="new"', 'data-go="other" data-mark="new"')).issues.some(x => x.code === 'cross-item-navigation'));
+  assert.ok(inspect(html.replace('data-mark="new"', 'data-local-state="missing" data-mark="new"')).issues.some(x => x.code === 'missing-local-state'));
 }));
 
 test('wrapped bullets, flow lanes, screen states, and shared actions', () => fixture(root => {
@@ -98,7 +102,7 @@ test('wrapped bullets, flow lanes, screen states, and shared actions', () => fix
   buildReview(root);
   const html = readFileSync(join(root, 'review.html'), 'utf8');
   assert.deepEqual(inspect(html), { ok: true, issues: [] });
-  assert.ok(inspect(html.replace('class="lane today"', 'class="lane"')).issues.some(x => x.code === 'missing-today-lane'));
+  assert.ok(inspect(html.replace('state-today', 'state-other')).issues.some(x => x.code === 'missing-today-lane'));
   const screen = '<section class="visual screen" id="flow" data-kind="screen" data-states="default empty"><div class="frame"><button class="btn primary">Shared</button><div class="state state-default">Ready</div><div class="state state-empty">Empty</div><span data-mark="new">Change</span></div></section>';
   writeFileSync(join(root, 'review-visuals.html'), screen);
   writeFileSync(join(root, 'proposal.md'), proposal.replace('/flow/after/new', '/flow/default/new'));

@@ -1,0 +1,810 @@
+<!doctype html>
+<!--
+  ─────────────────────────────────────────────────────────────────────────────
+  REVIEW KIT — fill this in; do not restyle it.
+
+  Copy this file to openspec/changes/<name>/review.html. It is the reviewer's
+  page for the change: the proposal's What Changes list on the left is the
+  navigation, and each entry opens a picture of that change on the stage. The
+  look is fixed on purpose: every WongStack review page reads the same way, and
+  a reviewer learns the chrome once.
+
+  WHAT YOU FILL, WHAT THE TOOLING FILLS
+  - You fill: the <section class="visual"> blocks, one per What Changes bullet,
+    and the data-mark attributes the bullets point at.
+  - The sync script fills: everything between the two comment markers named
+    "proposal:start" and "proposal:end" (they sit just below, around the
+    example proposal). Never hand-edit that block — /save overwrites it from
+    proposal.md on every checkpoint. Leave both markers in place.
+  - The kit owns: the chrome, the panel, the landing, routing, the annotate
+    layer and the pins. Reviewer chrome, not the product. Leave it alone.
+
+  HOW TO FILL IT
+  1. Title: replace CHANGE-NAME in the <title> and in the chrome with the
+     change name. The page reads the change name from the title.
+  2. One <section class="visual"> per What Changes bullet that has something
+     to show. Two bullets may share one visual. A bullet with nothing to draw
+     needs no section — it opens a text stage on its own.
+  3. Give every visual:
+       id="<slug>"            the anchor: #/<slug>
+       data-kind="screen|flow|diff|tree"    which of the four kinds it is
+       data-states="a b c"    only for a visual with more than one state;
+                              the first listed is the landing state. Any names
+                              you like — "default empty loading error" for a
+                              screen's usual set, but "annotating phone" or
+                              "after today" are equally valid. Each one needs
+                              its own <div class="state state-<name>"> block,
+                              or that state shows an empty frame.
+       data-state="<first>"   the state it opens in
+  4. Anchor each bullet in proposal.md by appending
+       (review.html#/<visual>[/<state>][/<mark>])
+     The state segment is optional — a segment that is not one of the visual's
+     states is read as a mark. So #/list/search, #/list/empty/create and
+     #/receive-flow/after/new all work.
+     A MARK MUST NEVER SHARE A NAME WITH A STATE of the same visual, or the
+     router reads it as the state and highlights nothing.
+     A bullet can wrap. The anchor is read from the end of the whole bullet.
+  5. Mark what the bullet changes with data-mark="<mark>" on the elements it
+     touches. Choosing that bullet outlines every one of them.
+  6. Mark the layout choices that matter with <i class="callout">N</i> and put
+     a matching numbered line in that visual's .notes block.
+  7. Delete the example visuals below. Keep the <style> and <script> untouched.
+
+  THE FOUR VISUAL KINDS
+    screen  a low-fidelity wireframe of a UI screen, with its states. Every
+            screen in the flow, each with the empty, loading and error states
+            the design names. Exactly ONE .btn.primary visible at a time —
+            counted per state, because markup outside a state block shows in
+            every state. Give it data-go="<id>" so the flow is clickable.
+            A change that adds or restructures a screen uses this kind, and
+            wiki/ux-principles.md governs what the screen should be.
+    flow    a sequence of steps, as .lane rows of .step boxes and .arrow
+            separators. Use two lanes with data-states="after today" to argue
+            a process change: the .lane.today row draws dashed and muted.
+            This is the kind for a skill, a runbook, or any change to how a
+            job gets done.
+    diff    before and after text, as two labelled <pre> columns whose lines
+            are .line, and .del or .add for what goes and what arrives. The
+            kind for a rule, a config value, a template, or prose.
+    tree    files added, edited, or removed, as an <ul> whose items are .add,
+            .edit or .del, each with an optional <span class="why">.
+
+  MOBILE
+  - The page itself reflows below 760px: the stage takes the width, the list
+    becomes a sheet behind the Changes button, and ‹ › step through the
+    bullets. You get that for free.
+  - A SCREEN MUST CONSIDER THE PHONE. The chrome's View toggle walks any
+    screen at phone width. Use class="phone-only" and class="desktop-only" to
+    give one screen both layouts. When the use-case brief says the job is done
+    on a phone, draw the phone layout first and check every state at phone
+    width — a screen that only works at 960px is not finished.
+
+  HARD RULES
+  - No network. No CDN link, no web font, no remote image, no analytics. The
+    file must render from file:// with no server and no connection, years from
+    now, out of the change's archive folder.
+  - No new CSS, no colour, no brand, no design-system token, no product
+    typography. Compose the primitives below and nothing else. Low fidelity is
+    the contract: this is an argument about the change, not a picture of the
+    product. The one accent colour is the reviewer's, for marks and pins.
+  - No real data and no real copy where a placeholder does the job.
+  - Nothing at the top level of the script may throw before the first render,
+    and the script uses no optional chaining and no optional catch binding —
+    a phone browser that refuses localStorage on file:// must still render.
+
+  THE PRIMITIVES
+    screen: .topbar + .logo + .nav (span.on = current)   the app frame
+            .btn / .btn.primary / .btn.ghost             actions
+            .input / .input.wide, .field > label         form fields
+            table                                         rows of data
+            .box                                          empty / error panel
+            .skeleton (+ .s for a short one)              loading
+            .hero                                         image placeholder
+            .kv (dt/dd)                                   label-value pairs
+            .tag                                          status chip
+    flow:   .lane (+ .today), .lane .label, .step (+ .gone), .arrow
+    diff:   .diff > div > .label + pre > .line (+ .add / .del)
+    tree:   .tree ul > li.add / li.edit / li.del + .why
+    any:    .row / .row.between, .muted, .caption, .phone-only,
+            .desktop-only, .callout + .notes, data-mark
+
+  Owner: .claude/skills/plan/SKILL.md — the review stage. The judgment a
+  screen serves (hierarchy, one primary action, designed empty states) is in
+  wiki/ux-principles.md.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review — improve-review-usability</title>
+<style>
+  :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.4 "Helvetica Neue", Arial, sans-serif; color:var(--ink); background:#d9d9d9; }
+  a { color:inherit; }
+
+  /* chrome: the reviewer's toolbar */
+  .chrome { position:sticky; top:0; z-index:9; background:#222; color:#eee; padding:8px 14px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; font-size:13px; min-height:41px; }
+  .chrome b { font-weight:600; }
+  .chrome .group { display:flex; gap:6px; align-items:center; }
+  .chrome .group:empty { display:none; }
+  .chrome button { font:inherit; padding:3px 9px; background:#444; color:#eee; border:1px solid #666; border-radius:3px; cursor:pointer; }
+  .chrome button[aria-pressed="true"] { background:#eee; color:#222; }
+  .chrome button.annotate[aria-pressed="true"] { background:var(--mark); color:#fff; border-color:var(--mark); }
+  .chrome .hint { opacity:.7; margin-left:auto; }
+  .chrome .tools { display:contents; }
+  .chrome .tools-toggle { display:none; }
+
+  /* layout: What Changes panel + stage */
+  .layout { display:flex; align-items:flex-start; }
+  .panel { flex:0 0 340px; position:sticky; top:41px; max-height:calc(100vh - 41px); overflow:auto; background:#fff; border-right:2px solid var(--line); padding:16px 18px; font-size:13px; }
+  .panel h2 { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#666; margin:18px 0 6px; }
+  .panel h2:first-child { margin-top:0; }
+  .panel p { margin:0 0 8px; }
+  .panel ol.changes { margin:0; padding:0; list-style:none; counter-reset:c; }
+  .panel ol.changes li { counter-increment:c; position:relative; margin:0 0 4px; padding:6px 8px 6px 30px; border:1px solid transparent; border-radius:3px; cursor:pointer; }
+  .panel ol.changes li::before { content:counter(c); position:absolute; left:8px; top:7px; width:16px; height:16px; border-radius:50%; background:var(--fill); color:#666; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .panel ol.changes li:hover { background:var(--fill2); }
+  .panel ol.changes li.on { border-color:var(--mark); background:var(--markbg); }
+  .panel ol.changes li.on::before { background:var(--mark); color:#fff; }
+  .panel ol.changes li .kind { display:block; font-size:11px; color:var(--mark); margin-top:2px; }
+  .panel ol.changes li.dead .kind { color:#c00; }
+  .panel ol.changes li.text .kind { color:#888; }
+  .panel code { background:var(--fill); padding:0 3px; }
+  .panel .notes-list { margin:0; padding-left:18px; }
+  .panel .notes-list li { margin:0 0 6px; cursor:pointer; }
+  .panel .notes-list .where { color:#666; font-size:11px; display:block; }
+  .panel .empty { color:#666; list-style:none; margin-left:-18px; }
+  .stage { flex:1; min-width:0; }
+
+  /* one visual at a time */
+  .visual { display:none; }
+  .visual[data-active] { display:block; }
+  .frame { max-width:960px; margin:24px auto; background:#fff; border:2px solid var(--line); box-shadow:0 2px 0 #bbb; }
+  .visual.screen .frame { min-height:0; }
+  .visual:not(.screen) .frame { padding:24px; }
+  .caption { max-width:960px; margin:24px auto 0; font-size:12px; color:#666; }
+  .caption + .frame { margin-top:6px; }
+  .state { display:none; }
+  .state[data-on] { display:block; }
+
+  /* lo-fi screen primitives — the screen visual's vocabulary */
+  .topbar { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:2px solid var(--line); background:var(--fill2); }
+  .logo { width:34px; height:34px; border:2px solid var(--line); background:var(--fill); position:relative; }
+  .logo::before, .logo::after { content:""; position:absolute; inset:0; background:linear-gradient(to top right, transparent 48%, var(--line) 48%, var(--line) 52%, transparent 52%); }
+  .logo::after { transform:scaleX(-1); }
+  .nav { display:flex; gap:14px; }
+  .nav span { padding:4px 0; border-bottom:2px solid transparent; }
+  .nav span.on { border-color:var(--ink); font-weight:600; }
+  .body { padding:20px; }
+  h1 { font-size:20px; margin:0; }
+  .row { display:flex; gap:12px; align-items:center; }
+  .row.between { justify-content:space-between; }
+  .btn { display:inline-block; padding:7px 14px; border:2px solid var(--ink); border-radius:3px; background:#fff; cursor:pointer; user-select:none; }
+  .btn.primary { background:var(--ink); color:#fff; }
+  .btn.ghost { border-color:transparent; text-decoration:underline; }
+  .input { display:inline-block; min-width:220px; padding:7px 10px; border:2px solid var(--line); border-radius:3px; background:#fff; color:#888; }
+  table { width:100%; border-collapse:collapse; margin-top:16px; }
+  th { text-align:left; font-size:12px; color:#666; border-bottom:2px solid var(--line); padding:8px 6px; }
+  td { padding:10px 6px; border-bottom:1px solid #ddd; }
+  tr.click { cursor:pointer; }
+  .tag { display:inline-block; padding:1px 8px; border:1px solid var(--line); border-radius:10px; font-size:12px; }
+  .box { border:2px dashed var(--line); background:var(--fill2); padding:30px; text-align:center; color:#666; margin-top:16px; }
+  .skeleton { height:14px; background:var(--fill); margin:14px 0; width:70%; }
+  .skeleton.s { width:40%; }
+  .kv { display:grid; grid-template-columns:140px 1fr; gap:8px 12px; margin:16px 0; }
+  .kv dt { color:#666; } .kv dd { margin:0; }
+  .muted { color:#666; }
+  .hero { height:120px; background:var(--fill); border:2px solid var(--line); position:relative; margin:12px 0; }
+  .hero::before, .hero::after { content:""; position:absolute; inset:0; background:linear-gradient(to top right, transparent 49.5%, var(--line) 49.5%, var(--line) 50.5%, transparent 50.5%); }
+  .hero::after { transform:scaleX(-1); }
+  .callout { display:inline-flex; width:18px; height:18px; border-radius:50%; background:#c00; color:#fff; font-size:11px; font-weight:700; align-items:center; justify-content:center; vertical-align:middle; margin-left:6px; }
+  .notes { max-width:960px; margin:0 auto 40px; background:var(--note); border:1px solid #d8c66a; padding:12px 18px; font-size:13px; }
+  .notes ol { margin:6px 0 0; padding-left:20px; }
+  .notes .brief { margin:0 0 6px; }
+
+  /* flow: lanes of steps */
+  .lane { display:flex; align-items:center; gap:10px; padding:10px 0; flex-wrap:wrap; }
+  .lane + .lane { border-top:1px solid #ddd; }
+  .lane .label { flex:0 0 70px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#666; }
+  .lane.today .step { color:#777; border-style:dashed; }
+  .step { padding:8px 12px; border:2px solid var(--line); border-radius:3px; background:var(--fill2); }
+  #workflow .flow-sequence { max-width:720px; margin:0 auto; }
+  #workflow .flow-card { display:block; padding:14px; min-width:0; overflow-wrap:anywhere; }
+  #workflow .flow-card h3 { margin:0 0 7px; font-size:15px; }
+  #workflow .flow-card p { margin:0; }
+  #workflow .flow-card details { border-top:1px solid #d5d5d5; margin-top:11px; padding-top:9px; }
+  #workflow .flow-card details p { margin-top:8px; }
+  #workflow .flow-connector { text-align:center; margin:10px 0; color:#666; font-weight:600; }
+  #workflow .flow-branches { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  #workflow .flow-branch { border:2px solid var(--line); background:var(--fill2); padding:12px; min-width:0; overflow-wrap:anywhere; }
+  #workflow .flow-branch h3 { margin:0 0 8px; font-size:14px; }
+  #workflow .flow-branch p { margin:0; }
+  .step.gone { text-decoration:line-through; color:#999; }
+  .arrow { color:#999; }
+  .arrow::before { content:"→"; }
+
+  /* diff: before / after text */
+  .diff { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .diff > div > .label, .tree .label { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#666; margin-bottom:6px; }
+  .diff pre { margin:0; padding:10px 12px; background:var(--fill2); border:1px solid #ddd; font:12px/1.5 Menlo, Consolas, monospace; white-space:pre-wrap; }
+  .diff .line { display:block; }
+  .diff .del { color:#999; text-decoration:line-through; }
+  .diff .add { border-left:3px solid var(--mark); margin-left:-12px; padding-left:9px; background:var(--markbg); }
+
+  /* tree: files touched */
+  .tree ul { list-style:none; margin:0; padding:0; font:13px/1.8 Menlo, Consolas, monospace; }
+  .tree li { padding-left:4px; }
+  .tree li::before { display:inline-block; width:18px; color:#888; }
+  .tree li.add::before { content:"+"; color:var(--mark); font-weight:700; }
+  .tree li.edit::before { content:"~"; }
+  .tree li.del::before { content:"−"; }
+  .tree li.del { color:#999; text-decoration:line-through; }
+  .tree li .why { color:#666; font:12px "Helvetica Neue", Arial, sans-serif; margin-left:10px; }
+
+  /* text stage: a bullet with no visual, and the landing */
+  .textstage h1 { font-size:22px; margin:0 0 12px; }
+  .textstage p { font-size:16px; max-width:640px; }
+  .textstage ol { font-size:15px; max-width:640px; padding-left:22px; }
+  .textstage ol li { margin:0 0 6px; cursor:pointer; }
+  .textstage ol li:hover { text-decoration:underline; }
+  .textstage .muted { font-size:13px; }
+
+  /* highlight: the mark named by the hash */
+  .marked { outline:3px solid var(--mark); outline-offset:3px; box-shadow:0 0 0 6px var(--markbg); }
+  tr.marked { outline-offset:0; }
+  .diff .add.marked, .tree li.marked { outline-offset:0; box-shadow:none; }
+
+  /* annotate */
+  body.annotating .visual[data-active] .frame { cursor:crosshair; }
+  .hovering { outline:2px dashed var(--mark); outline-offset:2px; }
+  .pin { display:inline-flex; width:18px; height:18px; border-radius:3px; background:var(--mark); color:#fff; font-size:11px; font-weight:700; align-items:center; justify-content:center; vertical-align:middle; margin-left:6px; cursor:pointer; }
+  .pin.stale { background:#999; }
+  .popover { position:fixed; z-index:10; width:300px; background:#fff; border:2px solid var(--mark); border-radius:4px; padding:10px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:13px; }
+  .popover .where { color:#666; font-size:11px; margin-bottom:6px; word-break:break-word; }
+  .popover textarea { width:100%; height:70px; font:inherit; padding:6px; border:1px solid var(--line); border-radius:3px; resize:vertical; }
+  .popover .row { margin-top:8px; }
+  .popover button { font:inherit; padding:4px 10px; border:1px solid var(--line); background:#fff; border-radius:3px; cursor:pointer; }
+  .popover button.save { background:var(--mark); color:#fff; border-color:var(--mark); }
+  .popover .del { margin-left:auto; color:#c00; }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#222; color:#eee; padding:8px 14px; border-radius:3px; font-size:13px; z-index:11; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  #copybuf { position:fixed; left:-9999px; top:0; }
+  .error { color:#c00; }
+
+  /* chrome extras: step through changes, phone/desktop view, the panel toggle */
+  .chrome .count { opacity:.8; min-width:44px; text-align:center; white-space:nowrap; }
+  .chrome .menu { display:none; }
+  .panel { top:var(--chrome-h, 41px); max-height:calc(100vh - var(--chrome-h, 41px)); }
+
+  /* viewport: walk a screen at phone width from a desktop */
+  body[data-viewport="phone"] .visual.screen .frame { max-width:390px; min-height:0; }
+  body[data-viewport="phone"] .desktop-only, body[data-viewport="desktop"] .phone-only { display:none !important; }
+  .visual.screen .body { overflow-x:auto; }
+
+  /* phone: stage full width, the list is a sheet, the note box docks to the bottom */
+  @media (max-width: 760px) {
+    body { font-size:15px; }
+    .chrome { display:grid; grid-template-columns:auto 1fr auto; gap:6px; padding:6px 8px; }
+    .chrome > b, .chrome .hint, .chrome #viewport { display:none !important; }
+    .chrome .menu, .chrome .tools-toggle { display:inline-block; }
+    .chrome > .group { justify-content:center; gap:4px; }
+    .chrome .tools { display:none; grid-column:1 / -1; min-width:0; }
+    .chrome .tools.open { display:flex; flex-wrap:wrap; gap:8px; padding-top:6px; }
+    .chrome .tools .group { flex-wrap:wrap; min-width:0; }
+    .chrome .tools button { max-width:100%; overflow-wrap:anywhere; }
+    .layout { display:block; }
+    .panel { display:none; position:fixed; left:0; right:0; bottom:0; z-index:8; border-right:0; padding:14px 16px 40px; }
+    body.menu .panel { display:block; }
+    .panel ol.changes li { padding:10px 10px 10px 32px; }
+    .frame { margin:12px 8px; }
+    .caption { margin:12px 8px 0; }
+    .notes { margin:0 8px 24px; }
+    .visual:not(.screen) .frame { padding:14px; }
+    .visual.screen .frame { min-height:0; }
+    .body { padding:14px; }
+    .diff { grid-template-columns:1fr; }
+    #workflow .flow-branches { grid-template-columns:1fr; }
+    .textstage p, .textstage ol { font-size:16px; }
+    .popover { left:8px !important; right:8px; bottom:8px; top:auto !important; width:auto; }
+    .popover textarea { font-size:16px; height:90px; }
+    .popover button { padding:8px 14px; }
+    .chrome button { min-height:40px; min-width:40px; padding:6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="chrome">
+  <b>Review · improve-review-usability</b>
+  <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
+  <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
+  <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
+  <div class="tools" id="tools">
+  <div class="group" id="states"></div>
+  <div class="group" id="viewport"><span>View:</span><button data-vp="desktop">Desktop</button><button data-vp="phone">Phone</button></div>
+  <div class="group">
+    <button class="annotate" id="annotate" aria-pressed="false">✎ Annotate</button>
+    <button id="copy">Copy notes</button>
+  </div>
+  </div>
+  <span class="hint">Click a change on the left. Grey = layout only. Blue = what changes. Red dots = reasoning below.</span>
+</div>
+
+<!-- ══ THE PROPOSAL BLOCK — machine-filled; do not hand-edit ═══════════
+     /save runs sync-review-proposal.mjs on every checkpoint, which replaces
+     everything between the two markers with proposal.md's current Why and
+     What Changes. Keep the markers. The example below is what a filled block
+     looks like; it goes when you delete the example visuals. -->
+<script type="text/markdown" id="proposal">
+<!-- proposal:start -->
+## Why
+
+Review pages can separate explanations from their visuals, show unrelated content, and block change navigation while the reviewer adds notes. Reviewers need to read the full change text, understand its workflow, and leave feedback in one clear scrolling view on a phone or desktop.
+
+## What Changes
+
+- Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page's single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual. (review.html#/focused/default/reading)
+- Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling. (review.html#/workflow/default/ordered)
+- Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note. (review.html#/annotation/editor/controls)
+- Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only. (review.html#/drafts/default/retained)
+- Apply the new layout and interactions to pages created from the updated shared kit. Guard visual visibility against layout-class collisions and add repeatable coverage for layout, navigation, and drafts. (review.html#/rollout/new-pages)
+
+**Non-goals:** Pan or zoom controls, dragging or rearranging content, an overview board, upgrading existing or archived review pages, a new hosting service, and collaborative or server-stored notes.
+<!-- proposal:end -->
+</script>
+
+<div class="layout">
+<aside class="panel" id="panel"></aside>
+<div class="stage" id="stage">
+
+<!-- short fallback for an empty proposal or an invalid direct link -->
+<section class="visual textstage" id="_landing" data-kind="text">
+  <div class="frame" id="landing"></div>
+</section>
+
+<!-- text stage for a bullet with no visual -->
+<section class="visual textstage" id="_text" data-kind="text">
+  <div class="frame" id="textframe"></div>
+</section>
+
+<section class="visual screen" id="focused" data-kind="screen" data-states="default empty-notes text-only" data-state="default">
+<p class="caption">One selected change, with its complete text and one visual below it.</p>
+<div class="frame"><div class="body">
+<div class="state state-default" data-mark="reading">
+<p class="muted">Change 1 of 5</p><h1>Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page&#x27;s single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual.</h1><h2>Selected change</h2><div class="box">The visual for this change sits below its complete proposal text. Its details stay here.</div><p>The page scrolls through one change and its reasons.</p><p><i class="callout">1</i> The page's only Changes list is outside this visual.</p><p><a class="btn primary" href="#/focused/empty-notes">See empty notes</a></p>
+</div>
+<div class="state state-empty-notes" data-mark="reading">
+<p class="muted">Change 1 of 5</p><h1>Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page&#x27;s single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual.</h1><h2>No notes yet</h2><p>Inspect this change, then add a note to part of its visual.</p><p><a class="btn primary" href="#/focused/text-only">See text-only case</a></p>
+</div>
+<div class="state state-text-only" data-mark="reading">
+<p class="muted">Change 1 of 5</p><h1>Give each What Changes item its own focused view with its full text above its visual, consistent spacing, and ordinary vertical scrolling. Use the page&#x27;s single change list beside the content on desktop and behind a Changes button on mobile, with Previous and Next controls. Do not repeat that list inside a visual.</h1><h2>No visual for this change</h2><p>The complete change text still appears at the top.</p><p><a class="btn primary" href="#/focused/default">Back to visual</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>The outer Changes list selects an item. The stage shows its full text and visual together, with no second list.</li></ol></div>
+</section>
+
+<section class="visual screen" id="workflow" data-kind="screen" data-states="default details branches" data-state="default">
+<p class="caption">A readable step sequence and a three-path branch example, all inside this change.</p>
+<div class="frame"><div class="body">
+<div class="state state-default">
+<p class="muted">Change 2 of 5</p><h1>Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling.</h1>
+<h2>Today</h2>
+<div class="flow-sequence">
+  <div class="step flow-card"><h3>Open review</h3><p>Search the page for a visual that explains the change.</p></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card"><h3>Find the explanation elsewhere</h3><p>Match the visual to text in another part of the page.</p></div>
+</div>
+<h2>Proposed</h2>
+<div class="flow-sequence">
+  <div class="step flow-card" data-mark="ordered"><h3>Select this change <span class="tag">Changed</span></h3><p>Choose one item from the page's Changes list.</p><details><summary>Details</summary><p>Actor: reviewer. Action: choose this item in the outer list. Result: its full text and visual open here.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Read its full text <span class="tag">Added</span></h3><p>Understand the proposed change before inspecting its visual.</p><details><summary>Details</summary><p>Actor: reviewer. Action: read the proposal text above. Result: the intent is clear before inspecting the workflow.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Inspect the visual <span class="tag">Changed</span></h3><p>Follow the steps and open more detail where needed.</p><details><summary>Details</summary><p>Actor: reviewer. Action: open Details for a step. Result: the explanation appears without leaving this change.</p></details></div>
+</div>
+<p><span class="tag">Removed</span> Searching across unrelated visuals.</p><p><i class="callout">1</i> Each step keeps its title, summary, change label, and Details inside one box.</p><p><a class="btn ghost" href="#/workflow/branches">See three-way branch</a></p><p><a class="btn primary" href="#/workflow/details">View expanded steps</a></p>
+</div>
+<div class="state state-details">
+<p class="muted">Change 2 of 5</p><h1>Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling.</h1>
+<h2>Proposed workflow · expanded</h2>
+<div class="flow-sequence">
+  <div class="step flow-card" data-mark="ordered"><h3>Select this change <span class="tag">Changed</span></h3><p>Choose one item from the page's Changes list.</p><details open><summary>Details</summary><p>Actor: reviewer. Action: choose this item in the outer list. Result: its full text and visual open here.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Read its full text <span class="tag">Added</span></h3><p>Understand the proposed change before inspecting its visual.</p><details open><summary>Details</summary><p>Actor: reviewer. Action: read the proposal text above. Result: the intent is clear before inspecting the workflow.</p></details></div>
+  <p class="flow-connector">↓</p>
+  <div class="step flow-card" data-mark="ordered"><h3>Inspect the visual <span class="tag">Changed</span></h3><p>Follow the steps and open more detail where needed.</p><details open><summary>Details</summary><p>Actor: reviewer. Action: open Details for a step. Result: the explanation appears without leaving this change.</p></details></div>
+</div>
+<p><a class="btn ghost" href="#/workflow/branches">See branched flow</a></p><p><a class="btn primary" href="#/workflow/default">Collapse details</a></p>
+</div>
+<div class="state state-branches">
+<p class="muted">Change 2 of 5</p><h1>Show workflow steps as connected cards in order, with each card's title, short description, change label, and expandable Details inside it. Show labeled branches that split and rejoin when a workflow has more than one path. Stack workflows and comparisons at narrow widths so the page stays readable without sideways scrolling.</h1>
+<h2>Example: three paths that rejoin</h2>
+<div class="step">Start: select this change</div>
+<p class="flow-connector">↓</p>
+<div class="step">Decision: what kind of change is it?</div>
+<p class="flow-connector">↓ Choose one of these paths</p>
+<div class="flow-branches">
+  <div class="flow-branch" data-mark="branching"><h3>If it changes a screen</h3><p>Inspect the default, empty, and error states.</p><details><summary>Details</summary><p>Actor: reviewer. Action: inspect each screen state. Result: note any missing action or content.</p></details></div>
+  <div class="flow-branch" data-mark="branching"><h3>If it changes a workflow</h3><p>Follow its steps and labeled decisions.</p><details><summary>Details</summary><p>Actor: reviewer. Action: follow each path. Result: note any unclear branch or dead end.</p></details></div>
+  <div class="flow-branch" data-mark="branching"><h3>If it changes a rule</h3><p>Compare the before and after text.</p><details><summary>Details</summary><p>Actor: reviewer. Action: read the text diff. Result: note any missing rule or exception.</p></details></div>
+</div>
+<p class="flow-connector">↓ All three paths rejoin here</p>
+<div class="step">Finish: save feedback for this change</div>
+<p><i class="callout">2</i> Branch conditions and the join stay visible. On a phone, the alternatives stack vertically.</p>
+<p><a class="btn primary" href="#/workflow/default">Return to ordered steps</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>Each step is one box with a title, short description, change label, and Details inside it.</li><li>Each branch names its condition, and the paths meet at one outcome; the phone view stacks the alternatives.</li></ol></div>
+</section>
+
+<section class="visual screen" id="annotation" data-kind="screen" data-states="editor idle editing-saved" data-state="editor">
+<p class="caption">The outer Changes list is navigation only, including while annotation is on.</p>
+<div class="frame"><div class="body">
+<div class="state state-editor" data-mark="controls">
+<p class="muted">Change 3 of 5</p><h1>Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note.</h1><p><span class="tag">Annotation on</span></p><h2>Note on this change's step</h2><p class="step">Step: inspect this visual and its details</p><details><summary>Details for this step</summary><p>Actor: reviewer. Action: inspect the selected change. Result: feedback stays attached here.</p></details><p class="muted">Selecting a change in the outer list never opens this editor.</p><p class="input">Please make this step easier to understand.</p><p><i class="callout">1</i> Click a step to write a note; use Details to inspect it.</p><p><a class="btn primary" href="#/annotation/idle">Save note</a></p>
+</div>
+<div class="state state-idle" data-mark="controls">
+<p class="muted">Change 3 of 5</p><h1>Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note.</h1><p><span class="tag">Annotation on</span></p><h2>Ready to inspect</h2><p>Click a target in this visual to add a note. The outer Changes list only selects an item.</p><p><a class="btn primary" href="#/annotation/editor">Open note on this change</a></p><p><a class="btn ghost" href="#/annotation/editing-saved">See saved-note edit</a></p>
+</div>
+<div class="state state-editing-saved" data-mark="controls">
+<p class="muted">Change 3 of 5</p><h1>Make the change list navigation only: clicking its labels never opens a note, including in annotation mode. Keep visual interaction within the selected What Changes item; Details and state controls stay usable while a click on an annotatable step starts a note.</h1><p><span class="tag">Annotation on</span></p><h2>Edit saved note</h2><p class="muted">This note belongs to Change 3 and its own step.</p><p class="step">Step: inspect this visual and its details</p><p class="input">Explain who completes this step.</p><p>The saved wording stays in copied feedback until Save.</p><p><a class="btn primary" href="#/annotation/idle">Save edit</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>Navigation and Details keep their actions during annotation. The outer change list is never an annotation target.</li></ol></div>
+</section>
+
+<section class="visual screen" id="drafts" data-kind="screen" data-states="default storage-unavailable unresolved saved" data-state="default">
+<p class="caption">Draft feedback stays on this selected change and its original target.</p>
+<div class="frame"><div class="body">
+<div class="state state-default" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Draft on this change</h2><p><span class="tag">1 draft</span> <span class="tag">0 saved</span></p><p class="step">Target: this change's step<br>Please show the result of this step.</p><p>Closing the editor or selecting another change keeps this draft here. Copy notes includes saved feedback only.</p><p><i class="callout">1</i> A draft is separate from a saved note.</p><p><a class="btn primary" href="#/drafts/saved">Save this draft</a></p><p><a class="btn ghost" href="#/drafts/storage-unavailable">See storage error</a> · <a class="btn ghost" href="#/drafts/unresolved">See moved target</a></p>
+</div>
+<div class="state state-storage-unavailable" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Storage unavailable</h2><p>The draft remains available in this tab. Copy saved notes before closing the page.</p><p class="step">Target: this change's step<br>Please show the result of this step.</p><p><a class="btn primary" href="#/drafts/default">Return to draft</a></p>
+</div>
+<div class="state state-unresolved" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Draft target moved</h2><p>The original step cannot be found. The draft text remains here and is not attached to another target.</p><p class="step">Please show the result of this step.</p><p><a class="btn primary" href="#/drafts/default">Return to draft</a></p>
+</div>
+<div class="state state-saved" data-mark="retained">
+<p class="muted">Change 4 of 5</p><h1>Keep unfinished notes as drafts attached to their original change item, visual, state, and target when the reviewer moves elsewhere. Show draft indicators, require an explicit Save to include feedback, and copy saved notes only.</h1><h2>Saved feedback</h2><p><span class="tag">0 drafts</span> <span class="tag">1 saved</span></p><p class="step">Target: this change's step<br>Please show the result of this step.</p><p>Copy notes includes this saved text. An unfinished edit remains a draft until Save.</p><p><a class="btn primary" href="#/drafts/default">Review draft behavior</a></p>
+</div>
+</div></div>
+<div class="notes"><ol><li>Draft, saved, storage-error, and moved-target states all belong to the same change. Only saved feedback enters the copied command.</li></ol></div>
+</section>
+
+<section class="visual tree" id="rollout" data-kind="tree"><p class="caption">The shared kit applies this layout to future generated pages.</p><div class="frame"><p class="muted">Change 5 of 5</p><h1>Apply the new layout and interactions to pages created from the updated shared kit. Guard visual visibility against layout-class collisions and add repeatable coverage for layout, navigation, and drafts.</h1><h2>New-page rollout</h2><p data-mark="new-pages">Updated kit → future review.html pages <i class="callout">1</i></p><p>Existing review pages keep their embedded version.</p><ul><li class="edit">review-kit.html <span class="why">one change list, local interactions, note behavior</span></li><li class="edit">plan/SKILL.md <span class="why">author and critic guidance</span></li><li class="edit">openspec/config.yaml <span class="why">review contract</span></li><li class="add">review behavior coverage <span class="why">navigation, drafts, responsive layout</span></li><li class="edit">VERSION and CHANGELOG.md <span class="why">payload release</span></li></ul></div><div class="notes"><ol><li>Change the source kit once. No workflow rewrites existing review files.</li></ol></div></section>
+
+</div><!-- /stage -->
+</div><!-- /layout -->
+
+<div class="toast" id="toast"></div>
+<textarea id="copybuf" aria-hidden="true"></textarea>
+
+<script>
+  // kit: a load-time failure shows on the page instead of a blank stage
+  window.addEventListener('error', function (e) {
+    var p = document.getElementById('panel');
+    if (p) p.innerHTML = '<p class="error"><b>Review script error:</b> ' + String(e.message).replace(/</g, '&lt;') + ' <span class="muted">(line ' + e.lineno + ')</span></p>' + p.innerHTML;
+  });
+
+  // ── routing: #/<visual>[/<state>][/<mark>] ──
+  const FILE = 'review.html';
+  const CHANGE = document.title.replace(/^Review — /, '');
+  const visuals = [...document.querySelectorAll('.visual')];
+  const $states = document.getElementById('states');
+  const $panel = document.getElementById('panel');
+  let current = { id: '_landing', state: 'default', mark: null };
+  let bullets = [];   // [{text, anchor, id, state, mark, ok}]
+
+  function statesOf(v) { return (v.dataset.states || 'default').split(' '); }
+  // resolve the two optional segments: a state if it names one, else a mark
+  function resolve(id, a, b) {
+    const v = visuals.find(x => x.id === id);
+    if (!v || id[0] === '_') return null;
+    const allowed = statesOf(v);
+    let state, mark;
+    if (a && allowed.includes(a)) { state = a; mark = b || null; }
+    else if (a && b) return null;               // a is not a state, but a mark follows: bad state
+    else { state = allowed[0]; mark = a || null; }
+    if (mark && !v.querySelector('[data-mark="' + mark + '"]')) return null;
+    return { v, state, mark };
+  }
+  function show(id, a, b) {
+    const r = resolve(id, a, b);
+    const v = r ? r.v : visuals.find(x => x.id === (id === '_text' ? '_text' : '_landing'));
+    const state = r ? r.state : 'default', mark = r ? r.mark : null;
+    visuals.forEach(x => x.toggleAttribute('data-active', x === v));
+    if (v.classList.contains('screen')) {
+      v.dataset.state = state;
+      // reveal the block whose class matches the state name — any name, not a fixed four
+      v.querySelectorAll('.state').forEach(function (b) { b.toggleAttribute('data-on', b.classList.contains('state-' + state)); });
+    }
+    current = { id: v.id, state, mark };
+    document.querySelectorAll('.marked').forEach(x => x.classList.remove('marked'));
+    if (mark) v.querySelectorAll('[data-mark="' + mark + '"]').forEach(x => x.classList.add('marked'));
+    if (v.classList.contains('flow')) v.querySelectorAll('.lane').forEach(l => l.style.opacity = (state === 'today' && !l.classList.contains('today')) || (state === 'after' && l.classList.contains('today')) ? .45 : 1);
+    renderStates(v, state);
+    renderPanelState();
+    renderPins();
+    const multi = statesOf(v).length > 1;
+    const want = v.id[0] === '_' ? '#/' : '#/' + v.id + (multi && (state !== statesOf(v)[0] || mark) ? '/' + state : '') + (mark ? '/' + mark : '');
+    if (location.hash !== want) { try { history.replaceState(null, '', want); } catch (e) { location.hash = want; } }
+  }
+  function showText(i) {      // a bullet with no visual
+    const b = bullets[i];
+    document.getElementById('textframe').innerHTML = '<p class="muted">Change ' + (i + 1) + ' · no visual — behaviour only</p><h1>' + inline(b.text) + '</h1>';
+    current = { id: '_text', state: 'default', mark: null, bullet: i };
+    document.querySelectorAll('.marked').forEach(function (x) { x.classList.remove('marked'); });
+    visuals.forEach(x => x.toggleAttribute('data-active', x.id === '_text'));
+    renderStates(null); renderPanelState(); renderPins();
+    try { history.replaceState(null, '', '#/change/' + (i + 1)); } catch (e) { location.hash = '#/change/' + (i + 1); }
+  }
+  function renderStates(v, state) {
+    $states.innerHTML = '';
+    if (!v || statesOf(v).length < 2) return;
+    const lab = document.createElement('span'); lab.textContent = 'State:'; $states.appendChild(lab);
+    statesOf(v).forEach(st => {
+      const b = document.createElement('button');
+      b.textContent = st; b.setAttribute('aria-pressed', st === state);
+      b.onclick = () => { show(v.id, st, current.mark); requestAnimationFrame(() => window.scrollTo(0, 0)); }; $states.appendChild(b);
+    });
+  }
+  function fromHash() {
+    const seg = location.hash.split('/').slice(1);
+    // no change chosen: a phone opens the list over the landing, a desktop opens the first bullet
+    if (!seg[0] && bullets.length) {
+      if (!phoneMedia.matches) return goBullet(0);
+      show('_landing', null, null);
+      return setMenu(true);
+    }
+    if (seg[0] === 'change' && bullets[+seg[1] - 1]) return goBullet(+seg[1] - 1);
+    show(seg[0] || '_landing', seg[1] || null, seg[2] || null);
+  }
+  window.addEventListener('hashchange', fromHash);
+
+  // ── proposal panel + landing ──
+  function inline(md) {
+    return md.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  }
+  function parseProposal() {
+    const raw = document.getElementById('proposal').textContent.replace(/<!--[\s\S]*?-->/g, '');
+    const sections = {}; let cur = null;
+    raw.split('\n').forEach(line => {
+      const h = line.match(/^## (.+)/);
+      if (h) { cur = h[1].trim(); sections[cur] = []; return; }
+      if (cur) sections[cur].push(line);
+    });
+    const why = (sections['Why'] || []).join('\n').trim().split(/\n\s*\n/).map(p => '<p>' + inline(p.replace(/\n/g, ' ')) + '</p>').join('');
+    bullets = []; let tail = [];
+    const items = []; let open = false;   // fold a wrapped bullet back onto one line
+    (sections['What Changes'] || []).forEach(line => {
+      if (/^- /.test(line)) { items.push(line); open = true; return; }
+      if (open && line.trim()) { items[items.length - 1] += ' ' + line.trim(); return; }
+      if (!line.trim()) open = false;
+      items.push(line);
+    });
+    items.forEach(line => {
+      const li = line.match(/^- (.+)/);
+      if (!li) { if (line.trim()) tail.push(line.trim()); return; }
+      const m = li[1].match(/\(?(?:review\.html)?#\/([\w-]+)(?:\/([\w-]+))?(?:\/([\w-]+))?\)?\s*$/);
+      if (m) {
+        const r = resolve(m[1], m[2] || null, m[3] || null);
+        bullets.push({ text: li[1].slice(0, m.index).trim(), anchor: '#/' + [m[1], m[2], m[3]].filter(Boolean).join('/'), id: m[1], state: r ? r.state : null, mark: r ? r.mark : null, ok: !!r, kind: r ? r.v.dataset.kind : null });
+      } else bullets.push({ text: li[1].trim(), anchor: null });
+    });
+    return { why, tail: tail.map(t => '<p>' + inline(t) + '</p>').join('') };
+  }
+  function renderPanel() {
+    const p = parseProposal();
+    let html = '<h2>Why</h2>' + p.why + '<h2>What Changes</h2><ol class="changes">';
+    bullets.forEach((b, i) => {
+      const cls = !b.anchor ? 'text' : b.ok ? '' : 'dead';
+      const kind = !b.anchor ? 'no visual' : b.ok ? b.kind + ' · ' + b.anchor : 'dead link · ' + b.anchor + ' — no such visual, state, or mark';
+      html += '<li class="' + cls + '" data-i="' + i + '">' + inline(b.text) + '<span class="kind">' + kind + '</span></li>';
+    });
+    html += '</ol>' + p.tail + '<h2>Notes <span id="notecount"></span></h2><ol class="notes-list" id="notelist"></ol>';
+    $panel.innerHTML = html;
+    document.getElementById('landing').innerHTML = bullets.length
+      ? '<h1>Choose a change</h1><p class="muted">Use the change list or Next to open a visual.</p>'
+      : '<h1>No changes to review</h1><p class="muted">This proposal has no What Changes entries yet.</p>';
+  }
+  function renderPanelState() {
+    $panel.querySelectorAll('ol.changes li').forEach((li, i) => {
+      const b = bullets[i];
+      const on = current.id === '_text' ? current.bullet === i
+        : !!b.anchor && b.id === current.id;
+      li.classList.toggle('on', on);
+    });
+    renderCount();
+  }
+  function goBullet(i) { const b = bullets[i]; setMenu(false); if (!b.anchor || !b.ok) showText(i); else show(b.id, b.state, b.mark); window.scrollTo(0, 0); }
+
+  // ── annotate ──
+  const ANNOTATABLE = '.btn, .input, tr, .box, .tag, .hero, .kv dt, .kv dd, h1, .nav span, .logo, .notes li, .notes .brief, .step, #workflow .flow-branch, .lane .label, .diff .line, .diff pre, .tree li, .caption, .textstage p';
+  const KEY = 'rv-notes:' + CHANGE;
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } },
+    set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+  };
+  let notes = store.get();
+  let annotating = false;
+  const $ann = document.getElementById('annotate');
+  $ann.onclick = () => setAnnotating(!annotating);
+  function setAnnotating(on) {
+    annotating = on; $ann.setAttribute('aria-pressed', on); document.body.classList.toggle('annotating', on);
+    closePopover(); document.querySelectorAll('.hovering').forEach(x => x.classList.remove('hovering'));
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePopover(); return; }
+    if (e.key === 'a' && !e.target.matches('textarea,input')) setAnnotating(!annotating);
+  });
+  function target(el) {
+    if (el.closest('.popover, .chrome, .pin')) return null;
+    if (el.closest('#workflow details')) return null;
+    const scope = el.closest('.visual[data-active]');
+    if (!scope) return null;
+    const t = el.closest(ANNOTATABLE);
+    return t && scope.contains(t) ? { scope, el: t } : null;
+  }
+  document.addEventListener('mouseover', e => {
+    if (!annotating) return;
+    document.querySelectorAll('.hovering').forEach(x => x.classList.remove('hovering'));
+    const t = target(e.target); if (t) t.el.classList.add('hovering');
+  });
+  function pathOf(scope, el) {
+    const steps = [];
+    for (let n = el; n && n !== scope; n = n.parentElement) steps.unshift([...n.parentElement.children].indexOf(n));
+    return steps.join('.');
+  }
+  function elAt(scope, path) { let n = scope; for (const i of path.split('.')) n = n && n.children[i]; return n || null; }
+  function labelOf(el) {
+    const c = el.cloneNode(true); c.querySelectorAll('.pin, .callout, .kind, .why').forEach(x => x.remove());
+    if (el.matches('.flow-card, .flow-branch')) c.querySelectorAll('details').forEach(x => x.remove());
+    const text = (el.tagName === 'TR' ? [...c.cells].map(td => td.textContent.trim()).join(' · ') : c.textContent).replace(/\s+/g, ' ').trim().slice(0, 60);
+    const kind = el.classList.contains('btn') ? 'button' : el.classList.contains('input') ? 'input' : el.tagName === 'TR' ? 'row'
+      : el.classList.contains('box') ? 'panel' : el.tagName === 'H1' ? 'heading' : el.classList.contains('flow-branch') ? 'branch' : el.classList.contains('step') ? 'step'
+      : el.classList.contains('line') ? 'line' : el.closest('.tree') ? 'file' : el.closest('.panel') ? 'bullet' : el.tagName.toLowerCase();
+    return kind + ' "' + text + '"';
+  }
+  function whereOf(n) {
+    if (n.scope === 'panel') return 'What Changes';
+    const v = visuals.find(x => x.id === n.visual);
+    return '#/' + n.visual + (v && statesOf(v).length > 1 ? '/' + n.state : '');
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('.popover')) return;
+    const pin = e.target.closest('.pin');
+    if (pin) { e.preventDefault(); openPopover(notes.find(n => n.id === pin.dataset.note), pin); return; }
+    const li = e.target.closest('.panel ol.changes li');
+    if (li) { goBullet(+li.dataset.i); return; }
+    const a = e.target.closest('.panel a[href*="#/"]');
+    if (a) { e.preventDefault(); const s = a.getAttribute('href').split('#/')[1].split('/'); show(s[0], s[1], s[2]); return; }
+    const local = e.target.closest('.visual[data-active] a[href^="#/"]');
+    if (local) {
+      const s = local.getAttribute('href').split('#/')[1].split('/');
+      if (s[0] === current.id) { e.preventDefault(); show(s[0], s[1], s[2]); requestAnimationFrame(() => window.scrollTo(0, 0)); return; }
+    }
+    if (annotating) {
+      const t = target(e.target);
+      if (t) {
+        e.preventDefault();
+        const scope = t.scope.classList.contains('panel') ? 'panel' : 'visual';
+        openPopover({ id: null, scope, visual: current.id, state: current.state, path: pathOf(t.scope, t.el), label: labelOf(t.el), text: '' }, t.el);
+        return;
+      }
+      return;
+    }
+    const go = e.target.closest('[data-go]');
+    if (go) show(go.dataset.go, null, null);
+  });
+
+  let $pop = null;
+  function openPopover(note, anchorEl) {
+    closePopover();
+    $pop = document.createElement('div'); $pop.className = 'popover';
+    $pop.innerHTML = '<div class="where">' + whereOf(note) + ' · ' + inline(note.label) + '</div>'
+      + '<textarea placeholder="What should change here?"></textarea>'
+      + '<div class="row"><button class="save">Save</button><button class="cancel">Cancel</button>' + (note.id ? '<button class="del">Delete</button>' : '') + '</div>';
+    const ta = $pop.querySelector('textarea'); ta.value = note.text;
+    $pop.querySelector('.save').onclick = () => {
+      const text = ta.value.trim(); if (!text) return closePopover();
+      if (note.id) note.text = text; else { note.id = String(Date.now()); note.text = text; notes.push(note); }
+      persist(); closePopover();
+    };
+    $pop.querySelector('.cancel').onclick = closePopover;
+    const del = $pop.querySelector('.del'); if (del) del.onclick = () => { notes = notes.filter(n => n.id !== note.id); persist(); closePopover(); };
+    ta.onkeydown = ev => { if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) $pop.querySelector('.save').click(); };
+    document.body.appendChild($pop);
+    // beside the element: right if there is room, else below, else above — never over it
+    if (phoneMedia.matches) { ta.focus(); return; }
+    const r = anchorEl.getBoundingClientRect(), W = 300, H = $pop.offsetHeight || 160;
+    let top = r.top, left = r.right + 10;
+    if (left + W > innerWidth) { left = Math.max(8, Math.min(r.left, innerWidth - W - 8)); top = r.bottom + 8; if (top + H > innerHeight) top = r.top - H - 8; }
+    if (top < 50) top = 50;
+    $pop.style.top = top + 'px'; $pop.style.left = left + 'px';
+    ta.focus();
+  }
+  function closePopover() { if ($pop) { $pop.remove(); $pop = null; } }
+  function persist() { store.set(notes); renderPins(); }
+  function renderPins() {
+    document.querySelectorAll('.pin').forEach(p => p.remove());
+    const $list = document.getElementById('notelist'); if (!$list) return;
+    $list.innerHTML = '';
+    document.getElementById('notecount').textContent = notes.length ? '(' + notes.length + ')' : '';
+    if (!notes.length) $list.innerHTML = '<li class="empty">Turn on Annotate, click a visual element, and type. The change list only navigates. Copy notes puts saved feedback on your clipboard as a /continue command.</li>';
+    notes.forEach((n, i) => {
+      const scope = n.scope === 'panel' ? $panel : document.getElementById(n.visual);
+      const el = scope && elAt(scope, n.path);
+      const stale = !el || labelOf(el) !== n.label;
+      if (el) { const pin = document.createElement('i'); pin.className = 'pin' + (stale ? ' stale' : ''); pin.dataset.note = n.id; pin.textContent = i + 1; (el.tagName === 'TR' ? el.cells[0] : el).appendChild(pin); }
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="where">' + whereOf(n) + ' · ' + inline(n.label) + (stale ? ' · <b>moved?</b>' : '') + '</span>' + inline(n.text);
+      li.onclick = () => { if (n.scope === 'visual') show(n.visual, n.state, null); const p = document.querySelector('.pin[data-note="' + n.id + '"]'); if (p) { p.scrollIntoView({ block: 'center' }); openPopover(n, p); } };
+      $list.appendChild(li);
+    });
+  }
+
+  // ── copy: a runnable /continue block ──
+  function notesText() {
+    const lines = ['/continue ' + CHANGE, 'Review notes from ' + FILE + ' (' + notes.length + '):'];
+    notes.forEach((n, i) => lines.push((i + 1) + '. ' + whereOf(n) + ' · ' + n.label + ' — ' + n.text));
+    return lines.join('\n');
+  }
+  document.getElementById('copy').onclick = function () {
+    if (!notes.length) return toast('No notes yet');
+    const text = notesText(), buf = document.getElementById('copybuf'); buf.value = text;
+    const done = () => toast('Copied ' + notes.length + ' note' + (notes.length === 1 ? '' : 's') + ' — paste into Claude');
+    const fallback = () => { buf.select(); buf.setSelectionRange(0, 99999); document.execCommand('copy'); done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  };
+  function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
+
+  // ── phone: the chrome's height drives the panel; the list is a sheet; step through changes ──
+  function chromeHeight() { document.documentElement.style.setProperty('--chrome-h', document.querySelector('.chrome').offsetHeight + 'px'); }
+  window.addEventListener('resize', chromeHeight);
+  function setMenu(open) {
+    document.body.classList.toggle('menu', open);
+    document.getElementById('menu').setAttribute('aria-expanded', open);
+  }
+  document.getElementById('menu').onclick = () => setMenu(!document.body.classList.contains('menu'));
+  document.getElementById('tools-toggle').onclick = function () {
+    const open = document.getElementById('tools').classList.toggle('open');
+    this.setAttribute('aria-expanded', open);
+    chromeHeight();
+  };
+  function currentBullet() { const li = document.querySelector('.panel ol.changes li.on'); return li ? +li.dataset.i : -1; }
+  function renderCount() {
+    const i = currentBullet();
+    document.getElementById('count').textContent = i < 0 ? bullets.length + ' changes' : (i + 1) + ' / ' + bullets.length;
+    document.getElementById('prev').disabled = i <= 0;
+    document.getElementById('next').disabled = i >= bullets.length - 1;
+    const v = document.querySelector('.visual[data-active]');
+    document.getElementById('viewport').style.display = v && v.classList.contains('screen') ? '' : 'none';
+    chromeHeight();
+  }
+  document.getElementById('prev').onclick = () => { const i = currentBullet(); if (i > 0) goBullet(i - 1); };
+  document.getElementById('next').onclick = () => { const i = currentBullet(); if (i < bullets.length - 1) goBullet(i + 1); };
+  document.addEventListener('keydown', e => { if (e.target.matches('textarea,input')) return; if (e.key === 'ArrowRight') document.getElementById('next').click(); if (e.key === 'ArrowLeft') document.getElementById('prev').click(); });
+
+  // ── viewport: phone or desktop layout of a screen; a phone is a phone already ──
+  const phoneMedia = matchMedia('(max-width: 760px)');
+  function setViewport(vp) {
+    document.body.dataset.viewport = vp;
+    document.querySelectorAll('#viewport button').forEach(b => b.setAttribute('aria-pressed', b.dataset.vp === vp));
+  }
+  document.querySelectorAll('#viewport button').forEach(b => b.onclick = () => setViewport(b.dataset.vp));
+  setViewport(phoneMedia.matches ? 'phone' : 'desktop');
+  phoneMedia.addEventListener('change', e => setViewport(e.matches ? 'phone' : 'desktop'));
+
+  renderPanel();
+  fromHash();
+  chromeHeight();
+</script>
+</body>
+</html>

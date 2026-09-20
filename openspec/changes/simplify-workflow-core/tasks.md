@@ -38,3 +38,10 @@
 - [x] 6.1 Add the next major VERSION and CHANGELOG entry with the internal-skill removal, required review behavior, legacy compatibility, and target migration steps; resolve the release number against the then-current baseline. See review.html#/concise-owners/owners.
 - [x] 6.2 Validate this change and run the payload link/config release checks through the normal workflow; refresh its review if implementation changed the proposal or visuals. See review.html#/concise-owners/owners.
 - [x] 6.3 Confirm the new meta checks and existing CI pass via /save; record actual CLI/browser evidence and remaining manual workflow-review limits before marking the change complete. This task's checkpoint covers apply's completion when it represents the final unchanged state. See review.html#/concise-owners/owners.
+
+## 7. Integrate the merged focused-review release
+
+- [x] 7.1 Merge PR #88 from main, preserve its shared viewer and app browser coverage, and reconcile the plan skill, config, release notes, and wireframe spec with direct CLI and assembled reviews. See review.html#/review-assembly/after/builder.
+- [x] 7.2 Move the 15.2 viewer's examples out of the fixed kit; make its browser fixtures build pages through the shared builder; update author guidance and structural checks for one visual per item, local states, connected flow cards, and stable note targets. See review.html#/review-checks/checks.
+- [x] 7.3 Rebuild this active review with the focused viewer, inspect its desktop and phone states, notes, and offline behavior; keep archived reviews untouched. Update instruction counts and compatibility evidence. See review.html#/review-assembly/after/builder.
+- [ ] 7.4 Validate the combined change and payload checks, then checkpoint the integration through /save until app, payload, and deployment CI pass. See review.html#/concise-owners/owners.

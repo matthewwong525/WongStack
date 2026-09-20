@@ -19,6 +19,7 @@
     const [, id, first, third] = anchor;
     const visual = byId.get(id);
     if (!visual) { fail('missing-visual', id); continue; }
+    if (used.has(id)) fail('shared-visual', id);
     used.add(id);
     const states = (visual.dataset.states || 'default').split(/\s+/).filter(Boolean);
     if (third && !states.includes(first)) fail('invalid-state', `${id}/${first}`);
@@ -37,8 +38,9 @@
       if (states.includes(mark)) fail('state-mark-collision', `${visual.id}/${mark}`);
       if (!usedMarks.has(`${visual.id}/${mark}`)) fail('unreferenced-mark', `${visual.id}/${mark}`);
     }
-    for (const go of visual.querySelectorAll('[data-go]')) {
-      if (!byId.has(go.dataset.go)) fail('missing-navigation-target', `${visual.id}/${go.dataset.go}`);
+    for (const go of visual.querySelectorAll('[data-go]')) fail('cross-item-navigation', `${visual.id}/${go.dataset.go}`);
+    for (const control of visual.querySelectorAll('[data-local-state]')) {
+      if (!states.includes(control.dataset.localState)) fail('missing-local-state', `${visual.id}/${control.dataset.localState}`);
     }
     if (visual.dataset.kind === 'screen') {
       const actions = [...visual.querySelectorAll('.btn.primary')];
@@ -52,7 +54,7 @@
         if (visible.length > 1) fail('multiple-primary-actions', `${visual.id}/${state}`);
       }
     }
-    if (visual.dataset.kind === 'flow' && states.includes('today') && !visual.querySelector('.lane.today')) {
+    if (visual.dataset.kind === 'flow' && states.includes('today') && !visual.querySelector('.lane.today,.state-today')) {
       fail('missing-today-lane', visual.id);
     }
   }
