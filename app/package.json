@@ -11,7 +11,7 @@
     "secrets:push": "node ../scripts/cf-secrets.mjs push",
     "secrets:check": "node ../scripts/cf-secrets.mjs check",
     "lint": "oxlint",
-    "test": "npm run lint && vitest run --coverage && knip && jscpd && stryker run",
+    "test": "npm run lint && vitest run --coverage && node --test review/*.test.mjs && knip && jscpd && stryker run",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types"
@@ -34,6 +34,7 @@
     "jsdom": "^30.0.1",
     "knip": "^6.34.0",
     "oxlint": "^1.78.0",
+    "playwright": "^1.63.0",
     "typescript": "~7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.1.10",

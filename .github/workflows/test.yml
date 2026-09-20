@@ -91,6 +91,14 @@ jobs:
         working-directory: ${{ steps.suite.outputs.dir }}
         run: npm ci
 
+      - name: Install browser for review tests
+        if: ${{ steps.suite.outputs.found == 'true' }}
+        working-directory: ${{ steps.suite.outputs.dir }}
+        run: |
+          if node -e "const p=require('./package.json');process.exit(p.devDependencies?.playwright?0:1)"; then
+            npx playwright install --with-deps chromium
+          fi
+
       - name: Test
         if: ${{ steps.suite.outputs.found == 'true' }}
         working-directory: ${{ steps.suite.outputs.dir }}
