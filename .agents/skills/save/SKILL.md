@@ -13,7 +13,7 @@ The single checkpoint runbook. Invoking it authorizes the branch creation, commi
 `/save` is the **git + sync** stage of the loop (`/explore → /plan → /apply → /save → /continue → /ship`). It delivers three things:
 
 1. A pushed branch + PR with a per-commit **preview URL** (auto-discovered) and a **PR body that mirrors the change**, so a forge alone is a complete handoff surface — no clone or CLI needed to read the plan. This is `/save`'s headline job: the git mechanics of the loop (drafting is `/plan`, implementing is `/apply`).
-2. A durable **OpenSpec change** under `openspec/changes/<branch>/` whose `proposal.md` *is* the current plan **plus its history**: a `**Status:**` header, the plan sections (kept current), and an append-only `## Decision log` (what happened along the way), with a `tasks.md` checklist — so a fresh session (another machine, no scrollback) can resume cold with `/continue` and know not just *what* to do but *why* it's shaped that way. Normally `/plan` drafted it and `/apply` checked off its tasks; `/save` **syncs** it. When the session skipped `/plan`, `/save` **authors it as a fallback via the same OpenSpec artifact process `/plan` uses**, so nothing gets pushed without its handoff. **The change is the plan — there is no GitHub handoff issue.** A session that produced *no code and no plan* gets no change at all (Step 2) — the note below is the whole output.
+2. A durable **OpenSpec change** under `openspec/changes/<name>/` whose `proposal.md` *is* the current plan **plus its history**: a `**Status:**` header, its actual `**Branch:**`, the plan sections (kept current), and an append-only `## Decision log` (what happened along the way), with a `tasks.md` checklist — so a fresh session (another machine, no scrollback) can resume cold with `/continue` and know not just *what* to do but *why* it's shaped that way. Normally `/plan` drafted it and `/apply` checked off its tasks; `/save` **syncs** it. When the session skipped `/plan`, `/save` **authors it as a fallback via the same OpenSpec artifact process `/plan` uses**, so nothing gets pushed without its handoff. **The change is the plan — there is no GitHub handoff issue.** A session that produced *no code and no plan* gets no change at all (Step 2) — the note below is the whole output.
 3. A **session note** at `notes/<slug>.md` — the conversation itself, compressed into the repo as permanent context. `/continue` reads the committed note with the change, so a fresh session on another machine can resume without scrollback. See [`notes/README.md`](../../../notes/README.md) for the convention.
 
 This save is checkpointed through the usual [gate](../../../wiki/development/the-change-loop.md#the-gate) — never a local build. Because the change lives *in the repo*, we author it **before** the commit so it ships in the same commit. When `/ship` has already moved the current branch's change into the archive, this skill recognizes and maintains that archive instead. The push then triggers CI, which we wait on in Step 6.
@@ -50,14 +50,16 @@ git log origin/main..HEAD --oneline 2>/dev/null   # commits ahead of main
 openspec list                                     # active change(s), if any
 ```
 
-At entry, set `NAME` to the current feature branch and resolve its handoff before routing:
+At entry, keep `BRANCH` (the actual feature branch) separate from `NAME` (the selected OpenSpec change). Resolve the handoff before routing:
 
-- `openspec/changes/$NAME/` exists → set it as `CHANGE_ROOT` and `ARCHIVED=false`.
-- No active change exists and exactly one `openspec/changes/archive/*-$NAME/` exists → set that path as `CHANGE_ROOT` and `ARCHIVED=true`. This is the ordinary `/save` call `/ship` makes immediately after archiving, or a later retry on the same branch.
-- No active or archived match → continue normally; Step 4b may author the missing change.
-- Multiple matching archives → stop and report the ambiguity; never guess which record to update.
+1. Use the exact active change selected explicitly or by this session's `/plan`, `/apply`, `/continue`, or `/ship`. After `/ship` archives it, use the exact archive path it handed off. Never select another change merely because its name matches the branch.
+2. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active` to list change folders touched by uncommitted files or the branch diff. A unique candidate is the current active change. If none, run the same helper with `archive` for a unique archived handoff.
+3. If neither yields a candidate, use the unique active proposal whose `**Branch:**` line equals `BRANCH`, then a legacy active change named `BRANCH`. A same-name archive is the legacy archived fallback.
+4. If several change folders are touched, stop and ask which work belongs in this checkpoint before staging. If several proposals record this branch or several archives fit, stop; never guess. With no selected change, Step 4b may author a missing one.
 
-**Don't create a branch or commit yet.** The plan comes first (Step 2), the branch is *named from it* (Step 3), and the change is authored (Step 4) so it lands in the same commit as the code. Even a **plan-only** save (a freshly authored change, no code yet) is valid: the untracked change folder makes the tree dirty, so Step 5 commits and pushes it — that's exactly what makes the plan handoff-ready.
+Set `CHANGE_ROOT` from the selected name or archive path and `ARCHIVED` accordingly. For an archive selected by path, strip its `YYYY-MM-DD-` prefix to recover `NAME`; `/ship` already passed that name for its own archive handoff. A dirty folder named differently from the branch is a valid handoff; do not invent a branch-named change.
+
+**Don't create a branch or commit yet.** The plan comes first (Step 2), the feature branch is ensured in Step 3, and the change is authored (Step 4) so it lands in the same commit as the code. Even a **plan-only** save (a freshly authored change, no code yet) is valid: the untracked change folder makes the tree dirty, so Step 5 commits and pushes it — that's exactly what makes the plan handoff-ready.
 
 ### The prose fast path
 
@@ -104,24 +106,17 @@ The table is about what to *write*; Step 1's path test decides the *route*, and 
 
 Keep the plan in its own shape — whatever headings it has. If a fact it relies on lived only in local scratch state or terminal output, inline it so the cold reader has it.
 
-## Step 3 — resolve the change name + ensure the branch
+## Step 3 — ensure the branch and change name
 
-**Branch name = change name** — the tie `/continue` and `/ship` rely on.
+**Already on a feature branch** (not `main`, not detached) → keep its actual name as `BRANCH`. Use the `NAME` and `CHANGE_ROOT` selected in Step 1. If this is genuinely new work with no applicable change, derive `NAME` from the Step 2 plan; a feature branch's name is a fallback, not a requirement.
 
-**Already on a feature branch** (not `main`, not detached) → the change name is the branch name. Resolve which change tracks it, in priority order:
+**Archived handoff:** the resolved archived `CHANGE_ROOT` is the change, and the missing active folder is expected. Never run fallback authoring or recreate `openspec/changes/<name>/`.
 
-1. **`openspec/changes/<branch>/` exists** → you're **updating** it.
-2. **This conversation already ran `/plan`/`/apply`/`/save`/`/continue`** → you know the change name. Use it.
-3. **A single active `openspec list` entry** → use it.
-4. **None** → you're **creating new**; the change name is the branch name.
-
-**An archived handoff is the exception to item 4:** the resolved archived `CHANGE_ROOT` is the change, and the missing active folder is expected. Never run fallback authoring or recreate `openspec/changes/<name>/`.
-
-**On `main` or detached `HEAD`** → auto-create the feature branch now — do not prompt. **Name it from the plan**, not the machine: derive a short, descriptive kebab-case slug from the Step 2 plan's topic (a plan "add search to the receiving page" → `add-po-search`) — the slug becomes the change name, the branch, the PR, and the archive entry, so it must describe the *work*. Fall back to the worktree directory name **only** when the session is genuinely unreadable. If the slug already exists as a branch locally or on the remote, append `-<short-sha>`:
+**On `main` or detached `HEAD`** → auto-create the feature branch now — do not prompt. Name it from the selected change when one exists; otherwise derive a short, descriptive kebab-case slug from the Step 2 plan's topic (a plan "add search to the receiving page" → `add-po-search`). Fall back to the worktree directory name **only** when the session is genuinely unreadable. Use that slug as `NAME` only when creating a new change. If the branch slug already exists locally or on the remote, append `-<short-sha>` to the *branch* name; keep an already selected change name:
 
 ```bash
 git checkout -b "$SLUG"
-git rev-parse --abbrev-ref HEAD   # refresh the branch variable before continuing
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
 ```
 
 ## Step 4 — sync the OpenSpec change (append, never rewrite) + write the session note
@@ -132,7 +127,7 @@ If `/plan` already drafted the change and `/apply` has been checking off tasks, 
 
 ### 4a. The change's living surfaces
 
-- **`**Status:**` + `**Open questions:**`** — two lines directly under the H1 of `proposal.md`. Maintain them every save. Status vocabulary: `in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`. A `/save <note>` that reads as a state sets Status; open questions are the decisions only the user can make (empty = `none`).
+- **`**Status:**` + `**Branch:**` + `**Open questions:**`** — header lines directly under the H1 of `proposal.md`. Maintain them every normal save; `Branch` is the actual feature branch, even when its name differs from `NAME`. Status vocabulary: `in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`. A `/save <note>` that reads as a state sets Status; open questions are the decisions only the user can make (empty = `none`).
 - **Plan sections** (Why / What Changes / Impact, or whatever shape the plan has) — update **in place** to the latest plan from Step 2. These are the *current* intent; they're allowed to change.
 - **`## Decision log`** — the last section of `proposal.md`, **append-only**. Each save appends one dated bullet: `- **YYYY-MM-DD** — <what landed, what was decided or discovered and why, what was ruled out, what it's blocked on>`. Fold the `/save <note>` in. **Never rewrite, reorder, or delete prior entries** — the log is how a cold reader (or another team) gets the journey, not just the destination.
 - **`tasks.md`** — make the checklist reflect reality: check off `- [x]` what's done, add tasks the plan grew, group by the surface each touches.
@@ -153,7 +148,6 @@ Current-format pages regenerate from the shared kit and `review-visuals.html`; u
 Author it via the [CLI artifact contract](../plan/references/openspec-cli.md) that `/plan` uses:
 
 ```bash
-NAME=$(git rev-parse --abbrev-ref HEAD)
 [ -d "openspec/changes/$NAME" ] || openspec new change "$NAME"
 openspec status --change "$NAME" --json          # artifact build order
 openspec instructions proposal --change "$NAME" --json
@@ -170,7 +164,7 @@ Complete the schema's required artifact dependencies from CLI instructions; do n
 
 **You are the only skill that reads the conversation.** Whatever you do not write here is lost when this session ends and is unreachable from another machine. The note is permanent cold-resume context for `/continue` and for any later work that needs the session's understanding.
 
-Write or update **`notes/<slug>.md`**, where `<slug>` is the change/branch slug (prose fast path, so no change: derive the slug from the topic, exactly as Step 3 would). Read [`notes/README.md`](../../../notes/README.md) for the full convention; the rules that bind this step:
+Write or update **`notes/<slug>.md`**, where `<slug>` is the change name (prose fast path, so no change: derive the slug from the topic, exactly as Step 3 would). Read [`notes/README.md`](../../../notes/README.md) for the full convention; the rules that bind this step:
 
 - **Update in place, never a file per save.** A second save on the same slug revises what's now better understood and appends what's new. No date in the filename; dates live in frontmatter (`slug`, `started`, and `updated`).
 - **Write only when there's something to write.** If the session produced nothing beyond what the diff and the Decision log already say, **skip the note** and report that in Step 7. A `/save` run three times an hour shouldn't leave three restatements of the commit.
@@ -222,7 +216,8 @@ Stage the code, the OpenSpec handoff, **and the note** **by path** (never `git a
 
 ```bash
 git add -u
-git add openspec/changes/"$NAME" notes/"$NAME".md <relevant new source/doc/config files by path>
+git add "$CHANGE_ROOT" <relevant new source/doc/config files by path>
+# Add notes/"$NAME".md only if Step 4c wrote it.
 ```
 
 After staging and **before committing**, scan the index for each handled secret value without placing a value in a command argument or output: read it by exact key from the durable live file into a shell variable, then run `git grep --cached -l -F -- "$value"`. Output may contain paths only. An empty value is skipped. Any match stops the save, naming only the affected path; remove the value from the tracked surface and re-stage before continuing. Commit messages, generated PR text, and the final report receive the same manual exclusion check.
@@ -269,5 +264,5 @@ Keep it short — the user invoked this to get a URL + a saved change, not a wal
 - **Never merge** — that's `/ship` (which also archives the change).
 - **The Decision log is append-only.** Never rewrite, reorder, or delete prior entries; plan sections may change, history may not.
 - **The PR body is generated, not curated** — regenerate it from the change every save; never try to preserve manual body edits (reviewers comment instead).
-- **One change per line of work** — update the branch's existing `openspec/changes/<branch>/` rather than spawning duplicates. No GitHub handoff issues — the OpenSpec change is the plan.
+- **One change per line of work** — update the selected `openspec/changes/<name>/` rather than spawning a branch-named duplicate. No GitHub handoff issues — the OpenSpec change is the plan.
 - **An archived handoff never recreates the active change.** The uniquely resolved archive is the handoff, and `/ship` alone performs the merge after consuming `SAVE_GATE_RESULT`.

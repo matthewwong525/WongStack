@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Resume an OpenSpec change and pick up the work — by change name (also the branch name), a PR number/URL, or from a menu when given no argument. Loads the change and the session note, checks out the branch, recaps the plan and Decision log, runs a drift check, then hands off to /apply to work the tasks. Accepts an optional instruction (/continue <name> <instruction>). Pairs with /save. Use whenever you want to continue, resume, or rehydrate a thread.
+description: Resume an OpenSpec change and pick up the work — by change name, a PR number/URL, or from a menu when given no argument. Loads the change and the session note, checks out its recorded branch, recaps the plan and Decision log, runs a drift check, then hands off to /apply to work the tasks. Accepts an optional instruction (/continue <name> <instruction>). Pairs with /save. Use whenever you want to continue, resume, or rehydrate a thread.
 user-invocable: true
 ---
 
@@ -10,7 +10,7 @@ Rehydrate a fresh session from a saved OpenSpec change and pick up the work. **T
 
 `/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
-This skill trusts the change as the source of truth. It deliberately does **not** reload the PR diff or review threads wholesale — `/save` keeps the change current, so the change alone is the spine; a cheap **counts-only drift check** (step 4) flags when reality has moved past the change. By convention **branch name = change name**.
+This skill trusts the change as the source of truth. It deliberately does **not** reload the PR diff or review threads wholesale — `/save` keeps the change current, so the change alone is the spine; a cheap **counts-only drift check** (step 4) flags when reality has moved past the change. `/save` records the actual feature branch in the proposal header; the change and branch may have different names.
 
 > **OpenSpec never runs git — this skill owns it.** `openspec show`/`openspec list` only read the `openspec/` folder; the `git`/`gh` checkout is here. Repo is whatever `gh` resolves in the current directory — never hardcode owner/repo.
 >
@@ -26,7 +26,7 @@ The input is a change reference, **optionally followed by an explicit instructio
 /continue [name-or-PR] [instruction]
 ```
 
-- **First token** = the handle — a **change name** (= branch name), a **PR number**, or a PR **URL** (e.g. `/continue add-auth`, `/continue 57`, `/continue https://github.com/owner/repo/pull/57`).
+- **First token** = the handle — a **change name**, a **PR number**, or a PR **URL** (e.g. `/continue add-auth`, `/continue 57`, `/continue https://github.com/owner/repo/pull/57`).
 - **Everything after** (if anything) = an **explicit instruction** for what to do once the change is loaded — e.g. `/continue add-auth rebase onto main and fix the failing test`. Hold onto it for step 4; it overrides the default "work the tasks" behavior. Most calls are a bare handle — that's the normal case, and the tasks drive the work.
 - **No handle at all** → run `openspec list` and let the user pick from active changes (use the **AskUserQuestion** tool). For each option, show the change's **`Status:`** line (read from its `proposal.md` header — `in-progress` / `blocked (<on what>)` / `ready-to-ship` / `parked`) alongside the name and task progress, so "what can I pick up?" is answerable from the menu. Don't guess.
 
@@ -34,17 +34,23 @@ The input is a change reference, **optionally followed by an explicit instructio
 
 You need two things: the **change** (proposal + tasks) and the **branch** to check out.
 
-- **Change name** (matches `openspec/changes/<name>/` or an `openspec list` entry) → branch = that name. Read it:
+- **Change name** (matches `openspec/changes/<name>/` or an `openspec list` entry) → read its proposal header and use the `**Branch:**` value as `BRANCH`:
   ```bash
   openspec show <name>          # or read openspec/changes/<name>/proposal.md + tasks.md
   cat notes/<name>.md 2>/dev/null   # the session note, if one exists
   ```
-  The note is keyed by the same slug as the change and the branch. It holds the *session* context the change deliberately doesn't — what was tried and abandoned, what the user said the constraint really is, the thread left open. Read it when it's there; **its absence is normal, not an error.**
-- **PR number/URL** → the branch is the PR's `headRefName`, and the change is the folder named after that branch:
+  The note is keyed by the change name, even when the branch differs. It holds the *session* context the change deliberately doesn't — what was tried and abandoned, what the user said the constraint really is. Read it when there; **its absence is normal**. If the folder is absent in a fresh checkout, `git fetch origin` and inspect remote branch trees without checking them out:
+  ```bash
+  git for-each-ref refs/remotes/origin --format='%(refname)' | while IFS= read -r ref; do
+    git cat-file -e "$ref:openspec/changes/$NAME/proposal.md" 2>/dev/null && echo "$ref"
+  done
+  ```
+  One branch carrying it supplies the proposal and branch; several require a choice. Read its proposal with `git show "$ref:openspec/changes/$NAME/proposal.md"`, then check out the branch in Step 3. If the proposal has no Branch line, use a same-named local or remote branch as the legacy fallback. If neither exists, stay in the current checkout for an unsaved plan; ask for the branch or PR when the change is saved elsewhere.
+- **PR number/URL** → the branch is the PR's `headRefName`; fetch it, then find the unique active change in that branch's diff:
   ```bash
   gh pr view <N> --json headRefName,url,title,state
   ```
-  Then read `openspec/changes/<headRefName>/`.
+  Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active "origin/<headRefName>"` after `git fetch origin`. If it returns one change, select it. If it returns none, look for one proposal on that branch whose `**Branch:**` value is the PR head, then try the legacy same-name folder. If several remain, ask which change to resume. Read the selected folder after checkout; do not infer its name from the PR branch.
 - **Bare number that matches both a PR and an `openspec list` index** → ambiguous; ask which they mean before proceeding.
 
 It's fine if only one side exists (a save with no PR yet) — load the change; there's just no PR link to show.
@@ -59,7 +65,7 @@ git status --porcelain              # is the tree clean
 git fetch origin                    # a handed-off branch may exist only on the remote
 ```
 
-- Clean tree, branch not checked out → `git checkout <name>` (git creates a local branch tracking `origin/<name>` when it only exists on the remote — the fresh-clone handoff case), or `gh pr checkout <N>` which fetches too.
+- Clean tree, branch not checked out → `git checkout "$BRANCH"` (git creates a local branch tracking `origin/$BRANCH` when it only exists on the remote — the fresh-clone handoff case), or `gh pr checkout <N>` which fetches too. If the proposal's Branch line names a branch absent locally and remotely, ask for the correct branch or PR rather than creating it.
 - In a git worktree the branch may be checked out elsewhere — if checkout fails for that reason, tell the user and proceed read-only rather than forcing it.
 - Dirty tree → **don't** switch branches; surface the dirty state and ask how to proceed.
 - Change planned but never `/save`d (no branch anywhere) → stay on the current branch; `/save` will cut it.

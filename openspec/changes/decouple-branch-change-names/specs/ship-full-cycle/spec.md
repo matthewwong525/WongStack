@@ -1,10 +1,4 @@
-# ship-full-cycle Specification
-
-## Purpose
-
-`/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Ship pulls in apply when there is nothing to ship
 
@@ -63,63 +57,7 @@ When `/ship`'s preflight finds nothing to ship — the current branch is the def
 - **THEN** the rule is stated without conditioning it on an argument
 - **AND** the nesting `/ship` → `/apply` → `/plan` → `/explore` reads as one uniform rule, with the cold-session stop named as its one exception
 
-### Requirement: Ship never merges as a way of stopping
-
-When the pulled-in stage does not reach completion — `/plan` pauses on unclear intent, `/apply` ends with tasks pending, or a task-driven or completion `/save` returns a failing or unverifiable result — `/ship` SHALL report the blocker and stop before its archive step. It SHALL NOT archive, checkpoint, or merge a partial change.
-
-#### Scenario: Planning pauses inside the chain
-
-- **WHEN** `/plan` pauses because the intent is unclear
-- **THEN** `/ship` reports the planning blocker and stops
-- **AND** no archive or merge occurs
-
-#### Scenario: Apply stops with tasks pending
-
-- **WHEN** `/apply` reports remaining work instead of completing
-- **THEN** `/ship` reports that work and stops
-- **AND** it does not invoke `/save` on the partial state
-
-### Requirement: The chain composes with the existing contracts
-
-The pulled-in stage SHALL change nothing in the `apply-plan-handoff`, `apply-completion-handoff`, and `delivery-gate` contracts. `/apply` SHALL still invoke `/save` exactly once on completion, and `/ship` SHALL still invoke ordinary `/save` exactly once after the archive, so a one-go run has two checkpoints. The ship-time `/verify` `FAILURE` pause SHALL still ask the user. The change loop page SHALL state the one rule every verb now follows: when its precondition is missing, invoke the verb before it to produce it.
-
-#### Scenario: Two checkpoints in a one-go run
-
-- **WHEN** `/ship <intent>` runs the full chain to merge
-- **THEN** `/apply`'s completion `/save` and `/ship`'s archive `/save` both run
-- **AND** `/ship` merges only on the archive checkpoint's `SUCCESS` or `NONE`
-
-#### Scenario: A red walk still pauses
-
-- **WHEN** the ship-time `/verify` returns `FAILURE` inside a one-go run
-- **THEN** `/ship` stops and asks the user whether to fix or merge anyway
-
-#### Scenario: A reader looks up the chain rule
-
-- **WHEN** a reader opens the change loop page
-- **THEN** it states that each verb invokes the verb before it when its precondition is missing
-- **AND** it shows the nesting `/ship` → `/apply` → `/plan` → `/explore`
-
-### Requirement: Ship completes an unfinished change rather than archiving it
-
-Before archiving, `/ship` SHALL read the change's `tasks.md`. When it has unchecked tasks, `/ship` SHALL invoke `/apply` for that exact change to finish them, then re-check, and SHALL NOT archive an incomplete change. `/ship`'s standing authorization SHALL NOT extend to the archive step's incomplete-task confirmation: that confirmation SHALL reach the user, or the guard SHALL have already removed the condition that raises it. When `/apply` ends with tasks still pending, `/ship` SHALL report that work and stop before the archive.
-
-#### Scenario: A planned but unimplemented change is finished first
-
-- **WHEN** `/ship` runs on a branch whose change has unchecked tasks
-- **THEN** `/ship` invokes `/apply` for that change before its archive step
-- **AND** it archives only after every task is checked
-
-#### Scenario: The archive's confirmation is never auto-answered
-
-- **WHEN** the archive step would warn about incomplete tasks and ask the user to confirm
-- **THEN** `/ship`'s "don't re-prompt" authorization does not answer that confirmation on the user's behalf
-- **AND** no archive, checkpoint, or merge occurs on the incomplete state
-
-#### Scenario: A complete change archives unchanged
-
-- **WHEN** `/ship` runs on a branch whose change has every task checked
-- **THEN** the guard adds no step and the existing archive, checkpoint, verify, and merge run as before
+## ADDED Requirements
 
 ### Requirement: Ship archives only the selected change
 

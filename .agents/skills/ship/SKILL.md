@@ -34,7 +34,7 @@ gh api repos/:owner/:repo/commits/main/check-runs \
 **When either stop condition above holds** — on the default branch, or a clean tree with 0 commits ahead — there is nothing to ship *yet*, so make it: **invoke the [`apply` skill](../apply/SKILL.md)**, then **re-run this preflight** on the branch `/save` created and continue to Step 2. Two forms:
 
 - **An intent was given** (`/ship <intent>`) → invoke `/apply` with the argument **verbatim**.
-- **No argument** → invoke `/apply` **with no argument**, when [`/apply`'s resolve order](../apply/SKILL.md#resolve-the-plan-first) lands on one of its first three items — a change you named, a change created or discussed in this session, or an active change whose name matches the current branch — or on its separate branch for a session that states clear implementation intent with no change yet.
+- **No argument** → invoke `/apply` **with no argument**, when [`/apply`'s resolve order](../apply/SKILL.md#resolve-the-plan-first) lands on a change you named, a change created or discussed in this session, or a change evidenced by this branch's files, recorded Branch line, or legacy name — or on its separate branch for a session that states clear implementation intent with no change yet.
 
 **The cold stop.** Where that resolution would instead fall through to item 4 — a sole active change the conversation does not establish — or resolve nothing at all, **stop**, and **say so**: report that you found nothing to continue and that `/ship <intent>` starts a new one. A stray `openspec list` entry never starts a merge. Never do nothing silently.
 
@@ -49,17 +49,19 @@ This is the loop's one rule, applied one verb further out: **when a verb's preco
 
 ## Step 2 — archive the change (/opsx:archive)
 
-The change is named like the current branch. Require `openspec/changes/$BRANCH/` to exist; if it does not, stop and direct the user to `/save` so the missing handoff is authored before shipping. Do not ship a branch with no change record.
+Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME`. Prefer an existing change named by the user or selected in this session. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active`: one changed active folder selects that change, whether or not its name matches `BRANCH`. If none, use a unique active proposal whose `**Branch:**` equals `BRANCH`, then a legacy active folder named `BRANCH`. If none resolves, stop and report that this branch has no identifiable change record; `/save` can author one. A sole unrelated `openspec list` entry never authorizes a cold merge.
+
+If the branch diff or working tree contains **more than one active change folder**, stop before archive even when one was explicitly selected: the merge would carry the other too. Name the folders and ask the user to separate or intentionally reconcile that work. Require `openspec/changes/$CHANGE_NAME/` to exist before proceeding. Keep `CHANGE_NAME` fixed through archive and checkpoint.
 
 **Then read its `tasks.md` before you archive anything.** Unchecked tasks (`- [ ]`) mean the change is not finished, so **finish it**: invoke the [`apply` skill](../apply/SKILL.md) for that exact change name, let it work the list and hand completion to `/save`, then re-read the file. Archive only when every task is checked.
 
 An incomplete change is never archived. The archive step itself warns and **asks you to confirm** — a question this runbook's standing authorization would otherwise answer on your behalf, which is how a change at 7 of 20 tasks used to reach a squash-merge with nobody deciding to. The guard removes the condition rather than the question. If `/apply` ends with tasks still pending, report that work and stop here — the [never merge as a way of stopping](#hard-rules) rule, at the second place it applies.
 
-Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$BRANCH" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$BRANCH" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$BRANCH" --json` for any applicable context. Run `openspec archive "$BRANCH" --yes` only after the task check and validation. If the deltas were already synced by `/save` and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$BRANCH/` exists. Do **not** commit the move here.
+Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$CHANGE_NAME" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$CHANGE_NAME" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$CHANGE_NAME" --json` for any applicable context. Run `openspec archive "$CHANGE_NAME" --yes` only after the task check and validation. If the deltas were already synced by `/save` and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists. Do **not** commit the move here.
 
 ## Step 3 — delegate the checkpoint to /save
 
-**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim.** It recognizes the single archived change matching the current branch as its handoff, redacts named session secrets, captures the note, stages the implementation plus archive move, commits, pushes, regenerates the PR body from the archive, and waits/auto-fixes CI. It never recreates an active change, and `/ship` implements none of that itself.
+**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim.** Hand it the exact `CHANGE_NAME` and archive path selected above. It redacts named session secrets, captures the note, stages the implementation plus archive move, commits, pushes, regenerates the PR body from that archive, and waits/auto-fixes CI. It never recreates an active change, and `/ship` implements none of that itself.
 
 Consume its exact final result:
 
