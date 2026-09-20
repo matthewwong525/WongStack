@@ -28,4 +28,4 @@
 ## 5. Payload release
 
 - [x] 5.1 Bump `VERSION` with the appropriate semver increment and add a newest-first `CHANGELOG.md` entry describing the new review UI and its new-pages-only scope per review.html#/rollout/new-pages.
-- [ ] 5.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and strict OpenSpec validation. Complete the normal `/apply` handoff to `/save` for the CI gate; no local build is required.
+- [x] 5.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and strict OpenSpec validation. Complete the normal `/apply` handoff to `/save` for the CI gate; no local build is required.

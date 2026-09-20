@@ -1,6 +1,6 @@
 # Improve review usability
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Open questions:** none
 
 ## Why
@@ -55,3 +55,4 @@ The implementation changes `.agents/skills/plan/references/review-kit.html`, its
 - 2026-09-20: User found the workflow preview's steps overlapping and asked how a flow with multiple branches would look → use block steps with clear gaps, and add a split/three-path/rejoin example inside the same change's visual. The branch labels name the conditions so the phone stack reads as alternatives, not a sequence.
 - 2026-09-20: User found the revised straight steps harder to read than the three-way branch cards → make every sequence step a connected card with its title, description, change label, and Details inside the same border. The separate Details action still works during annotation.
 - 2026-09-20: The shared kit, authoring rules, browser regression suite, and release entry now implement the approved new-pages-only plan. The earlier branch named `explore-review-html-ux` was renamed to `improve-review-usability` so the branch and change match; CI verification remains the final implementation task.
+- 2026-09-20: The `/save` checkpoint opened PR #88 and CI passed after two browser-test timing and selector fixes. The full 17-task implementation is ready for archive and merge.
