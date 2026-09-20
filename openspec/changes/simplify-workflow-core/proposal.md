@@ -1,6 +1,6 @@
 # Simplify the workflow core
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Open questions:** none
 
 ## Why
@@ -51,3 +51,4 @@ The change affects the core verb skills, setup and update instructions, the revi
 - **2026-09-20** — Delivery gate → the new CLI, migration, and review fixtures passed in Payload checks on PR #87 after two fixture fixes. The existing Test and Deploy workflows also passed on commit `046bcbd`. This completes the final task; the remaining save checkpoints the exact ready-to-ship state.
 - **2026-09-20** — Integration with PR #88 → the user asked to combine the already-merged focused-review release with this simplification. Preserve its viewer runtime, flow-card and draft behavior, and app browser coverage. Move its sample visuals out of the shared shell, make tests build real pages through the new builder, and keep historical archives untouched. Reopen this change until the merged branch passes CI.
 - **2026-09-20** — Combined implementation checkpoint → the merged 15.2.0 viewer now comes from the shared builder, its examples also drive the existing browser suite, and this active review uses its flow cards and draft notes. Structural, rendered phone/desktop, offline, and payload checks passed; CI still needs to verify the merged app tests before the change is ready again.
+- **2026-09-20** — Combined delivery gate → app tests, payload checks, and deployment passed on merge commit `21ad389` in PR #87. The integration tasks are complete; the final checkpoint records this ready-to-ship state without changing the viewer.
