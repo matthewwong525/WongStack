@@ -1,6 +1,6 @@
 # Simplify the workflow core
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Open questions:** none
 
 ## Why
@@ -48,3 +48,4 @@ The change affects the core verb skills, setup and update instructions, the revi
 - **2026-09-20** — Exit round → no further questions were needed; the user's answers settle the material choices. File placement and test mechanics are recorded in the design as implementation assumptions.
 - **2026-09-20** — Review critique → all six anchors and eight visual/state combinations passed rendered inspection at 1440×1000 and 390×844; annotation and the copied continuation command worked. The critic clarified that forbidden author styles must be checked before runtime, because the unchanged kit adds valid inline styles. This clarification is included in the design and review. These checks validate this planning page, not the proposed implementation.
 - **2026-09-20** — Implementation checkpoint → the generated skill layer is removed from the source, the direct CLI and review builder are wired into the WongStack verbs, and 16.0.0 documents the migration. The source instruction inventory is 39% shorter. Payload links, OpenSpec config, strict change validation, and the rebuilt review passed local read-only checks. The final meta and app CI task remains open until the pushed branch reports a gate result.
+- **2026-09-20** — Delivery gate → the new CLI, migration, and review fixtures passed in Payload checks on PR #87 after two fixture fixes. The existing Test and Deploy workflows also passed on commit `046bcbd`. This completes the final task; the remaining save checkpoints the exact ready-to-ship state.

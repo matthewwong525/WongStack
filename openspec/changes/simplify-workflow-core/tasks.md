@@ -37,4 +37,4 @@
 
 - [x] 6.1 Add the next major VERSION and CHANGELOG entry with the internal-skill removal, required review behavior, legacy compatibility, and target migration steps; resolve the release number against the then-current baseline. See review.html#/concise-owners/owners.
 - [x] 6.2 Validate this change and run the payload link/config release checks through the normal workflow; refresh its review if implementation changed the proposal or visuals. See review.html#/concise-owners/owners.
-- [ ] 6.3 Confirm the new meta checks and existing CI pass via /save; record actual CLI/browser evidence and remaining manual workflow-review limits before marking the change complete. This task's checkpoint covers apply's completion when it represents the final unchanged state. See review.html#/concise-owners/owners.
+- [x] 6.3 Confirm the new meta checks and existing CI pass via /save; record actual CLI/browser evidence and remaining manual workflow-review limits before marking the change complete. This task's checkpoint covers apply's completion when it represents the final unchanged state. See review.html#/concise-owners/owners.
