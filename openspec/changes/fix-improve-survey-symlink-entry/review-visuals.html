@@ -1,0 +1,52 @@
+<section class="visual flow" id="survey-entry" data-kind="flow" data-title="Run the survey through the documented path" data-states="today after">
+  <p class="caption">Direct CLI entry through the documented <code>.claude/</code> alias, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-documented-command">
+          <h3>Run the documented command <span class="tag">Kept</span></h3>
+          <p>Node starts the survey through <code>.claude/.../survey.mjs</code>.</p>
+          <details><summary>Details</summary><p>The typed script path uses the repository alias. The module URL resolves to the canonical <code>.agents/</code> path.</p></details>
+        </div>
+        <p class="flow-connector">↓ Compare path text</p>
+        <div class="step flow-card" data-target-id="today-entry-check">
+          <h3>Direct-entry check misses the alias</h3>
+          <p>The typed path and resolved module path look different.</p>
+          <details><summary>Details</summary><p>The CLI block does not start because the unresolved argument does not equal the resolved module filename.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-no-report">
+          <h3>Exit without a report</h3>
+          <p>The command succeeds silently and emits no JSON.</p>
+          <details><summary>Details</summary><p>The survey functions remain available to imports, but the documented direct command does not run them.</p></details>
+        </div>
+      </div>
+    </div>
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-documented-command">
+          <h3>Run the documented command <span class="tag">Kept</span></h3>
+          <p>Node starts the survey through <code>.claude/.../survey.mjs</code>.</p>
+          <details><summary>Details</summary><p>The public command and its optional repository-relative area stay unchanged.</p></details>
+        </div>
+        <p class="flow-connector">↓ Resolve file identity</p>
+        <div class="step flow-card" data-target-id="after-direct-entry" data-mark="direct-entry">
+          <h3>Recognize the same script <span class="tag">Changed</span> <i class="callout">1</i></h3>
+          <p>Resolve the invoked path before the direct-entry comparison.</p>
+          <details><summary>Details</summary><p>The <code>.claude/</code> alias and canonical <code>.agents/</code> path identify the same existing file. Imports still do not start a survey.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-json-report">
+          <h3>Emit the survey report <span class="tag">Restored</span></h3>
+          <p>The CLI produces the same JSON and exit status through either path.</p>
+          <details><summary>Details</summary><p>Survey findings, rotation, history selection, and scope behavior do not change.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol><li>Compare file identity only at the CLI boundary. This repairs aliased direct execution without making imported modules scan the repository or set a process exit code.</li></ol>
+  </div>
+</section>

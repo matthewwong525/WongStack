@@ -20,7 +20,7 @@ The skill SHALL review recent changes and a rotating maintained area unless the 
 - **THEN** the next week's rotation can advance without requiring a maintenance-state commit
 
 ### Requirement: Read-only survey with explicit limits
-The survey SHALL collect bounded current tracked-file leads without installing tools, contacting services, modifying repository files, or emitting secret values. It SHALL report its supported inputs, exclusions, and failures and SHALL NOT label a repository safe from an empty result.
+The survey SHALL collect bounded current tracked-file leads without installing tools, contacting services, modifying repository files, or emitting secret values. It SHALL report its supported inputs, exclusions, and failures and SHALL NOT label a repository safe from an empty result. The documented survey command SHALL emit the report when its in-repository script path resolves through a safe alias.
 
 #### Scenario: Unsupported source language or failed read
 - **WHEN** files cannot be analyzed by a survey check
@@ -29,6 +29,10 @@ The survey SHALL collect bounded current tracked-file leads without installing t
 #### Scenario: Escaped scope
 - **WHEN** a scope or symlink resolves outside the repository
 - **THEN** the survey refuses that read and does not scan the external target
+
+#### Scenario: Documented command uses an in-repository alias
+- **WHEN** the agent runs the documented survey command through a script-path alias that resolves to the helper
+- **THEN** the command emits the JSON report and uses the same exit-code contract as the canonical script path
 
 ### Requirement: Evidence-based maintenance selection
 The skill SHALL investigate and rank candidates with concrete evidence, impact, expected behavior, and a verification probe. Eligible work SHALL include documentation, consolidation, reliability, security, measured performance, and workflow maintenance. It SHALL permit no change when no worthwhile candidate is supported.

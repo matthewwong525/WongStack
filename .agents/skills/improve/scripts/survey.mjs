@@ -281,7 +281,16 @@ export function survey(directory = process.cwd(), area = '.', options = {}) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+function isDirectEntry() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectEntry()) {
   try {
     if (process.argv.length > 3) throw new Error('Usage: node survey.mjs [literal-area-path]');
     const report = survey(process.cwd(), process.argv[2]);
