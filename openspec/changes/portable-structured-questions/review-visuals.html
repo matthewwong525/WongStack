@@ -1,0 +1,101 @@
+<section class="visual flow" id="question-flow" data-kind="flow" data-states="after today">
+  <p class="caption">How an interactive workflow selects one question mechanism from the tools that the active host and mode make callable.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="question-needed">
+          <h3>A workflow needs one material choice <span class="tag">Unchanged</span></h3>
+          <p>For example, <code>/improve</code> asks which supported maintenance candidate to ship.</p>
+          <details><summary>Details</summary><p>Actor: the skill. Action: prepare one to three short options. Result: one question is ready for the host.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="callability-check">
+          <h3>Choose the first callable structured tool <span class="tag">Changed</span> <i class="callout">1</i></h3>
+          <p>Use the active tool catalog and mode restrictions, in the order below.</p>
+          <details><summary>Details</summary><p>A name in skill text is not enough. The tool must be callable in this turn and mode.</p></details>
+        </div>
+        <p class="flow-connector">↓ First matching path</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="codex-tool">
+            <h3>Codex tool is callable</h3>
+            <p>Use <code>request_user_input</code>.</p>
+            <details><summary>Details</summary><p>First priority. Codex shows the structured multiple-choice UI and returns the selection.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="claude-tool">
+            <h3>Otherwise, Claude tool is callable</h3>
+            <p>Use <code>AskUserQuestion</code>.</p>
+            <details><summary>Details</summary><p>Second priority. Claude shows its structured question UI and returns the selection.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="host-equivalent">
+            <h3>Otherwise, an equivalent is callable</h3>
+            <p>Use the host's structured question tool.</p>
+            <details><summary>Details</summary><p>Third priority. This keeps the rule portable to hosts with another equivalent tool.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="chat-fallback">
+            <h3>No structured tool is callable</h3>
+            <p>Show numbered options in chat.</p>
+            <details><summary>Details</summary><p>Fallback only. The user can reply with a number or free text.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ All paths return one answer</p>
+        <div class="step flow-card" data-target-id="answer-recorded">
+          <h3>Continue with the user's selection <span class="tag">Unchanged</span></h3>
+          <p>The owning workflow records the answer and continues.</p>
+          <details><summary>Details</summary><p>Actor: the skill. Action: apply the selected option. Result: the workflow has one explicit execution context.</p></details>
+        </div>
+      </div>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-question">
+          <h3>A workflow needs one material choice</h3>
+          <p>The skill prepares a short selection question.</p>
+          <details><summary>Details</summary><p>The question contract exists, but its named implementation is host-specific.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-claude-name">
+          <h3>Instructions name <code>AskUserQuestion</code></h3>
+          <p>The direct name describes Claude, while Codex exposes <code>request_user_input</code>.</p>
+          <details><summary>Details</summary><p>The wording does not give the agent a clear, ordered mapping across both hosts.</p></details>
+        </div>
+        <p class="flow-connector">↓ When that named tool is unavailable</p>
+        <div class="step flow-card" data-target-id="today-chat">
+          <h3>Numbered chat fallback appears</h3>
+          <p>The user must type a number even when another structured tool could be usable.</p>
+          <details><summary>Details</summary><p>This is the observed failure in the Codex <code>/improve</code> run.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Contract:</b> the workflow asks one selection question and gets one explicit answer. The host controls which tools are callable.</p>
+    <ol>
+      <li>The choice is ordered and based on actual callability: Codex first, Claude second, another structured equivalent third, and numbered chat only as the final fallback.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual diff-visual" id="config-diff" data-kind="diff">
+  <p class="caption"><code>.codex/config.toml</code> — a project-local feature override for trusted WongStack checkouts and worktrees.</p>
+  <div class="frame">
+    <div class="diff">
+      <div>
+        <div class="label">Before</div>
+        <pre><span class="line del"># No repository-owned Codex configuration</span><span class="line del"># Availability depends on host or user config.</span></pre>
+      </div>
+      <div>
+        <div class="label">After</div>
+        <pre><span class="line add" data-mark="added">[features]</span><span class="line add" data-mark="added">default_mode_request_user_input = true <i class="callout">1</i></span></pre>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Scope:</b> this project file has repository scope. This change does not modify user-wide Codex configuration or make an absent host tool appear.</p>
+    <p><b>Downstream:</b> ClaymooApp is not changed here. Its matching project configuration remains a separate, tracked adoption.</p>
+    <ol>
+      <li>Verify the flag in a fresh trusted WongStack Default-mode session. The current session's tool catalog does not prove next-session availability.</li>
+    </ol>
+  </div>
+</section>
