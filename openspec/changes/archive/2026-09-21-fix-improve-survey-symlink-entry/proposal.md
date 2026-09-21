@@ -37,6 +37,7 @@ Update the survey entry detection, its fixture tests, the repository-improvement
 - 2026-09-21: The bounded explore exit round is complete; scope, observable behavior, compatibility, and acceptance are settled.
 - 2026-09-21: Implemented resolved-path direct-entry detection, added process-level alias coverage, published the 16.2.2 release surfaces, and passed all focused payload and OpenSpec checks.
 - **2026-09-21** — Synced the completed repository-improvement contract and prepared the implementation checkpoint for CI.
+- **2026-09-21** — Archived the complete change after its implementation checkpoint passed CI; this archive checkpoint now gates the exact record for squash merge.
 
 Maintenance-Origin: /improve
 Maintenance-Revision: ab4af9e8481bc76ffa319e80f0c84bca2a9c6ec9
