@@ -33,6 +33,7 @@ Credentials already live in the repo's environment files — `.env.example` is t
 - **CI is the gate when present, else PR review; nothing builds locally.** The ladder: [the gate](wiki/development/the-change-loop.md#the-gate). `/verify` gates nothing.
 - **Prose goes straight to `main`.** A `/save` whose entire diff sits in `notes/**` + `wiki/**` commits to the default branch — no branch, PR, or `/ship`. Routing is by path prefix, never file extension: [the prose allowlist](wiki/development/the-change-loop.md#the-prose-allowlist).
 - **Stay in sync with WongStack with `/wong-sync`** — it gets the latest source and invokes `/explore`; the normal workflow plans and applies the agreed update while preserving local work. Sending an improvement back is a manual pull request: [contributing](wiki/contributing.md).
+- **Use `/improve` for a bounded maintenance spot check** — it reviews recent work and one rotating area, then hands one supported change to `/ship`. `--audit-only` reports findings without edits. Scheduling stays external and requires a clean, current, serialized checkout plus explicit unattended context: [repository improvement](wiki/development/repository-improvement.md).
 - **Don't edit `wiki/` mid-task** unless it's explicitly the task. The wiki documents general, reusable processes only; a change's specifics live in its proposal and archive.
 - **Path-scoped conventions load from [`.claude/rules/`](.claude/rules/)** when you work with matching files. An agent that doesn't auto-load them: read the rules whose `paths:` match the files you touch.
 

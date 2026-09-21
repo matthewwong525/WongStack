@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.2.0 — recurring repository improvement
+
+- **`/improve [area]` finds and ships one supported maintenance change.** It reviews recent work and a deterministic weekly rotation area, investigates evidence and prior outcomes, then uses the existing `/ship` workflow. `--audit-only` reports ranked findings without edits.
+- A dependency-free survey reports bounded tracked-file leads, coverage gaps, safe literal scope handling, recent-history fallbacks, and rotation context. It never emits source snippets or secret values and does not call a service.
+- Weekly automation stays external. A scheduled run supplies a clean current serialized checkout and explicit unattended context; interactive questions never turn into assumed answers because nobody replied.
+
 ## 16.1.1 — the payload checks run once for each commit
 
 - **Meta-repo only; no file that a target receives changes.** The `Payload checks` workflow used to run two times for each commit on a branch with an open pull request, because `push` and `pull_request` both start it.
