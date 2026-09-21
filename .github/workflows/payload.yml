@@ -1,11 +1,19 @@
+# Meta-only checks on WongStack's own payload. One run per commit:
+# see "Why one commit does not test twice" in .github/workflows/test.yml.
+
 name: Payload checks
 
 on:
   push:
   pull_request:
 
+concurrency:
+  group: payload-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
 jobs:
   payload:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
