@@ -12,6 +12,7 @@ import {
 } from '../../.agents/skills/improve/scripts/survey.mjs';
 
 const cli = path.resolve('.agents/skills/improve/scripts/survey.mjs');
+const documentedCli = path.resolve('.claude/skills/improve/scripts/survey.mjs');
 
 function git(root, ...args) {
   return execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
@@ -73,6 +74,19 @@ test('maps a safe in-repo .claude alias to tracked .agents files', t => {
   assert.equal(report.scope, '.agents/skills/example');
   assert.equal(report.coverage.scanned, 1);
   assert.equal(report.coverage.areas.sample[0].area, '.agents/skills/example');
+});
+
+test('runs the CLI through the documented .claude alias', t => {
+  const root = fixture(t, { 'README.md': '# Guide\n' });
+  const canonical = spawnSync(process.execPath, [cli], { cwd: root, encoding: 'utf8' });
+  const documented = spawnSync(process.execPath, [documentedCli], { cwd: root, encoding: 'utf8' });
+  assert.equal(canonical.status, 0, canonical.stderr);
+  assert.equal(documented.status, 0, documented.stderr);
+  const canonicalReport = JSON.parse(canonical.stdout);
+  const documentedReport = JSON.parse(documented.stdout);
+  delete canonicalReport.coverage.recent.since;
+  delete documentedReport.coverage.recent.since;
+  assert.deepEqual(documentedReport, canonicalReport);
 });
 
 test('treats scopes literally and rejects escaped paths and external aliases', t => {

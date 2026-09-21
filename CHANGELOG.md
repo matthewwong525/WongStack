@@ -3,6 +3,11 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.2.2 — reliable improve survey command
+
+- The documented `.claude/skills/improve/scripts/survey.mjs` command now recognizes direct execution when `.claude` is an in-repository alias. It emits the same JSON and exit status as the canonical script path.
+- Process-level regression coverage runs both entry paths against one fixture. Imports, survey findings, rotation, history selection, and scope handling do not change.
+
 ## 16.2.1 — portable structured questions
 
 - **Interactive workflows prefer the structured question tool that the active host makes callable.** Codex uses `request_user_input`, Claude uses `AskUserQuestion`, another host can supply an equivalent, and numbered chat remains the fallback.
