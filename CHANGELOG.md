@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.2.1 — portable structured questions
+
+- **Interactive workflows prefer the structured question tool that the active host makes callable.** Codex uses `request_user_input`, Claude uses `AskUserQuestion`, another host can supply an equivalent, and numbered chat remains the fallback.
+- Trusted WongStack checkouts enable Codex's `default_mode_request_user_input` feature through project-local configuration. This does not change the user's global Codex configuration.
+- The Codex flag is under development and needs a compatible client. A new Default-mode session loads the project setting; the current session's tool catalog does not change after startup.
+
 ## 16.2.0 — recurring repository improvement
 
 - **`/improve [area]` finds and ships one supported maintenance change.** It reviews recent work and a deterministic weekly rotation area, investigates evidence and prior outcomes, then uses the existing `/ship` workflow. `--audit-only` reports ranked findings without edits.

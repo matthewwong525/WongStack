@@ -28,7 +28,7 @@ The input is a change reference, **optionally followed by an explicit instructio
 
 - **First token** = the handle — a **change name**, a **PR number**, or a PR **URL** (e.g. `/continue add-auth`, `/continue 57`, `/continue https://github.com/owner/repo/pull/57`).
 - **Everything after** (if anything) = an **explicit instruction** for what to do once the change is loaded — e.g. `/continue add-auth rebase onto main and fix the failing test`. Hold onto it for step 4; it overrides the default "work the tasks" behavior. Most calls are a bare handle — that's the normal case, and the tasks drive the work.
-- **No handle at all** → run `openspec list` and let the user pick from active changes (use the **AskUserQuestion** tool). For each option, show the change's **`Status:`** line (read from its `proposal.md` header — `in-progress` / `blocked (<on what>)` / `ready-to-ship` / `parked`) alongside the name and task progress, so "what can I pick up?" is answerable from the menu. Don't guess.
+- **No handle at all** → run `openspec list` and let the user pick from active changes. Use callable Codex **`request_user_input`**, callable Claude **`AskUserQuestion`**, or another host's equivalent structured question tool, in that order. If no structured tool is callable, use the numbered-chat fallback from [`/explore`](../explore/SKILL.md#question-mechanism). For each option, show the change's **`Status:`** line (read from its `proposal.md` header — `in-progress` / `blocked (<on what>)` / `ready-to-ship` / `parked`) alongside the name and task progress, so "what can I pick up?" is answerable from the menu. Don't guess.
 
 ### 2. Resolve the change and the branch
 

@@ -35,7 +35,7 @@ Use the [question mechanism](#question-mechanism) for material clarification que
 
 ## Question mechanism
 
-Use **AskUserQuestion** when available, or the host's equivalent structured question tool. Follow its schema, mode restrictions, and actual limits; four questions is not a universal tool capacity.
+Use Codex **`request_user_input`** when it is callable. Otherwise, use Claude **`AskUserQuestion`** when it is callable, or use another host's equivalent structured question tool. Choose from the tools that the active host and collaboration mode make callable. Follow the selected tool's schema, mode restrictions, and actual limits; four questions is not a universal tool capacity.
 
 **An asynchronous call is still pending until answered.** Continue only independent work while waiting. Do not treat elapsed time or a preselected option as a user answer. Wait before dependent questions, decisions, or planning.
 
