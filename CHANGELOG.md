@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.1.1 — the payload checks run once for each commit
+
+- **Meta-repo only; no file that a target receives changes.** The `Payload checks` workflow used to run two times for each commit on a branch with an open pull request, because `push` and `pull_request` both start it.
+- The job now uses the same event condition and the same event-keyed concurrency group as the test workflow. The `push` event runs the job. A same-repo `pull_request` event skips it. A pull request from a fork, which starts no `push` event here, still runs it.
+- A two-line header points to the explanation in `.github/workflows/test.yml`. It does not repeat it.
+- The new `payload-checks` spec states the once-for-each-commit rule for this workflow, beside the rule that `ci-tests` states for the test workflow.
+
 ## 16.1.0 — branch names can differ from change names
 
 - `/apply`, `/save`, and `/ship` select a unique OpenSpec change from uncommitted files and the branch diff. `/save` records the actual feature branch in the proposal; `/continue` uses that field or a PR head to resume it.

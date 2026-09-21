@@ -1,0 +1,92 @@
+<section class="visual flow" id="once" data-kind="flow" data-title="One Payload checks run per commit" data-states="today after">
+  <p class="caption">What happens to one commit pushed to a branch that has an open pull request.</p>
+  <div class="frame">
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-push-commit">
+          <h3>Push one commit</h3>
+          <p>The branch has an open pull request. GitHub fires two events for the same commit.</p>
+          <details><summary>Details</summary><p>Event 1: <code>push</code>. Event 2: <code>pull_request</code> (synchronize). Each event starts its own workflow run.</p></details>
+        </div>
+        <p class="flow-connector">↓ Two events, no condition</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="today-push-run">
+            <h3><code>push</code> event</h3>
+            <p>Payload checks runs. About 27 s.</p>
+            <details><summary>Details</summary><p>No job-level <code>if</code>. No concurrency group.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="today-pr-run">
+            <h3><code>pull_request</code> event</h3>
+            <p>Payload checks runs again. About 27 s.</p>
+            <details><summary>Details</summary><p>The same commit, the same checks, a second runner. The result cannot differ from the <code>push</code> run.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Both join here</p>
+        <div class="step flow-card" data-target-id="today-join">
+          <h3>Two runs per commit</h3>
+          <p>About 54 s of runner time for one 27 s job.</p>
+          <details><summary>Details</summary><p>The Test and Deploy workflows already skip their <code>pull_request</code> run. Payload checks was added without that condition.</p></details>
+        </div>
+      </div>
+      <p><span class="btn" data-local-state="after">See after</span></p>
+    </div>
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-push-commit">
+          <h3>Push one commit</h3>
+          <p>GitHub fires the same events as today. The workflow now decides which one runs.</p>
+          <details><summary>Details</summary><p>The triggers do not change. A job-level <code>if</code> and a concurrency group decide what happens next.</p></details>
+        </div>
+        <p class="flow-connector">↓ Where does the commit come from?</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-same-repo">
+            <h3>Same-repo branch <span class="tag">Changed</span></h3>
+            <p><code>push</code> runs the job. <code>pull_request</code> is skipped by the job-level condition.</p>
+            <details><summary>Details</summary><p>The condition passes when the event is <code>push</code>. The <code>pull_request</code> run shows as a grey "skipped" check. <code>/save</code> already reads a skipped Test or Deploy run as passing.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-fork">
+            <h3>Fork pull request <span class="tag">Kept</span></h3>
+            <p>No <code>push</code> fires in this repo. <code>pull_request</code> still runs the job.</p>
+            <details><summary>Details</summary><p>The condition also passes when the head repository is not this repository. That is the only run a fork commit gets, so it must stay. The job has read-only permissions and no secrets.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Both join here</p>
+        <div class="step flow-card" data-target-id="after-join">
+          <h3>One run per commit <span class="tag">Changed</span><i class="callout">1</i></h3>
+          <p>One green run for the latest commit, and no run cancelled by the other event. The concurrency group keys on the event and the branch.</p>
+          <details><summary>Details</summary><p>Group name: <code>payload-&lt;event&gt;-&lt;branch&gt;</code>. Off the default branch, a newer commit cancels the older run in the same group. Two different events never share a group, so one cannot cancel the other.</p></details>
+        </div>
+      </div>
+      <p><span class="btn" data-local-state="today">See today</span></p>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li><code>github.ref</code> differs between the two events, so a branch-only group never matches. A group that did match would cancel one run, and <code>gh pr checks</code> reads cancelled as <code>fail</code>.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual diff-visual" id="workflow" data-kind="diff" data-title="payload.yml: condition, group, and pointer">
+  <p class="caption"><code>.github/workflows/payload.yml</code> — the top of the file. The group and the condition copy <code>test.yml</code> line for line. The header comment names <code>test.yml</code> as the owner of the explanation and does not repeat it. The steps below <code>permissions</code> do not change.</p>
+  <div class="frame">
+    <div class="diff">
+      <div>
+        <div class="label">Before</div>
+        <pre><span class="line">name: Payload checks</span><span class="line"></span><span class="line">on:</span><span class="line">  push:</span><span class="line">  pull_request:</span><span class="line"></span><span class="line">jobs:</span><span class="line">  payload:</span><span class="line">    runs-on: ubuntu-latest</span><span class="line">    permissions:</span><span class="line">      contents: read</span><span class="line">    steps:</span><span class="line">      # unchanged</span></pre>
+      </div>
+      <div>
+        <div class="label">After</div>
+        <pre><span class="line add"># Meta-only checks on WongStack's own payload. One run per commit:</span><span class="line add"># see "Why one commit does not test twice" in .github/workflows/test.yml.</span><span class="line add"></span><span class="line">name: Payload checks</span><span class="line"></span><span class="line">on:</span><span class="line">  push:</span><span class="line">  pull_request:</span><span class="line"></span><span class="line add">concurrency:</span><span class="line add">  group: payload-${{ github.event_name }}- <i class="callout">1</i></span><span class="line add">    ${{ github.head_ref || github.ref_name }}</span><span class="line add">  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}</span><span class="line add"></span><span class="line">jobs:</span><span class="line">  payload:</span><span class="line add">    if: ${{ github.event_name == 'push' || <i class="callout">2</i></span><span class="line add">      github.event.pull_request.head.repo.full_name != github.repository }}</span><span class="line">    runs-on: ubuntu-latest</span><span class="line">    permissions:</span><span class="line">      contents: read</span><span class="line">    steps:</span><span class="line">      # unchanged</span></pre>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The group key includes the event name. <code>github.ref</code> differs between <code>push</code> and <code>pull_request</code>, so a branch-only key never matches, and a key that did match would let one event cancel the other. <code>cancel-in-progress</code> is off on the default branch, so a merge is never cancelled by the next merge.</li>
+      <li>The condition keeps <code>pull_request</code> only for fork pull requests. A fork fires no <code>push</code> here, so that run is the only check a fork commit gets. A same-repo pull request is already covered by its <code>push</code> run.</li>
+    </ol>
+  </div>
+</section>
