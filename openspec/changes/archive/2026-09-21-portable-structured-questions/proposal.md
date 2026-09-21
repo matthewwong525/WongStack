@@ -39,6 +39,7 @@ Update the exploration and continuation skills, add project-local Codex configur
 - 2026-09-21: ClaymooApp adoption is deferred to its own clean worktree and workflow because its primary checkout contains unrelated untracked files.
 - 2026-09-21: The exit question round is complete; the conversation settled scope, observable behavior, compatibility, and acceptance before planning.
 - **2026-09-21** — Implemented the portable question-tool order, enabled Codex structured input in trusted WongStack checkouts, updated the clarification contract, and prepared release 16.2.1. The project flag is active for new sessions; ClaymooApp remains a separate tracked delivery.
+- **2026-09-21** — Archived the completed, strictly validated change for its final `/save` checkpoint and squash merge.
 
 Maintenance-Origin: /improve
 Maintenance-Revision: 065a011d829d0d66b1b7728b77921baa6085f510
