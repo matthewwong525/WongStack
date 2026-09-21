@@ -1,6 +1,6 @@
 # Speed up CI
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** plan-repo-efficiency
 **Open questions:** none
 
@@ -34,3 +34,5 @@ The meta-only Payload checks workflow fires on both `push` and `pull_request`, s
 
 - **2026-09-21** — Non-interactive session; the exit round took recommended defaults and records them as assumed. Asked what "efficient" covers → assumed CI runtime: it is measurable, and the fix is deterministic code; trimming skill prose needs judgment on behavior, so it stays a follow-up. Asked whether to drop the `pull_request` trigger → assumed no; keep it with the job-level condition so fork pull requests still run, the shape `test.yml` uses. Asked whether to cache the Playwright browser → assumed no; the measured 19 s step is half system packages, and the file ships to every target. Assumed a patch bump to 16.1.1: no target receives a changed file.
 - **2026-09-21** — Implemented the workflow condition, the concurrency group, and the header pointer. The condition and `cancel-in-progress` are character-identical to `test.yml`; only the group prefix differs (`payload-` against `test-`). Bumped `VERSION` to 16.1.1 and added the changelog entry. Both release checks pass. The evidence task stays open until this push shows the skipped `pull_request` run.
+- **2026-09-21** — Evidence for task 2.1 on commit `b994614`, pull request #90. The `Payload checks` run for the `pull_request` event is `skipped`, and its `payload` job reports `skipped` with zero steps, so the job-level condition did it. The `push` run is green in 31 s. The day before, on 2026-09-20, the same workflow reported `success` for both events on one commit. All checks green; `SAVE_GATE_RESULT=SUCCESS`.
+- **2026-09-21** — `/ship` confirmed all four tasks complete, the default branch green, and the change valid under `--strict`. Archived as `2026-09-21-speed-up-ci` without `--skip-specs`, so the CLI created the new main spec at `openspec/specs/payload-checks/spec.md`. This `/save` checkpoints the archive move on feature branch `plan-repo-efficiency` before merge.

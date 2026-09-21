@@ -5,7 +5,7 @@
 
 ## 2. Evidence
 
-- [ ] 2.1 Push through `/save` and confirm on the branch's first commit with an open pull request that the `pull_request` Payload checks run is skipped and the `push` run is green, per review.html#/once/after.
+- [x] 2.1 Push through `/save` and confirm on the branch's first commit with an open pull request that the `pull_request` Payload checks run is skipped and the `push` run is green, per review.html#/once/after.
 
 ## 3. Release
 
