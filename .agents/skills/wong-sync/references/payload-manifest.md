@@ -4,12 +4,14 @@
 
 ## Categories
 
-- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, path rules, process pages, the note convention, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, path rules, process pages, the note convention, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for a repo with user-facing screens.
 - **Pack** adds the optional Cloudflare provisioning skill, pipeline scripts, workflow, schema, and `wiki/stack/` pages when `components.stackPack` is true.
 - **Scaffold** adds `app/` only when both `components.appScaffold` and `components.stackPack` are true. It excludes `app/wrangler.jsonc`, which contains source-repo database IDs.
 
 A skill installed under a recorded local name stays under that name. The target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. Read the target broadly during exploration; the inventory limits copying, not investigation. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source.
+
+The **improve** skill ships its dependency-free survey helper and investigation references as one directory. The helper reads supported tracked text and Git history through the Node.js runtime that OpenSpec already needs. It does not add a package or contact a service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduler requirements.
 
 The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), [visual author guide](../../plan/references/review-author.md), [CLI contract](../../plan/references/openspec-cli.md), builder, and structural checker as one directory. Every new change gets a standalone `review.html`; the viewer's runtime is bundled into that output. The author writes only the change's visual fragment. `/save` refreshes it through the same builder, and the old sync script remains a compatibility entry point for marked legacy pages. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure across install shapes.
 

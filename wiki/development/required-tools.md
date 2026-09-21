@@ -8,7 +8,7 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 | `gh` | PRs, checks, and the GitHub API — the delivery gate. Must be authenticated. (`/wong-sync` doesn't need it: its clone refresh is plain `git`, and it opens no PRs. [Contributing](../contributing.md) upstream is a manual PR, where you'd use `gh` yourself.) |
 | `openspec` | The planning layer the workflow verbs front. Distributed only as an npm package (no standalone binary), so it needs [Node.js](https://nodejs.org/) — but the payload only ever calls the `openspec` binary. |
 
-`/wong-setup` checks for these during its readiness step when it installs WongStack into a repo. Beyond them, no core payload script or skill invokes anything: **no `jq`, no `python`, no `node`, no language runtime.** WongStack installs into repos of every stack, so every added dependency is a repo it can't serve.
+`/wong-setup` checks for these during its readiness step when it installs WongStack into a repo. Beyond them, no core payload script or skill invokes another runtime: **no `jq`, no `python`, and no project-language toolchain.** [`/improve`](repository-improvement.md) runs one dependency-free Node.js survey beside the OpenSpec CLI, so it adds no runtime or package requirement. WongStack installs into repos of every stack, so every added dependency is a repo it cannot serve.
 
 **One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys.**
 
@@ -44,7 +44,7 @@ When the answer is no, setup doesn't dead-end — the layers degrade cleanly:
 ```
    git + gh + an agent   →  CLAUDE.md, wiki/, notes/, the skills,
                             /save, /continue                  ← zero runtime
-   + node → openspec     →  /plan, /apply, /ship
+   + node → openspec     →  /plan, /apply, /ship, /improve
    + a Cloudflare token  →  the running app                   ← nothing local
 ```
 

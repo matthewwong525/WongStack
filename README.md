@@ -21,7 +21,7 @@ The agent uses the normal workflow: explore your project, plan the install, appl
 ## What you get
 
 - **Process in the repo.** Your team's way of working lives in the repo, not scattered across chats, docs, and people's heads.
-- **Commands agents can run.** Exploring, planning, implementing, saving, resuming, and shipping each have one.
+- **Commands agents can run.** Exploring, planning, implementing, saving, resuming, shipping, and recurring maintenance each have one.
 - **A record written during the work.** Plans, decisions, shipped changes, and reusable lessons get written down as part of the workflow, not afterwards.
 - **A reviewable work trail.** Work arrives as a package your team can inspect before it joins the main project.
 - **More context for the next change.** Each finished change leaves the repo knowing more than it did.
@@ -67,6 +67,7 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, which lands straight in the repo as a note with no branch or PR. |
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
+| `/improve [area]` | Review recent work and one rotating area, then ship one supported maintenance improvement. Add `--audit-only` for findings without edits. |
 | `/wong-sync` | Get the latest WongStack source and explore the update through the normal workflow. |
 
 To put the project online as a website people can open, run `/wong-cloudflare`. It offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Optional, and you can run it long after setup.

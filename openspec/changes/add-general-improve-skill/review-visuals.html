@@ -1,0 +1,71 @@
+<section class="visual flow" id="delivery" data-kind="flow" data-states="after today" data-state="after">
+  <p class="caption">One maintenance run has one delivery owner and an explicit result.</p>
+  <div class="frame">
+    <div class="state state-after"><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="delivery-investigate"><h3>Investigate candidates <span class="tag">New</span></h3><p>Survey the repository, then confirm impact and a verification probe.</p><details><summary>Details</summary><p>Read owning documents, active work, and prior maintenance records. A pattern match is a lead. It does not establish a defect.</p></details></div>
+      <p class="flow-connector">↓ Choose the applicable path</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="delivery-ship" data-mark="handoff"><h3>Eligible change <span class="tag">Existing workflow</span> <i class="callout">1</i></h3><p>Select one change and invoke <code>/ship</code>.</p><details><summary>Details</summary><p>Pass the evidence, expected behavior, probe, answers, and maintenance markers. The existing workflow owns planning, implementation, git, checks, and merge. Do not switch candidates once delivery starts.</p></details></div>
+        <div class="flow-branch" data-target-id="delivery-audit"><h3>Audit only <span class="tag">New</span></h3><p>Return findings and limits without edits.</p><details><summary>Details</summary><p><code>--audit-only</code> does not fetch, write, or invoke delivery. It can report findings when freshness or overlap evidence is unavailable.</p></details></div>
+        <div class="flow-branch" data-target-id="delivery-none"><h3>No useful change <span class="tag">New</span></h3><p>Report no change.</p><details><summary>Details</summary><p>Do not force cosmetic work or create a commit just to record the run.</p></details></div>
+        <div class="flow-branch" data-target-id="delivery-blocked"><h3>Required condition missing <span class="tag">New</span></h3><p>Report blocked.</p><details><summary>Details</summary><p>Name missing context or the delivery gate that could not pass. A selected change is not shipped until the existing workflow completes.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ All paths join at the run report</p>
+      <div class="step flow-card" data-target-id="delivery-report"><h3>Report the actual result <span class="tag">New</span></h3><p>Shipped · audit only · no change · blocked</p><details><summary>Details</summary><p>Include coverage, deferred decisions, and available delivery evidence. A failed delivery reports blocked, never shipped.</p></details></div>
+    </div></div>
+    <div class="state state-today"><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="delivery-today-intent"><h3>User supplies an improvement <span class="tag">Today</span></h3><p>WongStack has no general recurring maintenance entry point.</p><details><summary>Details</summary><p>The user or a separate investigation identifies work worth doing.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="delivery-today-workflow"><h3>Run the normal change workflow <span class="tag">Unchanged</span></h3><p>Existing verbs plan, implement, check, and ship.</p><details><summary>Details</summary><p>The proposed skill supplies a supported intent to this workflow. It does not create a second delivery pipeline.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes"><ol><li>A normal invocation authorizes one eligible improvement through <code>/ship</code>. Discussing or reviewing this skill does not authorize a maintenance run.</li></ol></div>
+</section>
+
+<section class="visual flow" id="coverage" data-kind="flow">
+  <p class="caption">Two review passes feed one investigation. Rotation requires no new report database.</p>
+  <div class="frame"><div class="flow-sequence">
+    <div class="step flow-card" data-target-id="coverage-inventory"><h3>Discover maintained areas <span class="tag">New script</span></h3><p>Read tracked files and apply the optional area scope.</p><details><summary>Details</summary><p>Sort areas consistently. Split skill and package roots into useful children. Exclude generated files, secrets, and historical records from routine scanning. Report exclusions and read failures.</p></details></div>
+    <p class="flow-connector">↓ Run both passes</p>
+    <div class="flow-branches">
+      <div class="flow-branch" data-target-id="coverage-recent"><h3>Recent changes <span class="tag">New</span></h3><p>Inspect changes since the last usable maintenance baseline.</p><details><summary>Details</summary><p>Use the surveyed revision from a shipped maintenance record. If it is absent, unavailable, or no longer an ancestor, use the last seven days and state the fallback. Name any range omitted through sampling.</p></details></div>
+      <div class="flow-branch" data-target-id="coverage-rotation" data-mark="weekly"><h3>One rotating area <span class="tag">New</span> <i class="callout">1</i></h3><p>Use the UTC week to choose a start in the sorted area list.</p><details><summary>Details</summary><p>Walk from that start to an area outside the recent set when possible. If all areas changed recently, select the rotation target and report overlap. Same-week runs can revisit an area.</p></details></div>
+    </div>
+    <p class="flow-connector">↓ Both passes join at candidate investigation</p>
+    <div class="step flow-card" data-target-id="coverage-history"><h3>Check evidence and prior work <span class="tag">New</span></h3><p>Remove completed or overlapping work from the candidate list.</p><details><summary>Details</summary><p>Read active changes, open PRs, and past maintenance outcomes. History explains intent; old records are not a bulk source of cleanup candidates.</p></details></div>
+    <p class="flow-connector">↓</p>
+    <div class="step flow-card" data-target-id="coverage-record"><h3>Preserve coverage context <span class="tag">New</span></h3><p>Record revision, rotation area, limits, and selection rationale.</p><details><summary>Details</summary><p>A selected change carries the maintenance markers in its Decision log. Audit-only and no-change runs return this context in their output without a report-only commit.</p></details></div>
+  </div></div>
+  <div class="notes"><ol><li>Calendar rotation advances without a saved fix. Missed weeks and changes to the area list can leave gaps, so a run must not claim full repository coverage.</li></ol></div>
+</section>
+
+<section class="visual flow" id="execution" data-kind="flow">
+  <p class="caption">Execution context controls how the run resolves material choices.</p>
+  <div class="frame"><div class="flow-sequence">
+    <div class="step flow-card" data-target-id="execution-context"><h3>Read explicit run context <span class="tag">New</span> <i class="callout">1</i></h3><p>Interactive by default; unattended only when stated.</p><details><summary>Details</summary><p>A job prompt or trusted host context can establish unattended execution. Time, silence, and an unanswered question cannot.</p></details></div>
+    <p class="flow-connector">↓ Follow the declared context</p>
+    <div class="flow-branches">
+      <div class="flow-branch" data-target-id="execution-interactive"><h3>Interactive <span class="tag">New</span></h3><p>Show investigated candidates and resolve material choices in one question group.</p><details><summary>Details</summary><p>Wait for pending answers before dependent decisions. Carry those answers into nested exploration so settled questions are not repeated.</p></details></div>
+      <div class="flow-branch" data-target-id="execution-unattended"><h3>Explicitly unattended <span class="tag">New</span></h3><p>Use supported defaults and record them as assumptions.</p><details><summary>Details</summary><p>Defer unresolved product or policy choices. Before delivery starts, another independent eligible candidate can be selected. If none is eligible, report the blocker.</p></details></div>
+    </div>
+    <p class="flow-connector">↓ Both paths join at the same delivery checks</p>
+    <div class="step flow-card" data-target-id="execution-gates"><h3>Confirm delivery conditions <span class="tag">Preserved</span></h3><p>Verify freshness, work overlap, scope, and existing workflow gates.</p><details><summary>Details</summary><p>The scheduler supplies a clean dedicated checkout at the current remote default branch and serializes runs. Missing freshness or overlap evidence blocks normal delivery. Git changes remain with the existing workflow or scheduler.</p></details></div>
+    <p class="flow-connector">↓ Continue only if eligible; otherwise stop and report blocked</p>
+    <div class="step flow-card" data-target-id="execution-stage"><h3>Keep each delivered stage complete <span class="tag">New guidance</span></h3><p>One change per run can be a complete stage of larger work.</p><details><summary>Details</summary><p>Each stage must be correct on its own. Record its stage and possible next step in the normal Decision log. Recheck whether that next step is still useful on a later run.</p></details></div>
+  </div></div>
+  <div class="notes"><ol><li>The skill is ready for an external weekly job. This change installs no scheduler and does not treat silence as an answer.</li></ol></div>
+</section>
+
+<section class="visual tree" id="payload" data-kind="tree">
+  <p class="caption">Core payload additions and the surfaces that make them available to other repositories.</p>
+  <div class="frame"><ul>
+    <li class="add" data-target-id="distribution-skill"><code>.agents/skills/improve/SKILL.md</code> <span class="why">run sequence and handoff to the existing workflow</span></li>
+    <li class="add" data-target-id="distribution-references"><code>.agents/skills/improve/references/</code> <span class="why">general investigation guidance</span></li>
+    <li class="add" data-target-id="distribution-scripts"><code>.agents/skills/improve/scripts/</code> <span class="why">read-only survey; no new dependencies</span></li>
+    <li class="add" data-target-id="distribution-tests"><code>scripts/tests/</code> <span class="why">new survey fixture tests; the existing CI runner discovers them</span></li>
+    <li class="edit" data-target-id="distribution-inventory">Core payload inventory and setup discovery <span class="why">copy the new skill; preserve target-owned name collisions</span> <i class="callout">1</i></li>
+    <li class="edit" data-target-id="distribution-docs">README, generic agent instructions, and owning workflow docs <span class="why">discovery, manual use, and external job contract</span></li>
+    <li class="edit" data-target-id="distribution-release"><code>VERSION</code> and <code>CHANGELOG.md</code> <span class="why">next minor release at implementation time</span></li>
+  </ul></div>
+  <div class="notes"><ol><li>Ship through the normal core payload. Existing repositories receive the skill through their usual setup or sync workflow; an existing local <code>/improve</code> remains subject to collision handling.</li></ol></div>
+</section>
