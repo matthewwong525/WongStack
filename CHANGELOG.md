@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.4.0 — fast no-op sync and bounded update analysis
+
+- `/wong-sync` runs a dependency-free preflight from the refreshed clean source. A proven current payload stops before `/explore`; an update sends only the complete changed-unit classification into exploration.
+- The preflight compares the installed and current inventory union, selected components, recorded skill names, directories, exclusions, removals, and the marked `WONG-STACK` block. Local adaptations remain protected and no target file is written.
+- Invalid commits, inventory data, paths, markers, reads, Git results, and unsafe report sizes fail with explicit diagnostics. They never become a false current result or a partial broad scan.
+- Fixture coverage includes no-op, one-file, manifest, mapped-skill, local-state, block, component, removal, failure, alias, and synthetic large-payload cases. The reported timing covers deterministic preflight work only; source refresh and model latency remain separate.
+
 ## 16.3.0 — smaller workflow context and checkpoint helpers
 
 - Save loads named-secret, prose-only, new-plan, and archive procedures when their conditions apply. Record capture, credential exclusion, delivery checks, and checkpoint boundaries remain.

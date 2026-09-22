@@ -9,7 +9,22 @@
 - **Pack** adds the optional Cloudflare provisioning skill, pipeline scripts, workflow, schema, and `wiki/stack/` pages when `components.stackPack` is true.
 - **Scaffold** adds `app/` only when both `components.appScaffold` and `components.stackPack` are true. It excludes `app/wrangler.jsonc`, which contains source-repo database IDs.
 
-A skill installed under a recorded local name stays under that name. The target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. Read the target broadly during exploration; the inventory limits copying, not investigation. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source.
+A skill installed under a recorded local name stays under that name. The target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The preflight bounds payload comparison; exploration starts with its changed units and reads another target path only for a named dependency or impact. The inventory limits copying, not that evidence-based expansion. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source.
+
+## Deterministic sync preflight
+
+[`preflight.mjs`](../scripts/preflight.mjs) compares the payload selected for one target at the install record's `commit` and at the refreshed source `HEAD`. It reads `payload-files.json` from both commits and expands the union, so additions, removals, whole-directory entries, exclusions, and manifest evolution stay visible. `core` is always selected. `pack` needs `components.stackPack: true`; `scaffold` needs both `stackPack` and `appScaffold`; `ui` uses an explicit `components.ui`, the scaffold choice, or the already-installed UI owner page. `seededBySetup` is not payload.
+
+The install record's skill names map upstream `.claude/skills/<name>/` paths to their actual local directories. Existing string arrays are identity mappings. Object mappings, or array entries with source and local names, preserve explicit renames. New upstream core skills use their upstream name until implementation records another choice. Source repositories can store the logical `.claude/` payload under the in-repo `.agents/` alias; the report always uses logical `.claude/` source and target paths.
+
+Ordinary files are compared by Git blob identity first. The `CLAUDE.md` unit is only the text from the line containing `WONG-STACK:BEGIN` through the line containing `WONG-STACK:END`; prose outside the markers is never payload drift. Each upstream-changed unit is `added`, `modified`, or `removed`, and its target state is one of:
+
+- `missing` — the mapped target unit is absent;
+- `installed-equivalent` — it still equals the recorded source revision;
+- `latest-equivalent` — it already equals the refreshed source;
+- `locally-adapted` — it equals neither source value and must remain protected.
+
+The JSON report contains the complete changed-unit list, counts, paths, and classifications, but no file body or diff hunk. It writes no cache, install record, payload file, worktree, or index. Invalid or non-ancestor commits, invalid inventory data, unsafe or escaping paths, missing source markers, read errors, Git errors, or a change set above the declared safety limit produce `status: error`. An error is never truncated into `current` or widened into an unclassified full scan.
 
 The **improve** skill ships its dependency-free survey helper and investigation references as one directory. The helper reads supported tracked text and Git history through the Node.js runtime that OpenSpec already needs. It does not add a package or contact a service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduler requirements.
 

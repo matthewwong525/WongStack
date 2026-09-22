@@ -1,10 +1,4 @@
-# wong-sync-adapt Specification
-
-## Purpose
-
-Use the shared exploration skill to compare upstream improvements with the target repo and preserve user choices without a separate verdict pipeline.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Exploration owns update analysis
 

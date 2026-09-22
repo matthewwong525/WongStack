@@ -1,10 +1,4 @@
-# wong-sync Specification
-
-## Purpose
-
-Keep an installed repo current with WongStack by passing the latest source and local installation context into the normal exploration workflow.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Sync enters the normal workflow with current source context
 
@@ -32,6 +26,8 @@ Keep an installed repo current with WongStack by passing the latest source and l
 - **WHEN** the recorded base commit, manifest data, selected source path, or required target input cannot be read safely
 - **THEN** sync reports the diagnostic and does not invoke `/explore` with an incomplete delta or report the target as current
 
+## ADDED Requirements
+
 ### Requirement: Preflight classifies only the selected payload delta
 
 The preflight SHALL use the target's component choices and recorded local skill names to compare the selected payload at the installed and latest source commits. It SHALL treat manifest changes, whole-directory entries, exclusions, skill mappings, removed paths, and the marked `CLAUDE.md` block as payload units. Its report SHALL contain complete counts and path-level classifications without file contents or diff hunks, SHALL preserve evidence of local adaptation, and SHALL make no target write. An upstream change outside the target's selected payload SHALL NOT create update work.
@@ -58,23 +54,3 @@ The preflight SHALL use the target's component choices and recorded local skill 
 #### Scenario: Upstream changes an unselected component
 - **WHEN** all upstream changes are outside the target's selected payload categories
 - **THEN** the preflight returns a current result for that target selection
-
-### Requirement: Sync preserves installation context
-
-The payload inventory and install record SHALL remain available to the normal workflow. The install record SHALL advance only after implementation, preserve local skill names and component flags, and identify the source version and commit used. Both entry skills SHALL accept the legacy `.claude/.wong-framework.json` record when the current path is absent. A missing record SHALL route to setup. A seed record SHALL mean incomplete setup. Running in the WongStack source itself SHALL stop without target changes.
-
-#### Scenario: Local installation choices
-- **WHEN** the install record contains renamed skills or optional components
-- **THEN** the exploration and implementation use those choices without creating duplicate skills or enabling other components
-
-#### Scenario: Missing or incomplete installation
-- **WHEN** the record is missing or has null version and commit
-- **THEN** the skill routes to setup with the current context
-
-#### Scenario: Source repo
-- **WHEN** the target is the WongStack source repo
-- **THEN** the skill reports that it cannot sync the source with itself
-
-#### Scenario: Legacy installation record
-- **WHEN** only `.claude/.wong-framework.json` exists with an installed version
-- **THEN** sync uses that record and its local choices without routing back to setup
