@@ -3,6 +3,11 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.5.1 — long paths wrap in the review page's change list
+
+- `.panel code` in the review kit gets `overflow-wrap:anywhere`, so a path or identifier too wide for the left column breaks onto the next line instead of being clipped at the panel edge. Measured on the v16.5.0 review page: 355px of content in a 302px column becomes 302px in 302px.
+- The layout requirement now states the rule at every width, matching what the phone requirement already promised from 320px upward. Archived review pages keep the page that shipped with them.
+
 ## 16.5.0 — every ask is a choice, every reply offers the next step
 
 - New shared convention at `.claude/skills/explore/references/asking-the-user.md`: two or three real options, the recommended one first and labelled, a short tradeoff on each, and the host's own free-text path left open. Every skill links it instead of restating it.

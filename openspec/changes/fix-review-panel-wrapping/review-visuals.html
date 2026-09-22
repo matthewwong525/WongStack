@@ -1,0 +1,42 @@
+<!-- kind=diff · the change list's long path, today and after. -->
+<section class="visual diff-visual" id="wrapping" data-kind="diff">
+  <p class="caption">Bullet 1 of the v16.5.0 review page's left change list at desktop width, which names <code>.claude/skills/explore/references/asking-the-user.md</code>. It is the only item that overflows; bullets 2 to 6 all measure 300px in 300px. The box edge stands for the 302px column.</p>
+  <div class="frame">
+    <div class="diff">
+      <div>
+        <div class="label">Today</div>
+        <pre><span class="line">ol.changes · 302px column</span>
+<span class="line">┌──────────────────────────────────┐</span>
+<span class="line">│ 1. One shared convention owns    │</span>
+<span class="line">│    how WongStack asks. A new     │</span>
+<span class="line muted">│    .claude/skills/explore/references✂</span>
+<span class="line">└──────────────────────────────────┘</span>
+<span class="line"> </span>
+<span class="line">355px of content in a 302px column</span>
+<span class="line muted">✂ the rest is clipped, and the</span>
+<span class="line muted">  panel offers no scrollbar</span>
+<span class="line muted">the box is drawn narrower than</span>
+<span class="line muted">302px so the cut stays visible</span></pre>
+      </div>
+      <div>
+        <div class="label">After</div>
+        <pre><span class="line">ol.changes · 302px column</span>
+<span class="line">┌──────────────────────────────────┐</span>
+<span class="line">│ 1. One shared convention owns    │</span>
+<span class="line">│    how WongStack asks. A new     │</span>
+<span class="line add">│    .claude/skills/explore/referen│</span>
+<span class="line add">│    ces/asking-the-user.md        │ <i class="callout">1</i></span>
+<span class="line">└──────────────────────────────────┘</span>
+<span class="line"> </span>
+<span class="line">302px of content in a 302px column</span>
+<span class="line muted">the whole path stays readable on</span>
+<span class="line muted">a second line</span></pre>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li><code>overflow-wrap:anywhere</code> on <code>.panel code</code> breaks a token only when it cannot fit, so this path wraps and every other bullet keeps its normal word breaks. <code>word-break:break-all</code> was rejected: it breaks eagerly at the edge and splits short tokens that already fit.</li>
+    </ol>
+  </div>
+</section>

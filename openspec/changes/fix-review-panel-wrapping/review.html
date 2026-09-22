@@ -1,3 +1,4 @@
+<!-- wong-review:2 -->
 <!doctype html>
 <!--
   WongStack review kit. The shared offline viewer lives here.
@@ -10,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — CHANGE-NAME</title>
+<title>Review — fix-review-panel-wrapping</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -218,7 +219,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · CHANGE-NAME</b>
+  <b>Review · fix-review-panel-wrapping</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -236,6 +237,18 @@
 
 <script type="text/markdown" id="proposal">
 <!-- proposal:start -->
+## Why
+
+At desktop width the review page's left change list clips any bullet that names a long path: the list measures 355px of content in a 302px column, so `.claude/skills/explore/references/asking-the-user.md` is cut mid-path at the panel edge with no way to read the rest. `.panel code` sets a background and padding but never allows a break inside the token. The page promises a reviewer needs no pan or zoom; here they get neither the text nor a scrollbar.
+
+## What Changes
+
+- **Long tokens in the panel wrap instead of clipping.** `.panel code` gets `overflow-wrap:anywhere` in [the review kit](../../../.claude/skills/plan/references/review-kit.html), so a path or identifier too wide for the column breaks onto the next line. Measured on the v16.5.0 review page: the list goes from 355px of content in a 302px column to 302px in 302px. (review.html#/wrapping)
+- **The rule covers every width, not only phones.** The phone requirement already says long tokens fit from 320px upward; the layout requirement now says the same for the selected item's text and the change list at any width.
+- **Existing pages are not rewritten.** The kit change reaches pages built from it; archived reviews keep the page that shipped with them.
+- **The release ritual runs:** a `VERSION` patch bump, a newest-first `CHANGELOG.md` entry, and the payload checks.
+
+**Non-goals:** no other kit styling, no change to the panel's width or layout, no regeneration of historical archives.
 <!-- proposal:end -->
 </script>
 
@@ -254,7 +267,48 @@
   <div class="frame" id="textframe"></div>
 </section>
 
-<!-- review:visuals -->
+<!-- kind=diff · the change list's long path, today and after. -->
+<section class="visual diff-visual" id="wrapping" data-kind="diff">
+  <p class="caption">Bullet 1 of the v16.5.0 review page's left change list at desktop width, which names <code>.claude/skills/explore/references/asking-the-user.md</code>. It is the only item that overflows; bullets 2 to 6 all measure 300px in 300px. The box edge stands for the 302px column.</p>
+  <div class="frame">
+    <div class="diff">
+      <div>
+        <div class="label">Today</div>
+        <pre><span class="line">ol.changes · 302px column</span>
+<span class="line">┌──────────────────────────────────┐</span>
+<span class="line">│ 1. One shared convention owns    │</span>
+<span class="line">│    how WongStack asks. A new     │</span>
+<span class="line muted">│    .claude/skills/explore/references✂</span>
+<span class="line">└──────────────────────────────────┘</span>
+<span class="line"> </span>
+<span class="line">355px of content in a 302px column</span>
+<span class="line muted">✂ the rest is clipped, and the</span>
+<span class="line muted">  panel offers no scrollbar</span>
+<span class="line muted">the box is drawn narrower than</span>
+<span class="line muted">302px so the cut stays visible</span></pre>
+      </div>
+      <div>
+        <div class="label">After</div>
+        <pre><span class="line">ol.changes · 302px column</span>
+<span class="line">┌──────────────────────────────────┐</span>
+<span class="line">│ 1. One shared convention owns    │</span>
+<span class="line">│    how WongStack asks. A new     │</span>
+<span class="line add">│    .claude/skills/explore/referen│</span>
+<span class="line add">│    ces/asking-the-user.md        │ <i class="callout">1</i></span>
+<span class="line">└──────────────────────────────────┘</span>
+<span class="line"> </span>
+<span class="line">302px of content in a 302px column</span>
+<span class="line muted">the whole path stays readable on</span>
+<span class="line muted">a second line</span></pre>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li><code>overflow-wrap:anywhere</code> on <code>.panel code</code> breaks a token only when it cannot fit, so this path wraps and every other bullet keeps its normal word breaks. <code>word-break:break-all</code> was rejected: it breaks eagerly at the edge and splits short tokens that already fit.</li>
+    </ol>
+  </div>
+</section>
 
 </div><!-- /stage -->
 </div><!-- /layout -->
