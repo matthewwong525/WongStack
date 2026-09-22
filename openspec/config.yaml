@@ -28,19 +28,21 @@ rules:
   design:
     - Every change gets a standalone review page at openspec/changes/<name>/review.html,
       assembled by .claude/skills/plan/scripts/build-review.mjs from the proposal,
-      the fixed review kit, and change-specific review-visuals.html — one visual per
-      "What Changes" bullet that has something to show, of kind screen (a
+      the fixed review kit, and change-specific review-visuals.html. Draw one
+      visual that carries the change by default, of kind screen (a
       low-fidelity UI wireframe with its empty/loading/error states and one
       primary action per state when the job calls for one), flow (connected
       today/after step cards and labeled branches), diff
-      (before/after text) or tree (files added/edited/removed). Put data-mark on
-      the elements each bullet changes. A bullet with nothing to draw needs no
-      visual. The kit shows the complete selected bullet text above the visual.
+      (before/after text) or tree (files added/edited/removed). Draw each screen
+      when the change adds or restructures user-facing screens. State a reason
+      for any further visual. Leave every other bullet as text. Each visual has
+      one owning bullet. Put data-mark on the changed elements. The kit shows
+      the complete selected bullet text above the visual.
       Draw no second change list inside it and no link to another bullet.
       Workflow cards keep title, short description, change label, and Details
       within one border. Branches name each condition and their common join.
-      Use stable data-target-id values for note targets. Check ordinary
-      vertical scrolling at phone and desktop widths. Low fidelity, no network
+      Use stable data-target-id values for note targets and ordinary vertical
+      scrolling. Low fidelity, no network
       reference. Edit only review-visuals.html; never hand-edit the generated
       page's runtime or proposal block. New kit behavior applies to pages
       generated from the current kit. Do not rewrite historical archives.

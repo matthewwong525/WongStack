@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.5.0 — shorter review page planning
+
+- `/plan` starts one visual author in the background after the proposal draft and writes design and tasks while it runs. It places anchors and builds the page after the author returns its map.
+- The critic pass and revision round are removed. One browser structural check remains; reviewers use page annotations to report meaning and layout issues.
+- Each change draws one visual by default. Changes that add or restructure screens draw each screen, further visuals need a stated reason, and other bullets stay text. A plan update runs the author again only when an anchored bullet or its visual changes.
+
 ## 16.4.0 — fast no-op sync and bounded update analysis
 
 - `/wong-sync` runs a dependency-free preflight from the refreshed clean source. A proven current payload stops before `/explore`; an update sends only the complete changed-unit classification into exploration.

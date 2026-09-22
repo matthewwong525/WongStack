@@ -12,7 +12,7 @@ Never start from a layout. Before drawing anything, answer the **UX brief**:
 
 - **Who is here, and what job are they trying to accomplish?** Not the feature name — the actual job. Not "manage the listings page" but "copy our good content onto the stale listings without doing it one-by-one."
 - **What does *done* look like?** The end state the user is trying to reach. The screen should drive toward it, not just display data near it.
-- **Context of use.** Desk or floor? Phone, tablet, or desktop? Gloved hands with a scanner? Interrupted every two minutes? One app can span a writer at a desk and an operator at a station — same design system, very different screens. **When the answer is a phone, the phone layout is the design, not an afterthought:** draw it first on the review page (the kit's `phone-only` and `desktop-only` helpers let one screen carry both), walk it with the chrome's View toggle, and expect the critic to check every state at phone width. A screen that only works at 960px is not finished.
+- **Context of use.** Desk or floor? Phone, tablet, or desktop? Gloved hands with a scanner? Interrupted every two minutes? One app can span a writer at a desk and an operator at a station — same design system, very different screens. **When the answer is a phone, the phone layout is the design, not an afterthought:** draw it first on the review page (the kit's `phone-only` and `desktop-only` helpers let one screen carry both). A screen that only works at 960px is not finished.
 - **Common case vs edge case.** The common case gets the real estate and the straight-line flow; edge cases may cost an extra step or live in a menu. Never let a rare case complicate the frequent one.
 - **Frequency assumptions, stated explicitly.** "Operators run this ~200×/day; admins open the settings ~1×/month." Write the assumption down so it can be challenged — until you have real usage data, these are judgment calls; once you do, cite event counts instead.
 
@@ -62,7 +62,7 @@ The existing components used (per your UI conventions);
 anything new being created and why.
 ```
 
-Worker-only or UI-less changes skip the section entirely, and draw no screen — they still get a review page, with the other kinds of visual. Prefer mirroring the closest existing screen over inventing a new pattern — name which screen in the brief.
+Worker-only or UI-less changes skip the section entirely and draw no screen. They still get a review page with one flow, diff, or tree visual that carries the change by default; other bullets stay text. Prefer mirroring the closest existing screen over inventing a new pattern — name which screen in the brief.
 
 ### The review file
 
@@ -86,7 +86,7 @@ What a `screen` must hold is what the rest of this page argues for:
 - **Low fidelity, enforced by the kit**: grey boxes, no brand, no design tokens, no product typography. It is an argument about the change, not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
 - **No network reference of any kind**, so it opens from a clone with no server and still renders years later out of the change's archive folder.
 
-**What an author does:** write one visual per pictured What Changes bullet in `review-visuals.html`, put `data-mark` on changed elements, give note targets stable `data-target-id` values, and anchor each bullet with `(review.html#/<visual>[/<state>][/<mark>])`. A mark must never share a name with one of that visual's states. The viewer shows the selected bullet's full text above its visual; draw no second change list inside it. **What the tooling does:** `/plan` builds the page from the fragment and proposal; `/save` refreshes it from the same inputs. The page renders the panel, highlights a bullet's marks, and carries the annotate layer.
+**What an author does:** write one visual that carries the change in `review-visuals.html` by default. Draw each screen when the change adds or restructures screens, and state a reason for any further visual. Leave other What Changes bullets as text. Put `data-mark` on changed elements, give note targets stable `data-target-id` values, and anchor each pictured bullet with `(review.html#/<visual>[/<state>][/<mark>])`. Each visual has one owning bullet. A mark must never share a name with one of that visual's states. The viewer shows the selected bullet's full text above its visual; draw no second change list inside it. **What the tooling does:** `/plan` builds the page from the fragment and proposal; `/save` refreshes it from the same inputs. The page renders the panel, highlights a bullet's marks, and carries the annotate layer. The reviewer's annotations are the page's review.
 
 **A reviewer annotates in place.** Turn on Annotate and click a target inside the selected visual. The outer change list stays navigation. Unfinished text remains a draft on its original target; Save makes it feedback, and Copy notes includes saved feedback only. Notes and drafts stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
 

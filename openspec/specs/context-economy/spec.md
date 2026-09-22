@@ -101,10 +101,10 @@ The save skill SHALL expose a complete main procedure and explicit entry conditi
 
 ### Requirement: Routine review authors use a focused authoring contract
 
-Routine visual authors SHALL use the author guide and relevant examples without a required full read of the fixed viewer implementation. The builder SHALL continue to produce the standalone page from that viewer. Structural checks, rendered critique, and a revision round SHALL remain required. Specific viewer inspection SHALL remain available for a concrete question the author contract does not answer.
+Routine visual authors SHALL use the author guide and relevant examples without a required full read of the fixed viewer implementation. The builder SHALL continue to produce the standalone page from that viewer. The structural check SHALL remain required; no rendered critique or revision round SHALL be required. Specific viewer inspection SHALL remain available for a concrete question the author contract does not answer.
 
 #### Scenario: A workflow change needs a flow visual
 
 - **WHEN** an author creates a routine flow using documented primitives
 - **THEN** the guide and relevant examples provide the required authoring inputs
-- **AND** the generated page receives the existing structural and rendered checks
+- **AND** the generated page receives the existing structural check and no critic pass
