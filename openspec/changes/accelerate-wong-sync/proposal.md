@@ -1,6 +1,6 @@
 # Accelerate wong-sync
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** optimize-wong-sync-perf
 **Open questions:** none
 
@@ -40,3 +40,4 @@ The change adds a script under `.claude/skills/wong-sync/scripts/`, updates the 
 - **2026-09-22** — Assumed the performance contract measures the deterministic preflight on repeatable fixtures; end-to-end model latency varies by host and is not a stable CI assertion.
 - **2026-09-22** — The bounded `/explore` exit round is complete. Remaining implementation details use supported assumptions in the design.
 - **2026-09-22** — Implementation checkpoint: release 16.4.0 adds the source-run preflight, selected inventory-union comparison, mapped-path and marked-block handling, explicit current/update/error routes, and fixture coverage. The remaining tasks require CI evidence and its synthetic 1,200-unit timing; no local test result is used as the gate.
+- **2026-09-22** — CI checkpoint `221d93c` passed on PR #95: all 43 meta tests passed with 0 failures, including payload links, OpenSpec config, review, migration, and preflight fixtures. The synthetic 1,200-unit no-op preflight took 54.84 ms in CI; this is deterministic classifier time only and excludes source refresh and model latency.
