@@ -42,4 +42,4 @@ A critic pass produced eleven findings; nine were fixed in one revision round.
 
 ## Open thread: a kit defect, deliberately not fixed here
 
-At 1440px the review viewer's left change list clips long inline paths — `ol.changes` scrollWidth 355 against clientWidth 302, caused by a missing `overflow-wrap` on `.panel code` in `.claude/skills/plan/references/review-kit.html`. It is a payload release of its own, and the user chose to implement this change rather than fold the kit fix in. It is unfixed and still reproducible on any review page with a long path in a bullet.
+At 1440px the review viewer's left change list clips long inline paths — `ol.changes` scrollWidth 355 against clientWidth 302, caused by a missing `overflow-wrap` on `.panel code` in `.claude/skills/plan/references/review-kit.html`. It was a payload release of its own, so it shipped separately — see [`fix-review-panel-wrapping`](fix-review-panel-wrapping.md), v16.5.1.

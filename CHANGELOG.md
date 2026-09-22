@@ -3,6 +3,11 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.6.1 — long paths wrap in the review page's change list
+
+- `.panel code` in the review kit gets `overflow-wrap:anywhere`, so a path or identifier too wide for the left column breaks onto the next line instead of being clipped at the panel edge. Measured on the v16.5.0 review page: 355px of content in a 302px column becomes 302px in 302px.
+- The layout requirement now states the rule at every width, matching what the phone requirement already promised from 320px upward. Archived review pages keep the page that shipped with them.
+
 ## 16.6.0 — shorter review page planning
 
 - `/plan` starts one visual author in the background after the proposal draft and writes design and tasks while it runs. It places anchors and builds the page after the author returns its map.
