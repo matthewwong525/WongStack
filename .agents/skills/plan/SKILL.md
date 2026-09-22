@@ -22,15 +22,19 @@ Before tasks, decide whether a repeated process belongs in deterministic code. U
 
 ## Build the review page for every change
 
-After the first design draft and before tasks, have a design subagent read the proposal, design, [visual author guide](references/review-author.md), the relevant [visual examples](references/review-examples.html), and, for screens, [`ux-principles.md`](../../../wiki/ux-principles.md) and one or two closest existing screens. The builder reads the fixed kit; the author inspects a specific kit section only for a question the guide and examples cannot answer. It writes only `review-visuals.html` with one visual for each What Changes item that benefits from one; a text-only bullet needs none. Each pictured item owns its visual and local state controls. The shared viewer shows the full item text above it. The subagent returns a bullet-to-anchor map. The main thread places each anchor at the end of its proposal bullet and runs:
+Right after the proposal draft, launch one design subagent in the background. Supply the proposal, [author guide](references/review-author.md), relevant [examples](references/review-examples.html), and, for screens, [`ux-principles.md`](../../../wiki/ux-principles.md) and closest existing screens. The author writes only `review-visuals.html` and returns a bullet-to-anchor map. Draft design and tasks while it runs; finish anchor citations when it returns.
+
+Default to one `flow`, `screen`, `diff`, or `tree` visual that carries the change. Draw each new or restructured user-facing screen. The author states why any further visual is needed. Other bullets stay text. Anchor each visual to one owning What Changes bullet, then run:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current
 ```
 
-Each screen-bearing change also gets a `## UX` design section: use-case brief, shortest flow, hierarchy, components, and a `### Review` link with screen and state anchors. A UI-less change has no screen visual or UX section. Phone-oriented work is drawn phone-first. A task that builds a visual cites its review anchor.
+For screens, add a `## UX` design section with a brief, flow, hierarchy, components, and `### Review` link to screen and state anchors. Draw phone work phone-first. UI-less changes omit this section and screen visuals. Tasks that build visuals cite their anchors.
 
-Run the deterministic [review checker](scripts/check-review.js) in a browser after opening the generated file. It reports anchor, mark, state, navigation, and action defects. The builder rejects forbidden author markup. A structural pass cannot prove the picture explains the change. A critic subagent reads the rendered page and the plan, checks meaning, hierarchy, empty rendered states, flow-card Details and branch joins, draft-note controls, and phone overflow, then returns concise findings. Feed those into one revision round with the design subagent and rebuild the page. Confirm anchors resolve and the standalone file still opens offline. If the browser cannot run, report the rendered checks as unverified rather than a pass; source generation and validation still run.
+Run the deterministic [review checker](scripts/check-review.js) once in a browser on the generated file. The builder rejects forbidden markup; the checker reports structural defects. The reviewer annotates meaning and layout. Without a browser, report the rendered check as unverified; still build and validate.
+
+On plan updates, rerun the author only when an anchored bullet or its visual changes. Otherwise rebuild from the existing fragment.
 
 The template owns layout, navigation, annotations, and copy behavior. The visual author does not edit its CSS or script. The builder reads the proposal directly; do not keep another authored copy of Why or What Changes.
 

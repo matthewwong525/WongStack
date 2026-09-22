@@ -45,18 +45,17 @@ A `screen` visual SHALL follow the design's flow: every screen in the flow appea
 #### Scenario: Two filled buttons in one state
 
 - **WHEN** a screen's header carries a primary action and its empty state adds an inline one
-- **THEN** the critic counts two primary actions visible in the empty state
-- **AND** the critique names it as a hierarchy violation and the revision round removes one
+- **THEN** the structural check reports two primary actions visible in the empty state
 
 #### Scenario: A declared state renders nothing
 
 - **WHEN** a screen declares a state that renders an empty frame
-- **THEN** the critic names it, whether or not the markup for that state is present
+- **THEN** the reviewer can annotate the empty frame on the page
 
 #### Scenario: Visual links stay local
 
 - **WHEN** a visual contains a link to a different What Changes item
-- **THEN** the critic flags it and the author replaces it with a local state or detail action
+- **THEN** the structural check reports the invalid navigation target
 
 ### Requirement: Screens carry the reasoning beside them
 
@@ -66,16 +65,6 @@ Each `screen` visual SHALL carry a notes block with the use-case brief in one li
 
 - **WHEN** a visual marks an element with a numbered callout
 - **THEN** the notes block below that visual has a matching numbered entry
-
-### Requirement: The design text links the file instead of sketching
-
-The `### Review` subsection of a UI-bearing `design.md` SHALL link `review.html` and list its screens and states by anchor. It SHALL NOT contain ASCII sketches. The brief, flow, hierarchy, and components subsections SHALL stay in `design.md` as text.
-
-#### Scenario: The critic reads both
-
-- **WHEN** the critic subagent reviews the review stage output
-- **THEN** it reads the `## UX` text, when present, and the file
-- **AND** it judges whether every screen serves the stated job from both
 
 ### Requirement: Tasks and the PR body point at the wireframe
 
@@ -98,7 +87,7 @@ A task that builds or edits something a visual shows SHALL cite it as a `review.
 
 ### Requirement: The wireframe is filled from a fixed kit
 
-The plan skill SHALL ship one review kit that owns the reviewer chrome, routing, panel and landing, four visual kinds and their primitives, callouts, notes, mark highlights, and annotation layer. The design subagent SHALL author only the change-specific visual input with its marks and SHALL NOT restyle the kit, add runtime dependencies, or raise its fidelity. Shared tooling SHALL assemble the kit, visual input, and current proposal into a standalone page. The kit and assembly tooling SHALL reach every repo that installs the plan skill. A critic SHALL still judge the rendered visuals against their proposal and design after the mechanical checks, with one revision round.
+The plan skill SHALL ship one review kit that owns the reviewer chrome, routing, panel and landing, four visual kinds and their primitives, callouts, notes, mark highlights, and annotation layer. The design subagent SHALL author only the change-specific visual input with its marks and SHALL NOT restyle the kit, add runtime dependencies, or raise its fidelity. Shared tooling SHALL assemble the kit, visual input, and current proposal into a standalone page. The kit and assembly tooling SHALL reach every repo that installs the plan skill. The reviewer SHALL use page annotations to report meaning or layout issues after the structural check.
 
 #### Scenario: Two changes look alike
 
@@ -239,7 +228,7 @@ A What Changes bullet with a visual SHALL end with `(review.html#/<visual>[/<sta
 #### Scenario: A dead anchor
 
 - **WHEN** a bullet's anchor names a mark no element in that visual carries
-- **THEN** the panel shows the anchor struck through with the reason and the critic names the bullet
+- **THEN** the panel shows the anchor struck through with the reason and the structural check names the bullet
 
 #### Scenario: A bullet wraps across lines
 
@@ -391,7 +380,7 @@ Below a phone-width breakpoint, `review.html` SHALL show the stage at full width
 
 ### Requirement: A screen can be walked at phone width
 
-A `screen` visual SHALL be walkable at phone width. The chrome SHALL offer a View toggle, Desktop or Phone, whenever the active visual is a screen; at phone width the phone view SHALL apply without the toggle. The kit SHALL provide `phone-only` and `desktop-only` helpers so one screen carries both layouts. When the use-case brief says the job is done on a phone, the review stage SHALL draw the phone layout first and the critic SHALL check the screen at phone width.
+A `screen` visual SHALL be walkable at phone width. The chrome SHALL offer a View toggle, Desktop or Phone, whenever the active visual is a screen; at phone width the phone view SHALL apply without the toggle. The kit SHALL provide `phone-only` and `desktop-only` helpers so one screen carries both layouts. When the use-case brief says the job is done on a phone, the review stage SHALL draw the phone layout first. The reviewer SHALL be able to annotate overflow on the page.
 
 #### Scenario: Phone view from a desktop
 
@@ -401,7 +390,7 @@ A `screen` visual SHALL be walkable at phone width. The chrome SHALL offer a Vie
 #### Scenario: A phone-first brief
 
 - **WHEN** a design's brief says operators use the screen on a phone
-- **THEN** the screen visual carries a phone layout, and the critic reports any state that overflows at phone width
+- **THEN** the screen visual carries a phone layout and the reviewer can annotate overflow on the page
 
 ### Requirement: The file cannot fail silently
 
@@ -615,7 +604,8 @@ Review checks SHALL identify duplicate visual IDs, unresolved anchors, missing d
 #### Scenario: A valid structure still shows the wrong change
 
 - **WHEN** the structural checks pass but a visual does not explain its proposal bullet
-- **THEN** the critic can still reject the visual and require the single revision round
+- **THEN** the reviewer annotates the visual on the page
+- **AND** the copied notes return to the change through `/continue` before implementation
 
 ### Requirement: Review generation preserves portable history
 
@@ -640,3 +630,64 @@ The generated review SHALL remain the primary human review surface, showing the 
 
 - **WHEN** source checks complete but rendered browser inspection cannot run
 - **THEN** the report names the rendered checks as unverified rather than claiming that every state was inspected
+
+### Requirement: The review page is produced in one authoring pass
+
+`/plan` SHALL produce `review.html` with one visual-author pass, one assembly, and one structural check. It SHALL NOT run a critic pass or a revision round over the rendered page. On a plan update it SHALL run the author again only when an anchored bullet or its visual changes; other edits SHALL only rebuild the page. The visual author SHALL start after the proposal draft and SHALL run while the design and tasks are drafted; anchors SHALL be placed and the page assembled after the author returns its bullet-to-anchor map. When a browser is available the structural check SHALL run once in it; when none is available the report SHALL name the rendered check as unverified.
+
+#### Scenario: A plan is drafted with a browser available
+
+- **WHEN** `/plan` reaches an apply-ready state
+- **THEN** the page was assembled once from the returned fragment and the structural check ran once in a browser
+- **AND** no critic findings or revision round were produced
+
+#### Scenario: The author is still running when tasks are written
+
+- **WHEN** the visual author has not returned while the main thread drafts tasks
+- **THEN** tasks that cite a review anchor are completed after the map returns
+- **AND** the proposal bullets receive their anchors before assembly
+
+#### Scenario: A plan is updated without touching the drawn bullet
+
+- **WHEN** `/plan` re-enters an existing change and the edits touch no anchored bullet and no visual
+- **THEN** the page is rebuilt from the existing fragment and the author is not run again
+
+#### Scenario: A plan update changes the drawn bullet
+
+- **WHEN** `/plan` re-enters an existing change and an anchored bullet or its visual changes
+- **THEN** the author runs once more for that visual and the page is rebuilt and checked once
+
+#### Scenario: No browser is available
+
+- **WHEN** the structural check cannot run in a browser
+- **THEN** assembly and validation still run
+- **AND** the report names the rendered check as unverified rather than passed
+
+### Requirement: One visual per change by default
+
+A change SHALL draw one visual by default: the `flow`, `screen`, `diff`, or `tree` that carries the change, anchored from the one What Changes bullet it explains. A visual SHALL have one owning bullet. A change that adds or restructures user-facing screens SHALL draw each such screen. Any further visual SHALL be justified by a reason the author states in its hand-back. A bullet without a visual SHALL stay text.
+
+#### Scenario: A process change
+
+- **WHEN** a change alters a workflow without adding a screen
+- **THEN** its page carries one `flow`, `diff`, or `tree` visual and the other bullets show text only
+
+#### Scenario: Two screens are added
+
+- **WHEN** a change adds two user-facing screens
+- **THEN** its page carries a `screen` visual for each
+
+#### Scenario: A second visual without a reason
+
+- **WHEN** the author returns two visuals for a change that adds no screen and states no reason for the second
+- **THEN** the main thread keeps the one that carries the change and leaves the other bullet as text
+
+### Requirement: The design text links the review page instead of sketching
+
+The `### Review` subsection of a UI-bearing `design.md` SHALL link `review.html` and list its screens and states by anchor. It SHALL NOT contain ASCII sketches. The brief, flow, hierarchy, and components subsections SHALL stay in `design.md` as text.
+
+#### Scenario: A reviewer reads both
+
+- **WHEN** a reviewer opens a UI-bearing change
+- **THEN** the `## UX` text names the job and the page shows each screen and state by anchor
+- **AND** the reviewer can judge whether every screen serves the stated job from the two together
