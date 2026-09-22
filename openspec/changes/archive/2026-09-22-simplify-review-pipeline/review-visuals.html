@@ -1,0 +1,48 @@
+<section class="visual flow" id="pipeline" data-kind="flow" data-states="today after">
+  <p class="caption">How <code>/plan</code> builds <code>review.html</code> — the serial pipeline today, and the one-pass pipeline after this change.</p>
+  <div class="frame">
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-proposal"><h3>Proposal draft <span class="tag">Kept</span></h3><p>The main thread writes <code>proposal.md</code>.</p><details><summary>Details</summary><p>Actor: main thread. Action: draft Why, What Changes, Decision log. Result: bullets exist but have no anchors yet.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-author"><h3>Design subagent writes the visuals <span class="tag">Changed</span></h3><p>Runs in series; the main thread waits.</p><details><summary>Details</summary><p>Actor: design subagent. Action: write <code>review-visuals.html</code>. Result: a fragment and a bullet-to-anchor map, after a blocking wait.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-build"><h3>Anchor bullets and build <span class="tag">Kept</span></h3><p>Main thread places anchors, runs <code>build-review.mjs</code>.</p><details><summary>Details</summary><p>Actor: main thread. Action: edit proposal anchors, run the builder. Result: <code>review.html</code>.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-check"><h3>Browser structural check <span class="tag">Changed</span></h3><p>Runs <code>check-review.js</code> in a browser.</p><details><summary>Details</summary><p>Actor: browser. Action: run the deterministic checker. Result: anchor and state errors, if any.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-walk"><h3>Manual walk of every state <span class="tag">Removed</span></h3><p>Desktop and phone width, each state.</p><details><summary>Details</summary><p>Actor: main thread. Action: open every state at two widths. Result: judgment notes that largely repeat what the reviewer does.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-critic"><h3>Critic subagent reads the page <span class="tag">Removed</span></h3><p>A second subagent critiques the rendered page.</p><details><summary>Details</summary><p>Actor: critic subagent. Action: read <code>review.html</code>. Result: findings, mostly anchor mechanics the checker already reports plus wording.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-revision"><h3>Revision round <span class="tag">Removed</span></h3><p>The design subagent applies the critic's findings.</p><details><summary>Details</summary><p>Actor: design subagent. Action: revise the fragment. Result: a second fragment.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-rebuild"><h3>Rebuild <span class="tag">Removed</span></h3><p>Builder runs a second time.</p><details><summary>Details</summary><p>Actor: main thread. Action: run <code>build-review.mjs</code> again. Result: the final page.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-design-tasks"><h3>Design and tasks <span class="tag">Changed</span></h3><p>Written last, after the whole page pipeline.</p><details><summary>Details</summary><p>Actor: main thread. Action: write <code>design.md</code> and <code>tasks.md</code>. Result: the change is complete, 8 to 15 minutes after the proposal.</p></details></div>
+    </div><p><a href="#/pipeline/after">See the pipeline after this change</a></p></div>
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="after-proposal"><h3>Proposal draft <span class="tag">Kept</span></h3><p>The main thread writes <code>proposal.md</code>.</p><details><summary>Details</summary><p>Actor: main thread. Action: draft Why, What Changes, Decision log. Result: bullets exist; the author starts at once.</p></details></div>
+      <p class="flow-connector">↓ Two paths run at the same time</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="after-author"><h3>Design subagent, in the background <span class="tag">Changed</span> <i class="callout">1</i></h3><p>Writes the one visual that carries the change.</p><details><summary>Details</summary><p>Actor: design subagent. Action: write <code>review-visuals.html</code> while the main thread continues. Result: a fragment and a bullet-to-anchor map.</p></details></div>
+        <div class="flow-branch" data-target-id="after-design-tasks"><h3>Main thread writes design and tasks <span class="tag">Changed</span></h3><p>Overlaps the subagent instead of waiting.</p><details><summary>Details</summary><p>Actor: main thread. Action: write <code>design.md</code> and <code>tasks.md</code>. Result: task text that cites anchors is written after the map returns.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Both paths rejoin here</p>
+      <div class="step flow-card" data-target-id="after-map"><h3>Subagent returns the anchor map <span class="tag">New</span></h3><p>Bullet number to <code>review.html#/…</code> anchor.</p><details><summary>Details</summary><p>Actor: design subagent. Action: hand back the map and any second-visual reason. Result: the main thread knows where each bullet points.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-build"><h3>Anchor bullets and build <span class="tag">Kept</span></h3><p>Main thread places anchors, runs <code>build-review.mjs</code>.</p><details><summary>Details</summary><p>Actor: main thread. Action: edit proposal anchors, run the builder once. Result: <code>review.html</code>.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-check"><h3>One browser run of the structural check <span class="tag">Changed</span></h3><p><code>check-review.js</code>; unverified when no browser exists.</p><details><summary>Details</summary><p>Actor: browser. Action: run the deterministic checker once. Result: pass, listed errors, or an unverified report. No manual walk at two widths.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-critic" data-mark="critic"><h3>Critic review and revision round <span class="tag">Removed</span> <i class="callout">2</i></h3><p>No longer runs. The checker and the reviewer's own annotations are the review.</p><details><summary>Details</summary><p>Actor: none. Action: none. Result: no second subagent, no second fragment, no rebuild.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-done"><h3>Done <span class="tag">Kept</span></h3><p>The reviewer reads the page and annotates it.</p><details><summary>Details</summary><p>Actor: reviewer. Action: annotate <code>review.html</code>. Result: notes return through <code>/continue</code>, as before.</p></details></div>
+    </div><p><a href="#/pipeline/today">See the pipeline today</a></p></div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The design subagent starts right after the proposal draft and runs in the background, so drafting design and tasks overlaps the fragment instead of waiting for it. The subagent still returns a bullet-to-anchor map, so the anchor step is unchanged.</li>
+      <li>The critic subagent and its revision round are removed. Recent critic reports found anchor mechanics the checker already names plus wording polish, and the reviewer annotates the same page anyway.</li>
+    </ol>
+  </div>
+</section>

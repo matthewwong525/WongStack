@@ -1,8 +1,8 @@
 # Author a review visual
 
-The reviewer reads `review.html`. Write only `review-visuals.html` for each new change, using the documented classes below. See [examples of all four visual kinds](review-examples.html); they are author guidance, not part of the output. The builder reads [the kit](review-kit.html); authors need no full viewer-source read. Inspect a specific kit section only when the guide and examples cannot answer a concrete question. Do not copy the kit's chrome, CSS, script, proposal, fallback stages, or closing layout tags. The builder inserts the fragment into the kit and reads Why and What Changes from `proposal.md`.
+Write only `review-visuals.html` using these classes and [examples](review-examples.html). The builder reads [the kit](review-kit.html) and inserts the proposal text. Inspect kit source only for a question this guide and the examples cannot answer. Do not copy its chrome, CSS, script, proposal, fallback stages, or closing tags.
 
-Give each proposal bullet a visual anchor `(review.html#/<id>[/<state>][/<mark>])`, or leave it unanchored when text alone explains it. Each pictured bullet owns one visual. The viewer puts its full text above that visual; do not copy the text or draw another change list inside it. A mark identifies the changed element through `data-mark="<mark>"`; it cannot have the same name as a state of that visual. Put a numbered `.callout` on a choice that matters and explain the matching number in a `.notes` list. Make the page understandable without opening `design.md`.
+Draw one visual that carries the change by default, or each new or restructured user-facing screen. State why any further visual is needed; leave other bullets as text. Return a bullet-to-anchor map using `(review.html#/<id>[/<state>][/<mark>])`. Each visual has one owning bullet. The viewer shows that bullet's text; do not repeat it. A `data-mark="<mark>"` name cannot match a state name. Number important `.callout` choices and explain them in `.notes`. The page must stand alone without `design.md`.
 
 Use these forms:
 
@@ -19,4 +19,4 @@ Run the builder after proposal anchors and the fragment exist:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "openspec/changes/<name>" --require-current
 ```
 
-Then run the structural check in a browser and inspect every rendered state at desktop and phone width. A structural pass does not prove that the visual explains the change. One critic review and one revision round cover meaning, hierarchy, empty frames, and overflow.
+Run one browser structural check, or report it unverified. The reviewer annotates meaning and layout; a structural pass does not prove the visual explains the change.
