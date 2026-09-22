@@ -1,0 +1,15 @@
+# Preserve explicitly named secrets
+
+Because this is the only skill that reads the conversation, it is the universal checkpoint for credentials the user **explicitly supplied or rotated with a known variable name** during this session. Do not pattern-match token-shaped strings, guess a name for an opaque value, or treat every pasted string as a credential. A producer that needed the credential earlier (for example `/wong-cloudflare`) may already have saved it; verify the durable copy rather than creating another.
+
+For each explicitly named secret:
+
+1. Resolve `ACTIVE_ROOT`, absolute `GIT_DIR`, and absolute `COMMON_DIR` with Git exactly as the [secrets convention](../../../../wiki/development/secrets.md) states. Equal git/common dirs mean the active root is primary; otherwise the parent of the common `.git` directory is the primary root. Verify `git -C "$PRIMARY_ROOT" rev-parse --show-toplevel` resolves to that same path. Failure stops the save before writing the value; never fall back to a linked checkout.
+2. Use the repo's declared live/example pair (`.env` / `.env.example` by default, or the stack's documented equivalent). Prove the live destination is ignored from the primary worktree. If the committed ignore rule exists only on the active branch, the repository-common `info/exclude` may receive the same wildcard/negation pair as immediate local protection; re-check and stop if the destination is still not ignored.
+3. Create the durable live file from the **active branch's** example when absent. Narrowly replace only the exact `KEY=` line or append that one line; preserve every unrelated line. Never regenerate the file or print the value.
+4. If a separate regular live file exists in the linked worktree, preserve it and report only that reconciliation is needed. Do not print or compare values, delete a file, or bulk-merge. An ignored symlink to the durable file is an option only after explicit reconciliation.
+5. If the variable contract is new, add a blank `KEY=` declaration to the active branch's example with what-it-is and where-to-get-it guidance. A value-only rotation makes no example diff.
+
+Keep the handled variable names and values only in ephemeral working memory for the leak check below. **Every real credential value supplied, rotated, read, or written in the session is forbidden from** the OpenSpec change or archive, Status, Decision log, tasks, session note, commit message, PR body, staged tracked files, and final report. Those surfaces may say that `SERVICE_TOKEN` rotated and retain its non-secret sourcing guidance; they never carry the value.
+
+Return to the main save procedure after persistence; its exclusion check still runs before commit and publication.

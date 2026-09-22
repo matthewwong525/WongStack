@@ -1,0 +1,256 @@
+{
+  "revision": "dec731db66df3667dd0ab28c80c2c0af8435f7ae",
+  "owners": [
+    "AGENTS.md",
+    "notes/README.md",
+    "wiki/agent-knowledge-center.md",
+    "wiki/development/the-change-loop.md",
+    "wiki/development/secrets.md",
+    "wiki/development/staging-walkthrough.md",
+    "wiki/ux-principles.md"
+  ],
+  "files": {
+    ".agents/skills/apply/SKILL.md": {
+      "words": 925,
+      "bytes": 6125
+    },
+    ".agents/skills/continue/SKILL.md": {
+      "words": 1596,
+      "bytes": 10438
+    },
+    ".agents/skills/explore/SKILL.md": {
+      "words": 1071,
+      "bytes": 7137
+    },
+    ".agents/skills/plan/SKILL.md": {
+      "words": 699,
+      "bytes": 4870
+    },
+    ".agents/skills/plan/references/openspec-cli.md": {
+      "words": 340,
+      "bytes": 2420
+    },
+    ".agents/skills/plan/references/review-author.md": {
+      "words": 403,
+      "bytes": 2826
+    },
+    ".agents/skills/save/SKILL.md": {
+      "words": 4686,
+      "bytes": 29547
+    },
+    ".agents/skills/save/references/git-gate.md": {
+      "words": 873,
+      "bytes": 5672
+    },
+    ".agents/skills/save/references/spec-sync.md": {
+      "words": 191,
+      "bytes": 1266
+    },
+    ".agents/skills/ship/SKILL.md": {
+      "words": 2569,
+      "bytes": 16449
+    },
+    ".agents/skills/verify/SKILL.md": {
+      "words": 2318,
+      "bytes": 14362
+    },
+    ".agents/skills/verify/references/walkthrough.md": {
+      "words": 2469,
+      "bytes": 15734
+    },
+    "AGENTS.md": {
+      "words": 758,
+      "bytes": 5625
+    },
+    "notes/README.md": {
+      "words": 672,
+      "bytes": 4320
+    },
+    "wiki/agent-knowledge-center.md": {
+      "words": 973,
+      "bytes": 5978
+    },
+    "wiki/development/secrets.md": {
+      "words": 676,
+      "bytes": 4358
+    },
+    "wiki/development/staging-walkthrough.md": {
+      "words": 3708,
+      "bytes": 23093
+    },
+    "wiki/development/the-change-loop.md": {
+      "words": 2899,
+      "bytes": 18617
+    },
+    "wiki/ux-principles.md": {
+      "words": 1576,
+      "bytes": 9628
+    },
+    ".agents/skills/plan/references/review-examples.html": {
+      "words": 831,
+      "bytes": 9518
+    },
+    ".agents/skills/plan/references/review-kit.html": {
+      "words": 4801,
+      "bytes": 43463
+    },
+    ".agents/skills/plan/scripts/build-review.mjs": {
+      "bytes": 4654,
+      "words": 481
+    },
+    ".agents/skills/plan/scripts/check-review.js": {
+      "bytes": 3355,
+      "words": 288
+    },
+    ".agents/skills/save/scripts/change-candidates.sh": {
+      "bytes": 1835,
+      "words": 255
+    },
+    ".agents/skills/save/scripts/preview-url.sh": {
+      "bytes": 2395,
+      "words": 323
+    },
+    ".agents/skills/save/scripts/sync-review-proposal.mjs": {
+      "bytes": 507,
+      "words": 56
+    },
+    ".agents/skills/save/scripts/wait-for-checks.sh": {
+      "bytes": 4414,
+      "words": 703
+    },
+    ".agents/skills/verify/scripts/verify-runner.sh": {
+      "bytes": 7728,
+      "words": 1061
+    },
+    ".agents/skills/verify/scripts/verify-staging.sh": {
+      "bytes": 15245,
+      "words": 2078
+    }
+  },
+  "routes": {
+    "active-save": {
+      "before": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md"
+      ],
+      "after": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md"
+      ],
+      "requireReduction": true
+    },
+    "named-secret-save": {
+      "before": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md",
+        "wiki/development/secrets.md"
+      ],
+      "after": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        ".agents/skills/save/references/named-secrets.md",
+        "wiki/development/secrets.md"
+      ]
+    },
+    "prose-save": {
+      "before": [
+        ".agents/skills/save/SKILL.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md"
+      ],
+      "after": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        ".agents/skills/save/references/prose-save.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md"
+      ]
+    },
+    "new-plan-save": {
+      "before": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md",
+        ".agents/skills/plan/SKILL.md",
+        ".agents/skills/explore/SKILL.md",
+        ".agents/skills/plan/references/openspec-cli.md",
+        "wiki/agent-knowledge-center.md",
+        ".agents/skills/plan/references/review-author.md",
+        ".agents/skills/plan/references/review-examples.html",
+        ".agents/skills/plan/references/review-kit.html"
+      ],
+      "after": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        ".agents/skills/plan/SKILL.md",
+        ".agents/skills/explore/SKILL.md",
+        ".agents/skills/plan/references/openspec-cli.md",
+        "wiki/agent-knowledge-center.md",
+        ".agents/skills/plan/references/review-author.md",
+        ".agents/skills/plan/references/review-examples.html",
+        ".agents/skills/save/references/new-plan.md"
+      ]
+    },
+    "archived-save": {
+      "before": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md"
+      ],
+      "after": [
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        ".agents/skills/save/references/archived-save.md"
+      ]
+    },
+    "cold-resume": {
+      "before": [
+        ".agents/skills/continue/SKILL.md",
+        ".agents/skills/apply/SKILL.md",
+        ".agents/skills/plan/references/openspec-cli.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md"
+      ],
+      "after": [
+        ".agents/skills/continue/SKILL.md",
+        ".agents/skills/apply/SKILL.md",
+        ".agents/skills/plan/references/openspec-cli.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md"
+      ],
+      "increaseReason": "The orientation reads the new explicit evidence/root contract. This small increase preserves branch and ambiguity handling; completion saves are measured separately."
+    },
+    "visual-author": {
+      "before": [
+        ".agents/skills/plan/references/review-author.md",
+        ".agents/skills/plan/references/review-examples.html",
+        ".agents/skills/plan/references/review-kit.html"
+      ],
+      "after": [
+        ".agents/skills/plan/references/review-author.md",
+        ".agents/skills/plan/references/review-examples.html"
+      ],
+      "requireReduction": true
+    }
+  },
+  "notes": "Fixed source-input model, not runtime telemetry. Active/archive routes include meaningful note capture but no spec deltas. Cold resume measures orientation; visual author measures shared author inputs. Change-specific artifacts, implementation context, and repeated agent invocations vary and are excluded. Route files are counted once. Shared loop/owner reading is included conservatively on both sides. Baseline helper counts are read from the named Git revision."
+}

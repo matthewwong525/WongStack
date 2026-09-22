@@ -1,0 +1,91 @@
+<section class="visual flow" id="save-routes" data-kind="flow" data-title="Load the needed save procedures" data-states="after today">
+  <p class="caption">After this change, the common procedure directs each save to the references it needs.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <div class="step flow-card" data-target-id="save-main" data-mark="conditions"><h3>Read the main procedure <span class="tag">Changed</span><i class="callout">1</i></h3><p>Keep authorization, selection order, route conditions, and final checks here.</p><details><summary>Details</summary><p>The agent selects the change using existing rules. Secret values stay excluded from records on every route.</p></details></div>
+      <p class="flow-connector">↓ Load each matching reference</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="save-secret"><h3>If named secrets were supplied <span class="tag">Moved</span></h3><p>Load secret persistence instructions.</p><details><summary>Details</summary><p>Keep token handling and value exclusion. This condition can combine with other routes.</p></details></div>
+        <div class="flow-branch" data-target-id="save-prose"><h3>If all paths are notes or wiki <span class="tag">Moved</span></h3><p>Load the prose save procedure.</p><details><summary>Details</summary><p>Keep the default-branch route and its checks. Classify by path, not extension.</p></details></div>
+        <div class="flow-branch" data-target-id="save-fallback"><h3>If a plan must be created <span class="tag">Moved</span></h3><p>Load new-plan fallback instructions.</p><details><summary>Details</summary><p>Keep required artifacts and review generation. Missing dependencies cannot make a plan ready.</p></details></div>
+        <div class="flow-branch" data-target-id="save-archive"><h3>If the handoff is archived <span class="tag">Moved</span></h3><p>Load archive maintenance instructions.</p><details><summary>Details</summary><p>Keep archive-aware records and links. Active-change saves need no archive reference.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Matching routes rejoin; otherwise continue here directly</p>
+      <div class="step flow-card" data-target-id="save-finish"><h3>Complete the selected save <span class="tag">Kept</span></h3><p>Check secret exclusion; finish record, publish, and gate steps.</p><details><summary>Details</summary><p>Keep checkpoints, retry budgets, task guards, and CI or PR-review policy. Load the notes convention when session capture is needed.</p></details></div>
+    </div>
+    <div class="state state-today"><div class="flow-sequence"><div class="step flow-card" data-target-id="save-today"><h3>Read the full runbook <span class="tag">Today</span></h3><p>Ordinary saves load all special-route instructions.</p><details><summary>Details</summary><p>Named secrets, prose-only saves, fallback plans, and archives all sit in the main skill.</p></details></div><p class="flow-connector">↓</p><div class="step flow-card" data-target-id="save-today-finish"><h3>Use the applicable steps <span class="tag">Today</span></h3><p>The agent identifies its route within the full instructions.</p><details><summary>Details</summary><p>The change reduces required reading while preserving route obligations.</p></details></div></div></div>
+  </div>
+  <div class="notes"><ol><li>After this change, matching conditions combine: named secrets plus an archive loads both references. The common secret check always runs.</li></ol></div>
+</section>
+
+<section class="visual flow" id="checkpoint-evidence" data-kind="flow" data-title="Collect facts, retain judgment">
+  <p class="caption">Code gathers local facts. The agent applies the selected verb's policy.</p>
+  <div class="frame"><div class="flow-sequence">
+    <div class="step flow-card" data-target-id="evidence-input"><h3>Supply repository and comparison base <span class="tag">Kept</span></h3><p>The caller identifies local state or a remote tree.</p><details><summary>Details</summary><p>The helper does not fetch, contact GitHub, switch branches, or read environment files. Existing command arguments remain usable.</p></details></div>
+    <p class="flow-connector">↓</p>
+    <div class="step flow-card" data-target-id="evidence-json" data-mark="structured"><h3>Return compact JSON <span class="tag">Added</span><i class="callout">1</i></h3><p>Branch, base, paths, candidates, matches, and diagnostics.</p><details><summary>Details</summary><p>Return complete candidate lists and staged, unstaged, untracked, and rename paths. Remote-tree queries exclude unrelated local dirt. Return counts and paths, not contents or diffs.</p></details></div>
+    <p class="flow-connector">↓ Check the result</p>
+    <div class="flow-branches">
+      <div class="flow-branch" data-target-id="evidence-success"><h3>If collection succeeds <span class="tag">Kept</span></h3><p>The agent selects using intent and the verb's rules.</p><details><summary>Details</summary><p>Keep explicit intent first, ambiguity visible, apply's protection for new work, ship's multiple-change guard, and continue's remote resolution.</p></details></div>
+      <div class="flow-branch" data-target-id="evidence-error"><h3>If a ref or Git operation fails <span class="tag">Explicit</span></h3><p>Report an error. Resolve it before selection.</p><details><summary>Details</summary><p>Failure cannot look like an empty successful list. Refresh observations after edits or checkout. No persistent cache is added.</p></details></div>
+    </div>
+    <p class="flow-connector">↓ Continue only with valid evidence and a resolved selection</p>
+    <div class="step flow-card" data-target-id="evidence-result"><h3>Return to the verb <span class="tag">Kept</span></h3><p>The existing workflow controls Git changes.</p><details><summary>Details</summary><p>The helper gathers facts only. The model retains intent interpretation and unresolved choices.</p></details></div>
+  </div></div>
+  <div class="notes"><ol><li>Shorter output must preserve ambiguity. Complete candidate sets are required; partial results cannot select work.</li></ol></div>
+</section>
+
+<section class="visual flow" id="pr-body" data-kind="flow" data-title="Assemble the PR body">
+  <p class="caption">Keep one maintained plan and one short agent-authored PR summary.</p>
+  <div class="frame"><div class="flow-sequence">
+    <div class="step flow-card" data-target-id="pr-input"><h3>Agent supplies meaning and metadata <span class="tag">Kept</span></h3><p>Write a summary file; name the change, mode, repository, and branch.</p><details><summary>Details</summary><p>The agent checks summary accuracy and secret exclusion. Preview URL is optional. The temporary summary is not another maintained record.</p></details></div>
+    <p class="flow-connector">↓</p>
+    <div class="step flow-card" data-target-id="pr-render" data-mark="renderer"><h3>Renderer assembles stable sections <span class="tag">Added</span><i class="callout">1</i></h3><p>Read status and tasks from the selected change.</p><details><summary>Details</summary><p>Preserve Markdown, newlines, the exact task checklist, optional review and preview links, encoded URL paths, and active or archived handoff. Only active changes have a resume footer.</p></details></div>
+    <p class="flow-connector">↓ Validate required inputs</p>
+    <div class="flow-branches">
+      <div class="flow-branch" data-target-id="pr-valid"><h3>If inputs are valid <span class="tag">Added</span></h3><p>Write the requested body file.</p><details><summary>Details</summary><p>The renderer does not publish or print the full body by default. Save supplies the file to gh.</p></details></div>
+      <div class="flow-branch" data-target-id="pr-invalid"><h3>If required input is absent <span class="tag">Added</span></h3><p>Report an error; preserve existing output.</p><details><summary>Details</summary><p>The agent corrects inputs and reruns. Missing data cannot replace a body with incomplete output.</p></details></div>
+    </div>
+    <p class="flow-connector">↓ Continue only after successful rendering</p>
+    <div class="step flow-card" data-target-id="pr-publish"><h3>Save publishes and checks the gate <span class="tag">Kept</span></h3><p>Existing Git and CI instructions govern delivery.</p><details><summary>Details</summary><p>No authorization, checkpoint, retry, or merge policy moves into the renderer.</p></details></div>
+  </div></div>
+  <div class="notes"><ol><li>Code formats stable sections. The agent still decides what the change means and writes its summary.</li></ol></div>
+</section>
+
+<section class="visual diff-visual" id="author-inputs" data-kind="diff" data-title="Focus review-author reading">
+  <p class="caption">The builder consumes the fixed viewer; the author uses its documented visual vocabulary.</p>
+  <div class="frame"><div class="diff">
+    <div><div class="label">Today: required author reads</div><pre><span class="line">Proposal + design</span><span class="line">Author guide</span><span class="line del">Full viewer implementation</span><span class="line">Relevant visual examples</span></pre></div>
+    <div><div class="label">After: required author reads</div><pre><span class="line">Proposal + design</span><span class="line add" data-mark="focused" data-target-id="author-guide">Complete author guide</span><span class="line add" data-target-id="author-examples">Closest visual examples</span><span class="line add" data-target-id="author-exception">Inspect a specific viewer section only for an unanswered question.</span></pre></div>
+  </div><p><span class="tag">Kept</span> Design author → builder → browser checker → rendered critic → one revision round.</p><p><span class="tag">Kept</span> Offline review, anchors, draft notes, copy feedback, and phone inspection.</p></div>
+  <div class="notes"><p class="brief">No viewer behavior changes. The guide must explain every required class and attribute in the examples. Existing reviews remain usable.</p></div>
+</section>
+
+<section class="visual tree" id="measurement" data-kind="tree" data-title="Measure reading and preserve behavior">
+  <p class="caption">Completion evidence separates modeled source load from runtime tokens.</p>
+  <div class="frame"><ul>
+    <li class="add" data-mark="evidence" data-target-id="measure-inventory">Instruction inventory <i class="callout">1</i><ul>
+      <li>Seven core skills + Markdown references</li>
+      <li>Shared owner documents: separate subtotal</li>
+      <li>Canonical aliases counted once</li>
+      <li>Viewer, examples, scripts: separate totals</li>
+    </ul></li>
+    <li class="add" data-target-id="measure-routes">Seven route fixtures<ul>
+      <li>Active save · named-secret save · prose save</li>
+      <li>New-plan fallback · archived save</li>
+      <li>Cold continue · visual authoring</li>
+    </ul></li>
+    <li class="add" data-target-id="measure-acceptance">Required source-load results<ul>
+      <li>Lower aggregate instruction inventory</li>
+      <li>Lower normal-save and review-author loads</li>
+      <li>Explain any special-route increase</li>
+    </ul></li>
+    <li class="add" data-target-id="measure-behavior">Behavior fixtures and route audit<ul>
+      <li>Selection, ambiguity, ref errors, rename paths</li>
+      <li>PR body, exact tasks, links, active/archive modes</li>
+      <li>Secrets, task guards, gates, retries, archives</li>
+    </ul></li>
+    <li class="edit" data-target-id="measure-runtime">Runtime token savings: claim only with measured traces</li>
+  </ul></div>
+  <div class="notes"><ol><li>Compare the fixed baseline with the working tree using a declared inventory. Bytes and words model reading cost; they do not establish runtime token savings. No behavior may be removed to meet a budget.</li></ol></div>
+</section>

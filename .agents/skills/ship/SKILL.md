@@ -14,6 +14,8 @@ The merge rides the [gate ladder](../../../wiki/development/the-change-loop.md#t
 
 > `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
 
+Read the helper fields and root/base options in [the evidence contract](../save/references/checkpoint-evidence.md) only when using structured evidence. `active`, `archive`, `recorded`, and `legacy` are evidence; retain the selection order below. Inspection errors stop selection.
+
 ## Step 1 — preflight
 
 ```bash
@@ -49,7 +51,7 @@ This is the loop's one rule, applied one verb further out: **when a verb's preco
 
 ## Step 2 — archive the change (/opsx:archive)
 
-Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME`. Prefer an existing change named by the user or selected in this session. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active`: one changed active folder selects that change, whether or not its name matches `BRANCH`. If none, use a unique active proposal whose `**Branch:**` equals `BRANCH`, then a legacy active folder named `BRANCH`. If none resolves, stop and report that this branch has no identifiable change record; `/save` can author one. A sole unrelated `openspec list` entry never authorizes a cold merge.
+Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME`. Prefer an existing change named by the user or selected in this session. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json`: one changed active folder selects that change, whether or not its name matches `BRANCH`. If none, use a unique active proposal whose `**Branch:**` equals `BRANCH`, then a legacy active folder named `BRANCH`. If none resolves, stop and report that this branch has no identifiable change record; `/save` can author one. A sole unrelated `openspec list` entry never authorizes a cold merge.
 
 If the branch diff or working tree contains **more than one active change folder**, stop before archive even when one was explicitly selected: the merge would carry the other too. Name the folders and ask the user to separate or intentionally reconcile that work. Require `openspec/changes/$CHANGE_NAME/` to exist before proceeding. Keep `CHANGE_NAME` fixed through archive and checkpoint.
 

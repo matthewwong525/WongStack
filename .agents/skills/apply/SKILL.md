@@ -10,13 +10,15 @@ user-invocable: true
 
 `/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
 
+Read the helper fields and root/base options in [the evidence contract](../save/references/checkpoint-evidence.md) only when using structured evidence. `active`, `archive`, `recorded`, and `legacy` are evidence; retain the selection order below. Inspection errors stop selection.
+
 ## Resolve the plan first
 
 Before invoking the OpenSpec apply step, resolve the change that represents what the user is asking to implement. Use this priority order:
 
 1. An explicit existing change named by the user.
 2. The change created or discussed in this conversation.
-3. A unique active change folder touched by local work or the current branch's diff from the default branch. Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active`; it reads Git but changes no Git state. More than one candidate is ambiguous unless steps 1 or 2 selected one.
+3. A unique active change folder touched by local work or the current branch's diff from the default branch. Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json`; it reads Git but changes no Git state. More than one candidate is ambiguous unless steps 1 or 2 selected one.
 4. An active change whose proposal records the current branch on its `**Branch:**` line, or whose name matches the branch under the older naming convention. More than one recorded match is ambiguous.
 5. A sole active change, but **only when the conversation does not establish different new work**.
 

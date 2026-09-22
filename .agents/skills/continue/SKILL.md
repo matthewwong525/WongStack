@@ -16,6 +16,8 @@ This skill trusts the change as the source of truth. It deliberately does **not*
 >
 > `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
 
+Read the helper fields and root/base options in [the evidence contract](../save/references/checkpoint-evidence.md) only when using structured evidence. `active`, `archive`, `recorded`, and `legacy` are evidence; retain the selection order below. Inspection errors stop selection.
+
 ## Workflow
 
 ### 1. Parse the input
@@ -50,7 +52,7 @@ You need two things: the **change** (proposal + tasks) and the **branch** to che
   ```bash
   gh pr view <N> --json headRefName,url,title,state
   ```
-  Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active "origin/<headRefName>"` after `git fetch origin`. If it returns one change, select it. If it returns none, look for one proposal on that branch whose `**Branch:**` value is the PR head, then try the legacy same-name folder. If several remain, ask which change to resume. Read the selected folder after checkout; do not infer its name from the PR branch.
+  Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"` after `git fetch origin`. Use its unique `active` candidate; if absent, use a unique `recorded` match, then `legacy.active`. If several remain, ask which change to resume. Read the selected folder after checkout; do not infer its name from the PR branch.
 - **Bare number that matches both a PR and an `openspec list` index** → ambiguous; ask which they mean before proceeding.
 
 It's fine if only one side exists (a save with no PR yet) — load the change; there's just no PR link to show.
