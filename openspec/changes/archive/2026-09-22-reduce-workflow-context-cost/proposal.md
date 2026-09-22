@@ -1,6 +1,6 @@
 # Reduce workflow context cost
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/token-efficiency
 **Open questions:** none
 
@@ -46,3 +46,7 @@ Primary surfaces are `.agents/skills/save/`, `.agents/skills/plan/`, and narrow 
 - **2026-09-22** — Implementation checkpoint: version 16.3.0 preserves the route audit and adds helper/renderer fixtures plus repeatable source accounting. Core instructions are 18,140 → 16,021 words; normal-save input is 9,130 → 5,766 words; author input is 55,807 → 12,511 bytes. Cold orientation adds 192 words for the explicit evidence contract. Measurements are in measurements.json; runtime tokens were not measured. Payload link/config and strict plan checks pass. CI remains the final task.
 
 - **2026-09-22** — Final code review found that a blank metadata header could consume the next paragraph. Branch and Status parsing now stays on one line, with regression fixtures. This preserves explicit missing-input errors.
+
+- **2026-09-22** — CI passed for a823fa85de5fa81b9f32d4cda076b77a57a79b29 on PR #94: payload regression/release checks, application tests, and deployment. The final CI task is complete. Session-note capture is skipped because the proposal and audit contain the session decisions without a separate surrounding-context fact to preserve.
+
+- **2026-09-22** — Ship archived the complete change after confirming all five delta requirement blocks already matched their main specs. This delegated archive checkpoint preserves version 16.3.0, the exact branch association, and the source-load report; no active change is recreated.
