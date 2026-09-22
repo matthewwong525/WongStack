@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.3.0 — smaller workflow context and checkpoint helpers
+
+- Save loads named-secret, prose-only, new-plan, and archive procedures when their conditions apply. Record capture, credential exclusion, delivery checks, and checkpoint boundaries remain.
+- A read-only helper returns structured branch and change evidence; existing candidate line calls remain compatible. The owning verb still resolves intent and ambiguity.
+- A deterministic renderer assembles PR records from the selected change and an agent-written summary, with exact tasks and active/archive links.
+- Review authors use the guide and relevant examples; the builder reads the fixed viewer. Structural checks and rendered critique remain required.
+- Meta-only source-load reports include conditional references, shared owners, and route inventories. Source reductions are not presented as measured runtime token savings.
+
 ## 16.2.2 — reliable improve survey command
 
 - The documented `.claude/skills/improve/scripts/survey.mjs` command now recognizes direct execution when `.claude` is an in-repository alias. It emits the same JSON and exit status as the canonical script path.

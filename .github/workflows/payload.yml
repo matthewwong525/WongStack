@@ -34,3 +34,4 @@ jobs:
         run: |
           node scripts/check-payload-links.mjs
           node scripts/check-openspec-config.mjs
+          node scripts/measure-context.mjs --check

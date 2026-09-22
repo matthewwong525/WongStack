@@ -12,6 +12,8 @@ Verification runbook. Invoking it authorizes the `/save` in Step 2 — the commi
 
 It sits **outside** the loop (`/explore → /plan → /apply → /save → /continue → /ship`) rather than inside it — reach for it whenever you want to see the thing working. Mid-change, twice in a row, or right before `/ship`. There is no wrong moment and no limit.
 
+Read the helper fields and root/base options in [the evidence contract](../save/references/checkpoint-evidence.md) only when using structured evidence. `active`, `archive`, `recorded`, and `legacy` are evidence; retain the selection order below. Inspection errors stop selection.
+
 ## What `/verify` is not
 
 - **Not a gate.** No verdict blocks a merge. `/ship` runs one walk for evidence and merges on CI-green regardless — except on `FAILURE`, where it asks the user to fix or merge anyway. See [the gate](../../../wiki/development/the-change-loop.md#the-gate).
@@ -24,7 +26,7 @@ The full rationale, the engine choice, and the deliberately declined options liv
 
 ## Step 1 — scout first, before spending anything
 
-Select the change whose scenarios this invocation will scout. Use an explicit user or current-session selection first. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" active` and use its unique active change; then use a unique proposal `**Branch:**` match or legacy same-name match. If `/ship` called this after archive, use the exact archive path it handed off; otherwise a unique changed archive folder can identify a manual post-archive walk. Ask when several changes remain plausible. Keep the selected OpenSpec path separate from the current branch name.
+Select the change whose scenarios this invocation will scout. Use an explicit user or current-session selection first. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json` and use its unique active change; then use a unique proposal `**Branch:**` match or legacy same-name match. If `/ship` called this after archive, use the exact archive path it handed off; otherwise a unique changed archive folder can identify a manual post-archive walk. Ask when several changes remain plausible. Keep the selected OpenSpec path separate from the current branch name.
 
 ```bash
 ROOT="$(git rev-parse --show-toplevel)"

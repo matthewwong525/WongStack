@@ -1,0 +1,667 @@
+{
+  "baseline": "dec731db66df3667dd0ab28c80c2c0af8435f7ae",
+  "metric": "Source words and UTF-8 bytes; not measured runtime tokens",
+  "assumptions": "Fixed source-input model, not runtime telemetry. Active/archive routes include meaningful note capture but no spec deltas. Cold resume measures orientation; visual author measures shared author inputs. Change-specific artifacts, implementation context, and repeated agent invocations vary and are excluded. Route files are counted once. Shared loop/owner reading is included conservatively on both sides. Baseline helper counts are read from the named Git revision.",
+  "categories": {
+    "instructions": {
+      "before": {
+        "words": 18140,
+        "bytes": 116846
+      },
+      "after": {
+        "words": 16021,
+        "bytes": 105331
+      }
+    },
+    "owners": {
+      "before": {
+        "words": 11262,
+        "bytes": 71619
+      },
+      "after": {
+        "words": 11262,
+        "bytes": 71619
+      }
+    },
+    "html": {
+      "before": {
+        "words": 5632,
+        "bytes": 52981
+      },
+      "after": {
+        "words": 5632,
+        "bytes": 52981
+      }
+    },
+    "helpers": {
+      "before": {
+        "words": 5245,
+        "bytes": 40133
+      },
+      "after": {
+        "words": 6162,
+        "bytes": 48918
+      }
+    }
+  },
+  "routes": {
+    "active-save": {
+      "before": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/git-gate.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 9130,
+        "bytes": 58156
+      },
+      "after": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/checkpoint-evidence.md",
+          ".agents/skills/save/references/git-gate.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 5766,
+        "bytes": 38094
+      },
+      "increaseReason": null
+    },
+    "named-secret-save": {
+      "before": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/git-gate.md",
+          "notes/README.md",
+          "wiki/development/secrets.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 9806,
+        "bytes": 62514
+      },
+      "after": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/checkpoint-evidence.md",
+          ".agents/skills/save/references/git-gate.md",
+          ".agents/skills/save/references/named-secrets.md",
+          "notes/README.md",
+          "wiki/development/secrets.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 6850,
+        "bytes": 45171
+      },
+      "increaseReason": null
+    },
+    "prose-save": {
+      "before": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 8257,
+        "bytes": 52484
+      },
+      "after": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/checkpoint-evidence.md",
+          ".agents/skills/save/references/prose-save.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 5246,
+        "bytes": 34648
+      },
+      "increaseReason": null
+    },
+    "new-plan-save": {
+      "before": {
+        "files": [
+          ".agents/skills/explore/SKILL.md",
+          ".agents/skills/plan/SKILL.md",
+          ".agents/skills/plan/references/openspec-cli.md",
+          ".agents/skills/plan/references/review-author.md",
+          ".agents/skills/plan/references/review-examples.html",
+          ".agents/skills/plan/references/review-kit.html",
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/git-gate.md",
+          "notes/README.md",
+          "wiki/agent-knowledge-center.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 18248,
+        "bytes": 134368
+      },
+      "after": {
+        "files": [
+          ".agents/skills/explore/SKILL.md",
+          ".agents/skills/plan/SKILL.md",
+          ".agents/skills/plan/references/openspec-cli.md",
+          ".agents/skills/plan/references/review-author.md",
+          ".agents/skills/plan/references/review-examples.html",
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/checkpoint-evidence.md",
+          ".agents/skills/save/references/git-gate.md",
+          ".agents/skills/save/references/new-plan.md",
+          "notes/README.md",
+          "wiki/agent-knowledge-center.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 10340,
+        "bytes": 72586
+      },
+      "increaseReason": null
+    },
+    "archived-save": {
+      "before": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/git-gate.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 9130,
+        "bytes": 58156
+      },
+      "after": {
+        "files": [
+          ".agents/skills/save/SKILL.md",
+          ".agents/skills/save/references/archived-save.md",
+          ".agents/skills/save/references/checkpoint-evidence.md",
+          ".agents/skills/save/references/git-gate.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 5917,
+        "bytes": 39054
+      },
+      "increaseReason": null
+    },
+    "cold-resume": {
+      "before": {
+        "files": [
+          ".agents/skills/apply/SKILL.md",
+          ".agents/skills/continue/SKILL.md",
+          ".agents/skills/plan/references/openspec-cli.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 6432,
+        "bytes": 41920
+      },
+      "after": {
+        "files": [
+          ".agents/skills/apply/SKILL.md",
+          ".agents/skills/continue/SKILL.md",
+          ".agents/skills/plan/references/openspec-cli.md",
+          ".agents/skills/save/references/checkpoint-evidence.md",
+          "notes/README.md",
+          "wiki/development/the-change-loop.md"
+        ],
+        "words": 6624,
+        "bytes": 43610
+      },
+      "increaseReason": "The orientation reads the new explicit evidence/root contract. This small increase preserves branch and ambiguity handling; completion saves are measured separately."
+    },
+    "visual-author": {
+      "before": {
+        "files": [
+          ".agents/skills/plan/references/review-author.md",
+          ".agents/skills/plan/references/review-examples.html",
+          ".agents/skills/plan/references/review-kit.html"
+        ],
+        "words": 6035,
+        "bytes": 55807
+      },
+      "after": {
+        "files": [
+          ".agents/skills/plan/references/review-author.md",
+          ".agents/skills/plan/references/review-examples.html"
+        ],
+        "words": 1259,
+        "bytes": 12511
+      },
+      "increaseReason": null
+    }
+  },
+  "inventory": [
+    {
+      "path": ".agents/skills/apply/SKILL.md",
+      "kind": "instructions",
+      "before": {
+        "words": 925,
+        "bytes": 6125
+      },
+      "after": {
+        "words": 957,
+        "bytes": 6406
+      }
+    },
+    {
+      "path": ".agents/skills/continue/SKILL.md",
+      "kind": "instructions",
+      "before": {
+        "words": 1596,
+        "bytes": 10438
+      },
+      "after": {
+        "words": 1614,
+        "bytes": 10675
+      }
+    },
+    {
+      "path": ".agents/skills/explore/SKILL.md",
+      "kind": "instructions",
+      "before": {
+        "words": 1071,
+        "bytes": 7137
+      },
+      "after": {
+        "words": 1071,
+        "bytes": 7137
+      }
+    },
+    {
+      "path": ".agents/skills/plan/SKILL.md",
+      "kind": "instructions",
+      "before": {
+        "words": 699,
+        "bytes": 4870
+      },
+      "after": {
+        "words": 723,
+        "bytes": 5024
+      }
+    },
+    {
+      "path": ".agents/skills/plan/references/openspec-cli.md",
+      "kind": "instructions",
+      "before": {
+        "words": 340,
+        "bytes": 2420
+      },
+      "after": {
+        "words": 340,
+        "bytes": 2420
+      }
+    },
+    {
+      "path": ".agents/skills/plan/references/review-author.md",
+      "kind": "instructions",
+      "before": {
+        "words": 403,
+        "bytes": 2826
+      },
+      "after": {
+        "words": 428,
+        "bytes": 2993
+      }
+    },
+    {
+      "path": ".agents/skills/plan/references/review-examples.html",
+      "kind": "html",
+      "before": {
+        "words": 831,
+        "bytes": 9518
+      },
+      "after": {
+        "words": 831,
+        "bytes": 9518
+      }
+    },
+    {
+      "path": ".agents/skills/plan/references/review-kit.html",
+      "kind": "html",
+      "before": {
+        "words": 4801,
+        "bytes": 43463
+      },
+      "after": {
+        "words": 4801,
+        "bytes": 43463
+      }
+    },
+    {
+      "path": ".agents/skills/plan/scripts/build-review.mjs",
+      "kind": "helpers",
+      "before": {
+        "bytes": 4654,
+        "words": 481
+      },
+      "after": {
+        "words": 481,
+        "bytes": 4654
+      }
+    },
+    {
+      "path": ".agents/skills/plan/scripts/check-review.js",
+      "kind": "helpers",
+      "before": {
+        "bytes": 3355,
+        "words": 288
+      },
+      "after": {
+        "words": 288,
+        "bytes": 3355
+      }
+    },
+    {
+      "path": ".agents/skills/save/SKILL.md",
+      "kind": "instructions",
+      "before": {
+        "words": 4686,
+        "bytes": 29547
+      },
+      "after": {
+        "words": 1218,
+        "bytes": 8494
+      }
+    },
+    {
+      "path": ".agents/skills/save/references/archived-save.md",
+      "kind": "instructions",
+      "before": {
+        "words": 0,
+        "bytes": 0
+      },
+      "after": {
+        "words": 151,
+        "bytes": 960
+      }
+    },
+    {
+      "path": ".agents/skills/save/references/checkpoint-evidence.md",
+      "kind": "instructions",
+      "before": {
+        "words": 0,
+        "bytes": 0
+      },
+      "after": {
+        "words": 142,
+        "bytes": 1172
+      }
+    },
+    {
+      "path": ".agents/skills/save/references/git-gate.md",
+      "kind": "instructions",
+      "before": {
+        "words": 873,
+        "bytes": 5672
+      },
+      "after": {
+        "words": 835,
+        "bytes": 5491
+      }
+    },
+    {
+      "path": ".agents/skills/save/references/named-secrets.md",
+      "kind": "instructions",
+      "before": {
+        "words": 0,
+        "bytes": 0
+      },
+      "after": {
+        "words": 408,
+        "bytes": 2719
+      }
+    },
+    {
+      "path": ".agents/skills/save/references/new-plan.md",
+      "kind": "instructions",
+      "before": {
+        "words": 0,
+        "bytes": 0
+      },
+      "after": {
+        "words": 208,
+        "bytes": 1422
+      }
+    },
+    {
+      "path": ".agents/skills/save/references/prose-save.md",
+      "kind": "instructions",
+      "before": {
+        "words": 0,
+        "bytes": 0
+      },
+      "after": {
+        "words": 315,
+        "bytes": 2045
+      }
+    },
+    {
+      "path": ".agents/skills/save/references/spec-sync.md",
+      "kind": "instructions",
+      "before": {
+        "words": 191,
+        "bytes": 1266
+      },
+      "after": {
+        "words": 191,
+        "bytes": 1266
+      }
+    },
+    {
+      "path": ".agents/skills/save/scripts/change-candidates.sh",
+      "kind": "helpers",
+      "before": {
+        "bytes": 1835,
+        "words": 255
+      },
+      "after": {
+        "words": 26,
+        "bytes": 227
+      }
+    },
+    {
+      "path": ".agents/skills/save/scripts/checkpoint-evidence.mjs",
+      "kind": "helpers",
+      "before": {
+        "words": 0,
+        "bytes": 0
+      },
+      "after": {
+        "words": 675,
+        "bytes": 6187
+      }
+    },
+    {
+      "path": ".agents/skills/save/scripts/preview-url.sh",
+      "kind": "helpers",
+      "before": {
+        "bytes": 2395,
+        "words": 323
+      },
+      "after": {
+        "words": 323,
+        "bytes": 2395
+      }
+    },
+    {
+      "path": ".agents/skills/save/scripts/render-pr-body.mjs",
+      "kind": "helpers",
+      "before": {
+        "words": 0,
+        "bytes": 0
+      },
+      "after": {
+        "words": 471,
+        "bytes": 4206
+      }
+    },
+    {
+      "path": ".agents/skills/save/scripts/sync-review-proposal.mjs",
+      "kind": "helpers",
+      "before": {
+        "bytes": 507,
+        "words": 56
+      },
+      "after": {
+        "words": 56,
+        "bytes": 507
+      }
+    },
+    {
+      "path": ".agents/skills/save/scripts/wait-for-checks.sh",
+      "kind": "helpers",
+      "before": {
+        "bytes": 4414,
+        "words": 703
+      },
+      "after": {
+        "words": 703,
+        "bytes": 4414
+      }
+    },
+    {
+      "path": ".agents/skills/ship/SKILL.md",
+      "kind": "instructions",
+      "before": {
+        "words": 2569,
+        "bytes": 16449
+      },
+      "after": {
+        "words": 2601,
+        "bytes": 16730
+      }
+    },
+    {
+      "path": ".agents/skills/verify/SKILL.md",
+      "kind": "instructions",
+      "before": {
+        "words": 2318,
+        "bytes": 14362
+      },
+      "after": {
+        "words": 2350,
+        "bytes": 14643
+      }
+    },
+    {
+      "path": ".agents/skills/verify/references/walkthrough.md",
+      "kind": "instructions",
+      "before": {
+        "words": 2469,
+        "bytes": 15734
+      },
+      "after": {
+        "words": 2469,
+        "bytes": 15734
+      }
+    },
+    {
+      "path": ".agents/skills/verify/scripts/verify-runner.sh",
+      "kind": "helpers",
+      "before": {
+        "bytes": 7728,
+        "words": 1061
+      },
+      "after": {
+        "words": 1061,
+        "bytes": 7728
+      }
+    },
+    {
+      "path": ".agents/skills/verify/scripts/verify-staging.sh",
+      "kind": "helpers",
+      "before": {
+        "bytes": 15245,
+        "words": 2078
+      },
+      "after": {
+        "words": 2078,
+        "bytes": 15245
+      }
+    },
+    {
+      "path": "AGENTS.md",
+      "kind": "owners",
+      "before": {
+        "words": 758,
+        "bytes": 5625
+      },
+      "after": {
+        "words": 758,
+        "bytes": 5625
+      }
+    },
+    {
+      "path": "notes/README.md",
+      "kind": "owners",
+      "before": {
+        "words": 672,
+        "bytes": 4320
+      },
+      "after": {
+        "words": 672,
+        "bytes": 4320
+      }
+    },
+    {
+      "path": "wiki/agent-knowledge-center.md",
+      "kind": "owners",
+      "before": {
+        "words": 973,
+        "bytes": 5978
+      },
+      "after": {
+        "words": 973,
+        "bytes": 5978
+      }
+    },
+    {
+      "path": "wiki/development/secrets.md",
+      "kind": "owners",
+      "before": {
+        "words": 676,
+        "bytes": 4358
+      },
+      "after": {
+        "words": 676,
+        "bytes": 4358
+      }
+    },
+    {
+      "path": "wiki/development/staging-walkthrough.md",
+      "kind": "owners",
+      "before": {
+        "words": 3708,
+        "bytes": 23093
+      },
+      "after": {
+        "words": 3708,
+        "bytes": 23093
+      }
+    },
+    {
+      "path": "wiki/development/the-change-loop.md",
+      "kind": "owners",
+      "before": {
+        "words": 2899,
+        "bytes": 18617
+      },
+      "after": {
+        "words": 2899,
+        "bytes": 18617
+      }
+    },
+    {
+      "path": "wiki/ux-principles.md",
+      "kind": "owners",
+      "before": {
+        "words": 1576,
+        "bytes": 9628
+      },
+      "after": {
+        "words": 1576,
+        "bytes": 9628
+      }
+    }
+  ],
+  "issues": []
+}

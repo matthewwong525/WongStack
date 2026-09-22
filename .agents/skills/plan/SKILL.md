@@ -22,7 +22,7 @@ Before tasks, decide whether a repeated process belongs in deterministic code. U
 
 ## Build the review page for every change
 
-After the first design draft and before tasks, have a design subagent read the proposal, design, [visual author guide](references/review-author.md), the [fixed kit](references/review-kit.html), and, for screens, [`ux-principles.md`](../../../wiki/ux-principles.md) and one or two closest existing screens. It writes only `review-visuals.html` with one visual for each What Changes item that benefits from one; a text-only bullet needs none. Each pictured item owns its visual and local state controls. The shared viewer shows the full item text above it. The subagent returns a bullet-to-anchor map. The main thread places each anchor at the end of its proposal bullet and runs:
+After the first design draft and before tasks, have a design subagent read the proposal, design, [visual author guide](references/review-author.md), the relevant [visual examples](references/review-examples.html), and, for screens, [`ux-principles.md`](../../../wiki/ux-principles.md) and one or two closest existing screens. The builder reads the fixed kit; the author inspects a specific kit section only for a question the guide and examples cannot answer. It writes only `review-visuals.html` with one visual for each What Changes item that benefits from one; a text-only bullet needs none. Each pictured item owns its visual and local state controls. The shared viewer shows the full item text above it. The subagent returns a bullet-to-anchor map. The main thread places each anchor at the end of its proposal bullet and runs:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current
