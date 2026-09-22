@@ -6,7 +6,7 @@ user-invocable: true
 
 # /ship
 
-Ship runbook. Invoking it authorizes the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync below — don't re-prompt. It also authorizes the [pulled-in stage](#the-pull-in-nothing-to-ship-yet) — explore, plan, implement, and their saves — with or without an intent and with no re-prompt between stages. It does **not** authorize archiving a change with unchecked tasks: that confirmation is the user's, and [Step 2](#step-2--archive-the-change-opsxarchive) removes the need to ask it. Confirm anything outside this runbook (force push, hard reset).
+Ship runbook. Every action it authorizes is taken without a prompt; a question it does have to ask uses [the shared ask format](../explore/references/asking-the-user.md). Invoking it authorizes the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync below — don't re-prompt. It also authorizes the [pulled-in stage](#the-pull-in-nothing-to-ship-yet) — explore, plan, implement, and their saves — with or without an intent and with no re-prompt between stages. It does **not** authorize archiving a change with unchecked tasks: that confirmation is the user's, and [Step 2](#step-2--archive-the-change-opsxarchive) removes the need to ask it. Confirm anything outside this runbook (force push, hard reset).
 
 `/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, walks the preview for evidence, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue and no automatic docs distillation.
 
@@ -53,7 +53,7 @@ This is the loop's one rule, applied one verb further out: **when a verb's preco
 
 Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME`. Prefer an existing change named by the user or selected in this session. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json`: one changed active folder selects that change, whether or not its name matches `BRANCH`. If none, use a unique active proposal whose `**Branch:**` equals `BRANCH`, then a legacy active folder named `BRANCH`. If none resolves, stop and report that this branch has no identifiable change record; `/save` can author one. A sole unrelated `openspec list` entry never authorizes a cold merge.
 
-If the branch diff or working tree contains **more than one active change folder**, stop before archive even when one was explicitly selected: the merge would carry the other too. Name the folders and ask the user to separate or intentionally reconcile that work. Require `openspec/changes/$CHANGE_NAME/` to exist before proceeding. Keep `CHANGE_NAME` fixed through archive and checkpoint.
+If the branch diff or working tree contains **more than one active change folder**, stop before archive even when one was explicitly selected: the merge would carry the other too. Name the folders and ask the user to separate or intentionally reconcile that work, [as options](../explore/references/asking-the-user.md) — ship the selected change alone by moving the other out of the branch *(Recommended)*, or ship both together on purpose. Require `openspec/changes/$CHANGE_NAME/` to exist before proceeding. Keep `CHANGE_NAME` fixed through archive and checkpoint.
 
 **Then read its `tasks.md` before you archive anything.** Unchecked tasks (`- [ ]`) mean the change is not finished, so **finish it**: invoke the [`apply` skill](../apply/SKILL.md) for that exact change name, let it work the list and hand completion to `/save`, then re-read the file. Archive only when every task is checked.
 
@@ -77,7 +77,7 @@ Consume its exact final result:
 **No `verify` skill** (a repo that hasn't synced since the verb landed) → say so in one line and go to Step 5. A rung the repo lacks is skipped, never failed — and never installed to repair it.
 
 - `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue to the merge.
-- `FAILURE`, after `/verify`'s own two fix attempts → **stop and ask the user**: fix, or merge anyway.
+- `FAILURE`, after `/verify`'s own two fix attempts → **stop and ask the user** as [a two-option question](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix the failure first *(Recommended)*, or merge anyway and record that the walk failed.
 
 **The verdict is not a rung.** An unrunnable walk never blocks a merge — the property whose absence made the old walk-*gate* worth removing. A `FAILURE` pause is a decision surfaced to the user, not a gate applied to them: *merge anyway* is a first-class answer, and the report records that it was taken.
 
@@ -131,6 +131,8 @@ Ask **which checkout has `main` out**, not whether you are in a worktree — a p
 - **Walk** — the verdict, the evidence comment link, and — when a `FAILURE` was merged anyway — that the user chose to. Where the skill was absent, one line saying so.
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.
 - **Synced** — the checkout whose `main` advanced to the merged commit, or the one-line reason the sync was skipped.
+
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): the work the merge makes possible — normally start the next change, walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.
 
 ## Hard rules
 - Never ship onto a red default branch (when it has checks). **Never merge on an `UNKNOWN` check result** — unverified is not the same as no checks. Never `--force`/`--no-verify`. Never `git reset --hard` / `checkout .` without confirmation. **Never build or test locally** — CI is the gate when present, else PR review; the app's own suite runs there as an ordinary check.

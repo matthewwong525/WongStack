@@ -1,0 +1,256 @@
+<!-- ══ VISUAL 1 · kind=diff — the anatomy of an ask ══ -->
+<section class="visual diff-visual" id="anatomy" data-kind="diff">
+  <p class="caption">One ask, written the way a runbook writes it today and the way the shared convention writes it. Example: <code>/ship</code>'s fork after a failed preview walk. The free-text path is the host's own reply box — the convention never adds an "Other" option to the list.</p>
+  <div class="frame">
+    <div class="diff">
+      <div>
+        <div class="label">Today — prose</div>
+        <pre><span class="line del">FAILURE, after /verify's own two fix</span><span class="line del">attempts, stop and ask the user:</span><span class="line del">fix, or merge anyway.</span></pre>
+        <p class="muted">The reader gets a sentence. No visible options, no recommendation, no consequence on either side, and every skill words it differently.</p>
+      </div>
+      <div>
+        <div class="label">After — a structured question</div>
+        <pre><span class="line add" data-target-id="ask-question">The preview walk failed twice.</span><span class="line add" data-target-id="ask-question">How should this change proceed?</span><span class="line add"> </span><span class="line add" data-target-id="ask-option-1">1. Fix the failure first (Recommended) <i class="callout">1</i></span><span class="line add" data-target-id="ask-option-1">   Slower now; the merged commit</span><span class="line add" data-target-id="ask-option-1">   matches its evidence.</span><span class="line add"> </span><span class="line add" data-target-id="ask-option-2">2. Merge anyway</span><span class="line add" data-target-id="ask-option-2">   Ships today; the report records</span><span class="line add" data-target-id="ask-option-2">   that you chose it.</span></pre>
+        <p class="muted">Two or three real options, the recommended one first and labelled, one short tradeoff each — and the host's own free-text reply still accepted. <i class="callout">2</i></p>
+      </div>
+    </div>
+    <div class="box" data-mark="budget">
+      <p><b>Not part of the shared convention — stays in <code>/explore</code> alone <i class="callout">3</i></b></p>
+      <p class="muted">The clarification budget: the 80/20 test, small groups of questions, one exit round, four questions at most. It governs what to ask before planning, not what an ask looks like. A runbook cites the format without inheriting any of this.</p>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Scope:</b> the convention is one shared reference that every asking skill links. Each skill keeps only the specifics of its own question — the options and what each one costs.</p>
+    <ol>
+      <li>The recommendation is written into the option text, not carried by the tool. Any host that can show options can show it, and the reader sees the advice next to the cost of taking it.</li>
+      <li>Free text stays open through whatever the host already gives the user — never a third "Other" option, which would be a duplicate of the reply box and a decoy choice.</li>
+      <li>Keeping the budget out is the point of the split. Without it, <code>/ship</code> citing the format would inherit "at most four questions before planning", which does not describe a fix-or-merge fork.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ VISUAL 2 · kind=flow — which mechanism carries the question ══ -->
+<section class="visual flow" id="mechanism" data-kind="flow">
+  <p class="caption">How a skill puts one prepared question to the user: the first mechanism this session can actually call wins.</p>
+  <div class="frame">
+    <div class="flow-sequence">
+      <div class="step flow-card" data-target-id="question-ready">
+        <h3>The question is already written <span class="tag">Unchanged</span></h3>
+        <p>Two or three options, recommended first, one tradeoff each.</p>
+        <details><summary>Details</summary><p>Actor: the skill. Action: compose the question by the shared convention. Result: the wording is fixed before any mechanism is chosen — the mechanism never changes what is asked.</p></details>
+      </div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="callability">
+        <h3>Pick the first callable mechanism <span class="tag">Changed</span> <i class="callout">1</i></h3>
+        <p>Judged by what this host and mode make callable in this turn.</p>
+        <details><summary>Details</summary><p>A tool named in skill text is not a tool you have. Check the live tool catalog, then take the first path below that answers yes.</p></details>
+      </div>
+      <p class="flow-connector">↓ First matching path</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="path-codex">
+          <h3>Codex tool callable</h3>
+          <p>Use <code>request_user_input</code>.</p>
+          <details><summary>Details</summary><p>The host renders the options and returns the selection as data.</p></details>
+        </div>
+        <div class="flow-branch" data-target-id="path-claude">
+          <h3>Else Claude tool callable</h3>
+          <p>Use <code>AskUserQuestion</code>.</p>
+          <details><summary>Details</summary><p>Its own structured question UI: same options, same order, same labels.</p></details>
+        </div>
+        <div class="flow-branch" data-target-id="path-equivalent">
+          <h3>Else another host's equivalent</h3>
+          <p>Use that host's structured question tool.</p>
+          <details><summary>Details</summary><p>Keeps the rule portable to a host neither name covers.</p></details>
+        </div>
+        <div class="flow-branch" data-target-id="path-chat">
+          <h3>Else interactive chat</h3>
+          <p>The same options, numbered, and the user may reply with a number or in their own words.</p>
+          <details><summary>Details</summary><p>A fallback, not a downgrade: the reader sees the same options in the same order, and the chat box is already the free-text path.</p></details>
+        </div>
+      </div>
+      <p class="flow-connector">↓ Every one of those four waits here</p>
+      <div class="step flow-card" data-target-id="pending">
+        <h3>A pending question stays pending <span class="tag">Changed</span> <i class="callout">2</i></h3>
+        <p>Time passing is not an answer. A preselected or default-highlighted option is not an answer.</p>
+        <details><summary>Details</summary><p>Actor: the skill. Action: wait for the user's reply. Result: work resumes only on a real selection or free-text answer. An asynchronous question that has not come back is still open — never read the recommendation as though it had been chosen.</p></details>
+      </div>
+      <p class="flow-connector">↓ Answered — all four paths join</p>
+      <div class="step flow-card" data-target-id="join">
+        <h3>The same question, the same options, the recommended one first <span class="tag">Changed</span></h3>
+        <p>The mechanism changes how the question is drawn; it never changes the question.</p>
+        <details><summary>Details</summary><p>Actor: the skill. Action: apply the chosen option. Result: the work continues from one explicit decision, whichever mechanism carried it.</p></details>
+      </div>
+      <p class="flow-connector">Beside the join, never through the wait above ↴</p>
+      <div class="step flow-card" data-target-id="path-nobody">
+        <h3>Nobody can answer — terminal path <span class="tag">Changed</span> <i class="callout">3</i></h3>
+        <p>Take the recommended options, label them <code>assumed</code>, and continue without waiting.</p>
+        <details><summary>Details</summary><p>Actor: the skill. Action: record each assumption where the answer would have gone. Result: an unattended session finishes, and a reader can see exactly which choices were never made by a person and overturn them.</p></details>
+      </div>
+    </div>
+    <div class="box">
+      <p><b>What moves: the order itself</b></p>
+      <p class="muted">Today this list lives inside <code>/explore</code>'s SKILL.md, written for the explore-to-plan transition, and <code>/continue</code> restates it in a bullet of its own. After this change it lives once in the shared reference, and every skill that asks — <code>/ship</code>, <code>/verify</code>, <code>/apply</code>, <code>/continue</code>, <code>/improve</code>, <code>/wong-cloudflare</code> and the rest — cites it there. <code>/explore</code> links down to it like everyone else.</p>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Contract:</b> the skill owns the question; the host owns the widget. The decision procedure is not new — what changes is that it stops being <code>/explore</code>'s private text and becomes the one place every skill cites.</p>
+    <ol>
+      <li>The order is by callability, not by preference or by which host you think you are on. The first path that can actually run is the one taken.</li>
+      <li>The failure worth naming: treating elapsed time or a highlighted default as consent. An unanswered question blocks; it does not quietly resolve itself.</li>
+      <li>The only mechanism path that proceeds unanswered, and it pays for it with a visible <code>assumed</code> label on every option it took. (A skill may still record an assumption for other reasons — for example <code>/explore</code> running out of its question budget — but that is a budget decision, not a mechanism one.)</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ VISUAL 3 · kind=tree — the ask sites, and what stays unprompted ══ -->
+<section class="visual tree" id="sites" data-kind="tree">
+  <p class="caption">Every ask site that cites the convention — and, set apart below, the actions that keep their standing authorization and gain no prompt at all.</p>
+  <div class="frame">
+    <div class="label">Ask sites that cite the convention</div>
+    <ul>
+      <li><b><code>/explore</code></b> — already this shape; the text becomes a link
+        <ul>
+          <li class="edit">clarification groups <span class="why">format and tool order move out to the reference</span></li>
+          <li class="edit">the exit round <span class="why">same; the budget stays in <code>/explore</code></span></li>
+        </ul>
+      </li>
+      <li><b><code>/continue</code></b> — prose today
+        <ul>
+          <li class="edit">no handle given <span class="why">the menu of resumable changes becomes options, most recent recommended</span></li>
+          <li class="edit">ambiguous PR or index handle <span class="why">name the candidates as options, not as a sentence</span></li>
+          <li class="edit">dirty working tree <span class="why">keep, set aside, or stop — each with its cost</span></li>
+          <li class="edit">several candidate changes <span class="why">one option per candidate</span></li>
+        </ul>
+      </li>
+      <li><b><code>/improve</code></b> — prose today
+        <ul>
+          <li class="edit">the selection round <span class="why">which supported candidate to ship, recommended first</span></li>
+        </ul>
+      </li>
+      <li><b><code>/apply</code></b> — prose today
+        <ul>
+          <li class="edit">unresolved candidate <span class="why">which change it meant, as options</span></li>
+        </ul>
+      </li>
+      <li><b><code>/ship</code></b> — prose today
+        <ul>
+          <li class="edit">two active change folders <span class="why">which one ships now</span></li>
+          <li class="edit">walk <code>FAILURE</code> — fix or merge anyway <span class="why">a fork, so it reads as two options with consequences</span></li>
+        </ul>
+      </li>
+      <li><b><code>/verify</code></b> — prose today
+        <ul>
+          <li class="edit">several plausible changes <span class="why">which one to verify</span></li>
+          <li class="edit">ambiguous evidence <span class="why">accept, re-probe, or grade it failed</span></li>
+        </ul>
+      </li>
+      <li><b><code>/wong-cloudflare</code></b> — prose today
+        <ul>
+          <li class="edit">the pack offer <span class="why">an offer is an ask: adopt now, or stay as you are <i class="callout">1</i></span></li>
+          <li class="edit">account pick, when more than one <span class="why">one option per account</span></li>
+          <li class="edit">teardown delete confirmation <span class="why">a yes/no becomes two named options — delete, or keep and stop <i class="callout">1</i></span></li>
+        </ul>
+      </li>
+      <li><b><code>/wong-setup</code> · <code>/wong-sync</code></b> — no questions of their own
+        <ul>
+          <li class="edit">the citation only <span class="why">they hand clarification to <code>/explore</code>, which owns the ask</span></li>
+        </ul>
+      </li>
+    </ul>
+    <div class="box" data-mark="authorized">
+      <p class="caption">Not ask sites — and this change does not make them any <i class="callout">2</i></p>
+      <p><b>Standing authorizations, taken without a prompt</b></p>
+      <ul>
+        <li><code>/save</code>'s runbook actions <span class="why">branch, commit, push, PR, wait for CI</span></li>
+        <li><code>/ship</code>'s archive-and-merge chain <span class="why">one authorization covers the whole chain</span></li>
+        <li><code>/wong-cloudflare</code>'s token widen <span class="why">part of the provisioning that was asked for</span></li>
+      </ul>
+      <p class="muted">The convention governs the form of a question, never whether one is needed.</p>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Reading it:</b> every line in the first list is an existing stop that already interrupts the user. None of them is new. What changes is the shape of the question at that stop.</p>
+    <ol>
+      <li>Naming both sides is what makes an offer or a confirmation honest: writing the options forces the skill to say what <em>declining</em> costs, which a bare "shall I?" never carried.</li>
+      <li>The misreading this block exists to prevent: "everything gets a confirmation now." Adding a prompt here would re-open decisions the user already made and break <code>/ship</code>'s uninterrupted chain.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ VISUAL 4 · kind=flow — the reply that hands control back ══ -->
+<section class="visual flow" id="next-step" data-kind="flow" data-states="today after">
+  <p class="caption">What happens at the end of a reply that gives the user control again. Example: a finished plan.</p>
+  <div class="frame">
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-report">
+          <h3>Report the result</h3>
+          <p>"The plan is drafted: proposal, design, tasks, and the review page."</p>
+          <details><summary>Details</summary><p>Actor: the skill. Action: report what it did. Result: the reader knows the state of the work.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-stop">
+          <h3>Stop</h3>
+          <p>The reply ends. Nothing names what would move the work forward.</p>
+          <details><summary>Details</summary><p>Actor: the skill. Action: none. Result: the thread is idle while the work is not finished.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-invent">
+          <h3>The reader invents the next verb <i class="callout">1</i></h3>
+          <p>They recall which verb comes next, and judge for themselves whether the plan is worth applying as drafted.</p>
+          <details><summary>Details</summary><p>Actor: the user. Action: reconstruct the workflow from memory. Result: the skill knew the answer and did not say it, so the cost lands on whoever knows the workflow least.</p></details>
+        </div>
+      </div>
+      <p><a href="#/next-step/after">See the after path</a></p>
+    </div>
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-report">
+          <h3>Report the result <span class="tag">Unchanged</span></h3>
+          <p>"The plan is drafted: proposal, design, tasks, and the review page."</p>
+          <details><summary>Details</summary><p>Actor: the skill. Action: report what it did. Result: the reader knows the state of the work. This part does not change.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-question">
+          <h3>Ask what has to be decided for this to continue <span class="tag">Changed</span></h3>
+          <p>The same kind of question as any other ask, recommended first.</p>
+          <details><summary>Details</summary><p>Actor: the skill. Action: answer, for itself, "what does the user need to decide for this to continue?" and put that to them. Result: the next move is a selection, not an invention.</p></details>
+        </div>
+        <p class="flow-connector">↓ Which reply is this?</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-handback">
+            <h3>Control returns to the user</h3>
+            <p>Offer the options, each with its consequence:</p>
+            <ul>
+              <li><b>1. Apply it now (Recommended) <i class="callout">2</i></b><br>Work starts on the plan as drafted.</li>
+              <li><b>2. Revise the plan first</b><br>Another round before any file changes.</li>
+              <li><b>3. Stop here</b><br>The plan is saved; nothing runs.</li>
+            </ul>
+            <details><summary>Details</summary><p>A blocked task offers the unblock paths instead; an audit offers the fix worth taking. The shape is always the same.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-authorized">
+            <h3>Exception: a handoff inside an authorized chain</h3>
+            <p>Do not ask — continue. <i class="callout">3</i></p>
+            <details><summary>Details</summary><p><code>/ship</code> handing to <code>/save</code> mid-chain is not a hand-back. The user already authorized the chain, so a question here would be noise and would stall work that was told to run.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Both paths</p>
+        <div class="step flow-card" data-target-id="after-join">
+          <h3>Nobody has to invent the next verb <span class="tag">Changed</span></h3>
+          <p>Either the work continues on its own, or the decision that restarts it is on screen.</p>
+          <details><summary>Details</summary><p>Actor: the user. Action: pick an option, answer freely, or let the chain run. Result: the thread never ends on a dead stop.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Where it applies:</b> every stop that hands control back — a finished plan, a blocked task, a green checkpoint, an audit. It is a closing habit stated once in the shared reference, not a new section in each skill.</p>
+    <ol>
+      <li>Today path: the reply is complete and correct, and still leaves the reader to supply the one thing the skill already knows — what to do next.</li>
+      <li>After path: recommended first, and it is genuinely a recommendation — the skill just did the work and knows whether the plan is ready. Stopping stays a listed option, so the recommendation never becomes a push.</li>
+      <li>After path: the exception keeps the habit from becoming noise. The test is whether control is actually returning to the user, not whether the reply happens to end a step.</li>
+    </ol>
+  </div>
+</section>

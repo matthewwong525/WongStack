@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.5.0 — every ask is a choice, every reply offers the next step
+
+- New shared convention at `.claude/skills/explore/references/asking-the-user.md`: two or three real options, the recommended one first and labelled, a short tradeoff on each, and the host's own free-text path left open. Every skill links it instead of restating it.
+- The host tool order moves there too — Codex `request_user_input`, then Claude `AskUserQuestion`, then another structured equivalent, then numbered chat, with `assumed` defaults only where nobody can answer. `/explore` keeps its clarification budget.
+- Confirmations, offers, and selection menus are asks: the stack-pack offer, the account pick, the teardown confirmation, `/ship`'s fix-or-merge fork and two-changes stop, `/verify`'s ambiguous evidence, `/continue`'s dirty tree and ambiguous handle, and `/apply`'s unresolved candidate all state their options.
+- A reply that hands control back ends with the decision that continues the work, recommended first. A handoff inside an authorized chain continues without asking.
+- The convention governs form only. Actions a skill's invocation already authorizes are still taken without a prompt.
+
 ## 16.4.0 — fast no-op sync and bounded update analysis
 
 - `/wong-sync` runs a dependency-free preflight from the refreshed clean source. A proven current payload stops before `/explore`; an update sends only the complete changed-unit classification into exploration.

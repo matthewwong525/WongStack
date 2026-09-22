@@ -8,7 +8,7 @@
 
 ### Requirement: Explore puts unresolved material forks to the user in one call
 
-When `/explore` reaches its exit — the moment the user signals they are ready to plan, or the end of a bounded pass — it SHALL collect the forks whose answer would make the planning artifacts wrong, not merely different, and present them in one final question group using the available question mechanism. With a structured tool, this SHALL be one call with at most four questions and never more than the tool supports. The numbered-chat fallback SHALL contain at most four questions. Each question SHALL follow the useful-suggested-answers policy. A fork resolved anywhere in the conversation SHALL NOT be asked again. Zero questions SHALL be valid; in that case `/explore` SHALL make no call and proceed to its summary.
+When `/explore` reaches its exit — the moment the user signals they are ready to plan, or the end of a bounded pass — it SHALL collect the forks whose answer would make the planning artifacts wrong, not merely different, and present them in one final question group using the shared ask convention. With a structured tool, this SHALL be one call with at most four questions and never more than the tool supports. The numbered-chat fallback SHALL contain at most four questions. A fork resolved anywhere in the conversation SHALL NOT be asked again. Zero questions SHALL be valid; in that case `/explore` SHALL make no call and proceed to its summary.
 
 If more material forks remain than the final group can hold, `/explore` SHALL ask those that most affect the artifacts and mark the remaining recommended answers as assumptions. If nobody can answer, it SHALL use the non-interactive fallback. `/explore` SHALL keep unresolved asynchronous questions pending before returning a dependent plan handoff.
 
@@ -136,9 +136,9 @@ The change loop page and the loop line in the `WONG-STACK` block of `CLAUDE.md` 
 
 ### Requirement: Explore asks related questions in small structured groups
 
-During standalone discussion, `/explore` SHALL present material clarification questions in small groups of related questions through an available structured question tool. A group SHALL normally contain two or three questions, SHALL contain only one when only one matters, and SHALL NOT exceed the active tool's capacity. `/explore` SHALL NOT add questions to fill a group or ask again about decisions the conversation already settled. Findings and explanations SHALL remain conversational; the questions SHALL follow this policy instead of appearing as broad questions in chat when a structured tool is usable.
+During standalone discussion, `/explore` SHALL present material clarification questions in small groups of related questions, using the shared ask convention for their format and mechanism. A group SHALL normally contain two or three questions, SHALL contain only one when only one matters, and SHALL NOT exceed the active tool's capacity. `/explore` SHALL NOT add questions to fill a group or ask again about decisions the conversation already settled. Findings and explanations SHALL remain conversational; the questions SHALL follow the convention instead of appearing as broad questions in chat when a structured tool is usable.
 
-Questions in a group SHALL be answerable together. `/explore` SHALL wait for their answers before asking dependent questions or making dependent decisions. While the user remains in standalone exploration, it SHALL allow several groups and adapt later questions to the user's answers instead of following a fixed interview script. Every group SHALL follow the useful-suggested-answers policy. The repeated-group allowance SHALL NOT apply to bounded exploration invoked by planning.
+Questions in a group SHALL be answerable together. `/explore` SHALL wait for their answers before asking dependent questions or making dependent decisions. While the user remains in standalone exploration, it SHALL allow several groups and adapt later questions to the user's answers instead of following a fixed interview script. The repeated-group allowance SHALL NOT apply to bounded exploration invoked by planning.
 
 #### Scenario: Standalone exploration continues across groups
 
@@ -169,70 +169,3 @@ Questions in a group SHALL be answerable together. `/explore` SHALL wait for the
 - **WHEN** an asynchronous tool accepts a question group but no user answer has arrived
 - **THEN** `/explore` keeps the group pending and proceeds only with independent work
 - **AND** neither elapsed time nor a preselected option is treated as the user's answer
-
-### Requirement: Explore supplies useful suggested answers
-
-Each question with meaningful alternatives SHALL offer two or three choices. The recommended choice SHALL be first and labelled `(Recommended)`. Each choice SHALL state a short tradeoff. The user SHALL be able to give a custom answer. `/explore` SHALL use a tool's built-in custom-answer facility when available, without adding a duplicate Other option. If meaningful choices cannot be formed, `/explore` SHALL use a structured free-text question instead of inventing alternatives.
-
-#### Scenario: The user chooses a suggested option
-
-- **WHEN** a question has several meaningful alternatives
-- **THEN** the question shows two or three choices with brief tradeoffs and the recommended choice first
-- **AND** the user can answer by selecting a choice
-
-#### Scenario: The user supplies a different direction
-
-- **WHEN** the user gives a custom answer instead of selecting a suggested choice
-- **THEN** `/explore` uses that answer in the discussion and preserves its meaning in the handoff
-- **AND** it does not force the answer into one of the suggested choices
-
-#### Scenario: Options would be artificial
-
-- **WHEN** a material unknown requires an answer that cannot be represented by meaningful choices
-- **THEN** `/explore` asks a free-text question through the structured tool
-- **AND** it does not invent alternatives only to satisfy a multiple-choice format
-
-### Requirement: Explore uses the available question mechanism
-
-`/explore` SHALL use Codex `request_user_input` when it is callable, Claude `AskUserQuestion` when it is callable, or another available equivalent structured question tool. It SHALL follow the active tool's schema, mode restrictions, and capacity. If no structured question tool is usable but the session is interactive, `/explore` SHALL present the same small groups as numbered questions and choices in chat, with a custom-answer path, and wait for answers before dependent work. The absence of one named tool SHALL NOT by itself cause user choices to be replaced with assumptions. In a session where nobody can answer, `/explore` SHALL take recommended defaults, mark them **assumed**, and continue without waiting.
-
-#### Scenario: Codex provides structured user input
-
-- **WHEN** Codex exposes callable `request_user_input` in the active collaboration mode
-- **THEN** `/explore` uses it for the structured question group
-- **AND** it does not use numbered chat or `AskUserQuestion`
-
-#### Scenario: Claude provides structured user input
-
-- **WHEN** Claude exposes callable `AskUserQuestion` and Codex `request_user_input` is unavailable
-- **THEN** `/explore` uses `AskUserQuestion` within its limits
-- **AND** it does not use numbered chat merely because the Codex tool is absent
-
-#### Scenario: Another host has an equivalent tool
-
-- **WHEN** both named tools are unavailable but the host provides a usable equivalent structured question tool
-- **THEN** `/explore` uses that equivalent tool within its limits
-- **AND** it does not fall back to assumed answers merely because the tool has another name
-
-#### Scenario: Only chat is available
-
-- **WHEN** no structured question tool is usable and the user can answer in chat
-- **THEN** `/explore` shows numbered questions with suggested choices and a custom-answer path
-- **AND** it waits for answers before dependent work
-
-#### Scenario: Nobody can answer
-
-- **WHEN** the session is non-interactive and nobody can answer
-- **THEN** `/explore` uses recommended defaults without waiting
-- **AND** it labels them assumed rather than chosen
-
-### Requirement: WongStack enables supported Codex questions in Default mode
-
-The WongStack source repository SHALL enable Codex's supported Default-mode structured-input feature through trusted project configuration. It SHALL NOT require a user-wide configuration change or a collaboration-mode switch.
-
-#### Scenario: Trusted WongStack session uses Default mode
-
-- **WHEN** a compatible Codex client starts a Default-mode session in a trusted WongStack checkout
-- **THEN** `request_user_input` is callable for a structured question
-- **AND** this change does not modify the user's global Codex configuration
-- **AND** the project setting has no scope outside the WongStack checkout
