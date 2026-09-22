@@ -6,7 +6,7 @@ user-invocable: true
 
 # /verify
 
-Verification runbook. Invoking it authorizes the `/save` in Step 2 — the commit, push, and PR that come with it — the machine-level browser install in Step 3, the staging reset in Step 6, and the Access service-token mint in Step 4. Confirm anything outside this runbook.
+Verification runbook. Its authorized actions need no prompt; anything it does ask uses [the shared ask format](../explore/references/asking-the-user.md). Invoking it authorizes the `/save` in Step 2 — the commit, push, and PR that come with it — the machine-level browser install in Step 3, the staging reset in Step 6, and the Access service-token mint in Step 4. Confirm anything outside this runbook.
 
 `/verify` produces **evidence, on request**: the change's own OpenSpec scenarios exercised end to end against the deployed preview — through a real browser where the scenario is about UI, through direct HTTP requests or existing commands where it is not — graded against what those scenarios said would happen, with the evidence on the pull request.
 
@@ -26,7 +26,7 @@ The full rationale, the engine choice, and the deliberately declined options liv
 
 ## Step 1 — scout first, before spending anything
 
-Select the change whose scenarios this invocation will scout. Use an explicit user or current-session selection first. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json` and use its unique active change; then use a unique proposal `**Branch:**` match or legacy same-name match. If `/ship` called this after archive, use the exact archive path it handed off; otherwise a unique changed archive folder can identify a manual post-archive walk. Ask when several changes remain plausible. Keep the selected OpenSpec path separate from the current branch name.
+Select the change whose scenarios this invocation will scout. Use an explicit user or current-session selection first. Otherwise run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json` and use its unique active change; then use a unique proposal `**Branch:**` match or legacy same-name match. If `/ship` called this after archive, use the exact archive path it handed off; otherwise a unique changed archive folder can identify a manual post-archive walk. Ask when several changes remain plausible — [the candidates are the options](../explore/references/asking-the-user.md), each with the scenarios it would walk. Keep the selected OpenSpec path separate from the current branch name.
 
 ```bash
 ROOT="$(git rev-parse --show-toplevel)"
@@ -116,6 +116,8 @@ The bound is what keeps this from becoming a grinder. A walk that cannot fix its
 - Anything **unverifiable** and why, by scenario name — no deployed surface, or observable only by running the repo's code locally.
 - On `UNKNOWN`, say plainly that the walk was **not verified**, and what would make it runnable.
 
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) the verdict calls for — ship it, fix what the walk found, or walk again after a change. A walk inside `/ship`'s chain returns its verdict and lets the chain continue.
+
 ## Verdicts
 
 These describe what gets **reported**. None of them gates anything.
@@ -142,5 +144,5 @@ These describe what gets **reported**. None of them gates anything.
 - **Never write inside the repo.** Journeys and evidence live in the temp run directory and leave with it. Run `cleanup` on **every** exit path — including stopping on `UNKNOWN` and pausing to ask the user a question.
 - **Reset staging only after a failed walk**, and only where the repo has that command.
 - **"No error was reported" is not a pass — and neither is a bare `200`.** A journey whose batch completed cleanly but whose screenshot lacks what the `THEN` requires **fails**; a request probe whose response answered `200` without showing what the `THEN` describes **fails**. That judgement is why the verdict is not in the script.
-- **Genuinely ambiguous evidence stops and asks the user**, showing the evidence and the `THEN` side by side. Never resolve it in either direction alone.
+- **Genuinely ambiguous evidence stops and asks the user**, showing the evidence and the `THEN` side by side, and offering the readings as [options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks). Never resolve it in either direction alone.
 - **Never merge, never archive.** That's `/ship`.

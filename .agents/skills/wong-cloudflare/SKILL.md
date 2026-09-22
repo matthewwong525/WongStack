@@ -30,7 +30,7 @@ Turns a repo into a running app. The user does two things — sign up for Cloudf
 - **No git in this repo.** Everything this skill writes lands uncommitted; `/save` checkpoints it. Never commit, branch, push, or open a PR here.
 - **`curl` only against Cloudflare.** Not `wrangler`, not a Node script — provisioning must work on a machine with no runtime installed. (`node` is fine in the pack's *build* scripts, which run in CI. See [required tools](../../../wiki/development/required-tools.md).)
 - **Never print a token value.** Not in a summary, not in an error, not in a command you echo.
-- **Ask before creating or deleting anything billable.** State what you're about to make, then make it.
+- **Ask before creating or deleting anything billable.** State what you're about to make, then make it. Every question here is [a choice with a recommendation](../explore/references/asking-the-user.md), written in the plain voice above — never a bare yes/no.
 - **The token widen is not in that rule's scope — don't ask, just do it.** It costs nothing and is reversible, and the user pasting a two-permission token *is* the authorization to widen it ([the standing authorization](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Widen, then say which permissions you granted.
 
 ## Step 0 — the door
@@ -47,7 +47,7 @@ Read `.claude/.wong-stack.json` (no manifest at all → WongStack isn't installe
 
 Still one question — don't ask separately about an app, and don't name a framework or a Worker. A repo that already has an app is never offered the scaffold.
 
-Keep product names and file lists out of the prompt; have them ready for a user who asks. On a **no**, stop — nothing changes. On a **yes**:
+Give the offer two options, in the same plain words — *"Set it up (Recommended) — a few minutes now, and every change gets its own link"* and *"Not now — everything else keeps working exactly as it does today"*. Keep product names and file lists out of the prompt; have them ready for a user who asks. On a **no**, stop — nothing changes. On a **yes**:
 
 1. Set `components.stackPack: true` in `.claude/.wong-stack.json` — plus `components.appScaffold: true` when the offer included the starter site. The two are set together and only together; `appScaffold` without `stackPack` is not a valid state.
 2. Land the pack's drop-in files: obtain the [latest source](../wong-sync/references/latest-source.md), then use the [payload inventory](../wong-sync/references/payload-manifest.md) to copy the selected pack files that are absent, preserving existing files. With `appScaffold` set, that same copy-if-absent walk lands the [app scaffold](../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) too, so provisioning has something to deploy.
@@ -124,7 +124,7 @@ curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
 ```
 
 - **Exactly one** → use it, and say which one you're using.
-- **More than one** → **stop and ask.** List them by name and id, wait for an explicit choice, and **create nothing until you have it** — not a database, not a Worker, not a secret. Never infer the account from the repo name, the email, or the order the API returned them. A personal token commonly sees a personal account *and* a shared work one; one adopter's run came within a step of provisioning a project into an unrelated organization's account. Undoing that means deleting resources from an account you may not administer.
+- **More than one** → **stop and ask.** Make each account an option with its name and id, wait for an explicit choice, and **create nothing until you have it** — not a database, not a Worker, not a secret. Never infer the account from the repo name, the email, or the order the API returned them. A personal token commonly sees a personal account *and* a shared work one; one adopter's run came within a step of provisioning a project into an unrelated organization's account. Undoing that means deleting resources from an account you may not administer.
 - **Zero, with a valid token** → the Account Resources miss ([failure map](references/failure-map.md)). Explain, offer to re-check once they've saved it. Create nothing.
 
 Write the chosen id narrowly to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV`.
@@ -245,7 +245,7 @@ One runbook step is **unverified**: creating the Zero Trust organization on an a
 Provisioning creates real, billable resources, so removing them is part of this skill rather than a follow-up. Given a repo it provisioned:
 
 1. **Enumerate** what a run creates — the two databases, both Workers, and any Access resources — and show the list. Include any **service token `/verify` minted for itself** ([the walkthrough's self-repair](../../../wiki/development/staging-walkthrough.md#when-the-walk-cant-get-in) creates one named for the repo when it meets the login wall), so a credential this pack caused to exist is not left behind by the pack that removes it.
-2. **Confirm** before deleting anything. Name each resource; deleting a database destroys its data.
+2. **Confirm** before deleting anything, as a two-option question that names what each side does. Name each resource; deleting a database destroys its data.
 3. **Delete** what this repo created.
 4. **Report** what was removed *and what was skipped* — anything whose name doesn't match this repo, anything the user declined. Never delete by guess.
 

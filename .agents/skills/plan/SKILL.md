@@ -40,4 +40,4 @@ The template owns layout, navigation, annotations, and copy behavior. The visual
 
 ## Finish
 
-Write tasks grouped by the surface they touch, following the CLI's checkbox template. A task needing CI or a deployed preview names `/save` as its means of completion. Validate with `openspec validate "<name>" --strict --no-interactive`. Confirm the review exists and all apply-required artifacts are complete. Standalone `/plan` presents the page and stops. When invoked by `/apply`, return the exact change name and let `/apply` implement it.
+Write tasks grouped by the surface they touch, following the CLI's checkbox template. A task needing CI or a deployed preview names `/save` as its means of completion. Validate with `openspec validate "<name>" --strict --no-interactive`. Confirm the review exists and all apply-required artifacts are complete. Standalone `/plan` presents the page and stops, ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) — implement it now *(Recommended)*, revise the plan first, or stop here. When invoked by `/apply`, return the exact change name and let `/apply` implement it.

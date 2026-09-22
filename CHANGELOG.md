@@ -3,11 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
-## 16.5.0 — shorter review page planning
+## 16.6.0 — shorter review page planning
 
 - `/plan` starts one visual author in the background after the proposal draft and writes design and tasks while it runs. It places anchors and builds the page after the author returns its map.
 - The critic pass and revision round are removed. One browser structural check remains; reviewers use page annotations to report meaning and layout issues.
 - Each change draws one visual by default. Changes that add or restructure screens draw each screen, further visuals need a stated reason, and other bullets stay text. A plan update runs the author again only when an anchored bullet or its visual changes.
+
+## 16.5.0 — every ask is a choice, every reply offers the next step
+
+- New shared convention at `.claude/skills/explore/references/asking-the-user.md`: two or three real options, the recommended one first and labelled, a short tradeoff on each, and the host's own free-text path left open. Every skill links it instead of restating it.
+- The host tool order moves there too — Codex `request_user_input`, then Claude `AskUserQuestion`, then another structured equivalent, then numbered chat, with `assumed` defaults only where nobody can answer. `/explore` keeps its clarification budget.
+- Confirmations, offers, and selection menus are asks: the stack-pack offer, the account pick, the teardown confirmation, `/ship`'s fix-or-merge fork and two-changes stop, `/verify`'s ambiguous evidence, `/continue`'s dirty tree and ambiguous handle, and `/apply`'s unresolved candidate all state their options.
+- A reply that hands control back ends with the decision that continues the work, recommended first. A handoff inside an authorized chain continues without asking.
+- The convention governs form only. Actions a skill's invocation already authorizes are still taken without a prompt.
 
 ## 16.4.0 — fast no-op sync and bounded update analysis
 
