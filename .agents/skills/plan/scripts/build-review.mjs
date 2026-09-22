@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Assemble a portable review page from the shared viewer and change inputs.
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -82,7 +82,7 @@ export function buildReview(changeRoot, { requireCurrent = false } = {}) {
   return { kind: 'legacy', changed: writeIfDifferent(reviewPath, splice(old, proposal)) };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = process.argv[2];
   if (!root) { console.error('usage: build-review.mjs <change-root> [--require-current]'); process.exitCode = 2; }
   else {

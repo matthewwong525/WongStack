@@ -50,3 +50,5 @@ Primary surfaces are `.agents/skills/save/`, `.agents/skills/plan/`, and narrow 
 - **2026-09-22** — CI passed for a823fa85de5fa81b9f32d4cda076b77a57a79b29 on PR #94: payload regression/release checks, application tests, and deployment. The final CI task is complete. Session-note capture is skipped because the proposal and audit contain the session decisions without a separate surrounding-context fact to preserve.
 
 - **2026-09-22** — Ship archived the complete change after confirming all five delta requirement blocks already matched their main specs. This delegated archive checkpoint preserves version 16.3.0, the exact branch association, and the source-load report; no active change is recreated.
+
+- **2026-09-22** — Archive refresh exposed an existing builder entry-point issue under the repo alias. The builder now compares canonical paths, with process fixtures for both entry paths and invalid input. This narrow correction is required for the documented save refresh to run; viewer behavior is unchanged. The corrected archive commit must pass CI before merge.

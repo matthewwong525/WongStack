@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -111,4 +112,20 @@ test('wrapped bullets, flow lanes, screen states, and shared actions', () => fix
   assert.deepEqual(inspect(page), { ok: true, issues: [] });
   assert.ok(inspect(page.replace('state-empty', 'state-else')).issues.some(x => x.code === 'empty-screen-state'));
   assert.ok(inspect(page.replace('Ready</div>', 'Ready<button class="btn primary">Extra</button></div>')).issues.some(x => x.code === 'multiple-primary-actions'));
+}));
+
+
+test('documented builder alias executes generation and reports invalid input', () => fixture(root => {
+  for (const alias of ['.agents', '.claude']) {
+    const command = resolve(here, `../../${alias}/skills/plan/scripts/build-review.mjs`);
+    rmSync(join(root, 'review.html'), { force: true });
+    const result = spawnSync(process.execPath, [command, root, '--require-current'], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /review: current, updated/);
+    assert.deepEqual(inspect(readFileSync(join(root, 'review.html'), 'utf8')), { ok: true, issues: [] });
+  }
+  rmSync(join(root, 'review-visuals.html'));
+  const failure = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root, '--require-current'], { encoding: 'utf8' });
+  assert.equal(failure.status, 1);
+  assert.match(failure.stderr, /missing/);
 }));

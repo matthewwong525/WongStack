@@ -8,7 +8,7 @@
 - Save loads named-secret, prose-only, new-plan, and archive procedures when their conditions apply. Record capture, credential exclusion, delivery checks, and checkpoint boundaries remain.
 - A read-only helper returns structured branch and change evidence; existing candidate line calls remain compatible. The owning verb still resolves intent and ambiguity.
 - A deterministic renderer assembles PR records from the selected change and an agent-written summary, with exact tasks and active/archive links.
-- Review authors use the guide and relevant examples; the builder reads the fixed viewer. Structural checks and rendered critique remain required.
+- Review authors use the guide and relevant examples; the builder reads the fixed viewer. Structural checks and rendered critique remain required. The documented builder command now runs through the repo alias as well as its canonical path.
 - Meta-only source-load reports include conditional references, shared owners, and route inventories. Source reductions are not presented as measured runtime token savings.
 
 ## 16.2.2 — reliable improve survey command
