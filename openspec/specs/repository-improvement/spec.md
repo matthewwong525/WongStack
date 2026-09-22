@@ -46,7 +46,7 @@ The skill SHALL investigate and rank candidates with concrete evidence, impact, 
 - **THEN** the run reports no change and its coverage limits without manufacturing a cleanup
 
 ### Requirement: Explicit execution context
-Interactive runs SHALL present investigated candidates and ask one group of material questions before selection is handed off. Explicitly unattended runs SHALL use supported defaults, label them assumed, and defer decisions outside maintenance authority. An unanswered interactive question SHALL remain pending.
+Interactive runs SHALL present investigated candidates and ask one group of material questions before selection is handed off, using the shared ask convention. Explicitly unattended runs SHALL use supported defaults, label them assumed, and defer decisions outside maintenance authority. An unanswered interactive question SHALL remain pending. An interactive run that returns control to the user SHALL end with the supported next steps as options, the recommended one first.
 
 #### Scenario: Interactive user has not answered
 - **WHEN** a material selection question remains unanswered
@@ -55,6 +55,10 @@ Interactive runs SHALL present investigated candidates and ask one group of mate
 #### Scenario: External unattended job
 - **WHEN** the invocation or trusted host context explicitly establishes unattended execution
 - **THEN** the run can choose an eligible candidate with recorded assumptions without waiting for interactive answers
+
+#### Scenario: An audit-only run reports back
+- **WHEN** an interactive run finishes with findings and returns control to the user
+- **THEN** its report ends with the supported ways to continue as options, the recommended one first
 
 ### Requirement: One change through existing delivery
 A normal run SHALL pass one coherent selected intent to `/ship`, preserve all delivery gates, and report blockers. It SHALL require a clean dedicated current checkout and sufficient active-work context before delivery. It SHALL NOT take over unrelated work, perform its own git mutations, or select another fix after delivery starts.

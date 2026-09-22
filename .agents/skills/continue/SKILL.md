@@ -30,7 +30,7 @@ The input is a change reference, **optionally followed by an explicit instructio
 
 - **First token** = the handle — a **change name**, a **PR number**, or a PR **URL** (e.g. `/continue add-auth`, `/continue 57`, `/continue https://github.com/owner/repo/pull/57`).
 - **Everything after** (if anything) = an **explicit instruction** for what to do once the change is loaded — e.g. `/continue add-auth rebase onto main and fix the failing test`. Hold onto it for step 4; it overrides the default "work the tasks" behavior. Most calls are a bare handle — that's the normal case, and the tasks drive the work.
-- **No handle at all** → run `openspec list` and let the user pick from active changes. Use callable Codex **`request_user_input`**, callable Claude **`AskUserQuestion`**, or another host's equivalent structured question tool, in that order. If no structured tool is callable, use the numbered-chat fallback from [`/explore`](../explore/SKILL.md#question-mechanism). For each option, show the change's **`Status:`** line (read from its `proposal.md` header — `in-progress` / `blocked (<on what>)` / `ready-to-ship` / `parked`) alongside the name and task progress, so "what can I pick up?" is answerable from the menu. Don't guess.
+- **No handle at all** → run `openspec list` and let the user pick from active changes, as [an ordinary ask](../explore/references/asking-the-user.md) — the recommended option first, which is normally the change the branch or the most recent checkpoint points at. For each option, show the change's **`Status:`** line (read from its `proposal.md` header — `in-progress` / `blocked (<on what>)` / `ready-to-ship` / `parked`) alongside the name and task progress, so "what can I pick up?" is answerable from the menu. Don't guess.
 
 ### 2. Resolve the change and the branch
 
@@ -52,8 +52,8 @@ You need two things: the **change** (proposal + tasks) and the **branch** to che
   ```bash
   gh pr view <N> --json headRefName,url,title,state
   ```
-  Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"` after `git fetch origin`. Use its unique `active` candidate; if absent, use a unique `recorded` match, then `legacy.active`. If several remain, ask which change to resume. Read the selected folder after checkout; do not infer its name from the PR branch.
-- **Bare number that matches both a PR and an `openspec list` index** → ambiguous; ask which they mean before proceeding.
+  Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"` after `git fetch origin`. Use its unique `active` candidate; if absent, use a unique `recorded` match, then `legacy.active`. If several remain, ask which change to resume — [the options are the candidates](../explore/references/asking-the-user.md), each with its status and task progress. Read the selected folder after checkout; do not infer its name from the PR branch.
+- **Bare number that matches both a PR and an `openspec list` index** → ambiguous; ask which they mean before proceeding, as a two-option question naming the PR and the change it would load.
 
 It's fine if only one side exists (a save with no PR yet) — load the change; there's just no PR link to show.
 
@@ -67,9 +67,9 @@ git status --porcelain              # is the tree clean
 git fetch origin                    # a handed-off branch may exist only on the remote
 ```
 
-- Clean tree, branch not checked out → `git checkout "$BRANCH"` (git creates a local branch tracking `origin/$BRANCH` when it only exists on the remote — the fresh-clone handoff case), or `gh pr checkout <N>` which fetches too. If the proposal's Branch line names a branch absent locally and remotely, ask for the correct branch or PR rather than creating it.
+- Clean tree, branch not checked out → `git checkout "$BRANCH"` (git creates a local branch tracking `origin/$BRANCH` when it only exists on the remote — the fresh-clone handoff case), or `gh pr checkout <N>` which fetches too. If the proposal's Branch line names a branch absent locally and remotely, ask for the correct branch or PR rather than creating it — a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask), because only the user knows the name.
 - In a git worktree the branch may be checked out elsewhere — if checkout fails for that reason, tell the user and proceed read-only rather than forcing it.
-- Dirty tree → **don't** switch branches; surface the dirty state and ask how to proceed.
+- Dirty tree → **don't** switch branches; surface the dirty state and ask how to proceed, offering the supported ways out — checkpoint the current work with `/save` first *(Recommended)*, or resume read-only on this branch.
 - Change planned but never `/save`d (no branch anywhere) → stay on the current branch; `/save` will cut it.
 
 ### 4. Orient and continue

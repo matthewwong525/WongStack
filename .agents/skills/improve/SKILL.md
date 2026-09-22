@@ -53,7 +53,7 @@ Rank a short candidate list in the conversation. For each candidate, give `path:
 
 ## Select with explicit execution context
 
-An interactive run asks one group of one to three material multiple-choice questions after the ranked list and before any edit. Ask which candidate to take or a behavior choice that changes the result. Use [`/explore`'s question mechanism and choice format](../explore/SKILL.md#question-mechanism). Put the recommended option first, give each option a tradeoff, and keep the free-text path. Do not add filler questions. A pending question remains pending; silence and elapsed time do not turn it into an answer.
+An interactive run asks one group of one to three material multiple-choice questions after the ranked list and before any edit. Ask which candidate to take or a behavior choice that changes the result. Follow [the ask convention](../explore/references/asking-the-user.md) for the format and the tool. Do not add filler questions.
 
 An unattended run exists only when the invocation or trusted host context says so explicitly, for example:
 
@@ -88,4 +88,4 @@ The final stage records `Maintenance-Stage: <line-slug> 3 of 3` and has no `Main
 
 ## Report
 
-State **shipped**, **audit only**, **no change**, or **blocked**. Include the selected work and why it won, chosen and assumed answers, revision, recent-range source, rotation area, coverage gaps, stage status, important deferred decisions, and the evidence and links returned by `/ship`. Keep audit-only and no-change results in the caller's captured output. Do not create a report store or notification unless the user asked for one.
+State **shipped**, **audit only**, **no change**, or **blocked**. Include the selected work and why it won, chosen and assumed answers, revision, recent-range source, rotation area, coverage gaps, stage status, important deferred decisions, and the evidence and links returned by `/ship`. Keep audit-only and no-change results in the caller's captured output. Do not create a report store or notification unless the user asked for one. An interactive run closes with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) — normally the next candidate worth taking, recommended first. An unattended run reports and stops.

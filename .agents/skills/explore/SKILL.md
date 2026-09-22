@@ -16,12 +16,10 @@ It's a thinking partner, not a builder: use it to pull apart a problem, weigh op
 
 ## Questions during standalone exploration
 
-Use the [question mechanism](#question-mechanism) for material clarification questions throughout the discussion. Keep findings and explanations in chat.
+Ask material clarification questions in the shape [every WongStack ask takes](references/asking-the-user.md) — two or three options, the recommended one first, a tradeoff on each, the custom answer open. That page also owns which host tool carries the question. Keep findings and explanations in chat.
 
 - **Ask small groups of related questions.** Normally ask two or three together, within the active tool's capacity. Ask one when only one matters; add no filler.
 - **Wait before dependent follow-ups.** Questions in a group must be answerable together. Use the answers to shape the next group while the user remains in standalone `/explore`.
-- **Give useful choices every time.** Offer two or three meaningful options per question, with `(Recommended)` first and a short tradeoff for each option.
-- **Keep custom answers available.** Use built-in free text when the tool provides it; do not add a duplicate Other option. Preserve the meaning of a custom answer. If honest choices are not possible, use a structured free-text question instead of inventing options.
 - **Skip settled questions.** Read the conversation first. Use several groups when needed, without a fixed interview script.
 
 **What to ask — the 80/20 test:** ask only where a wrong guess makes the artifacts *wrong*, not merely *different*.
@@ -35,19 +33,13 @@ Use the [question mechanism](#question-mechanism) for material clarification que
 
 ## Question mechanism
 
-Use Codex **`request_user_input`** when it is callable. Otherwise, use Claude **`AskUserQuestion`** when it is callable, or use another host's equivalent structured question tool. Choose from the tools that the active host and collaboration mode make callable. Follow the selected tool's schema, mode restrictions, and actual limits; four questions is not a universal tool capacity.
-
-**An asynchronous call is still pending until answered.** Continue only independent work while waiting. Do not treat elapsed time or a preselected option as a user answer. Wait before dependent questions, decisions, or planning.
-
-**Interactive, but no usable question tool?** Show the same small group as numbered questions and choices in chat, including recommendations, tradeoffs, and a custom-answer path. Wait for the user's answers. Tool absence alone is not a non-interactive session.
-
-**Nobody can answer?** In a non-interactive session, take the recommended defaults and mark them **assumed** rather than chosen. Do not wait. The exit-capacity rule below separately permits assumptions for questions outside the final group.
+[Asking the user](references/asking-the-user.md) owns the format, the host tool order, and the fallbacks: Codex `request_user_input`, then Claude `AskUserQuestion`, then another structured equivalent, then numbered chat — and recommended defaults marked **assumed** only where nobody can answer. A pending question stays pending. `/explore` adds one allowance of its own: the exit-capacity rule below permits assumptions for questions outside the final group.
 
 `/explore` **writes nothing** — not the answers, not a file, not an artifact. Answers and assumptions stay in the conversation until [`/plan`](../plan/SKILL.md) records them in the proposal's Decision log.
 
 ## The exit round
 
-At the explore-to-plan transition, collect the unresolved material decisions in **at most one final group**, using the question mechanism and choice format above. With a structured tool, use one call; with chat only, use one numbered group.
+At the explore-to-plan transition, collect the unresolved material decisions in **at most one final group**, in the [same shape as every other ask](references/asking-the-user.md). With a structured tool, use one call; with chat only, use one numbered group.
 
 - **At most four questions, and no more than the tool supports.** Ask the decisions that most affect the artifacts. Mark remaining recommended answers as assumptions.
 - **Ask nothing already answered.** If the conversation settled every material decision, make no call and proceed to the summary.
@@ -62,7 +54,7 @@ This limit governs clarification for the selected work. Action authorization and
 
 1. **Read the conversation** for the intent, answers, and whether this transition's exit round already finished.
 2. **Investigate only the gap.** After a thorough standalone session, this can be empty.
-3. **Run the [exit round](#the-exit-round) only if needed and not already completed.** Resolve pending answers before dependent planning. Use the stated fallback when nobody can answer.
+3. **Run the [exit round](#the-exit-round) only if needed and not already completed.** Resolve pending answers before dependent planning. Use the [nobody-can-answer fallback](references/asking-the-user.md#which-tool-carries-it) when nobody can answer.
 4. **Summarize** the answers and assumptions, then **return to `/plan`**. Fill remaining and later gaps with supported assumptions; do not start another clarification round.
 
 Write no file and create no OpenSpec artifact. The summary is the return signal. Standalone `/explore` remains a flexible discussion with several related question groups for as long as the user wants to explore.

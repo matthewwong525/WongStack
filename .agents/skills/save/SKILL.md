@@ -6,7 +6,7 @@ user-invocable: true
 
 # /save
 
-The checkpoint owns branch creation, record maintenance, spec reconciliation, commit, push, PR updates, and CI recovery. Invocation authorizes these actions. Confirm actions outside this runbook. Never force push, bypass hooks, amend merged commits, or merge a PR. OpenSpec owns planning files and never runs Git. [The change loop](../../../wiki/development/the-change-loop.md) owns delivery policy; nothing builds locally as a prerequisite.
+The checkpoint owns branch creation, record maintenance, spec reconciliation, commit, push, PR updates, and CI recovery. Invocation authorizes these actions and they are taken without a prompt. Confirm actions outside this runbook, in [the ask format every skill uses](../explore/references/asking-the-user.md). Never force push, bypass hooks, amend merged commits, or merge a PR. OpenSpec owns planning files and never runs Git. [The change loop](../../../wiki/development/the-change-loop.md) owns delivery policy; nothing builds locally as a prerequisite.
 
 Input: `/save [note]`. A status-like note sets `in-progress`, `blocked (<reason>)`, `ready-to-ship`, or `parked`; other notes seed the dated Decision-log entry. Save captures session understanding for cold resume. Required facts must be in pushed repo files, with repo-relative paths.
 
@@ -85,3 +85,5 @@ CI failure uses the existing three-attempt fix/commit/push/wait loop. Other outc
 For a normal save, report branch and commit, PR link, maintained change or archive and Status, note written/updated or skipped, CI result (including fixes or uncertainty), and the discovered preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, using the actual single value. Name the active continue command only for an active change. Keep errors explicit and values excluded.
 
 A successful direct prose save uses only the two-line report from its reference. Save never merges any route; ship owns archive and merge.
+
+A save invoked directly by the user ends with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) after the gate line — normally continue the tasks, ship it, or stop here; on a failing or unverified gate, the supported ways to clear it. A save inside an authorized chain reports and returns without asking.
