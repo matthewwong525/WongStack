@@ -53,7 +53,7 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
     if (local && !existsSync(resolve(root, path))) continue;
     // Read proposal metadata only, never environment or source files.
     const text = local ? readFileSync(resolve(root, path), 'utf8') : git('show', `${sha}:${path}`);
-    proposals.set(name, text.match(/^\*\*Branch:\*\*\s*(.+?)\s*$/m)?.[1] ?? null);
+    proposals.set(name, text.match(/^\*\*Branch:\*\*[ \t]*([^\r\n]*)/m)?.[1].trim() || null);
   }
   const sources = new Map();
   const record = (path, source) => {

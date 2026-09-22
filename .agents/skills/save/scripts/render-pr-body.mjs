@@ -19,7 +19,7 @@ export function renderPrBody({ repoRoot = '.', changeRoot, mode, repoUrl, branch
   const path = relative(root, selected).split(sep).join('/');
   if (!path || path === '..' || path.startsWith('../') || isAbsolute(path)) throw new Error('change must be inside the selected repository');
   const proposal = readFileSync(resolve(selected, 'proposal.md'), 'utf8');
-  const status = proposal.match(/^\*\*Status:\*\*\s*(.+?)\s*$/m)?.[1];
+  const status = proposal.match(/^\*\*Status:\*\*[ \t]*([^\r\n]*)/m)?.[1].trim();
   if (!status) throw new Error('proposal is missing Status');
   const tasks = readFileSync(resolve(selected, 'tasks.md'), 'utf8');
   const summary = readFileSync(summaryFile, 'utf8').trim();

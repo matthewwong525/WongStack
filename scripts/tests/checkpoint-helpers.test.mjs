@@ -77,6 +77,8 @@ test('selected root and base, legacy matches, and invalid refs remain explicit',
   assert.deepEqual(result.archive, ['2026-09-22-editor-work']);
   assert.deepEqual(result.legacy.active, ['editor-work']);
   assert.deepEqual(result.legacy.archive, ['2026-09-22-editor-work']);
+  file(root, 'planning/changes/blank/proposal.md', '# Blank\n**Branch:**\neditor-work\n');
+  assert.deepEqual(checkpointEvidence({ repo: root, changesDir: 'planning/changes' }).recorded, []);
   assert.throws(() => checkpointEvidence({ repo: root, ref: 'missing' }));
   assert.throws(() => checkpointEvidence({ repo: root, base: 'missing' }));
   assert.throws(() => checkpointEvidence({ repo: root, changesDir: '../outside' }));
@@ -134,6 +136,9 @@ test('archive bodies omit unavailable links and rendering errors preserve output
   }
   assert.throws(() => writePrBody(options, join(root, options.changeRoot, 'tasks.md')), /input artifact/);
   file(root, `${options.changeRoot}/proposal.md`, '# No status\n');
+  assert.throws(() => writePrBody(options, output), /Status/);
+  assert.equal(readFileSync(output, 'utf8'), 'keep me');
+  file(root, `${options.changeRoot}/proposal.md`, '# Blank status\n**Status:**\nnext paragraph\n');
   assert.throws(() => writePrBody(options, output), /Status/);
   assert.equal(readFileSync(output, 'utf8'), 'keep me');
 });
