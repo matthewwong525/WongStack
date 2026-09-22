@@ -33,4 +33,4 @@
 - [x] 5.2 Bump `VERSION` (minor) and add a newest-first `CHANGELOG.md` entry.
 - [x] 5.3 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`; fix what they report.
 - [ ] 5.4 Run `openspec validate "add-structured-asks" --strict --no-interactive` and rebuild the review page with `node .claude/skills/plan/scripts/build-review.mjs openspec/changes/add-structured-asks --require-current`.
-- [ ] 5.5 Confirm CI is green through `/save` — nothing builds locally, so the checkpoint is the means of completion.
+- [x] 5.5 Confirm CI is green through `/save` — nothing builds locally, so the checkpoint is the means of completion.

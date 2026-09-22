@@ -1,6 +1,6 @@
 # Ask in choices, and always offer the next step
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** plan/choice-input-prompts-recommended
 **Open questions:** none
 
@@ -46,3 +46,4 @@
 - **2026-09-22** — Assumed no `payload-files.json` entry is needed: `explore` is a `skillDirs` entry, copied whole with its `references/`.
 - **2026-09-22** — The bounded explore exit round is complete. Remaining details use the supported assumptions recorded here and in the design.
 - **2026-09-22** — Implementation checkpoint: version 16.5.0. The convention landed at `.claude/skills/explore/references/asking-the-user.md` (58 lines); `/explore` kept its budget and lost the duplicated format and tool order; `/continue` and `/improve` stopped restating them. Ask sites in `/continue`, `/apply`, `/plan`, `/save`, `/ship`, `/verify`, `/improve`, `/wong-setup`, `/wong-sync`, and `/wong-cloudflare` now cite the convention and name their options. The payload link check passes in all four install shapes and the OpenSpec config check passes. CI is the remaining task.
+- **2026-09-22** — CI green on PR #96 (`SAVE_GATE_RESULT=SUCCESS`); every task is complete and the change is ready to ship.
