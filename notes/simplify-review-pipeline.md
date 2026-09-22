@@ -35,9 +35,18 @@ review page" section are both present.
 ## Verified at the checkpoint
 
 `check-openspec-config.mjs`, `check-payload-links.mjs` (no dead links), and
-`measure-context.mjs --check` all pass after the merge. The context measurement shows the
-intended drop — `visual-author` 6035 → 1181 words, `new-plan-save` 18248 → 10118 — and no
-route reports an unexplained increase. Nothing builds locally; CI is the gate.
+`measure-context.mjs --check` all pass after the merge. Nothing builds locally; CI is the gate.
+
+**Do not read `measure-context.mjs --check` output as this change's effect.** It reports each
+route's documented before→after from `scripts/fixtures/context-baseline.json`, which this change
+never touched — the fixture was last written by PR #94. So its headline `visual-author`
+6035 → 1181 words is #94 dropping `review-kit.html` (4801 words) from the author's route,
+reprinted on every run. This change's own contribution to loaded context is small:
+`review-author.md` 428 → 350 words and `plan/SKILL.md` 740 → 656, about 162 words total.
+The PR #97 summary originally misattributed #94's reduction to this change.
+
+The real payoff is wall-clock, not context: one background author replaces design → critic →
+revision in series, which is what the 8–15 minute measurement was about.
 
 Unrelated: `notes/simplify-review-opening.md` is a different change (PR #82, the review
 toolbar) despite the similar name.
