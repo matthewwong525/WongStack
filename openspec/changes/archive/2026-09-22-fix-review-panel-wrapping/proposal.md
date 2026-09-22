@@ -1,6 +1,6 @@
 # Wrap long paths in the review page's change list
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** fix/review-kit-overflow
 **Open questions:** none
 
@@ -38,3 +38,5 @@ At desktop width the review page's left change list clips any bullet that names 
 - **2026-09-22** — Assumed no archived review is rebuilt; the payload rule forbids rewriting historical archives, and the kit's own rule says new behavior applies to pages generated from the current kit.
 - **2026-09-22** — The bounded explore pass asked nothing: the user's selection settled the scope, and the remaining details are the assumptions above.
 - **2026-09-22** — Implementation checkpoint: version 16.5.1. `.panel code` now carries `overflow-wrap:anywhere`. Measured on this change's own page, built from the fixed kit: the change list and both Why paragraphs report equal scroll and client width at 1440×1000, and nothing overflows at 390×844. A critic pass on the review page found the visual had drawn an invented bullet and used a strikethrough line that read as a deletion; one revision round fixed both. CI is the remaining task.
+- **2026-09-22** — CI green on PR #98 (`SAVE_GATE_RESULT=SUCCESS`); every task is complete and the change is ready to ship.
+- **2026-09-22** — Archive checkpoint: archived as `openspec/changes/archive/2026-09-22-fix-review-panel-wrapping/` with `--skip-specs`, the `ux-wireframes` delta having already been reconciled at the implementation checkpoint.

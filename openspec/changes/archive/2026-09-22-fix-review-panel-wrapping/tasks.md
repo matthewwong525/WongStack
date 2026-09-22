@@ -9,4 +9,4 @@
 - [x] 2.1 Bump `VERSION` (patch) and add a newest-first `CHANGELOG.md` entry.
 - [x] 2.2 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`; fix what they report.
 - [x] 2.3 Validate with `openspec validate "fix-review-panel-wrapping" --strict --no-interactive`.
-- [ ] 2.4 Confirm CI is green through `/save` — nothing builds locally, so the checkpoint is the means of completion.
+- [x] 2.4 Confirm CI is green through `/save` — nothing builds locally, so the checkpoint is the means of completion.
