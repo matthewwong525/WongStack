@@ -1,0 +1,158 @@
+<section class="visual flow" id="classifier" data-kind="flow">
+  <p class="caption">The preflight uses repository facts only. It reads five inputs, compares the selected payload at two revisions, and emits bounded metadata.</p>
+  <div class="frame">
+    <div class="flow-branches">
+      <div class="flow-branch" data-target-id="input-installed-revision">
+        <h3>Installed revision <span class="tag">Input</span></h3>
+        <p>The install record identifies the source commit that the target received.</p>
+        <details><summary>Details</summary><p>Actor: preflight. Action: read the recorded commit. Result: the old payload has a stable baseline.</p></details>
+      </div>
+      <div class="flow-branch" data-target-id="input-latest-source">
+        <h3>Latest clean source <span class="tag">Input</span></h3>
+        <p>The refreshed checkout supplies the current revision and inventory.</p>
+        <details><summary>Details</summary><p>Actor: preflight. Action: inspect the clean checkout. Result: the new payload has a trusted source.</p></details>
+      </div>
+      <div class="flow-branch" data-target-id="input-selection">
+        <h3>Selected categories <span class="tag">Input</span></h3>
+        <p>The manifest choices limit the payload that belongs to this target.</p>
+        <details><summary>Details</summary><p>Actor: preflight. Action: resolve categories and exclusions at both revisions. Result: additions and removals stay visible.</p></details>
+      </div>
+      <div class="flow-branch" data-target-id="input-mappings">
+        <h3>Recorded skill names <span class="tag">Input</span></h3>
+        <p>Local names map source skills to their installed target paths.</p>
+        <details><summary>Details</summary><p>Actor: preflight. Action: apply recorded mappings. Result: renamed skills are compared at the correct path.</p></details>
+      </div>
+      <div class="flow-branch" data-target-id="input-target">
+        <h3>Target units <span class="tag">Input</span></h3>
+        <p>Files and the marked root block show the current local state.</p>
+        <details><summary>Details</summary><p>Actor: preflight. Action: read selected target units. Result: local adaptations stay distinct from old unchanged content.</p></details>
+      </div>
+    </div>
+    <p class="flow-connector">↓ Inputs rejoin in one deterministic comparison</p>
+    <div class="step flow-card" data-target-id="compare-union" data-mark="union">
+      <h3>Compare the payload union <span class="tag">New</span></h3>
+      <p>Expand the installed and current selections, then compare their union. <i class="callout">1</i></p>
+      <details><summary>Details</summary><p>Actor: preflight. Action: compare each logical unit across installed source, current source, and target. Result: modifications, additions, removals, mapping changes, and manifest changes are all classified.</p></details>
+    </div>
+    <p class="flow-connector">↓</p>
+    <div class="step flow-card" data-target-id="classify-local-state">
+      <h3>Classify each changed unit <span class="tag">New</span></h3>
+      <p>Assign missing, installed-equivalent, latest-equivalent, or locally adapted.</p>
+      <details><summary>Details</summary><p>Actor: preflight. Action: compare target values with both source values. Result: local authorship is evidence for exploration and never permission to overwrite.</p></details>
+    </div>
+    <p class="flow-connector">↓</p>
+    <div class="step flow-card" data-target-id="emit-report">
+      <h3>Emit versioned JSON <span class="tag">New</span></h3>
+      <p>Return status, revision facts, counts, path classifications, and diagnostics.</p>
+      <details><summary>Details</summary><p>Actor: preflight. Action: write metadata to standard output. Result: the target stays unchanged and no file body or diff hunk enters the report.</p></details>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The union is the safety boundary. It keeps a removed unit or a newly selected unit visible even when only one revision lists it.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual flow" id="sync-path" data-kind="flow" data-states="after today">
+  <p class="caption">A proven no-op stops before AI work. Updates get a narrow handoff, and uncertainty stops with an explicit error.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-refresh">
+          <h3>Refresh the clean source <span class="tag">Retained</span></h3>
+          <p>Fetch the latest WongStack source before the comparison.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: refresh the clean checkout. Result: the comparison uses the latest available source.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-preflight" data-mark="preflight">
+          <h3>Run the payload preflight <span class="tag">New</span></h3>
+          <p>Classify the selected payload without writing the target. <i class="callout">1</i></p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: run the helper from the clean checkout once. Result: the command receives one complete <code>current</code>, <code>update</code>, or <code>error</code> report.</p></details>
+        </div>
+        <p class="flow-connector">↓ Choose the reported status</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="branch-current">
+            <h3>If current <span class="tag">Fast path</span></h3>
+            <p>Report the source revision and selected-unit count. Do not invoke <code>/explore</code>.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: accept a complete current result. Result: a no-op ends after deterministic work.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="branch-update">
+            <h3>If update <span class="tag">Narrow handoff</span></h3>
+            <p>Start <code>/explore</code> with changed-unit metadata and relevant paths.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: pass the complete report and prior user choices. Result: exploration starts at the real delta and expands only for a named dependency or impact.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="branch-error">
+            <h3>If error <span class="tag">Fail closed</span></h3>
+            <p>Show the diagnostic. Do not claim current and do not send a partial delta.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: stop on retrieval or classification uncertainty. Result: the user sees the exact failure and the target remains unchanged.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ All status paths rejoin when this sync command ends</p>
+        <div class="step flow-card" data-target-id="after-finish">
+          <h3>Finish this sync run <span class="tag">Outcome</span></h3>
+          <p>The command ends current, hands an update to the normal workflow, or ends with an explicit diagnostic.</p>
+          <details><summary>Details</summary><p>Actor: user. Action: review the outcome. Result: no path silently widens scope or writes target payload files.</p></details>
+        </div>
+      </div>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-refresh">
+          <h3>Refresh the clean source <span class="tag">Current</span></h3>
+          <p>Fetch the latest WongStack source.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: refresh the clean checkout. Result: the latest source is available.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-explore">
+          <h3>Start broad exploration <span class="tag">Removed</span></h3>
+          <p>Ask AI to inspect the target even when no selected payload unit changed.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: hand a broad update request to <code>/explore</code>. Result: a no-op and a real update both pay model investigation time.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-finish">
+          <h3>Finish after investigation <span class="tag">Current</span></h3>
+          <p>The user waits for exploration before learning whether useful update work exists.</p>
+          <details><summary>Details</summary><p>Actor: user. Action: wait for the broad scan. Result: repeat syncs remain slow even when the installation is current.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The preflight is the only new decision point. It removes AI work only when repository facts prove the no-op.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual tree" id="coverage-surface" data-kind="tree">
+  <p class="caption">The helper, workflow text, fixtures, and release metadata ship as one payload release.</p>
+  <div class="frame">
+    <ul>
+      <li class="add"><code>.claude/skills/wong-sync/scripts/</code> <span class="why">new dependency-free preflight helper</span></li>
+      <li class="edit"><code>.claude/skills/wong-sync/SKILL.md</code> <span class="why">current fast path, bounded update handoff, explicit error stop</span></li>
+      <li class="edit"><code>.claude/skills/wong-sync/references/</code> <span class="why">source, inventory, manifest, and mapping guidance</span></li>
+      <li class="add" data-mark="fixtures"><code>scripts/tests/</code> <span class="why">temporary Git repositories and synthetic large-payload fixture <i class="callout">1</i></span></li>
+      <li class="edit"><code>VERSION</code> <span class="why">payload release version</span></li>
+      <li class="edit"><code>CHANGELOG.md</code> <span class="why">newest-first release note</span></li>
+    </ul>
+    <table data-target-id="fixture-matrix">
+      <thead><tr><th>Fixture group</th><th>Cases</th><th>Required proof</th></tr></thead>
+      <tbody>
+        <tr><td>Fast path</td><td>No-op, one-file update</td><td>Current skips exploration; update lists only changed metadata</td></tr>
+        <tr><td>Selection</td><td>Manifest evolution, removal, exclusion</td><td>The union detects every selected addition and removal</td></tr>
+        <tr><td>Mapping</td><td>Mapped skill, marked root block</td><td>Logical units resolve to the correct target location</td></tr>
+        <tr><td>Local state</td><td>Local adaptation, already-latest, missing</td><td>Local work is classified and never overwritten</td></tr>
+        <tr><td>Failure</td><td>Invalid commit, unsafe path, read or Git error</td><td>Every uncertain result fails closed</td></tr>
+        <tr><td>Performance</td><td>Synthetic large payload</td><td>Preflight stays within a generous CI budget and omits file bodies</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The fixtures measure only deterministic preflight time. Network and model latency are variable, so structural assertions prove that the current path removes the model handoff.</li>
+    </ol>
+  </div>
+</section>
