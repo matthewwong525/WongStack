@@ -12,4 +12,4 @@
 
 - [x] 3.1 Bump `VERSION` to 16.7.0 and add a newest-first `CHANGELOG.md` entry
 - [x] 3.2 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`; confirm `grep` finds no remaining claim that sync invokes `/explore` in the skill, `AGENTS.md`, or `README.md`
-- [ ] 3.3 Get a green CI run through `/save`
+- [x] 3.3 Get a green CI run through `/save`

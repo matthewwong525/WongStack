@@ -1,6 +1,6 @@
 # Sync an update straight to a reviewable plan
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** wong-sync-run-plan
 **Open questions:** none
 
@@ -43,3 +43,5 @@ A bare `/wong-sync` that finds an update stops in `/explore`: you answer its que
 - **2026-09-23** — Assumed skill text only: the handoff is one verb name in a runbook, so no deterministic code is needed.
 - **2026-09-23** — Assumed the change name `wong-sync-plans-update`; the branch `wong-sync-run-plan` already existed for this session.
 - **2026-09-23** — Implementation checkpoint: version 16.7.0. `/wong-sync` now invokes `/plan` on the `update` route; `current` and `error` invoke nothing. The skill description, `references/adapt.md`, the `AGENTS.md` intro and `WONG-STACK` rule, the README table, and the CHANGELOG header now say sync plans the update. The pre-16 migration now goes into the plan's tasks, and the handoff asks for the install-record update as the last task. Deltas were reconciled into `openspec/specs/`, and the `wong-sync` Purpose now says planning. The payload link and config checks pass. The `app-scaffold` spec already fails strict validation on `main` and is out of scope. CI is the remaining task.
+- **2026-09-23** — CI green on PR #99 (`SAVE_GATE_RESULT=SUCCESS`); every task is complete and the change is ready to ship.
+- **2026-09-23** — Archive checkpoint: archived as `openspec/changes/archive/2026-09-23-wong-sync-plans-update/` with `--skip-specs`, because the three `wong-sync` deltas were already reconciled into `openspec/specs/` at the implementation checkpoint.
