@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
 
+## 16.7.0 — defects reported by ClaymooApp and WongOS
+
+- The sync preflight reads a symlinked payload file through its link. This source stores `CLAUDE.md` as a link to `AGENTS.md`, so the `WONG-STACK` block extract read the link text and every sync stopped with `missing-block-marker`. A file link now resolves one hop to its target blob; links to folders, to other links, or to nothing are not payload units.
+- `--max-changes` reaches the preflight. The flag was parsed under the wrong key, so both the limit and its positive-integer check were ignored.
+- New optional install-record field `components.docsPath`: a target that keeps its wiki pages in one other folder maps `wiki/development/` and `wiki/` payload paths into it, and the UI category probe finds `ux-principles.md` there. Two payload paths that map to one target path fail with `path-collision`.
+- `preview-url.sh` rejects a bare provider apex such as `https://workers.dev` in its free-text methods. A deploy bot's logo link no longer hides the real preview URL.
+- `secrets:check` compares queue consumers by count, not queue name, so a correctly twinned consumer passes. A staging consumer that reads a production queue gives a warning.
+- The section-link example in `wiki/wiki-style.md` points at a real `contributing.md` heading.
+- Local patches this release replaces, safe to drop on the next `/wong-sync` by taking the upstream file: ClaymooApp's two `preflight.mjs` edits (`logicalSourcePath` and the mode-`120000` skip), its `preflight.test.ts`, and its `components.ui` workaround (keep `components.docsPath`); WongOS's `drop_bare_apex` in `preview-url.sh` and `checkQueueConsumers` in `scripts/cf-secrets.mjs`.
+
 ## 16.6.1 — long paths wrap in the review page's change list
 
 - `.panel code` in the review kit gets `overflow-wrap:anywhere`, so a path or identifier too wide for the left column breaks onto the next line instead of being clipped at the panel edge. Measured on the v16.5.0 review page: 355px of content in a 302px column becomes 302px in 302px.

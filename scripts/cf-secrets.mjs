@@ -396,12 +396,11 @@ function bindingsIn(block) {
     if (key === "vars") {
       names = Object.keys(value);
     } else if (key === "queues") {
-      // Producer and consumer are separate halves; a missing consumer is how
-      // staging messages end up on the production consumer.
-      names = [
-        ...(value.producers ?? []).map((p) => `producer:${p.binding ?? p.queue}`),
-        ...(value.consumers ?? []).map((c) => `consumer:${c.queue}`),
-      ];
+      // A producer has a stable `binding` name that survives twinning, so it
+      // compares by name like every other binding. A consumer has only the
+      // queue it reads, and the twin rule requires that queue to DIFFER between
+      // environments, so consumers compare by count in `checkQueueConsumers`.
+      names = (value.producers ?? []).map((p) => `producer:${p.binding ?? p.queue}`);
     } else if (Array.isArray(value)) {
       names = value.map((entry) => entry.binding ?? entry.name).filter(Boolean);
     } else {
@@ -449,6 +448,8 @@ function checkBindings(config) {
     }
   }
 
+  problems.push(...checkQueueConsumers(config, staging));
+
   // The quiet one: copied into the environment but never repointed. A shared
   // downstream service is a legitimate if rare choice, so this warns.
   for (const entry of staging.services ?? []) {
@@ -456,6 +457,31 @@ function checkBindings(config) {
     if (twin && twin.service === entry.service) {
       warn(
         `service binding '${entry.binding}' targets '${entry.service}' in both production and env.${STAGING_ENV} — staging code would call the production service.`,
+      );
+    }
+  }
+
+  return problems;
+}
+
+/** Queue consumers: staging needs as many as production, each on its twin. Returns failures. */
+function checkQueueConsumers(config, staging) {
+  const production = config.queues?.consumers ?? [];
+  const stagingConsumers = staging.queues?.consumers ?? [];
+  const problems = [];
+
+  // A missing consumer is how staging messages end up on the production Worker.
+  if (stagingConsumers.length < production.length) {
+    problems.push(
+      `env.${STAGING_ENV} declares ${stagingConsumers.length} queue consumer(s) but production declares ${production.length} — an environment inherits no binding it does not redeclare, so a message produced on staging would be handled by the production Worker.`,
+    );
+  }
+
+  const productionQueues = new Set(production.map((c) => c.queue));
+  for (const entry of stagingConsumers) {
+    if (productionQueues.has(entry.queue)) {
+      warn(
+        `queue consumer in env.${STAGING_ENV} reads '${entry.queue}', which production also consumes — the binding was copied into the environment but never repointed at its twin.`,
       );
     }
   }

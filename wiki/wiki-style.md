@@ -37,7 +37,7 @@ Links are the connective tissue of a progressive-disclosure tree: the more the p
 
 - Naming another doc? Link it (`[the secrets convention](development/secrets.md)`) — never just say its name in plain text.
 - Naming an app page, dashboard, or external tool? Link it (`[the deploy dashboard](https://…)`).
-- Pointing at one **section** of a page, not the whole thing? Append the heading anchor: `[sending a change upstream](contributing.md#the-bar)`. The anchor is the heading text **lowercased, spaces → hyphens, punctuation dropped** (so `## The bar — what belongs upstream` becomes `#the-bar--what-belongs-upstream`). Linking the exact section beats linking the page and making the reader hunt. The same `#anchor` works within a page (`[see below](#adding-a-page--the-checklist)`).
+- Pointing at one **section** of a page, not the whole thing? Append the heading anchor: `[what belongs upstream](contributing.md#the-bar-does-this-belong-in-every-wongstack-repo)`. The anchor is the heading text **lowercased, spaces → hyphens, punctuation dropped** (so `## The bar: does this belong in *every* WongStack repo?` becomes `#the-bar-does-this-belong-in-every-wongstack-repo`). Linking the exact section beats linking the page and making the reader hunt. The same `#anchor` works within a page (`[see below](#adding-a-page--the-checklist)`).
 - Every page should point **up** to its hub, **down** to anything it references, and **sideways** to the sibling pages it hands off to or depends on.
 
 Err on the side of more links — a reader who doesn't need them loses nothing, and a reader who does shouldn't have to go searching. (The one exception: never put links inside a `mermaid` diagram — keep those visual-only; see below.)

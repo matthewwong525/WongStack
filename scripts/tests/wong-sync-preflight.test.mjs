@@ -286,3 +286,100 @@ test('a target symlink cannot escape the repository', t => {
   symlinkSync(outside, join(f.target, 'plain.txt'));
   assert.throws(() => f.inspect(), error => error.code === 'unsafe-path');
 });
+
+function linkedPairFixture(t, reversed) {
+  const manifest = inventory({
+    core: { files: ['AGENTS.md'], blocks: [{ file: 'CLAUDE.md', markers: ['WONG-STACK:BEGIN', 'WONG-STACK:END'] }] },
+  });
+  const f = fixture(t, { manifest });
+  const latest = 'source header\n<!-- WONG-STACK:BEGIN -->\nblock latest\n<!-- WONG-STACK:END -->\nsource footer\n';
+  const [real, link] = reversed ? ['CLAUDE.md', 'AGENTS.md'] : ['AGENTS.md', 'CLAUDE.md'];
+  rmSync(join(f.source, 'CLAUDE.md'));
+  write(f.source, real, latest);
+  symlinkSync(real, join(f.source, link));
+  f.commit('link the instruction pair');
+  write(f.target, 'AGENTS.md', latest);
+  return f;
+}
+
+test('a symlinked payload file is read through its link, not as link text', t => {
+  const report = linkedPairFixture(t, false).inspect();
+  assert.equal(report.status, 'update');
+  const block = report.changes.find(change => change.kind === 'block');
+  assert.equal(block.sourcePath, 'CLAUDE.md');
+  assert.equal(block.localState, 'installed-equivalent');
+  assert.equal(report.changes.find(change => change.sourcePath === 'AGENTS.md').localState, 'latest-equivalent');
+});
+
+test('a reversed linked pair classifies the same as the forward pair', t => {
+  const strip = report => report.changes.map(({ unit, operation, localState }) => ({ unit, operation, localState }));
+  assert.deepEqual(strip(linkedPairFixture(t, true).inspect()), strip(linkedPairFixture(t, false).inspect()));
+});
+
+test('directory and dangling links never become payload units', t => {
+  const f = fixture(t, { manifest: inventory({ core: { dirs: ['docs'] } }) });
+  write(f.source, 'docs/page.md', 'page\n');
+  write(f.source, 'other/inner.md', 'inner\n');
+  symlinkSync('../other', join(f.source, 'docs/folder-link'));
+  symlinkSync('missing.md', join(f.source, 'docs/dangling-link'));
+  f.commit('add links');
+  const report = f.inspect();
+  assert.deepEqual(report.changes.map(change => change.sourcePath), ['docs/page.md']);
+});
+
+test('WongStack as its own source reads its linked CLAUDE.md block', t => {
+  const target = mkdtempSync('/tmp/wong-sync-self-');
+  t.after(() => rmSync(target, { recursive: true, force: true }));
+  write(target, '.claude/.wong-stack.json', `${JSON.stringify({ commit: git(repo, 'rev-parse', 'HEAD'), components: { skills: ['wong-sync'] } })}\n`);
+  const report = preflight({ target, source: repo });
+  assert.notEqual(report.status, 'error');
+});
+
+test('--max-changes reaches the preflight from the command line', t => {
+  const f = fixture(t);
+  write(f.source, 'plain.txt', 'plain latest\n');
+  write(f.source, '.agents/skills/alpha/SKILL.md', 'alpha latest\n');
+  f.commit('change two units');
+  const cli = limit => JSON.parse(run(repo, process.execPath, [canonicalHelper, '--target', f.target, '--source', f.source, '--max-changes', limit], { allowFailure: true }).stdout);
+  assert.equal(cli('0').diagnostics[0]?.code, 'invalid-argument');
+  assert.equal(cli('1').diagnostics[0]?.code, 'change-limit');
+  assert.equal(cli('2').status, 'update');
+});
+
+function docsPathFixture(t, files, docsPath = 'docs/development') {
+  const manifest = inventory({ core: { skillDirs: ['alpha'], files } });
+  const f = fixture(t, { manifest, components: { skills: ['alpha'], docsPath } });
+  rmSync(join(f.target, 'wiki'), { recursive: true, force: true });
+  write(f.target, 'docs/development/ux-principles.md', 'ui base\n');
+  return f;
+}
+
+test('docsPath maps wiki pages into one folder and finds the relocated UI page', t => {
+  const f = docsPathFixture(t, ['wiki/contributing.md', 'wiki/development/the-change-loop.md']);
+  write(f.source, 'wiki/contributing.md', 'contributing base\n');
+  write(f.source, 'wiki/development/the-change-loop.md', 'loop base\n');
+  f.updateRecord({ commit: f.commit('add wiki pages') });
+  write(f.target, 'docs/development/contributing.md', 'contributing base\n');
+  write(f.target, 'docs/development/the-change-loop.md', 'loop base\n');
+
+  write(f.source, 'wiki/contributing.md', 'contributing latest\n');
+  write(f.source, 'wiki/development/the-change-loop.md', 'loop latest\n');
+  write(f.source, 'wiki/ux-principles.md', 'ui latest\n');
+  f.commit('change wiki pages');
+  const report = f.inspect();
+  assert.ok(report.selection.categories.includes('ui'));
+  assert.deepEqual(report.changes.map(change => [change.sourcePath, change.targetPath, change.localState]), [
+    ['wiki/contributing.md', 'docs/development/contributing.md', 'installed-equivalent'],
+    ['wiki/development/the-change-loop.md', 'docs/development/the-change-loop.md', 'installed-equivalent'],
+    ['wiki/ux-principles.md', 'docs/development/ux-principles.md', 'installed-equivalent'],
+  ]);
+});
+
+test('docsPath refuses colliding pages and unsafe folders', t => {
+  const collide = docsPathFixture(t, ['wiki/page.md', 'wiki/development/page.md']);
+  assert.throws(() => collide.inspect(), error => error.code === 'path-collision'
+    && error.message.includes('wiki/page.md') && error.message.includes('wiki/development/page.md'));
+  for (const unsafe of ['../outside', '/absolute']) {
+    assert.throws(() => docsPathFixture(t, [], unsafe).inspect(), error => error.code === 'unsafe-path');
+  }
+});
