@@ -1,0 +1,34 @@
+<section class="visual flow" id="preflight" data-kind="flow" data-states="after today">
+  <p class="caption">One <code>/wong-sync</code> preflight run against <code>~/WongOS</code>. In the WongStack source, <code>CLAUDE.md</code> is a symlink to <code>AGENTS.md</code>, and <code>.claude</code> is a symlink to <code>.agents</code>.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="after-run"><h3>Run the preflight</h3><p><code>/wong-sync</code> runs the preflight on the target and the source.</p><details><summary>Details</summary><p>Command: <code>node preflight.mjs --target ~/WongOS --source &lt;WongStack&gt;</code>. The preflight reads the installed commit and the current commit of the source.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-list"><h3>List the source tree <span class="tag">Changed</span></h3><p>The preflight sees that <code>CLAUDE.md</code> is a symlink.</p><details><summary>Details</summary><p><code>treeAt</code> runs <code>git ls-tree -r</code>. The entry <code>120000 blob … CLAUDE.md</code> has mode <code>120000</code>, so the preflight marks it as a symlink. Today the mode is kept but not checked.</p></details></div>
+      <p class="flow-connector">↓ What does the link name?</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="after-resolve-file"><h3>If it names a file <span class="tag">Changed</span></h3><p>Use the blob of the real file in the same tree. <i class="callout">1</i></p><details><summary>Details</summary><p>The link text <code>AGENTS.md</code> resolves from the folder of the link. The preflight finds <code>AGENTS.md</code> in the same tree and reads that blob. The logical path stays <code>CLAUDE.md</code>.</p></details></div>
+        <div class="flow-branch" data-target-id="after-resolve-dir"><h3>If it names a folder <span class="tag">Unchanged</span></h3><p>Ignore the link. <i class="callout">2</i></p><details><summary>Details</summary><p>The <code>.claude</code> link names the <code>.agents</code> tree, not a blob. The preflight does not follow it. The <code>.agents/</code> → <code>.claude/</code> alias in <code>logicalSourcePath</code> already maps each file under it.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Both paths rejoin here</p>
+      <div class="step flow-card" data-target-id="after-extract"><h3>Extract the WONG-STACK block <span class="tag">Changed</span></h3><p>The block extract reads the real text and finds both markers.</p><details><summary>Details</summary><p><code>extractBlock</code> gets the content of <code>AGENTS.md</code>. The begin and end <code>WONG-STACK</code> markers are present, so the block is compared with the target block.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-report"><h3>Report the result <span class="tag">Changed</span></h3><p>Status is <code>update</code> or <code>current</code>, with 0 diagnostics.</p><details><summary>Details</summary><p>The report lists the changed units. <code>/wong-sync</code> continues to <code>/explore</code>, and the normal workflow plans the update.</p></details></div>
+    </div></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-run"><h3>Run the preflight</h3><p><code>/wong-sync</code> runs the preflight on the target and the source.</p><details><summary>Details</summary><p>Command: <code>node preflight.mjs --target ~/WongOS --source &lt;WongStack&gt;</code>. This run was reproduced against <code>~/WongOS</code> on 2026-09-23.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-list"><h3>List the source tree</h3><p><code>CLAUDE.md</code> looks like a normal file.</p><details><summary>Details</summary><p><code>git ls-tree -r</code> gives <code>120000 blob … CLAUDE.md</code>. <code>treeAt</code> keeps every blob and does not check the mode.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-blob"><h3>Read the blob</h3><p>The content is the link text, not the file.</p><details><summary>Details</summary><p><code>blob</code> runs <code>git show &lt;rev&gt;:CLAUDE.md</code>. The result is the 9 bytes <code>AGENTS.md</code>.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-extract"><h3>Extract the WONG-STACK block</h3><p>The text has no markers, so the extract fails.</p><details><summary>Details</summary><p><code>extractBlock</code> is called with <code>required: true</code>. It stops with <code>missing-block-marker</code>: "CLAUDE.md at &lt;commit&gt; lacks the required block markers".</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-report"><h3>Report an error</h3><p>Status is <code>error</code>. The sync stops before <code>/explore</code>.</p><details><summary>Details</summary><p>The report has one diagnostic, <code>missing-block-marker</code>, and the exit code is 2. No changes are listed. The user cannot sync.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes"><ol>
+    <li>The preflight resolves a file symlink in the same tree at the same commit. It does not read the working copy. It works for either file of the pair: if <code>CLAUDE.md</code> is the real file and <code>AGENTS.md</code> is the link, the preflight reads <code>CLAUDE.md</code> directly.</li>
+    <li>Directory symlinks stay out of scope. The existing <code>.agents/</code> → <code>.claude/</code> alias already covers the only directory link in the payload.</li>
+  </ol></div>
+</section>

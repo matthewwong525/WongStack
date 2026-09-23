@@ -7,7 +7,7 @@ import {
   readFileSync,
   realpathSync,
 } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
@@ -79,18 +79,56 @@ function logicalSourcePath(gitPath) {
   return gitPath;
 }
 
+// A symlink in a Git tree is a blob whose content is the link text, so a payload
+// file stored as a link (this source's CLAUDE.md -> AGENTS.md) must be read
+// through its target. Resolution is one hop, by Git path: links to folders,
+// to other links, or to nothing are dropped, and a real file always wins.
+function readLinkTargets(source, links) {
+  if (links.length === 0) return [];
+  const result = spawnSync('git', ['-C', source, 'cat-file', '--batch'], {
+    input: `${links.map(link => link.oid).join('\n')}\n`,
+    maxBuffer: MAX_GIT_OUTPUT,
+  });
+  if (result.status !== 0) fail('git-failed', 'git cat-file failed while reading symlinks');
+  const out = result.stdout;
+  const targets = [];
+  let offset = 0;
+  for (const link of links) {
+    const headerEnd = out.indexOf(0x0a, offset);
+    const size = Number(out.toString('utf8', offset, headerEnd).split(' ')[2]);
+    if (!Number.isSafeInteger(size)) fail('git-failed', `cannot read symlink ${link.gitPath}`);
+    targets.push(out.toString('utf8', headerEnd + 1, headerEnd + 1 + size));
+    offset = headerEnd + 1 + size + 1;
+  }
+  return targets;
+}
+
 function treeAt(source, revision) {
   const raw = git(source, ['ls-tree', '-r', '-z', revision], { buffer: true });
   const entries = new Map();
+  const byGitPath = new Map();
+  const links = [];
   for (const record of raw.toString('utf8').split('\0').filter(Boolean)) {
     const match = record.match(/^(\d+) (\w+) ([0-9a-f]+)\t([\s\S]+)$/);
     if (!match || match[2] !== 'blob') continue;
     const [, mode, , oid, gitPath] = match;
-    const logicalPath = logicalSourcePath(gitPath);
     const candidate = { mode, oid, gitPath };
+    if (mode === '120000') {
+      links.push(candidate);
+      continue;
+    }
+    byGitPath.set(gitPath, candidate);
+    const logicalPath = logicalSourcePath(gitPath);
     const existing = entries.get(logicalPath);
     if (!existing || gitPath.startsWith('.agents/')) entries.set(logicalPath, candidate);
   }
+  readLinkTargets(source, links).forEach((linkText, index) => {
+    const link = links[index];
+    const targetPath = posix.normalize(posix.join(posix.dirname(link.gitPath), linkText));
+    const resolved = byGitPath.get(targetPath);
+    const logicalPath = logicalSourcePath(link.gitPath);
+    if (resolved && !entries.has(logicalPath)) entries.set(logicalPath, resolved);
+  });
   return entries;
 }
 
@@ -163,10 +201,16 @@ function skillMappings(record) {
   return mapping;
 }
 
+function docsPathOf(record) {
+  const value = record.components?.docsPath;
+  return value === undefined ? null : safeRelativePath(value, 'components.docsPath');
+}
+
 function selectedCategories(inventory, record, target) {
   const selected = ['core'];
   const components = record.components ?? {};
-  const hasUi = components.ui === true || components.appScaffold === true || existsSync(join(target, 'wiki/ux-principles.md'));
+  const uiPage = targetPathFor('wiki/ux-principles.md', new Map(), docsPathOf(record));
+  const hasUi = components.ui === true || components.appScaffold === true || existsSync(join(target, uiPage));
   if (hasUi && inventory.ui) selected.push('ui');
   if (components.stackPack === true && inventory.pack) selected.push('pack');
   if (components.stackPack === true && components.appScaffold === true && inventory.scaffold) selected.push('scaffold');
@@ -182,7 +226,14 @@ function excluded(path, excludes) {
   return excludes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
 }
 
-function targetPathFor(logicalPath, mapping) {
+// components.docsPath keeps the wiki pages in one target folder: pages under
+// wiki/development/ and wiki/ both land in it, the more specific prefix first.
+function targetPathFor(logicalPath, mapping, docsPath = null) {
+  if (docsPath) {
+    for (const prefix of ['wiki/development/', 'wiki/']) {
+      if (logicalPath.startsWith(prefix)) return `${docsPath}/${logicalPath.slice(prefix.length)}`;
+    }
+  }
   const match = logicalPath.match(/^\.claude\/skills\/([^/]+)(\/.*)?$/);
   if (!match) return logicalPath;
   const localName = mapping.get(match[1]) ?? match[1];
@@ -193,7 +244,9 @@ function expandInventory(source, revision, tree, inventory, record, target) {
   validateInventory(inventory, revision);
   const categories = selectedCategories(inventory, record, target);
   const mapping = skillMappings(record);
+  const docsPath = docsPathOf(record);
   const files = new Map();
+  const targets = new Map();
   const blocks = new Map();
   const excludes = [];
 
@@ -211,7 +264,11 @@ function expandInventory(source, revision, tree, inventory, record, target) {
       existing.categories = [...new Set([...existing.categories, category])].sort();
       return;
     }
-    files.set(path, { key: `file:${path}`, kind: 'file', sourcePath: path, targetPath: targetPathFor(path, mapping), categories: [category] });
+    const targetPath = targetPathFor(path, mapping, docsPath);
+    const owner = targets.get(targetPath);
+    if (owner) fail('path-collision', `${owner} and ${path} both map to ${targetPath}`);
+    targets.set(targetPath, path);
+    files.set(path, { key: `file:${path}`, kind: 'file', sourcePath: path, targetPath, categories: [category] });
   };
 
   for (const category of categories) {
@@ -318,7 +375,7 @@ function parseArgs(argv) {
     if (!['--target', '--source', '--record', '--max-changes'].includes(arg)) fail('invalid-argument', `unknown argument ${arg}`);
     const value = argv[++index];
     if (value === undefined) fail('invalid-argument', `${arg} needs a value`);
-    options[arg.slice(2)] = value;
+    options[arg.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
   }
   return options;
 }

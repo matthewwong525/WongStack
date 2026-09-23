@@ -19,8 +19,20 @@ REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
 SHA=$(git rev-parse HEAD 2>/dev/null)
 [ -z "$SHA" ] && exit 0
 
+# Apex domains of known preview hosts. A deploy always sits on a SUBDOMAIN of
+# one of these; the apex on its own is the provider's marketing site.
+PREVIEW_HOSTS='vercel\.app|netlify\.app|netlify\.com|pages\.dev|workers\.dev|onrender\.com|render\.com|github\.io|surge\.sh|fly\.dev|herokuapp\.com|amplifyapp\.com'
+
 # Hosts/keywords that signal a deploy preview rather than a generic CI link.
-PREVIEW_RE='preview|deploy|vercel\.app|netlify\.app|netlify\.com|pages\.dev|workers\.dev|onrender\.com|render\.com|github\.io|surge\.sh|fly\.dev|herokuapp\.com|ngrok|amplifyapp\.com'
+PREVIEW_RE="preview|deploy|ngrok|$PREVIEW_HOSTS"
+
+# Drop candidates whose host is exactly a provider apex. Methods 2-4 match free
+# text, and a deploy bot's logo links the apex (Cloudflare's links
+# https://workers.dev) above the table with the real URL. This only rejects:
+# a constructed URL can answer 200 for a commit that was never deployed.
+drop_bare_apex() {
+  grep -viE "^https?://($PREVIEW_HOSTS)([/?#]|$)"
+}
 
 emit() { # emit <url> <method>
   if [ -n "${1:-}" ] && [ "$1" != "null" ]; then
@@ -39,17 +51,17 @@ done
 
 # 2. Commit statuses target_url
 URL=$(gh api "repos/$REPO/commits/$SHA/statuses?per_page=100" --jq '.[].target_url' 2>/dev/null \
-  | grep -Ei "$PREVIEW_RE" | grep -viE 'github\.com' | head -1)
+  | grep -Ei "$PREVIEW_RE" | grep -viE 'github\.com' | drop_bare_apex | head -1)
 emit "$URL" "commit status"
 
 # 3. Check-run details_url
 URL=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" --jq '.check_runs[].details_url' 2>/dev/null \
-  | grep -Ei "$PREVIEW_RE" | grep -viE 'github\.com' | head -1)
+  | grep -Ei "$PREVIEW_RE" | grep -viE 'github\.com' | drop_bare_apex | head -1)
 emit "$URL" "check run"
 
 # 4. PR comment bodies
 BODY=$(gh pr view --json comments --jq '.comments[].body' 2>/dev/null)
-URL=$(echo "$BODY" | grep -oiE "https?://[a-z0-9._-]*($PREVIEW_RE)[^ )\"'>]*" | head -1)
+URL=$(echo "$BODY" | grep -oiE "https?://[a-z0-9._-]*($PREVIEW_RE)[^ )\"'>]*" | drop_bare_apex | head -1)
 emit "$URL" "PR comment"
 
 exit 0
