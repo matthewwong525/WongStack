@@ -1,0 +1,81 @@
+<section class="visual flow" id="sync-route" data-kind="flow" data-states="after today">
+  <p class="caption">What a bare <code>/wong-sync</code> does after its preflight — after this change, and today.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-preflight">
+          <h3>Refresh the source and run the preflight <span class="tag">Kept</span></h3>
+          <p>Get the latest WongStack source. Classify the selected payload.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: refresh the clean checkout and run the helper once. Result: one <code>current</code>, <code>update</code>, or <code>error</code> report.</p></details>
+        </div>
+        <p class="flow-connector">↓ Choose the reported status</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-current">
+            <h3>If current <span class="tag">Kept</span></h3>
+            <p>Report the version and stop. No change folder.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: report the source version, commit, and unit count. Result: the sync ends. No verb is invoked.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-update">
+            <h3>If update <span class="tag">Changed</span> <i class="callout">1</i></h3>
+            <p>Invoke <code>/plan</code> with the source context and full report.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: invoke <code>/plan</code>, not <code>/explore</code>. Result: <code>/plan</code> receives the same source context and the complete preflight report.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-error">
+            <h3>If error <span class="tag">Kept</span></h3>
+            <p>Report the diagnostics and stop.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: report every diagnostic. Result: the sync ends. No verb is invoked.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Only the update path continues</p>
+        <div class="step flow-card" data-target-id="after-explore">
+          <h3>Answer one round of questions <span class="tag">Changed</span></h3>
+          <p><code>/plan</code> runs its bounded <code>/explore</code> first.</p>
+          <details><summary>Details</summary><p>Actor: <code>/explore</code>, inside <code>/plan</code>. Action: ask one group of at most four update questions. Result: the answers go into the plan. Nothing is drafted before the answers.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-draft">
+          <h3>Draft the change and its review <span class="tag">New</span></h3>
+          <p><code>/plan</code> writes the change and <code>review.html</code>, then validates them.</p>
+          <details><summary>Details</summary><p>Actor: <code>/plan</code>. Action: draft the OpenSpec change folder and its review page. Result: a reviewable plan in the target. <code>/save</code> still owns the commit.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-review">
+          <h3>Stop at the review <span class="tag">New</span> <i class="callout">2</i></h3>
+          <p>Read the page. Choose implement, revise, or stop.</p>
+          <details><summary>Details</summary><p>Actor: user. Action: read <code>review.html</code> and choose the next step. Result: nothing in the target payload changes until you choose to implement.</p></details>
+        </div>
+      </div>
+      <p><a href="#/sync-route/today">See the update path today</a></p>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-preflight">
+          <h3>Preflight finds an update <span class="tag">Kept</span></h3>
+          <p>The <code>current</code> and <code>error</code> paths are the same as after.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: refresh the source and run the helper. Result: an <code>update</code> report.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-explore">
+          <h3>Invoke <code>/explore</code> <span class="tag">Removed</span></h3>
+          <p>Exploration asks its questions, then stops.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-sync</code>. Action: invoke <code>/explore</code> with the report. Result: the sync ends in exploration. No plan and no review page exist.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-manual-plan">
+          <h3>Run <code>/plan</code> yourself <span class="tag">Removed</span></h3>
+          <p>You must start the next verb to see what the update changes.</p>
+          <details><summary>Details</summary><p>Actor: user. Action: run <code>/plan</code> manually. Result: only then does <code>review.html</code> exist.</p></details>
+        </div>
+      </div>
+      <p><a href="#/sync-route/after">See the update path after this change</a></p>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>Only the <code>update</code> route changes. It invokes <code>/plan</code>, and <code>/plan</code> runs a bounded <code>/explore</code>. The update questions are still asked, as one group of at most four, before anything is drafted.</li>
+      <li>A bare sync stops here, the same as a standalone <code>/plan</code>. An earlier request to implement or ship still continues through that verb.</li>
+    </ol>
+  </div>
+</section>

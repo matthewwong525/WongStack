@@ -2,23 +2,23 @@
 
 ## Purpose
 
-Keep an installed repo current with WongStack by passing the latest source and local installation context into the normal exploration workflow.
+Keep an installed repo current with WongStack by passing the latest source and local installation context into the normal planning workflow, which ends at a reviewable plan.
 
 ## Requirements
 
 ### Requirement: Sync enters the normal workflow with current source context
 
-`/wong-sync` SHALL obtain the upstream default branch in a separate clean local checkout and run a deterministic preflight against the selected payload before it invokes `/explore`. When the preflight proves that the selected payload has no upstream delta from the recorded installed commit, sync SHALL report that the selected payload is current and SHALL NOT invoke `/explore`. When an update exists, `/explore` SHALL receive the target repo, source path, source commit, installed version when known, user intent, and the complete classified set of changed payload units. Sync SHALL preserve local work and component choices as planning inputs and SHALL leave target writes to the normal workflow. A retrieval or preflight failure SHALL be explicit and SHALL NOT be reported as current.
+`/wong-sync` SHALL obtain the upstream default branch in a separate clean local checkout and run a deterministic preflight against the selected payload before it invokes `/plan`. When the preflight proves that the selected payload has no upstream delta from the recorded installed commit, sync SHALL report that the selected payload is current and SHALL NOT invoke `/plan` or `/explore`. When an update exists, `/plan` SHALL receive the target repo, source path, source commit, installed version when known, user intent, and the complete classified set of changed payload units. Sync SHALL preserve local work and component choices as planning inputs and SHALL leave target writes to the normal workflow. A retrieval or preflight failure SHALL be explicit and SHALL NOT be reported as current.
 
 #### Scenario: Installed repo requests an update
 - **WHEN** the preflight finds one or more changes in the payload selected for an installed repo
-- **THEN** `/explore` receives the latest source context and the classified changed payload units for that update
+- **THEN** `/plan` receives the latest source context and the classified changed payload units for that update
 - **AND** the entry skill writes no verdict record or payload files
 
 #### Scenario: Selected payload is current
 - **WHEN** the latest source has no change to any payload unit selected for the target since its recorded commit
 - **THEN** sync reports that the selected payload is current
-- **AND** it does not invoke `/explore`
+- **AND** it does not invoke `/plan` or `/explore` and creates no change folder
 
 #### Scenario: Source cannot be refreshed
 - **WHEN** the upstream checkout cannot be brought current
@@ -30,7 +30,7 @@ Keep an installed repo current with WongStack by passing the latest source and l
 
 #### Scenario: Preflight cannot prove a result
 - **WHEN** the recorded base commit, manifest data, selected source path, or required target input cannot be read safely
-- **THEN** sync reports the diagnostic and does not invoke `/explore` with an incomplete delta or report the target as current
+- **THEN** sync reports the diagnostic and does not invoke `/plan` with an incomplete delta or report the target as current
 
 ### Requirement: Preflight classifies only the selected payload delta
 

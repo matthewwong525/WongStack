@@ -1,7 +1,15 @@
 # Changelog
 
 `/wong-sync` reads the entries newer than your installed version
-(`.claude/.wong-stack.json`) as context for exploring the update. Newest first.
+(`.claude/.wong-stack.json`) as context for planning the update. Newest first.
+
+## 16.7.0 — `/wong-sync` ends at a reviewable plan
+
+- When the preflight finds an update, `/wong-sync` invokes `/plan` instead of `/explore`. `/plan` runs its bounded `/explore` first, so you answer one round of at most four questions, then it drafts the change and its `review.html`.
+- A bare sync stops at the review and offers the next step: implement, revise, or stop. Nothing in the target changes until you choose to implement. An earlier request to implement or ship still continues through that verb.
+- The `current` and `error` routes do not change: they report and stop, and they create no change.
+- `/wong-setup` still hands off to `/explore`.
+- The first sync that brings in this release still runs your old installed `/wong-sync`, so it stops in `/explore`. Later syncs end at the review.
 
 ## 16.6.1 — long paths wrap in the review page's change list
 
