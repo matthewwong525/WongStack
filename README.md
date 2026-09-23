@@ -68,7 +68,7 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
 | `/improve [area]` | Review recent work and one rotating area, then ship one supported maintenance improvement. Add `--audit-only` for findings without edits. |
-| `/wong-sync` | Get the latest WongStack source and explore the update through the normal workflow. |
+| `/wong-sync` | Get the latest WongStack source and plan the update, ending at a review page you can read. |
 
 To put the project online as a website people can open, run `/wong-cloudflare`. It offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Optional, and you can run it long after setup.
 

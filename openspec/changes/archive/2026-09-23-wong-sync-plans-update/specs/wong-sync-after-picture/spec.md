@@ -1,10 +1,4 @@
-# wong-sync-after-picture Specification
-
-## Purpose
-
-Use the normal planning skill to produce update artifacts, with the same structure and review flow used for other changes.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Planning uses the normal proposal format
 
