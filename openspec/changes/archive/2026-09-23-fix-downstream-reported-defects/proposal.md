@@ -1,6 +1,6 @@
 # Fix the defects that ClaymooApp and WongOS reported
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** fix-bugs-resolve-upstream-prs
 **Open questions:** none
 
@@ -51,3 +51,4 @@ ClaymooApp and WongOS each found WongStack defects during their own work and que
 - **2026-09-23** — Implemented all fixes test-first. Each of the 12 new cases failed against the old files for the reported reason: `missing-block-marker`, link text as content, `--max-changes` ignored, `docsPath` unmapped, `https://workers.dev` returned, and `consumer:app-jobs` reported missing. All pass now. Locally, every suite passes except `review.test.mjs`, which needs `jsdom` from `app/node_modules`; CI installs it. The link, OpenSpec config, and context checks pass.
 - **2026-09-23** — Read-only preflight runs with the fixed script: `~/WongOS` (15.0.0) → `update`, 46 changed units, 0 diagnostics (it was `error` / `missing-block-marker` before); `~/ClaymooApp` (16.6.0, `docsPath` set) → `update`, 1 changed unit, 0 diagnostics.
 - **2026-09-23** — The self-source test records `HEAD` rather than an earlier commit: CI's `actions/checkout` is shallow, so no earlier commit exists there. The `CLAUDE.md` block is extracted on every run regardless of commit distance, so the test still fails on the old file.
+- **2026-09-23** — Archive checkpoint for `/ship`. The task-driven save passed CI on PR #100 (`4bc6de2`), which closed task 4.4. Deltas were synced into `openspec/specs/` at that save, so the archive used `--skip-specs`. `openspec validate --specs` still reports `app-scaffold` as failing; that file is unchanged from `main` and outside this change.

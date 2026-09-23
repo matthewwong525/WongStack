@@ -23,4 +23,4 @@
 - [x] 4.1 Bump `VERSION` to 16.7.0 and add a newest-first `CHANGELOG.md` entry. Name each fix, the new `docsPath` field, and the local patch that each downstream repo can retire on its next `/wong-sync`: ClaymooApp's two `preflight.mjs` edits and `components.ui` workaround; WongOS's `preview-url.sh` and `cf-secrets.mjs` edits.
 - [x] 4.2 Run `node --test scripts/tests/*.test.mjs`, `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/measure-context.mjs --check`.
 - [x] 4.3 Run the fixed preflight against `~/WongOS` and `~/ClaymooApp` read-only, and record the status and diagnostic counts in the Decision log.
-- [ ] 4.4 Validate with `openspec validate fix-downstream-reported-defects --strict --no-interactive` and complete the CI gate through `/save`.
+- [x] 4.4 Validate with `openspec validate fix-downstream-reported-defects --strict --no-interactive` and complete the CI gate through `/save`.
