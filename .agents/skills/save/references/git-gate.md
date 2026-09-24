@@ -30,7 +30,14 @@ node "$ROOT/.claude/skills/save/scripts/render-pr-body.mjs" \
   --summary-file "$SUMMARY_FILE" --output "$BODY_FILE"
 ```
 
-Set `HANDOFF_MODE` to `active` or `archive`. Pass `--preview-url "$PREVIEW_URL"` only when discovery returned a URL. Set `ROOT` from the repo and `REPO_URL` from `gh repo view --json url`. The renderer reads Status and the exact task checklist; review/preview sections are conditional. Archive mode links the archived path and offers no continue command. Rendering errors preserve the previous body and stop publication; inspect the output file for correctness and credential exclusion before using `gh pr create` or `gh pr edit` with `--body-file "$BODY_FILE"`. Remove temporary files after use. A prose-only PR fallback has no change and supplies its own body file.
+Set `HANDOFF_MODE` to `active` or `archive`. Pass `--preview-url "$PREVIEW_URL"` only when discovery returned a URL. Set `ROOT` from the repo and `REPO_URL` from `gh repo view --json url`. The renderer reads Status and the exact task checklist; review/preview sections are conditional. Archive mode links the archived path and offers no continue command. Rendering errors preserve the previous body and stop publication; inspect the output file for correctness and credential exclusion before you publish it. A new PR uses `gh pr create --body-file "$BODY_FILE"`. An open PR takes the body through the REST endpoint:
+
+```bash
+PR_NUMBER=$(gh pr view --json number --jq .number)
+gh api -X PATCH "repos/{owner}/{repo}/pulls/$PR_NUMBER" -F "body=@$BODY_FILE" --silent
+```
+
+Not `gh pr edit`: older `gh` releases (2.46, for one) query the retired Projects (classic) API there, fail with a GraphQL error, and leave the old body. Remove temporary files after use. A prose-only PR fallback has no change and supplies its own body file.
 
 ## 2 — wait for checks, auto-fix on failure
 

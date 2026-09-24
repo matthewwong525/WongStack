@@ -1,0 +1,28 @@
+<section class="visual flow" id="pr-body" data-kind="flow" data-states="after today">
+  <p class="caption">Publishing the PR body during /save — the steps the git gate runs, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="after-render"><h3>Render the body file</h3><p>/save writes the PR body to a file.</p><details><summary>Details</summary><p>Actor: /save. Action: render the body to <code>$BODY_FILE</code>. Result: the body is ready. Not changed.</p></details></div>
+      <p class="flow-connector">↓ Is a PR open for this branch?</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="branch-new-pr"><h3>If no PR is open</h3><p>Open a new PR with the body file.</p><details><summary>Details</summary><p>Actor: git gate. Action: <code>gh pr create --body-file</code>. Result: a new PR with the body. Not changed.</p></details></div>
+        <div class="flow-branch" data-target-id="branch-open-pr" data-mark="rest-patch"><h3>If a PR is open <span class="tag">Changed</span> <i class="callout">1</i></h3><p>Send the body file to the REST endpoint.</p><details><summary>Details</summary><p>Actor: git gate. Action: <code>gh api -X PATCH "repos/{owner}/{repo}/pulls/$PR_NUMBER" -F "body=@$BODY_FILE"</code>. Result: the PR body is replaced. Replaces <code>gh pr edit --body-file</code>.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Both paths join here</p>
+      <div class="step flow-card" data-target-id="after-result"><h3>Body is current <span class="tag">Changed</span> <i class="callout">2</i></h3><p>One call updates the body. No recovery turn.</p><details><summary>Details</summary><p>Actor: git gate. Action: continue to the CI wait. Result: the PR shows the new body.</p></details></div>
+    </div></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-render"><h3>Render the body file</h3><p>/save writes the PR body to a file.</p><details><summary>Details</summary><p>Actor: /save. Action: render the body to <code>$BODY_FILE</code>. Result: the body is ready.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-edit"><h3>Edit the open PR</h3><p>The git gate runs <code>gh pr edit --body-file</code>.</p><details><summary>Details</summary><p>Actor: git gate. Action: <code>gh pr edit --body-file "$BODY_FILE"</code>. Result: <code>gh</code> 2.46 also queries the retired Projects (classic) API.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-fail"><h3>The call fails</h3><p>A GraphQL error. The old body stays.</p><details><summary>Details</summary><p>Failed on 36 of 43 recorded calls. Result: the PR shows the old body.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-recover"><h3>The agent recovers</h3><p>Extra turns at about 220k tokens of context.</p><details><summary>Details</summary><p>Actor: agent. Action: read the error, then fall back to <code>gh api -X PATCH</code> by itself. Result: the body updates, at the cost of the extra turns.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes"><ol>
+    <li>Only the open-PR path changes. It uses the REST endpoint, which does not touch the Projects (classic) API. <code>-F body=@file</code> sends the file verbatim; this was checked on <code>gh</code> 2.46.</li>
+    <li>The fix removes the recovery turns. Each one re-read about 220k tokens of context.</li>
+  </ol></div>
+</section>

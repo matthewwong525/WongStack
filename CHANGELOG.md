@@ -3,6 +3,11 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 16.7.1 — `/save` updates the PR body through the REST API
+
+- The git gate updates an open pull request's body with `gh api -X PATCH "repos/{owner}/{repo}/pulls/$PR_NUMBER" -F "body=@$BODY_FILE"`. `gh pr create --body-file` still opens a new one.
+- `gh pr edit` failed on 36 of 43 recorded calls: `gh` 2.46 queries the retired Projects (classic) API there and stops with a GraphQL error, so the body stayed old and each checkpoint spent extra turns on recovery. The REST call does not touch that API and works on every `gh` version.
+
 ## 16.7.0 — `/wong-sync` ends at a reviewable plan
 
 - When the preflight finds an update, `/wong-sync` invokes `/plan` instead of `/explore`. `/plan` runs its bounded `/explore` first, so you answer one round of at most four questions, then it drafts the change and its `review.html`.
