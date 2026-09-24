@@ -40,3 +40,4 @@ New `scripts/measure-usage.mjs` and `scripts/tests/usage-measurement.test.mjs`, 
 - **2026-09-24** — Did not reopen the 2026-09-02 decision to keep the `wiki-style.md`, `voice.md`, and `notes/README.md` imports eager. The note gives the data for reopening it: 49% of sessions that load them write no wiki or notes file.
 - **2026-09-24** — Tests: the 4 new cases pass. Of the other script suites, only `review.test.mjs` fails locally, because it needs `jsdom` from `app/node_modules`; CI installs it. The payload link check and the OpenSpec config check pass.
 - **2026-09-24** — `/ship` found no change record for this branch. The session established code, so the change was authored at ship time through `/save`'s new-plan fallback.
+- **2026-09-24** — Task-completion checkpoint: PR #101 passed CI (`f2ef1f5`), which closed task 4.2. The deltas were synced into `openspec/specs/` at that save, so the archive uses `--skip-specs`.

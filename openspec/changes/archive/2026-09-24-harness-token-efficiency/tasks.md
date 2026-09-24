@@ -15,4 +15,4 @@
 ## 4. Checks
 
 - [x] 4.1 Run the script tests, `scripts/check-payload-links.mjs`, and `scripts/check-openspec-config.mjs`
-- [ ] 4.2 CI passes on the pull request (via `/save`)
+- [x] 4.2 CI passes on the pull request (via `/save`)
