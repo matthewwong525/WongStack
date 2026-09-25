@@ -20,4 +20,4 @@
 
 - [x] 4.1 Bump `VERSION` to 18.1.0 and add a newest-first `CHANGELOG.md` entry for `/routine`.
 - [x] 4.2 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`. Fix any dead link.
-- [ ] 4.3 Run `/save` so CI runs the suite with `routine.test.mjs`. The task is done when CI passes.
+- [x] 4.3 Run `/save` so CI runs the suite with `routine.test.mjs`. The task is done when CI passes.

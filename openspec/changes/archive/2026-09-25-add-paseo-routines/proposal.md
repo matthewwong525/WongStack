@@ -1,6 +1,6 @@
 # Schedule recurring work through Paseo
 
-**Status:** implemented — waiting for CI
+**Status:** ready-to-ship
 **Branch:** explore/wongstack-vs-grokbot-muse
 **Open questions:** none
 
@@ -55,3 +55,6 @@ This change adds `.claude/skills/routine/` (`SKILL.md` and `scripts/routine.mjs`
 - **2026-09-25** — Changed during apply: when Paseo is missing or its daemon does not answer, the reply prints the `routine.mjs create` command to run later, plus the Paseo app steps. It does not print a raw `paseo schedule create` command, because that command makes a local-isolation schedule, which the spec forbids.
 - **2026-09-25** — Live check (tasks 1.2 and 3.3) on this host with Paseo 0.9.2. `routine.mjs create` made schedule `cb8d3d86` through `connectScheduleClient(selectDaemonTarget({}))`. The stored target is `cwd: /root/WongStack`, `isolation: worktree`, `modeId: bypassPermissions`, `archiveOnFinish: false`. `run` started one agent in a new Paseo worktree (`horrible-bird`), branched from `main` at `8609a37`, which equals `origin/main`. It replied `hello` and was kept, not archived. Local and remote `main` were equal, so this does not show whether Paseo bases worktrees on local `main` or on `origin/main`. The schedule is deleted and its workspace archived. After the cleanup below, a second create, change, and delete cycle (`c94d2e14`) also passed and left nothing behind.
 - **2026-09-25** — Ran `/simplify`. Applied: one cron helper for create and change, one `paseo` lookup, a flat command dispatch, `inspect` calls in parallel, only the tested helpers exported, and shared constants in the tests. Skipped: moving list and manage to the private client, so that a Paseo client change breaks only `create`; a claim that the public `inspect --json` has no `cwd`, which is false on 0.9.2 (the live `ls` from ClaymooApp filtered correctly); limiting the duplicate-name check to this repo, because default names include the repo folder; and the `.claude/` path in the retry command, which is the payload convention.
+- **2026-09-25** — Saved the implementation on PR #104 (`12daf5a`), and CI passed, which completes task 4.3. The new `paseo-routines` spec is reconciled into `openspec/specs/`.
+- **2026-09-25** — Distilled facts before the archive: no reusable fact. The change's three live facts are a user preference and two open threads about Paseo (an upstream `--isolation` flag, and which ref a schedule worktree branches from). They are not reusable process.
+- **2026-09-25** — Archive checkpoint from `/ship`: the change moved to `openspec/changes/archive/2026-09-25-add-paseo-routines` with `--skip-specs`, because the main `paseo-routines` spec already equals the delta.
