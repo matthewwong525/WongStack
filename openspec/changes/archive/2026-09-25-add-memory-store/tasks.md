@@ -9,7 +9,7 @@
 - [x] 2.2 Extend `/wong-cloudflare` to install and run in every repo: offer and provision the `<repo>-memory` database, add the private bucket only when R2 is enabled (else record no bucket and name the dashboard step), and add it on a later run once R2 is on, apply the migrations, mint `CLOUDFLARE_MEMORY_TOKEN` with only D1 permissions plus R2 when a bucket exists, write it to `.env`, record `components.memory`, and report "current" on a re-run. Keep the stack-pack part gated on `components.stackPack`.
 - [x] 2.3 Add `CLOUDFLARE_MEMORY_TOKEN` to `.env.example`, with `wiki/development/memory.md` owning the name (it ships to every repo, while `wiki/stack/` is pack-only) and `wiki/stack/cloudflare-credentials.md` linking to it. State that it never goes into CI.
 - [x] 2.4 Provision this repo's memory store: the `wongstack-memory` database and private bucket, the schema, and `components.memory` in `.agents/.wong-stack.json`.
-- [ ] 2.5 Create `CLOUDFLARE_MEMORY_TOKEN` for this repo by hand (this repo's `CLOUDFLARE_API_TOKEN` is account-scoped and cannot mint tokens): account-scoped, `D1 Write` and `Workers R2 Storage Write` on this account only, written to the primary worktree's `.env`. Verify with `memory.mjs digest`.
+- [x] 2.5 Create `CLOUDFLARE_MEMORY_TOKEN` for this repo by hand (this repo's `CLOUDFLARE_API_TOKEN` is account-scoped and cannot mint tokens): account-scoped, `D1 Write` and `Workers R2 Storage Write` on this account only, written to the primary worktree's `.env`. Verify with `memory.mjs digest`.
 
 ## 3. Memory script
 
@@ -39,8 +39,8 @@
 
 ## 6. Migration of this repo's notes
 
-- [x] 6.1 Extract facts from the 43 notes, oldest first, with supersedes against earlier output, and save the result as `openspec/changes/add-memory-store/migration.json` for review.
-- [x] 6.2 Import with `memory.mjs import`, and verify that 43 `migration` sessions exist and, when the store has a bucket, that each note's text is in R2.
+- [x] 6.1 Extract facts from the 43 notes (44 with the note `main` gained during the change), oldest first, with supersedes against earlier output, and save the result as `openspec/changes/add-memory-store/migration.json` for review.
+- [x] 6.2 Import with `memory.mjs import`, and verify that one `migration` session exists per note (44) and, when the store has a bucket, that each note's text is in R2.
 - [x] 6.3 Delete `notes/`, and remove `notes/README.md` from the payload rule's `paths:` list.
 
 ## 7. Docs and release
@@ -48,4 +48,4 @@
 - [x] 7.1 Write `wiki/development/memory.md`: facts and their types, the digest and when it loads, search, the background run and what it costs, consolidation, `#private`, the token and who can read what, a store without R2, the embeddings trigger, and the known risks. Link it from `wiki/development/README.md`.
 - [x] 7.2 Update `AGENTS.md` (the "Where context lives" table and the prose rule), `README.md`, `wiki/agent-knowledge-center.md` (the surfaces, the digest, and `/ship` as the one bridge), `wiki/development/the-change-loop.md` (allowlist `wiki/**`), `wiki/development/required-tools.md` (the Cloudflare account, R2 as optional with its payment method, and the Node scripts), and `wiki/stack/README.md` (memory is not part of the opt-in pack).
 - [x] 7.3 Bump `VERSION` to 17.0.0 and add a `CHANGELOG.md` entry that names the required account, R2 as optional, the token, the removed `notes/`, the digest, and the sync migration.
-- [ ] 7.4 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `openspec validate add-memory-store --strict --no-interactive`. Then run `/save` so CI runs the new tests.
+- [x] 7.4 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `openspec validate add-memory-store --strict --no-interactive`. Then run `/save` so CI runs the new tests.

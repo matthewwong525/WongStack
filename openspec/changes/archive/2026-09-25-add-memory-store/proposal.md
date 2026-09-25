@@ -1,6 +1,6 @@
 # Add a fact memory for every session
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/auto-memory-consolidation
 **Open questions:** none
 
@@ -18,7 +18,7 @@ A session's context enters the repo only when someone runs `/save`, and many ses
 - **The same background run consolidates.** When 24 hours and 5 captured sessions have passed since the last consolidation, it merges duplicate facts, supersedes contradicted ones newest-wins, and records what it merged. No command needs to be run by hand.
 - **The verbs read memory.** `/explore`, and `/plan` through it, search the store on the intent before they ask a question. `/continue` reads the slug's live facts and open threads. Every printed fact shows its age, author, and source. `/save` extracts facts through the write gate. A fact that cannot reach the store waits in an ignored local spool.
 - `/ship` distills reusable process facts from the change's facts into the owning wiki pages, inside the ship pull request. Nothing else writes the wiki automatically.
-- **BREAKING:** `notes/` leaves the repo. One migration pass extracts facts from WongStack's 43 notes and keeps each note's text in R2 as its source when R2 is enabled. `/wong-sync` gives installed repos the same migration task. The prose allowlist becomes `wiki/**` only, and the `notes.md` path rule is removed.
+- **BREAKING:** `notes/` leaves the repo. One migration pass extracts facts from WongStack's 44 notes and keeps each note's text in R2 as its source when R2 is enabled. `/wong-sync` gives installed repos the same migration task. The prose allowlist becomes `wiki/**` only, and the `notes.md` path rule is removed.
 - Release as WongStack 17.0.0.
 
 **Non-goals:** No embeddings or vector index in this release, and no Worker in front of the store. No backfill of sessions that no current checkout of the repo can claim. No rewrite of historical archives or changelog entries, and no attempt to remove old notes from git history.
@@ -88,3 +88,7 @@ This is a payload change under `.agents/` (reached through `.claude/`). It adds 
 - **2026-09-25** — Moved ownership of the `CLOUDFLARE_MEMORY_TOKEN` name to `wiki/development/memory.md`, because `wiki/stack/` ships only with the pack while every repo gets the token. The credentials page links to it.
 - **2026-09-25** — Changed the R2-later re-run from minting a new memory token to adding R2 permissions to the existing one, so the value in `.env` does not change.
 - **2026-09-25** — Checkpoint: implementation complete except task 2.5, the memory token for this repo, which the user must create by hand. Imported the 43 notes as 121 facts (120 live) into the real store, deleted `notes/`, and reconciled the 14 delta specs into `openspec/specs/` through the CLI's own archive merge in a throwaway copy. Applied the `/simplify` review: one write path for put-facts and the import, structured error kinds, one digest plan shared by the hook and every writer, one parse per transcript, and the excluded session enforced in code. 23 memory tests pass locally; `review.test.mjs` needs `npm ci` in `app/` and runs in CI.
+- **2026-09-25** — The user replaced the account-scoped provisioning token with a user token that had only `API Tokens Write` and no account in its resources. Asked whether the agent could expand it → it could: the token added its own `Account API Tokens Write` policy for the recorded account, then widened to the standard provisioning set plus `Workers R2 Storage Write`, keeping both API-token groups. It then minted `wongstack-memory` with only `D1 Write` and `Workers R2 Storage Write`, written to the primary `.env`. Task 2.5 is done; the GitHub `CLOUDFLARE_API_TOKEN` secret still holds the old account token.
+- **2026-09-25** — At ship time, `main` had gained `notes/wongstack-managed-service.md` after this branch started. Merged `main`, extracted 13 facts from it into `migration.json`, imported it, and deleted it, so the store holds 44 migration sessions and 134 facts. The resumed import exposed a defect: tags were written only with the file's first note, which a resumed run skips. Tags now go with the first note actually imported, and a test covers it.
+- **2026-09-25** — Ship distillation: moved the measured headless-run overhead into `wiki/development/memory.md` (background run cost). Also superseded two migrated facts that pointed into the deleted `notes/` folder, so they point at the preserved note text instead.
+- **2026-09-25** — Archived with `--skip-specs` after confirming the main specs equal a fresh merge of the deltas from `main`. Every task is checked. Ship checkpoint follows.

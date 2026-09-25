@@ -432,7 +432,7 @@ async function importNotes(ctx, { values }) {
   const authors = noteAuthors(ctx.root);
   const ids = new Map();
   let imported = 0;
-  for (const [position, note] of input.notes.entries()) {
+  for (const note of input.notes) {
     const id = `migration:${note.slug}`;
     if (done.has(id)) { console.log(`skip ${note.slug}: already imported`); continue; }
     const facts = note.facts.map(fact => ({ ...fact, slug: fact.slug || note.slug, supersedes: (fact.supersedes || []).map(key => ids.get(key)).filter(Boolean) }));
@@ -451,7 +451,7 @@ async function importNotes(ctx, { values }) {
     }
     const results = await store.batch(writeStatements({
       record, status: facts.length ? 'captured' : 'skipped', reason: facts.length ? null : 'no reusable fact',
-      newTags: position === 0 ? input.tags : [], facts, source: 'migration', sessionId: id, createdAt,
+      newTags: imported === 0 ? input.tags : [], facts, source: 'migration', sessionId: id, createdAt,
       author: note.author || authors.get(`notes/${note.slug}.md`) || null,
     }));
     insertedIds(results).forEach((factId, index) => { if (note.facts[index]?.key) ids.set(note.facts[index].key, factId); });

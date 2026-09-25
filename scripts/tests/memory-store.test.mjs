@@ -177,4 +177,11 @@ test('import writes each note through the shared path, links supersedes by key, 
   const again = await memory(env.repo, env.fake, ['import', '--file', file]);
   assert.match(again.stdout, /skip old: already imported/);
   assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 2);
+  const grown = writeJsonFile(env.repo.home, 'migration-2.json', {
+    tags: [{ name: 'save', definition: 'The checkpoint verb.' }, { name: 'hosting', definition: 'Where the service runs.' }],
+    notes: [{ slug: 'old', updated: '2026-07-02', facts: [] }, { slug: 'late', updated: '2026-09-25', text: 'Added later.', facts: [{ type: 'project', body: 'One VM per user.', tags: ['hosting'] }] }],
+  });
+  const resumed = await memory(env.repo, env.fake, ['import', '--file', grown]);
+  assert.equal(resumed.code, 0, resumed.stderr);
+  assert.deepEqual(rows(env, "SELECT tag FROM fact_tags JOIN facts ON facts.id = fact_id WHERE slug = 'late'"), [{ tag: 'hosting' }]);
 });

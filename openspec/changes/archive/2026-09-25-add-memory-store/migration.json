@@ -91,6 +91,10 @@
   {
    "name": "dependencies",
    "definition": "Toolchain and package versions, and how they are surveyed and updated."
+  },
+  {
+   "name": "managed-service",
+   "definition": "The hosted WongStack service: accounts, VMs, billing, pairing, and login rules."
   }
  ],
  "notes": [
@@ -1589,6 +1593,136 @@
      "body": "The Monitor tool failed in 21% of sessions that used it, because agents called it before its deferred schema loaded. Load it with ToolSearch first. Measured 2026-09-24.",
      "tags": [
       "context"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "wongstack-managed-service",
+   "started": "2026-09-25",
+   "updated": "2026-09-25",
+   "facts": [
+    {
+     "key": "wongstack-managed-service#1",
+     "type": "user",
+     "body": "The user wants WongStack setup as easy as Meta's Muse or xAI's Grok Bot: sign in and start chatting, with nothing installed. Three account steps plus local tooling (Claude Code on the web, Paseo) was judged too hard (2026-09-25).",
+     "tags": [
+      "user-preference",
+      "setup"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#2",
+     "type": "project",
+     "body": "The managed WongStack service is a separate product in a new repo made from the WongStack template, not an OpenSpec change in this repo (decided 2026-09-25).",
+     "tags": [
+      "managed-service"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#3",
+     "type": "project",
+     "body": "Managed-service MVP journey: sign in with GitHub, pay, log in to Claude in a browser terminal, then scan the Paseo QR code. Payment (Stripe, about $29/month) comes before the VM exists, because a free VM attracts crypto-mining abuse that the service pays for.",
+     "tags": [
+      "managed-service"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#4",
+     "type": "project",
+     "body": "Managed-service hosting: one always-on Hetzner CPX22 (2 vCPU, 4 GB) per paying user in the EU, at EUR 19.49 plus EUR 0.50 for IPv4 a month, so the Paseo daemon is always reachable. The VM is about 90% of the cash cost per user. CPX12 was rejected: 2 GB is tight for Claude Code, Paseo, and npm install.",
+     "tags": [
+      "managed-service"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#5",
+     "type": "reference",
+     "body": "Hetzner constraints (checked 2026-09-25): cost-optimized plans are sold out; new accounts are capped at 5 servers until one month of history and one paid invoice; stopped servers still bill; IPv4 is required because github.com has no IPv6. Open the Hetzner account early.",
+     "tags": [
+      "managed-service"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#6",
+     "type": "project",
+     "body": "Rejected Fly.io Sprites for the managed service: a sleeping Sprite drops the Paseo relay connection, and one kept awake by the relay bills like an always-on VM. Revisit if VM cost or Hetzner stock becomes the blocker.",
+     "tags": [
+      "managed-service"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#7",
+     "type": "project",
+     "body": "Users own their Cloudflare accounts; the managed service never creates them, because the Tenant API is for approved resellers only and ownership would make the service liable for billing and abuse. A zero-signup tier on Workers for Platforms stays a later option.",
+     "tags": [
+      "managed-service",
+      "cloudflare"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#8",
+     "type": "project",
+     "body": "Anthropic forbids third-party apps from offering Claude.ai login or intermediating Claude credentials. Hosting unmodified Claude Code where each user signs in is allowed: accept the Commercial Terms, remove no sign-in option, and never resell or pass through Claude usage.",
+     "tags": [
+      "managed-service",
+      "secrets"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#9",
+     "type": "feedback",
+     "body": "In the managed service's browser-terminal login: never record the terminal, never read, back up, or move the Claude login file, never run `claude setup-token` into the service's store, and use no custom paste-code form.",
+     "tags": [
+      "managed-service",
+      "secrets"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#10",
+     "type": "project",
+     "body": "A Paseo pairing link (`app.paseo.sh/#offer=...`) is a password: show it only to its owner, keep it out of logs, and offer a pair-a-new-device action.",
+     "tags": [
+      "managed-service",
+      "secrets"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#11",
+     "type": "thread",
+     "body": "Open: can a Cloudflare OAuth app get an API-token-write scope, to mint the long-lived CLOUDFLARE_API_TOKEN for GitHub Actions? Test with a private OAuth client and /oauth/scopes. Fallbacks: short-lived tokens through GitHub OIDC, or the user pastes one token.",
+     "tags": [
+      "managed-service",
+      "cloudflare"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#12",
+     "type": "thread",
+     "body": "Open before building the managed service: written confirmation from Anthropic sales that the browser-terminal login is allowed, and whether Paseo's hosted relay allows commercial use (else self-host it).",
+     "tags": [
+      "managed-service"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wongstack-managed-service#13",
+     "type": "thread",
+     "body": "Unverified in the managed-service post-login script: which exit code of `paseo provider diagnostic claude` means ready, whether `paseo workspace create` takes `--json`, and the output field of `paseo daemon pair --relay --json`.",
+     "tags": [
+      "managed-service"
      ],
      "supersedes": []
     }

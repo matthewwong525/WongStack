@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — add-memory-store</title>
+<title>Review — 2026-09-25-add-memory-store</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -219,7 +219,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · add-memory-store</b>
+  <b>Review · 2026-09-25-add-memory-store</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -251,7 +251,7 @@ A session's context enters the repo only when someone runs `/save`, and many ses
 - **The same background run consolidates.** When 24 hours and 5 captured sessions have passed since the last consolidation, it merges duplicate facts, supersedes contradicted ones newest-wins, and records what it merged. No command needs to be run by hand.
 - **The verbs read memory.** `/explore`, and `/plan` through it, search the store on the intent before they ask a question. `/continue` reads the slug's live facts and open threads. Every printed fact shows its age, author, and source. `/save` extracts facts through the write gate. A fact that cannot reach the store waits in an ignored local spool.
 - `/ship` distills reusable process facts from the change's facts into the owning wiki pages, inside the ship pull request. Nothing else writes the wiki automatically.
-- **BREAKING:** `notes/` leaves the repo. One migration pass extracts facts from WongStack's 43 notes and keeps each note's text in R2 as its source when R2 is enabled. `/wong-sync` gives installed repos the same migration task. The prose allowlist becomes `wiki/**` only, and the `notes.md` path rule is removed.
+- **BREAKING:** `notes/` leaves the repo. One migration pass extracts facts from WongStack's 44 notes and keeps each note's text in R2 as its source when R2 is enabled. `/wong-sync` gives installed repos the same migration task. The prose allowlist becomes `wiki/**` only, and the `notes.md` path rule is removed.
 - Release as WongStack 17.0.0.
 
 **Non-goals:** No embeddings or vector index in this release, and no Worker in front of the store. No backfill of sessions that no current checkout of the repo can claim. No rewrite of historical archives or changelog entries, and no attempt to remove old notes from git history.
