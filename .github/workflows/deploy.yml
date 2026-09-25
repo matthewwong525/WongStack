@@ -23,7 +23,7 @@
 # and it does so at two levels:
 #
 #   - No wrangler config at all — the state the pack SHIPS in, before
-#     /wong-cloudflare writes one. "Locate the app" detects it (cf-build.sh
+#     setup's Cloudflare provisioning writes one. "Locate the app" detects it (cf-build.sh
 #     --app-dir exits 3 for exactly this) and the job reports why and stops,
 #     green. Every later step is gated on that detection.
 #   - Config but no secrets — builds without deploying, as before.
@@ -100,6 +100,9 @@ jobs:
       # they then migrate and deploy nothing.
       CF_BRANCH: ${{ github.head_ref || github.ref_name }}
       CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
+      # The <repo>-deploy token that provisioning minted: Workers Scripts, D1,
+      # and Account Settings only. Never the user token, which can mint tokens
+      # and stays in the host's .env. See wiki/stack/cloudflare-credentials.md.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
@@ -125,9 +128,9 @@ jobs:
               echo "This repo has the Cloudflare stack pack but no wrangler config,"
               echo "so there is nothing to build or deploy yet."
               echo ""
-              echo "Run \`/wong-cloudflare\` to configure and provision it."
+              echo "Run \`/wong-sync\` to plan Cloudflare provisioning."
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "No wrangler config yet — run /wong-cloudflare to configure and provision."
+            echo "No wrangler config yet — run /wong-sync to plan Cloudflare provisioning."
             exit 0
           fi
           if [ "$STATUS" -ne 0 ]; then
@@ -157,7 +160,7 @@ jobs:
         working-directory: ${{ steps.app.outputs.dir }}
         run: |
           echo "No CLOUDFLARE_API_TOKEN secret — building without deploying."
-          echo "Run /wong-cloudflare to provision, then this job deploys."
+          echo "Run /wong-sync to plan provisioning, then this job deploys."
           # A wired pack repo has build:app (build is the cf-build.sh wrapper,
           # which would try to migrate). An unwired repo just has build.
           if node -e "process.exit(require('./package.json').scripts?.['build:app']?0:1)"; then

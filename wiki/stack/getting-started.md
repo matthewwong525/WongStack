@@ -2,7 +2,7 @@
 
 From nothing to a website other people can open, in five steps. Three of them are answering questions.
 
-This page is for the person doing it. It assumes you know nothing about Cloudflare, databases, or deployment — where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md).
+This page is for the person doing it. It assumes you know nothing about Cloudflare, databases, or deployment — where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 
 ## What you'll end up with
 
@@ -27,11 +27,9 @@ Cloudflare's free tier covers all of this. You need a free Cloudflare account an
 
 ### 1. Paste the prompt
 
-Open your project folder in your coding agent and paste the setup prompt from [WongStack's README](https://github.com/matthewwong525/WongStack#readme). The agent reads your project, asks a few questions about how you like to work, and sets up the shared knowledge and workflows.
+Make an empty folder, open it in your coding agent, and paste the setup prompt from [WongStack's README](https://github.com/matthewwong525/WongStack#readme). Setup starts from an empty folder; in a folder that already has files, it stops and says so. The agent asks for the Cloudflare key first (steps 3 and 4), then asks a few questions about how you like to work, and sets up the shared knowledge, the workflows, a starter site, and its hosting.
 
 **You do:** answer a few questions.
-
-At some point it asks whether you want this to be a real website people can visit. Say yes — that's what turns on everything below. (Saying no is fine too: ask for `/wong-cloudflare` any time later and it makes the same offer, sets everything up, and puts you online.)
 
 ### 2. Sign in to GitHub
 
@@ -102,8 +100,17 @@ If you'd rather people sign in first, say so and the agent sets it up. It needs 
 
 Almost every failure at setup traces to the token: it was made in the wrong place (use **My Profile**, not the account area), or the **Account Resources** field was left blank (edit the token you already made — no new one needed). Both are covered on [the credentials page](cloudflare-credentials.md). The agent translates Cloudflare's error codes into plain language, so if you see a raw code, ask it what that means.
 
+## Teardown
+
+Setup creates real resources on your Cloudflare account. To remove them, for example after a test, ask your agent to tear the project down. It follows these steps:
+
+1. **List** what this repo created: the production and staging Workers, the two app databases (`<repo>-db` and `<repo>-db-staging`), the `<repo>-deploy` token, any Access application and service token, and the GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Include any service token that [`/verify` made for itself](../development/staging-walkthrough.md#when-the-walk-cant-get-in). List the memory store (`<repo>-memory` database, bucket, and token) separately: deleting it destroys what every past session learned, so it is removed only when you name it.
+2. **Confirm** as a two-option question that names what each side does. Deleting a database destroys its data.
+3. **Delete** what this repo created, with the same user token: `DELETE /accounts/{account_id}/workers/scripts/<name>`, `DELETE /accounts/{account_id}/d1/database/<id>`, `DELETE /accounts/{account_id}/tokens/<id>` for the deploy token, `DELETE /user/tokens/<id>` for the memory token, and `gh secret delete` for each secret.
+4. **Report** what was removed *and what was skipped*: anything whose name does not match this repo, and anything you declined. Nothing is deleted by guess.
+
 ## Next
 
-- The runbook behind these steps: [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md).
+- The runbook behind these steps: [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 - What happens each time you push a change: the [D1 pipeline](d1-pipeline.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

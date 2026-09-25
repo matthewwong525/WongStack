@@ -1,0 +1,232 @@
+<section class="visual flow" id="setup" data-kind="flow" data-states="after today">
+  <p class="caption">How a new user sets up WongStack: after this change, and today.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-prompt">
+          <h3>You paste the README prompt <span class="tag">Changed</span> <i class="callout">1</i></h3>
+          <p>The URL is <code>.agents/skills/wong-setup/SKILL.md</code>. It returns <code>200</code>.</p>
+          <details><summary>Details</summary><p>Actor: you. Action: paste the one prompt from the README into an agent in a folder. Result: the agent reads the real file on <code>raw.githubusercontent.com</code>. Today the URL goes through the <code>.claude</code> link and returns <code>404</code>. A test checks that each raw URL in the README names a real file in the git tree.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-empty-check">
+          <h3><code>/wong-setup</code> checks the folder <span class="tag">New</span> <i class="callout">2</i></h3>
+          <p>Setup starts only from an empty folder.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-setup</code>. Action: look for files in the folder. Result: one of two paths.</p></details>
+        </div>
+        <p class="flow-connector">↓ Is the folder empty?</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-not-empty">
+            <h3>If no <span class="tag">New</span></h3>
+            <p>Setup stops with a clear message. It installs nothing.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-setup</code>. Action: stop before it writes a file. Result: the message tells you to start again in an empty folder. No partial install stays behind.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-empty">
+            <h3>If yes <span class="tag">New</span></h3>
+            <p>Setup continues.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-setup</code>. Action: go to the next step. Result: the token question.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Only the "yes" path continues</p>
+        <div class="step flow-card" data-target-id="after-token">
+          <h3>Setup asks for one Cloudflare token <span class="tag">New</span></h3>
+          <p>The token is necessary. Setup does not continue without it.</p>
+          <details><summary>Details</summary><p>Actor: you. Action: create a user token with two permissions and give it to setup. Result: setup writes it to the primary worktree's <code>.env</code>. The <code>tokens</code> item shows where each token goes.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-install">
+          <h3>One install through the normal workflow <span class="tag">Changed</span> <i class="callout">3</i></h3>
+          <p>The core payload lands. The stack pack, the starter app, and the UI pages are core now.</p>
+          <details><summary>Details</summary><p>Actor: <code>/explore</code>, <code>/plan</code>, <code>/apply</code>, <code>/save</code>. Action: install the payload in one change. Result: the skills, the Cloudflare pipeline, the starter app, and the UI pages. Setup does not write <code>components.stackPack</code> or <code>components.appScaffold</code>.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-provision">
+          <h3>Setup provisions Cloudflare in one step <span class="tag">New</span> <i class="callout">4</i></h3>
+          <p>The runbook is in <code>wong-setup/references/</code>.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-setup</code>. Action, in this order: widen the user token for each step, find the account, create the memory store, create the production and staging databases, write the binding, and mint the deploy token. Result: all Cloudflare resources exist, and CI has its own narrow token.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-deploy">
+          <h3>First deploy and smoke test <span class="tag">New</span></h3>
+          <p>Setup sets the GitHub secret. <code>/save</code> starts the first deploy.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-setup</code> and <code>/save</code>. Action: send the deploy token to the GitHub secret, push, let CI deploy, and run a smoke test on the result. Result: a working app.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-url">
+          <h3>Setup reports the live URL <span class="tag">Changed</span></h3>
+          <p>Access and teardown are wiki runbooks, not a skill.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-setup</code>. Action: report the URL and what it created. Result: you have a live app. To add a login wall or to remove everything, follow the <code>wiki/stack/</code> runbooks.</p></details>
+        </div>
+      </div>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-prompt">
+          <h3>You paste the README prompt <span class="tag">Changed</span></h3>
+          <p>The URL goes through <code>.claude/</code>. It returns <code>404</code>.</p>
+          <details><summary>Details</summary><p>Actor: you. Action: paste the prompt. Result: <code>raw.githubusercontent.com</code> does not follow the <code>.claude</code> link, so the agent cannot read the setup skill.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-setup">
+          <h3><code>/wong-setup</code> runs <span class="tag">Changed</span></h3>
+          <p>It accepts an existing repo or an empty folder.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-setup</code>. Action: evaluate the repo. Result: an install plan for the repo that is there.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-install">
+          <h3>Install through the normal workflow <span class="tag">Kept</span></h3>
+          <p><code>/explore</code>, <code>/plan</code>, <code>/apply</code>, and <code>/save</code> install the payload.</p>
+          <details><summary>Details</summary><p>Actor: the workflow skills. Action: install the core payload. Result: the skills, with no stack pack and no starter app.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-memory">
+          <h3>Memory store through <code>/wong-cloudflare</code> <span class="tag">Removed</span></h3>
+          <p>Optional. With no token, setup skips it.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-cloudflare</code>. Action: create the memory store and its narrow token. Result: session memory, if you gave a token.</p></details>
+        </div>
+        <p class="flow-connector">↓ Later, as a separate run</p>
+        <div class="step flow-card" data-target-id="today-offer">
+          <h3><code>/wong-cloudflare</code> offers the stack pack <span class="tag">Removed</span></h3>
+          <p>You adopt the pack and the starter app, or you decline.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-cloudflare</code>. Action: ask to adopt the pack. Result: a second change that adds the pipeline and the app.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-provision">
+          <h3>Widen the token and create the databases <span class="tag">Changed</span></h3>
+          <p>The skill grants the groups it needs and creates production and staging.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-cloudflare</code>. Action: widen the user token, create the databases, and write the binding. Result: the resources for the app.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-secret">
+          <h3>The user token becomes the GitHub secret <span class="tag">Removed</span></h3>
+          <p>CI gets the token that can mint other tokens.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-cloudflare</code>. Action: copy the user token to <code>CLOUDFLARE_API_TOKEN</code>. Result: each workflow in the repo can read a token with full account power.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-deploy">
+          <h3>Deploy <span class="tag">Kept</span></h3>
+          <p>CI deploys the app.</p>
+          <details><summary>Details</summary><p>Actor: CI. Action: run <code>deploy.yml</code>. Result: a live URL.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The README links the real path, not the path through a link. <code>raw.githubusercontent.com</code> does not follow symlinks. A test stops a regression.</li>
+      <li>A non-empty folder gets a clear stop, not a partial install. A partial install into an unknown repo is the case that this change stops supporting. This stop is easy to change in review.</li>
+      <li>A blank folder has no app of its own, and each user is assumed to use Cloudflare. Thus the pack, the scaffold, and the UI pages become core. Repos that were installed before this release keep their flags, and <code>/wong-sync</code> honors them.</li>
+      <li>Provisioning is a step of <code>/wong-setup</code>, not a second skill. The memory store already needs a Cloudflare account in each repo, so a separate door adds steps and no choice.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual flow" id="tokens" data-kind="flow" data-states="after today">
+  <p class="caption">Where each Cloudflare token lives: after this change, and today.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-user-token">
+          <h3>User token, on the host only <span class="tag">Changed</span> <i class="callout">1</i></h3>
+          <p>It stays in the primary worktree's <code>.env</code>. It mints the other two tokens.</p>
+          <details><summary>Details</summary><p>You create it with two permissions: <code>User ▸ API Tokens ▸ Edit</code> and <code>Account ▸ API Tokens ▸ Edit</code>. Set Account Resources to Include ▸ your account. Setup grants itself only the permission groups that each step needs. Setup reports each group that it granted. You can narrow the token back to the two permissions after setup. <code>.env.example</code>, the README, and the credentials page say this.</p></details>
+        </div>
+        <p class="flow-connector">↓ Mints two tokens</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-memory-token">
+            <h3><code>&lt;repo&gt;-memory</code> <span class="tag">Kept</span></h3>
+            <p>Goes to <code>.env</code> on the host.</p>
+            <details><summary>Details</summary><p>Actor: setup. Action: mint the narrow memory token and write it to <code>.env</code>. Result: the memory scripts read and write the store. CI never gets this token. This change does not change it.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-deploy-token">
+            <h3><code>&lt;repo&gt;-deploy</code> <span class="tag">New</span> <i class="callout">2</i></h3>
+            <p>Account-owned. It can deploy and nothing more.</p>
+            <details><summary>Details</summary><p>Actor: setup. Action: mint it with <code>POST /accounts/{account_id}/tokens</code>. Permissions: <code>Workers Scripts Write</code>, <code>D1 Write</code>, and <code>Account Settings Read</code>. Setup adds <code>Workers R2 Storage Write</code> only when the app's config binds a bucket. Result: a token that belongs to the account, so it outlives one person's user token. On a later run, setup reuses the token and rolls its value only when the secret is missing.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Only the deploy token continues, through a pipe</p>
+        <div class="step flow-card" data-target-id="after-secret">
+          <h3><code>gh secret set CLOUDFLARE_API_TOKEN</code> <span class="tag">Changed</span> <i class="callout">3</i></h3>
+          <p>The value goes straight to GitHub. No file gets it.</p>
+          <details><summary>Details</summary><p>Actor: setup. Action: pipe the minted value into <code>gh secret set</code>. Result: the secret holds the deploy token. The value is never written to disk, a note, or a log. The secret keeps its name, because <code>wrangler</code> reads that name natively.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-ci">
+          <h3><code>deploy.yml</code> and <code>wrangler</code> deploy <span class="tag">Kept</span></h3>
+          <p>Production, staging, and the preview alias use the deploy token.</p>
+          <details><summary>Details</summary><p>Actor: CI. Action: run <code>cf-deploy.sh</code> with the secret. Result: the same three deploy paths as today. A workflow that reads the secret can deploy code, but it cannot mint tokens or take over the account. Contract tests run <code>cf-deploy.sh</code> against a fake <code>wrangler</code>. One live run from the host confirms that the permission list is enough.</p></details>
+        </div>
+      </div>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-user-token">
+          <h3>User token, widened <span class="tag">Changed</span></h3>
+          <p>It can mint tokens. It sits in the host <code>.env</code>.</p>
+          <details><summary>Details</summary><p>Actor: <code>/wong-cloudflare</code>. Action: widen the token with each group it needs. Result: one token with power over the whole account.</p></details>
+        </div>
+        <p class="flow-connector">↓ Goes to two places</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="today-memory-token">
+            <h3><code>&lt;repo&gt;-memory</code> <span class="tag">Kept</span></h3>
+            <p>Minted and written to <code>.env</code> only.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-cloudflare</code>. Action: mint the narrow memory token. Result: the token stays on the host.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="today-copy">
+            <h3>Copied to <code>CLOUDFLARE_API_TOKEN</code> <span class="tag">Removed</span></h3>
+            <p>The GitHub secret is the user token itself.</p>
+            <details><summary>Details</summary><p>Actor: <code>/wong-cloudflare</code>. Action: copy the user token to the secret. Result: the token that can mint tokens is in CI.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-risk">
+          <h3>Each Actions workflow can read it <span class="tag">Removed</span></h3>
+          <p>Risk: a workflow can take over the Cloudflare account.</p>
+          <details><summary>Details</summary><p>Actor: any workflow in the repo. Action: read the secret. Result: it can mint a new token with any permission. Installed repos should roll their user token after they sync.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The user token starts with two permissions. Setup widens it only for each step, and it reports what it granted. Thus you can see the token's power and narrow it again.</li>
+      <li>The deploy token belongs to the account, not to a person. When the person who ran setup leaves, CI still deploys. The permission list is the smallest set that deploys the Worker and migrates D1. The live smoke run confirms it.</li>
+      <li>A pipe from the mint call to <code>gh secret set</code> keeps the value off the disk. The secret name does not change, so <code>deploy.yml</code> stays the same.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual tree" id="layout" data-kind="tree">
+  <p class="caption">Files this change adds, edits, and removes at the repo root. The same layout goes to each new install.</p>
+  <div class="frame">
+    <ul>
+      <li class="edit">.agents/ <span class="why">the one real agent folder</span></li>
+      <li class="add">.agents/config.toml <span class="why">moved from <code>.codex/config.toml</code></span></li>
+      <li class="add">.agents/hooks.json <span class="why">moved from <code>.codex/hooks.json</code></span></li>
+      <li>.agents/settings.json</li>
+      <li class="add">.agents/skills/wong-setup/references/cloudflare.md <span class="why">new folder; the provisioning runbook</span></li>
+      <li class="add">.agents/skills/wong-setup/references/failure-map.md <span class="why">moved from <code>wong-cloudflare</code></span></li>
+      <li class="add">.agents/skills/wong-setup/references/permission-groups.md <span class="why">moved from <code>wong-cloudflare</code>; adds the deploy token's list</span></li>
+      <li class="del">.agents/skills/wong-cloudflare/ <span class="why">skill removed; Access and teardown go to <code>wiki/stack/</code></span></li>
+      <li class="edit">.agents/skills/wong-sync/references/payload-files.json <span class="why">pack, scaffold, and ui fold into core; <code>wong-cloudflare</code> removed</span></li>
+      <li>.claude → .agents <span class="why">link, as today</span></li>
+      <li class="edit">.codex → .agents <i class="callout">1</i> <span class="why">a real folder becomes a link</span></li>
+      <li class="edit">.env.example <span class="why">the user token's two permissions and the deploy token</span></li>
+      <li class="add">LICENSE <span class="why">MIT</span></li>
+      <li class="edit">README.md <i class="callout">2</i> <span class="why">setup URL uses <code>.agents/skills/wong-setup/SKILL.md</code></span></li>
+      <li class="add">SECURITY.md <span class="why">how to report a vulnerability; which token holds which power</span></li>
+      <li class="add">scripts/tests/cf-deploy.test.mjs <span class="why">three deploy paths against a fake <code>wrangler</code></span></li>
+      <li class="add">scripts/tests/downstream-contract.test.mjs <span class="why">names and paths that <code>wongstack-cloud</code> relies on</span></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>A probe confirms that Codex follows the <code>.codex</code> link and loads each skill one time. Codex can find the same skills through <code>.agents/skills/</code> and through the link, so it could load each skill two times. On Windows, a clone with <code>core.symlinks=false</code> sees each link as a plain file. <code>.claude</code> has this problem today, so the change adds no new risk.</li>
+      <li><code>raw.githubusercontent.com</code> serves only real files in the git tree. It does not follow a link. Thus the README names the real path under <code>.agents/</code>.</li>
+    </ol>
+  </div>
+</section>

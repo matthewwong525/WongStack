@@ -1,6 +1,6 @@
 # The widen protocol and the permission-group ids
 
-Cloudflare permission groups are what a token's policy actually grants. The user grants two of them on the token screen; [the skill](../SKILL.md) grants itself everything else it needs, on demand, using this protocol. This page owns the mechanics — the skill states the outcome and points here.
+Cloudflare permission groups are what a token's policy actually grants. The user grants two of them on the token screen; [the provisioning runbook](cloudflare.md) grants itself everything else it needs, on demand, using this protocol. This page owns the mechanics — the skill states the outcome and points here.
 
 ## The sequence
 
@@ -34,7 +34,7 @@ Read from the live API against a real account.
 
 ### What the user grants
 
-These two are the whole ask on the token screen. Every other group below, the skill grants itself.
+These two are the whole ask on the token screen. Every other group below, the runbook grants itself.
 
 | Name | Scope | Id |
 |---|---|---|
@@ -54,6 +54,20 @@ These two are the whole ask on the token screen. Every other group below, the sk
 | `Workers CI Write` | account | repointing a Workers Builds fallback | `2e095cf436e2455fa62c9a9c2e18c478` |
 | `User Details Read` | user | self-verification | `8acbe5bb0d54464ab867149d7f7cf8ac` |
 | `Workers R2 Storage Write` | account | only when the app adds an R2 bucket | `bf7481a1826f439697cb59a20b22293e` |
+
+### The CI deploy token
+
+The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, scoped to the one account. It cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list; `scripts/tests/downstream-contract.test.mjs` pins it, because hosted setups rely on it.
+
+| Name | Scope | When | Id |
+|---|---|---|---|
+| `Workers Scripts Write` | account | always | `e086da7e2179491d91ee5f35b3ca210a` |
+| `D1 Write` | account | always | `09b2857d1c31407795e75e3fed8617a1` |
+| `Account Settings Read` | account | always | `c1fde68c7bcc44588cbb6ddbc16d6480` |
+| `Workers R2 Storage Write` | account | only when the wrangler config binds an R2 bucket | `bf7481a1826f439697cb59a20b22293e` |
+| `Workers Routes Write` | zone | only when the wrangler config has `routes` on a custom domain | `28f4b596e7d643029c524985477ae49a` |
+
+`Workers Routes Write` is zone-scoped: its `resources` entry names the zone, not the account.
 
 **`Browser Rendering Write` is no longer granted.** It existed for one consumer — the walkthrough's remote browser on Cloudflare Browser Run — and `/verify` now drives a local browser through `agent-browser`, so the group has no user. Granting a permission nothing consumes contradicts the narrow-token principle this widen and its narrow-back offer exist to serve. A token widened by an earlier version still carries it; that is harmless, and the existing narrow-back offer removes it along with every other group the skill granted.
 

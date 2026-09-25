@@ -2,7 +2,7 @@
 
 The [Cloudflare stack pack](payload-manifest.md#the-opt-in-stack-pack) delivers two kinds of file. Its **drop-in files** (the `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, the `wiki/stack/` pipeline docs) are whole files the target owns — they ride the manifest and follow the normal rule: copied if absent, adapted if present, never overwritten. The four **config fragments** below are different: they must *merge* into files the target already owns, so they are **not** manifest pull-files. They are applied the way the `CLAUDE.md` `WONG-STACK` block is: **show the fragment, apply it with the user's confirmation, never blind-write over the target's file.**
 
-Apply these only for a repo that took the pack (`components.stackPack: true`). **[`/wong-cloudflare`](../../wong-cloudflare/SKILL.md) is the applier**: the id-free fragments (`package.json`, `.env.example`, `.gitignore`) at the start of a run where they're missing, and the `wrangler.jsonc` block at its binding step, filled with the real resource ids it just created. `/wong-setup` applies none of them. `/wong-sync` surfaces a changed fragment through its adapt step on the rare occasion upstream changes one — a fragment can't be cleanly re-merged into a file the user has since edited, so it is *re-offered* as a guided edit, never auto-merged.
+Apply these only for a repo that took the pack (`components.stackPack: true`), which every new install does. **[Setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) is the applier**: the id-free fragments (`package.json`, `.env.example`, `.gitignore`) before it creates resources, and the `wrangler.jsonc` block at its config step, filled with the real resource ids it just created. `/wong-sync` surfaces a changed fragment through its adapt step on the rare occasion upstream changes one — a fragment can't be cleanly re-merged into a file the user has since edited, so it is *re-offered* as a guided edit, never auto-merged.
 
 For each fragment: read the target's current file, show what you'd add, and merge on a yes — preserving everything already there. If the target file doesn't exist yet, create it from the fragment.
 
@@ -30,7 +30,7 @@ If the repo already has a `build`, rename it to `build:app` (confirm first) so `
 
 Write the **literal** `database_name` into each `db:migrate:*` script — the production name for `db:migrate:prod`, the staging twin's name for `db:migrate:staging`. (An earlier version of this page used `$npm_package_config_db`, which expands to an empty string unless the `package.json` also defines a `config.db` key — leaving wrangler with no database argument.) These two are only a convenience alias: the scripts under `scripts/` read the name out of the wrangler config themselves.
 
-**Those two scripts live here and nowhere else.** A hardcoded database name cannot travel between repos, so no copied payload file may carry one — the [app scaffold's](payload-manifest.md#the-opt-in-app-scaffold) `app/package.json` ships without them deliberately. `/wong-cloudflare` fills them from the databases it derives, as part of applying this fragment, so they arrive correct the first time they exist rather than arriving broken and waiting to be edited.
+**Those two scripts live here and nowhere else.** A hardcoded database name cannot travel between repos, so no copied payload file may carry one — the [app scaffold's](payload-manifest.md#the-opt-in-app-scaffold) `app/package.json` ships without them deliberately. Provisioning fills them from the databases it derives, as part of applying this fragment, so they arrive correct the first time they exist rather than arriving broken and waiting to be edited.
 
 ## `wrangler.jsonc` → the Worker entry, bindings, and `env.staging`
 
@@ -129,7 +129,7 @@ Two files hold real credentials and are never committed: `.env` (the account-lev
 
 **One rationale covers both pairs, and each pair needs both lines.** The wildcard is what stops a `.env.staging` or a `.dev.vars.staging` full of live values becoming committable; the negation is what keeps the `.example` file — the committed name list a new contributor works down, and that `secrets:check` reads — from being swallowed by that same wildcard. Getting either half wrong is silent: you either commit real secrets or lose the name list from git, and nothing complains.
 
-`.env` matters most at the exact moment `/wong-cloudflare` asks for a token, since that is when a repo which never had a `.env` acquires one full of credentials. Apply this fragment **before** asking for the token, not after.
+`.env` matters most at the exact moment setup asks for a token, since that is when a repo which never had a `.env` acquires one full of credentials. Apply this fragment **before** asking for the token, not after.
 
 **Widening `.gitignore` does not untrack a file already committed.** If the repo has a `.env` (or `.dev.vars`) in git history, adding these lines changes nothing for it — say so plainly rather than leaving a false sense of coverage, and give them the two steps: `git rm --cached .env` to stop tracking it, and **rotate the credential**, because it is in the history of every clone and the ignore rule cannot reach back. Check with `git ls-files .env .dev.vars` before applying.
 

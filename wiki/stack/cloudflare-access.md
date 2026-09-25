@@ -4,13 +4,35 @@ Put a login wall in front of your app without writing a line of auth code. Cloud
 
 > **Read this before you start: Access needs a custom domain.** You cannot reliably gate a `workers.dev` hostname, and the way it fails is the dangerous kind — [every terminal check passes](#why-workersdev-cannot-be-gated) while a logged-in browser gets Cloudflare's *"There is nothing here yet"* placeholder. If you set Access up on `workers.dev` following an earlier version of this page, **go verify it in a browser now.**
 
-> **This is opt-in, and nothing else requires it.** An app the stack pack [provisions](../../.claude/skills/wong-cloudflare/SKILL.md) is **public by default** — anyone with the link can open it, which is what most projects want. Nothing in the pack, the pipeline, or CI depends on Access existing. Come here when you decide you want people to sign in first.
+> **This is opt-in, and nothing else requires it.** An app that setup [provisions](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) is **public by default** — anyone with the link can open it, which is what most projects want. Nothing in the pack, the pipeline, or CI depends on Access existing. Come here when you decide you want people to sign in first.
 
 You do this once per app, in the Cloudflare dashboard. It needs a Cloudflare account and a Worker you've already deployed at least once (so its hostnames exist). The token half of setup is the sibling page, [Cloudflare credentials](cloudflare-credentials.md) — an agent can grant itself the Access permissions on demand, so you don't pre-authorize anything to *read* this page.
 
 **Adopting Access is two changes made together:** the Cloudflare setup below, and [the Worker code change](#the-auth-model-verify-the-signed-assertion) that starts enforcing identity. Doing either alone is a bug — see the warning in that section for why enforcing *ahead* of the proxy is a security hole.
 
 > Dashboard labels and menu paths drift and vary by plan. This page names the durable pieces — organization, identity provider, application, policy, bypass, service token — and where each roughly lives. If a label here doesn't match what you see, match on the concept; the shape hasn't changed.
+
+## Turning it on through an agent
+
+Ask your agent for a login wall, and it follows this page. Two things happen together and are never separated:
+
+1. The agent widens the user token into the Access groups, with [the widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#the-opt-in-access-branch), and does the dashboard steps under [Setup](#setup).
+2. In the same change, it wires [the Worker's enforcement](#turning-it-on).
+
+```
+   public Worker + code that enforces an identity header
+        = anyone can send that header and become any user
+```
+
+That is why the template Worker ships enforcing nothing. Enforcement is `app/worker/access.ts`, which ships beside the entry point, inert. Adopting it is wiring it in and setting two `vars`, not writing auth code.
+
+The agent says three things before it starts, because each is a way this goes wrong without a visible error:
+
+- **Access needs a custom domain.** Do not stand Access up on a `workers.dev` hostname and report it as working. [Why](#why-workersdev-cannot-be-gated).
+- **Scope the hostnames to this app.** Never `*.<subdomain>.workers.dev`: it matches every Worker in the account and walls unrelated ones.
+- **Terminal checks are not evidence.** Verification is [a logged-in browser load](#verify-it-works--in-a-browser). A service-token `200` proves machines get through, not that a human can.
+
+One step is **unverified**: creating the Zero Trust organization on an account that has never used Zero Trust. The agent says so, and gives the dashboard fallback. When Access is on, provisioning's smoke test expects an anonymous `302` to `<team>.cloudflareaccess.com` and a `200` with the service token; both passing still does not prove that a human can log in.
 
 ## The model, in one picture
 
@@ -79,7 +101,7 @@ Route each to the corresponding Worker (production, and the [staging Worker](d1-
    *.<subdomain>.workers.dev                      ← every Worker you own. Don't.
 ```
 
-Partial-label patterns are accepted by the Access API — verified live against a real account, where `*-claymoo-admin.snowy-waterfall-9b1b.workers.dev` is a working application domain. Whether every plan tier accepts them was not established; if yours rejects the pattern, that is the constraint, and the answer is the custom domain rather than widening to `*.`.
+Partial-label patterns are accepted by the Access API — verified live against a real account, where `*-myapp-admin.<subdomain>.workers.dev` is a working application domain. Whether every plan tier accepts them was not established; if yours rejects the pattern, that is the constraint, and the answer is the custom domain rather than widening to `*.`.
 
 #### What you give up
 
@@ -188,5 +210,5 @@ The rule: production fails closed. The fallback identity exists only because *yo
 ## Next
 
 - Wire up the API token your build and CI need — including where the service token's two values go: [Cloudflare credentials](cloudflare-credentials.md).
-- How the app got there in the first place: [the provisioning skill](../../.claude/skills/wong-cloudflare/SKILL.md).
+- How the app got there in the first place: [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

@@ -71,7 +71,7 @@ export function loadEnv(ctx) {
 function loadConfig(ctx) {
   const file = join(ctx.root, '.claude', '.wong-stack.json');
   const memory = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).components?.memory : null;
-  if (!memory?.accountId || !memory?.databaseId) throw new StoreError('no memory store is recorded in .claude/.wong-stack.json; run /wong-cloudflare', { kind: 'unconfigured' });
+  if (!memory?.accountId || !memory?.databaseId) throw new StoreError('no memory store is recorded in .claude/.wong-stack.json; run /wong-sync to plan it', { kind: 'unconfigured' });
   return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null };
 }
 

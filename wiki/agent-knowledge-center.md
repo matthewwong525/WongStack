@@ -27,7 +27,7 @@ If a step runs the same way every time, write it as code. Code is fast, costs no
 
 A process written as code is also the record of how the work is done. The business data sits behind that code. When both live in one place you own, an agent can read the process and the records together — that is where it gets its power.
 
-Data split across separate tools is a set of disconnected exports, and no agent reasons well across those. The optional [Cloudflare stack](stack/README.md) is one cheap way to own the place where both live: Workers for the code, [D1](stack/d1-pipeline.md) for the data. Any stack works if you own it.
+Data split across separate tools is a set of disconnected exports, and no agent reasons well across those. The [Cloudflare stack](stack/README.md) that setup installs is one cheap way to own the place where both live: Workers for the code, [D1](stack/d1-pipeline.md) for the data. Any stack works if you own it.
 
 ### Using AI shouldn't need a complicated setup
 

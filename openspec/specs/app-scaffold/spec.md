@@ -2,33 +2,9 @@
 
 ## Purpose
 
-TBD — created by syncing `offer-app-scaffold`.
+Ship WongStack's own React-on-Workers app as a starter, so a new install has a real app at a real address from its first deploy.
 
 ## Requirements
-
-### Requirement: An opt-in app scaffold ships in the payload
-
-The payload SHALL include WongStack's own `app/` — a React-on-Workers-with-D1 application — as a copyable category gated on `components.appScaffold` (boolean) in `.claude/.wong-stack.json`. A repo whose manifest lacks the flag SHALL receive none of the scaffold's files.
-
-The flag SHALL be **separate from `components.stackPack`**, because a repo that already has an app must be able to take the Cloudflare pack without the scaffold. Taking the scaffold SHALL imply the pack: `appScaffold: true` without `stackPack: true` is not a valid manifest state, since the scaffold's build, deploy, and migration path is the pack.
-
-#### Scenario: A repo without the flag receives no scaffold
-
-- **WHEN** a repo installs or syncs WongStack with `components.appScaffold` absent or false
-- **THEN** no file under `app/` is written to it
-- **AND** the repo's own application layout is untouched
-
-#### Scenario: The pack is takeable without the scaffold
-
-- **WHEN** a repo that already has an app opts into the Cloudflare stack pack
-- **THEN** `components.stackPack` is true and `components.appScaffold` is absent or false
-- **AND** it receives the pack's scripts, CI, schema, and docs but no `app/` files
-
-#### Scenario: The scaffold implies the pack
-
-- **WHEN** a manifest records `components.appScaffold: true`
-- **THEN** `components.stackPack` is also true
-- **AND** the repo receives both categories
 
 ### Requirement: The scaffold carries no WongStack-specific value
 
@@ -172,3 +148,20 @@ The gates SHALL be absolute, not baselined: the scaffold as shipped SHALL pass e
 - **WHEN** CI runs in a repo that took the scaffold
 - **THEN** `npm test` remains the entire interface between the repo and `test.yml`
 - **AND** no additional workflow or CI configuration is required for the gates to run
+
+### Requirement: The app scaffold ships in the core payload
+
+The payload SHALL include WongStack's own `app/` — a React-on-Workers-with-D1 application — as part of the core payload for new installs. Setup starts from an empty folder, so every new install SHALL receive the scaffold, and its install record SHALL set `components.appScaffold: true` beside `components.stackPack: true`.
+
+For a repo installed before 18.0.0, `/wong-sync` SHALL continue to honor `components.appScaffold`: a repo whose record has `components.stackPack: true` and lacks `appScaffold: true` SHALL receive none of the scaffold's files, and `appScaffold: true` without `stackPack: true` remains an invalid state.
+
+#### Scenario: A new install receives the scaffold
+
+- **WHEN** setup installs WongStack into an empty folder
+- **THEN** the target receives `app/`, and the provisioning step creates its wrangler config
+
+#### Scenario: A legacy repo without the flag receives no scaffold
+
+- **WHEN** `/wong-sync` runs in a legacy repo with `components.appScaffold` absent or false
+- **THEN** no file under `app/` is written to it
+- **AND** the repo's own application layout is untouched

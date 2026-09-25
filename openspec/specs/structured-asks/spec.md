@@ -143,7 +143,7 @@ The ask convention SHALL live in one payload reference that every skill links to
 
 ### Requirement: WongStack enables supported Codex questions in Default mode
 
-The WongStack source repository SHALL enable Codex's supported Default-mode structured-input feature through trusted project configuration. It SHALL NOT require a user-wide configuration change or a collaboration-mode switch.
+The WongStack source repository and every install SHALL enable Codex's supported Default-mode structured-input feature through trusted project configuration at `.agents/config.toml`, which Codex reads as `.codex/config.toml` through the `.codex` link. It SHALL NOT require a user-wide configuration change or a collaboration-mode switch.
 
 #### Scenario: Trusted WongStack session uses Default mode
 

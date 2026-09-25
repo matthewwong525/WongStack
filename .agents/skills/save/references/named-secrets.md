@@ -1,6 +1,6 @@
 # Preserve explicitly named secrets
 
-Because this is the only skill that reads the conversation, it is the universal checkpoint for credentials the user **explicitly supplied or rotated with a known variable name** during this session. Do not pattern-match token-shaped strings, guess a name for an opaque value, or treat every pasted string as a credential. A producer that needed the credential earlier (for example `/wong-cloudflare`) may already have saved it; verify the durable copy rather than creating another.
+Because this is the only skill that reads the conversation, it is the universal checkpoint for credentials the user **explicitly supplied or rotated with a known variable name** during this session. Do not pattern-match token-shaped strings, guess a name for an opaque value, or treat every pasted string as a credential. A producer that needed the credential earlier (for example setup's Cloudflare provisioning) may already have saved it; verify the durable copy rather than creating another.
 
 For each explicitly named secret:
 

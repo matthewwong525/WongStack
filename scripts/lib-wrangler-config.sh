@@ -43,7 +43,7 @@ wong_resolve_wrangler_config() {
     # adopted before it is configured. Name the remedy — the file this is looking
     # for means nothing to whoever reads the CI log. Exit status is unchanged.
     echo "wong: no wrangler config found under $root — this repo isn't set up for Cloudflare yet." >&2
-    echo "wong: run /wong-cloudflare to configure it and put the app online." >&2
+    echo "wong: run /wong-sync to plan Cloudflare provisioning and put the app online." >&2
     return 1
   fi
 

@@ -31,7 +31,7 @@ The same background run tidies the live facts once 24 hours and five captured se
 
 ## The memory token
 
-`CLOUDFLARE_MEMORY_TOKEN` reads and writes the store. **This page owns that name.** [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md#the-memory-store-every-repo) mints it with `D1 Write`, plus `Workers R2 Storage Write` when the store has a bucket, on this account only, and writes it to the ignored `.env` under [the secrets convention](secrets.md). It is **never** a GitHub secret, so CI cannot read transcripts. When the provisioning token cannot mint tokens, create this one by hand with those permissions.
+`CLOUDFLARE_MEMORY_TOKEN` reads and writes the store. **This page owns that name.** [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store) mints it with `D1 Write`, plus `Workers R2 Storage Write` when the store has a bucket, on this account only, and writes it to the ignored `.env` under [the secrets convention](secrets.md). It is **never** a GitHub secret, so CI cannot read transcripts. When the user token cannot mint tokens, create this one by hand with those permissions.
 
 Who can read what, stated plainly:
 
@@ -41,7 +41,7 @@ Who can read what, stated plainly:
 
 ## Without R2
 
-R2 needs a payment method on file, even inside its free tier. Without it, the store keeps no raw transcripts, and everything else works: facts, the digest, search, capture, and consolidation. `source <fact-id>` then says that transcripts are not stored. Turn R2 on later and re-run `/wong-cloudflare`: it adds the bucket, and new sessions are kept from then on.
+R2 needs a payment method on file, even inside its free tier. Without it, the store keeps no raw transcripts, and everything else works: facts, the digest, search, capture, and consolidation. `source <fact-id>` then says that transcripts are not stored. Turn R2 on later and run `/wong-sync`: it plans the bucket, and new sessions are kept from then on.
 
 ## When to add embeddings
 

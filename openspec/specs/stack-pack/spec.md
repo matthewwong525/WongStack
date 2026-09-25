@@ -6,45 +6,6 @@ The opt-in Cloudflare stack pack in the WongStack payload: the zero-config pipel
 
 ## Requirements
 
-### Requirement: An opt-in Cloudflare stack pack ships in the payload
-
-The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — that a repo installs only by opting in. A repo that does not opt in SHALL receive none of the pack's files and SHALL remain stack-agnostic. Opt-in state SHALL be recorded as `components.stackPack` (boolean) in `.claude/.wong-stack.json`; absent or false means the repo never took the pack.
-
-The pack SHALL have a **second, independently gated category**: the app scaffold, recorded as `components.stackPack: true` plus `components.appScaffold` (boolean), and specified by the `app-scaffold` capability. The two flags SHALL be separate so that a repo which already has an application can take the pipeline without the app. The pack alone SHALL NOT be assumed to arrive at a repo that has a Worker: a repo with `stackPack: true` and no scaffold may legitimately have no application yet, and in that state the pack's scripts have nothing to build until one exists.
-
-#### Scenario: A repo that declines the pack is unaffected
-
-- **WHEN** a repo installs or syncs WongStack without opting into the pack
-- **THEN** no pack script, seed file, config fragment, or pipeline doc is written to it
-- **AND** `components.stackPack` is absent or false
-
-#### Scenario: A repo that opts in receives the pack
-
-- **WHEN** a repo opts into the pack
-- **THEN** it receives the pack scripts, the seed template, and the pipeline docs, and is guided through the config fragments
-- **AND** `components.stackPack` is true
-
-#### Scenario: A repo takes the pipeline without the app
-
-- **WHEN** a repo that already has its own application opts into the pack
-- **THEN** `components.stackPack` is true and `components.appScaffold` is absent or false
-- **AND** no `app/` file is written to it
-
-### Requirement: The pack is adoptable after setup
-
-Declining the pack at setup SHALL NOT be terminal. The supported late-adoption route SHALL be: set `components.stackPack: true` in `.claude/.wong-stack.json`, run `/wong-sync` to land the pack's drop-in files (the provisioning skill among them), then run `/wong-cloudflare` to configure and provision. Every payload pointer to late adoption SHALL name this route (or `/wong-cloudflare` directly, where the skill is already present) and SHALL NOT direct users at a path that refuses — in particular, no prose SHALL claim `/wong-sync` offers the pack to a repo that has not opted in.
-
-#### Scenario: A declined repo adopts later
-
-- **WHEN** a repo that said no at setup decides it wants the app hosted
-- **THEN** setting the flag and running `/wong-sync` lands the pack files, and `/wong-cloudflare` completes configuration and provisioning
-- **AND** no step of that route stops and points back at another step of it
-
-#### Scenario: Pointers are truthful
-
-- **WHEN** a reader follows any payload reference to adopting the pack later
-- **THEN** the route it names works as described
-
 ### Requirement: Staging is a separate Worker declared as a Wrangler environment
 
 The pack SHALL isolate staging at the Worker level, not the binding level. `wrangler.jsonc` SHALL declare a `staging` environment with its own Worker `name` and its own bindings, and a non-production branch SHALL be **deployed** to that Worker rather than uploaded as a version of the production Worker. No pack script SHALL rewrite `wrangler.jsonc` to redirect a binding.
@@ -306,7 +267,6 @@ Where the Cloudflare credentials are absent, the workflow SHALL build without de
 
 ### Requirement: The branch variable is CI-neutral
 
-
 The pack's build and deploy scripts SHALL read the CI branch from `CF_BRANCH`, falling back to `WORKERS_CI_BRANCH` when it is unset. A repo running Cloudflare Workers Builds SHALL therefore continue to work with no change, and a repo may run both backends while migrating between them.
 
 #### Scenario: A Workers Builds repo is unaffected
@@ -320,7 +280,6 @@ The pack's build and deploy scripts SHALL read the CI branch from `CF_BRANCH`, f
 - **THEN** they take their local path: no remote database is migrated and nothing is deployed
 
 ### Requirement: A non-production branch can never deploy to the production Worker
-
 
 The pack SHALL select the staging environment by the mechanism the app's build actually uses: `--env staging` at deploy time for a plain wrangler build, and `CLOUDFLARE_ENV=staging` at **build** time where the build goes through `@cloudflare/vite-plugin`, which flattens the selected environment into a generated config and redirects wrangler at it. Where that redirect exists the deploy SHALL NOT pass `--env`, which has no effect once the environment is baked in.
 
@@ -463,3 +422,25 @@ exit status SHALL NOT change, so CI behaviour stays exactly as it is.
 - **WHEN** the build wrapper runs in a repo that has taken the pack but not yet run `/wong-cloudflare`
 - **THEN** the message states that the repo is not configured for Cloudflare yet and that `/wong-cloudflare` configures it
 - **AND** the exit status is unchanged
+
+### Requirement: The Cloudflare stack pack ships in the core payload
+
+The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — as part of the core payload. Every new install SHALL receive the pack, and setup SHALL record `components.stackPack: true` and `components.appScaffold: true` in the new install record, so that a later sync selects both categories. Setup SHALL NOT ask the user whether to take either.
+
+A repo installed before 18.0.0 MAY carry `components.stackPack` and `components.appScaffold`. `/wong-sync` SHALL continue to honor those flags for such a repo: a repo with `components.stackPack` false or absent SHALL receive none of the pack's files, and a repo with `stackPack: true` and no scaffold SHALL receive no `app/` file.
+
+#### Scenario: A new install receives the pack
+
+- **WHEN** setup installs WongStack into an empty folder
+- **THEN** the target receives the pack scripts, the seed template, the workflow, and the pipeline docs
+- **AND** its install record has `components.stackPack` and `components.appScaffold` set to `true`
+
+#### Scenario: A legacy repo that declined the pack is unaffected
+
+- **WHEN** `/wong-sync` runs in a repo whose install record has `components.stackPack` false
+- **THEN** no pack script, seed file, config fragment, or pipeline doc is written to it
+
+#### Scenario: A legacy repo keeps its own app
+
+- **WHEN** `/wong-sync` runs in a repo with `components.stackPack: true` and no `components.appScaffold`
+- **THEN** no `app/` file is written to it

@@ -593,7 +593,7 @@ if (mode !== "push" && mode !== "check") {
 }
 
 // `check` resolves the config WITHOUT exiting, because a repo with no config at
-// all is the pack's shipping state — before `/wong-cloudflare` runs there is
+// all is the pack's shipping state — before setup's Cloudflare provisioning runs there is
 // nothing to check, and the gate's requirement is to skip rather than fail.
 // `push` keeps the library's aborting lookup: it has real work to do and cannot
 // do it without a config. The lookup is duplicated here rather than added to
@@ -608,7 +608,7 @@ if (mode === "check" && !configPath) {
   // every adoption: no config has been written yet. Joins no-`env.staging` and
   // unparseable-config as a skip, not an abort.
   console.log(
-    "cf-secrets: no wrangler config yet — skipping the parity check (run /wong-cloudflare to configure and provision)",
+    "cf-secrets: no wrangler config yet — skipping the parity check (run /wong-sync to plan provisioning)",
   );
   process.exit(0);
 }

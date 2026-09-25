@@ -4,10 +4,16 @@
 
 ## Categories
 
-- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.codex/hooks.json`), the Cloudflare door that provisions the memory store, path rules, process pages, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
+A new install starts from an empty folder and takes **every** category below; its install record sets `components.stackPack`, `components.appScaffold`, and `components.ui` to `true`. The flags still gate repos installed before 18.0.0, which may have declined the pack.
+
+- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), the Codex project settings (`.claude/config.toml`), path rules, process pages, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for a repo with user-facing screens.
-- **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages when `components.stackPack` is true. The provisioning skill itself is core, because every repo needs its memory store.
+- **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages when `components.stackPack` is true.
 - **Scaffold** adds `app/` only when both `components.appScaffold` and `components.stackPack` are true. It excludes `app/wrangler.jsonc`, which contains source-repo database IDs.
+
+## The agent folder
+
+A target keeps the payload in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it, the same layout as this source. The inventory uses logical `.claude/` paths; the install writes each one under `.agents/`. So `.claude/hooks.json` is also `.codex/hooks.json`, which Codex reads, and `.claude/config.toml` is `.codex/config.toml`, which enables Codex's Default-mode questions. Codex loads `.agents/skills` natively, so each skill loads once in each agent. A legacy target with a real `.claude/` folder moves it during [the 18.0.0 sync](#moving-to-1800).
 
 A skill installed under a recorded local name stays under that name. The target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The preflight bounds payload comparison; exploration starts with its changed units and reads another target path only for a named dependency or impact. The inventory limits copying, not that evidence-based expansion. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source.
 
@@ -36,7 +42,7 @@ The **plan** skill ships the [fixed review kit](../../plan/references/review-kit
 
 ## The memory store and its hooks
 
-The **memory** skill ships its script, schema migrations, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on the Node.js that OpenSpec already needs. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.codex/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [`/wong-cloudflare`](../../wong-cloudflare/SKILL.md#the-memory-store-every-repo); its ids go in `components.memory` of the install record, and its token only in the ignored `.env`. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+The **memory** skill ships its script, schema migrations, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on the Node.js that OpenSpec already needs. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.claude/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store); its ids go in `components.memory` of the install record, and its token only in the ignored `.env`. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
 
 ### Moving notes into the memory store
 
@@ -50,13 +56,23 @@ A target with a `notes/` folder from a release before 17.0.0 plans this migratio
 
 ## The opt-in stack pack
 
-The pack stays out of a repo until adopted. Its drop-in files follow the manifest's ordinary copy-or-adapt rule. Configuration fragments instead merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md); live database IDs and secrets are created in the target, never copied. The whole [`wiki/stack/`](../../../../wiki/stack/README.md) section ships with the pack. The [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core because `/verify` works on other hosts too.
+Every new install takes the pack. A legacy repo that declined it keeps it out until it sets `components.stackPack: true`. Its drop-in files follow the manifest's ordinary copy-or-adapt rule. Configuration fragments instead merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md); live database IDs and secrets are created in the target, never copied. The whole [`wiki/stack/`](../../../../wiki/stack/README.md) section ships with the pack. The [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core because `/verify` works on other hosts too.
 
-No copied file may carry a live `database_id` or a source-repo database name. The source's `app/wrangler.jsonc` is excluded; `/wong-cloudflare` creates the target's config from a fragment after provisioning. A target may take the pack without the starter app and keep its own Worker.
+No copied file may carry a live `database_id` or a source-repo database name. The source's `app/wrangler.jsonc` is excluded; [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) creates the target's config from a fragment. A legacy target may have the pack without the starter app and keep its own Worker.
 
 ## The opt-in app scaffold
 
 The scaffold is a starting React/Vite Worker app, not a required runtime for WongStack. It includes its own test suite and package manifest. The core test workflow finds a repo's `npm test` script at the root or in an immediate subdirectory; when none exists, it reports that and succeeds. No root `package.json` is copied on behalf of a target. A target that does not take the scaffold gains no app dependency.
+
+## Moving to 18.0.0
+
+A target installed before 18.0.0 plans these tasks, each only where it applies, and preserves every local file:
+
+1. **The folder.** Move a real `.claude/` folder to `.agents/`, then add `.claude` and `.codex` links to it. Merge a real `.codex/config.toml` and `.codex/hooks.json` into `.agents/config.toml` and `.agents/hooks.json`, keeping local entries, then replace `.codex/` with the link. List every local file the move preserves.
+2. **The skill.** Remove `.claude/skills/wong-cloudflare/`. Report local edits to it, so their intent can move to an owning page.
+3. **The GitHub secret.** In a repo with `components.stackPack: true`, the secret `CLOUDFLARE_API_TOKEN` holds the user token. Mint the `<repo>-deploy` token and replace the secret, with [the CI deploy token step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4d-the-ci-deploy-token) from the source checkout. Then recommend that the user rolls the user token's value in the Cloudflare dashboard and updates `.env`, because CI could read it before this release.
+
+The preflight reports the first two as the removed `.codex/hooks.json` and `wong-cloudflare` units and the added `.claude/hooks.json` and `.claude/config.toml` units.
 
 ## OpenSpec integration and migration
 
