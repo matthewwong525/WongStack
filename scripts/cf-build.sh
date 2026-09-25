@@ -42,7 +42,7 @@ source "$SCRIPT_DIR/lib-wrangler-config.sh"
 #
 # It answers with a THIRD outcome as well as found/broken: exit 3 means "this
 # repo has no wrangler config yet" — the state the pack ships in, before
-# `/wong-cloudflare` writes one. That is not a build failure and a caller is
+# setup's Cloudflare provisioning writes one. That is not a build failure and a caller is
 # meant to route it somewhere green; the workflow's locate step does exactly
 # that. Exit 1 stays reserved for a genuine error, so a provisioned repo whose
 # config is broken still fails loudly instead of yielding an empty path and a
@@ -54,7 +54,7 @@ source "$SCRIPT_DIR/lib-wrangler-config.sh"
 # they'd pick.
 if [ "${1:-}" = "--app-dir" ]; then
   if ! wong_resolve_wrangler_config "$ROOT"; then
-    echo "cf-build: this repo is not configured yet — run /wong-cloudflare to configure and provision." >&2
+    echo "cf-build: this repo is not configured for Cloudflare yet — run /wong-sync to plan provisioning." >&2
     exit 3
   fi
   echo "$BUILD_DIR"

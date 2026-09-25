@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 18.0.0 — open-source release: one setup, a narrow CI token, one agent folder
+
+- **BREAKING:** `/wong-cloudflare` is removed. `/wong-setup` starts from an **empty folder** and stops, writing nothing, in a folder that already has files. It asks for one Cloudflare user token first, then installs everything in one pass: the workflow, the knowledge surfaces, a starter app, session memory, and Cloudflare hosting. Its [provisioning runbook](.claude/skills/wong-setup/references/cloudflare.md) holds the old skill's steps. The login wall is [Cloudflare Access](wiki/stack/cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](wiki/stack/getting-started.md#teardown).
+- **BREAKING:** The stack pack, the app scaffold, and the UI pages are core for new installs. The install record sets `components.stackPack`, `components.appScaffold`, and `components.ui` to `true`. `/wong-sync` still honors those flags in a repo installed earlier.
+- **BREAKING — security:** CI gets its own narrow token. Provisioning mints an account-owned `<repo>-deploy` token with only `Workers Scripts Write`, `D1 Write`, and `Account Settings Read`, and pipes it straight into the GitHub secret `CLOUDFLARE_API_TOKEN`. The user token, which can mint tokens, stays only in the host's `.env`. Before this release, the GitHub secret held the user token, so any workflow in your repo could read a token that controls the account. **Run `/wong-sync`, then roll your user token** (**My Profile → API Tokens → Roll**) and put the new value in `.env`.
+- **BREAKING:** One real agent folder. `.codex` is a symbolic link to `.agents`, as `.claude` already is. `.codex/config.toml` and `.codex/hooks.json` are now `.agents/config.toml` and `.agents/hooks.json`. New installs get a real `.agents/` folder with both links, so Codex finds the skills too. On Windows, turn on `core.symlinks` before you clone.
+- The README setup URL is now `.agents/skills/wong-setup/SKILL.md`. The old `.claude/...` URL returned `404`, because `raw.githubusercontent.com` does not follow a directory link. A test now fails when a README raw URL passes through a link.
+- `.env.example`, the README, and [the credentials page](wiki/stack/cloudflare-credentials.md) state what the user token grants itself at each step, that it can be narrowed back, and that it never goes to CI.
+- WongStack is MIT-licensed ([`LICENSE`](LICENSE)). [`SECURITY.md`](SECURITY.md) says how to report a vulnerability and what each of the three Cloudflare tokens can do.
+- New tests pin what hosted setups rely on: the setup URL, the variable and secret names, the secrets `deploy.yml` reads, and the deploy token's permission list. `cf-deploy.sh` is tested against a fake `wrangler` for the production, staging, and preview-alias paths.
+- On sync, a repo installed before 18.0.0 plans [the move](.claude/skills/wong-sync/references/payload-manifest.md#moving-to-1800): the agent folder, the removed skill, and the deploy token.
+
 ## 17.0.0 — session memory: facts, a start digest, and background capture
 
 - **BREAKING:** Every repo gets a **memory store** on Cloudflare: a D1 database named `<repo>-memory`, and a private R2 bucket of the same name when the account has R2 enabled. Cloudflare becomes a required account. R2 is optional because it needs a payment method on file; without it, raw transcripts are not stored and everything else works. [Session memory](wiki/development/memory.md) owns the convention.

@@ -1,6 +1,6 @@
 # Cloudflare credentials
 
-One token gets everything running. Create it with **two checkboxes**, save it in the primary worktree's `.env`, and the agent grants itself whatever else it needs — [provisioning](../../.claude/skills/wong-cloudflare/SKILL.md), deploys, build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall.
+One token gets everything running. Create it with **two checkboxes** and save it in the primary worktree's `.env`. The agent then grants it only the permissions each step needs — [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall — and tells you what it granted. This user token stays on your computer. CI gets a [separate, smaller token](#the-ci-deploy-token).
 
 This page is the token screen in detail: where to click, what to tick, what it can do afterward, and the security trade-off that design makes. Values land in `.env` per the [secrets convention](../development/secrets.md); real values never touch git.
 
@@ -45,7 +45,7 @@ Follow this literally. It's four menu steps, two permission rows, and one field 
 
 **Do not skip Account Resources.** Leaving it unset produces a token that verifies successfully and can see nothing — Cloudflare reports the out-of-scope account as *no accounts* rather than as an error, so it reads like an empty Cloudflare account. If that happens you can edit the existing token; you don't need a new one, and the value in the primary worktree's `.env` stays valid because the token id doesn't change.
 
-Two checkboxes really is the whole ask. Everything else — Workers, D1, build logs, Zero Trust — the agent grants on demand.
+Two checkboxes really is the whole ask. The agent adds only the groups a step needs, when it needs them: Workers, D1, and account settings for provisioning, and the Access groups only if you ask for a login wall. The [widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#a-normal-provision) lists each one.
 
 ## Store it
 
@@ -59,11 +59,15 @@ CLOUDFLARE_ACCOUNT_ID=
 
 `.env.example` uses these same two names, blank. Provisioning creates the primary worktree's durable `.env` from the active branch's example, confirms the destination is ignored, and fills `CLOUDFLARE_ACCOUNT_ID` once it knows which account you picked. The [secrets convention](../development/secrets.md) owns worktree resolution and duplicate-file handling.
 
-> **This page owns the token variable's name.** `CLOUDFLARE_API_TOKEN` is what wrangler reads natively, and what `scripts/cf-secrets.mjs`, `.github/workflows/deploy.yml`, `/wong-cloudflare`, and the GitHub repository secret all read. Every other surface that mentions it — the `.env.example` template, the [config fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#envexample--cloudflare-variables) — links here rather than restating it, so there is one place to change and no second definition to drift from.
+> **This page owns the token variable's name.** `CLOUDFLARE_API_TOKEN` is what wrangler reads natively, and what `scripts/cf-secrets.mjs`, `.github/workflows/deploy.yml`, setup's provisioning, and the GitHub repository secret all read. On your computer it holds the user token; in the GitHub secret it holds the [CI deploy token](#the-ci-deploy-token). One name keeps wrangler and the workflow unchanged. Every other surface that mentions it — the `.env.example` template, the [config fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#envexample--cloudflare-variables) — links here rather than restating it, so there is one place to change and no second definition to drift from.
 >
 > **Renaming it is a behavioural change, not a docs edit.** The name has flipped between `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_USER_TOKEN` three times across releases, in both directions, because a rename in a template looks exactly like prose in review. It isn't: it changes what a provisioned repo does. A change to this name requires a `VERSION` bump and a `CHANGELOG.md` entry like any other behavioural change — and the symptom when it's wrong is silent, since a token under an unread name looks identical to "not provisioned yet".
 
-CI gets its copy as **GitHub repository secrets** — provisioning sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` with `gh secret set`, so the pack's Actions workflow can deploy. The token therefore lives in exactly two authoritative places, neither committed: the primary worktree's git-ignored `.env`, and GitHub's sealed secret store. (A repo on the Workers Builds fallback needs neither: that CI runs inside Cloudflare.)
+### The CI deploy token
+
+**CI never gets the user token.** The user token can mint other tokens, so a copy in CI would let any workflow in the repo take over the account. Provisioning uses it to mint an account-owned token named `<repo>-deploy`, with only `Workers Scripts Write`, `D1 Write`, and `Account Settings Read` on your account ([the list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#the-ci-deploy-token)). The value goes straight from Cloudflare to `gh secret set CLOUDFLARE_API_TOKEN` and is written to no file. `CLOUDFLARE_ACCOUNT_ID` goes beside it.
+
+So each credential lives in one place: the user token in the primary worktree's git-ignored `.env`, and the deploy token in GitHub's sealed secret store. To rotate the deploy token, ask your agent; it rolls the value and sets the secret again. You see the token in the dashboard under **Manage Account → Account API Tokens**, where you or a teammate can revoke it. (A repo on the Workers Builds fallback needs no secret: that CI runs inside Cloudflare.)
 
 The session memory store has its own narrower token, `CLOUDFLARE_MEMORY_TOKEN`, which provisioning mints from this one and which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-token) owns that name and its scope.
 
@@ -71,23 +75,23 @@ The session memory store has its own narrower token, `CLOUDFLARE_MEMORY_TOKEN`, 
 
 The token rewrites its own permissions: it reads its own id and policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified working against the live API: a token with only `API Tokens Write` widened itself and nine endpoints went from `Authentication error` to resolving. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no second secret, no re-paste.
 
-The full protocol — the call sequence, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall — is owned by [the widen protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md). The practical payoff: someone who never wants authentication never grants anything Zero-Trust-shaped.
+The full protocol — the call sequence, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall — is owned by [the widen protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md). The practical payoff: someone who never wants authentication never grants anything Zero-Trust-shaped.
 
 ### The widen is pre-authorized
 
-> **This page owns the standing authorization.** Providing a token that carries these two permission groups **is** the permission to widen it — the groups exist for no other purpose, and a token that couldn't widen itself would be useless here. An agent that reaches the widen performs it and reports which permissions it granted; it does not stop to ask whether it may change the token's scope. Every other surface that instructs an agent to widen — [the skill](../../.claude/skills/wong-cloudflare/SKILL.md), [the protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md) — restates that as a rule and links here for the reasoning.
+> **This page owns the standing authorization.** Providing a token that carries these two permission groups **is** the permission to widen it, and to mint the narrow memory and CI deploy tokens from it — the groups exist for no other purpose, and a token that couldn't widen itself would be useless here. An agent that reaches the widen performs it and reports which permissions it granted; it does not stop to ask whether it may change the token's scope. Every other surface that instructs an agent to widen — [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), [the protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md) — restates that as a rule and links here for the reasoning.
 
 The authorization covers the widen and nothing else:
 
 - **Creating or deleting anything billable still asks first.** Widening costs nothing; a database is a different question.
-- **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set — see [the protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md).
+- **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set — see [the protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md).
 - **Narrowing back is still offered, never assumed.** Below.
 
 Read it against the trade-off two sections down: this is a real grant, on a token that is effectively account-root, and it's stated here so the permission and its cost are read together.
 
 ### Narrowing back
 
-The same call in reverse. Provision, then hand the extra permissions back; widen again next time you need them. Offered, never automatic. The one rule that must survive any hand-editing: the two API-token groups stay in the policy, or the token can never widen again (the wholesale-`PUT` rule in [the protocol reference](../../.claude/skills/wong-cloudflare/references/permission-groups.md)).
+The same call in reverse. Provision, then hand the extra permissions back; widen again next time you need them. Offered, never automatic. The one rule that must survive any hand-editing: the two API-token groups stay in the policy, or the token can never widen again (the wholesale-`PUT` rule in [the protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md)). Narrowing the user token does not affect the deploy or memory tokens: each has its own policy.
 
 ## The security trade-off, stated plainly
 
@@ -95,7 +99,7 @@ The same call in reverse. Provision, then hand the extra permissions back; widen
 
 Self-widening and least privilege are mutually exclusive, and this design chose usability: you visit the dashboard once either way, so ticking two boxes instead of nine saves a real step — and it means optional features cost nothing up front. If you'd rather have least privilege, grant the specific groups above by hand and skip the widening; everything downstream works the same.
 
-Treat the token like a root password. Its one machine-local copy lives in the primary worktree's git-ignored `.env`; provisioning also sends it directly to GitHub's sealed repository-secret store and never creates a linked-worktree copy.
+Treat the token like a root password. Its one copy lives in the primary worktree's git-ignored `.env`. Provisioning never sends it to GitHub and never creates a linked-worktree copy; CI gets the [deploy token](#the-ci-deploy-token) instead. A repo installed before WongStack 18.0.0 had the user token in its GitHub secret: `/wong-sync` replaces it, and you should roll the user token's value afterward.
 
 ## Access service token
 
@@ -146,7 +150,7 @@ Locally, the same values go in `.dev.vars` (git-ignored, per the [secrets conven
 
 ## Next
 
-- What the token is used to build: [the provisioning skill](../../.claude/skills/wong-cloudflare/SKILL.md).
+- What the token is used to build: [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 - Turning on a login wall: [Cloudflare Access](cloudflare-access.md).
 - How staging gets its own Worker and its own bindings: [Deploy and data pipeline](d1-pipeline.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

@@ -144,7 +144,7 @@ One block stops a walk before it sees the app, and where the credential exists `
 |---|---|---|
 | **The preview answers with an Access login wall** and no service token is stored | with a Cloudflare API token: mints a service token named for the repo, confirms the [Access](../stack/cloudflare-access.md) policy accepts it, writes the pair to the primary worktree's durable `.env`, then retries once | `UNKNOWN`, naming the mint that didn't help |
 
-*(Stack-pack repos.)* The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized), the same standing permission `/wong-cloudflare` runs on. The walk reports what it minted and never prints a credential value. **With no Cloudflare token the heal is simply unavailable** — the verdict is `UNKNOWN` naming the wall and the missing credential, never a graded login page.
+*(Stack-pack repos.)* The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized), the same standing permission setup's provisioning runs on. The walk reports what it minted and never prints a credential value. **With no Cloudflare token the heal is simply unavailable** — the verdict is `UNKNOWN` naming the wall and the missing credential, never a graded login page.
 
 **One heal and one retry** — never a loop. A block that survives its repair is `UNKNOWN` with the attempt named, so an unverified walk never looks like an untried one.
 

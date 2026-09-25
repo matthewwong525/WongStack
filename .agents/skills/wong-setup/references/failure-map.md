@@ -2,7 +2,7 @@
 
 Cloudflare's API errors are written for people who already know the answer. `10000 Authentication error` is what a correctly-made token returns when one checkbox is missing, and it says nothing about which one.
 
-This page maps what the API returns to **the one thing the user should change**. [The skill](../SKILL.md) uses it to translate; the raw response stays available for an agent to read, but never leads the message.
+This page maps what the API returns to **the one thing the user should change**. [The provisioning runbook](cloudflare.md) uses it to translate; the raw response stays available for an agent to read, but never leads the message.
 
 ## The rule
 
@@ -35,7 +35,7 @@ This page maps what the API returns to **the one thing the user should change**.
 
 | Symptom | Cause | What to say |
 |---|---|---|
-| The run stalls at Step 2 asking the user whether it may change the token's permissions | The standing authorization wasn't read — the widen looks like an account-touching act needing consent | It isn't: handing over a two-permission token *is* the consent ([the standing authorization](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Widen, then report what you granted. Asking here is a failure mode, not caution. |
+| The run stalls at the widen step, asking the user whether it may change the token's permissions | The standing authorization wasn't read — the widen looks like an account-touching act needing consent | It isn't: handing over a two-permission token *is* the consent ([the standing authorization](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Widen, then report what you granted. Asking here is a failure mode, not caution. |
 | `PUT /user/tokens/{id}` → `4xx` | Malformed policy, or a permission the owner doesn't have | A token can only reach as far as its owner can. If the user isn't a full account admin, the missing permissions must come from someone who is. |
 | `PUT` succeeds, re-probe still fails | Propagation, or the group id was wrong | Re-probe once. Still failing → resolve the id by name again and check the `com.cloudflare.api.account` scope. See [permission groups](permission-groups.md#the-two-traps). |
 | Widen works, next run can't widen | `API Tokens Write` was dropped from the replaced policy set | Unrecoverable via API — a new token is needed. This is why both original groups must survive every `PUT`. |

@@ -2,7 +2,7 @@
 
 How code and data ship on the [Cloudflare stack](README.md): **two environments, two Workers, migrations that apply on deploy.** A push to a feature branch migrates and deploys the *staging* Worker; a merge to the default branch migrates and deploys the *production* Worker. The [pack scripts](#the-scripts) implement it and read every repo-specific value from `wrangler.jsonc`, so they're identical in every repo that takes the pack.
 
-**The pipeline needs a Worker to run through it, and doesn't assume the repo brought one.** Everything below describes what happens to an application once it exists; where it came from is settled earlier. A repo that already had a Worker keeps it — the pack is wiring, never a rewrite. A repo that had no application at all is offered the [app scaffold](../../.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) as part of the same opt-in, and receives WongStack's own starter app. Either way the `wrangler.jsonc` that binds it to these two environments is written by [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
+**The pipeline needs a Worker to run through it, and doesn't assume the repo brought one.** Everything below describes what happens to an application once it exists; where it came from is settled earlier. A repo that already had a Worker keeps it — the pack is wiring, never a rewrite. A new install starts from an empty folder and receives WongStack's own starter app, the [app scaffold](../../.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold). Either way the `wrangler.jsonc` that binds it to these two environments is written by [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
 
 This is the runnable half of the stack — the [core stack](core-stack.md) is *what* you build on, this is *how* changes reach production safely. Skip to the [recovery runbooks](#recovery-a-bad-migration-reached-production) when production is red; read top-to-bottom to set it up. Already running the older one-Worker model? Go to [adopting the staging environment](#adopting-the-staging-environment).
 
@@ -233,7 +233,7 @@ The check **skips rather than fails** on any of three conditions, so adopting th
 
 | Condition | What it means | What is still checked |
 |---|---|---|
-| No wrangler config at all | The state the pack ships in, before `/wong-cloudflare` writes one | Nothing — there is nothing to read |
+| No wrangler config at all | The state the pack ships in, before provisioning writes one | Nothing — there is nothing to read |
 | No `CLOUDFLARE_API_TOKEN` | Not provisioned yet | The binding half: production's bindings against `env.staging`'s |
 | No `env.staging` | Not on the two-Worker model | The secret half, if a token is present |
 
@@ -312,7 +312,7 @@ npm run secrets:push         # load both Workers from .dev.vars
 npm run secrets:check        # do the two Workers still agree?
 ```
 
-The two `db:migrate:*` aliases are the one part of that list `/wong-cloudflare` writes rather than copies, since they name your databases literally and a hardcoded name can't travel between repos — they arrive through the [`package.json` fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#packagejson--scripts). They're a convenience only: `cf-build.sh` migrates on every build, reading the name out of the wrangler config itself.
+The two `db:migrate:*` aliases are the one part of that list provisioning writes rather than copies, since they name your databases literally and a hardcoded name can't travel between repos — they arrive through the [`package.json` fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#packagejson--scripts). They're a convenience only: `cf-build.sh` migrates on every build, reading the name out of the wrangler config itself.
 
 ## CI is GitHub Actions
 
@@ -335,10 +335,10 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
 **An unprovisioned repo gets a real pull-request check instead of a permanently red one**, at both of the two stages adoption passes through:
 
-- **No wrangler config yet** — the state the pack ships in. The workflow detects it, reports *"run `/wong-cloudflare` to configure and provision"* in the job summary, and exits green. Nothing is built, because there is nothing to build.
+- **No wrangler config yet** — the state the pack ships in. The workflow detects it, reports *"run `/wong-sync` to plan Cloudflare provisioning"* in the job summary, and exits green. Nothing is built, because there is nothing to build.
 - **Config but no secrets** — the workflow builds without deploying, so you get a genuine check (types, build errors) on every PR.
 
-[`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) writes the config and sets the secrets; after it runs, the workflow deploys.
+[Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) writes the config and sets the secrets; after it runs, the workflow deploys.
 
 **One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.claude/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
 

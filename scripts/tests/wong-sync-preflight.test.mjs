@@ -383,3 +383,36 @@ test('docsPath refuses colliding pages and unsafe folders', t => {
     assert.throws(() => docsPathFixture(t, [], unsafe).inspect(), error => error.code === 'unsafe-path');
   }
 });
+
+test('an 18.0.0 sync reports the agent-folder move and the removed wong-cloudflare skill', t => {
+  const legacy = inventory({ core: { skillDirs: ['alpha', 'wong-cloudflare'], files: ['.codex/hooks.json'], blocks: [] } });
+  const f = fixture(t, {
+    manifest: legacy,
+    components: { skills: ['alpha', 'wong-cloudflare'], stackPack: true },
+    targetFiles: {
+      '.claude/skills/wong-cloudflare/SKILL.md': 'door base\n',
+      '.codex/hooks.json': '{"hooks":{}}\n',
+    },
+  });
+  write(f.source, '.agents/skills/wong-cloudflare/SKILL.md', 'door base\n');
+  write(f.source, '.codex/hooks.json', '{"hooks":{}}\n');
+  f.updateRecord({ commit: f.commit('add the legacy layout') });
+
+  // The latest source keeps one real folder, with .codex as a link to it.
+  const latest = inventory({ core: { skillDirs: ['alpha'], files: ['.claude/hooks.json', '.claude/config.toml'], blocks: [] } });
+  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', `${JSON.stringify(latest, null, 2)}\n`);
+  rmSync(join(f.source, '.agents/skills/wong-cloudflare'), { recursive: true });
+  rmSync(join(f.source, '.codex'), { recursive: true });
+  write(f.source, '.agents/hooks.json', '{"hooks":{"SessionStart":[]}}\n');
+  write(f.source, '.agents/config.toml', '[features]\n');
+  symlinkSync('.agents', join(f.source, '.codex'));
+  f.commit('move to one agent folder');
+
+  const rows = f.inspect().changes.map(change => [change.sourcePath, change.operation, change.localState]);
+  assert.deepEqual(rows.filter(([path]) => /hooks\.json|config\.toml|wong-cloudflare/.test(path)).sort(), [
+    ['.claude/config.toml', 'added', 'missing'],
+    ['.claude/hooks.json', 'added', 'missing'],
+    ['.claude/skills/wong-cloudflare/SKILL.md', 'removed', 'installed-equivalent'],
+    ['.codex/hooks.json', 'removed', 'installed-equivalent'],
+  ]);
+});

@@ -83,7 +83,7 @@ Audit-only runs SHALL report ranked findings without edits, fetches, delivery, o
 - **THEN** its record identifies the terminal stage and contains no next-stage instruction
 
 ### Requirement: Portable payload and external cadence
-The skill SHALL ship in the core payload and discover target repository conventions without requiring ClaymooApp paths or a particular stack. Scheduling SHALL remain external, with documented checkout, serialization, and unattended-context requirements.
+The skill SHALL ship in the core payload and discover target repository conventions without requiring the paths of any one downstream repository or a particular stack. Scheduling SHALL remain external, with documented checkout, serialization, and unattended-context requirements.
 
 #### Scenario: Documentation-only target repository
 - **WHEN** the target has documentation and process files but no application source tree

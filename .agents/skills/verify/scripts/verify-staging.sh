@@ -83,7 +83,7 @@ resolve_primary_root() {
 }
 
 # Exported values win. Missing values come from the primary worktree's ignored
-# .env — the same durable store /wong-cloudflare provisions. Load only the
+# .env — the same durable store setup's provisioning writes. Load only the
 # allowlisted credentials the walk understands; never source arbitrary shell
 # from a dotenv file and never print a value. All three are optional: they
 # matter only when the preview sits behind Cloudflare Access.

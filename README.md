@@ -8,15 +8,15 @@ This is one way of working, not the only one. [The principles behind it](wiki/ag
 
 ## Start here
 
-Open your project folder in Claude Code, Codex, Cursor, or another coding agent that can read files, edit files, run shell commands, and ask you questions. An empty folder is fine. Then paste this:
+Make an **empty folder** and open it in Claude Code, Codex, Cursor, or another coding agent that can read files, edit files, run shell commands, and ask you questions. Have a free [Cloudflare](https://cloudflare.com) account ready. Then paste this:
 
 ```
 Read and follow
-https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.claude/skills/wong-setup/SKILL.md
-to install WongStack in this repo and walk me through the first workflow.
+https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
+to install WongStack in this folder and walk me through the first workflow.
 ```
 
-The agent uses the normal workflow: explore your project, plan the install, apply it, and save the result. It asks about unresolved choices through `/explore`.
+The agent asks for one Cloudflare token first, with the [exact click path](wiki/stack/cloudflare-credentials.md#create-the-token). Then it uses the normal workflow: it asks how you work, plans the install, applies it, and saves the result. You end with the workflow, a starter app online at its own address, and session memory. Setup starts only from an empty folder; in a folder that already has files, it stops and says so.
 
 ## What you get
 
@@ -70,7 +70,7 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/improve [area]` | Review recent work and one rotating area, then ship one supported maintenance improvement. Add `--audit-only` for findings without edits. |
 | `/wong-sync` | Get the latest WongStack source and plan the update, ending at a review page you can read. |
 
-Run `/wong-cloudflare` once to turn on [session memory](wiki/development/memory.md): a private store on your Cloudflare account that every session reads at start and that captures sessions you never saved. The same command puts the project online as a website people can open: it offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Hosting is optional, and you can run it long after setup.
+Setup also turns on [session memory](wiki/development/memory.md): a private store on your Cloudflare account that every session reads at start and that captures sessions you never saved. It puts the project online with the [Cloudflare stack](wiki/stack/README.md): every change gets its own preview link, and merging deploys it.
 
 ## Where the knowledge lives
 
@@ -100,13 +100,15 @@ You do not need these before starting, but they help explain what WongStack sets
 - [The change loop](wiki/development/the-change-loop.md) - how work moves from idea to shipped record.
 - [Working on WongStack](wiki/development/README.md) - how to change the toolkit itself.
 - [Changelog](CHANGELOG.md) - what changed between releases.
+- [Security](SECURITY.md) - how to report a vulnerability, and what each Cloudflare token can do.
 
 ## Requirements
 
 The setup prompt can help with missing pieces, but WongStack is designed around:
 
 - A coding agent that can read files, edit files, run shell commands, and ask questions.
-- A GitHub repo. If you are starting from an empty folder, setup can walk you through creating one.
+- An empty folder. Setup creates the GitHub repo for it.
+- A [Cloudflare](https://cloudflare.com) account (the free plan works) and one **user token** with two permissions. The token grants itself only the permissions each setup step needs, tells you what it granted, and can be narrowed back afterward. It stays in the git-ignored `.env` on your computer; CI gets a separate token that can only deploy. [The credentials page](wiki/stack/cloudflare-credentials.md) has the click path and the full list.
 - [`gh`](https://cli.github.com/), authenticated. (That plus `git` and `openspec` is the whole toolchain — no `jq` or other tools required.)
 - [Node.js](https://nodejs.org/) for the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI.
 
@@ -117,3 +119,7 @@ Clone this repo and the commands are live here:
 ```bash
 git clone https://github.com/matthewwong525/WongStack && cd WongStack
 ```
+
+## License
+
+WongStack is released under the [MIT License](LICENSE).
