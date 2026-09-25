@@ -104,19 +104,19 @@ unmergeable and stops rather than reinterpret or repeat it.
 ### The prose allowlist
 
 **A prose-only save is a valid save.** Not every session produces a diff that needs reviewing. When
-a save's entire diff sits inside the **prose allowlist** — the two path prefixes `notes/**` and
-`wiki/**` — `/save` commits it **directly to the default branch**: no change folder, no branch, no
-PR, no `/ship`. A conversation that produced only understanding takes it (just `notes/<slug>.md`),
-and so does explicit wiki-only work.
+a save's entire diff sits inside the **prose allowlist** — the path prefix `wiki/**` — `/save`
+commits it **directly to the default branch**: no change folder, no branch, no PR, no `/ship`.
+Explicit wiki-only work takes it. A conversation that produced only understanding needs no route at
+all: its facts go to the [memory store](memory.md), and the save makes no commit.
 
-The gate isn't weakened — it applies where behavior does. Neither surface carries any: a note is raw,
-permanent session context, and a wiki page is prose you reviewed in the diff that produced it. The
+The gate isn't weakened — it applies where behavior does. A wiki page carries none: it is prose
+you reviewed in the diff that produced it. The
 carve-out is scoped by path and exact; one changed path outside the allowlist and the
 normal flow applies to the whole save. It never keys on file extension — markdown under `.claude/`
 is the payload and markdown under `openspec/` is the spec, and `AGENTS.md`/`CLAUDE.md`,
 `README.md`, `CHANGELOG.md`, `VERSION`, `app/**` and every config file keep the full gate. The
 allowlist is closed: a surface that isn't named here gets the gate until someone deliberately adds
-it. See [`notes/README.md`](../../notes/README.md).
+it.
 
 ## The change is a living handoff, not just a plan
 
@@ -130,7 +130,7 @@ it. See [`notes/README.md`](../../notes/README.md).
 
 The plan is the change folder, saved on the feature branch with the work. `/continue <name>` can find that folder on a fetched remote branch from a fresh clone. The record of what shipped is the **archived change** on the default branch plus the synced `openspec/specs/`. There are no GitHub planning or summary issues; the change *is* the plan and its archive *is* the record.
 
-**The branch and change can have different names.** The OpenSpec folder and session note use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. A command first uses the change named by the user or this session. On the current branch, it next checks for a unique changed OpenSpec folder across uncommitted files and the branch diff; committed work still counts after the tree becomes clean. A saved Branch line or legacy name match can resolve a change when no folder changed. Multiple changed folders stop selection for clarification, and `/ship` will not merge a branch that carries another active change folder. Older same-name changes remain resumable.
+**The branch and change can have different names.** The OpenSpec folder and the session's facts use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. A command first uses the change named by the user or this session. On the current branch, it next checks for a unique changed OpenSpec folder across uncommitted files and the branch diff; committed work still counts after the tree becomes clean. A saved Branch line or legacy name match can resolve a change when no folder changed. Multiple changed folders stop selection for clarification, and `/ship` will not merge a branch that carries another active change folder. Older same-name changes remain resumable.
 
 ## Spec deltas are optional
 

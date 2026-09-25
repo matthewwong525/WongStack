@@ -64,18 +64,18 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/explore` | Think through the idea before deciding what to do. |
 | `/plan` | Write the plan, tasks, decisions, and interactive review page. |
 | `/apply` | Ensure the current work has a plan, do it, then automatically save it once every task is complete. |
-| `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, which lands straight in the repo as a note with no branch or PR. |
+| `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, whose facts go to the memory store with no branch or PR. |
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
 | `/improve [area]` | Review recent work and one rotating area, then ship one supported maintenance improvement. Add `--audit-only` for findings without edits. |
 | `/wong-sync` | Get the latest WongStack source and plan the update, ending at a review page you can read. |
 
-To put the project online as a website people can open, run `/wong-cloudflare`. It offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Optional, and you can run it long after setup.
+Run `/wong-cloudflare` once to turn on [session memory](wiki/development/memory.md): a private store on your Cloudflare account that every session reads at start and that captures sessions you never saved. The same command puts the project online as a website people can open: it offers the [Cloudflare hosting setup](wiki/stack/README.md), configures it, and deploys the app. Hosting is optional, and you can run it long after setup.
 
 ## Where the knowledge lives
 
 - **Agent instructions** tell future agents how to work in the repo.
-- **Session notes** capture what a conversation figured out, so it survives the session and the machine it happened on.
+- **Session memory** keeps short facts from every session — saved or not — outside the repo, and loads a digest of them when the next session starts.
 - **The wiki** holds reusable team process and conventions.
 - **Active changes** hold the plan, tasks, status, and decisions for work in progress.
 - **Archived changes** preserve what shipped and why.

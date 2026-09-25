@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 17.0.0 — session memory: facts, a start digest, and background capture
+
+- **BREAKING:** Every repo gets a **memory store** on Cloudflare: a D1 database named `<repo>-memory`, and a private R2 bucket of the same name when the account has R2 enabled. Cloudflare becomes a required account. R2 is optional because it needs a payment method on file; without it, raw transcripts are not stored and everything else works. [Session memory](wiki/development/memory.md) owns the convention.
+- **BREAKING:** New variable `CLOUDFLARE_MEMORY_TOKEN`, in the ignored `.env` only. `/wong-cloudflare` mints it with `D1 Write`, plus `Workers R2 Storage Write` when a bucket exists. It is never a GitHub secret, so CI cannot read transcripts. When your provisioning token cannot mint tokens, create this one by hand with those permissions.
+- **Facts replace notes.** The unit of memory is a typed fact of at most 400 characters (`user`, `feedback`, `project`, `reference`, or `thread`), with a slug, tags, an author, and its source session. A fact is never edited; a later fact supersedes it. Every write passes a write gate that shows the close live facts, so the writer adds, supersedes, or drops each one. Search is keyword search (FTS5) with tags. `memory.mjs stats` reports when embeddings become worth adding.
+- **A digest loads at session start.** A `SessionStart` hook for Claude (`.claude/settings.json`) and Codex (`.codex/hooks.json`) prints a bounded digest of live facts, with the open threads of your branch's change first. It runs no model, falls back to a local cache offline, and stays the same for the whole session. Codex asks you to trust the hook once.
+- **Sessions you never saved are captured.** When sessions of the repo sit idle for an hour with no capture, the hook starts a detached run of the same agent's CLI with a small model, limited to the memory script and its own work folder. Your first reply never waits for it. It captures at most five sessions per run and spends your own model quota; the next digest reports what it did. `#private` in any message keeps a whole session out.
+- **The same run consolidates** once 24 hours and five captured sessions have passed: it merges duplicate facts and supersedes contradicted ones, newest first.
+- The verbs use memory: `/explore` (and `/plan` through it) searches before it asks, `/save` writes facts through the gate (spooled when offline), `/continue` reads a change's facts and open threads, and `/ship` distills reusable facts into the wiki before the archive, reviewed in the ship PR.
+- **BREAKING:** `notes/` and `.claude/rules/notes.md` leave the payload. The prose allowlist is `wiki/**` only, and a save that only writes facts makes no commit. On sync, a repo with `notes/` plans the migration in order: provision, import every note as facts (its text kept in R2 when a bucket exists), verify one migration session per note, then delete `notes/`. [The manifest](.claude/skills/wong-sync/references/payload-manifest.md#moving-notes-into-the-memory-store) owns the steps.
+- `/wong-cloudflare` is now core, because every repo needs the memory store. The stack pack stays opt-in.
+
 ## 16.7.1 — `/save` updates the PR body through the REST API
 
 - The git gate updates an open pull request's body with `gh api -X PATCH "repos/{owner}/{repo}/pulls/$PR_NUMBER" -F "body=@$BODY_FILE"`. `gh pr create --body-file` still opens a new one.

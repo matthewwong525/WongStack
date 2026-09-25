@@ -77,6 +77,6 @@ This cap covers the CI fix-and-repush loop only, and it is per `/save` invocatio
 
 This runbook does **not** own, and each skill states for itself:
 
-- **`/save`** — the preview-URL discovery, staging by path (never `git add .`), the prose fast path, the session note, and the OpenSpec sync.
+- **`/save`** — the preview-URL discovery, staging by path (never `git add .`), the prose fast path, the session facts, and the OpenSpec sync.
 - **`/ship`** — the default-branch-CI preflight, OpenSpec archive invocation, strict interpretation of `SAVE_GATE_RESULT`, worktree-safe merge, and remote-branch deletion. The archive commit/push/PR/branch-CI checkpoint belongs to its delegated ordinary `/save` call.
 - **`/verify`** — the staging walkthrough, which it runs after invoking `/save`; it gates nothing here.

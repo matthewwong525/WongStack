@@ -7,7 +7,6 @@ paths:
   - ".github/**"
   - "VERSION"
   - "CHANGELOG.md"
-  - "notes/README.md"
   - "wiki/wiki-style.md"
   - "wiki/voice.md"
   - "wiki/contributing.md"

@@ -3,9 +3,7 @@
 ## Purpose
 
 `/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
-
 ## Requirements
-
 ### Requirement: Ship pulls in apply when there is nothing to ship
 
 When `/ship`'s preflight finds nothing to ship — the current branch is the default branch, or the branch has no commits ahead and a clean tree — `/ship` SHALL invoke `/apply` before its own runbook, in one of two forms:
@@ -135,3 +133,24 @@ Before archiving, `/ship` SHALL read the change's `tasks.md`. When it has unchec
 
 - **WHEN** the branch diff contains two active OpenSpec change folders
 - **THEN** `/ship` stops before archive or merge and identifies the ambiguity
+
+### Requirement: Ship distills the change's facts into the wiki
+
+Before it archives a change, `/ship` SHALL read that change's live facts from the memory store and extract only reusable process facts. It SHALL edit the owning wiki pages under the wiki rules, in the same pull request as the change, and SHALL record in the Decision log which pages changed, or that no fact was reusable. No other skill or hook SHALL write the wiki automatically. When the store is unreachable, `/ship` SHALL record that the step was skipped and continue.
+
+#### Scenario: A reusable convention
+
+- **WHEN** a change's facts record a convention that applies to future work
+- **THEN** the ship pull request edits the wiki page that owns that topic
+- **AND** the Decision log names the page
+
+#### Scenario: Nothing reusable
+
+- **WHEN** a change's facts hold only change-specific context
+- **THEN** no wiki file changes and the Decision log states that no fact was reusable
+
+#### Scenario: The store is unreachable at ship time
+
+- **WHEN** `/ship` cannot read the memory store
+- **THEN** it records the skipped step in the Decision log and continues to merge
+

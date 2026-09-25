@@ -3,9 +3,7 @@
 ## Purpose
 
 Keep an installed repo current with WongStack by passing the latest source and local installation context into the normal planning workflow, which ends at a reviewable plan.
-
 ## Requirements
-
 ### Requirement: Sync enters the normal workflow with current source context
 
 `/wong-sync` SHALL obtain the upstream default branch in a separate clean local checkout and run a deterministic preflight against the selected payload before it invokes `/plan`. When the preflight proves that the selected payload has no upstream delta from the recorded installed commit, sync SHALL report that the selected payload is current and SHALL NOT invoke `/plan` or `/explore`. When an update exists, `/plan` SHALL receive the target repo, source path, source commit, installed version when known, user intent, and the complete classified set of changed payload units. Sync SHALL preserve local work and component choices as planning inputs and SHALL leave target writes to the normal workflow. A retrieval or preflight failure SHALL be explicit and SHALL NOT be reported as current.
@@ -143,3 +141,23 @@ The install record MAY set `components.docsPath` to a safe repo-relative folder 
 
 - **WHEN** `components.docsPath` is absolute or escapes the target
 - **THEN** the report status is `error` with an `unsafe-path` diagnostic
+
+### Requirement: Sync plans the move of notes into the memory store
+
+When a sync brings in the memory store to a repo that has a `notes/` directory, the planned update SHALL include tasks to provision the store, and then, for every `notes/<slug>.md`: upload the note's text to R2 when the store has a bucket, record a session with agent `migration` for it, and extract its facts through the write gate with source `migration` and the note's original dates. The plan SHALL then verify that every note has its migration session, and only then delete `notes/` and its path rule. A note with no fact worth keeping SHALL still get its migration session, recorded as `skipped`. A locally changed `notes/README.md` SHALL be reported so its local conventions can move to an owning page.
+
+#### Scenario: An installed repo with notes
+
+- **WHEN** `/wong-sync` plans an update to this release in a repo with 12 notes
+- **THEN** the plan migrates 12 notes, verifies that 12 migration sessions exist in the store, and only then deletes `notes/`
+
+#### Scenario: The migration fails midway
+
+- **WHEN** the migration stops after 5 of 12 notes
+- **THEN** `notes/` stays in place and the task reports the 7 notes that have no migration session
+
+#### Scenario: A note's text is kept
+
+- **WHEN** a note is migrated into a store with a bucket
+- **THEN** its full text is in R2, and each of its facts links to its migration session
+

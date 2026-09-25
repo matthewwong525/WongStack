@@ -7,13 +7,10 @@ Stand the [stack pack](../stack-pack/spec.md)'s Cloudflare infrastructure up fro
 The token the user creates carries only two permission groups and widens its own permissions on demand, which is what lets optional features — a login wall, in particular — cost nothing up front. Everything else is plain REST: account resolution, the production and staging databases, the binding, and the CI wiring. Whatever is provisioned can be torn down, so the path is repeatably testable.
 
 This capability is gated on `components.stackPack: true`; a repo that declined the pack never sees it.
-
 ## Requirements
-
 ### Requirement: A provisioning skill stands the app up from a single API token
 
-
-The payload SHALL include a provisioning skill, gated on `components.stackPack: true`, that takes a repo from "has a Cloudflare token" to "has a deployed Worker backed by two D1 databases and a CI pipeline." It SHALL be runnable at any time after `/wong-setup`, not only during onboarding, because the token typically arrives later than the install does. It SHALL drive the Cloudflare REST API directly and SHALL NOT require `node`, `npm`, or `wrangler` on the machine running it. It SHALL write nothing outside the repo and SHALL leave its repo changes uncommitted for `/save`.
+The payload SHALL include a provisioning skill that takes a repo from "has a Cloudflare token" to "has a memory store" in every repo, and, where `components.stackPack: true`, to "has a deployed Worker backed by two D1 databases and a CI pipeline." It SHALL be runnable at any time after `/wong-setup`, not only during onboarding, because the token typically arrives later than the install does. It SHALL drive the Cloudflare REST API directly and SHALL NOT require `node`, `npm`, or `wrangler` on the machine running it. It SHALL write nothing outside the repo and SHALL leave its repo changes uncommitted for `/save`.
 
 #### Scenario: Provisioning runs long after setup
 
@@ -24,12 +21,12 @@ The payload SHALL include a provisioning skill, gated on `components.stackPack: 
 #### Scenario: The skill is absent for a repo that declined the pack
 
 - **WHEN** a repo's manifest has `components.stackPack` false or absent
-- **THEN** the provisioning skill is neither installed nor offered
-- **AND** no Cloudflare-specific file enters that repo
+- **THEN** the skill's stack-pack part (Worker, app databases, CI pipeline) is neither run nor offered, and only the memory store is provisioned
+- **AND** no stack-pack file enters that repo
 
 #### Scenario: Repo changes are left for review
 
-- **WHEN** provisioning finishes writing the D1 binding, workflow file, and env entries
+- **WHEN** provisioning finishes writing the D1 binding, workflow file, install record, and env entries
 - **THEN** those edits sit uncommitted in the working tree
 - **AND** the skill runs no git command in the repo
 
@@ -76,7 +73,6 @@ When no Cloudflare token is available yet, the skill SHALL stop cleanly after th
 - **AND** no prose claims `/wong-sync` offers the pack
 
 ### Requirement: The token widens its own permissions rather than requiring a pre-granted set
-
 
 The documented credential SHALL be a single user-scoped Cloudflare API token carrying only `API Tokens Write` (user scope) and `Account API Tokens Write` (account scope), with the user's account included in its resources. The skill SHALL obtain any further permission it needs by reading its own token id from `/user/tokens/verify`, reading its current policy document from `/user/tokens/{id}`, resolving permission-group ids **by name** from `/user/tokens/permission_groups`, and issuing `PUT /user/tokens/{id}` with a widened policy set. Because the `PUT` replaces policies wholesale, the widened set SHALL include the original two permission groups. The skill SHALL verify the widen took effect before proceeding, and SHALL offer to narrow the token back afterward.
 
@@ -125,7 +121,6 @@ The widen SHALL be **pre-authorized by the act of providing the token**: the pay
 - **AND** it reports which surfaces are unavailable and lists the permissions to grant manually
 
 ### Requirement: The token creation screen is documented as an exact click path
-
 
 The payload SHALL document how to create the token as a literal, screen-by-screen path — the menu route (`My Profile → API Tokens → Create Token → Create Custom Token`), each permission row to add, and the **Account Resources** include, which SHALL be called out as the field most often missed. Instructions SHALL NOT paraphrase the screen or assume the user can infer a field from its purpose. During exploration this token was created incorrectly twice — first account-scoped rather than user-scoped, then with no account in its resources — by someone with live API access to inspect the result, so the path is treated as the highest-risk moment in the flow.
 
@@ -178,7 +173,6 @@ The skill SHALL resolve the durable `.env` in the repository's primary worktree 
 
 ### Requirement: Resource names are derived, not requested
 
-
 The skill SHALL derive the names of the databases and the Worker from the repository name, SHALL state the names it chose, and SHALL NOT ask the user to supply them. A user MAY override a name if they raise it, but no naming question SHALL be part of the default flow.
 
 #### Scenario: Provisioning names resources without asking
@@ -188,7 +182,6 @@ The skill SHALL derive the names of the databases and the Worker from the reposi
 - **AND** it asks the user no naming question
 
 ### Requirement: The account is resolved by asking, never assumed
-
 
 The skill SHALL list the accounts the token can see and SHALL NOT assume a single account. Where exactly one account is visible it MAY proceed with it after stating which. Where zero or more than one is visible it SHALL ask the user which to use before creating any resource.
 
@@ -230,7 +223,6 @@ The Cloudflare token SHALL live only in the repo's git-ignored `.env` and in the
 
 ### Requirement: CI is wired without user involvement
 
-
 The skill SHALL set the Cloudflare credentials as GitHub repository secrets via `gh`, and SHALL confirm the pack's GitHub Actions workflow is present. Neither SHALL require the user to visit a web interface: `gh secret set` works on the `repo` scope `gh auth login` already grants, and the workflow file ships with the pack.
 
 Before relying on a push, the skill SHALL check that the stored `gh` credentials carry the `workflow` scope, since it is absent from `gh auth login`'s minimum set and its absence fails only at push time with wording a newcomer cannot act on. Where it is missing the skill SHALL offer `gh auth refresh --scopes workflow` with a plain-language reason.
@@ -255,7 +247,6 @@ Before relying on a push, the skill SHALL check that the stored `gh` credentials
 - **AND** production, the staging Worker, and the per-commit preview alias behave exactly as they do under Cloudflare Workers Builds
 
 ### Requirement: Everything provisioned can be torn down
-
 
 The skill SHALL provide a teardown path that removes the resources a provisioning run created — the Worker, both D1 databases, and the GitHub secrets — so repeated testing does not leak billable infrastructure. Teardown SHALL name every resource it intends to delete and require confirmation before deleting, and SHALL report anything it declined to touch.
 
@@ -341,3 +332,38 @@ Where Access is in front, the skill SHALL additionally state that the smoke test
 - **WHEN** the service-token request is rejected by the app's own auth code
 - **THEN** the run reports a failure naming that request
 - **AND** it does not report provisioning as successful
+
+### Requirement: The provisioning skill provisions the memory store in every repo
+
+`/wong-cloudflare` SHALL be installed in every WongStack repo. It SHALL provision the memory store whether or not the repo took the stack pack: it SHALL create the `<repo>-memory` D1 database, and the private R2 bucket of the same name when R2 is enabled, apply the memory migrations, and use the provisioning token to mint a separate memory token that carries only D1 permissions, plus R2 permissions when a bucket exists. It SHALL write that token to the git-ignored `.env`, SHALL NOT set it as a CI secret, and SHALL record the resource ids under `components.memory` in `.claude/.wong-stack.json`. A run that finds the store already provisioned SHALL change nothing. Minting the memory token is covered by the same pre-authorization as the widen. Creating the database and bucket SHALL still require asking, as other billable resources do.
+
+Before it creates the bucket, the skill SHALL check whether R2 is enabled on the account. R2 needs a payment method on file even inside its free tier, and an API token cannot enable it. When R2 is not enabled, the skill SHALL provision the database and the token without a bucket, record the absence under `components.memory`, and report that transcripts are not stored, with the dashboard step that turns R2 on. A later run that finds R2 enabled SHALL add the bucket and SHALL add R2 permissions to the existing memory token.
+
+#### Scenario: A repo without the stack pack
+
+- **WHEN** `/wong-cloudflare` runs in a repo with `components.stackPack` false and no memory store
+- **THEN** it offers the memory store and the pack as separate choices
+- **AND** a yes to the memory store with a no to the pack provisions the store without landing any pack file
+
+#### Scenario: The memory token is narrow
+
+- **WHEN** provisioning mints the memory token
+- **THEN** the token carries D1 permissions, and R2 permissions only when a bucket exists, and no token-write, Worker, or Access permission
+- **AND** it is written to `.env` and not to any CI secret
+
+#### Scenario: R2 is not enabled
+
+- **WHEN** `/wong-cloudflare` provisions memory on an account where R2 is not enabled
+- **THEN** it creates the memory database and token, and no bucket
+- **AND** it reports that transcripts are not stored and names the dashboard step that enables R2
+
+#### Scenario: R2 is enabled later
+
+- **WHEN** a later run finds R2 enabled and the store has no bucket
+- **THEN** it creates the bucket, adds R2 permissions to the memory token, and records the bucket
+
+#### Scenario: Provisioning runs again
+
+- **WHEN** the memory store and token already exist and verify
+- **THEN** the run reports the store as current and creates nothing
+

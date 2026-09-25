@@ -26,16 +26,18 @@
       "ship",
       "verify",
       "improve",
+      "memory",
+      "wong-cloudflare",
       "wong-sync",
       "agent-browser"
     ],
     "files": [
+      ".claude/settings.json",
+      ".codex/hooks.json",
       ".claude/rules/code.md",
       ".claude/rules/wiki.md",
-      ".claude/rules/notes.md",
       ".claude/rules/openspec.md",
       ".claude/rules/secrets.md",
-      "notes/README.md",
       "wiki/wiki-style.md",
       "wiki/voice.md",
       "wiki/contributing.md",
@@ -45,6 +47,7 @@
       "wiki/development/required-tools.md",
       "wiki/development/staging-walkthrough.md",
       "wiki/development/repository-improvement.md",
+      "wiki/development/memory.md",
       ".github/workflows/test.yml"
     ],
     "blocks": [
@@ -64,9 +67,6 @@
     ]
   },
   "pack": {
-    "skillDirs": [
-      "wong-cloudflare"
-    ],
     "files": [
       "scripts/cf-build.sh",
       "scripts/cf-deploy.sh",

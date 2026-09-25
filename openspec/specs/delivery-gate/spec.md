@@ -3,7 +3,6 @@
 ## Purpose
 TBD - created by archiving change optional-ci-gate. Update Purpose after archive.
 ## Requirements
-
 ### Requirement: Ship delegates its checkpoint and branch gate to save
 
 `/ship` SHALL retain its shipping-only responsibilities: verify the feature branch and default-branch state, invoke `openspec-archive-change`, merge the pull request, and delete the remote branch worktree-safely. After archiving and before merging, `/ship` SHALL invoke ordinary `/save` exactly once. When no active change matches the current branch and exactly one matching archive exists, `/save` SHALL use that archive as the handoff record, SHALL NOT author a replacement active change, and SHALL own secret preservation/redaction, session-note capture, commit, push, pull-request creation/update, and the CI wait/auto-fix path. `/ship` SHALL consume that result and SHALL NOT duplicate those checkpoint mechanics or require a special save flag.
@@ -69,14 +68,14 @@ Before deleting the merged branch from the remote, `/ship` SHALL find every open
 
 The WongStack doctrine SHALL treat GitHub Actions (and CI generally) as an optional accelerator that is honored when present and never required. The system's durable pillars SHALL be described as: pull requests, version control, OpenSpec, and everything-lives-in-the-repo.
 
-This doctrine SHALL have **one owning file** — `wiki/development/the-change-loop.md` — which states the gate ladder (CI when present → merge, a skipped rung never being a failure), the scope of the direct-to-default-branch carve-out, and the prose allowlist (`notes/**` + `wiki/**`) with its rationale. Other payload surfaces SHALL link to that owner rather than restate it, per the `payload-single-source` capability.
+This doctrine SHALL have **one owning file** — `wiki/development/the-change-loop.md` — which states the gate ladder (CI when present → merge, a skipped rung never being a failure), the scope of the direct-to-default-branch carve-out, and the prose allowlist (`wiki/**`) with its rationale. Other payload surfaces SHALL link to that owner rather than restate it, per the `payload-single-source` capability.
 
 Two bounded exceptions, each because the reader must act without leaving the page:
 
 - `AGENTS.md`/`CLAUDE.md` MAY carry one summarizing line per doctrine, naming and linking the owner.
-- `.claude/skills/save/SKILL.md` SHALL state the allowlist's two path prefixes inline **once**, as the operational routing test the skill performs. Its other sections SHALL link to that single statement rather than repeat it.
+- `.claude/skills/save/SKILL.md` SHALL state the allowlist's path prefix inline **once**, as the operational routing test the skill performs. Its other sections SHALL link to that single statement rather than repeat it.
 
-No payload surface SHALL assert CI as the sole or required gate, state the carve-out as `notes/*.md` alone, or say that wiki edits require a pull request. No payload surface SHALL describe the staging walkthrough as a rung of the gate ladder or as a condition on the merge. Where a surface links to the owner instead of restating it, that link SHALL satisfy this requirement.
+No payload surface SHALL assert CI as the sole or required gate, state `notes/**` as part of the carve-out, or say that wiki edits require a pull request. No payload surface SHALL describe the staging walkthrough as a rung of the gate ladder or as a condition on the merge. Where a surface links to the owner instead of restating it, that link SHALL satisfy this requirement.
 
 #### Scenario: Payload prose describes CI as optional
 
@@ -92,15 +91,15 @@ No payload surface SHALL assert CI as the sole or required gate, state the carve
 
 #### Scenario: The carve-out has one owner
 
-- **WHEN** a reader reviews `CLAUDE.md`, `notes/README.md`, and the `save` skill
+- **WHEN** a reader reviews `CLAUDE.md`, the memory wiki page, and the `save` skill
 - **THEN** each either links to `wiki/development/the-change-loop.md` or carries one summarizing line naming it
 - **AND** no surface other than `save/SKILL.md`'s single operational statement reproduces the allowlist's scope, exceptions, or rationale
 
 #### Scenario: The save skill can route without leaving its runbook
 
 - **WHEN** `/save` reaches the point of deciding a save's route
-- **THEN** the two path prefixes are stated inline at that point
-- **AND** the skill's later sections link back to that statement rather than restating the prefixes
+- **THEN** the path prefix is stated inline at that point
+- **AND** the skill's later sections link back to that statement rather than restating the prefix
 
 #### Scenario: A surface contradicts the owner
 
@@ -111,11 +110,11 @@ No payload surface SHALL assert CI as the sole or required gate, state the carve
 
 `/save` and `/ship` SHALL determine the gate by whether the repo has checks configured. When checks exist, the skills wait for them and, on failure, read-fix-repush (capped); `/ship` merges only on green. When no checks exist, the gate SHALL be PR review only — the PR plus the OpenSpec change and the in-repo record is the system, and a human approves the PR before `/ship` merges.
 
-**Prose exception.** A `/save` whose entire diff falls inside the **prose allowlist** SHALL bypass the branch-and-PR gate and commit directly to the default branch. The allowlist is exactly two path prefixes: `notes/**` and `wiki/**`. The carve-out is decided by **path scope only** — never by file extension, and never by a judgment of how consequential the edit is. It is exact: if any path outside the allowlist appears in the diff, the normal branch + PR flow applies in full to the whole save.
+**Prose exception.** A `/save` whose entire diff falls inside the **prose allowlist** SHALL bypass the branch-and-PR gate and commit directly to the default branch. The allowlist is exactly one path prefix: `wiki/**`. The carve-out is decided by **path scope only** — never by file extension, and never by a judgment of how consequential the edit is. It is exact: if any path outside the allowlist appears in the diff, the normal branch + PR flow applies in full to the whole save.
 
 Routing SHALL NOT key on file extension. Markdown outside the allowlist — `.claude/**` (the shipped payload, whose edit is a release), `openspec/**` (the specs), `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and any config file — keeps the full gate.
 
-The gate is not weakened by this. Neither surface carries behavior: a note is raw, permanent session context, and a wiki page is prose reviewed in the diff that produced it. Nothing in either surface executes, deploys, or changes what the tooling does.
+The gate is not weakened by this. A wiki page is prose reviewed in the diff that produced it, and nothing in it executes, deploys, or changes what the tooling does. Session facts are not in the repository, so they need no route.
 
 #### Scenario: Repo has CI configured
 
@@ -128,11 +127,6 @@ The gate is not weakened by this. Neither surface carries behavior: a note is ra
 - **THEN** the skill proceeds without waiting for or requiring any CI run
 - **AND** `/ship` merges on the strength of PR review rather than a green CI run
 
-#### Scenario: Notes-only save bypasses the gate
-
-- **WHEN** `/save` runs and every changed path is under `notes/`
-- **THEN** it commits and pushes directly to the default branch, opening no PR and requiring no `/ship`
-
 #### Scenario: Wiki-only save bypasses the gate
 
 - **WHEN** `/save` runs and every changed path is under `wiki/`
@@ -140,8 +134,18 @@ The gate is not weakened by this. Neither surface carries behavior: a note is ra
 
 #### Scenario: A single non-allowlisted path restores the gate
 
-- **WHEN** a save's diff contains `notes/<slug>.md` or `wiki/<page>.md` plus any path outside the allowlist
+- **WHEN** a save's diff contains `wiki/<page>.md` plus any path outside the allowlist
 - **THEN** the normal branch + PR flow applies and the prose rides along on that branch
+
+#### Scenario: Notes-only save bypasses the gate
+
+- **WHEN** `/save` runs and its only output is facts
+- **THEN** the facts go to the memory store, and no commit, PR, or `/ship` is involved
+
+#### Scenario: A leftover notes file keeps the gate
+
+- **WHEN** a save's diff contains a path under `notes/`
+- **THEN** the normal branch + PR flow applies, because `notes/**` is not in the allowlist
 
 #### Scenario: Markdown payload keeps the gate
 
@@ -213,3 +217,4 @@ The ship report SHALL name the outcome of the sync: the checkout that advanced, 
 - **WHEN** `/ship` has deleted the merged branch from the remote
 - **THEN** the remote-tracking refs the delete made stale are pruned
 - **AND** no local branch is deleted
+
