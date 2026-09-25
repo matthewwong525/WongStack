@@ -6,7 +6,7 @@
 
 A new install starts from an empty folder and takes **every** category below; its install record sets `components.stackPack`, `components.appScaffold`, and `components.ui` to `true`. The flags still gate repos installed before 18.0.0, which may have declined the pack.
 
-- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), the Codex project settings (`.claude/config.toml`), path rules, process pages, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `/routine` Paseo scheduler with its script, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), the Codex project settings (`.claude/config.toml`), path rules, process pages, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for a repo with user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages when `components.stackPack` is true.
 - **Scaffold** adds `app/` only when both `components.appScaffold` and `components.stackPack` are true. It excludes `app/wrangler.jsonc`, which contains source-repo database IDs.

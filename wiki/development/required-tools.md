@@ -18,6 +18,8 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 It is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` never acquires it, and every other core verb still needs only the three commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
+**One optional verb uses Paseo: [`/routine`](../../.claude/skills/routine/SKILL.md).** It schedules recurring runs through [Paseo](https://paseo.sh). WongStack never installs Paseo. Without it, `/routine` says so and changes nothing, and every other verb works as before. The script uses Paseo's own daemon client, because `paseo schedule create` cannot set worktree isolation. A Paseo update that changes that client makes `/routine` stop and give the steps for the Paseo app.
+
 **Setup adds one account: Cloudflare.** Every repo keeps its [memory store](memory.md) there, and every new install hosts its app there.
 
 | Need | Why |
