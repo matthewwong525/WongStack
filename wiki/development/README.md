@@ -13,5 +13,6 @@ The **payload** is the set that [`/wong-sync`](../../.claude/skills/wong-sync/SK
 - [Repository improvement](repository-improvement.md) — run or schedule the bounded `/improve` spot check without creating a second delivery workflow.
 - [Repo layout](repo-layout.md) — `.claude` is a symlink to `.agents` and `CLAUDE.md` to `AGENTS.md`: which path to edit, and why a repo-wide `grep` under-counts.
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, and `openspec`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
+- [Session memory](memory.md) — the private fact store: the start-of-session digest, capture by `/save` and the background run, consolidation, `#private`, and the memory token.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: blank declarations stay on the active branch, while real values persist outside git in the primary worktree across linked checkouts.
 - [Contributing upstream](../contributing.md) — the other side of the payload: how a target repo sends an improvement back by hand, and the generality bar it has to clear before you'd merge it here.

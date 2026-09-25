@@ -3,16 +3,13 @@
 ## Purpose
 
 The payload ships path-scoped rule files under `.claude/rules/` that load the owning convention into an agent's context exactly when it works with matching files — so conventions surface at the moment of the edit instead of relying on the agent to go find them.
-
 ## Requirements
-
 ### Requirement: The payload ships path-scoped rules in the core category
 
-The payload SHALL include a `.claude/rules/` directory (real path `.agents/rules/` in this repo, reached through the `.claude` symlink) as a core, copy-if-absent category on the payload manifest. Each rule file SHALL carry YAML frontmatter with a `paths:` list of glob patterns, so an agent loads it only when reading files those patterns match. Five rules SHALL ship:
+The payload SHALL include a `.claude/rules/` directory (real path `.agents/rules/` in this repo, reached through the `.claude` symlink) as a core, copy-if-absent category on the payload manifest. Each rule file SHALL carry YAML frontmatter with a `paths:` list of glob patterns, so an agent loads it only when reading files those patterns match. Four rules SHALL ship:
 
 - `code.md`, scoped to the code surfaces (`app/**`, `scripts/**`, `.github/workflows/**`)
 - `wiki.md`, scoped to `wiki/**`
-- `notes.md`, scoped to `notes/**`
 - `openspec.md`, scoped to `openspec/**`
 - `secrets.md`, scoped to the env surfaces (`.env*`, `**/.env.example`)
 
@@ -26,8 +23,9 @@ A target repo that already has any of these files SHALL keep its own copy untouc
 
 #### Scenario: An agent touches the wiki or notes
 
-- **WHEN** an agent reads a file under `wiki/` or `notes/`
+- **WHEN** an agent reads a file under `wiki/`
 - **THEN** the matching rule imports the owning convention pages into context for that surface
+- **AND** no rule loads for session context, because facts live in the memory store and not under `notes/`
 
 #### Scenario: An agent works inside an OpenSpec change
 
@@ -51,8 +49,7 @@ A rule file SHALL NOT restate a convention another payload file owns — it SHAL
 
 - `code.md` SHALL own the write-less-code standard — the least code that does the job and none that doesn't; decompose branchy code into named helpers as it is written; prefer surgical edits over file rewrites; verify with the project's own checks after substantive edits; no `any`, and `unknown` only where it is narrowed before use — and SHALL state that the numeric limits are enforced by the repo's CI gates, not by the agent's memory.
 - `wiki.md` SHALL import the wiki style and voice pages and restate nothing from them.
-- `notes.md` SHALL import the notes convention and restate nothing from it.
-- `openspec.md` SHALL own the cross-surface routing rule in rule form — a fact about why a change is shaped its way goes to the change's Decision log, session context to the note, reusable process to the wiki — and SHALL restate no surface's own convention.
+- `openspec.md` SHALL own the cross-surface routing rule in rule form — a fact about why a change is shaped its way goes to the change's Decision log, session context to facts in the memory store, reusable process to the wiki — and SHALL restate no surface's own convention.
 - `secrets.md` SHALL link the secrets convention page and restate nothing from it beyond the one-line reason to read it.
 
 #### Scenario: A rule names an owned convention
@@ -79,3 +76,4 @@ The meta-repo MAY keep rules in `.claude/rules/` that guide work on WongStack it
 
 - **WHEN** an agent in this repo edits a payload file
 - **THEN** `payload.md` is in its context, carrying the release ritual and the template-is-code rule
+

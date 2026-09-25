@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/session-start.mjs\" --agent claude",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -4,9 +4,9 @@
 
 ## Categories
 
-- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, path rules, process pages, the note convention, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.codex/hooks.json`), the Cloudflare door that provisions the memory store, path rules, process pages, the test workflow, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for a repo with user-facing screens.
-- **Pack** adds the optional Cloudflare provisioning skill, pipeline scripts, workflow, schema, and `wiki/stack/` pages when `components.stackPack` is true.
+- **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages when `components.stackPack` is true. The provisioning skill itself is core, because every repo needs its memory store.
 - **Scaffold** adds `app/` only when both `components.appScaffold` and `components.stackPack` are true. It excludes `app/wrangler.jsonc`, which contains source-repo database IDs.
 
 A skill installed under a recorded local name stays under that name. The target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The preflight bounds payload comparison; exploration starts with its changed units and reads another target path only for a named dependency or impact. The inventory limits copying, not that evidence-based expansion. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source.
@@ -34,6 +34,20 @@ The **improve** skill ships its dependency-free survey helper and investigation 
 
 The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), [visual author guide](../../plan/references/review-author.md), [CLI contract](../../plan/references/openspec-cli.md), builder, and structural checker as one directory. Every new change gets a standalone `review.html`; the viewer's runtime is bundled into that output. The author writes only the change's visual fragment. `/save` refreshes it through the same builder, and the old sync script remains a compatibility entry point for marked legacy pages. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure across install shapes.
 
+## The memory store and its hooks
+
+The **memory** skill ships its script, schema migrations, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on the Node.js that OpenSpec already needs. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.codex/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [`/wong-cloudflare`](../../wong-cloudflare/SKILL.md#the-memory-store-every-repo); its ids go in `components.memory` of the install record, and its token only in the ignored `.env`. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+
+### Moving notes into the memory store
+
+A target with a `notes/` folder from a release before 17.0.0 plans this migration, in order, and deletes nothing before the count matches:
+
+1. Provision the store.
+2. Extract facts from every `notes/<slug>.md`, oldest first, into a reviewable migration file inside the change: type, body, and tags per fact, with supersedes against facts extracted earlier in the same file.
+3. Run `memory.mjs import --file <migration file>`. Each note becomes a `migration:<slug>` session, with its text in R2 when the store has a bucket. A note with no reusable fact still gets its session, as `skipped`. The import skips notes already imported, so a failed run can be resumed.
+4. Verify that the store holds one migration session per note, and name any note that has none.
+5. Delete `notes/` and `.claude/rules/notes.md`. Report a locally changed `notes/README.md`, so its local conventions can move to an owning page.
+
 ## The opt-in stack pack
 
 The pack stays out of a repo until adopted. Its drop-in files follow the manifest's ordinary copy-or-adapt rule. Configuration fragments instead merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md); live database IDs and secrets are created in the target, never copied. The whole [`wiki/stack/`](../../../../wiki/stack/README.md) section ships with the pack. The [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core because `/verify` works on other hosts too.
@@ -52,7 +66,7 @@ For an installed target with the old generated layer, run [`retire-generated-ope
 
 ## Not copied
 
-`wong-setup`, `update-dependencies`, `VERSION`, `CHANGELOG.md`, this source repo's notes, meta-only release checks, and the meta-only payload CI are outside the target inventory. `.claude/.wong-stack.json` is the target's install record, written after agreed implementation rather than copied upstream. Existing legacy verdict files may inform exploration but are not generated again.
+`wong-setup`, `update-dependencies`, `VERSION`, `CHANGELOG.md`, this source repo's own install record, meta-only release checks, and the meta-only payload CI are outside the target inventory. `.claude/.wong-stack.json` is the target's install record, written after agreed implementation rather than copied upstream. Existing legacy verdict files may inform exploration but are not generated again.
 
 ## Install record
 

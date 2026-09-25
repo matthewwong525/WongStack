@@ -17,4 +17,6 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 
 Standing it all up — and adopting the pack in the first place — is [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md), the one door: it offers, configures, provisions, and tears down.
 
+> Session memory is not part of this pack: every repo gets it, and [its page](../development/memory.md) lives with the core process docs.
+>
 > **This section installs with the opt-in stack pack** — see [the payload manifest](../../.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-stack-pack) for what that gates. A repo that declines sees none of it, and WongStack stays stack-agnostic.

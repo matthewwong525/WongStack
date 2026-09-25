@@ -65,6 +65,8 @@ CLOUDFLARE_ACCOUNT_ID=
 
 CI gets its copy as **GitHub repository secrets** — provisioning sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` with `gh secret set`, so the pack's Actions workflow can deploy. The token therefore lives in exactly two authoritative places, neither committed: the primary worktree's git-ignored `.env`, and GitHub's sealed secret store. (A repo on the Workers Builds fallback needs neither: that CI runs inside Cloudflare.)
 
+The session memory store has its own narrower token, `CLOUDFLARE_MEMORY_TOKEN`, which provisioning mints from this one and which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-token) owns that name and its scope.
+
 ## How two checkboxes become enough
 
 The token rewrites its own permissions: it reads its own id and policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified working against the live API: a token with only `API Tokens Write` widened itself and nine endpoints went from `Authentication error` to resolving. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no second secret, no re-paste.

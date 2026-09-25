@@ -1,12 +1,12 @@
 ---
 name: wong-cloudflare
-description: The one door to the Cloudflare stack pack: offers and adopts the pack, then — given one user-scoped API token — provisions everything (widens the token, resolves the account, creates the D1 databases, writes bindings, sets the GitHub secrets, ensures the Actions workflow) and reports the live URL. Also owns the opt-in Cloudflare Access login wall and the teardown. Re-runnable anytime; a run without a token completes adoption and stops cleanly. Use to adopt, provision, set up, deploy, or tear down the Cloudflare infrastructure, or to make the app reachable at a real address.
+description: The one door to Cloudflare. In every repo it provisions the memory store (a database, an optional private bucket, and a narrow memory token). It also offers and adopts the stack pack and, given one user-scoped API token, provisions it end to end and reports the live URL. Owns the opt-in Access login wall and the teardown. Re-runnable anytime. Use to turn on session memory, or to adopt, provision, deploy, or tear down the Cloudflare infrastructure.
 user-invocable: true
 ---
 
 # /wong-cloudflare
 
-Turns a repo into a running app. The user does two things — sign up for Cloudflare, create one token — and this skill does the rest, including adopting the [stack pack](../wong-sync/references/payload-manifest.md#the-opt-in-stack-pack) if the repo hasn't taken it yet.
+Gives every repo its [memory store](#the-memory-store-every-repo), and turns a repo into a running app. The user does two things — sign up for Cloudflare, create one token — and this skill does the rest, including adopting the [stack pack](../wong-sync/references/payload-manifest.md#the-opt-in-stack-pack) if the repo hasn't taken it yet. The memory store is core; the pack stays optional.
 
 ```
    the user's whole job                     everything below is this skill
@@ -28,7 +28,7 @@ Turns a repo into a running app. The user does two things — sign up for Cloudf
 ## Boundaries
 
 - **No git in this repo.** Everything this skill writes lands uncommitted; `/save` checkpoints it. Never commit, branch, push, or open a PR here.
-- **`curl` only against Cloudflare.** Not `wrangler`, not a Node script — provisioning must work on a machine with no runtime installed. (`node` is fine in the pack's *build* scripts, which run in CI. See [required tools](../../../wiki/development/required-tools.md).)
+- **`curl` only against Cloudflare.** Not `wrangler`, not a Node script — provisioning must work on a machine with no runtime installed. The one exception is the memory store's schema, which the memory script applies on the Node that OpenSpec already requires. (`node` is fine in the pack's *build* scripts, which run in CI. See [required tools](../../../wiki/development/required-tools.md).)
 - **Never print a token value.** Not in a summary, not in an error, not in a command you echo.
 - **Ask before creating or deleting anything billable.** State what you're about to make, then make it. Every question here is [a choice with a recommendation](../explore/references/asking-the-user.md), written in the plain voice above — never a bare yes/no.
 - **The token widen is not in that rule's scope — don't ask, just do it.** It costs nothing and is reversible, and the user pasting a two-permission token *is* the authorization to widen it ([the standing authorization](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Widen, then say which permissions you granted.
@@ -36,6 +36,8 @@ Turns a repo into a running app. The user does two things — sign up for Cloudf
 ## Step 0 — the door
 
 Read `.claude/.wong-stack.json` (no manifest at all → WongStack isn't installed; point at `/wong-setup` and stop).
+
+**`components.memory` is absent** → the memory store is set up in this run whether or not the pack is taken; it follows Step 3. Say so in one line: *"I'll also set up the private store where this repo keeps what past sessions learned."*
 
 **`components.stackPack` is not `true`** → don't bounce; offer the pack here, in outcomes:
 
@@ -47,7 +49,7 @@ Read `.claude/.wong-stack.json` (no manifest at all → WongStack isn't installe
 
 Still one question — don't ask separately about an app, and don't name a framework or a Worker. A repo that already has an app is never offered the scaffold.
 
-Give the offer two options, in the same plain words — *"Set it up (Recommended) — a few minutes now, and every change gets its own link"* and *"Not now — everything else keeps working exactly as it does today"*. Keep product names and file lists out of the prompt; have them ready for a user who asks. On a **no**, stop — nothing changes. On a **yes**:
+Give the offer two options, in the same plain words — *"Set it up (Recommended) — a few minutes now, and every change gets its own link"* and *"Not now — everything else keeps working exactly as it does today"*. Keep product names and file lists out of the prompt; have them ready for a user who asks. On a **no**, land no pack file; continue to Step 1 only for the memory store, and skip Steps 4–6. On a **yes**:
 
 1. Set `components.stackPack: true` in `.claude/.wong-stack.json` — plus `components.appScaffold: true` when the offer included the starter site. The two are set together and only together; `appScaffold` without `stackPack` is not a valid state.
 2. Land the pack's drop-in files: obtain the [latest source](../wong-sync/references/latest-source.md), then use the [payload inventory](../wong-sync/references/payload-manifest.md) to copy the selected pack files that are absent, preserving existing files. With `appScaffold` set, that same copy-if-absent walk lands the [app scaffold](../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) too, so provisioning has something to deploy.
@@ -57,7 +59,7 @@ Give the offer two options, in the same plain words — *"Set it up (Recommended
 
 The `package.json` fragment's `db:migrate:staging` and `db:migrate:prod` are the one part of it you **fill rather than copy**: write the literal database names for this repo — the same ones Step 4a derives from the repository name (`<repo>-db` and `<repo>-db-staging`). No copied payload file may carry a database name, so the fragment is where those two scripts come from and this is where they get their values. You reach this step before Step 4a runs, which is fine: the names are derived from the repository name, not returned by the API, so write the ones you are about to use. If 4a ends up suffixing a name that was already taken, correct the two scripts there.
 
-**No Cloudflare account or token yet?** Stop cleanly here: the files and wiring are in place, CI builds green without deploying, and a re-run with a token finishes the job. Say exactly that.
+**No Cloudflare account or token yet?** Stop cleanly here: the files and wiring are in place, CI builds green without deploying, and a re-run with a token finishes the job. Say exactly that, and say that session memory stays off until that re-run.
 
 ## Step 1 — the credential
 
@@ -128,6 +130,23 @@ curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
 - **Zero, with a valid token** → the Account Resources miss ([failure map](references/failure-map.md)). Explain, offer to re-check once they've saved it. Create nothing.
 
 Write the chosen id narrowly to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV`.
+
+## The memory store (every repo)
+
+Every WongStack repo gets one, pack or not. [The memory convention](../../../wiki/development/memory.md) owns what it holds and who can read it. Name it from the repository name, like everything else: `recipe-box` → `recipe-box-memory`, for both the database and the bucket. It is a separate database with no staging twin, and the app's Worker never binds it.
+
+1. **Is R2 on?** `GET /accounts/{account_id}/r2/buckets`. Success means yes. An error that says to enable R2 means no: R2 needs a payment method on file, even inside its free tier, and no token can turn it on. Say so plainly, give the dashboard step (**Storage & databases → R2 → Overview → add the R2 subscription**), and continue without a bucket. *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
+2. **Ask once** before creating the billable parts, as [a two-option choice](../explore/references/asking-the-user.md): *"Set up session memory (Recommended) — a private database, and a private file store for transcripts when R2 is on"* or *"Not now — memory stays off"*.
+3. **The database.** Reuse `<repo>-memory` from `GET /accounts/{account_id}/d1/database`, or `POST` it.
+4. **The bucket, only when R2 is on.** Reuse or `POST /accounts/{account_id}/r2/buckets` with `{"name":"<repo>-memory"}`. Buckets are private by default; never turn on public access.
+5. **The memory token.** `POST /user/tokens` a token named `<repo>-memory`, scoped to this account only, with `D1 Write` and, when the bucket exists, `Workers R2 Storage Write` — resolved by name per [the widen protocol](references/permission-groups.md). Nothing else: no token, Worker, or Access group. Write its value narrowly to `CLOUDFLARE_MEMORY_TOKEN` in `DURABLE_ENV`, and add the blank, documented declaration to the active branch's `.env.example` when it is absent. **Never** set it as a GitHub secret: CI must not read transcripts. Minting it is covered by the same standing authorization as the widen. If the provisioning token cannot mint (an account-scoped token, `9109`), give the user the click path to create it by hand with those two permissions, and continue once it is in `DURABLE_ENV`.
+6. **Record** the ids under `components.memory` in `.claude/.wong-stack.json` — `accountId`, `databaseId`, `database`, and `bucket` (or `null`). They are not secrets.
+7. **Apply the schema** with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" migrate`. It is safe to run again.
+8. **Verify** with `memory.mjs digest`. It prints the digest, or that the store is empty.
+
+**Re-runs.** A store that verifies is reported as current, and nothing is created. A store with no bucket, on an account that now has R2, gets its bucket: create it, add `Workers R2 Storage Write` to the existing memory token with `PUT /user/tokens/{id}` (its value does not change), and record the bucket.
+
+**No pack?** Stop after this section with the closing report's memory line; Steps 4–6 belong to the pack.
 
 ## Step 4 — provision
 
@@ -211,6 +230,7 @@ Retry across the propagation window above before calling it a failure — a plac
 
 State, in plain language:
 
+- Session memory: on, with or without transcripts, or off with the one step that turns it on
 - The production URL, and the preview URL pattern with one branch filled in as an example
 - What was adopted, created, and reused from a previous run
 - That the changes are **uncommitted** — `/save` is the next step
@@ -244,7 +264,7 @@ One runbook step is **unverified**: creating the Zero Trust organization on an a
 
 Provisioning creates real, billable resources, so removing them is part of this skill rather than a follow-up. Given a repo it provisioned:
 
-1. **Enumerate** what a run creates — the two databases, both Workers, and any Access resources — and show the list. Include any **service token `/verify` minted for itself** ([the walkthrough's self-repair](../../../wiki/development/staging-walkthrough.md#when-the-walk-cant-get-in) creates one named for the repo when it meets the login wall), so a credential this pack caused to exist is not left behind by the pack that removes it.
+1. **Enumerate** what a run creates — the two databases, both Workers, and any Access resources — and show the list. The memory database, bucket, and token are listed separately: deleting them destroys what every past session learned, so they are removed only when the user names them. Include any **service token `/verify` minted for itself** ([the walkthrough's self-repair](../../../wiki/development/staging-walkthrough.md#when-the-walk-cant-get-in) creates one named for the repo when it meets the login wall), so a credential this pack caused to exist is not left behind by the pack that removes it.
 2. **Confirm** before deleting anything, as a two-option question that names what each side does. Name each resource; deleting a database destroys its data.
 3. **Delete** what this repo created.
 4. **Report** what was removed *and what was skipped* — anything whose name doesn't match this repo, anything the user declined. Never delete by guess.

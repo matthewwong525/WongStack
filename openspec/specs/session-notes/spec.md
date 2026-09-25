@@ -3,83 +3,26 @@
 ## Purpose
 
 Define `notes/` — the repo-committed surface that holds the permanent record of what a session figured out, one note per line of work keyed by the same slug as the branch and the OpenSpec change. `/save` is the sole capture point, and `/continue` reads the note with the change so the record travels to any clone.
-
 ## Requirements
-
 ### Requirement: Session capture excludes credential values
 
-When `/save` compresses the conversation into a session note, it SHALL exclude every real credential value supplied, rotated, read, or written during the session. It MAY preserve the variable name, the fact that it changed, its purpose, where it is obtained, and any non-secret operational decision. The same exclusion SHALL apply to the change's Status, Decision log, tasks, commit message, PR body, and `/save` report.
+When `/save` or the background capture turns a session into facts, it SHALL exclude every real credential value supplied, rotated, read, or written during the session. It MAY preserve the variable name, the fact that it changed, its purpose, where it is obtained, and any non-secret operational decision. The same exclusion SHALL apply to the change's Status, Decision log, tasks, commit message, PR body, `/save` report, and background-run counts.
 
 #### Scenario: A token was rotated during the session
 
 - **WHEN** `/save` captures a session in which `SERVICE_TOKEN` was rotated
-- **THEN** the note may record that `SERVICE_TOKEN` rotated and its non-secret sourcing guidance
-- **AND** neither the old nor new value appears in the note or another committed handoff surface
+- **THEN** a fact may record that `SERVICE_TOKEN` rotated and its non-secret sourcing guidance
+- **AND** neither the old nor new value appears in a fact or another handoff surface
 
 #### Scenario: A pasted credential appears in surrounding conversation
 
-- **WHEN** a credential value is present in conversation context used to write the note
-- **THEN** `/save` omits the value rather than treating verbatim user text as automatically durable
-- **AND** the note remains useful by retaining the non-secret decision and variable name
-
-### Requirement: Session notes live in a repo-committed `notes/` surface
-
-The payload SHALL define a top-level `notes/` directory holding one markdown note per line of work at `notes/<slug>.md`, where `<slug>` is the same kebab-case slug used for the branch and the OpenSpec change. Notes SHALL be committed to the repo so they are readable from any clone, and SHALL remain in the repo as permanent session context.
-
-#### Scenario: A note is keyed to its line of work
-
-- **WHEN** a session's work is tracked as change `add-po-search` on branch `add-po-search`
-- **THEN** its session note is at `notes/add-po-search.md`, parallel to `openspec/changes/add-po-search/`
-- **AND** the filename carries no date, so a note spanning several days is not stamped with the first
-
-#### Scenario: A conversation-only session still gets a note
-
-- **WHEN** a session produces understanding but no code change and no plan
-- **THEN** a note is written at `notes/<topic-slug>.md`
-- **AND** no OpenSpec change folder is created for it
-
-#### Scenario: Notes survive consolidation
-
-- **WHEN** later work needs the context from an earlier session, whether or not its reusable facts were also written into the wiki
-- **THEN** the note remains in the repo for future reference
-
-### Requirement: `/save` is the sole conversation capture point
-
-`/save` SHALL write or update `notes/<slug>.md` from the conversation, as part of the same commit as the rest of the checkpoint. It SHALL update the existing note in place rather than creating a new file per save, and SHALL write a note only when the session produced context beyond the diff and the change's Decision log — otherwise skipping it and saying so in its report.
-
-#### Scenario: A second save updates the same note
-
-- **WHEN** `/save` runs again on a branch that already has `notes/<slug>.md`
-- **THEN** the existing note is revised and extended in place
-- **AND** no additional note file is created
-
-#### Scenario: A save with nothing new to capture
-
-- **WHEN** the session produced nothing beyond the diff and the Decision log
-- **THEN** `/save` writes no note and reports that it skipped it
-
-#### Scenario: The note ships with the checkpoint
-
-- **WHEN** `/save` commits
-- **THEN** `notes/<slug>.md` is staged by path alongside the code and the OpenSpec change
-
-### Requirement: Notes are a compression of the session, not a summary or a transcript
-
-A note SHALL preserve what the user stated, decisions with their rationale, what was ruled out and why, concrete specifics (names, repo-relative paths, numbers, versions, error strings), and open threads — such that a cold reader on another machine reaches the same understanding without the transcript. It SHALL omit tool-call mechanics, file dumps, the assistant's reasoning-out-loud, and facts already true in the repo.
-
-#### Scenario: Rationale is preserved
-
-- **WHEN** an option was considered and rejected during the session
-- **THEN** the note records the rejected option and why it was rejected
-
-#### Scenario: Selection is deferred to consolidation
-
-- **WHEN** `/save` writes a note containing both durable conventions and change-specific context
-- **THEN** it records both when they are needed for a cold reader to reach the same understanding, without filtering for a later consolidation command
+- **WHEN** a credential value is present in conversation context used to write facts
+- **THEN** the writer omits the value rather than treating verbatim user text as automatically durable
+- **AND** the facts remain useful by retaining the non-secret decision and variable name
 
 ### Requirement: A conversation-only session does not produce an OpenSpec change
 
-`/save` SHALL NOT author an OpenSpec change for a session that produced no code and no plan. It SHALL write the note, and report that no change was created.
+`/save` SHALL NOT author an OpenSpec change for a session that produced no code and no plan. It SHALL write the session's facts, and report that no change was created.
 
 #### Scenario: No fake proposal
 
@@ -89,15 +32,17 @@ A note SHALL preserve what the user stated, decisions with their rationale, what
 
 ### Requirement: A prose-only save commits directly to the default branch
 
-When a `/save`'s entire diff falls inside the **prose allowlist** — the path prefixes `notes/**` and `wiki/**` — `/save` SHALL commit and push directly to the default branch: no feature branch, no PR, no CI wait, and no `/ship` needed. The carve-out SHALL be decided by exact path scope; any changed path outside the allowlist restores the normal branch + PR flow for the whole save. `/save` SHALL NOT route on file extension, and SHALL NOT make a judgment call about whether a prose edit is consequential enough to warrant a PR. `/save` SHALL NOT merge a pull request under any circumstance, and no scheduled job or other skill SHALL merge on its behalf.
+When a `/save`'s entire diff falls inside the **prose allowlist** — the path prefix `wiki/**` — `/save` SHALL commit and push directly to the default branch: no feature branch, no PR, no CI wait, and no `/ship` needed. The carve-out SHALL be decided by exact path scope; any changed path outside the allowlist restores the normal branch + PR flow for the whole save. `/save` SHALL NOT route on file extension, and SHALL NOT make a judgment call about whether a prose edit is consequential enough to warrant a PR. `/save` SHALL NOT merge a pull request under any circumstance, and no scheduled job or other skill SHALL merge on its behalf.
+
+A save that only stores facts has no diff. It SHALL write the facts to the memory store and make no commit.
 
 If the direct push is rejected (protected default branch, required reviews, non-fast-forward), `/save` SHALL NOT force or retry; it SHALL fall back to the normal branch + PR flow and say why.
 
 #### Scenario: Conversation-only session lands in one command
 
-- **WHEN** `/save` runs after a session whose only output is `notes/billing-tenancy.md`
-- **THEN** the note is committed and pushed to the default branch
-- **AND** no branch is created, no PR is opened, and the user is not asked to run `/ship`
+- **WHEN** `/save` runs after a session whose only output is understanding
+- **THEN** its facts are written to the memory store
+- **AND** no commit, branch, or PR is created, and the user is not asked to run `/ship`
 
 #### Scenario: A dream session lands in one command
 
@@ -107,8 +52,8 @@ If the direct push is rejected (protected default branch, required reviews, non-
 
 #### Scenario: Mixed session keeps the gate
 
-- **WHEN** a save's diff contains prose plus a source, skill, spec, or config file
-- **THEN** the prose rides along on the change's feature branch and goes through the PR flow with it
+- **WHEN** a save's diff contains a wiki page plus a source, skill, spec, or config file
+- **THEN** the wiki page rides along on the change's feature branch and goes through the PR flow with it
 
 #### Scenario: Markdown outside the allowlist keeps the gate
 
@@ -127,30 +72,47 @@ If the direct push is rejected (protected default branch, required reviews, non-
 - **THEN** `/save` cuts a branch, opens a PR whose body is the prose change, and states that the default branch is protected
 - **AND** it never force-pushes
 
-### Requirement: `/continue` reads the note alongside the change
+### Requirement: Session context lives as facts in the memory store
 
-When resuming a change, `/continue` SHALL read `notes/<slug>.md` if it exists and fold its context into the recap, so a cold resume inherits the session understanding that the change deliberately does not hold.
+Session context SHALL live as facts in the repo's memory store, not in the repository. A fact's slug SHALL be the OpenSpec change name for change work, or a kebab-case topic slug for a conversation-only session. No session SHALL write a file under `notes/`.
 
-#### Scenario: Resuming with a note present
+#### Scenario: Facts are keyed to their line of work
 
-- **WHEN** `/continue add-po-search` runs and `notes/add-po-search.md` exists
-- **THEN** the recap includes context from the note in addition to the proposal, its Status, and the Decision log tail
+- **WHEN** a session's work is tracked as change `add-po-search` on any branch
+- **THEN** its facts have slug `add-po-search` in the memory store
+- **AND** no file under `notes/` is written
 
-#### Scenario: Resuming with no note
+#### Scenario: A conversation-only session still leaves facts
 
-- **WHEN** no note exists for the change
-- **THEN** `/continue` proceeds on the change alone without error
+- **WHEN** a session produces understanding but no code change and no plan
+- **THEN** facts with a topic slug are written to the memory store
+- **AND** no OpenSpec change folder is created for them
 
-### Requirement: `notes/` is a payload surface installed by `/wong-sync`
+### Requirement: `/save` is the deliberate capture point
 
-The payload manifest SHALL list `notes/README.md`, so `/wong-sync` copies it into a target repo that lacks it and thereby creates the notes convention surface. The README SHALL state the slug key, compression bar, permanent lifecycle, and boundary against the change's Decision log and `wiki/`. As with every manifest file, an existing file SHALL NOT be overwritten.
+`/save` SHALL extract facts from the conversation since the session's last capture and pass each through the write gate, with the current session id and tags. It SHALL write no fact when the session produced nothing beyond the diff and the change's Decision log, and SHALL say so in its report. Its report SHALL state how many facts were added, superseded, and dropped, and whether they were stored or spooled. The background capture SHALL be the automatic capture point for sessions that end without `/save`.
 
-#### Scenario: Target repo without notes
+#### Scenario: A second save supersedes
 
-- **WHEN** `/wong-sync` runs in a repo that has no `notes/` directory
-- **THEN** `notes/` and `notes/README.md` are copied in
+- **WHEN** `/save` runs again on a change and one new fact corrects an earlier one
+- **THEN** the new fact supersedes the earlier one, and the earlier fact's body is unchanged
 
-#### Scenario: Target repo that already has notes
+#### Scenario: A save with nothing new to capture
 
-- **WHEN** a target repo already has `notes/README.md`
-- **THEN** it is left untouched and handed to the adapt step
+- **WHEN** the session produced nothing beyond the diff and the Decision log
+- **THEN** `/save` writes no fact and reports that it skipped capture
+
+### Requirement: Facts keep what a cold reader needs
+
+A session's facts SHALL keep what the user stated (facts, constraints, preferences, corrections), decisions with their reason, options ruled out with their reason, and concrete specifics (names, repo-relative paths, numbers, versions, error strings). An unresolved question SHALL become a `thread` fact. Facts SHALL omit tool-call mechanics, file dumps, the assistant's reasoning, the path taken to a conclusion, and anything already true in the repo or in the change's Decision log. A reason SHALL stay in the same fact as its decision.
+
+#### Scenario: Rationale is preserved
+
+- **WHEN** an option was considered and rejected during the session
+- **THEN** one fact records the rejected option and why it was rejected
+
+#### Scenario: A question stays open
+
+- **WHEN** a session ends with a question that nobody answered
+- **THEN** a `thread` fact records it, and it stays live until a later fact supersedes it
+

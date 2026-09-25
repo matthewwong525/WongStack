@@ -1,10 +1,10 @@
 # Prose-only save
 
-Load only when every changed path is under `notes/` or `wiki/`, or the session produced only context to capture. An archive or any other changed path takes the normal route. Routing is by exact path prefix, never extension; do not split a mixed save. The [change loop](../../../../wiki/development/the-change-loop.md#the-prose-allowlist) owns this exception.
+Load only when every changed path is under `wiki/`, or the session produced only context to capture. An archive or any other changed path takes the normal route. Routing is by exact path prefix, never extension; do not split a mixed save. The [change loop](../../../../wiki/development/the-change-loop.md#the-prose-allowlist) owns this exception.
 
-A conversation alone gets a topic-named note, not an empty OpenSpec change. Wiki-only work needs no note unless it adds context beyond the diff. If nothing was learned, decided, or changed, report that and stop. Follow the main save procedure's capture and credential-exclusion rules before committing.
+A conversation alone gets facts under a topic slug, not an empty OpenSpec change. Facts go to the memory store, so a facts-only save has no diff: make no commit, report the facts in one line, and stop. Wiki-only work needs no facts unless it adds context beyond the diff. If nothing was learned, decided, or changed, report that and stop. Follow the main save procedure's capture and credential-exclusion rules before committing.
 
-Stage only the specific prose paths this save changed. Recheck every staged path before commit. Anything outside the allowlist returns the whole save to the normal route. Commit with `notes: <topic>` for notes alone or `docs: <topic>` for wiki or mixed prose, using the usual commit trailer. Push to the default branch:
+Stage only the specific prose paths this save changed. Recheck every staged path before commit. Anything outside the allowlist returns the whole save to the normal route. Commit with `docs: <topic>`, using the usual commit trailer. Push to the default branch:
 
 ```bash
 git status --porcelain

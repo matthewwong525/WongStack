@@ -31,6 +31,16 @@ Ask material clarification questions in the shape [every WongStack ask takes](re
 | compatibility and migration | wording |
 | acceptance criteria — what "done" means | anything a reviewer can change cheaply later |
 
+## Search memory before asking
+
+Before the first question, run one search on the intent's key terms and the paths you expect to touch:
+
+```bash
+node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search <terms>
+```
+
+Do not ask what a live fact already answers. State the fact, with its age and author, as a recorded assumption the user can correct. An unreachable store gets one line, and exploration continues. `/plan` gets this through bounded mode and does not search again.
+
 ## Question mechanism
 
 [Asking the user](references/asking-the-user.md) owns the format, the host tool order, and the fallbacks: Codex `request_user_input`, then Claude `AskUserQuestion`, then another structured equivalent, then numbered chat — and recommended defaults marked **assumed** only where nobody can answer. A pending question stays pending. `/explore` adds one allowance of its own: the exit-capacity rule below permits assumptions for questions outside the final group.
@@ -53,7 +63,7 @@ This limit governs clarification for the selected work. Action authorization and
 `/plan` invokes this skill in **bounded mode** before drafting. This applies to direct `/plan` entry and to later steps such as `/apply` or `/ship` that invoke planning. It gets one opportunity to ask, not the repeated groups of standalone exploration:
 
 1. **Read the conversation** for the intent, answers, and whether this transition's exit round already finished.
-2. **Investigate only the gap.** After a thorough standalone session, this can be empty.
+2. **Search memory, then investigate only the gap.** After a thorough standalone session, the gap can be empty.
 3. **Run the [exit round](#the-exit-round) only if needed and not already completed.** Resolve pending answers before dependent planning. Use the [nobody-can-answer fallback](references/asking-the-user.md#which-tool-carries-it) when nobody can answer.
 4. **Summarize** the answers and assumptions, then **return to `/plan`**. Fill remaining and later gaps with supported assumptions; do not start another clarification round.
 

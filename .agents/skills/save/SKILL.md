@@ -1,6 +1,6 @@
 ---
 name: save
-description: Checkpoint work: maintain the change and session context, commit, push, update the PR, wait for CI, and return the preview. Use to save or share work. Notes/wiki-only saves go to the default branch. Accepts an optional status or checkpoint note. Does not implement tasks or merge.
+description: Checkpoint work: maintain the change and session context, commit, push, update the PR, wait for CI, and return the preview. Use to save or share work. Wiki-only saves go to the default branch; session facts go to the memory store. Accepts an optional status or checkpoint note. Does not implement tasks or merge.
 user-invocable: true
 ---
 
@@ -12,14 +12,14 @@ Input: `/save [note]`. A status-like note sets `in-progress`, `blocked (<reason>
 
 ## 1. Protect credentials and select the route
 
-**Every route excludes all real credential values supplied, rotated, read, or written in this session** from tracked files, changes, notes, messages, PR text, and reports. Keep values only in ephemeral memory and the intended ignored live file. Non-secret variable names and sourcing guidance can be recorded.
+**Every route excludes all real credential values supplied, rotated, read, or written in this session** from tracked files, changes, facts, messages, PR text, and reports. Keep values only in ephemeral memory and the intended ignored live file. Non-secret variable names and sourcing guidance can be recorded.
 
 Load each matching procedure before its actions; conditions can combine:
 
 | Condition | Required procedure |
 |---|---|
 | User supplied or rotated an explicitly named secret | [Named-secret persistence](references/named-secrets.md), before writing records |
-| Every changed path is under `notes/` or `wiki/`, or conversation-only capture | [Prose save](references/prose-save.md), before staging or publication |
+| Every changed path is under `wiki/`, or the session only produced facts | [Prose save](references/prose-save.md), before staging or publication |
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md), before authoring |
 | Exact selected handoff is archived | [Archive maintenance](references/archived-save.md), before updating it |
 
@@ -41,7 +41,7 @@ Keep `BRANCH`, `NAME`, and `CHANGE_ROOT` separate. Select in this order:
 3. Unique recorded Branch match, then legacy same-name active or archive match.
 4. No applicable change: author only if the session established code or a code plan. Multiple plausible matches require clarification before staging; do not guess or create a duplicate named for the branch.
 
-An archive always uses the normal route. Otherwise compare **every** dirty path, including rename sources, with the exact `notes/` and `wiki/` allowlist. One other path makes the whole save normal; never split a mixed diff or route by extension. Follow the prose reference when its condition holds. A pure conversation gets a note, not an empty plan. Nothing learned, decided, or changed means report and stop.
+An archive always uses the normal route. Otherwise compare **every** dirty path, including rename sources, with the exact `wiki/` allowlist. One other path makes the whole save normal; never split a mixed diff or route by extension. Follow the prose reference when its condition holds. A pure conversation gets facts, not an empty plan, and no commit. Nothing learned, decided, or changed means report and stop.
 
 ## 2. Maintain the handoff and capture context
 
@@ -54,7 +54,7 @@ Maintain these surfaces:
 - Proposal header: current `**Status:**`, actual `**Branch:**`, and `**Open questions:**` (`none` when empty).
 - Plan sections: current intent, edited in place. Tasks: actual checked state and any agreed additions.
 - `## Decision log`: append one dated entry with what landed, decisions and reasons, rejected options, and blockers. Never rewrite, reorder, or delete earlier entries.
-- Session note: write only when the session adds context beyond the diff and Decision log. Read [notes/README.md](../../../notes/README.md) when capture is needed; update the same `notes/<name>.md`, preserve rationale and user constraints, and do not duplicate the change. A prose topic supplies its own note name.
+- Session facts: capture only what the session adds beyond the diff and Decision log, to the bar in [writing facts](../memory/references/writing-facts.md). Use the change name as the slug, or a topic slug for a conversation. Pass them through [the memory write gate](../memory/SKILL.md#write) with `"session": "current"` and `"source": "save"`: supersede what they correct, drop what a live fact already says. A spooled result does not block the save.
 
 Refresh active and archived reviews through the builder:
 
@@ -68,9 +68,9 @@ For an active change with deltas, follow [spec reconciliation](references/spec-s
 
 ## 3. Stage, exclude values, and commit
 
-Stage only intended implementation, handoff, removal, and note paths. Never use `git add .`. Inspect the staged path list; do not include unrelated work. A plan-only save is valid: its new artifacts must be committed too.
+Stage only intended implementation, handoff, and removal paths. Never use `git add .`. Inspect the staged path list; do not include unrelated work. A plan-only save is valid: its new artifacts must be committed too.
 
-Before **every commit and publication**, inspect the proposed durable content for all encountered credential values. For explicitly handled keys, read each nonempty value silently from its intended live file and feed it on stdin to `git grep --cached -l -F -f -`; only matching paths may be printed. Do not put values in command arguments. Any match stops the save until removed and restaged. Apply the same exclusion to the note, Decision log, summary, commit message, PR body, and report, including values encountered without a new persistence action.
+Before **every commit and publication**, inspect the proposed durable content for all encountered credential values. For explicitly handled keys, read each nonempty value silently from its intended live file and feed it on stdin to `git grep --cached -l -F -f -`; only matching paths may be printed. Do not put values in command arguments. Any match stops the save until removed and restaged. Apply the same exclusion to the facts, Decision log, summary, commit message, PR body, and report, including values encountered without a new persistence action.
 
 Commit staged work with a one-line message in repo style (inspect recent subjects), through a literal message file or quoted heredoc, with the usual `Co-Authored-By: Claude` trailer. A clean tree with no commits ahead has nothing to push; report that outcome. Existing unpushed commits still need publication when no new commit is needed. A non-CI failure stops with its exact error; no force or hook bypass.
 
@@ -82,7 +82,7 @@ CI failure uses the existing three-attempt fix/commit/push/wait loop. Other outc
 
 ## 5. Report
 
-For a normal save, report branch and commit, PR link, maintained change or archive and Status, note written/updated or skipped, CI result (including fixes or uncertainty), and the discovered preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, using the actual single value. Name the active continue command only for an active change. Keep errors explicit and values excluded.
+For a normal save, report branch and commit, PR link, maintained change or archive and Status, facts added, superseded, and dropped (or skipped) and whether they were stored or spooled, CI result (including fixes or uncertainty), and the discovered preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, using the actual single value. Name the active continue command only for an active change. Keep errors explicit and values excluded.
 
 A successful direct prose save uses only the two-line report from its reference. Save never merges any route; ship owns archive and merge.
 

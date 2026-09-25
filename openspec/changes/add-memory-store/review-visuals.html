@@ -1,0 +1,149 @@
+<section class="visual flow" id="memory-flow" data-kind="flow" data-states="after today">
+  <p class="caption">What memory does in a session: after this change, and today.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-start">
+          <h3>A session starts <span class="tag">Kept</span></h3>
+          <p>You open Claude or Codex in a checkout of the repo.</p>
+          <details><summary>Details</summary><p>Actor: you. Action: start a session. Result: the agent's <code>SessionStart</code> hook fires. Agents without a start hook follow an <code>AGENTS.md</code> instruction.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-hook">
+          <h3>The start hook runs a script with no model <span class="tag">New</span></h3>
+          <p>All network work fits in a 1.5 s budget.</p>
+          <details><summary>Details</summary><p>Actor: <code>SessionStart</code> hook. Action: append this checkout to the registry, count the pending sessions, check the local spool for facts, and check if consolidation is due. The hook does not upload spooled facts, because each fact must pass the write gate, and the gate needs a model. Result: the facts for the digest and one yes or no answer about background work.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-digest" data-mark="digest">
+          <h3>The hook prints the digest <span class="tag">New</span> <i class="callout">1</i></h3>
+          <p>Code builds it from one SQL query of live facts. It stays frozen for the whole session.</p>
+          <details><summary>Details</summary><p>Actor: script. Action: read the facts that no later fact supersedes, ordered by type and then by recency, and add the open <code>thread</code> facts of the current branch's change. The digest stops at 150 lines or 25 KB. Each line shows the type, the body, the slug, the age in days, the author, and the fact id. Its header reports the result of the last background run. Result: the agent starts with the team's memory. When the store cannot be reached, the script prints the last digest from a local cache in the git common directory.</p></details>
+        </div>
+        <p class="flow-connector">↓ Are sessions pending, are facts in the spool, or is consolidation due?</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-none">
+            <h3>If no <span class="tag">New</span></h3>
+            <p>Nothing else runs.</p>
+            <details><summary>Details</summary><p>Actor: script. Action: exit. Result: the session starts with only the digest added.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-detach">
+            <h3>If yes <span class="tag">New</span> <i class="callout">2</i></h3>
+            <p>The hook starts a detached background run and returns at once.</p>
+            <details><summary>Details</summary><p>Actor: hook. Action: start the same agent's command-line tool (<code>claude</code> or <code>codex</code>) in headless mode with a small model. The main agent launches nothing. Result: your first reply is not delayed. If a headless run cannot start, the hook tells the main agent to start a background subagent instead.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Only the "yes" path continues, in the background</p>
+        <div class="step flow-card" data-target-id="after-capture">
+          <h3>The run captures past sessions <span class="tag">New</span> <i class="callout">3</i></h3>
+          <p>At most 5 sessions idle for 1 hour or more, newest first, plus the spooled facts.</p>
+          <details><summary>Details</summary><p>Actor: background run. Action: code strips each transcript and replaces known <code>.env</code> values. A session with <code>#private</code> in any of your messages is skipped completely. When the store has an R2 bucket, code uploads the raw transcript to it, and the model proposes facts from the stripped text. The run never reads its own sessions or subagent transcripts. The run also takes the facts from the local spool. Result: proposed facts for each session, and the spooled facts, all ready for the write gate.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-gate">
+          <h3>The write gate decides each fact <span class="tag">New</span> <i class="callout">4</i></h3>
+          <p>The model sees similar facts, then adds, supersedes, or drops.</p>
+          <details><summary>Details</summary><p>Actor: script and model. Action: the script shows the live facts on the same slug and the top keyword matches. The model chooses <code>add</code>, <code>supersede &lt;id&gt;</code>, or <code>drop</code>. Result: only new facts are written, and a replaced fact points to its successor.</p></details>
+        </div>
+        <p class="flow-connector">↓ When 24 hours and 5 captured sessions have passed since the last consolidation</p>
+        <div class="step flow-card" data-target-id="after-consolidate">
+          <h3>The same run consolidates <span class="tag">New</span></h3>
+          <p>It merges duplicates and supersedes contradicted facts, newest wins.</p>
+          <details><summary>Details</summary><p>Actor: background run. Action: merge duplicate facts, supersede contradicted facts with the newest one, and record the counts in a <code>runs</code> row. The counts include duplicates that the write gate missed. Result: the live set stays small. Nothing is deleted, and no command runs by hand.</p></details>
+        </div>
+        <p class="flow-connector">↓ Writes to</p>
+        <div class="step flow-card" data-target-id="after-store">
+          <h3>The memory store <code>&lt;repo&gt;-memory</code> <span class="tag">New</span></h3>
+          <p>D1 keeps facts, sessions, tags, and runs. An optional private R2 bucket keeps raw transcripts.</p>
+          <details><summary>Details</summary><p>Actor: memory script. Action: call the Cloudflare REST API with the memory token. CI never receives this token. Result: rows in D1, and objects in R2 when the bucket exists. Without R2, no transcript is stored and everything else works. A private session gets only its session row, with no upload.</p></details>
+        </div>
+        <p class="flow-connector">↓ During the work, the verbs read and write the same store</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-explore">
+            <h3><code>/explore</code> <span class="tag">Changed</span></h3>
+            <p>Searches the store on the intent before it asks.</p>
+            <details><summary>Details</summary><p>Actor: <code>/explore</code>, and <code>/plan</code> through it. Action: keyword search with tags. Result: the questions start from what the team already knows. Each printed fact shows its age, author, and source.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-save">
+            <h3><code>/save</code> <span class="tag">Changed</span></h3>
+            <p>Extracts facts through the write gate.</p>
+            <details><summary>Details</summary><p>Actor: <code>/save</code>. Action: propose facts from the session and pass each one through the write gate. Result: facts in the store. When the store cannot be reached, the facts wait in an ignored local spool. The next session start sees the spool and starts the background run, which passes the facts through the write gate and uploads them.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-continue">
+            <h3><code>/continue</code> <span class="tag">Changed</span></h3>
+            <p>Reads the slug's live facts and open threads.</p>
+            <details><summary>Details</summary><p>Actor: <code>/continue</code>. Action: query the facts for the slug. Result: a cold resume on any machine gets every saved and captured fact.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-ship">
+            <h3><code>/ship</code> <span class="tag">Changed</span> <i class="callout">5</i></h3>
+            <p>Distills reusable facts into wiki pages, inside the ship PR.</p>
+            <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: read the change's facts and edit the owning wiki pages with reusable process facts. Result: a person reviews the edits in the ship pull request, before the change archives.</p></details>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-start">
+          <h3>A session starts <span class="tag">Changed</span></h3>
+          <p>No memory loads.</p>
+          <details><summary>Details</summary><p>Actor: you. Action: start a session. Result: the agent knows nothing from past sessions until a verb reads a note.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-end">
+          <h3>A session ends <span class="tag">Kept</span></h3>
+          <p>What the session worked out is only in the transcript.</p>
+          <details><summary>Details</summary><p>Actor: you. Action: close the session. Result: nothing is captured automatically.</p></details>
+        </div>
+        <p class="flow-connector">↓ Did you run <code>/save</code>?</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="today-saved">
+            <h3>If yes <span class="tag">Removed</span></h3>
+            <p>A note goes to <code>notes/&lt;slug&gt;.md</code> in git.</p>
+            <details><summary>Details</summary><p>Actor: <code>/save</code>. Action: write the note and commit it. Result: the note is public in a public repo, and a protected <code>main</code> turns each capture into a pull request.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="today-lost">
+            <h3>If no <span class="tag">Removed</span></h3>
+            <p>The context is lost.</p>
+            <details><summary>Details</summary><p>Actor: none. Result: the transcript stays on one machine, and nothing reads it again.</p></details>
+          </div>
+        </div>
+        <p class="flow-connector">↓ Later</p>
+        <div class="step flow-card" data-target-id="today-continue">
+          <h3>Only <code>/continue</code> reads the note file <span class="tag">Changed</span></h3>
+          <p>Nothing revisits a note. Search is grep.</p>
+          <details><summary>Details</summary><p>Actor: <code>/continue</code>. Action: read <code>notes/&lt;slug&gt;.md</code>. Result: the saved context, with no index. No step removes a stale or duplicate note.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The digest stays frozen for the whole session, so prompt caching holds. Facts written during the session show in the next digest. Code builds the digest with no model, so a session start costs no tokens for memory.</li>
+      <li>A detached run adds no cost to your first reply, because the main agent launches nothing. The run spends your own model quota without a visible turn. The next digest header reports what it did.</li>
+      <li>One <code>#private</code> in any of your messages skips the whole session. The session row records the skip, so the session is not read again, and nothing from it is uploaded.</li>
+      <li>The write gate uses the model to catch paraphrases, so embeddings are not necessary yet. Consolidation is the backstop. Its counts show when the gate misses duplicates, and that signal triggers embeddings.</li>
+      <li><code>/ship</code> is the only automatic path from facts into the wiki, and a person reviews it in the ship pull request.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual diff-visual" id="memory-schema" data-kind="diff">
+  <p class="caption">Where memory lives: a Markdown file in git today, rows and objects in the <code>&lt;repo&gt;-memory</code> store after this change.</p>
+  <div class="frame">
+    <div class="diff">
+      <div><div class="label">Before · <code>notes/&lt;slug&gt;.md</code> in git</div><pre><span class="line del">---</span><span class="line del">slug: add-po-search</span><span class="line del">started: 2026-07-28</span><span class="line del">updated: 2026-07-29</span><span class="line del">---</span><span class="line del"></span><span class="line del"># Add PO search</span><span class="line del"></span><span class="line del">Decisions, constraints, and dead ends,</span><span class="line del">revised in place on each /save.</span><span class="line del"></span><span class="line del">## Open threads</span><span class="line del"></span><span class="line del">- …</span></pre></div>
+      <div><div class="label">After · D1 and R2 <code>&lt;repo&gt;-memory</code></div><pre><span class="line add">sessions        one row per transcript</span><span class="line add">  id            TEXT PK   'claude:&lt;uuid&gt;' | 'codex:&lt;uuid&gt;'</span><span class="line add">                          | 'migration:&lt;slug&gt;'</span><span class="line add">  agent         TEXT      claude | codex | migration</span><span class="line add">  author        TEXT</span><span class="line add">  machine       TEXT</span><span class="line add">  branch, cwd   TEXT</span><span class="line add">  started_at    TEXT</span><span class="line add">  ended_at      TEXT</span><span class="line add">  status        TEXT      captured | skipped | private</span><span class="line add">  read_through  TEXT      last message processed</span><span class="line add">  raw_key       TEXT      R2 object key</span><span class="line add">  raw_bytes     INTEGER</span><span class="line"></span><span class="line add">facts           append-only <i class="callout">1</i></span><span class="line add">  id            INTEGER PK</span><span class="line add">  slug          TEXT      OpenSpec change name or topic</span><span class="line add">  type          TEXT      user | feedback | project</span><span class="line add">                          | reference | thread</span><span class="line add">  body          TEXT      at most 400 characters</span><span class="line add">  session_id    TEXT      -&gt; sessions.id</span><span class="line add">  source        TEXT      save | backfill | migration</span><span class="line add">                          | consolidation</span><span class="line add">  created_at    TEXT</span><span class="line add">  author        TEXT</span><span class="line add">  superseded_by INTEGER   -&gt; facts.id, NULL while live</span><span class="line"></span><span class="line add">tags            name TEXT PK, definition TEXT NOT NULL, <i class="callout">2</i></span><span class="line add">                alias_of, created_by, created_at</span><span class="line add">fact_tags       fact_id, tag</span><span class="line add">facts_fts       FTS5 over facts.body</span><span class="line"></span><span class="line add">runs            one row per background run <i class="callout">4</i></span><span class="line add">  id, kind      capture | consolidation</span><span class="line add">  host, started_at, finished_at</span><span class="line add">  counts        JSON</span><span class="line"></span><span class="line add">R2 &lt;repo&gt;-memory <i class="callout">3</i></span><span class="line add">  sessions/&lt;agent&gt;/&lt;session-id&gt;.jsonl</span><span class="line add">                  raw transcript, kept forever</span><span class="line add">  migration/&lt;slug&gt;.md</span><span class="line add">                  the migrated note's text</span></pre></div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>A fact is never edited. A later fact supersedes it through <code>superseded_by</code>. A <code>thread</code> fact is an open question, and it closes when a fact supersedes it.</li>
+      <li>A tag cannot exist without a definition. <code>alias_of</code> folds a near-duplicate tag into its canonical tag.</li>
+      <li>The bucket is private, but the files are plain. Everyone with the memory token can read every teammate's raw transcripts. The raw transcript lets a later run extract facts again.</li>
+      <li><code>runs.counts</code> records the duplicates that consolidation merged. This count is the measured trigger to add embeddings.</li>
+    </ol>
+  </div>
+</section>

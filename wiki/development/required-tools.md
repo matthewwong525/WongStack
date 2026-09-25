@@ -18,6 +18,17 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 It is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` never acquires it, and every other core verb still needs only the three commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
+**Session memory adds one account: Cloudflare.** Every repo keeps its [memory store](memory.md) there, pack or not.
+
+| Need | Why |
+|---|---|
+| A Cloudflare account | Holds the memory database. [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md#the-memory-store-every-repo) provisions it. |
+| The provisioning token, `CLOUDFLARE_API_TOKEN` | Creates the store and mints the memory token. The [credentials page](../stack/cloudflare-credentials.md) owns how to make it. |
+| The memory token, `CLOUDFLARE_MEMORY_TOKEN` | Reads and writes the store. [The memory page](memory.md#the-memory-token) owns its name and scope. |
+| R2, optional | Keeps raw transcripts. It needs a payment method on file; without it, memory works and keeps no transcripts. |
+
+The memory scripts use only Node's built-in modules, on the Node that OpenSpec already needs, and add no package or lockfile. `curl` drives the rest of provisioning.
+
 ## `gh` needs the `workflow` scope
 
 `gh auth login`'s minimum scope set is `repo`, `read:org`, `gist` — **`workflow` is not in it.** Without it, pushing any `.github/workflows/*.yml` file fails at *push* time, long after setup reported success, with wording a newcomer can't act on:
@@ -42,13 +53,14 @@ When the answer is yes, prefer a **user-local** install (the [official installer
 When the answer is no, setup doesn't dead-end — the layers degrade cleanly:
 
 ```
-   git + gh + an agent   →  CLAUDE.md, wiki/, notes/, the skills,
-                            /save, /continue                  ← zero runtime
-   + node → openspec     →  /plan, /apply, /ship, /improve
-   + a Cloudflare token  →  the running app                   ← nothing local
+   git + gh + an agent   →  CLAUDE.md, wiki/, the skills       ← zero runtime
+   + node → openspec     →  /plan, /apply, /save, /continue,
+                            /ship, /improve, the memory scripts
+   + a Cloudflare account →  session memory (R2 optional)
+   + the stack pack      →  the running app                   ← nothing local
 ```
 
-The knowledge center — most of what WongStack promises — works with **no Node at all**. Only the planning verbs need the CLI, because they ask it for artifact templates and the dependency graph at runtime rather than carrying a fork of its schema. Setup completes the runtime-free layer and names exactly which verbs are missing, so declining is a real choice rather than a failure.
+The instructions, the wiki, and the skills' text work with **no Node at all**. The planning verbs need the CLI, and session memory needs the Node it brings, because they ask it for artifact templates and the dependency graph at runtime rather than carrying a fork of its schema. Setup completes the runtime-free layer and names exactly which verbs are missing, so declining is a real choice rather than a failure.
 
 ## The opt-in Cloudflare stack pack
 
@@ -57,7 +69,7 @@ One exception, and it proves the rule by staying opt-in. The Cloudflare stack pa
 - They run **only in a repo that explicitly took the pack** (`components.stackPack: true`), and **only in that repo's own build/CI** — the pipeline scripts under `scripts/` that migrate and deploy.
 - A repo that **declined the pack** runs the entire toolkit on `git`, `gh`, and `openspec` alone, exactly as before. It receives no pack file and needs no extra tool.
 
-**`curl` is a pack-gated skill dependency.** [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) drives the Cloudflare REST API with `curl` rather than `wrangler`, so provisioning works on a machine with no runtime installed. (An earlier version of this page said pack tools run "never inside a WongStack skill." That was true when no skill touched Cloudflare; it isn't now, so the carve-out is named rather than quietly broken.)
+**`curl` is a provisioning dependency.** [`/wong-cloudflare`](../../.claude/skills/wong-cloudflare/SKILL.md) drives the Cloudflare REST API with `curl` rather than `wrangler`, so provisioning works on a machine with no runtime installed. (An earlier version of this page said pack tools run "never inside a WongStack skill." That was true when no skill touched Cloudflare; it isn't now, so the carve-out is named rather than quietly broken.)
 
 **Pack-gated scripts may use `node`** where it's the better tool — JSON assembly, editing `wrangler.jsonc` — because a pack repo already requires it at its build boundary. The governing rule:
 

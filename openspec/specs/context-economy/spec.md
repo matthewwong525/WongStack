@@ -3,9 +3,7 @@
 ## Purpose
 
 The instructions that load into every session — CLAUDE.md, the WONG-STACK block, and skill frontmatter descriptions — are a shared budget. This capability bounds what each always-loaded surface may carry, so context spends on the work instead of on restatements.
-
 ## Requirements
-
 ### Requirement: The WONG-STACK block carries orientation only
 
 The WONG-STACK block in `CLAUDE.md` SHALL carry only what an agent needs before it touches any file: what the repo's knowledge surfaces are and where each kind of fact lives, the change loop named in one line, the git-ownership boundary (the WongStack skills own all git; OpenSpec never runs git), and the rules that apply to every session regardless of surface. The block SHALL NOT restate a fact that a skill frontmatter description, a path-scoped rule, or a wiki page owns — it SHALL link to the owner instead. Every fact removed from the block SHALL have a surviving owner that loads on file touch (a rule), on invocation (a skill), or by link (a wiki page).
@@ -137,3 +135,18 @@ The meta-repo SHALL provide a dependency-free script that reads Claude Code tran
 
 - **WHEN** the user passes a working-directory filter
 - **THEN** only tasks whose recorded working directory contains it are counted
+
+### Requirement: The memory digest is a bounded always-loaded surface
+
+The session-start memory digest SHALL count as always-loaded context. It SHALL stay within the limits that `memory-recall` sets, and SHALL carry only facts from the memory store and the one-line result of the latest background run. It SHALL NOT restate a fact that the WONG-STACK block, a skill description, a rule, or a wiki page owns. Consolidation SHALL be the means that keeps the live facts inside the limit, not a larger limit.
+
+#### Scenario: A fact duplicates a wiki page
+
+- **WHEN** a live fact states a convention that a wiki page now owns
+- **THEN** consolidation supersedes the fact with one that links the page, or `/ship` has already moved it there
+
+#### Scenario: The digest reaches its limit
+
+- **WHEN** live facts would fill more than the digest limit
+- **THEN** the digest is cut at the limit and states how many facts it left out
+

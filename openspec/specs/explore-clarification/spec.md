@@ -3,9 +3,7 @@
 ## Purpose
 
 `/explore` owns the clarification round of the loop: it puts the material forks to the user as one structured question set before any artifact is drafted, and it always runs before `/plan`, invoked for the user when they skip it.
-
 ## Requirements
-
 ### Requirement: Explore puts unresolved material forks to the user in one call
 
 When `/explore` reaches its exit — the moment the user signals they are ready to plan, or the end of a bounded pass — it SHALL collect the forks whose answer would make the planning artifacts wrong, not merely different, and present them in one final question group using the shared ask convention. With a structured tool, this SHALL be one call with at most four questions and never more than the tool supports. The numbered-chat fallback SHALL contain at most four questions. A fork resolved anywhere in the conversation SHALL NOT be asked again. Zero questions SHALL be valid; in that case `/explore` SHALL make no call and proceed to its summary.
@@ -169,3 +167,24 @@ Questions in a group SHALL be answerable together. `/explore` SHALL wait for the
 - **WHEN** an asynchronous tool accepts a question group but no user answer has arrived
 - **THEN** `/explore` keeps the group pending and proceeds only with independent work
 - **AND** neither elapsed time nor a preselected option is treated as the user's answer
+
+### Requirement: Explore searches memory before it asks
+
+Before its first question in standalone or bounded mode, `/explore` SHALL search the memory store once on the intent's key terms and the paths it expects to touch, and SHALL read the live facts it finds. It SHALL NOT ask a question that a live fact already answers. It SHALL instead state the fact, with its age and author, as a recorded assumption that the user can correct. When the store is unreachable, `/explore` SHALL say so in one line and continue. `/plan` gets this through the bounded mode it already invokes.
+
+#### Scenario: A preference is already known
+
+- **WHEN** the store holds a live `feedback` fact that the user prefers one bundled pull request for refactors, and the intent is a refactor
+- **THEN** `/explore` does not ask how to split the pull requests
+- **AND** its summary names the fact and its age as the reason
+
+#### Scenario: Nothing relevant is stored
+
+- **WHEN** the search returns no live fact for the intent
+- **THEN** `/explore` asks its questions as it does today
+
+#### Scenario: Plan inherits the search
+
+- **WHEN** `/plan` invokes `/explore` in bounded mode
+- **THEN** the search runs once before the exit round, and not again inside `/plan`
+

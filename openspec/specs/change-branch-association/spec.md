@@ -3,12 +3,10 @@
 ## Purpose
 
 Keep a durable link between an OpenSpec change and its feature branch so workflow commands can checkpoint and resume work even when their names differ.
-
 ## Requirements
-
 ### Requirement: Save records the selected change's actual branch
 
-`/save` SHALL select the change established by explicit input, current-session context, or a unique active change modified in the current worktree or branch diff. It SHALL record the actual feature branch in that change's proposal. The change folder and session note SHALL use the change name. It SHALL NOT create a second change solely because the branch name differs.
+`/save` SHALL select the change established by explicit input, current-session context, or a unique active change modified in the current worktree or branch diff. It SHALL record the actual feature branch in that change's proposal. The change folder and the session's facts SHALL use the change name as their slug. It SHALL NOT create a second change solely because the branch name differs.
 
 #### Scenario: A unique uncommitted change has another name
 
@@ -49,3 +47,4 @@ Keep a durable link between an OpenSpec change and its feature branch so workflo
 
 - **WHEN** an older change has no recorded branch and a branch with the same name exists
 - **THEN** `/continue` can resume it on that branch
+

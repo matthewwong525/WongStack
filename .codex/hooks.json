@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/session-start.mjs\" --agent codex",
+            "timeout": 5,
+            "statusMessage": "Loading memory"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,1598 @@
+{
+ "tags": [
+  {
+   "name": "save",
+   "definition": "The /save checkpoint: capture, commit, push, PR, and CI wait."
+  },
+  {
+   "name": "ship",
+   "definition": "The /ship archive-and-merge step."
+  },
+  {
+   "name": "sync",
+   "definition": "/wong-sync and how target repos take upstream updates."
+  },
+  {
+   "name": "setup",
+   "definition": "/wong-setup and first-time installation."
+  },
+  {
+   "name": "verify",
+   "definition": "/verify, the on-demand evidence walk of a preview."
+  },
+  {
+   "name": "review",
+   "definition": "The review.html page, its kit, builder, and visuals."
+  },
+  {
+   "name": "explore",
+   "definition": "/explore and its question rounds."
+  },
+  {
+   "name": "plan",
+   "definition": "/plan and the planning artifacts it drafts."
+  },
+  {
+   "name": "apply",
+   "definition": "/apply and how tasks are worked."
+  },
+  {
+   "name": "continue",
+   "definition": "/continue and cold resume."
+  },
+  {
+   "name": "openspec",
+   "definition": "The OpenSpec CLI, changes, specs, and archives."
+  },
+  {
+   "name": "wiki",
+   "definition": "The progressive-disclosure wiki and its rules."
+  },
+  {
+   "name": "cloudflare",
+   "definition": "Cloudflare accounts, tokens, D1, R2, Workers, and Access."
+  },
+  {
+   "name": "ci",
+   "definition": "GitHub Actions and the delivery gate."
+  },
+  {
+   "name": "secrets",
+   "definition": "Credentials, .env handling, and secret hygiene."
+  },
+  {
+   "name": "skills",
+   "definition": "Skill authoring, descriptions, and skill layout."
+  },
+  {
+   "name": "tests",
+   "definition": "Test suites, fixtures, and what they must prove."
+  },
+  {
+   "name": "payload",
+   "definition": "What WongStack ships to target repos, and its release rules."
+  },
+  {
+   "name": "context",
+   "definition": "Context budget, token cost, and always-loaded instructions."
+  },
+  {
+   "name": "git",
+   "definition": "Branches, worktrees, commits, and merges."
+  },
+  {
+   "name": "stack-pack",
+   "definition": "The opt-in Cloudflare stack pack and app scaffold."
+  },
+  {
+   "name": "user-preference",
+   "definition": "How the user wants work done, stated by the user."
+  },
+  {
+   "name": "dependencies",
+   "definition": "Toolchain and package versions, and how they are surveyed and updated."
+  }
+ ],
+ "notes": [
+  {
+   "slug": "widen-save-prose-fast-path",
+   "started": "2026-07-30",
+   "updated": "2026-07-30",
+   "facts": [
+    {
+     "key": "widen-save-prose-fast-path#1",
+     "type": "feedback",
+     "body": "User wants a PR only for changes that can affect the deployed app: code, config, and Cloudflare wiring. Prose such as notes and wiki pages may go straight to main without review (stated 2026-07-30).",
+     "tags": [
+      "save",
+      "git",
+      "user-preference"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "cf-secret-parity-gate",
+   "started": "2026-08-01",
+   "updated": "2026-08-01",
+   "facts": [
+    {
+     "key": "cf-secret-parity-gate#1",
+     "type": "project",
+     "body": "As of 2026-08-01, the downstream app wongos runs no cron triggers on staging. The user exercises scheduled work there only by manual trigger, so the schedule itself is tested only in production.",
+     "tags": [
+      "cloudflare",
+      "stack-pack"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "cf-secret-parity-gate#2",
+     "type": "thread",
+     "body": "Open since 2026-08-01: the `wrangler secret bulk` and `wrangler secret list` round-trip in `npm run secrets:push` (scripts/cf-secrets.mjs) was never run against a live Cloudflare account; the test stopped at auth. Confirm the happy path on the next real push.",
+     "tags": [
+      "cloudflare",
+      "secrets",
+      "stack-pack"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "staging-worker-env",
+   "started": "2026-08-01",
+   "updated": "2026-08-01",
+   "facts": [
+    {
+     "key": "staging-worker-env#1",
+     "type": "reference",
+     "body": "wongos is a downstream repo that uses the stack pack: Worker `wongos`, D1 `wong-db`. The user shares `wong-db` on purpose across several mini apps.",
+     "tags": [
+      "stack-pack",
+      "cloudflare"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "staging-worker-env#2",
+     "type": "feedback",
+     "body": "User wants a change proven against real infrastructure before /ship, not only by reasoning or local checks (asked 2026-08-01, again 2026-08-02). For a stack-pack change, rehearse on a scratch Worker, queue, and D1, then tear them down, because a wrong assumption reaches every adopting repo.",
+     "tags": [
+      "ship",
+      "verify",
+      "stack-pack",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "staging-worker-env#3",
+     "type": "project",
+     "body": "To tear down a Worker that consumes a queue, delete the queue consumer first (`DELETE /accounts/{id}/queues/{queue_id}/consumers/{consumer_id}`), then the Worker, then the queue. Each blocks the other's delete, and `wrangler delete` did not resolve it (2026-08-01).",
+     "tags": [
+      "cloudflare",
+      "stack-pack"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "staging-worker-env#4",
+     "type": "project",
+     "body": "Exercise pack-script changes (scripts/cf-*.sh, lib-wrangler-config.*) against a synthetic repo under /tmp with an `app/` layout and a prod + `env.staging` wrangler config before you push. On 2026-08-01, `bash -n` alone missed that the staging D1 needs its own database_name.",
+     "tags": [
+      "stack-pack",
+      "tests"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "staging-worker-env#5",
+     "type": "thread",
+     "body": "Open since 2026-08-01: should pack migration files carry an app prefix in their names, because `wong-db` is shared across mini apps? Timestamps already prevent collisions, so this is about readability only.",
+     "tags": [
+      "stack-pack"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "zero-dependency-onboarding",
+   "started": "2026-08-01",
+   "updated": "2026-08-01",
+   "facts": [
+    {
+     "key": "zero-dependency-onboarding#1",
+     "type": "user",
+     "body": "The target WongStack user is non-technical. Setup must be: paste one prompt, then hand over one Cloudflare token, with as few local dependencies as possible (stated 2026-08-01). Development is remote: push, then look at the preview URL.",
+     "tags": [
+      "setup",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "zero-dependency-onboarding#2",
+     "type": "user",
+     "body": "The user has two Cloudflare accounts on one login: `Info@claymoo.com's Account` and `Matthewwong525@gmail.com's Account`. A token can see both, so provisioning cannot assume one account.",
+     "tags": [
+      "cloudflare"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "zero-dependency-onboarding#3",
+     "type": "feedback",
+     "body": "User prefers one end-to-end-verified PR: fold a bug that a change's own testing finds into that change, not into a follow-up (chosen twice on 2026-08-01).",
+     "tags": [
+      "ship",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "zero-dependency-onboarding#4",
+     "type": "project",
+     "body": "After you merge upstream into a file you rewrote wholesale, diff the upstream range for that file (`git diff <old>..<new> -- <file>`). On 2026-08-01 a rewrite of wiki/stack/cloudflare-credentials.md silently dropped a new upstream section, with no conflict marker.",
+     "tags": [
+      "git"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "zero-dependency-onboarding#5",
+     "type": "thread",
+     "body": "Disposable GitHub repos from the 2026-08-01 end-to-end test may still exist: matthewwong525/wongstack-e2e-test and matthewwong525/wongstack-e2e-test2. Deleting needs `gh auth refresh -h github.com -s delete_repo` first.",
+     "tags": [
+      "git",
+      "setup"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "zero-dependency-onboarding#6",
+     "type": "thread",
+     "body": "The reference Cloudflare token 'WongStack Token' was left widened after testing on 2026-08-01. Narrowing it back was offered but not done.",
+     "tags": [
+      "cloudflare",
+      "secrets"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "consolidate-payload-duplication",
+   "started": "2026-08-02",
+   "updated": "2026-08-02",
+   "facts": [
+    {
+     "key": "consolidate-payload-duplication#1",
+     "type": "thread",
+     "body": "Unresolved since 2026-08-02: what openspec/specs/ is for in a repo whose payload is prose. Live specs delivery-gate, app-scaffold, and secrets-convention still have a TBD Purpose, and archived delta specs nearly duplicate the live ones. Not raised with the user yet.",
+     "tags": [
+      "openspec"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "extract-walk-skill",
+   "started": "2026-08-02",
+   "updated": "2026-08-02",
+   "facts": [
+    {
+     "key": "extract-walk-skill#1",
+     "type": "project",
+     "body": "`disable-model-invocation: true` in skill frontmatter also blocks the Skill tool, not only auto-loading (error: 'cannot be used with Skill tool due to disable-model-invocation', verified 2026-08-02). Never set it on a WongStack verb, because the verbs hand off to each other through the Skill tool.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "extract-walk-skill#2",
+     "type": "reference",
+     "body": "Claude Code truncates a skill's `description` plus `when_to_use` at 1,536 characters in the skill listing, so trigger text past that cannot match (code.claude.com/docs/en/skills, checked 2026-08-02).",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "extract-walk-skill#3",
+     "type": "project",
+     "body": "Skills hot-reload mid-session: a new .agents/skills/<name>/SKILL.md is invocable at once. To test a frontmatter flag, make a flagged probe skill and an unflagged control. The control proves the reload, so a failure comes from the flag.",
+     "tags": [
+      "skills",
+      "tests"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "extract-walk-skill#4",
+     "type": "reference",
+     "body": "github.com/cloudflare/skills is Cloudflare's own Apache-2.0 skill set; its `cloudflare` skill is about 2.0 MB. User dropped vendoring it on 2026-08-02. If revisited: the workers + d1 + wrangler slice is about 124 KB, and a per-machine install does not reach teammates who clone.",
+     "tags": [
+      "cloudflare",
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "payload-hardening-9-1-0",
+   "started": "2026-08-02",
+   "updated": "2026-08-02",
+   "facts": [
+    {
+     "key": "payload-hardening-9-1-0#1",
+     "type": "feedback",
+     "body": "When several OpenSpec changes are ready together, the user chose one branch, one PR, and one VERSION/CHANGELOG entry, applied in dependency order (release 9.1.0, 2026-08-02). Reason: each change bumps VERSION and CHANGELOG.md, so separate branches conflict on both.",
+     "tags": [
+      "ship",
+      "payload",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "payload-hardening-9-1-0#2",
+     "type": "reference",
+     "body": "Access test resources left standing on 2026-08-02 in Matthewwong525@gmail.com's Cloudflare account: custom domain wongstack-staging.ithinkwong.com, Access app 'WongStack staging (Access runbook verification)', service token 'wongstack-access-verification'. Remove them when no longer needed.",
+     "tags": [
+      "cloudflare"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "setup-sync-consolidation",
+   "started": "2026-08-02",
+   "updated": "2026-08-02",
+   "facts": [
+    {
+     "key": "setup-sync-consolidation#1",
+     "type": "project",
+     "body": "GitHub heading anchors turn each space into a hyphen and drop punctuation, so `## Step 1 — refresh` becomes `#step-1--refresh` with a double hyphen. That anchor is correct; a checker that collapses whitespace wrongly reports it as broken (2026-08-02).",
+     "tags": [
+      "wiki",
+      "payload"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "ship-staging-tests",
+   "started": "2026-08-02",
+   "updated": "2026-08-02",
+   "facts": [
+    {
+     "key": "ship-staging-tests#1",
+     "type": "feedback",
+     "body": "The user often steers by picking a direction instead of answering every open question. When they move past a fork, take the recommended option and state the assumption plainly; they accepted that both times on 2026-08-02.",
+     "tags": [
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "ship-staging-tests#2",
+     "type": "feedback",
+     "body": "When infrastructure does not work, the user wants a diagnosis of why, not a workaround or an accepted limitation (2026-08-02).",
+     "tags": [
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "ship-staging-tests#3",
+     "type": "reference",
+     "body": "GitHub renders inline images and playable video only for `user-attachments` URLs, which come from a drag-and-drop in the web UI. No gh or REST path makes them, so media posted from a CLI shows as a link unless hosted elsewhere (checked 2026-08-02).",
+     "tags": [
+      "verify",
+      "review"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "ship-staging-tests#4",
+     "type": "project",
+     "body": "This repo's own app is provisioned in Matthewwong525@gmail.com's Cloudflare account: Workers wongstack and wongstack-staging, D1 wongstack-db and wongstack-db-staging. It was set up by hand on 2026-08-02, not through /wong-cloudflare.",
+     "tags": [
+      "cloudflare",
+      "stack-pack"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "ship-staging-tests#5",
+     "type": "thread",
+     "body": "Open since 2026-08-02: a repo with a Worker but no D1 cannot use the pack pipeline, because scripts/cf-build.sh exits with an error when it cannot read a database_name. Still true on 2026-09-25; not pursued.",
+     "tags": [
+      "stack-pack",
+      "ci"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "wong-sync-verdict-transparency",
+   "started": "2026-08-02",
+   "updated": "2026-08-02",
+   "facts": [
+    {
+     "key": "wong-sync-verdict-transparency#1",
+     "type": "feedback",
+     "body": "When a WongStack skill makes a judgment call for the user, the user expects to choose, or at least to see and reverse the call later (stated 2026-08-02 about /wong-sync 'auto deciding'). Treat it as a standing preference for every skill.",
+     "tags": [
+      "user-preference",
+      "skills",
+      "sync"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wong-sync-verdict-transparency#2",
+     "type": "project",
+     "body": "Design check: a tool can have a review gate for what it says yes to and none for what it says no to. Look for this asymmetry wherever a skill proposes work, because nobody audits the rejected set (found in /wong-sync, 2026-08-02).",
+     "tags": [
+      "review",
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wong-sync-verdict-transparency#3",
+     "type": "project",
+     "body": "In a persisted record, keep the agent's inferences apart from the user's decisions, and let only the user's decisions suppress future work. A guess stored in the same slot as a refusal gets the refusal's permanence (lesson from /wong-sync verdicts, 2026-08-02).",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "first-time-install-audit",
+   "started": "2026-08-05",
+   "updated": "2026-08-05",
+   "facts": [
+    {
+     "key": "first-time-install-audit#1",
+     "type": "project",
+     "body": "To find install defects, drive a real install from an empty folder (no git, no app) as a non-technical persona, from the cached upstream clone, through setup, sync, /wong-cloudflare, CI deploy, and teardown. This repo hides such defects. Decided 2026-08-05 not to automate it, because a fixture repo drifts from a real install.",
+     "tags": [
+      "setup",
+      "tests",
+      "payload"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "first-time-install-audit#2",
+     "type": "feedback",
+     "body": "Do not ask the user for what can be looked up (stated 2026-08-05). Example: derive git identity from `gh api user` instead of a prompt.",
+     "tags": [
+      "user-preference",
+      "setup"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "first-time-install-audit#3",
+     "type": "project",
+     "body": "Cloudflare D1 deletion is eventually consistent. On 2026-08-05 a delete returned success, but an immediate re-create still failed with `7406 System limit reached` (10 D1 per account); the same create worked about 20 s later.",
+     "tags": [
+      "cloudflare"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "first-time-install-audit#4",
+     "type": "project",
+     "body": "As of 2026-08-06, the CLOUDFLARE_API_TOKEN in this repo's .env is account-scoped: D1 and Workers calls pass, but `POST /user/tokens/verify` returns 1000. The /wong-cloudflare widen step cannot run with it; that needs a user-scoped token from My Profile > API Tokens.",
+     "tags": [
+      "cloudflare",
+      "secrets"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "first-time-install-audit#5",
+     "type": "thread",
+     "body": "Disposable GitHub repos from end-to-end tests may still exist: matthewwong525/wongstack-e2e-test and wongstack-e2e-test2 (2026-08-01), and e2e-run-club-test (2026-08-05). Deleting needs `gh auth refresh -h github.com -s delete_repo`, then `gh repo delete <repo> --yes`.",
+     "tags": [
+      "git",
+      "setup"
+     ],
+     "supersedes": [
+      "zero-dependency-onboarding#5"
+     ]
+    }
+   ]
+  },
+  {
+   "slug": "authorize-token-widen",
+   "started": "2026-08-06",
+   "updated": "2026-08-06",
+   "facts": [
+    {
+     "key": "authorize-token-widen#1",
+     "type": "project",
+     "body": "When the payload tells an agent to do something its default caution would flag (touch a credential or an external account), state the permission explicitly, next to the rule it is an exception to. Otherwise the agent asks every run, because it generalizes from the nearest rule (2026-08-06, token widen).",
+     "tags": [
+      "skills",
+      "payload"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "authorize-token-widen#2",
+     "type": "thread",
+     "body": "Not audited since 2026-08-06: whether other /wong-cloudflare steps (gh secret set, teardown, the Access branch) lack a stated permission, the way the token widen did.",
+     "tags": [
+      "cloudflare",
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "browser-run-testing",
+   "started": "2026-08-06",
+   "updated": "2026-08-06",
+   "facts": []
+  },
+  {
+   "slug": "tests-belong-to-the-app",
+   "started": "2026-08-09",
+   "updated": "2026-08-09",
+   "facts": [
+    {
+     "key": "tests-belong-to-the-app#1",
+     "type": "project",
+     "body": "To check CI test wiring before a push, paste the `has_test` discovery loop from .github/workflows/test.yml into bash and see which directories it resolves (used 2026-08-09).",
+     "tags": [
+      "ci",
+      "tests"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "tests-belong-to-the-app#2",
+     "type": "thread",
+     "body": "Open since 2026-08-09: the staging-vs-production database-name test for the pipeline scripts was removed with the root tests/ folder. `readDatabaseName` in scripts/lib-wrangler-config.mjs still has no direct test under scripts/tests/ on 2026-09-25.",
+     "tags": [
+      "tests",
+      "stack-pack"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "walk-self-healing",
+   "started": "2026-08-09",
+   "updated": "2026-08-09",
+   "facts": [
+    {
+     "key": "walk-self-healing#1",
+     "type": "feedback",
+     "body": "User agreed on 2026-08-09 that /save must never write tests. A checkpoint that changes code is not a checkpoint, tests written at save time rubber-stamp code written minutes earlier, and it slows every save. /apply writes tests beside the implementation, and CI enforces them.",
+     "tags": [
+      "save",
+      "apply",
+      "tests",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "walk-self-healing#2",
+     "type": "project",
+     "body": "Merging a new main into a branch that predates a squash-merged archive move can resurrect the change: openspec/changes/<name>/ and openspec/changes/archive/<date>-<name>/ both survive, and openspec list shows it active again. After such a merge, run openspec list and delete the resurrected active copy. The archive is the record.",
+     "tags": [
+      "git",
+      "openspec"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "walk-stack-agnostic",
+   "started": "2026-08-09",
+   "updated": "2026-08-09",
+   "facts": [
+    {
+     "key": "walk-stack-agnostic#1",
+     "type": "feedback",
+     "body": "When the user pushes for a more radical version of a change than proposed (remove a fallback entirely, drop a rule instead of narrowing it, one change not two), take it seriously. On 2026-08-09 each of three such pushes exposed a coupling that the safer, incremental option kept alive.",
+     "tags": [
+      "plan",
+      "explore",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "walk-stack-agnostic#2",
+     "type": "project",
+     "body": "The WongStack source repo has a deployable app: app/ is a Vite + React SPA with a Worker and wrangler.jsonc, the scaffold WongStack ships and dogfoods. CI deploys it and publishes a preview. Do not tell the user this repo has no app.",
+     "tags": [
+      "payload",
+      "ci",
+      "stack-pack"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "walk-stack-agnostic#3",
+     "type": "project",
+     "body": "save/scripts/preview-url.sh resolves deployments for the head SHA, so it returns nothing until CI has published that commit. An empty result after the commit but before the push or CI does not mean there is no app. Run it after CI completes.",
+     "tags": [
+      "save",
+      "verify",
+      "ci"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "walk-stack-agnostic#4",
+     "type": "project",
+     "body": "agent-browser, the /verify engine, is pre-1.0 (v0.33.2 when adopted on 2026-08-09) in the Vercel Labs incubator. That is the known risk. The mitigation: the driver is one shell script, and agent-browser get cdp-url leaves a plain CDP path open for a replacement.",
+     "tags": [
+      "verify"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "walk-stack-agnostic#5",
+     "type": "project",
+     "body": "Deliberately not adopted from agent-browser on 2026-08-09: a11y (axe), vitals, HAR capture, network interception, the dogfood skill, and its MCP server. The payload configures no MCP servers, and adding the first one is its own decision.",
+     "tags": [
+      "verify",
+      "payload"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "walk-stack-agnostic#6",
+     "type": "thread",
+     "body": "Open since 2026-08-09: a graded multi-step /verify journey, driven to a verdict against a written THEN, is not proven. The plumbing works against a real deployment; proof needs a UI-bearing change.",
+     "tags": [
+      "verify"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "wong-sync-adapt-by-default",
+   "started": "2026-08-09",
+   "updated": "2026-08-09",
+   "facts": [
+    {
+     "key": "wong-sync-adapt-by-default#1",
+     "type": "feedback",
+     "body": "User preference (2026-08-09): a WongStack update adopts non-breaking upstream changes by default, small deltas included (for example adding a date), with no need for an 'adapt as much as possible' instruction. Justify not adopting: a wrong adopt costs seconds of review, a wrong skip hides the gap indefinitely.",
+     "tags": [
+      "sync",
+      "user-preference"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "wong-sync-self-update-and-run-plan",
+   "started": "2026-08-09",
+   "updated": "2026-08-09",
+   "facts": [
+    {
+     "key": "wong-sync-self-update-and-run-plan#1",
+     "type": "feedback",
+     "body": "The user wants the full changeset of a run listed in one reviewable document before anything durable lands. A change that happened but was not written down for review is the defect, not a detail (stated 2026-08-09 for /wong-sync).",
+     "tags": [
+      "sync",
+      "plan",
+      "review",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wong-sync-self-update-and-run-plan#2",
+     "type": "project",
+     "body": "scripts/check-payload-links.mjs resolves file paths only and ignores #anchors (it splits each target on #). A link to a missing heading passes silently, so check anchors by hand. Renaming a payload heading can break deep links from other skills.",
+     "tags": [
+      "payload",
+      "wiki"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wong-sync-self-update-and-run-plan#3",
+     "type": "project",
+     "body": "A heading with an em dash, such as 'pass — first, and once', makes a double-hyphen anchor, so the obvious link does not match. Use a colon in headings that other pages deep-link to.",
+     "tags": [
+      "wiki",
+      "payload"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "wong-sync-proposes-apply-disposes",
+   "started": "2026-08-09",
+   "updated": "2026-08-10",
+   "facts": [
+    {
+     "key": "wong-sync-proposes-apply-disposes#1",
+     "type": "feedback",
+     "body": "User prefers a standard over a magic number. On 2026-08-10 they rejected a fixed cap of 3 clarification questions as the wrong kind of rule and accepted a per-question admission test at once. Reach for a qualifying condition before a quota.",
+     "tags": [
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wong-sync-proposes-apply-disposes#2",
+     "type": "feedback",
+     "body": "User wants gates at decision points, not prompts: a reviewable plan beats a terminal yes/no prompt. The objection is to changes that land before a human sees them, not to interactivity (2026-08-10).",
+     "tags": [
+      "review",
+      "plan",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wong-sync-proposes-apply-disposes#3",
+     "type": "feedback",
+     "body": "User accepts breaking changes when a contract is wrong. On 2026-08-10 they allowed a major rewrite of /wong-sync before its cost was known.",
+     "tags": [
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "wong-sync-proposes-apply-disposes#4",
+     "type": "project",
+     "body": "check-payload-links.mjs does not check wong-setup, because it resolves links against the file set a target receives and wong-setup is source-only. A broken link or anchor from wong-setup into another skill passes. When you rename a payload heading, grep wong-setup by hand.",
+     "tags": [
+      "payload",
+      "setup"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "add-update-dependencies-skill",
+   "started": "2026-08-10",
+   "updated": "2026-08-10",
+   "facts": [
+    {
+     "key": "add-update-dependencies-skill#1",
+     "type": "thread",
+     "body": "Open since 2026-08-10, still true 2026-09-25: this machine has gh 2.46.0 and Node 22.22.1 (gh 2.97.0 and Node 26.7.0 were latest). Both need sudo, so they are the user's call. CI pins Node 22 in test.yml, deploy.yml, and payload.yml, so decide local and CI Node together.",
+     "tags": [
+      "dependencies",
+      "ci"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-update-dependencies-skill#2",
+     "type": "project",
+     "body": "gh 2.46.0 breaks gh pr edit in every repo: GitHub no longer serves projectCards ('Projects (classic) is being deprecated'). The working path is gh api -X PATCH repos/{owner}/{repo}/pulls/<n> -F body=@file, which /save uses.",
+     "tags": [
+      "save",
+      "git",
+      "dependencies"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-update-dependencies-skill#3",
+     "type": "thread",
+     "body": "Open since 2026-08-10: app/package.json has @types/node ^26 while CI runs Node 22, from the aggressive-to-latest posture. Nothing broke, but the types describe a newer runtime than the suite runs on. Raise CI's Node or accept the skew knowingly.",
+     "tags": [
+      "dependencies",
+      "ci",
+      "tests"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-update-dependencies-skill#4",
+     "type": "project",
+     "body": "npm outdated needs node_modules: without an install it reports MISSING and omits devDependencies. In a checkout with no install, query the registry per package instead.",
+     "tags": [
+      "dependencies"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-update-dependencies-skill#5",
+     "type": "thread",
+     "body": "Open since 2026-08-10: wiki/development/adding-a-skill.md is the payload-skill checklist but does not say that a meta-repo-only skill (like update-dependencies) does only step 1 and skips the manifest, setup, and release steps.",
+     "tags": [
+      "wiki",
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "apply-can-checkpoint-a-task",
+   "started": "2026-08-10",
+   "updated": "2026-08-10",
+   "facts": [
+    {
+     "key": "apply-can-checkpoint-a-task#1",
+     "type": "feedback",
+     "body": "When the user asks for an elegant fix, a special-case exception does not qualify. On 2026-08-10 the /apply deadlock was fixed by naming the real predicate (exit versus implementation) in place of its proxy (tasks pending).",
+     "tags": [
+      "apply",
+      "user-preference"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "update-openspec-deps",
+   "started": "2026-08-10",
+   "updated": "2026-08-10",
+   "facts": [
+    {
+     "key": "update-openspec-deps#1",
+     "type": "feedback",
+     "body": "User rule (2026-08-10): never edit upstream-generated or vendored files locally, because the next update rewrites them and wipes the edits. Put WongStack behavior in the WongStack skill that fronts the tool. The generated openspec-* layer was later retired, but the rule still applies to vendored skills such as agent-browser.",
+     "tags": [
+      "skills",
+      "openspec",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "update-openspec-deps#2",
+     "type": "feedback",
+     "body": "User does not keep deprecated commands for compatibility. On 2026-08-10 they were glad the opsx pointer commands were deleted, reversing an earlier kept-deliberately stance. Remove deprecated entry points; do not preserve them.",
+     "tags": [
+      "skills",
+      "user-preference"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "rename-walk-to-verify",
+   "started": "2026-08-11",
+   "updated": "2026-08-11",
+   "facts": [
+    {
+     "key": "rename-walk-to-verify#1",
+     "type": "project",
+     "body": "The /walk to /verify rename (v12.0.0, 2026-08-11) changed only the verb, skill directory, scripts, and /walk tokens. Concept names stay on purpose: the staging-walkthrough capability and wiki page, references/walkthrough.md, WALK_MEDIA_* variables, and walk as a noun. Do not rename them as cleanup.",
+     "tags": [
+      "verify"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "rename-walk-to-verify#2",
+     "type": "thread",
+     "body": "Unconfirmed since 2026-08-11: the user asked /verify to 'e2e test to the best of ability'. The session assumed this excludes running the repo's code locally. If the user wants local execution, that reverses the delivery-gate boundary and needs its own change.",
+     "tags": [
+      "verify"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "rename-walk-to-verify#3",
+     "type": "thread",
+     "body": "Untested since 2026-08-11: /verify sends the Access service-token pair through agent-browser set headers for browser probes and as curl headers for request probes. Nobody has confirmed both work against a real Access-protected preview.",
+     "tags": [
+      "verify",
+      "cloudflare"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "philosophy-docs-integration",
+   "started": "2026-08-12",
+   "updated": "2026-08-12",
+   "facts": [
+    {
+     "key": "philosophy-docs-integration#1",
+     "type": "user",
+     "body": "The maintainer is a former tech founder who runs a seven-figure e-commerce business. They wrote the WongStack docs to share their workflow with practitioners doing similar work, so the reader is deciding whether to copy the setup, not a buyer.",
+     "tags": [
+      "wiki",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "philosophy-docs-integration#2",
+     "type": "feedback",
+     "body": "Docs tone the user wants: matter-of-fact and concise, not preachy, no 'AI native' framing, no buzzwords. Present WongStack as one way of working that people adapt ('this is just my way of working, people can do it however they want to').",
+     "tags": [
+      "wiki",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "philosophy-docs-integration#3",
+     "type": "thread",
+     "body": "Open since 2026-08-12: the user's view that 'terminal is a shitty UI' is stated nowhere in the repo; only the online-only, no-local-dev point became a principle. If it matters, decide what the docs recommend, for example web or desktop clients over the terminal.",
+     "tags": [
+      "wiki"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "philosophy-docs-integration#4",
+     "type": "thread",
+     "body": "Open since 2026-08-12: the user's principle that 'AI is smart enough to set everything up in one prompt' is not stated as an intention anywhere, though the README's single-paste install shows it.",
+     "tags": [
+      "wiki",
+      "setup"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "slim-claude-md-into-rules",
+   "started": "2026-09-02",
+   "updated": "2026-09-02",
+   "facts": [
+    {
+     "key": "slim-claude-md-into-rules#1",
+     "type": "feedback",
+     "body": "User ruling (2026-09-02): keep @-imports in near-universal rules (wiki-style.md, voice.md) even though imports load at launch, because 'it's intended to be loaded anyways'. Rules for occasional surfaces link to their owning doc instead, so the launch load does not grow.",
+     "tags": [
+      "context",
+      "wiki",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "slim-claude-md-into-rules#2",
+     "type": "reference",
+     "body": "Claude Code memory docs (https://code.claude.com/docs/en/memory, read 2026-09-02): @-imports expand at launch and do not reduce context; path-scoped rules load when Claude reads a matching file; rules without paths: load always; keep CLAUDE.md under 200 lines; HTML comments are stripped before injection.",
+     "tags": [
+      "context"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "slim-claude-md-into-rules#3",
+     "type": "reference",
+     "body": "Known Claude Code bug (GitHub issue #21858, seen 2026-09-02): path-scoped rules in user-level ~/.claude/rules/ are silently ignored. Put path-scoped rules at project level.",
+     "tags": [
+      "context"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "slim-claude-md-into-rules#4",
+     "type": "project",
+     "body": "WongStack-authored skill descriptions stay at or under 600 characters (set 2026-09-02): apply at 477 characters triggered well, and a description holds triggers, not a manual. The vendored agent-browser skill is the exception.",
+     "tags": [
+      "skills",
+      "context"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "slim-claude-md-into-rules#5",
+     "type": "feedback",
+     "body": "The user often asks for research on how others solve a problem before planning (rules layout on 2026-09-02, wireframe libraries on 2026-09-14). When a design likely has prior art, search online first and report what you found and why you took it or not.",
+     "tags": [
+      "explore",
+      "plan",
+      "user-preference"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "ship-in-one-go",
+   "started": "2026-09-13",
+   "updated": "2026-09-14",
+   "facts": [
+    {
+     "key": "ship-in-one-go#1",
+     "type": "project",
+     "body": "Rejected a seventh verb such as /go for the one-go cycle (2026-09-13), because it needs edits to CLAUDE.md, the loop diagram, and the payload manifest. The loop reuses the pull-in pattern instead: a verb whose precondition is missing invokes the verb before it.",
+     "tags": [
+      "ship",
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "ship-in-one-go#2",
+     "type": "project",
+     "body": "Rejected a --no-questions escape hatch for /explore's question round (2026-09-13): the ask tool always offers 'Other', so the user can type 'just pick defaults'.",
+     "tags": [
+      "explore"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "add-html-wireframes",
+   "started": "2026-09-14",
+   "updated": "2026-09-14",
+   "facts": [
+    {
+     "key": "add-html-wireframes#1",
+     "type": "feedback",
+     "body": "The user reviews plan HTML by opening the file directly (for example in the Paseo browser) and said on 2026-09-14 that this is enough. Do not add PR-body screenshots for it; they need image hosting that most repos lack.",
+     "tags": [
+      "plan",
+      "review",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-html-wireframes#2",
+     "type": "project",
+     "body": "When you drive a single-file, multi-screen HTML page with agent-browser, a selector can match a hidden screen's copy of an element (height 0, top 0). 'Element is covered by ...' is then not a layout defect. Scope selectors to the active screen, for example .screen[data-active].",
+     "tags": [
+      "verify",
+      "plan"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-html-wireframes#3",
+     "type": "thread",
+     "body": "Deferred since 2026-09-14: hosting the plan's HTML (now review.html) so a PR link renders it. GitHub shows .html as source. The stack pack's per-commit preview deploy could serve it; the WALK_MEDIA_BUCKET route exists, but most repos have no bucket.",
+     "tags": [
+      "plan",
+      "review",
+      "stack-pack"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "hide-openspec-skills",
+   "started": "2026-09-14",
+   "updated": "2026-09-14",
+   "facts": [
+    {
+     "key": "hide-openspec-skills#1",
+     "type": "project",
+     "body": "disable-model-invocation: true blocks the Skill tool itself, not only autonomous triggering ('Skill X cannot be used with Skill tool due to disable-model-invocation', spike 2026-08-02). Never set it on a WongStack verb, because verbs hand off to each other through the Skill tool.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "hide-openspec-skills#2",
+     "type": "project",
+     "body": "user-invocable: false hides a skill from the / menu and keeps it callable through the Skill tool (probed 2026-09-14 with a flagged skill and a control). Use it for a skill that is only a handoff target.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "hide-openspec-skills#3",
+     "type": "project",
+     "body": "An agent cannot check the / menu: its own skill listing is a different surface, and a user-invocable: false skill still shows there. Ask the user to confirm menu visibility.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "hide-openspec-skills#4",
+     "type": "project",
+     "body": "Skills hot-reload with a delay. A Skill call right after you write a SKILL.md can fail with 'Unknown skill' and succeed moments later, so an immediate failure is not evidence about the frontmatter.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "hide-openspec-skills#5",
+     "type": "thread",
+     "body": "Open since 2026-09-14: what the frontmatter key hidden: true does is unknown. The vendored agent-browser skill ships it and still appears in the agent's skill listing. Nobody has probed it.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "update-ship-sync-main",
+   "started": "2026-09-14",
+   "updated": "2026-09-14",
+   "facts": [
+    {
+     "key": "update-ship-sync-main#1",
+     "type": "user",
+     "body": "The user works in throwaway paseo worktrees under /root/.paseo/worktrees/<id>/<name>/. The durable WongStack checkout is /root/WongStack. Before 2026-09-14 every ship left its main stale, so each new session had to pull by hand.",
+     "tags": [
+      "git",
+      "ship",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "update-ship-sync-main#2",
+     "type": "thread",
+     "body": "Local branch cleanup is open and unclaimed. On 2026-09-14, `git branch -vv` in /root/WongStack listed dozens of `[gone]` branches. The user declined to make /ship delete merged local branches, because that was wider than asked.",
+     "tags": [
+      "git",
+      "ship"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "update-ship-sync-main#3",
+     "type": "thread",
+     "body": "/ship Step 5 still runs `git push origin --delete \"$BRANCH\"` without checking the exit status of `gh pr merge --squash` (checked 2026-09-25). On 2026-09-14 a failed merge let the delete run, and GitHub closed PR #76. Deleting the head branch of an open PR closes it.",
+     "tags": [
+      "ship",
+      "git"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "add-review-html",
+   "started": "2026-09-14",
+   "updated": "2026-09-15",
+   "facts": [
+    {
+     "key": "add-review-html#1",
+     "type": "user",
+     "body": "The user reads only the Why and What Changes sections of a proposal. They asked for review.html to be a 10x better way to see them than proposal.md, with a visual per change.",
+     "tags": [
+      "review",
+      "plan",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-review-html#2",
+     "type": "user",
+     "body": "The user does much development on a phone. UI and UX work must consider the mobile layout, and review pages must work on a phone. Stated 2026-09-15.",
+     "tags": [
+      "review",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "add-review-html#3",
+     "type": "project",
+     "body": "Do not add a fifth review visual kind (after screen, flow, diff, tree) until three changes have wanted the same one. The ux-wireframes spec forbids a fifth kind today.",
+     "tags": [
+      "review",
+      "plan"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "bare-ship-continues",
+   "started": "2026-09-15",
+   "updated": "2026-09-15",
+   "facts": [
+    {
+     "key": "bare-ship-continues#1",
+     "type": "feedback",
+     "body": "When a draft quotes source text, such as a skill's resolve order, check the quote against the source character for character. On 2026-09-15 two load-bearing misquotes in the first draft were found only by a critic check.",
+     "tags": [
+      "plan",
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "fix-review-kit-and-rules",
+   "started": "2026-09-15",
+   "updated": "2026-09-15",
+   "facts": [
+    {
+     "key": "fix-review-kit-and-rules#1",
+     "type": "feedback",
+     "body": "Verify the property that the requirement names, not a proxy. On 2026-09-15 a check that review states had markup passed, but the states rendered blank. Only a computed-style check found it.",
+     "tags": [
+      "verify",
+      "review",
+      "tests"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "fix-review-kit-and-rules#2",
+     "type": "feedback",
+     "body": "Always test a detector against the failure it exists to detect. The first check-openspec-config.mjs ran `openspec list`, which does not read the config, so it passed a broken file. Only the negative-case test caught it on 2026-09-15.",
+     "tags": [
+      "tests",
+      "openspec"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "fix-review-kit-and-rules#3",
+     "type": "project",
+     "body": "A colon followed by a space inside an unquoted YAML scalar in openspec/config.yaml makes the OpenSpec CLI drop the whole config with only a warning. Rephrase the text to remove the colon, not quote it, so the next author is not one keystroke from the same bug.",
+     "tags": [
+      "openspec"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "remove-improve-dream",
+   "started": "2026-09-15",
+   "updated": "2026-09-15",
+   "facts": []
+  },
+  {
+   "slug": "structured-explore-questions",
+   "started": "2026-09-15",
+   "updated": "2026-09-16",
+   "facts": [
+    {
+     "key": "structured-explore-questions#1",
+     "type": "project",
+     "body": "Structured question tools differ by agent context. On 2026-09-15 the root session had a structured input tool that a review subagent could not see. Instructions must use the active host's available ask mechanism.",
+     "tags": [
+      "explore",
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "structured-explore-questions#2",
+     "type": "project",
+     "body": "The generic Codex skill validator rejects WongStack's `user-invocable` frontmatter field. The committed skills keep the field on purpose, because it is supported. Do not remove it to satisfy that validator.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "simplify-review-opening",
+   "started": "2026-09-16",
+   "updated": "2026-09-16",
+   "facts": [
+    {
+     "key": "simplify-review-opening#1",
+     "type": "project",
+     "body": "When the user sends a phone screenshot of a review page, the header above review.html belongs to the host app's HTML preview, not to this repo's review toolbar. Only the toolbar is in scope.",
+     "tags": [
+      "review"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "fix-wrapped-review-bullets",
+   "started": "2026-09-17",
+   "updated": "2026-09-17",
+   "facts": [
+    {
+     "key": "fix-wrapped-review-bullets#1",
+     "type": "project",
+     "body": "The paseo worktree manager can rename a worktree's branch after the session starts, so the opening git status snapshot may name a stale branch. Check `git branch --show-current` before git work. On 2026-09-17 `wise-chicken` became `fix/wongstack-wrapped-bullets`.",
+     "tags": [
+      "git"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "fix-wrapped-review-bullets#2",
+     "type": "feedback",
+     "body": "Test the real shipped source, not a retyped copy of its logic. A harness that copies a parser into a scratch file proves nothing about the shipped code. On 2026-09-17 the proof extracted the real function from review-kit.html and ran it.",
+     "tags": [
+      "tests",
+      "review"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "phone-review-opens-change-list",
+   "started": "2026-09-17",
+   "updated": "2026-09-17",
+   "facts": [
+    {
+     "key": "phone-review-opens-change-list#1",
+     "type": "project",
+     "body": "`git diff .claude/skills/...` prints nothing and no error, because .claude is a symlink to .agents. Use the `.agents/...` path in git commands. Edits through either path land in the same file.",
+     "tags": [
+      "git",
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "phone-review-opens-change-list#2",
+     "type": "reference",
+     "body": "To set the agent-browser viewport, run `agent-browser set viewport <w> <h>`. `agent-browser viewport` is not a command.",
+     "tags": [
+      "verify",
+      "review"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "fix-improve-survey-symlink-entry",
+   "started": "2026-09-21",
+   "updated": "2026-09-21",
+   "facts": [
+    {
+     "key": "fix-improve-survey-symlink-entry#1",
+     "type": "thread",
+     "body": "The /improve survey reports missing-link leads from historical CHANGELOG.md entries, but its report says historical records are excluded. All 21 leads on 2026-09-21 came from there. The user deferred the fix. On 2026-09-25 survey.mjs still did not exclude CHANGELOG.md.",
+     "tags": [
+      "skills"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "speed-up-ci",
+   "started": "2026-09-21",
+   "updated": "2026-09-21",
+   "facts": [
+    {
+     "key": "speed-up-ci#1",
+     "type": "project",
+     "body": "CI baseline on 2026-09-20 per commit on a PR branch: Deploy 31 s, Test 68 s (npm ci 8 s, Playwright install 19 s, npm test 35 s), Payload checks 27 s. Payload checks ran twice until v16.1.1 skipped its pull_request run.",
+     "tags": [
+      "ci"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "speed-up-ci#2",
+     "type": "project",
+     "body": "Payload checks cannot drop `npm ci`, because scripts/tests/review.test.mjs loads jsdom from app/node_modules. Locally, `node --test scripts/tests/*.test.mjs` fails on review.test.mjs until you run `npm ci` in app/.",
+     "tags": [
+      "ci",
+      "tests"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "speed-up-ci#3",
+     "type": "project",
+     "body": "Do not prune archived review.html files to save space. On 2026-09-21 ten of them were 506 KB of the 4.7 MB archive. They are the immutable shipped record, and the cost is disk, not CI time.",
+     "tags": [
+      "review",
+      "openspec"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "speed-up-ci#4",
+     "type": "project",
+     "body": "agent-browser serves a cached copy when you reopen the same file in the same session. Add a `?v=<epoch>` query to the file URL to see an edit.",
+     "tags": [
+      "verify",
+      "review"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "add-structured-asks",
+   "started": "2026-09-22",
+   "updated": "2026-09-22",
+   "facts": [
+    {
+     "key": "add-structured-asks#1",
+     "type": "feedback",
+     "body": "When the user gives guidance in their own words, encode the guidance in the payload, not their literal sentence. On 2026-09-22 they said not to put \"What do you need from the user to continue?\" into the payload verbatim.",
+     "tags": [
+      "skills",
+      "user-preference"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "fix-review-panel-wrapping",
+   "started": "2026-09-22",
+   "updated": "2026-09-22",
+   "facts": [
+    {
+     "key": "fix-review-panel-wrapping#1",
+     "type": "project",
+     "body": "A squash-merged branch still shows its commits in `git log origin/main..HEAD`, so /ship's pull-in preflight will not fire on it. Start the next change on a new branch from origin/main.",
+     "tags": [
+      "git",
+      "ship"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "fix-review-panel-wrapping#2",
+     "type": "feedback",
+     "body": "A review visual author can invent plausible detail. On 2026-09-22 it drew a bullet that exists on no page and used a `.line del` strikethrough for a path that was wrapped, not deleted. When a visual shows a measurement, check that it draws what was measured.",
+     "tags": [
+      "review",
+      "plan"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "simplify-review-pipeline",
+   "started": "2026-09-22",
+   "updated": "2026-09-22",
+   "facts": [
+    {
+     "key": "simplify-review-pipeline#1",
+     "type": "project",
+     "body": "Two open payload branches pick the same next version. VERSION then merges with no conflict and only CHANGELOG.md conflicts, which hides the clash. At ship time, compare VERSION with origin/main. Renumber the unmerged branch above main's entry, never main's shipped release.",
+     "tags": [
+      "ship",
+      "payload"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "simplify-review-pipeline#2",
+     "type": "project",
+     "body": "`measure-context.mjs --check` prints the documented before and after from scripts/fixtures/context-baseline.json on every run. It does not show your change's effect. PR #97 misattributed PR #94's reduction this way on 2026-09-22.",
+     "tags": [
+      "context",
+      "payload"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "simplify-review-pipeline#3",
+     "type": "project",
+     "body": "Before 2026-09-22 each /plan spent 8 to 15 minutes on design, critic, and revision subagents in series. The critic's findings were anchor mechanics that check-review.js already reports, plus cosmetic wording. Do not bring the critic back for those.",
+     "tags": [
+      "plan",
+      "review"
+     ],
+     "supersedes": []
+    }
+   ]
+  },
+  {
+   "slug": "harness-token-efficiency",
+   "started": "2026-09-24",
+   "updated": "2026-09-24",
+   "facts": [
+    {
+     "key": "harness-token-efficiency#1",
+     "type": "reference",
+     "body": "`node scripts/measure-usage.mjs --since <date>` prices Claude Code transcripts in ~/.claude/projects/**/*.jsonl per task. Baseline since 2026-09-10: cache reads 55%, cache writes 30%, output 14%; hit rate 97.7%; median $6.54 per task. The full baseline is in notes/harness-token-efficiency.md.",
+     "tags": [
+      "context"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "harness-token-efficiency#2",
+     "type": "user",
+     "body": "Most of the user's billed agent cost is in other repos. On 2026-09-24: ClaymooApp 68%, ClaymooHeadless 10%, SuccessStoryClub 10%, WongStack 5%.",
+     "tags": [
+      "context",
+      "user-preference"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "harness-token-efficiency#3",
+     "type": "project",
+     "body": "A /save run is expensive because of the session it inherits (median ~220k tokens at start), not its runbook. Cutting /save steps was rejected on 2026-09-24, because fewer turns save little and put the gate at risk.",
+     "tags": [
+      "save",
+      "context"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "harness-token-efficiency#4",
+     "type": "thread",
+     "body": "Open cost levers from 2026-09-24, not yet done: after 1h or more idle, resume with /continue in a fresh session (up to 3%); keep one model per session (up to 1.7%); trim verb bodies (0.7 to 1.0%); run the review author on Sonnet (~0.5%, needs user approval). Prompt changes need an eval first.",
+     "tags": [
+      "context",
+      "skills"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "harness-token-efficiency#5",
+     "type": "thread",
+     "body": "Open on 2026-09-24: check whether /apply ticking tasks with `sed -i` makes Claude Code re-inject the whole tasks.md, and use the Edit tool if so (up to 1% of cost). The cause is only partly confirmed.",
+     "tags": [
+      "apply",
+      "context"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "harness-token-efficiency#6",
+     "type": "thread",
+     "body": "ClaymooHeadless was on WongStack 15.0.0 on 2026-09-24 and still had 6 legacy openspec-* skills. It needs a /wong-sync.",
+     "tags": [
+      "sync"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "harness-token-efficiency#7",
+     "type": "project",
+     "body": "A flagged harness lever ships only when $ per task falls beyond run-to-run noise and no quality checklist item regresses. The A/B test plan is in notes/harness-token-efficiency.md. No offline eval had run as of 2026-09-24.",
+     "tags": [
+      "context",
+      "tests"
+     ],
+     "supersedes": []
+    },
+    {
+     "key": "harness-token-efficiency#8",
+     "type": "project",
+     "body": "The Monitor tool failed in 21% of sessions that used it, because agents called it before its deferred schema loaded. Load it with ToolSearch first. Measured 2026-09-24.",
+     "tags": [
+      "context"
+     ],
+     "supersedes": []
+    }
+   ]
+  }
+ ]
+}

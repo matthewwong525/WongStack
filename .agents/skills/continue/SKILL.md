@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Resume an OpenSpec change and pick up the work — by change name, a PR number/URL, or from a menu when given no argument. Loads the change and the session note, checks out its recorded branch, recaps the plan and Decision log, runs a drift check, then hands off to /apply to work the tasks. Accepts an optional instruction (/continue <name> <instruction>). Pairs with /save. Use whenever you want to continue, resume, or rehydrate a thread.
+description: Resume an OpenSpec change and pick up the work — by change name, a PR number/URL, or from a menu when given no argument. Loads the change and its session facts, checks out its recorded branch, recaps the plan and Decision log, runs a drift check, then hands off to /apply to work the tasks. Accepts an optional instruction (/continue <name> <instruction>). Pairs with /save. Use whenever you want to continue, resume, or rehydrate a thread.
 user-invocable: true
 ---
 
@@ -39,9 +39,9 @@ You need two things: the **change** (proposal + tasks) and the **branch** to che
 - **Change name** (matches `openspec/changes/<name>/` or an `openspec list` entry) → read its proposal header and use the `**Branch:**` value as `BRANCH`:
   ```bash
   openspec show <name>          # or read openspec/changes/<name>/proposal.md + tasks.md
-  cat notes/<name>.md 2>/dev/null   # the session note, if one exists
+  node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" show <name>
   ```
-  The note is keyed by the change name, even when the branch differs. It holds the *session* context the change deliberately doesn't — what was tried and abandoned, what the user said the constraint really is. Read it when there; **its absence is normal**. If the folder is absent in a fresh checkout, `git fetch origin` and inspect remote branch trees without checking them out:
+  The facts are keyed by the change name, even when the branch differs. They hold the *session* context the change deliberately doesn't — what was ruled out and why, what the user said the constraint really is, and the open threads. **No facts is normal**, and an unreachable store gets one line in the recap. If the folder is absent in a fresh checkout, `git fetch origin` and inspect remote branch trees without checking them out:
   ```bash
   git for-each-ref refs/remotes/origin --format='%(refname)' | while IFS= read -r ref; do
     git cat-file -e "$ref:openspec/changes/$NAME/proposal.md" 2>/dev/null && echo "$ref"
@@ -78,7 +78,7 @@ Give the user a tight recap so they can confirm the loaded state:
 
 - **The change** — 2–4 lines summarizing it (what the work is + where the tasks stand), read from `openspec/changes/<name>/`, plus its **`Status:`** line and any **open questions** from the proposal header.
 - **The journey** — the last 1–3 entries of the proposal's `## Decision log`, so the resumer inherits the *why* (decisions made, dead ends ruled out, blockers) and not just the plan.
-- **The session context** — if `notes/<name>.md` exists, fold in what the change doesn't carry: the constraints the user stated, options weighed and dropped, open threads. This is what closes the gap between resuming the *plan* and resuming the *understanding*. Skip the line entirely when there's no note — don't report it as missing.
+- **The session context** — fold in the open threads first, then the live facts the change doesn't carry, with their ages: the constraints the user stated, options weighed and dropped. This is what closes the gap between resuming the *plan* and resuming the *understanding*. Skip the line when there are no facts; say *memory was not loaded* when the store did not answer.
 - **State** — which branch is checked out and the PR link (as a markdown link so it stays clickable).
 - **Drift check** — the change is the spine, but verify it isn't stale. Report **counts only** (don't load diffs or threads unless asked):
   ```bash
@@ -102,5 +102,5 @@ From here it's an ordinary session with the change loaded; to checkpoint again, 
 
 ## Notes
 
-- The change (`proposal.md` + `tasks.md`) is the plan and the source of intent; `notes/<name>.md`, when present, is the session context around it. `/continue` reads both and checks out the branch — nothing more.
+- The change (`proposal.md` + `tasks.md`) is the plan and the source of intent; its facts in the memory store are the session context around it. `/continue` reads both and checks out the branch — nothing more.
 - `/continue` **resumes and implements**; it is not OpenSpec's `/opsx:*` spec-drafting stepper. When you want to build, `/continue`.

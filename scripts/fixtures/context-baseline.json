@@ -2,7 +2,7 @@
   "revision": "dec731db66df3667dd0ab28c80c2c0af8435f7ae",
   "owners": [
     "AGENTS.md",
-    "notes/README.md",
+    ".agents/skills/memory/references/writing-facts.md",
     "wiki/agent-knowledge-center.md",
     "wiki/development/the-change-loop.md",
     "wiki/development/secrets.md",
@@ -138,7 +138,7 @@
       "after": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md",
         ".agents/skills/save/references/checkpoint-evidence.md"
       ],
@@ -155,7 +155,7 @@
       "after": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md",
         ".agents/skills/save/references/checkpoint-evidence.md",
         ".agents/skills/save/references/named-secrets.md",
@@ -172,7 +172,7 @@
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/checkpoint-evidence.md",
         ".agents/skills/save/references/prose-save.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md"
       ]
     },
@@ -193,7 +193,7 @@
       "after": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md",
         ".agents/skills/save/references/checkpoint-evidence.md",
         ".agents/skills/plan/SKILL.md",
@@ -215,7 +215,7 @@
       "after": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md",
         ".agents/skills/save/references/checkpoint-evidence.md",
         ".agents/skills/save/references/archived-save.md"
@@ -234,7 +234,7 @@
         ".agents/skills/apply/SKILL.md",
         ".agents/skills/plan/references/openspec-cli.md",
         ".agents/skills/save/references/checkpoint-evidence.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md"
       ],
       "increaseReason": "The orientation reads the new explicit evidence/root contract. This small increase preserves branch and ambiguity handling; completion saves are measured separately."

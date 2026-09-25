@@ -37,7 +37,7 @@ Keep the dependencies few. WongStack needs `git`, [`gh`](https://cli.github.com/
 
 ### Context has to survive the session
 
-A session ends and everything it worked out goes with it, unless a file keeps it. So the work writes its own record: the plan and the decisions behind it, the permanent session note, and any reusable process that explicit wiki work records.
+A session ends and everything it worked out goes with it, unless a file keeps it. So the work writes its own record: the plan and the decisions behind it, the session's facts in the [memory store](development/memory.md), and any reusable process that explicit wiki work records. A session that ends without `/save` is captured by a background run, and the next session starts with a digest of what the repo remembers.
 
 Give that context by [progressive disclosure](wiki-style.md) — one place to start, each page breaking down into more detail — so an agent reads what the task needs and no more. Request wiki audits and edits as explicit work, with the wiki rules loaded for every change. Because it all lives in the repo, the next teammate starts where the last one stopped.
 
@@ -56,15 +56,16 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 - **The wiki** owns reusable process and conventions, in the shape [the rulebook](wiki-style.md) sets and the sentences [voice](voice.md) asks for.
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
+- **The memory store** owns session context outside the repo: short typed facts that every session reads as a digest at start, and the raw transcripts behind them. [Session memory](development/memory.md) owns how it works.
 - **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/verify`, `/wong-sync`.
 
 Claude Code is one way to run these. The durable part is the files: any agent that reads files, edits files, runs shell commands, and follows the skill runbooks can do the same work.
 
 ## Why the capture pays off
 
-Knowledge capture happens through the work, not as a separate writing chore afterwards. The plan, the decision log, the archived change, and the session note each write down one part of what the work taught while the work is happening.
+Knowledge capture happens through the work, not as a separate writing chore afterwards. The plan, the decision log, the archived change, and the session facts each write down one part of what the work taught while the work is happening.
 
-The split keeps it useful: change-specific knowledge stays with the active or archived change, and reusable process knowledge moves into the wiki. A one-off decision does not clutter the wiki, and a reusable convention does not stay buried in a finished change. Each change therefore starts with more context than the last one.
+The split keeps it useful: change-specific knowledge stays with the active or archived change, and reusable process knowledge moves into the wiki. `/ship` is the one automatic bridge: before it archives a change, it moves the change's reusable facts into the wiki, where a person reviews them in the ship pull request. A one-off decision does not clutter the wiki, and a reusable convention does not stay buried in a finished change. Each change therefore starts with more context than the last one.
 
 ## Where to go next
 

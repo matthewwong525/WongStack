@@ -8,7 +8,7 @@ user-invocable: true
 
 Ship runbook. Every action it authorizes is taken without a prompt; a question it does have to ask uses [the shared ask format](../explore/references/asking-the-user.md). Invoking it authorizes the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync below — don't re-prompt. It also authorizes the [pulled-in stage](#the-pull-in-nothing-to-ship-yet) — explore, plan, implement, and their saves — with or without an intent and with no re-prompt between stages. It does **not** authorize archiving a change with unchecked tasks: that confirmation is the user's, and [Step 2](#step-2--archive-the-change-opsxarchive) removes the need to ask it. Confirm anything outside this runbook (force push, hard reset).
 
-`/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, walks the preview for evidence, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue and no automatic docs distillation.
+`/ship` is the **archive + merge** step of the loop (`/explore → /plan → /apply → /save → /continue → /ship`): it archives the active change, invokes ordinary `/save` exactly once so the archive and code receive one pushed PR/CI checkpoint, walks the preview for evidence, then squash-merges that exact commit. **The archived change is the record of what shipped** — no GitHub summary issue. The one automatic docs step is [distilling the change's facts](#distill-the-changes-facts-into-the-wiki) into the wiki, reviewed in the same PR.
 
 The merge rides the [gate ladder](../../../wiki/development/the-change-loop.md#the-gate) and nothing else: merge only on `/save`'s `SUCCESS` or `NONE`, and a rung the repo lacks is skipped, never failed. `/ship` is the merge, not the review — cleanliness, consolidation, and downstream breakage belong in PR review.
 
@@ -59,7 +59,17 @@ If the branch diff or working tree contains **more than one active change folder
 
 An incomplete change is never archived. The archive step itself warns and **asks you to confirm** — a question this runbook's standing authorization would otherwise answer on your behalf, which is how a change at 7 of 20 tasks used to reach a squash-merge with nobody deciding to. The guard removes the condition rather than the question. If `/apply` ends with tasks still pending, report that work and stop here — the [never merge as a way of stopping](#hard-rules) rule, at the second place it applies.
 
-Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$CHANGE_NAME" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$CHANGE_NAME" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$CHANGE_NAME" --json` for any applicable context. Run `openspec archive "$CHANGE_NAME" --yes` only after the task check and validation. If the deltas were already synced by `/save` and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists. Do **not** commit the move here.
+Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$CHANGE_NAME" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$CHANGE_NAME" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$CHANGE_NAME" --json` for any applicable context. Run `openspec archive "$CHANGE_NAME" --yes` only after the task check, validation, and the distillation below. If the deltas were already synced by `/save` and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists. Do **not** commit the move here.
+
+### Distill the change's facts into the wiki
+
+Before the archive, read the change's live facts:
+
+```bash
+node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" show "$CHANGE_NAME"
+```
+
+Keep only **reusable process facts** — a convention or pitfall that applies to future work, not this change's specifics. Edit the wiki page that owns each one, under [the wiki rules](../../rules/wiki.md): extend the owner, link, never restate. Append one Decision-log line naming the pages changed, or `no reusable fact`. When the store does not answer, log that the step was skipped and continue. The edits ride in the archive checkpoint below, so a person reviews them in this PR. No other step writes the wiki automatically.
 
 ## Step 3 — delegate the checkpoint to /save
 
@@ -144,4 +154,4 @@ Close with [the next step](../explore/references/asking-the-user.md#end-every-re
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - **Never delete a branch another open PR is based on.** Retarget dependents to the default branch first; a closed-by-deletion PR cannot be recovered.
 - **The post-merge sync is fast-forward only, and never a gate.** It touches one other checkout, so it requires a clean tree there and skips with a reason on any obstacle. It deletes no local branch, and it cannot fail a ship that has already merged.
-- No GitHub summary issue and no automatic docs distillation — the archived spec is the record; wiki updates are explicit work.
+- No GitHub summary issue. The only automatic wiki edit is the distillation of this change's facts before the archive; every other wiki update is explicit work.

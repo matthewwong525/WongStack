@@ -3,9 +3,7 @@
 ## Purpose
 
 Adopt WongStack through the normal workflow skills, using current source skills when a new target has no installed workflow yet.
-
 ## Requirements
-
 ### Requirement: install-wong-stack is removed outright
 
 The `install-wong-stack` skill SHALL be deleted — directory and all live references (README, payload manifest, wong-sync, docs, legacy-trace lists) — with no tombstone or migration machinery, since no installed base exists. Historical CHANGELOG entries SHALL keep the old name as the release record.
@@ -32,7 +30,6 @@ The README SHALL present a short, beginner-friendly paste-able setup prompt that
 - **AND** the README explains the agent needs to read files, edit files, run shell commands, and ask questions
 
 ### Requirement: The paste-to-running-app path is documented for the person walking it
-
 
 The payload SHALL carry a short, human-facing account of the whole path — what the user does, in order, and what they get at each stage — distinct from the agent-facing provisioning runbook. It SHALL be written for someone non-technical: numbered actions, plain language, no assumed vocabulary. It SHALL state honestly which steps are irreducibly manual (Cloudflare signup, creating the first token, and the `gh` browser login) and SHALL NOT imply that steps requiring a human are automated.
 
@@ -120,3 +117,18 @@ Setup SHALL work with any coding agent that can read skills, edit files, and run
 #### Scenario: Non-Claude setup
 - **WHEN** the user runs setup in another capable coding agent
 - **THEN** source skill files provide a usable workflow and planning is configured for that agent
+
+### Requirement: Setup provisions the memory store
+
+The installation plan SHALL include provisioning the memory store through `/wong-cloudflare`, and SHALL install the session-start hook and the `memory` skill. When no Cloudflare token is available yet, setup SHALL complete the rest of the install, state that session memory is off until provisioning runs, and name the command that turns it on. It SHALL NOT report the install as complete with memory working when no store exists.
+
+#### Scenario: A token is available
+
+- **WHEN** the installation tasks run with a Cloudflare provisioning token in `.env`
+- **THEN** the memory store is provisioned and the install record lists it under `components.memory`
+
+#### Scenario: No token yet
+
+- **WHEN** the installation tasks run without a Cloudflare token
+- **THEN** the install completes, and the report states that session memory is off and that `/wong-cloudflare` turns it on
+
