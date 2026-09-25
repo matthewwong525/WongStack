@@ -1,6 +1,6 @@
 # Prepare WongStack for an open-source release
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** fix/wongstack-release-102
 **Open questions:** none
 
@@ -68,3 +68,5 @@ This change touches `wong-setup` (it gains the provisioning runbook), `wong-sync
 - **2026-09-25** — Ran the live smoke (task 8.1) from the host with the user token `WongStack User Token`. It used a throwaway private repo `wongstack-smoke18` holding this branch's pack scripts, `deploy.yml`, `app/`, and `schema/`, two new databases, and a deploy token minted with `POST /accounts/{id}/tokens` and piped into `gh secret set`. Read back, the token's policy is `D1 Write; Workers Scripts Write; Account Settings Read` on the one account. With only that secret, CI passed on `main` (production `200`, `/api/` `200`) and on `feature/smoke` (staging Worker `200`, preview alias `https://feature-smoke-wongstack-smoke18-staging.<subdomain>.workers.dev` published and `200`). A new migration applied to staging only (production table count `0`, staging `1`), then to production after the merge (`1`). No permission was missing, so the table in `permission-groups.md` stands. The run exercised the provisioning calls and CI directly, not a full agent-driven setup conversation.
 - **2026-09-25** — Tore the smoke down (task 8.2) by exact name: both Workers, both databases, and the deploy token are deleted, and the account is back to 13 databases. The GitHub repo `matthewwong525/wongstack-smoke18` could not be deleted, because `gh` lacks the `delete_repo` scope. Its secrets are deleted, and it is private and empty of credentials; the owner deletes it with `gh auth refresh -s delete_repo` then `gh repo delete matthewwong525/wongstack-smoke18`.
 - **2026-09-25** — Saved the full implementation for CI (task 9.2). Setup now owns provisioning, `wong-cloudflare` is deleted, `.codex` is a link, the deploy token replaces the user token in CI, `LICENSE` and `SECURITY.md` exist, and three new test files join the suite. `SECURITY.md` links GitHub private vulnerability reporting, which is off for this repository; turning it on is a repository setting the owner decides. The delta specs are reconciled into `openspec/specs/`, and the `app-scaffold` Purpose placeholder is filled so every main spec validates.
+- **2026-09-25** — Distilled facts before the archive: added the Codex layout check (`codex features list`, `codex debug prompt-input`, trusted checkout only) to `wiki/development/required-tools.md`. The other live facts are this change's open threads and this repo's token state, not reusable process.
+- **2026-09-25** — Archived after CI passed on PR #103 (`0db00d3`). The delta specs were already reconciled into `openspec/specs/`, so the archive used `--skip-specs`.

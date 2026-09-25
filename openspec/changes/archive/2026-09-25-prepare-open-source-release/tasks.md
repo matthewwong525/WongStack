@@ -49,4 +49,4 @@
 ## 9. Release
 
 - [x] 9.1 Bump `VERSION` to 18.0.0, and add a `CHANGELOG.md` entry that names the removed skill, the blank-folder setup, the core pack, the deploy token, the new layout, and the sync migration. The entry tells installed repos to sync and roll their user token.
-- [ ] 9.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `openspec validate prepare-open-source-release --strict --no-interactive`. Then run `/save` so CI runs the new tests.
+- [x] 9.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `openspec validate prepare-open-source-release --strict --no-interactive`. Then run `/save` so CI runs the new tests.

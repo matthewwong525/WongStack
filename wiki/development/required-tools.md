@@ -33,6 +33,8 @@ The memory scripts use only Node's built-in modules, on the Node that OpenSpec a
 
 Every install keeps its agent files in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it ([the agent folder](../../.claude/skills/wong-sync/references/payload-manifest.md#the-agent-folder)). Git stores a link as a link, and macOS and Linux check it out as one. **On Windows, turn on `core.symlinks`** before you clone (`git config --global core.symlinks true`, with Developer Mode on). Without it, Git writes each link as a small text file that holds the path, and neither agent finds its skills.
 
+To check that Codex reads the shared folder, run `codex features list` (the Default-mode question flag shows `true`) and `codex debug prompt-input "hi"` (each skill appears once). Neither calls a model. Run them in a trusted checkout: Codex ignores the project `config.toml` in an untrusted one, whatever the layout.
+
 ## `gh` needs the `workflow` scope
 
 `gh auth login`'s minimum scope set is `repo`, `read:org`, `gist` — **`workflow` is not in it.** Without it, pushing any `.github/workflows/*.yml` file fails at *push* time, long after setup reported success, with wording a newcomer can't act on:
