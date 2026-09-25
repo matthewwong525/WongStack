@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 18.1.0 — `/routine`: recurring work through Paseo schedules
+
+- New skill [`/routine`](.claude/skills/routine/SKILL.md). Say what to run and when, for example `/routine every weekday at 9am: /improve`. The skill turns the time into cron, shows you the schedule, and creates it in [Paseo](https://paseo.sh) after you accept. Any prompt or verb can be scheduled. `/routine` alone lists this repo's routines. `pause`, `resume`, `run`, `logs`, `change`, and `delete` act on one routine by name or id.
+- Each run is a new agent in its own Paseo worktree of the repo's primary worktree, so it never runs on top of your own work. It uses `bypassPermissions` (Claude) or `full-access` (Codex). The agent is kept after the run, so a question from it waits in Paseo for you. The prompt runs exactly as you wrote it.
+- `paseo schedule create` 0.9.2 cannot set worktree isolation, so the script creates schedules through Paseo's own daemon client. If a Paseo update changes that client, `/routine` creates nothing and gives the steps for the Paseo app. Without Paseo, it says so and changes nothing. Paseo stays optional: [required tools](wiki/development/required-tools.md) lists it for `/routine` only.
+- [Repository improvement](wiki/development/repository-improvement.md) points Paseo users to `/routine`. Its scheduler requirements are unchanged.
+
 ## 18.0.0 — open-source release: one setup, a narrow CI token, one agent folder
 
 - **BREAKING:** `/wong-cloudflare` is removed. `/wong-setup` starts from an **empty folder** and stops, writing nothing, in a folder that already has files. It asks for one Cloudflare user token first, then installs everything in one pass: the workflow, the knowledge surfaces, a starter app, session memory, and Cloudflare hosting. Its [provisioning runbook](.claude/skills/wong-setup/references/cloudflare.md) holds the old skill's steps. The login wall is [Cloudflare Access](wiki/stack/cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](wiki/stack/getting-started.md#teardown).

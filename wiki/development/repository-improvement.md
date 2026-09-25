@@ -8,6 +8,8 @@ The command uses a deterministic tracked-file survey for inventory, weekly rotat
 
 ## Run it on a cadence
 
+With [Paseo](https://paseo.sh), run [`/routine every Monday at 9am: /improve`](../../.claude/skills/routine/SKILL.md): each run gets its own worktree, and runs of one routine never overlap.
+
 WongStack does not install a scheduler. For a weekly unattended run, use a trusted external scheduler that does all of these things:
 
 1. Create a clean dedicated checkout at the current remote default-branch revision.

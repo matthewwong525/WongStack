@@ -1,0 +1,62 @@
+<section class="visual flow" id="routine-create" data-kind="flow" data-title="Create a routine" data-states="after today defaults" data-state="after">
+  <p class="caption">Creating a scheduled run on Paseo, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="rc-ask"><h3>Ask in your own words <span class="tag">New</span> <i class="callout">1</i></h3><p><code>/routine every weekday at 9am: /improve</code></p><details><summary>Details</summary><p>Actor: you. Action: give a time and any prompt or verb. Result: the agent reads the request.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="rc-resolve"><h3>Resolve and preview <span class="tag">New</span> <i class="callout">2</i></h3><p>The agent turns the time into cron. A dry run shows name, cron, timezone, mode, and prompt. You accept it.</p><details><summary>Details</summary><p>Actor: agent. Action: write <code>0 9 * * 1-5</code>; read the first entry of <code>git worktree list --porcelain</code>; use its own provider; use the stated timezone, else the host's; run <code>routine.mjs create --dry-run</code>, which sends nothing. Result: you see the full schedule before it exists.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="rc-create"><h3>Create through the daemon <span class="tag">New</span> <i class="callout">3</i></h3><p><code>routine.mjs</code> checks the cron. It sends one <code>scheduleCreate</code> with isolation <code>worktree</code>.</p><details><summary>Details</summary><p>Actor: script. Action: check the five cron fields; load the daemon client of the installed Paseo CLI; send the full config in one call. Result: the daemon stores the schedule and returns <code>nextRunAt</code>.</p></details></div>
+      <p class="flow-connector">↓ If the call cannot be made</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="rc-no-paseo"><h3>Paseo missing or daemon silent <i class="callout">4</i></h3><p>Print the command to run later.</p><details><summary>Details</summary><p>Actor: script. Action: detect no <code>paseo</code> binary, or no daemon answer. Result: you get the command; nothing changes.</p></details></div>
+        <div class="flow-branch" data-target-id="rc-no-client"><h3>Client module missing or changed <i class="callout">5</i></h3><p>Print the steps to make it in the Paseo app.</p><details><summary>Details</summary><p>Actor: script. Action: detect that the private client is absent or has a new shape. Result: you get app steps. The script never makes a local-isolation schedule.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Both paths end here</p>
+      <div class="step flow-card" data-target-id="rc-nothing"><h3>Nothing created</h3><p>No schedule exists until you make one.</p></div>
+      <p class="flow-connector">↓ If the call succeeds</p>
+      <div class="step flow-card" data-target-id="rc-confirm"><h3>Report the next run <span class="tag">New</span> <i class="callout">6</i></h3><p>Shows the next run time that the daemon returns.</p><details><summary>Details</summary><p>Actor: script. Action: print the daemon's <code>nextRunAt</code> in the routine's timezone. Result: you know when the first run starts.</p></details></div>
+      <p class="flow-connector">↓ At each run</p>
+      <div class="step flow-card" data-target-id="rc-run"><h3>Run in its own worktree <span class="tag">Changed</span> <i class="callout">7</i></h3><p>A new agent starts in its own Paseo worktree. A question stays pending in Paseo for you.</p><details><summary>Details</summary><p>Actor: Paseo. Action: start a new agent from the primary checkout. Result: your own work is not touched; the agent is kept after the run.</p></details></div>
+    </div><p><a href="#/routine-create/defaults">See the fixed defaults</a></p></div>
+    <div class="state state-today"><h2>Today</h2>
+      <div class="step flow-card">Start: you want <code>/improve</code> every weekday</div>
+      <p class="flow-connector">↓ Choose one path</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="rc-today-app"><h3>Paseo app, by hand</h3><p>Pick provider, mode, worktree isolation, cwd, and cron.</p><details><summary>Details</summary><p>Actor: you. Action: fill each field for each schedule. Result: correct only when you remember every field.</p></details></div>
+        <div class="flow-branch" data-target-id="rc-today-cli"><h3><code>paseo schedule create</code> <span class="tag">Defect</span> <i class="callout">8</i></h3><p>Version 0.9.2 has no isolation flag.</p><details><summary>Details</summary><p>Actor: CLI. Action: send no <code>isolation</code>; the daemon uses <code>local</code>. Result: the run starts in the primary checkout, on top of your own work.</p></details></div>
+      </div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card">Finish: a schedule, set up by hand each time</div>
+    </div>
+    <div class="state state-defaults"><h2>Fixed defaults</h2>
+      <div class="box" data-target-id="rc-defaults">
+        <dl class="kv">
+          <dt>Agent</dt><dd>A new agent at each run</dd>
+          <dt>Isolation</dt><dd><code>worktree</code> of the primary worktree (first entry of <code>git worktree list --porcelain</code>) <i class="callout">9</i></dd>
+          <dt>Mode</dt><dd><code>bypassPermissions</code> (Claude) / <code>full-access</code> (Codex)</dd>
+          <dt>Provider</dt><dd>The agent that runs <code>/routine</code></dd>
+          <dt>Model</dt><dd>Paseo default, unless you name one</dd>
+          <dt>archiveOnFinish</dt><dd><code>false</code> <i class="callout">10</i></dd>
+          <dt>Prompt</dt><dd>Stored exactly as you wrote it; no unattended wording added</dd>
+          <dt>Timezone</dt><dd>The one you state, else the host's</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a repo owner who wants a verb to run on a cadence. <b>Done:</b> Paseo holds a correct schedule and shows its next run.</p>
+    <ol>
+      <li>Any prompt or verb can follow the colon. The skill does not change it.</li>
+      <li>Parsing the time needs judgment, so the agent does it. The dry run shows the result before anything is created. The primary worktree is used even when you call <code>/routine</code> from a feature worktree.</li>
+      <li>This is the only path that sets isolation and mode together in one call. Checking the cron needs no judgment, so the script does it.</li>
+      <li>Fail safe: without Paseo, <code>/routine</code> says so and changes nothing.</li>
+      <li>The client is a private module of the Paseo CLI. A Paseo update can break it. The script stops and does not fall back to local isolation.</li>
+      <li>The next run comes from the daemon, not from the agent, so it is the time Paseo will really use.</li>
+      <li>The daemon runs one schedule at a time. A routine that is still running does not start again.</li>
+      <li>This is the defect the change removes: a command-line schedule runs on top of your own work.</li>
+      <li>These are the same defaults as the hand-made ClaymooApp <code>/improve</code> schedule.</li>
+      <li>Runs often stop at a pending question. A kept agent is easier to find and answer than an archived one.</li>
+    </ol>
+  </div>
+</section>

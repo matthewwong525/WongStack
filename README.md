@@ -68,6 +68,7 @@ Those are the durable stages, but you do not have to invoke every one. After `/e
 | `/continue` | Pick work back up later, even from another machine or session. |
 | `/ship` | Finish the change and preserve the record of what shipped. |
 | `/improve [area]` | Review recent work and one rotating area, then ship one supported maintenance improvement. Add `--audit-only` for findings without edits. |
+| `/routine <when>: <prompt>` | Run any prompt or verb on a schedule through Paseo, each run in its own worktree. `/routine` alone lists this repo's routines. |
 | `/wong-sync` | Get the latest WongStack source and plan the update, ending at a review page you can read. |
 
 Setup also turns on [session memory](wiki/development/memory.md): a private store on your Cloudflare account that every session reads at start and that captures sessions you never saved. It puts the project online with the [Cloudflare stack](wiki/stack/README.md): every change gets its own preview link, and merging deploys it.
