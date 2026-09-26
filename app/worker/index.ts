@@ -10,6 +10,7 @@
 // It VERIFIES the signed `Cf-Access-Jwt-Assertion` rather than trusting a plain
 // header, which is what makes it correct for machine callers too: Access sets no
 // email header for a service token, so the header pattern 401s CI and /verify.
+// Probe for incremental mutation testing; reverted before merge.
 export default {
   fetch(request) {
     const url = new URL(request.url);
