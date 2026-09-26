@@ -1,6 +1,6 @@
 # Open-source surface
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** plan-aot-opensource
 **Open questions:** none
 
@@ -84,3 +84,5 @@ None.
 - **2026-09-26** — Changed during apply: `deploy.yml` sets the `production` environment on the `build` job only for a push to the default branch, so the `build` check name and fork behavior stay the same. Actions are pinned to `actions/checkout` v4.4.0 and `actions/setup-node` v4.4.0 by SHA.
 - **2026-09-26** — The release ritual in `wiki/contributing.md` now tags the merge commit and publishes a GitHub Release. `/ship` runs those commands for 19.0.0 right after the squash merge and reports the release URL.
 - **2026-09-26** — Changed during apply: the README comparison was checked on 2026-09-26 against the OpenSpec and Spec Kit READMEs and agents.md, and its header links each source. Spec Kit's `.specify/memory/` holds a constitution, not session facts, so the table says "No" for facts kept between sessions. The screenshot uses the archived `add-memory-store` review, because `add-paseo-routines` names a private repo. `app/wrangler.jsonc` holds no account ID, so `SECURITY.md` names only `.agents/.wong-stack.json`. "Work from the source" forks with `gh repo fork … --clone`, and memory stays off in a fork.
+- **2026-09-26** — Distilled facts before the archive: no reusable fact. The one feedback fact (#147) is about briefing audit subagents, not about WongStack process.
+- **2026-09-26** — Archived after CI passed on PR #105 (`2b82958`), with the deltas already reconciled into `openspec/specs/`, so the archive used `--skip-specs`.

@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review — harden-edge-cases</title>
+<title>Review — 2026-09-26-open-source-surface</title>
 <style>
   :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
   * { box-sizing:border-box; }
@@ -219,7 +219,7 @@
 <body>
 
 <div class="chrome">
-  <b>Review · harden-edge-cases</b>
+  <b>Review · 2026-09-26-open-source-surface</b>
   <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
   <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
   <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
@@ -239,31 +239,39 @@
 <!-- proposal:start -->
 ## Why
 
-An audit on 2026-09-25 found failure paths where WongStack does the wrong thing quietly. `/ship` can delete the branch of a PR it failed to merge, and that closes the PR. The CI gate can pass on checks that GitHub has not registered yet. A config regex can let a staging deploy reach production. Session memory can outrun its hook timeout, and its background capture fails on every run. An open-source release needs these paths to fail loudly and safely first.
+A stranger who lands on the repository today sees problems before any code runs. About 70 doc links return 404 on github.com, because they go through the `.claude` symlink. `SECURITY.md` points to a reporting channel that is turned off. "CI is the gate" is not enforced on `main`. There are no tags or releases, no CONTRIBUTING file that GitHub finds, and no issue or PR templates. The README never says what problem WongStack solves. This change makes the public surface match what the repo already claims, and releases the work as 19.0.0.
 
 ## What Changes
 
-- **`/ship` merges safely.** It merges with `--match-head-commit`, confirms the PR state is `MERGED`, and only then retargets stacked PRs to the default branch and deletes the remote branch. If the merge fails, the branch and the PR stay as they were. (review.html#/failure-paths)
-- **The gate waits for the pushed commit.** `wait-for-checks.sh` polls until the PR head equals local `HEAD`. It returns `NONE` only when the repo has no workflow files, or when no check appears within a grace period. A failed or empty `gh` answer in `/ship`'s preflight is `UNKNOWN` and stops the merge.
-- **Preconditions are checked once, in one place.** A shared reference checks `gh auth status`, an `origin` remote, and `openspec --version`, and gives the fix for each. The git verbs link it. `gh pr view` no longer hides an auth failure as "no PR".
-- **`/ship` on a default branch with uncommitted work goes to `/save`,** which creates the branch, instead of stopping with "found nothing to continue".
-- **Setup creates the GitHub repository.** Before it sets any GitHub secret, `/wong-setup` checks `gh auth status`, runs `git init`, and runs `gh repo create --private --source . --remote origin`. The README already says setup does this.
-- **One JSONC parser reads the wrangler config.** The pack scripts stop matching keys with regexes. Today `"name"` also matches `database_name`, so the production-name guard in `cf-deploy.sh` can pass for a staging deploy. A `"staging":` inside a comment is also read as config. Shell scripts call the parser through `node`. TOML config is refused with a clear message, because the scripts never supported it.
-- **A Worker with no D1 database builds and deploys.** `cf-build.sh` skips the migration step when the config binds no D1 database.
-- **The staging reset refuses the production database.** `reset-staging-d1.mjs` stops when the target name equals production's, and drops the tables in one batched command.
-- **Memory stays inside its timeouts and permissions.**
-  - The session-start hook exits when its output is written, not when an open socket closes. Today it runs about 10 s against a 5 s timeout when the store cannot be reached.
-  - Background capture sends decisions to `memory.mjs` on stdin instead of writing files under `.git/`. That write is what the capture run is denied today.
-  - `migrate` skips migrations already recorded. The run lock and `seen.json` survive concurrent runs.
-- **Small correctness fixes:**
-  - `verify-staging.sh` reads `.env` with the same parser as memory, so quotes, `export`, and CRLF work.
-  - `verify-runner.sh` escapes the header JSON.
-  - `check-openspec-config.mjs` fails on a non-zero exit.
-  - `readDatabaseName` throws instead of exiting, so tests can cover it.
-  - `review.test.mjs` skips when `jsdom` is missing.
-- **Tooling is aligned.** `.nvmrc` pins Node 22, CI reads the version from it, `app/package.json` gains `engines`, and `@types/node` moves to `^22`. `wrangler` and `@cloudflare/vite-plugin` move past the `sharp` advisory.
+- **Doc links resolve on github.com.** Markdown links point at the real `.agents/` paths. Shell commands can keep `.claude/`. The link checker fails on any Markdown link that passes through a symlink, so the bug cannot return.
+- **The README leads with the problem.**
+  - The first screen says what goes wrong without WongStack: agents forget decisions between sessions, and process lives in chat. It then says what WongStack does about it.
+  - It adds badges (CI, license, version) and a screenshot of a `review.html` page.
+  - A short comparison with a plain `AGENTS.md`, OpenSpec alone, and GitHub Spec Kit.
+  - A repository layout table that names every top-level folder and file.
+  - Correct prerequisites: Node, `curl`, the OpenSpec install command, and `core.symlinks` on Windows. The Cursor claim is qualified.
+  - One line on why Cloudflare is required (memory and hosting), with a link to `SECURITY.md`.
+  - "Fork first" for working from the source.
+  - The novice glossary moves to the wiki. Paseo is linked as optional. (review.html#/readme)
+- **Community files exist.**
+  - `.github/CONTRIBUTING.md`: how to run the tests and payload checks, and why a fork PR gets no preview.
+  - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1).
+  - Issue templates for bug, feature, and a `config.yml` that sends security reports to the private advisory form.
+  - A PR template with the VERSION and CHANGELOG checklist, and `CODEOWNERS`.
+- **Repository hygiene.**
+  - `.gitattributes` keeps LF endings for scripts on Windows, and `.editorconfig` sets the basics.
+  - `dependabot.yml` covers `npm` in `app/` and GitHub Actions.
+  - Workflow actions are pinned to commit SHAs, and each job has `timeout-minutes`.
+  - Production deploys run in a `production` environment limited to `main`.
+- **No private names in live files.** Examples and tests that name ClaymooApp or `wongstack-cloud` use generic names. The archive and changelog keep their record.
+- **GitHub settings match the docs.** The agent shows each setting, then applies it with `gh`.
+  - Private vulnerability reporting, secret scanning with push protection, and Dependabot alerts and security updates are turned on.
+  - A ruleset on `main` requires the Test and Payload checks and blocks force-push and deletion. It gives the owner a bypass for prose saved straight to `main`.
+  - Squash merges only, and head branches are deleted after a merge.
+  - A third-person description that states the problem, plus topics and a homepage. (review.html#/settings)
+- **Release 19.0.0.** `VERSION` and a `CHANGELOG.md` entry cover all three changes and state that installs from before this release must be set up again. After the merge, the commit is tagged `v19.0.0`, and a GitHub Release carries the changelog entry. Later releases do the same.
 
-**Non-goals:** No new feature. No change to the memory store's schema or tokens. No TOML support in the pack. No local build or test step added to any verb.
+**Non-goals:** No back-tagging of the 92 earlier versions. No GIF or video. No change to how setup works without Cloudflare: Cloudflare stays required. No rewrite of `CHANGELOG.md` history or the archive.
 <!-- proposal:end -->
 </script>
 
@@ -282,161 +290,175 @@ An audit on 2026-09-25 found failure paths where WongStack does the wrong thing 
   <div class="frame" id="textframe"></div>
 </section>
 
-<section class="visual flow" id="failure-paths" data-kind="flow" data-states="after today">
-  <p class="caption">Four failure paths: what happens after this change, and today.</p>
+<section class="visual screen" id="readme" data-kind="screen" data-title="README on GitHub" data-states="after today" data-state="after">
+  <p class="caption">The repository home page on GitHub: the README's first screen and its section order, after this change and today.</p>
   <div class="frame">
-    <div class="state state-after">
-      <h2>After</h2>
-
-      <h3>1. <code>/ship</code> merges a PR</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="after-merge-try">
-          <h3>Merge the pushed head <span class="tag">Changed</span> <i class="callout">1</i></h3>
-          <p><code>gh pr merge --match-head-commit</code></p>
-          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: merge only the commit it pushed. Result: a new commit on the PR makes the merge fail.</p></details>
-        </div>
-        <p class="flow-connector">↓</p>
-        <div class="step flow-card" data-target-id="after-merge-confirm">
-          <h3>Confirm the state is <code>MERGED</code> <span class="tag">New</span></h3>
-          <p>If not, stop. The branch and the PR stay.</p>
-          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: read the PR state. Result: any state other than <code>MERGED</code> stops the run before cleanup.</p></details>
-        </div>
-        <p class="flow-connector">↓ Only after <code>MERGED</code></p>
-        <div class="step flow-card" data-target-id="after-merge-cleanup">
-          <h3>Retarget, then delete the branch <span class="tag">Changed</span></h3>
-          <p>Stacked PRs move to the default branch first.</p>
-          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: retarget stacked PRs, then delete the remote branch. Result: no open PR loses its base.</p></details>
-        </div>
-      </div>
-
-      <h3>2. The CI gate reads checks</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="after-gate-push">
-          <h3>Push, then wait for the head <span class="tag">Changed</span> <i class="callout">2</i></h3>
-          <p>Poll until the PR head equals local <code>HEAD</code>.</p>
-          <details><summary>Details</summary><p>Actor: <code>wait-for-checks.sh</code>. Action: compare the PR head with <code>HEAD</code>. Result: it reads checks for the pushed commit only.</p></details>
-        </div>
-        <p class="flow-connector">↓ No checks yet?</p>
-        <div class="flow-branches">
-          <div class="flow-branch" data-target-id="after-gate-none">
-            <h3>No workflow files <span class="tag">Changed</span></h3>
-            <p><code>NONE</code>. PR review is the gate.</p>
-            <details><summary>Details</summary><p>Actor: the gate. Action: find no file under <code>.github/workflows/</code>. Result: <code>NONE</code> at once.</p></details>
-          </div>
-          <div class="flow-branch" data-target-id="after-gate-grace">
-            <h3>Workflow files <span class="tag">New</span></h3>
-            <p>Wait up to 60 s. Still none: <code>UNKNOWN</code>.</p>
-            <details><summary>Details</summary><p>Actor: the gate. Action: wait the grace period for a check to appear. Result: a check appears, or <code>UNKNOWN</code> stops the merge.</p></details>
-          </div>
-          <div class="flow-branch" data-target-id="after-gate-gh-fail">
-            <h3><code>gh</code> fails <span class="tag">New</span></h3>
-            <p><code>UNKNOWN</code>. The merge stops.</p>
-            <details><summary>Details</summary><p>Actor: <code>/ship</code> preflight. Action: get an error or an empty answer from <code>gh</code>. Result: <code>UNKNOWN</code>, never <code>NONE</code>.</p></details>
-          </div>
-        </div>
-      </div>
-
-      <h3>3. A staging deploy</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="after-deploy-parse">
-          <h3>Parse the config as JSONC <span class="tag">Changed</span> <i class="callout">3</i></h3>
-          <p>Read <code>env.staging.name</code>. Ignore comments.</p>
-          <details><summary>Details</summary><p>Actor: <code>cf-deploy.sh</code> through <code>node</code>. Action: parse <code>wrangler.jsonc</code> with one parser. Result: <code>database_name</code> is never read as the Worker name. TOML config gets a clear refusal.</p></details>
-        </div>
-        <p class="flow-connector">↓</p>
-        <div class="step flow-card" data-target-id="after-deploy-guard">
-          <h3>Guard refuses a production name <span class="tag">Changed</span></h3>
-          <p>Staging never deploys to production.</p>
-          <details><summary>Details</summary><p>Actor: the production-name guard. Action: compare the staging name with production's. Result: a match stops the deploy.</p></details>
-        </div>
-      </div>
-
-      <h3>4. Background memory capture</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="after-capture-pipe">
-          <h3>Pipe decisions on stdin <span class="tag">Changed</span> <i class="callout">4</i></h3>
-          <p>Send them to <code>memory.mjs</code>. Write no file under <code>.git/</code>.</p>
-          <details><summary>Details</summary><p>Actor: the background capture run. Action: pipe the decision JSON to <code>memory.mjs</code>. Result: no write that <code>dontAsk</code> mode denies.</p></details>
-        </div>
-        <p class="flow-connector">↓</p>
-        <div class="step flow-card" data-target-id="after-capture-facts">
-          <h3>Facts are written <span class="tag">Changed</span></h3>
-          <p>The run completes.</p>
-          <details><summary>Details</summary><p>Actor: <code>memory.mjs</code>. Action: record the facts in the store. Result: the next session digest shows them.</p></details>
-        </div>
-      </div>
+    <div class="topbar">
+      <div class="logo"></div>
+      <div class="nav desktop-only"><span class="on">Code</span><span>Issues</span><span>Pull requests</span><span>Actions</span><span>Security</span></div>
+      <span class="phone-only">☰</span>
     </div>
-
-    <div class="state state-today">
-      <h2>Today</h2>
-
-      <h3>1. <code>/ship</code> merges a PR</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="today-merge-fail">
-          <h3><code>gh pr merge</code> fails</h3>
-          <p>The failure is not checked.</p>
-          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: merge without a head check. Result: the run continues to cleanup.</p></details>
+    <div class="body">
+      <div class="state state-after">
+        <p class="muted">README.md</p>
+        <h1>WongStack</h1>
+        <div class="row" data-target-id="after-badges">
+          <span class="tag">CI: passing</span><span class="tag">License: MIT</span><span class="tag">Version: 19.0.0</span> <i class="callout">1</i>
         </div>
-        <p class="flow-connector">↓</p>
-        <div class="step flow-card" data-target-id="today-merge-delete">
-          <h3>Branch deleted, PR closed</h3>
-          <p>The work is not merged.</p>
-          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: delete the remote branch. Result: GitHub closes the PR.</p></details>
+        <div class="box" data-target-id="after-problem">
+          <p><b>Coding agents forget your decisions between sessions, and your process lives in chat.</b></p>
+          <p>WongStack keeps the process, the plans, and the decisions in the repo, so each agent runs the same workflow and each change starts with more context. <i class="callout">2</i></p>
         </div>
+        <div class="hero" data-target-id="after-screenshot"></div>
+        <p class="muted">Screenshot: a <code>review.html</code> page from a real change. <i class="callout">3</i></p>
+
+        <h2>Start here</h2>
+        <div class="box" data-target-id="after-start">
+          <p class="muted">Make an empty folder, open it in your coding agent, and paste:</p>
+          <p><code>Read and follow …/.agents/skills/wong-setup/SKILL.md to install WongStack in this folder …</code></p>
+          <span class="btn primary">Copy the prompt</span> <i class="callout">4</i>
+        </div>
+
+        <h2>What you get</h2>
+        <div class="skeleton"></div><div class="skeleton s"></div><div class="skeleton"></div>
+
+        <h2>How it compares</h2>
+        <table class="desktop-only" data-target-id="after-compare">
+          <thead><tr><th></th><th>Plain <code>AGENTS.md</code></th><th>OpenSpec alone</th><th>GitHub Spec Kit</th><th>WongStack</th></tr></thead>
+          <tbody>
+            <tr><td>Agent instructions in the repo</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Plan and shipped-spec records</td><td>No</td><td>Yes</td><td>Yes</td><td>Yes, through OpenSpec</td></tr>
+            <tr><td>Save, PR, CI wait, and merge</td><td>No</td><td>No</td><td>Part</td><td>Yes</td></tr>
+            <tr><td>Memory across sessions</td><td>No</td><td>No</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Preview per change</td><td>No</td><td>No</td><td>No</td><td>Yes, on Cloudflare</td></tr>
+          </tbody>
+        </table>
+        <div class="phone-only">
+          <dl class="kv"><dt>Plain <code>AGENTS.md</code></dt><dd>Instructions only</dd><dt>OpenSpec alone</dt><dd>Plans and specs</dd><dt>GitHub Spec Kit</dt><dd>Specs, part of the git steps</dd><dt>WongStack</dt><dd>All of these, plus memory and previews</dd></dl>
+        </div>
+        <p class="muted">Cell values are a draft. <i class="callout">5</i></p>
+
+        <h2>Repository layout</h2>
+        <table data-target-id="after-layout">
+          <thead><tr><th>Path</th><th>Holds</th></tr></thead>
+          <tbody>
+            <tr><td><code>.agents/</code></td><td>Skills and path rules. <code>.claude</code> and <code>.codex</code> link here.</td></tr>
+            <tr><td><code>.github/</code></td><td>Workflows, templates, CONTRIBUTING</td></tr>
+            <tr><td><code>app/</code></td><td>The starter app</td></tr>
+            <tr><td><code>openspec/</code></td><td>Active changes, specs, archive</td></tr>
+            <tr><td><code>wiki/</code></td><td>Process and conventions</td></tr>
+            <tr><td><code>schema/</code>, <code>scripts/</code></td><td>Memory schema, checks, tests</td></tr>
+            <tr><td class="muted">Root files</td><td class="muted"><code>AGENTS.md</code>, <code>VERSION</code>, <code>CHANGELOG.md</code>, <code>SECURITY.md</code>, and the rest, one row each</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Requirements</h2>
+        <dl class="kv" data-target-id="after-requirements">
+          <dt>Coding agent</dt><dd>Claude Code or Codex. Cursor with limits, stated.</dd>
+          <dt>Tools</dt><dd>Node.js, <code>curl</code>, <code>gh</code> (signed in), <code>git</code></dd>
+          <dt>OpenSpec</dt><dd><code>npm install -g @fission-ai/openspec</code></dd>
+          <dt>Windows</dt><dd><code>git config --global core.symlinks true</code></dd>
+          <dt>Cloudflare</dt><dd>Required: memory and hosting run there. Links <code>SECURITY.md</code> for what each token can do. <i class="callout">6</i></dd>
+          <dt>Paseo</dt><dd class="muted">Optional, for <code>/routine</code></dd>
+        </dl>
+
+        <h2>Work from the source</h2>
+        <p>Fork first, then clone your fork. <i class="callout">7</i></p>
+
+        <h2>License</h2>
+        <p class="muted">MIT</p>
       </div>
 
-      <h3>2. The CI gate reads checks</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="today-gate-push">
-          <h3>Push</h3>
-          <p>GitHub has not registered the checks yet.</p>
-          <details><summary>Details</summary><p>Actor: <code>/save</code>. Action: push and read checks at once. Result: the list is empty.</p></details>
-        </div>
-        <p class="flow-connector">↓</p>
-        <div class="step flow-card" data-target-id="today-gate-none">
-          <h3><code>NONE</code>, then merge</h3>
-          <p>No check ran.</p>
-          <details><summary>Details</summary><p>Actor: the gate. Action: read an empty list, or a failed <code>gh</code> call, as <code>NONE</code>. Result: <code>/ship</code> merges without CI.</p></details>
-        </div>
-      </div>
+      <div class="state state-today">
+        <p class="muted">README.md</p>
+        <h1>WongStack</h1>
+        <p>WongStack turns a repo into an AI knowledge center.</p>
+        <p class="muted">Agents need shared knowledge to do useful work. WongStack keeps a team's processes inside the repo …</p>
+        <p class="muted">No badges. No screenshot. No line says what goes wrong without WongStack.</p>
 
-      <h3>3. A staging deploy</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="today-deploy-regex">
-          <h3>A regex reads <code>"name"</code></h3>
-          <p>It matches <code>database_name</code>.</p>
-          <details><summary>Details</summary><p>Actor: the pack scripts. Action: match keys with a regex. Result: the wrong value is the Worker name. A <code>"staging":</code> in a comment is also read.</p></details>
+        <h2>Start here</h2>
+        <div class="box">
+          <p class="muted">Empty folder, Claude Code, Codex, Cursor, or another agent. Paste:</p>
+          <p><code>Read and follow …/wong-setup/SKILL.md …</code></p>
+          <span class="btn primary">Copy the prompt</span>
         </div>
-        <p class="flow-connector">↓</p>
-        <div class="step flow-card" data-target-id="today-deploy-prod">
-          <h3>Guard passes, deploy hits production</h3>
-          <p>No error shows.</p>
-          <details><summary>Details</summary><p>Actor: <code>cf-deploy.sh</code>. Action: compare the wrong name. Result: the staging deploy can reach production.</p></details>
-        </div>
-      </div>
-
-      <h3>4. Background memory capture</h3>
-      <div class="flow-sequence">
-        <div class="step flow-card" data-target-id="today-capture-write">
-          <h3>Write decision JSON under <code>.git/</code></h3>
-          <p><code>dontAsk</code> mode denies the write.</p>
-          <details><summary>Details</summary><p>Actor: the background capture run. Action: write a file under <code>.git/</code>. Result: permission denied.</p></details>
-        </div>
-        <p class="flow-connector">↓</p>
-        <div class="step flow-card" data-target-id="today-capture-fail">
-          <h3>The run fails</h3>
-          <p>No facts are written.</p>
-          <details><summary>Details</summary><p>Actor: the capture run. Action: stop on the denied write. Result: this happens on every run.</p></details>
-        </div>
+        <h2>What you get</h2>
+        <div class="skeleton"></div><div class="skeleton s"></div>
+        <h2>How the pieces fit</h2>
+        <div class="skeleton s"></div>
+        <h2>The workflow</h2>
+        <div class="skeleton"></div><div class="skeleton"></div>
+        <h2>Where the knowledge lives</h2>
+        <div class="skeleton s"></div>
+        <h2>A few terms the agent may introduce</h2>
+        <div class="skeleton s"></div>
+        <h2>Learn more</h2>
+        <div class="skeleton s"></div>
+        <h2>Requirements</h2>
+        <dl class="kv">
+          <dt>Tools</dt><dd><code>gh</code>, Node.js. No <code>curl</code>, no OpenSpec install command.</dd>
+          <dt>Windows</dt><dd class="muted">Not named</dd>
+          <dt>Cloudflare</dt><dd>Named, with no reason why it is required</dd>
+        </dl>
+        <h2>Prefer to work from the source?</h2>
+        <p>Clone this repo.</p>
+        <h2>License</h2>
+        <p class="muted">MIT</p>
       </div>
     </div>
   </div>
   <div class="notes">
+    <p class="brief"><b>Who / job:</b> a developer who lands on the repository from a link or a search, and decides in under a minute whether WongStack solves a problem they have. <b>Done:</b> they copy the setup prompt, or they know why WongStack is not for them. <b>Context:</b> GitHub on a desktop browser, drawn first; the phone view (toggle View: Phone) keeps the same order and folds the comparison table into a list. <b>Frequency:</b> once per visitor.</p>
     <ol>
-      <li>Cleanup is last. A failed merge leaves the branch and the PR as they were.</li>
-      <li><code>NONE</code> means "this repo has no CI", not "no check yet". The 60 s grace period and a failed <code>gh</code> call give <code>UNKNOWN</code>, which stops the merge.</li>
-      <li>One JSONC parser reads the config for all pack scripts. The guard compares the real Worker name.</li>
-      <li>Capture uses stdin, so it needs no file write that the background permission mode denies.</li>
+      <li>Badges come first, so a visitor sees that CI passes, the license, and the version before they read. The version badge reads <code>VERSION</code>.</li>
+      <li>The problem comes before the product. Today the first line names the product ("an AI knowledge center"); a visitor who does not know that term cannot tell if it is for them.</li>
+      <li>One screenshot of a <code>review.html</code> page, not a GIF. It shows the output a user gets, and any change can make a new one.</li>
+      <li>The copy prompt stays the one primary action. Nothing else on the first screen competes with it.</li>
+      <li>The comparison is short and names each other tool fairly. The final cell text is for the README draft to decide; review the rows, not the words.</li>
+      <li>Requirements say why Cloudflare is required and link <code>SECURITY.md</code>, instead of offering a path without Cloudflare.</li>
+      <li>"Fork first" replaces "clone this repo": a visitor cannot push to this repository, and a fork PR is the way to send a change back.</li>
+      <li>Not drawn: the workflow table, "Where the knowledge lives", and "Learn more". The plan does not say if they stay, move to the wiki, or shrink. "A few terms" moves to the wiki.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual tree" id="settings" data-kind="tree">
+  <p class="caption">GitHub repository settings: the value today → the value after. The agent shows each row to you, then applies it with <code>gh</code>. Nothing changes before you see it.</p>
+  <div class="frame">
+    <div class="label">Security</div>
+    <ul>
+      <li class="edit" data-target-id="set-pvr">Private vulnerability reporting: off → on <span class="why">the channel <code>SECURITY.md</code> names works <i class="callout">1</i></span></li>
+      <li class="edit" data-target-id="set-secrets">Secret scanning and push protection: off → on <span class="why">a pushed token is stopped</span></li>
+      <li class="edit" data-target-id="set-dependabot">Dependabot alerts and security updates: off → on <span class="why">pairs with the new <code>dependabot.yml</code></span></li>
+    </ul>
+    <div class="label">Ruleset on main</div>
+    <ul>
+      <li class="add" data-target-id="set-ruleset">Required checks: none → Test and Payload checks <span class="why">"CI is the gate" is enforced <i class="callout">2</i></span></li>
+      <li class="add" data-target-id="set-force">Force-push and deletion: allowed → blocked</li>
+      <li class="add" data-target-id="set-bypass">Bypass: none → repository owner only <span class="why">prose saves go straight to <code>main</code> <i class="callout">3</i></span></li>
+    </ul>
+    <div class="label">Pull requests</div>
+    <ul>
+      <li class="edit" data-target-id="set-merge">Merge methods: merge, rebase, squash → squash only <span class="why">matches what <code>/ship</code> does</span></li>
+      <li class="edit" data-target-id="set-delete">Delete head branch after merge: off → on</li>
+    </ul>
+    <div class="label">About</div>
+    <ul>
+      <li class="edit" data-target-id="set-description">Description: "My harness for building a collaborative AI knowledge center" → a third-person line that states the problem <span class="why">search results quote it</span></li>
+      <li class="add" data-target-id="set-topics">Topics: none → ai-agents, claude-code, codex, openspec, cloudflare-workers, developer-workflow</li>
+      <li class="add" data-target-id="set-homepage">Homepage: empty → a link, shown for your approval <span class="why">value set when the agent shows it</span></li>
+    </ul>
+    <div class="label">Environments</div>
+    <ul>
+      <li class="add" data-target-id="set-env">production: none → deploys from <code>main</code> only <span class="why">a branch cannot deploy to production <i class="callout">4</i></span></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>Today <code>SECURITY.md</code> points to a reporting form that is turned off. Turning it on makes the file true; the file does not change.</li>
+      <li>The check names match the workflow names in <code>.github/workflows/</code>. A check that is renamed later must also be renamed here, or every PR waits for a check that never runs.</li>
+      <li>Without an owner bypass, a wiki-only <code>/save</code> cannot push to <code>main</code>. The bypass is for the owner only; other people still go through a PR.</li>
+      <li>The deploy workflow names the <code>production</code> environment, so the limit to <code>main</code> is enforced by GitHub, not only by the workflow's own branch filter.</li>
     </ol>
   </div>
 </section>

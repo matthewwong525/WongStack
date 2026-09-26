@@ -35,5 +35,5 @@
 
 - [x] 7.1 Bump `VERSION` to 19.0.0. Add one newest-first `CHANGELOG.md` entry that covers `harden-edge-cases`, `trim-legacy-and-restatement`, and this change, and state that installs from before 19.0.0 must be set up again in an empty folder. Add the tag-and-release step to the release ritual in `wiki/contributing.md`.
 - [x] 7.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/measure-context.mjs --check`, and fix any failure.
-- [ ] 7.3 Run `/save` so CI runs every suite on the one PR. The task is done when CI passes.
+- [x] 7.3 Run `/save` so CI runs every suite on the one PR. The task is done when CI passes.
 - [x] 7.4 Write the post-merge release commands into the release ritual in `wiki/contributing.md` (`git tag v<VERSION> <merge-sha>`, `git push origin v<VERSION>`, and `gh release create v<VERSION> --notes-file <entry>`). Record in the Decision log that `/ship` runs them for 19.0.0 right after the squash merge and reports the release URL. The tag cannot exist before the merge commit does.
