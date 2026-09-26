@@ -1,6 +1,6 @@
 # Mini-app save
 
-Load when the session built or changed a mini app. A mini app has no OpenSpec change and no branch of its own: its folder on the default branch and the app list at `/apps/` are the record. [Mini apps](../../../../wiki/stack/mini-apps.md) owns the layout.
+Load when the session built or changed a mini app. A mini app has no OpenSpec change and no branch of its own: its folder on the default branch and the app list on the home page are the record. [Mini apps](../../../../wiki/stack/mini-apps.md) owns the layout.
 
 Follow the main save procedure's credential exclusion before every commit and publication.
 

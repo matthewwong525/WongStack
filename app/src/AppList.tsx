@@ -5,11 +5,7 @@ export function AppList({ apps }: { apps: Promise<MiniApp[] | null> }) {
   const list = use(apps)
 
   if (list === null) {
-    return (
-      <p>
-        The list did not load. <a href="/apps/">See every app</a>
-      </p>
-    )
+    return <p>The list did not load. Reload the page to try again.</p>
   }
   if (list.length === 0) {
     return (

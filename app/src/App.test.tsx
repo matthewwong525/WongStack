@@ -53,16 +53,17 @@ it("says how to ask for an app when there are none", async () => {
   expect(screen.queryAllByRole("link")).toEqual([]);
 });
 
-it("links to the list page when the list does not load", async () => {
+it("says to reload when the list does not load", async () => {
   serve({ ok: false, json: async () => [] });
 
   await act(async () => {
     render(<App />);
   });
 
-  const link = await screen.findByRole("link", { name: "See every app" });
-  expect(link.getAttribute("href")).toBe("/apps/");
-  expect(screen.queryByText(/No mini apps yet/)).toBeNull();
+  expect((await screen.findByText(/did not load/)).textContent).toBe(
+    "The list did not load. Reload the page to try again.",
+  );
+  expect(screen.queryAllByRole("link")).toEqual([]);
 });
 
 it("opens with the tutorial, above the app list", async () => {

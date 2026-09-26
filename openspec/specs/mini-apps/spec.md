@@ -116,12 +116,22 @@ When a mini-app save fell back to a pull request, `/ship` SHALL merge it with no
 
 ### Requirement: A dashboard lists every mini app
 
-A script SHALL build the mini-app list from the `app.json` of each folder under `mini-apps/apps/`, each time the main app is built, with no model step. It SHALL write the list twice: as a page at `/apps/` and as data at `/apps/apps.json`. Each entry SHALL show the title and description and link to the app. The production list SHALL therefore hold every saved mini app, and a preview's list SHALL also hold the app being previewed.
+A script SHALL build the mini-app list from the `app.json` of each folder under `mini-apps/apps/`, each time the main app is built, with no model step. It SHALL write the list as data at `/apps/apps.json`, which the landing page shows. It SHALL NOT write a separate list page: a request for `/apps/` SHALL redirect to the landing page, `/`, with a temporary redirect. Each entry SHALL carry the title and description and link to the app. The production list SHALL therefore hold every saved mini app, and a preview's list SHALL also hold the app being previewed. The example app's page SHALL link back to the landing page, labelled Home.
 
 #### Scenario: A saved app appears
 
 - **WHEN** a mini app reaches the default branch
-- **THEN** the production `/apps/` page and `/apps/apps.json` list it with its title, description, and link
+- **THEN** `/apps/apps.json` and the production landing page list it with its title, description, and link
+
+#### Scenario: The old list address
+
+- **WHEN** a person opens `/apps/`
+- **THEN** they land on the landing page, `/`
+
+#### Scenario: Back from an app
+
+- **WHEN** a person on the example app follows its Home link
+- **THEN** they land on the landing page
 
 #### Scenario: A malformed manifest
 
@@ -132,7 +142,7 @@ A script SHALL build the mini-app list from the `app.json` of each folder under 
 
 The starter app's landing page SHALL open with a tutorial titled *Learn the development loop*. The tutorial SHALL show one plain-language message for the person to paste into their chat with the agent, and a button that copies it. The message SHALL ask the agent to remove the tutorial from the home page and to explain each step as it goes. It SHALL NOT be a command. The tutorial SHALL NOT list the loop's steps itself; the agent explains them in chat. Removing it is the person's first change, so it teaches the loop by doing. When copying fails, the button SHALL say to copy the message by hand, and the message SHALL stay selectable.
 
-The tutorial SHALL be one part of the page that can be removed with no other change. Below it, the page SHALL list the mini apps from `/apps/apps.json`, each with its title, description, and a link to it. With no mini apps, it SHALL say how to ask for one.
+The landing page SHALL share the example mini app's plain style: the device's system font, light or dark to match the device, and outlined cards and buttons in system colors. The tutorial SHALL be one part of the page that can be removed with no other change. Below it, the page SHALL list the mini apps from `/apps/apps.json`, each with its title, description, and a link to it. With no mini apps, it SHALL say how to ask for one.
 
 Setup's closing report SHALL point the person to the tutorial on their site. `/wong-sync` SHALL add or update the tutorial only when the target's landing page still renders it; a removed tutorial SHALL stay removed.
 
@@ -159,7 +169,7 @@ Setup's closing report SHALL point the person to the tutorial on their site. `/w
 #### Scenario: The list can not load
 
 - **WHEN** `/apps/apps.json` fails to load
-- **THEN** the landing page still shows the tutorial and a link to `/apps/`
+- **THEN** the landing page still shows the tutorial, and says the list did not load and to reload the page
 
 #### Scenario: The tutorial is done
 

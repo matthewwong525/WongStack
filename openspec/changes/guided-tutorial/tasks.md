@@ -21,3 +21,13 @@
 - [x] 4.1 Bump `VERSION` to 24.1.0 and add the `CHANGELOG.md` entry
 - [x] 4.2 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`
 - [ ] 4.3 `/save` for CI and the preview; on the preview, check the box at phone width and press Copy
+
+## 5. One home page (mini-apps/, scripts/, app/)
+
+- [x] 5.1 `scripts/mini-dashboard.mjs`: stop writing `index.html` and drop `dashboardHtml`; update the header comment
+- [x] 5.2 `mini-apps/router.mjs`: answer `/apps/` with a 302 to `/`; update its header comment
+- [x] 5.3 `hello/index.html` and `tips/index.html`: the back link reads Home and points at `/`
+- [x] 5.4 `app/src/index.css` and `App.css`: the mini apps' plain style (system font, `color-scheme: light dark`, system colors, 1px outlines) for the page, list, tutorial box, and Copy button
+- [x] 5.5 `AppList.tsx`: the failure state says to reload, with no `/apps/` link
+- [x] 5.6 Tests: `scripts/tests/mini-apps.test.mjs` (no list page; `/apps/` redirects; files lists), `App.test.tsx` failure state; keep 100% coverage and the Stryker bar
+- [x] 5.7 Docs and sync: `wiki/stack/mini-apps.md`, `wiki/stack/README.md`, `save/references/mini-app-save.md`, the payload manifest note for older landing pages, and the 24.1.0 changelog entry

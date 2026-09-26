@@ -46,10 +46,20 @@ Today's tutorial tells you to type a command yourself, and says nothing about wh
    ▼
   live: the box is gone
   ```
+- **One home page, no separate all-apps page.** The page that listed every mini app at `/apps/` is gone; that address now opens your home page, which already lists your apps. Each mini app's back link says *Home* and goes there.
+  ```text
+  before                after
+  ──────                ─────
+  home ─▶ app           home ─▶ app
+          │                      │
+          ▼                      ▼
+     all apps page       "Home" ─▶ home
+  ```
+- **The home page looks like your mini apps.** It uses the same plain look: your device's own font, simple outlined cards and buttons, and light or dark to match your device. The purple starter-template colors go.
 - **Setup's last message points to the box.** It gives your site's address and says to open it and copy the message.
 - **An update never brings the tutorial back.** If you already removed it, updating WongStack leaves it removed. A site that still shows the old tutorial gets the new box.
 
-**Non-goals:** no lessons, progress ticks, or new assistant skill. No login-wall lesson; that stays in [the Access guide](../../../wiki/stack/cloudflare-access.md). No change to how a plan, a preview, or publishing works.
+**Non-goals:** no change to what a mini app can do or how it saves. No lessons, progress ticks, or new assistant skill. No login-wall lesson; that stays in [the Access guide](../../../wiki/stack/cloudflare-access.md). No change to how a plan, a preview, or publishing works.
 
 ## Capabilities
 
@@ -59,13 +69,14 @@ None.
 
 ### Modified Capabilities
 
-- `mini-apps`: the starter landing page's tutorial is a copyable message that asks the agent to remove the tutorial and explain each step; setup points to it; sync never restores a removed tutorial.
+- `mini-apps`: the starter landing page's tutorial is a copyable message that asks the agent to remove the tutorial and explain each step; setup points to it; sync never restores a removed tutorial. The build no longer writes an app list page; `/apps/` redirects to `/`; the example app links Home; the landing page takes the mini apps' plain style.
 
 ## Impact
 
-- **App:** `app/src/Tutorial.tsx` is rewritten with the message and a Copy button; its test moves from `App.test.tsx` to a new `app/src/Tutorial.test.tsx`; `App.css` gains the box's styles. Removing the tutorial stays one step: delete `Tutorial.tsx`, `Tutorial.test.tsx`, its styles, and one line in `App.tsx`.
+- **Mini apps:** `scripts/mini-dashboard.mjs` stops writing `/apps/index.html`; `mini-apps/router.mjs` redirects `/apps/` to `/`; `hello/` and `tips/` link Home; `scripts/tests/mini-apps.test.mjs` follows.
+- **App:** `app/src/index.css` and `App.css` take the mini apps' style; `AppList.tsx`'s failure state drops its `/apps/` link. `app/src/Tutorial.tsx` is rewritten with the message and a Copy button; its test moves from `App.test.tsx` to a new `app/src/Tutorial.test.tsx`; `App.css` gains the box's styles. Removing the tutorial stays one step: delete `Tutorial.tsx`, `Tutorial.test.tsx`, its styles, and one line in `App.tsx`.
 - **Skills:** `wong-setup/references/cloudflare.md` Step 5 ends by pointing to the box; `wong-sync`'s payload manifest says a removed tutorial is not restored.
-- **Docs:** `wiki/stack/getting-started.md` and `wiki/stack/mini-apps.md`.
+- **Docs:** `wiki/stack/getting-started.md`, `wiki/stack/mini-apps.md`, `wiki/stack/README.md`, and the mini-app save reference.
 - **Release:** 24.1.0.
 
 ## Decision log
@@ -82,3 +93,9 @@ None.
 - **2026-09-26** — Assumed during apply: the button keeps saying `Copied` rather than resetting after two seconds, because a reset timer adds a cleanup that no test can observe, and the page's mutation bar is 100%.
 - **2026-09-26** — Apply evidence on the host: oxlint, `tsc -b`, Vitest (34 tests, 100% coverage), knip, and Stryker (193 mutants, 100%; `Tutorial.tsx` 13 killed) pass; the payload link check and the OpenSpec config check pass. CI stays the gate.
 - **2026-09-26** — Save checkpoint: the tutorial box, its tests, setup's closing line, the sync rule, docs, and 24.1.0 landed; the `mini-apps` delta synced into `openspec/specs/`. `origin/main` moved to 24.0.2 (24.0.1 #131, then OpenSpec 1.13.2); merged it, keeping 24.1.0 and both changelog entries. Task 4.3 waits on CI and the preview.
+- **2026-09-26** — Asked, after the first preview (the user): "also remove the all mini apps page it should just go back to home page and things should be styled similarly like the mini apps so its congruent" → the build stops writing `/apps/index.html`, `/apps/` redirects to `/`, each app's back link reads Home and points at `/`, and the landing page takes the mini apps' plain style. Added to this change rather than a new one, because it reshapes the same landing page.
+- **2026-09-26** — Assumed: `/apps/` answers with a temporary (302) redirect to `/`, because old links and bookmarks to the list should land somewhere useful, and a temporary redirect is not cached forever if the list ever returns.
+- **2026-09-26** — Assumed: "styled like the mini apps" means the landing page adopts the mini apps' system look (`system-ui`, `color-scheme: light dark`, system colors, 1px outlines), not the reverse, because the mini apps are many and the landing page is one.
+- **2026-09-26** — Assumed: when the list fails to load, the page says to reload instead of linking to `/apps/`, because that page no longer exists.
+- **2026-09-26** — Assumed: `/wong-sync` for an older install whose own landing page does not read `/apps/apps.json` adds a task to list the apps there, because `/apps/` stops listing them.
+- **2026-09-26** — Save checkpoint: the list page is gone, `/apps/` redirects home, the example apps link Home, and the home page takes the mini apps' look; the `mini-apps` deltas synced into `openspec/specs/`. Host checks pass: 260 script tests, oxlint, `tsc -b`, Vitest (34 tests, 100% coverage), knip, and Stryker (100%). Task 4.3 waits on the new preview.
