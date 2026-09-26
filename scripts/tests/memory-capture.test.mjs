@@ -73,7 +73,7 @@ test('strip redacts and uploads the raw file, drops injected text, and a save ma
   assert.match(stripped.stdout, /\[user\] Use \[redacted:\.env\] for the call\./);
   assert.match(stripped.stdout, /\[error\] Error: ENOENT/);
   assert.doesNotMatch(stripped.stdout, /ignore me|super-secret/);
-  const object = env.fake.objects.get(`sessions/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
+  const object = env.fake.objects.get(`sessions/dev@example.com/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
   assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
   const saved = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'd.json', { session: session.id, source: 'backfill', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'The call needs the service token.' }] })]);
   assert.match(saved.stdout, /captured/);

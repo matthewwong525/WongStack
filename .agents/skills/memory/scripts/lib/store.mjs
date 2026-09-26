@@ -1,4 +1,5 @@
-// Memory store client: repo context, config, credentials, local state, the D1 and R2 REST calls, and the spool.
+// Memory store client: repo context, config, credentials, local state, the D1 and R2 calls, and the spool.
+// Calls go to the account's memory Worker when one is recorded, else to the Cloudflare REST API; the requests are the same.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, hostname } from 'node:os';
@@ -9,6 +10,15 @@ export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
 const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
 const TOKEN_PAGE = 'wiki/development/memory.md#the-memory-token';
 const SPOOLABLE = new Set(['unconfigured', 'auth', 'network', 'server']);
+const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
+export const KEY_PREFIX = 'wongm_';
+
+// The email a memory key was made for (wongm_<base64url(email)>.<random>), or null for any other token.
+export function keyEmail(token) {
+  if (!token?.startsWith(KEY_PREFIX)) return null;
+  const email = Buffer.from(token.slice(KEY_PREFIX.length).split('.')[0], 'base64url').toString('utf8');
+  return email.includes('@') ? email.toLowerCase() : null;
+}
 
 // kind: unconfigured | auth | network | server | query. `reason` is the short form for one-line reports.
 export class StoreError extends Error {
@@ -83,20 +93,38 @@ export function loadEnv(ctx) {
   return env;
 }
 
-function loadConfig(ctx) {
-  const file = join(ctx.root, '.claude', '.wong-stack.json');
+export const configFile = ctx => join(ctx.root, '.claude', '.wong-stack.json');
+
+export function loadConfig(ctx) {
+  const file = configFile(ctx);
   const memory = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).components?.memory : null;
   if (!memory?.accountId || !memory?.databaseId) throw new StoreError('no memory store is recorded in .claude/.wong-stack.json; run /wong-sync to plan it', { kind: 'unconfigured' });
-  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null };
+  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null, worker: memory.worker || null, team: memory.team === true };
 }
 
-export function openStore(ctx, { timeoutMs = 15000 } = {}) {
+// The admin's Cloudflare API: the provisioning token, straight to Cloudflare (the tests point it at a fake).
+export const ADMIN_TOKEN_VAR = 'CLOUDFLARE_API_TOKEN';
+export const cloudflareApi = () => (process.env.WONG_CLOUDFLARE_API || CLOUDFLARE_API).replace(/\/$/, '');
+
+export function adminToken(ctx) {
+  const env = loadEnv(ctx);
+  const token = process.env[ADMIN_TOKEN_VAR] || env[ADMIN_TOKEN_VAR];
+  if (!token) throw new StoreError(`${ADMIN_TOKEN_VAR} is not set in .env; only the admin can run this`, { kind: 'unconfigured', help: TOKEN_PAGE });
+  return token;
+}
+
+// `admin` opens the store straight through the Cloudflare API with the provisioning token, for
+// migrations: a Worker's D1 binding runs one statement at a time, and a migration file holds many.
+export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
   // Another repo's store (home) uses its own .env token first, never this process's.
-  const token = ctx.isHome && !ctx.isCurrent ? env[TOKEN_VAR] || process.env[TOKEN_VAR] : process.env[TOKEN_VAR] || env[TOKEN_VAR];
+  const token = admin ? adminToken(ctx) : ctx.isHome && !ctx.isCurrent ? env[TOKEN_VAR] || process.env[TOKEN_VAR] : process.env[TOKEN_VAR] || env[TOKEN_VAR];
   if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env`, { kind: 'unconfigured', help: TOKEN_PAGE });
-  const api = (process.env.WONG_MEMORY_API || 'https://api.cloudflare.com/client/v4').replace(/\/$/, '');
+  if (!admin && keyEmail(token) && !config.worker && !process.env.WONG_MEMORY_API) {
+    throw new StoreError(`${TOKEN_VAR} holds a memory key, but .claude/.wong-stack.json records no components.memory.worker; pull the latest main or ask the admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
+  }
+  const api = admin ? cloudflareApi() : (process.env.WONG_MEMORY_API || config.worker || CLOUDFLARE_API).replace(/\/$/, '');
   const base = `${api}/accounts/${config.accountId}`;
   const objectPath = key => `/r2/buckets/${config.bucket}/objects/${encodeURI(key)}`;
 
@@ -107,7 +135,11 @@ export function openStore(ctx, { timeoutMs = 15000 } = {}) {
     } catch (error) {
       throw new StoreError(`memory store unreachable (${error.name === 'TimeoutError' ? 'timeout' : 'network'})`, { kind: 'network' });
     }
-    if (response.status === 401 || response.status === 403) throw new StoreError(`the memory store rejected ${TOKEN_VAR} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
+    if (response.status === 403) {
+      const code = (await response.clone().json().catch(() => ({}))).errors?.[0]?.code;
+      if (code === 'not_author') throw new StoreError('only the author and the admin can read this transcript', { kind: 'forbidden' });
+    }
+    if (response.status === 401 || response.status === 403) throw new StoreError(`the memory store rejected ${admin ? ADMIN_TOKEN_VAR : TOKEN_VAR} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
     if (response.status >= 500) throw new StoreError(`memory store error (HTTP ${response.status})`, { kind: 'server' });
     return response;
   }
@@ -133,7 +165,9 @@ export function openStore(ctx, { timeoutMs = 15000 } = {}) {
     return Buffer.from(await response.arrayBuffer());
   }
 
-  return { config, env, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
+  // Transcripts are filed under this email: the memory key's, or the git email for a direct token.
+  const email = keyEmail(token) || (ctx.author || '').toLowerCase() || 'unknown';
+  return { config, env, email, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
 }
 
 // ---------- local state, shared by every worktree of one clone ----------

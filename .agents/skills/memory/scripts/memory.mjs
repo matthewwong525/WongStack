@@ -4,9 +4,10 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { CONSOLIDATION_STATE, consolidationDue, digestPlan, FACT_COLUMNS, formatFact, loadDigest } from './lib/digest.mjs';
+import { CONSOLIDATION_STATE, consolidationDue, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter } from './lib/digest.mjs';
+import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { homeContext, isMain, loadEnv, openStore, readJson, repoContext, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { homeContext, isMain, loadConfig, loadEnv, openStore, readJson, repoContext, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, isPrivate, parseTranscriptText, pending, pruneRegistry, readRegistry, sessionFile, strip } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -148,7 +149,7 @@ export async function putFacts(ctx, input) {
   if (errors.length) throw new StoreError(errors.join('; '));
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
-  const plan = digestPlan(ctx);
+  const plan = digestPlan(ctx, store);
   const results = await store.batch([
     ...writeStatements({ record, status, reason: input.reason, newTags: input.newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: ctx.author, machine: ctx.machine }),
     ...plan.statements,
@@ -197,6 +198,8 @@ async function search(ctx, { values, positionals }) {
   if (match) { joins.push('JOIN facts_fts ON facts_fts.rowid = f.id'); where.push('facts_fts MATCH ?'); params.push(match); }
   if (values.branch) { joins.push('JOIN sessions s ON s.id = f.session_id'); where.push('s.branch = ?'); params.push(values.branch); }
   if (!values.all) where.push('f.superseded_by IS NULL');
+  const personal = values.everyone ? null : personalFilter(ctx, store);
+  if (personal) { where.push(personal.clause); params.push(...personal.params); }
   const filters = { type: 'f.type = ?', slug: 'f.slug = ?', since: 'f.created_at >= ?', until: 'f.created_at <= ?', author: 'f.author LIKE ?' };
   for (const [key, clause] of Object.entries(filters)) {
     if (!values[key]) continue;
@@ -234,8 +237,12 @@ async function source(ctx, { positionals: [raw] }) {
   const store = openStore(ctx);
   const [row] = await store.query('SELECT f.session_id, s.raw_key FROM facts f LEFT JOIN sessions s ON s.id = f.session_id WHERE f.id = ?', [id]);
   if (!row) throw new StoreError(`no fact #${id}`);
-  const missing = !store.config.bucket ? 'this store has no R2 bucket, so transcripts are not stored' : !row.raw_key ? 'no transcript was stored for this session' : null;
-  const object = missing ? null : await store.getObject(row.raw_key);
+  let missing = !store.config.bucket ? 'this store has no R2 bucket, so transcripts are not stored' : !row.raw_key ? 'no transcript was stored for this session' : null;
+  let object = null;
+  try { object = missing ? null : await store.getObject(row.raw_key); } catch (error) {
+    if (error.kind !== 'forbidden') throw error;
+    missing = error.reason;
+  }
   if (!object) { console.log(`Fact #${id} comes from session ${row.session_id || '(none)'}: ${missing || 'the transcript object is missing'}.`); return; }
   const text = object.toString('utf8');
   try { console.log(strip(parseTranscriptText(text).messages).slice(0, MAX_STRIPPED)); } catch (error) {
@@ -304,7 +311,7 @@ async function stripCommand(ctx, { positionals: [id] }) {
   const secrets = secretValues(store.env);
   if (store.config.bucket) {
     const body = redact(raw, secrets);
-    record.rawKey = `sessions/${parsed.meta.agent}/${id.split(':')[1]}.jsonl`;
+    record.rawKey = `sessions/${store.email}/${parsed.meta.agent}/${id.split(':')[1]}.jsonl`;
     record.rawBytes = Buffer.byteLength(body);
     await store.putObject(record.rawKey, body);
   }
@@ -366,8 +373,9 @@ async function stats(ctx) {
 async function finishRun(ctx, { values }) {
   if (!['capture', 'consolidation'].includes(values.kind)) throw new StoreError('usage: memory.mjs finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]');
   const status = values.status === 'failed' ? 'failed' : 'ok';
-  const plan = digestPlan(ctx);
-  const results = await openStore(ctx).batch([
+  const store = openStore(ctx);
+  const plan = digestPlan(ctx, store);
+  const results = await store.batch([
     ['INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [values.kind, ctx.machine, process.env.WONG_MEMORY_RUN_STARTED || now(), now(), status, values.reason ? values.reason.slice(0, 300) : null, JSON.stringify(values.counts ? JSON.parse(values.counts) : {})]],
     ...plan.statements,
@@ -395,8 +403,9 @@ async function spool(ctx) {
 }
 
 // Apply each migration not yet in schema_migrations, then record it; a recorded one never runs again.
+// With a memory Worker, migrations go straight to Cloudflare with the admin's token (see openStore).
 async function migrate(ctx) {
-  const store = openStore(ctx);
+  const store = openStore(ctx, { admin: Boolean(loadConfig(ctx).worker) });
   const [{ n }] = await store.query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'");
   const applied = new Set(n ? (await store.query('SELECT version FROM schema_migrations')).map(row => row.version) : []);
   const dir = join(HERE, '..', 'migrations');
@@ -417,16 +426,18 @@ export const COMMANDS = {
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   'finish-run': finishRun,
+  ...MEMBER_COMMANDS,
 };
 
 const OPTIONS = Object.fromEntries([
   ...['file', 'spooled', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'home'].map(name => [name, { type: 'boolean' }]),
+  ...['all', 'json', 'help', 'home', 'everyone', 'admin', 'env'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
   (search, show, gate, and put-facts take --home: the machine's home store, from ~/.wong-stack/machine.json)
-  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--state active|shipped|conversation] [--all] [--limit n]
+  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--state active|shipped|conversation] [--all] [--everyone] [--limit n]
+                               (in a team, user and feedback facts are only yours unless --everyone)
   show <slug> [--all]          a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
@@ -434,7 +445,9 @@ const USAGE = `usage: memory.mjs <command>
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   pending [--limit n] [--exclude ids]   strip <session-id>   live   digest   stats   spool   due
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
-  migrate`;
+  migrate                      (with a memory Worker, runs with the admin's CLOUDFLARE_API_TOKEN)
+  worker deploy                deploy the account's memory Worker and attach this repo (admin)
+  member add <email> [--admin] [--env] | member remove <email> | member list   memory keys for this repo (admin)`;
 
 if (isMain(import.meta.url)) {
   const [command, ...rest] = process.argv.slice(2);

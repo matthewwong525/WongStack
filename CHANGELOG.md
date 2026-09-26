@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 21.0.0 — A lighter loop, mini apps, and verbs for any work
+## 22.0.0 — A lighter loop, mini apps, and verbs for any work
 
 **Breaking.** `/plan`'s review page, `/ship`'s checkpoints, and `/apply`'s completion inside `/ship` change their contracts.
 
@@ -12,6 +12,23 @@
 - **Mini apps.** "Make me a …" builds `mini-apps/apps/<name>/` on a small Worker beside the main app, with no build step, a plain-JavaScript handler, and its own `node --test` tests, so a preview never builds `app/`. `scripts/cf-mini.sh preview` uploads a preview from the agent host in seconds, on staging data, and the preview expires after seven days. `/save` then takes a second direct route beside the prose route: it runs the app's tests on the host and pushes straight to `main`, where CI runs them again and deploys only the production mini Worker. A diff outside the app's folder, such as a migration, or a rejected push falls back to a pull request, which `/ship` merges with no change record and no walk. `scripts/mini-dashboard.mjs` lists every saved app. New: the `mini-apps/` scaffold, [mini apps](wiki/stack/mini-apps.md), `save/references/mini-app-save.md`, and a `mini-app` mode in the PR body renderer. Setup creates `mini-apps/wrangler.jsonc` from a new fragment; an existing repo adds it through `/wong-sync`. The pack's config resolver now skips `mini-apps/`.
 - **A verb you invoke serves any work.** Work that changes no repo file gets a to-do from `/plan`, a confirm before each outward action in `/apply`, a memory thread from `/save`, and a resume from `/continue`. `/ship` stays for repo changes. A plain request still needs no verb.
 - **CI skips the main app when a branch leaves it untouched.** The new core `.github/scripts/app-untouched.sh` compares the whole branch with the default branch. On a docs-only branch (`wiki/`, `openspec/`, or `.md` files) or a mini-apps-only branch, `test.yml` and `deploy.yml` skip the main app's steps inside the job, so a required check still reports. A mini-app branch runs only the changed apps' tests.
+
+## 21.0.0 — Team memory: every memory call goes through one memory Worker per account
+
+**Breaking.** Every install changes how it reaches its memory store. No person holds a Cloudflare token for memory any more, because D1 permissions reach every database in the account, the app's production database included.
+
+- **One memory Worker per Cloudflare account.** `wong-memory` serves every repo's memory store in the account, home included. It is separate from every app Worker, and it can reach only the memory databases and buckets. `memory.mjs worker deploy` deploys it, attaches this repo, keeps every other repo's attachment, drops attachments to deleted stores, and records the URL as `components.memory.worker`.
+- **Memory keys, not tokens.** `CLOUDFLARE_MEMORY_TOKEN` now holds a memory key (`wongm_...`). Each key opens one repo's store, as admin or member. The `wong-memory-keys` database holds only key hashes, and no key can reach it. `member add <email> [--admin] [--env]`, `member remove`, and `member list` manage keys with `CLOUDFLARE_API_TOKEN`. `migrate` also runs with that token.
+- **Transcripts are private to their author.** New uploads go to `sessions/<author email>/<agent>/<session-id>.jsonl`. A member reads only their own; the admin reads all, including older transcripts.
+- **Personal facts in a team.** Once a repo has a member (`components.memory.team`), the digest and search show only your own `user` and `feedback` facts, matched on every email on your people page. `project` and `thread` facts come from everyone. `search --everyone` shows all. A solo repo does not change.
+
+**Moving an existing install.** `/wong-sync` plans it through [setup's provisioning runbook](.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store):
+1. Run `memory.mjs worker deploy`.
+2. Run `memory.mjs member add <your git email> --admin --env`.
+3. Check `memory.mjs digest`.
+4. Only then, delete the old `<repo>-memory` Cloudflare token.
+
+Until you move, the store keeps working with the old token. Teammates who held that token need a member key from the admin.
 
 ## 20.2.0 — A server setup script you can fork
 

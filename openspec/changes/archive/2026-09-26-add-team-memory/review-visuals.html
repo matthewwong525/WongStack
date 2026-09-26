@@ -1,0 +1,44 @@
+<section class="visual flow" id="member-access" data-kind="flow" data-states="after transcripts">
+  <p class="caption">How each person reaches the memory store after this change. The admin and every teammate use the same path.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>Everyone goes through the Worker</h2>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="ma-admin"><h3>Admin <span class="tag">Changed</span></h3><p>Has an admin key for the repo.</p><details><summary>Details</summary><p>Actor: the admin. Action: runs <code>memory.mjs</code>. Result: the call goes to the Worker. The admin has no Cloudflare memory token now.</p></details></div>
+        <div class="flow-branch" data-target-id="ma-member"><h3>Teammate <span class="tag">New</span></h3><p>Has a member key for the repo.</p><details><summary>Details</summary><p>Actor: a teammate. Action: runs <code>memory.mjs</code>. Result: the call goes to the Worker. The admin made the key with <code>member add</code>.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Both run the same script</p>
+      <div class="step flow-card" data-target-id="ma-start"><h3>A session calls the store <span class="tag">Changed</span> <i class="callout">1</i></h3><p><code>CLOUDFLARE_MEMORY_TOKEN</code> holds a memory key.</p><details><summary>Details</summary><p>Actor: <code>memory.mjs</code>. Action: sends the D1 query and R2 object calls with the key to the Worker URL in <code>components.memory.worker</code>. Result: one code path for all people.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="ma-worker" data-mark="worker"><h3>The <code>wong-memory</code> Worker <span class="tag">New</span> <i class="callout">2</i></h3><p>One per Cloudflare account. Not part of any app.</p><details><summary>Details</summary><p>Actor: the shared memory Worker. Action: gets the calls of every repo in the account, home included. Result: it copies the two Cloudflare endpoints that <code>memory.mjs</code> already calls.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="ma-check" data-mark="worker"><h3>The Worker checks the key <span class="tag">New</span> <i class="callout">3</i></h3><p>It finds the key hash in the <code>wong-memory-keys</code> D1.</p><details><summary>Details</summary><p>Actor: the Worker. Action: hashes the key and looks it up. Result: the repo and the role, admin or member, and the email. Unknown key: 401. <code>member remove</code> deletes the row, so the key stops at once. Only the Worker binds this database.</p></details></div>
+      <p class="flow-connector">↓ The key opens one repo's store</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="ma-repo-a"><h3>Repo A: memory D1 and bucket <span class="tag">Open</span></h3><p>The store that this key opens.</p><details><summary>Details</summary><p>Actor: the Worker. Action: runs the SQL and object calls through the repo A bindings. Result: facts for all; transcripts as the transcripts state shows.</p></details></div>
+        <div class="flow-branch" data-target-id="ma-repo-b"><h3>Repo B (home): memory D1 and bucket <span class="tag">403</span> <i class="callout">4</i></h3><p>Bound to the Worker, but this key does not open it.</p><details><summary>Details</summary><p>Actor: a repo A key. Action: asks for the repo B store. Result: 403. Only a repo B key opens it.</p></details></div>
+        <div class="flow-branch" data-target-id="ma-app"><h3>App production D1 and app Workers <span class="tag">Out of reach</span> <i class="callout">5</i></h3><p>The Worker has no binding to them.</p><details><summary>Details</summary><p>Actor: any key. Action: none is possible. Result: no memory key reaches the app's data or code.</p></details></div>
+      </div>
+      <p><a href="#/member-access/transcripts">See transcript access</a></p>
+    </div>
+    <div class="state state-transcripts"><h2>Transcript access</h2>
+      <div class="step flow-card" data-target-id="tr-upload"><h3>A session uploads its transcript <span class="tag">Changed</span> <i class="callout">6</i></h3><p>New key: <code>sessions/&lt;author email&gt;/&lt;agent&gt;/&lt;session-id&gt;.jsonl</code>.</p><details><summary>Details</summary><p>Actor: <code>memory.mjs</code>. Action: puts the email of the author in the key. Result: each transcript has an owner. Old keys, <code>sessions/&lt;agent&gt;/&lt;id&gt;.jsonl</code>, do not move.</p></details></div>
+      <p class="flow-connector">↓ Who asks for the object?</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="tr-own"><h3>Member, own email <span class="tag">New</span></h3><p>PUT and GET under <code>sessions/&lt;their email&gt;/</code>.</p><details><summary>Details</summary><p>Actor: the Worker. Action: compares the key prefix with the email of the member key. Result: allowed.</p></details></div>
+        <div class="flow-branch" data-target-id="tr-other"><h3>Member, other key <span class="tag">New</span> <i class="callout">7</i></h3><p>Another person's key, or an old key with no email: 403.</p><details><summary>Details</summary><p>Actor: the Worker. Action: the prefix does not match. Result: 403. The object is not read or written.</p></details></div>
+        <div class="flow-branch" data-target-id="tr-admin"><h3>Admin key <span class="tag">Changed</span></h3><p>Reads every key of its repo, old keys too.</p><details><summary>Details</summary><p>Actor: the Worker, for an admin key. Action: skips the prefix check in that repo's bucket. Result: all transcripts of the repo, including every <code>sessions/&lt;agent&gt;/&lt;id&gt;.jsonl</code> key.</p></details></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The <code>.env</code> name stays <code>CLOUDFLARE_MEMORY_TOKEN</code>, but it holds a memory key, not a Cloudflare token. Only the base URL changes, so the script keeps one code path.</li>
+      <li>One shared Worker per account, not one per repo and not in the app. One per repo could mean hundreds of Workers. In the app, CI and every preview would get the memory bindings, and <code>/wong-sync</code> cannot update <code>app/</code>.</li>
+      <li>Keys are stored as hashes in their own D1 database. No key's SQL can reach it, because only the Worker binds it. Worker secrets would cap the number of keys.</li>
+      <li>One key opens one repo's store. Setup cannot read a key from another repo, because only hashes are stored.</li>
+      <li>This is why the Worker exists: a Cloudflare token with <code>D1 Write</code> reaches every D1 database in the account. The Worker binds only memory databases and buckets.</li>
+      <li>The email in the key is the only thing the Worker checks for transcripts. All transcripts of a repo stay in one bucket.</li>
+      <li>Old transcripts have no email in their key, so they become the admin's. Members cannot read them.</li>
+    </ol>
+  </div>
+</section>

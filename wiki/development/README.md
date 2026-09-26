@@ -16,6 +16,6 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 - [Repo layout](repo-layout.md) — `.claude` and `.codex` are symlinks to `.agents`, and `CLAUDE.md` to `AGENTS.md`: which path to edit and to link, and why a repo-wide `grep` under-counts.
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, and `openspec`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
 - [Home](home.md) — the person's own repo, recorded once per machine: what every repo reads from it at session start, the private facts it receives, and saved browser logins.
-- [Session memory](memory.md) — the private fact store: the start-of-session digest, capture by `/save` and the background run, consolidation, `#private`, and the memory token.
+- [Session memory](memory.md) — the private fact store: the start-of-session digest, capture by `/save` and the background run, consolidation, `#private`, and the memory key.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: blank declarations stay on the active branch, while real values persist outside git in the primary worktree across linked checkouts.
 - [Contributing upstream](../contributing.md) — the other side of the payload: how a target repo sends an improvement back by hand, and the generality bar it has to clear before you'd merge it here.
