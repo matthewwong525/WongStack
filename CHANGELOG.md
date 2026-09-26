@@ -5,9 +5,18 @@
 
 ## 19.0.2 — Background capture works in don't-ask mode
 
-- **Memory:** background capture no longer fails under `dontAsk`. Claude Code denied the 19.0.0 heredoc when a fact held characters such as `<`, `>`, `|`, or `$`. Each run now makes one temp folder outside the repo, grants writes to it alone (`Edit(...)` and `--add-dir`), and passes `--file <path>` to `memory.mjs`. The folder is deleted when the run ends. Codex gets the same folder as a writable root. Interactive sessions keep the stdin heredoc.
+- **Memory:** background capture no longer fails under `dontAsk`. Claude Code denied the 19.0.0 heredoc when a fact held characters such as `<`, `>`, `|`, or `# Changelog
+
+`/wong-sync` reads the entries newer than your installed version
+(`.claude/.wong-stack.json`) as context for planning the update. Newest first.
+
+. Each run now makes one temp folder outside the repo, grants writes to it alone (`Edit(...)` and `--add-dir`), and passes `--file <path>` to `memory.mjs`. The folder is deleted when the run ends. Codex gets the same folder as a writable root. Interactive sessions keep the stdin heredoc.
 - **`/ship`** no longer prints a delete error when GitHub already deleted the branch at merge. It checks `git ls-remote --heads` first, and the report says "deleted at merge".
 - This source repo's Dependabot ignores `@types/node` major versions, which follow `.nvmrc`. Not shipped to installs.
+## 19.0.1 — Records from the old notes migration stay readable
+
+- The memory-store spec states that records from an earlier notes migration stay readable: `migration:<slug>` sessions, facts with source `migration`, and `migration/<slug>.md` objects in R2. `memory.mjs source <fact-id>` prints the note text behind a migrated fact. A new test guards this, and a second test checks that no command imports `notes/`.
+- The write-gate requirement no longer names the migration as a writer. No shipped behavior changes.
 
 ## 19.0.0 — A fresh start: safer edge cases, no legacy paths, an open-source surface
 
