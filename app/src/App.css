@@ -34,18 +34,30 @@ main ul strong {
   color: var(--text-h);
 }
 
-main ol {
-  padding-left: 1.25rem;
-}
-
-main ol li + li {
-  margin-top: 0.5rem;
-}
-
+/* The tutorial. Remove these with Tutorial.tsx. */
 main section {
   margin-bottom: 2.5rem;
   padding: 1rem 1.25rem;
   border: 1px solid var(--accent-border);
   border-radius: 0.5rem;
   background: var(--accent-bg);
+}
+
+main blockquote {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--text-h);
+  user-select: all;
+}
+
+main button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
 }

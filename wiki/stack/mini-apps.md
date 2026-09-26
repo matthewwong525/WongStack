@@ -69,7 +69,7 @@ Some saves fall back to save's normal route, with a branch and a pull request:
 - `/apps/index.html` — the list page, with each app's title, description, and link.
 - `/apps/apps.json` — the same list as data.
 
-The starter landing page, `app/src/App.tsx`, opens with a tutorial message: your first change is to ask the agent to remove it, and doing that walks you through the whole loop. Below it, the page reads `/apps/apps.json` and lists the apps.
+The starter landing page, `app/src/App.tsx`, opens with a tutorial, *Learn the development loop*: a message to copy into the chat. The message asks the agent to remove the tutorial and explain each step, so your first change teaches you the whole loop. Below it, the page reads `/apps/apps.json` and lists the apps.
 
 On production the list shows every saved app; on a preview it also shows the app that you preview. A bad folder name, or a missing title or description, stops the build and names the folder.
 

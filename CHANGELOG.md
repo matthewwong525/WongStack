@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 24.1.0 — Learn the development loop by chatting
+
+- **A new tutorial.** The starter landing page opens with *Learn the development loop*: one plain message and a **Copy** button. The message asks the agent to remove the tutorial and explain each step, so the first change teaches the plan, the preview, and publishing in the chat. When the browser blocks copying, the button says to copy the message by hand. The tutorial's test moves to `app/src/Tutorial.test.tsx`, so removing the tutorial takes its test with it.
+- **Setup points to it.** The closing report of [setup's provisioning runbook](.agents/skills/wong-setup/references/cloudflare.md#step-5--the-closing-report) ends on the site's address and the message to copy.
+
+**Updating.** `/wong-sync` replaces the old tutorial message only when your landing page still shows it. If you removed it, it stays removed.
+
 ## 24.0.0 — Your app serves the mini apps
 
 **Breaking.** There is no separate mini-app Worker any more. Your app's Worker serves every mini app at `/apps/<name>/`, and the old `<repo>-mini` address stops working.
