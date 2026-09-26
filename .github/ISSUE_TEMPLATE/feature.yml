@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a change that belongs in every WongStack repo.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What goes wrong or takes too long today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+    validations:
+      required: true
+  - type: textarea
+    id: why-every-repo
+    attributes:
+      label: Why it belongs in every WongStack repo
+      description: See "The bar" in wiki/contributing.md.
+  - type: input
+    id: version
+    attributes:
+      label: WongStack version
+      description: The contents of the VERSION file.
+      placeholder: 19.0.0
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options:
+        - Claude Code
+        - Codex
+        - Other

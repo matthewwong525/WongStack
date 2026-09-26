@@ -14,7 +14,7 @@ function check(t, config) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'scripts'));
   mkdirSync(join(root, 'app'));
-  for (const name of ['cf-secrets.mjs', 'lib-wrangler-config.mjs']) {
+  for (const name of ['cf-secrets.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs']) {
     copyFileSync(join(repo, 'scripts', name), join(root, 'scripts', name));
   }
   writeFileSync(join(root, 'app/wrangler.jsonc'), JSON.stringify({ name: 'app', ...config }, null, 2));

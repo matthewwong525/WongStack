@@ -1,0 +1,158 @@
+<section class="visual flow" id="failure-paths" data-kind="flow" data-states="after today">
+  <p class="caption">Four failure paths: what happens after this change, and today.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+
+      <h3>1. <code>/ship</code> merges a PR</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-merge-try">
+          <h3>Merge the pushed head <span class="tag">Changed</span> <i class="callout">1</i></h3>
+          <p><code>gh pr merge --match-head-commit</code></p>
+          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: merge only the commit it pushed. Result: a new commit on the PR makes the merge fail.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-merge-confirm">
+          <h3>Confirm the state is <code>MERGED</code> <span class="tag">New</span></h3>
+          <p>If not, stop. The branch and the PR stay.</p>
+          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: read the PR state. Result: any state other than <code>MERGED</code> stops the run before cleanup.</p></details>
+        </div>
+        <p class="flow-connector">↓ Only after <code>MERGED</code></p>
+        <div class="step flow-card" data-target-id="after-merge-cleanup">
+          <h3>Retarget, then delete the branch <span class="tag">Changed</span></h3>
+          <p>Stacked PRs move to the default branch first.</p>
+          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: retarget stacked PRs, then delete the remote branch. Result: no open PR loses its base.</p></details>
+        </div>
+      </div>
+
+      <h3>2. The CI gate reads checks</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-gate-push">
+          <h3>Push, then wait for the head <span class="tag">Changed</span> <i class="callout">2</i></h3>
+          <p>Poll until the PR head equals local <code>HEAD</code>.</p>
+          <details><summary>Details</summary><p>Actor: <code>wait-for-checks.sh</code>. Action: compare the PR head with <code>HEAD</code>. Result: it reads checks for the pushed commit only.</p></details>
+        </div>
+        <p class="flow-connector">↓ No checks yet?</p>
+        <div class="flow-branches">
+          <div class="flow-branch" data-target-id="after-gate-none">
+            <h3>No workflow files <span class="tag">Changed</span></h3>
+            <p><code>NONE</code>. PR review is the gate.</p>
+            <details><summary>Details</summary><p>Actor: the gate. Action: find no file under <code>.github/workflows/</code>. Result: <code>NONE</code> at once.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-gate-grace">
+            <h3>Workflow files <span class="tag">New</span></h3>
+            <p>Wait up to 60 s. Still none: <code>UNKNOWN</code>.</p>
+            <details><summary>Details</summary><p>Actor: the gate. Action: wait the grace period for a check to appear. Result: a check appears, or <code>UNKNOWN</code> stops the merge.</p></details>
+          </div>
+          <div class="flow-branch" data-target-id="after-gate-gh-fail">
+            <h3><code>gh</code> fails <span class="tag">New</span></h3>
+            <p><code>UNKNOWN</code>. The merge stops.</p>
+            <details><summary>Details</summary><p>Actor: <code>/ship</code> preflight. Action: get an error or an empty answer from <code>gh</code>. Result: <code>UNKNOWN</code>, never <code>NONE</code>.</p></details>
+          </div>
+        </div>
+      </div>
+
+      <h3>3. A staging deploy</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-deploy-parse">
+          <h3>Parse the config as JSONC <span class="tag">Changed</span> <i class="callout">3</i></h3>
+          <p>Read <code>env.staging.name</code>. Ignore comments.</p>
+          <details><summary>Details</summary><p>Actor: <code>cf-deploy.sh</code> through <code>node</code>. Action: parse <code>wrangler.jsonc</code> with one parser. Result: <code>database_name</code> is never read as the Worker name. TOML config gets a clear refusal.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-deploy-guard">
+          <h3>Guard refuses a production name <span class="tag">Changed</span></h3>
+          <p>Staging never deploys to production.</p>
+          <details><summary>Details</summary><p>Actor: the production-name guard. Action: compare the staging name with production's. Result: a match stops the deploy.</p></details>
+        </div>
+      </div>
+
+      <h3>4. Background memory capture</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="after-capture-pipe">
+          <h3>Pipe decisions on stdin <span class="tag">Changed</span> <i class="callout">4</i></h3>
+          <p>Send them to <code>memory.mjs</code>. Write no file under <code>.git/</code>.</p>
+          <details><summary>Details</summary><p>Actor: the background capture run. Action: pipe the decision JSON to <code>memory.mjs</code>. Result: no write that <code>dontAsk</code> mode denies.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="after-capture-facts">
+          <h3>Facts are written <span class="tag">Changed</span></h3>
+          <p>The run completes.</p>
+          <details><summary>Details</summary><p>Actor: <code>memory.mjs</code>. Action: record the facts in the store. Result: the next session digest shows them.</p></details>
+        </div>
+      </div>
+    </div>
+
+    <div class="state state-today">
+      <h2>Today</h2>
+
+      <h3>1. <code>/ship</code> merges a PR</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-merge-fail">
+          <h3><code>gh pr merge</code> fails</h3>
+          <p>The failure is not checked.</p>
+          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: merge without a head check. Result: the run continues to cleanup.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-merge-delete">
+          <h3>Branch deleted, PR closed</h3>
+          <p>The work is not merged.</p>
+          <details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: delete the remote branch. Result: GitHub closes the PR.</p></details>
+        </div>
+      </div>
+
+      <h3>2. The CI gate reads checks</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-gate-push">
+          <h3>Push</h3>
+          <p>GitHub has not registered the checks yet.</p>
+          <details><summary>Details</summary><p>Actor: <code>/save</code>. Action: push and read checks at once. Result: the list is empty.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-gate-none">
+          <h3><code>NONE</code>, then merge</h3>
+          <p>No check ran.</p>
+          <details><summary>Details</summary><p>Actor: the gate. Action: read an empty list, or a failed <code>gh</code> call, as <code>NONE</code>. Result: <code>/ship</code> merges without CI.</p></details>
+        </div>
+      </div>
+
+      <h3>3. A staging deploy</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-deploy-regex">
+          <h3>A regex reads <code>"name"</code></h3>
+          <p>It matches <code>database_name</code>.</p>
+          <details><summary>Details</summary><p>Actor: the pack scripts. Action: match keys with a regex. Result: the wrong value is the Worker name. A <code>"staging":</code> in a comment is also read.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-deploy-prod">
+          <h3>Guard passes, deploy hits production</h3>
+          <p>No error shows.</p>
+          <details><summary>Details</summary><p>Actor: <code>cf-deploy.sh</code>. Action: compare the wrong name. Result: the staging deploy can reach production.</p></details>
+        </div>
+      </div>
+
+      <h3>4. Background memory capture</h3>
+      <div class="flow-sequence">
+        <div class="step flow-card" data-target-id="today-capture-write">
+          <h3>Write decision JSON under <code>.git/</code></h3>
+          <p><code>dontAsk</code> mode denies the write.</p>
+          <details><summary>Details</summary><p>Actor: the background capture run. Action: write a file under <code>.git/</code>. Result: permission denied.</p></details>
+        </div>
+        <p class="flow-connector">↓</p>
+        <div class="step flow-card" data-target-id="today-capture-fail">
+          <h3>The run fails</h3>
+          <p>No facts are written.</p>
+          <details><summary>Details</summary><p>Actor: the capture run. Action: stop on the denied write. Result: this happens on every run.</p></details>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>Cleanup is last. A failed merge leaves the branch and the PR as they were.</li>
+      <li><code>NONE</code> means "this repo has no CI", not "no check yet". The 60 s grace period and a failed <code>gh</code> call give <code>UNKNOWN</code>, which stops the merge.</li>
+      <li>One JSONC parser reads the config for all pack scripts. The guard compares the real Worker name.</li>
+      <li>Capture uses stdin, so it needs no file write that the background permission mode denies.</li>
+    </ol>
+  </div>
+</section>

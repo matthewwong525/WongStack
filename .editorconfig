@@ -1,0 +1,19 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# A trailing double space is a Markdown line break.
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{js,mjs,ts,tsx,json,jsonc,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Cloudflare's template and `wrangler types` write these with tabs.
+[app/{tsconfig.json,wrangler.jsonc,worker-configuration.d.ts}]
+indent_style = tab

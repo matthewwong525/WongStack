@@ -8,7 +8,7 @@ The command uses a deterministic tracked-file survey for inventory, weekly rotat
 
 ## Run it on a cadence
 
-With [Paseo](https://paseo.sh), run [`/routine every Monday at 9am: /improve`](../../.claude/skills/routine/SKILL.md): each run gets its own worktree, and runs of one routine never overlap.
+With [Paseo](https://paseo.sh), run [`/routine every Monday at 9am: /improve`](../../.agents/skills/routine/SKILL.md): each run gets its own worktree, and runs of one routine never overlap.
 
 WongStack does not install a scheduler. For a weekly unattended run, use a trusted external scheduler that does all of these things:
 
@@ -21,7 +21,7 @@ Do not depend on silence to identify a scheduled job. Without explicit unattende
 
 ## Keep one delivery owner
 
-A normal run records its surveyed revision and area in the OpenSpec change, then invokes [`/ship`](../../.claude/skills/ship/SKILL.md) with one explicit intent. The existing verbs still own exploration, planning, implementation, Git, CI, evidence, archive, and merge. If a gate fails, the result is `blocked`; `/improve` does not choose a second fix or use a weaker path.
+A normal run records its surveyed revision and area in the OpenSpec change, then invokes [`/ship`](../../.agents/skills/ship/SKILL.md) with one explicit intent. The existing verbs still own exploration, planning, implementation, Git, CI, evidence, archive, and merge. If a gate fails, the result is `blocked`; `/improve` does not choose a second fix or use a weaker path.
 
 Large maintenance work can use independently correct stages. Each shipped stage records its next stage in the normal change history. The last stage has a terminal marker and no next-stage instruction. This keeps continuation discoverable without a separate maintenance backlog.
 

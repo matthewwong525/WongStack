@@ -290,9 +290,13 @@ function isDirectEntry() {
   }
 }
 
+const USAGE = 'usage: node survey.mjs [literal-area-path]';
+
 if (isDirectEntry()) {
+  const args = process.argv.slice(2);
+  if (args[0] === '--help') { console.log(USAGE); process.exit(0); }
+  if (args.length > 1 || args[0]?.startsWith('-')) { console.error(USAGE); process.exit(2); }
   try {
-    if (process.argv.length > 3) throw new Error('Usage: node survey.mjs [literal-area-path]');
     const report = survey(process.cwd(), process.argv[2]);
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     process.exitCode = report.status === 'partial' ? 2 : 0;

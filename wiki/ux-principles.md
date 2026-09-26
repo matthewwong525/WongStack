@@ -66,7 +66,7 @@ Worker-only or UI-less changes skip the section entirely and draw no screen. The
 
 ### The review file
 
-The picture lives beside the section, at `openspec/changes/<name>/review.html` — one page per change, built from [the plan skill's kit](../.claude/skills/plan/references/review-kit.html), `proposal.md`, and the change's `review-visuals.html`. The kit owns the chrome, panel, primitives, and routing; the [visual author guide](../.claude/skills/plan/references/review-author.md) owns the fragment format. **The proposal's What Changes list is the navigation:** a reviewer clicks a change and the stage shows a picture of that change, so the argument and the evidence are never more than one click apart.
+The picture lives beside the section, at `openspec/changes/<name>/review.html` — one page per change, built from [the plan skill's kit](../.agents/skills/plan/references/review-kit.html), `proposal.md`, and the change's `review-visuals.html`. The kit owns the chrome, panel, primitives, and routing; the [visual author guide](../.agents/skills/plan/references/review-author.md) owns the fragment format. **The proposal's What Changes list is the navigation:** a reviewer clicks a change and the stage shows a picture of that change, so the argument and the evidence are never more than one click apart.
 
 Four kinds of visual, and a change uses whichever fits each bullet:
 
@@ -91,3 +91,5 @@ What a `screen` must hold is what the rest of this page argues for:
 **A reviewer annotates in place.** Turn on Annotate and click a target inside the selected visual. The outer change list stays navigation. Unfinished text remains a draft on its original target; Save makes it feedback, and Copy notes includes saved feedback only. Notes and drafts stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
 
 Tasks cite what they build (`review.html#/list/empty`), so the picture and the brief are both in hand at implementation time.
+
+Part of [the WongStack wiki](README.md).

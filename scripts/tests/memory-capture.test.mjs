@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { buildDigest, consolidationDue, currentSlug, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { pathToFileURL } from 'node:url';
+import { buildDigest, consolidationDue, currentSlug, MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
-import { takeLock } from '../../.agents/skills/memory/scripts/run.mjs';
+import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
+import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
+import { agentCommand, runbook, takeLock } from '../../.agents/skills/memory/scripts/run.mjs';
 import { memory, node, rows, SECRET, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
@@ -125,8 +129,14 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   mkdirSync(join(env.repo.root, 'openspec/changes/add-po-search'), { recursive: true });
   writeFileSync(join(env.repo.root, 'openspec/changes/add-po-search/proposal.md'), '# x\n\n**Branch:** main\n');
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 'add-po-search', facts: [
+    { action: 'add', type: 'user', body: 'The user runs the release.' },
+    { action: 'add', type: 'reference', body: 'Dashboards live in Grafana.' },
+    { action: 'add', type: 'project', body: 'Search ships in October.' },
     { action: 'add', type: 'thread', body: 'Should search rank by recency?' },
     { action: 'add', type: 'feedback', body: 'User wants terse replies.' },
+  ] })]);
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'g.json', { source: 'save', slug: 'other-work', facts: [
+    { action: 'add', type: 'thread', body: 'Is the other change blocked?' },
   ] })]);
   claudeSession(env, 1, [['user', 'Old work.']]);
   const bin = join(env.repo.home, 'bin');
@@ -138,7 +148,7 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /# Memory digest\nFacts are dated context/);
   assert.match(result.stdout, /## Open threads on `add-po-search`\n- \[thread\] Should search rank by recency\?/);
-  assert.match(result.stdout, /## Live facts\n- \[feedback\] User wants terse replies\./);
+  assert.match(result.stdout, /## Live facts\n- \[thread\] Is the other change blocked\?.*\n- \[feedback\] .*\n- \[project\] .*\n- \[reference\] .*\n- \[user\] /);
   for (let i = 0; i < 100 && !existsSync(marker); i += 1) await new Promise(done => setTimeout(done, 100));
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
@@ -166,15 +176,76 @@ test('the run lock admits one run, and a stale lock is taken over', () => {
   assert.equal(takeLock(lock), false);
   age(lock, 3 * HOUR);
   assert.equal(takeLock(lock), true);
+  const vanished = join(mkdtempSync(join(tmpdir(), 'lock-')), 'run.lock');
+  symlinkSync(join(tmpdir(), 'no-such-lock-target'), vanished);
+  assert.equal(takeLock(vanished), true, 'a lock that is gone when it is checked is free');
+});
+
+test('the hook exits inside its 5-second timeout when the store address does not answer', async () => {
+  const env = await setup();
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
+  const started = Date.now();
+  const result = await hook(env, { WONG_MEMORY_API: 'http://10.255.255.1', WONG_MEMORY_NO_HEADLESS: '1' });
+  assert.ok(Date.now() - started < 5000, `the hook took ${Date.now() - started} ms`);
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /Cached fact\./);
+  assert.match(result.stdout, /Memory: skipped the store \(memory store unreachable/);
+});
+
+test('two writers of the seen-set at once keep both entries and never read a torn file', async () => {
+  const file = join(mkdtempSync(join(tmpdir(), 'seen-')), 'seen.json');
+  writeFileSync(file, '{}');
+  const store = pathToFileURL(join(import.meta.dirname, '../../.agents/skills/memory/scripts/lib/store.mjs')).href;
+  const writer = key => new Promise(done => execFile(process.execPath, ['--input-type=module', '-e', `
+    import { readJson, writeJson } from ${JSON.stringify(store)};
+    let torn = 0;
+    for (let i = 0; i < 2000; i += 1) {
+      const seen = readJson(${JSON.stringify(file)}, null);
+      if (!seen) torn += 1;
+      writeJson(${JSON.stringify(file)}, { ...seen, ${JSON.stringify(key)}: { size: i } });
+    }
+    console.log(torn);`], (error, stdout, stderr) => done(error ? stderr : Number(stdout))));
+  assert.deepEqual(await Promise.all([writer('claude:a'), writer('claude:b')]), [0, 0]);
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(file, 'utf8'))).sort(), ['claude:a', 'claude:b']);
+});
+
+test('the background runbook runs only the granted script, sends input on stdin, and never writes a file', () => {
+  const prompt = runbook('claude:live');
+  const [, args] = agentCommand('claude', prompt, '/state');
+  const grants = args.slice(args.indexOf('--allowedTools') + 1);
+  assert.deepEqual(grants, [`Bash(${SCRIPT}:*)`]);
+  const prefix = `${grants[0].match(/^Bash\((.*):\*\)$/)[1]} `;
+  const spans = [...prompt.matchAll(/`([^`\n]+)`/g)].map(match => match[1]);
+  const codeLines = prompt.split('\n').filter(line => line.startsWith('node '));
+  const commands = [...spans, ...codeLines].filter(text => text.startsWith('node ') || Object.hasOwn(COMMANDS, text.split(' ')[0]))
+    .map(text => text.startsWith('node ') ? text : `${prefix}${text}`);
+  for (const name of ['spool', 'pending', 'strip', 'gate', 'put-facts', 'due', 'live', 'finish-run']) {
+    assert.ok(commands.some(command => command.startsWith(`${prefix}${name}`)), `the runbook names ${name}`);
+  }
+  for (const command of commands) {
+    assert.ok(command.startsWith(prefix), `${command} is outside the grant`);
+    assert.doesNotMatch(command, /(^|\s)>|[;|&]/, `${command} redirects to a file or chains another command`);
+    if (/ (gate|put-facts)\b/.test(command) && command.includes('--file')) assert.match(command, /--file -( |$)/, `${command} reads a file`);
+  }
+  const fileWrites = prompt.split(/(?<=[.!?])\s+/).filter(sentence => /\b(write|create|save|edit)\b[^.]*\bfiles?\b/i.test(sentence) && !/^never\b/i.test(sentence.trim()));
+  assert.deepEqual(fileWrites, []);
 });
 
 test('the digest stays within its limits and states what it left out', () => {
-  const facts = Array.from({ length: 400 }, (_, i) => ({ id: i + 1, slug: 's', type: 'project', body: `Fact number ${i} with some words.`, author: 'a@b', created_at: '2026-09-01T00:00:00Z' }));
-  const text = buildDigest({ facts, now: Date.parse('2026-09-11T00:00:00Z') });
+  const fact = (i, type, slug, words) => ({ id: i + 1, slug, type, body: `Fact number ${i} ${'with some words '.repeat(words)}`.trim(), author: 'a@b', created_at: '2026-09-01T00:00:00Z' });
+  const facts = Array.from({ length: 400 }, (_, i) => fact(i, 'project', 's', 1));
+  const threads = [fact(400, 'thread', 'add-po-search', 1), fact(401, 'thread', 'add-po-search', 1)];
+  const now = Date.parse('2026-09-11T00:00:00Z');
+  const text = buildDigest({ facts: [...threads, ...facts], live: 402, threads, slug: 'add-po-search', now });
   const lines = text.split('\n');
-  assert.ok(lines.length <= MAX_LINES);
-  assert.match(lines.at(-1), /^\d+ more live facts are not shown\. Search them:/);
-  assert.match(text, /- \[project\] Fact number 0 with some words\. \(s, 10d, a, #1\)/);
+  assert.equal(lines.length, MAX_LINES);
+  assert.deepEqual(lines.slice(2, 5), ['## Open threads on `add-po-search`', '- [thread] Fact number 400 with some words (add-po-search, 10d, a, #401)', '- [thread] Fact number 401 with some words (add-po-search, 10d, a, #402)']);
+  assert.equal(lines[5], '## Live facts');
+  assert.match(text, /- \[project\] Fact number 0 with some words \(s, 10d, a, #1\)/);
+  assert.equal(lines.at(-1), '367 more live facts are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search <terms>`.');
+  const long = buildDigest({ facts: Array.from({ length: 400 }, (_, i) => fact(i, 'project', 's', 20)), now });
+  assert.ok(Buffer.byteLength(long) <= MAX_BYTES && long.split('\n').length < MAX_LINES);
+  assert.match(long.split('\n').at(-1), /^\d+ more live facts are not shown\. Search them:/);
   assert.equal(buildDigest({ facts: [] }), '');
 });
 

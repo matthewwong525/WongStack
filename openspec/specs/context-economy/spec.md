@@ -33,7 +33,7 @@ The part of `CLAUDE.md` outside the WONG-STACK block SHALL identify the repo and
 
 The frontmatter `description` of a WongStack-authored skill SHALL state what the skill does and when to invoke it, in at most 600 characters. How it operates SHALL belong in its body or its linked owner reference. A shared rule SHALL have one owner; references SHALL not reproduce the generated OpenSpec workflow layer under a new name.
 
-The vendored `agent-browser` skill SHALL remain exempt from the description budget and SHALL remain unchanged by prose cleanup. WongStack SHALL neither install nor require generated OpenSpec skills. A target's independently owned or modified integration SHALL be preserved under the migration rules.
+The vendored `agent-browser` skill SHALL remain exempt from the description budget. Its only local edit SHALL be the frontmatter key that stops automatic invocation, and that edit SHALL be recorded where the vendored file is documented. WongStack SHALL neither install nor require generated OpenSpec skills.
 
 #### Scenario: A description is trimmed
 
@@ -43,14 +43,13 @@ The vendored `agent-browser` skill SHALL remain exempt from the description budg
 
 #### Scenario: A generated skill is left alone
 
-- **WHEN** descriptions are shortened during migration
-- **THEN** the vendored browser skill and a target's custom integration content are left intact
+- **WHEN** descriptions are shortened
+- **THEN** the vendored browser skill's body and description are left intact
 
 #### Scenario: A generated skill is hidden from the menu
 
-- **WHEN** migration encounters known unmodified generated content with the former visibility patch
-- **THEN** it recognizes the patch as part of the old integration and retires that file under the migration rules
-- **AND** it does not keep a hidden generated workflow as a normal dependency
+- **WHEN** the vendored browser skill is listed by the host
+- **THEN** its frontmatter stops automatic invocation, and `/verify` still calls it by name
 
 #### Scenario: A common CLI rule is needed by two verbs
 
@@ -150,3 +149,25 @@ The session-start memory digest SHALL count as always-loaded context. It SHALL s
 - **WHEN** live facts would fill more than the digest limit
 - **THEN** the digest is cut at the limit and states how many facts it left out
 
+### Requirement: Each rule has one owner
+
+Each workflow rule SHALL be written in one payload file, its owner. Other skills and pages SHALL link the owner and SHALL state only how they differ from it. The change-selection order SHALL be defined once, with named rungs, and each verb SHALL refer to rungs by name, not by number. No payload surface SHALL contradict another on the same rule.
+
+#### Scenario: A verb needs the selection order
+
+- **WHEN** a reader follows `/ship`'s change selection
+- **THEN** it links the one definition and names the rung it starts from
+
+#### Scenario: A rule is restated
+
+- **WHEN** a reviewer finds the same procedure in two skills
+- **THEN** one copy is replaced by a link to the other
+
+### Requirement: Vendored skills do not load descriptions into every session
+
+A vendored skill that only a WongStack verb calls SHALL NOT be offered for automatic invocation. Its description SHALL NOT add to the always-loaded surface.
+
+#### Scenario: A browser request that is not a verify
+
+- **WHEN** a user asks about unread Slack messages in a WongStack repo
+- **THEN** the vendored browser skill is not triggered by its description

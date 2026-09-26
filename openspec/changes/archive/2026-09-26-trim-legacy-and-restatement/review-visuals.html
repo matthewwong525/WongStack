@@ -1,0 +1,71 @@
+<section class="visual tree" id="removed" data-kind="tree">
+  <p class="caption">Legacy paths: the files and sections this change removes or edits.</p>
+  <div class="frame">
+    <div class="label">wong-sync and wong-setup</div>
+    <ul>
+      <li class="del">.agents/skills/wong-sync/references/adapt.md <span class="why">stub, file deleted</span></li>
+      <li class="del">payload-manifest.md § Moving notes into the memory store <span class="why">notes/ from before 17.0.0</span></li>
+      <li class="del">payload-manifest.md § Moving to 18.0.0 <span class="why">agent folder, wong-cloudflare, CI secret</span></li>
+      <li class="edit">wong-sync/references/payload-files.json <span class="why">comment on the component flags removed</span> <i class="callout">1</i></li>
+      <li class="edit">wong-sync/SKILL.md <span class="why">no .wong-framework.json fallback</span></li>
+      <li class="edit">wong-setup/SKILL.md <span class="why">no .wong-framework.json fallback</span></li>
+    </ul>
+    <div class="label">Review page and change selection</div>
+    <ul>
+      <li class="edit">plan/scripts/build-review.mjs <span class="why">legacy review.html refresh removed</span></li>
+      <li class="del">save/scripts/sync-review-proposal.mjs <span class="why">compatibility entry point</span> <i class="callout">2</i></li>
+      <li class="edit">save/scripts/checkpoint-evidence.mjs <span class="why">no legacy same-name output</span> <i class="callout">3</i></li>
+    </ul>
+    <div class="label">Docs</div>
+    <ul>
+      <li class="edit">SECURITY.md <span class="why">§ Before 18.0.0 removed</span></li>
+      <li class="edit">wiki/stack/d1-pipeline.md <span class="why">§ Adopting the staging environment removed</span></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The flags <code>stackPack</code>, <code>appScaffold</code>, and <code>ui</code> only gate old repos. A new install sets all three to true, so every category ships. <code>components.skills</code> and <code>components.docsPath</code> stay.</li>
+      <li>The file is in <code>save/scripts/</code>, not <code>plan/scripts/</code>. It only calls <code>buildReview</code> for older save steps.</li>
+      <li>Without the <code>legacy</code> output, a proposal with no <code>**Branch:**</code> line does not match a branch by its name. The helper reports <code>active</code>, <code>archive</code>, and <code>recorded</code> only.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual tree" id="owners" data-kind="tree">
+  <p class="caption">Duplicated rules: where each copy is today, and the one owner after.</p>
+  <div class="frame">
+    <div class="label">/ship steps and reasons · about 1,300 words cut</div>
+    <ul>
+      <li class="edit">.agents/skills/ship/SKILL.md <span class="why">keeps steps and commands; drops pull-in rules, history, repeated hard rules</span></li>
+      <li class="edit">wiki/development/the-change-loop.md <span class="why">owner of the reasons; ship links it</span></li>
+    </ul>
+    <div class="label">/verify: three pages, one job each · about 1,100 words cut <i class="callout">1</i></div>
+    <ul>
+      <li class="edit">.agents/skills/verify/SKILL.md <span class="why">owner of the steps</span></li>
+      <li class="edit">verify/references/walkthrough.md <span class="why">owner of the mechanics</span></li>
+      <li class="edit">wiki/development/staging-walkthrough.md <span class="why">owner of the reasons; history moves out</span></li>
+    </ul>
+    <div class="label">Change-selection order · about 400 words cut <i class="callout">2</i></div>
+    <ul>
+      <li class="edit">save/references/checkpoint-evidence.md <span class="why">owner: one order, named rungs</span></li>
+      <li class="edit">apply/SKILL.md <span class="why">copy removed; states its difference only</span></li>
+      <li class="edit">continue/SKILL.md <span class="why">copy removed; states its difference only</span></li>
+      <li class="edit">save/SKILL.md <span class="why">copy removed; states its difference only</span></li>
+      <li class="edit">ship/SKILL.md <span class="why">copy removed; cites the correct rung</span></li>
+      <li class="edit">verify/SKILL.md <span class="why">copy removed; states its difference only</span></li>
+    </ul>
+    <div class="label">Exit-round rules <i class="callout">3</i></div>
+    <ul>
+      <li class="edit">.agents/skills/explore/SKILL.md <span class="why">owner: § The exit round</span></li>
+      <li class="edit">wiki/development/the-change-loop.md <span class="why">copy removed; links explore</span></li>
+      <li class="edit">explore/references/asking-the-user.md <span class="why">copy removed; links explore</span></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>Today the three verify pages repeat each other. After, the skill has the steps, the reference has the mechanics, and the wiki page has the reasons. Each links the other two.</li>
+      <li>Today five skills each copy the order, and <code>/ship</code> cites the wrong rung. After, the rungs have names in one place, so a skill can cite a rung by name.</li>
+      <li>The exit round stays with <code>/explore</code> because it runs the round. The change loop and asking-the-user link its section.</li>
+    </ol>
+  </div>
+</section>

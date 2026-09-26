@@ -155,15 +155,13 @@ test('directory expansion detects additions and removals while exclusions stay o
   ]);
 });
 
-test('component gates exclude pack and scaffold changes until selected', t => {
-  const f = fixture(t);
+test('every category is selected, and old component flags are ignored', t => {
+  const f = fixture(t, { components: { skills: ['alpha'], stackPack: false, appScaffold: false, ui: false } });
   write(f.source, 'pack.txt', 'pack latest\n');
   write(f.source, 'app/index.txt', 'app latest\n');
-  f.commit('change optional payload');
-  assert.equal(f.inspect().status, 'current');
-
-  f.updateRecord({ components: { skills: ['alpha'], stackPack: true, appScaffold: true } });
+  f.commit('change pack and scaffold payload');
   const report = f.inspect();
+  assert.deepEqual(report.selection.categories, ['core', 'ui', 'pack', 'scaffold']);
   assert.deepEqual(report.changes.map(change => change.sourcePath), ['app/index.txt', 'pack.txt']);
   assert.ok(!report.changes.some(change => change.sourcePath === 'app/wrangler.jsonc'));
 });
@@ -258,8 +256,7 @@ test('both documented helper paths emit the same bounded JSON contract', t => {
 });
 
 test('a synthetic large no-op stays within the preflight budget', t => {
-  const manifest = inventory({ core: { dirs: ['payload'] } });
-  const f = fixture(t, { manifest });
+  const f = fixture(t, { manifest: { core: { dirs: ['payload'] } } });
   for (let index = 0; index < 1200; index += 1) {
     const name = `payload/group-${index % 20}/file-${String(index).padStart(4, '0')}.txt`;
     write(f.source, name, `value ${index}\n`);
@@ -267,7 +264,6 @@ test('a synthetic large no-op stays within the preflight budget', t => {
   }
   f.commit('large payload base');
   f.updateRecord({ commit: git(f.source, 'rev-parse', 'HEAD') });
-  rmSync(join(f.target, 'wiki/ux-principles.md'));
   const report = f.inspect();
   assert.equal(report.status, 'current');
   assert.equal(report.selection.currentUnits, 1200);
@@ -382,37 +378,4 @@ test('docsPath refuses colliding pages and unsafe folders', t => {
   for (const unsafe of ['../outside', '/absolute']) {
     assert.throws(() => docsPathFixture(t, [], unsafe).inspect(), error => error.code === 'unsafe-path');
   }
-});
-
-test('an 18.0.0 sync reports the agent-folder move and the removed wong-cloudflare skill', t => {
-  const legacy = inventory({ core: { skillDirs: ['alpha', 'wong-cloudflare'], files: ['.codex/hooks.json'], blocks: [] } });
-  const f = fixture(t, {
-    manifest: legacy,
-    components: { skills: ['alpha', 'wong-cloudflare'], stackPack: true },
-    targetFiles: {
-      '.claude/skills/wong-cloudflare/SKILL.md': 'door base\n',
-      '.codex/hooks.json': '{"hooks":{}}\n',
-    },
-  });
-  write(f.source, '.agents/skills/wong-cloudflare/SKILL.md', 'door base\n');
-  write(f.source, '.codex/hooks.json', '{"hooks":{}}\n');
-  f.updateRecord({ commit: f.commit('add the legacy layout') });
-
-  // The latest source keeps one real folder, with .codex as a link to it.
-  const latest = inventory({ core: { skillDirs: ['alpha'], files: ['.claude/hooks.json', '.claude/config.toml'], blocks: [] } });
-  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', `${JSON.stringify(latest, null, 2)}\n`);
-  rmSync(join(f.source, '.agents/skills/wong-cloudflare'), { recursive: true });
-  rmSync(join(f.source, '.codex'), { recursive: true });
-  write(f.source, '.agents/hooks.json', '{"hooks":{"SessionStart":[]}}\n');
-  write(f.source, '.agents/config.toml', '[features]\n');
-  symlinkSync('.agents', join(f.source, '.codex'));
-  f.commit('move to one agent folder');
-
-  const rows = f.inspect().changes.map(change => [change.sourcePath, change.operation, change.localState]);
-  assert.deepEqual(rows.filter(([path]) => /hooks\.json|config\.toml|wong-cloudflare/.test(path)).sort(), [
-    ['.claude/config.toml', 'added', 'missing'],
-    ['.claude/hooks.json', 'added', 'missing'],
-    ['.claude/skills/wong-cloudflare/SKILL.md', 'removed', 'installed-equivalent'],
-    ['.codex/hooks.json', 'removed', 'installed-equivalent'],
-  ]);
 });

@@ -7,13 +7,14 @@ import {
   readFileSync,
   realpathSync,
 } from 'node:fs';
-import { dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
 const SCHEMA_VERSION = 1;
 const DEFAULT_MAX_CHANGES = 10_000;
 const MAX_GIT_OUTPUT = 64 * 1024 * 1024;
+const USAGE = 'usage: preflight.mjs --target <dir> --source <dir> [--record <path>] [--max-changes <n>]';
 
 class PreflightError extends Error {
   constructor(code, message) {
@@ -206,15 +207,9 @@ function docsPathOf(record) {
   return value === undefined ? null : safeRelativePath(value, 'components.docsPath');
 }
 
-function selectedCategories(inventory, record, target) {
-  const selected = ['core'];
-  const components = record.components ?? {};
-  const uiPage = targetPathFor('wiki/ux-principles.md', new Map(), docsPathOf(record));
-  const hasUi = components.ui === true || components.appScaffold === true || existsSync(join(target, uiPage));
-  if (hasUi && inventory.ui) selected.push('ui');
-  if (components.stackPack === true && inventory.pack) selected.push('pack');
-  if (components.stackPack === true && components.appScaffold === true && inventory.scaffold) selected.push('scaffold');
-  return selected.filter((value, index, array) => array.indexOf(value) === index);
+// Every install takes every category; old component flags are ignored.
+function selectedCategories(inventory) {
+  return ['core', 'ui', 'pack', 'scaffold'].filter(category => category === 'core' || inventory[category]);
 }
 
 function listTree(tree, logicalDirectory) {
@@ -240,9 +235,9 @@ function targetPathFor(logicalPath, mapping, docsPath = null) {
   return `.claude/skills/${localName}${match[2] ?? ''}`;
 }
 
-function expandInventory(source, revision, tree, inventory, record, target) {
+function expandInventory(source, revision, tree, inventory, record) {
   validateInventory(inventory, revision);
-  const categories = selectedCategories(inventory, record, target);
+  const categories = selectedCategories(inventory);
   const mapping = skillMappings(record);
   const docsPath = docsPathOf(record);
   const files = new Map();
@@ -411,8 +406,8 @@ export function preflight({ target: targetInput, source: sourceInput, record: re
   const currentTree = treeAt(source, currentCommit);
   const baseInventory = inventoryAt(source, installedCommit, baseTree).value;
   const currentInventory = inventoryAt(source, currentCommit, currentTree).value;
-  const baseSelection = expandInventory(source, installedCommit, baseTree, baseInventory, record, target);
-  const currentSelection = expandInventory(source, currentCommit, currentTree, currentInventory, record, target);
+  const baseSelection = expandInventory(source, installedCommit, baseTree, baseInventory, record);
+  const currentSelection = expandInventory(source, currentCommit, currentTree, currentInventory, record);
   const keys = [...new Set([...baseSelection.units.keys(), ...currentSelection.units.keys()])].sort();
   const changes = [];
 
@@ -482,7 +477,9 @@ function isDirectRun() {
   }
 }
 
-if (isDirectRun()) {
+if (isDirectRun() && process.argv.includes('--help')) {
+  process.stdout.write(`${USAGE}\n`);
+} else if (isDirectRun()) {
   const started = performance.now();
   try {
     const options = parseArgs(process.argv.slice(2));

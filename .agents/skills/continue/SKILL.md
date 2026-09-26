@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Resume an OpenSpec change and pick up the work — by change name, a PR number/URL, or from a menu when given no argument. Loads the change and its session facts, checks out its recorded branch, recaps the plan and Decision log, runs a drift check, then hands off to /apply to work the tasks. Accepts an optional instruction (/continue <name> <instruction>). Pairs with /save. Use whenever you want to continue, resume, or rehydrate a thread.
+description: Resume a saved OpenSpec change by name, PR, or menu, with an optional instruction: check out its branch, recap the plan and facts, check drift, and hand off to /apply. Use to continue, resume, or pick up a thread.
 user-invocable: true
 ---
 
@@ -12,11 +12,9 @@ Rehydrate a fresh session from a saved OpenSpec change and pick up the work. **T
 
 This skill trusts the change as the source of truth. It deliberately does **not** reload the PR diff or review threads wholesale — `/save` keeps the change current, so the change alone is the spine; a cheap **counts-only drift check** (step 4) flags when reality has moved past the change. `/save` records the actual feature branch in the proposal header; the change and branch may have different names.
 
-> **OpenSpec never runs git — this skill owns it.** `openspec show`/`openspec list` only read the `openspec/` folder; the `git`/`gh` checkout is here. Repo is whatever `gh` resolves in the current directory — never hardcode owner/repo.
->
-> `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
+> **OpenSpec never runs git — this skill owns it.** `openspec show`/`openspec list` only read the `openspec/` folder; the `git`/`gh` checkout is here. Repo is whatever `gh` resolves in the current directory — never hardcode owner/repo. Check [the preconditions](../save/references/preconditions.md) before the first `git` or `gh` command; a failed check stops with its fix. `main` is the default branch, per [the default-branch rule](../save/references/git-gate.md#the-default-branch).
 
-Read the helper fields and root/base options in [the evidence contract](../save/references/checkpoint-evidence.md) only when using structured evidence. `active`, `archive`, `recorded`, and `legacy` are evidence; retain the selection order below. Inspection errors stop selection.
+A handle selects by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs): a change name is `explicit`; a PR uses `changed-active`, then `recorded-branch`, on the PR's head branch.
 
 ## Workflow
 
@@ -47,12 +45,12 @@ You need two things: the **change** (proposal + tasks) and the **branch** to che
     git cat-file -e "$ref:openspec/changes/$NAME/proposal.md" 2>/dev/null && echo "$ref"
   done
   ```
-  One branch carrying it supplies the proposal and branch; several require a choice. Read its proposal with `git show "$ref:openspec/changes/$NAME/proposal.md"`, then check out the branch in Step 3. If the proposal has no Branch line, use a same-named local or remote branch as the legacy fallback. If neither exists, stay in the current checkout for an unsaved plan; ask for the branch or PR when the change is saved elsewhere.
+  One branch carrying it supplies the proposal and branch; several require a choice. Read its proposal with `git show "$ref:openspec/changes/$NAME/proposal.md"`, then check out the branch in Step 3. A proposal with no Branch line never selects a branch by name: stay in the current checkout for an unsaved plan, and ask for the branch or PR when the change is saved elsewhere.
 - **PR number/URL** → the branch is the PR's `headRefName`; fetch it, then find the unique active change in that branch's diff:
   ```bash
   gh pr view <N> --json headRefName,url,title,state
   ```
-  Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"` after `git fetch origin`. Use its unique `active` candidate; if absent, use a unique `recorded` match, then `legacy.active`. If several remain, ask which change to resume — [the options are the candidates](../explore/references/asking-the-user.md), each with its status and task progress. Read the selected folder after checkout; do not infer its name from the PR branch.
+  Run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"` after `git fetch origin`. When you ask, give each candidate with its status and task progress. Read the selected folder after checkout; do not infer its name from the PR branch.
 - **Bare number that matches both a PR and an `openspec list` index** → ambiguous; ask which they mean before proceeding, as a two-option question naming the PR and the change it would load.
 
 It's fine if only one side exists (a save with no PR yet) — load the change; there's just no PR link to show.
@@ -103,4 +101,4 @@ From here it's an ordinary session with the change loaded; to checkpoint again, 
 ## Notes
 
 - The change (`proposal.md` + `tasks.md`) is the plan and the source of intent; its facts in the memory store are the session context around it. `/continue` reads both and checks out the branch — nothing more.
-- `/continue` **resumes and implements**; it is not OpenSpec's `/opsx:*` spec-drafting stepper. When you want to build, `/continue`.
+- `/continue` **resumes and implements**; it does not draft specs. When you want to build, `/continue`.

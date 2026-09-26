@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // The one door to the memory store. Every skill, the hook, and the background run call this script.
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -123,8 +122,6 @@ function writeStatements({ record, status, reason, newTags = [], facts, source, 
   }
   return statements;
 }
-
-const insertedIds = results => results.filter(rows => rows.length === 1 && Object.keys(rows[0]).join() === 'id').map(rows => rows[0].id);
 
 function markSeen(ctx, record) {
   if (!record?.id || record.size == null) return;
@@ -391,89 +388,35 @@ async function spool(ctx) {
     const input = readJson(file, { facts: [] });
     console.log(`# Spooled: ${file} (${(input.facts || []).length} facts, session ${input.session || 'none'})`);
     await gateFacts(ctx, { ...input, facts: (input.facts || []).filter(fact => fact.action !== 'drop') }, store);
-    console.log(`Write decisions for this file, then run: put-facts --file <decisions.json> --spooled ${file}\n`);
+    console.log(`Decide these candidates, then send the decisions as JSON on stdin to: put-facts --file - --spooled ${file}\n`);
   }
 }
 
+// Apply each migration not yet in schema_migrations, then record it; a recorded one never runs again.
 async function migrate(ctx) {
   const store = openStore(ctx);
+  const [{ n }] = await store.query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'");
+  const applied = new Set(n ? (await store.query('SELECT version FROM schema_migrations')).map(row => row.version) : []);
   const dir = join(HERE, '..', 'migrations');
-  for (const file of readdirSync(dir).filter(name => name.endsWith('.sql')).sort()) {
+  const files = readdirSync(dir).filter(name => name.endsWith('.sql') && !applied.has(parseInt(name, 10))).sort();
+  for (const file of files) {
     await store.query(readFileSync(join(dir, file), 'utf8'));
+    await store.query('INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)', [parseInt(file, 10), now()]);
     console.log(`applied ${file}`);
   }
+  if (!files.length) console.log('The store is up to date: every migration is recorded.');
 }
 
-// Who first committed each notes/<slug>.md, from one git call.
-function noteAuthors(root) {
-  const authors = new Map();
-  let author = null;
-  try {
-    const log = execFileSync('git', ['log', '--diff-filter=A', '--format=@%ae', '--name-only', '--', 'notes/'], { cwd: root, encoding: 'utf8' });
-    for (const line of log.split('\n')) {
-      if (line.startsWith('@')) author = line.slice(1);
-      else if (line.trim()) authors.set(line.trim(), author);
-    }
-  } catch { /* no history */ }
-  return authors;
-}
-
-// One-time import of notes/<slug>.md, from a reviewed migration file, through the same write path as put-facts.
-// Resumable: a note whose migration session exists is skipped.
-async function importNotes(ctx, { values }) {
-  const input = readInput(values.file);
-  const store = openStore(ctx);
-  const secrets = secretValues(store.env);
-  const [doneRows, tagRows] = await store.batch([["SELECT id FROM sessions WHERE agent = 'migration'"], TAG_NAMES]);
-  const done = new Set(doneRows.map(row => row.id));
-  const allFacts = input.notes.flatMap(note => note.facts.map(fact => ({ ...fact, slug: fact.slug || note.slug })));
-  const { errors } = tagProblems(tagRows.map(row => row.name), allFacts, input.tags);
-  if (errors.length) throw new StoreError(errors.join('; '));
-  const authors = noteAuthors(ctx.root);
-  const ids = new Map();
-  let imported = 0;
-  for (const note of input.notes) {
-    const id = `migration:${note.slug}`;
-    if (done.has(id)) { console.log(`skip ${note.slug}: already imported`); continue; }
-    const facts = note.facts.map(fact => ({ ...fact, slug: fact.slug || note.slug, supersedes: (fact.supersedes || []).map(key => ids.get(key)).filter(Boolean) }));
-    facts.forEach((fact, index) => {
-      const problem = validateFact(fact, index, secrets);
-      if (problem) throw new StoreError(`note ${note.slug}: ${problem}`);
-    });
-    const path = join(ctx.root, 'notes', `${note.slug}.md`);
-    const text = existsSync(path) ? readFileSync(path, 'utf8') : note.text || '';
-    const createdAt = `${note.updated || note.started || now().slice(0, 10)}T00:00:00Z`;
-    const record = { id, agent: 'migration', meta: { startedAt: note.started ? `${note.started}T00:00:00Z` : null }, endedAt: createdAt };
-    if (store.config.bucket && text) {
-      record.rawKey = `migration/${note.slug}.md`;
-      record.rawBytes = Buffer.byteLength(text);
-      await store.putObject(record.rawKey, text);
-    }
-    const results = await store.batch(writeStatements({
-      record, status: facts.length ? 'captured' : 'skipped', reason: facts.length ? null : 'no reusable fact',
-      newTags: imported === 0 ? input.tags : [], facts, source: 'migration', sessionId: id, createdAt,
-      author: note.author || authors.get(`notes/${note.slug}.md`) || null,
-    }));
-    insertedIds(results).forEach((factId, index) => { if (note.facts[index]?.key) ids.set(note.facts[index].key, factId); });
-    imported += 1;
-    console.log(`imported ${note.slug}: ${facts.length} facts`);
-  }
-  const [[count]] = await store.batch([["SELECT count(*) AS n FROM sessions WHERE agent = 'migration'"]]);
-  try { await loadDigest(ctx, store); } catch { /* the cache is best effort */ }
-  console.log(`imported ${imported} notes now; ${count.n} migration sessions exist in the store.`);
-}
-
-const COMMANDS = {
+export const COMMANDS = {
   migrate, search, show, source, tags, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   'finish-run': finishRun,
-  import: importNotes,
 };
 
 const OPTIONS = Object.fromEntries([
   ...['file', 'spooled', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json'].map(name => [name, { type: 'boolean' }]),
+  ...['all', 'json', 'help'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
@@ -481,20 +424,28 @@ const USAGE = `usage: memory.mjs <command>
   show <slug> [--all]          a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
-  gate --file candidates.json  neighbours for each candidate fact
-  put-facts --file decisions.json [--spooled path]
+  gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
+  put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   pending [--limit n] [--exclude ids]   strip <session-id>   live   digest   stats   spool   due
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
-  migrate   import --file migration.json`;
+  migrate`;
 
 if (isMain(import.meta.url)) {
   const [command, ...rest] = process.argv.slice(2);
   const run = COMMANDS[command];
-  if (!run) { console.error(USAGE); process.exit(command ? 2 : 0); }
+  if (!command || command === '--help') { console.log(USAGE); process.exit(0); }
+  if (!run) { console.error(`unknown command: ${command}\n${USAGE}`); process.exit(2); }
+  let args;
   try {
-    await run(repoContext(), parseArgs({ args: rest, options: OPTIONS, allowPositionals: true, strict: false }));
+    args = parseArgs({ args: rest, options: OPTIONS, allowPositionals: true, strict: true });
+  } catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
+  if (args.values.help) { console.log(USAGE); process.exit(0); }
+  try {
+    await run(repoContext(), args);
   } catch (error) {
     console.error(error instanceof StoreError ? error.message : `memory: ${error.message}`);
     process.exitCode = 1;
   }
+  // Exit once the output is flushed, so an open socket cannot keep the process alive.
+  process.stdout.write('', () => process.exit());
 }

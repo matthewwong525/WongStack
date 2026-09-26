@@ -131,7 +131,7 @@ test('maps each agent to its full-permission mode and refuses a guess', () => {
 });
 
 test('names a routine from its prompt and the repo folder', () => {
-  assert.equal(defaultName('/improve', '/root/ClaymooApp'), 'improve ClaymooApp');
+  assert.equal(defaultName('/improve', '/root/MyApp'), 'improve MyApp');
   assert.equal(defaultName('/verify the staging app', '/x/demo'), 'verify demo');
   assert.equal(defaultName('check the nightly import logs', '/x/demo'), 'check the nightly import demo');
 });

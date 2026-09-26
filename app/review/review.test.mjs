@@ -1,6 +1,5 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -10,7 +9,6 @@ import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs'
 
 const root = resolve(import.meta.dirname, '../..');
 const examples = readFileSync(join(root, '.agents/skills/plan/references/review-examples.html'), 'utf8');
-const sync = join(root, '.agents/skills/save/scripts/sync-review-proposal.mjs');
 const files = [];
 let browser;
 
@@ -275,17 +273,4 @@ test('keyboard navigation leaves editor arrow keys alone', async () => {
   await page.locator('.popover textarea').press('ArrowRight');
   assert.match(await page.locator('#item-title').innerText(), /Receive an order/);
   await context.close();
-});
-
-test('proposal sync changes only the marked text in an older review file', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'wong-old-review-')); files.push(dir);
-  const older = '<html><style>old-kit-style</style><script type="text/markdown"><!-- proposal:start -->old<!-- proposal:end --></script><script>oldKit()</script></html>';
-  writeFileSync(join(dir, 'review.html'), older);
-  writeFileSync(join(dir, 'proposal.md'), '## Why\n\nUpdated reason.\n\n## What Changes\n\n- New text.\n');
-  execFileSync(process.execPath, [sync, dir]);
-  const result = readFileSync(join(dir, 'review.html'), 'utf8');
-  assert.match(result, /Updated reason/);
-  assert.match(result, /<style>old-kit-style<\/style>/);
-  assert.match(result, /<script>oldKit\(\)<\/script>/);
-  assert.equal((result.match(/proposal:start/g) || []).length, 1);
 });

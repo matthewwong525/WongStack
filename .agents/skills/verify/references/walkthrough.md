@@ -1,6 +1,6 @@
 # The staging walkthrough
 
-How `/verify` exercises a change's own OpenSpec scenarios against the deployed preview and grades them. The skill owns *when* this runs, what each verdict reports, and the hard rules; this file owns *how* a walk is performed.
+How `/verify` exercises a change's own OpenSpec scenarios against the deployed preview and grades them. [The skill](../SKILL.md) owns the steps, the verdicts, and the hard rules; [the staging walkthrough](../../../../wiki/development/staging-walkthrough.md) owns the reasons; this file owns *how* a walk is performed.
 
 The phases split across two script calls, because scouting is cheap and running is not:
 
@@ -9,9 +9,7 @@ The phases split across two script calls, because scouting is cheap and running 
 
 On `RESULT: NONE` — no scenario any probe can reach — the skill has already reported and stopped, and nothing below applies.
 
-The browser is **[`agent-browser`](https://github.com/vercel-labs/agent-browser)**, a standalone CLI that carries its own Chrome and runs it on this machine. Preflight installs it when a browser journey needs it — and skips it entirely when none does. Nothing is ever added to the repository for it — that is what lets a repo in any language walk. Request probes need only `curl`, which every machine already has.
-
-> **Why `/verify` runs `/save` first.** CI green is what proves the deploy published a version for *this* commit, which is what makes `preview-url.sh` return a URL that exists. Verifying earlier verifies the previous commit, or nothing. Never construct the URL by hand from a naming convention — a URL you built yourself can point at a commit that was never deployed and still answer 200.
+The browser is **[`agent-browser`](https://github.com/vercel-labs/agent-browser)**, a standalone CLI that carries its own Chrome and runs it on this machine. Preflight installs it only when a browser journey needs it. Request probes need only `curl`.
 
 ## a — scout the scenarios
 
@@ -20,7 +18,7 @@ The journeys come from the change's **own OpenSpec scenarios**, not from reading
 - every `#### Scenario:` in `openspec/changes/<name>/specs/**/spec.md` — this change's promise, and
 - the scenarios of any capability in `openspec/specs/` whose files this branch's diff touches (`git diff --name-only origin/main..HEAD`), which catches a change that edits behavior an existing spec covers without writing a delta for it.
 
-Do **not** walk the whole `openspec/specs/` surface. A delta-scoped walk stays flat while a full-surface walk grows with the app forever. Regression coverage, if it is ever wanted, belongs in CI as saved tests — a different decision, deliberately not this one.
+Do **not** walk the whole `openspec/specs/` surface.
 
 Then **match each scenario to the strongest probe that can observe it end to end** against the deployed preview:
 
@@ -30,7 +28,7 @@ Then **match each scenario to the strongest probe that can observe it end to end
 
 A scenario **no probe reaches** — no deployed surface, or observable only by building or executing the repo's code locally — is excluded and **noted by name with its reason**, so the report and the PR comment list it as unverified rather than implying it passed.
 
-**Nothing left after the ladder is the answer `NONE`,** reached here at the cost of reading a few local files. Report it in one line and stop: no `/save`, no preflight, no probes. This is the case for a pure-library change with no deployed surface at all — rarer than it was when only browsers counted.
+**Nothing left after the ladder is the answer `NONE`.** Report it in one line and stop: no `/save`, no preflight, no probes.
 
 **Destructive journeys are walked, not skipped.** Where staging is a seeded fixture, deleting things is often the scenario most worth walking, and there is no merge riding on the result to create pressure against it.
 
@@ -81,13 +79,13 @@ npm run db:query:staging -- "SELECT count(*) FROM notes" \
 
 Rules that decide whether the evidence is worth anything:
 
-- **Wait after every navigating action, before the screenshot.** A screenshot taken before the destination paints captures the *previous* page. Verified, not theoretical: without the wait, a click that navigated produced two byte-identical screenshots of the page it had already left — a walk that would have graded confidently and wrongly. Use `["wait", "--load", "networkidle"]`, or `["wait", "--text", "..."]` when the page updates without a navigation.
+- **Wait after every navigating action, before the screenshot.** A screenshot taken before the destination paints captures the *previous* page, and the grade is then confidently wrong. Use `["wait", "--load", "networkidle"]`, or `["wait", "--text", "..."]` when the page updates without a navigation.
 - **Screenshot wherever a human would look**, with an absolute path under `$RUN_DIR/evidence/<id>/`, numbered in order. `--full` for whole-page capture; `--annotate` when numbered element labels would make the evidence clearer.
 - **Address elements semantically** — `find role`, `find text`, `find label` — or by `@eN` refs taken from a `snapshot` in the same batch. Refs go stale the moment the page changes, so re-`snapshot` after anything that navigates or re-renders. Prefer semantic locators for anything a person could name.
 - **Write no assertions.** The journey's job is to produce evidence, not to decide. A request probe records the response it got, not the response you expected; an assertion here would bake in your guess at correctness and then be deleted with the run.
 - The URL is the preview URL preflight printed. There is no implicit base URL in a batch file — write it in full. Request-probe paths are the one exception: the driver resolves them against that URL so the file stays readable.
 
-These files live in the temp run directory and nowhere else — see the skill's hard rule on never writing inside the repo.
+These files live in the temp run directory and nowhere else.
 
 ## c — run it
 
@@ -104,36 +102,26 @@ For each journey, read the captured evidence with that journey's `then` from `<i
 - **"No error was reported" is not a pass — and neither is a bare `200`.** A journey whose batch completed cleanly but whose screenshot lacks the message the `THEN` requires **fails**; a response that answered `200` without the body the `THEN` describes **fails**. This is the whole reason the verdict is not in the script.
 - A failing command is evidence, not a crash — "the button was never there" and "the endpoint answered 404" are exactly what the walk exists to surface. `--bail` stops a browser journey there, so the evidence before it is the story of how far it got.
 - Check the landed URL in `<id>.url` when a screenshot looks unexpectedly like the previous page: that is the missing-wait signature, and it is a defect in the journey rather than in the app.
-- **Genuinely ambiguous? Stop and ask the user**, showing the evidence and the `THEN` side by side. Do not resolve it in either direction yourself.
+- **Genuinely ambiguous? Stop and ask the user**, showing the evidence and the `THEN` side by side, with the readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks). Do not resolve it in either direction yourself.
 
-There is no second judging agent by design: the `THEN` was written by `/plan`, before this walk existed, for reasons that had nothing to do with passing it. That provenance is the external check. Honor it by grading against the words that are there.
+Grade against the words the `THEN` holds; no second agent grades.
 
 The verdict this produces feeds the table in [`SKILL.md`](../SKILL.md#verdicts), which owns what each one reports.
 
 ## e — after a failure
 
-Post the evidence first (§ f — a failing walk's evidence is the point), then reset staging where the repo has that command:
-
-```bash
-npm run db:reset:staging   # only on failure, never on a pass; stack-pack repos
-```
-
-The reset is not tidiness: a walk that begins against the half-mutated database the failed walk left behind produces a *different* failure than the first run, and you end up debugging leftovers. A **passing** walk's data is left exactly where it is — staging is a fixture, not a preserve.
-
-Then decide whether this failure is yours to fix. **Both halves of the test must hold:**
+The evidence is posted (§ f) before staging is reset. A failure is **in scope** only when both halves hold:
 
 1. the contradicted `THEN` is one of *this change's own* scenarios, and
 2. the fix plausibly lives in files this branch already touches (`git diff --name-only origin/main..HEAD`).
 
-**In scope** → fix the code, invoke `/save`, and verify again — at most **two** fix attempts per invocation, then stop and report like any failure. **Out of scope** → stop after the reset and report what failed and what to look at.
-
-State the judgement in the report either way, in one line: *"in scope — the empty-title check is this change's own code"*, or *"out of scope — the login form predates this branch"*. A reader who disagrees can then say so, which is not possible if the reasoning stayed in your head.
+Anything else (pre-existing behavior, infrastructure, another capability's scenario) is out of scope. State the judgement in the report either way, in one line: *"in scope — the empty-title check is this change's own code"*, or *"out of scope — the login form predates this branch"*. A reader who disagrees can then say so, which is not possible if the reasoning stayed in your head.
 
 Three failure shapes are almost always **out of scope** even when they look fixable: a journey that fails because the fixture has nothing to act on (fix the seed deliberately, in its own change); a `401` from the app itself with a valid service token (the app is authenticating the wrong way); and a screenshot that shows the previous page (fix the journey's waits and re-walk — the app never misbehaved).
 
 ## f — post the evidence, then clean up
 
-One comment per `/verify` invocation (not per journey), posted on **every** verdict — `SUCCESS`, `FAILURE`, `UNKNOWN`, and `TIMEOUT` alike. Nothing is being blocked that would otherwise carry the news, so the comment *is* the result. Verifying again appends another comment rather than editing the first; the PR should carry an honest log of attempts.
+One comment per `/verify` invocation, not per journey, on every verdict. Verifying again appends another comment rather than editing the first, so the PR keeps an honest log of attempts.
 
 Write it so it is complete as prose — a reader with no images still gets the whole story. Name each journey's probe, and list unverifiable scenarios by name. Title it by verdict:
 
@@ -174,7 +162,7 @@ The note is still listed and the count still reads 3.
 - *Imports are processed from the queue* — no existing command reads the queue's effect; its e2e home is a CI test.
 ```
 
-Always say **where each probe ran**. A walk driven on the machine that invoked it depended on that machine, and a reader comparing two walks needs to know that.
+Always say **where each probe ran**.
 
 On **`UNKNOWN`** or **`TIMEOUT`** there may be no journeys to list. Say so in those words — *the walk could not be verified*, and what would make it runnable — rather than posting an empty-looking success:
 
@@ -197,9 +185,7 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" publish "$RUN_DIR"
 ```
 
 - **`RESULT: WALKED`** → it printed `<local-path>\t<public-url>` per file; substitute them into the comment so screenshots render inline.
-- **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths. This is **not** a failure and is not reported as one — the prose is the record; pictures are corroboration. (The variable keeps its historical `WALK_` name: renaming a variable users already set breaks them silently.)
+- **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths. This is **not** a failure and is not reported as one.
 - Request- and state-probe evidence is text and is quoted inline in the comment; only screenshots go through `publish`.
 
-**There is no video.** The walk captures screenshots only, and the comment neither links a recording nor reports one as missing. Don't go looking for a video path that used to exist.
-
-Run `cleanup` on every exit path, including when the skill stops on `UNKNOWN` or asks the user a question.
+The walk captures screenshots only; there is no video.

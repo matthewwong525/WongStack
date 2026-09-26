@@ -69,8 +69,6 @@ The GitHub secret gets its own token, never the user token. [The provisioning ru
 
 `Workers Routes Write` is zone-scoped: its `resources` entry names the zone, not the account.
 
-**`Browser Rendering Write` is no longer granted.** It existed for one consumer — the walkthrough's remote browser on Cloudflare Browser Run — and `/verify` now drives a local browser through `agent-browser`, so the group has no user. Granting a permission nothing consumes contradicts the narrow-token principle this widen and its narrow-back offer exist to serve. A token widened by an earlier version still carries it; that is harmless, and the existing narrow-back offer removes it along with every other group the skill granted.
-
 ### The opt-in Access branch
 
 Added only when a user asks for a login wall, and droppable afterward.

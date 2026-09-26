@@ -177,7 +177,7 @@ The Worker verifies the signed `Cf-Access-Jwt-Assertion` against your Access app
 
 So `claims.email ?? claims.common_name` is the identity, and it is trustworthy because the signature was checked.
 
-The implementation ships with the [app scaffold](../../.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) as **`app/worker/access.ts`** — present, wired into nothing, enforcing nothing until you adopt Access. It is a module rather than a snippet on this page deliberately: a snippet gets retyped, and the version someone writes unaided is the header one, which is simpler-looking and wrong.
+The implementation ships with the [app scaffold](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold) as **`app/worker/access.ts`** — present, wired into nothing, enforcing nothing until you adopt Access. It is a module rather than a snippet on this page deliberately: a snippet gets retyped, and the version someone writes unaided is the header one, which is simpler-looking and wrong.
 
 ### Turning it on
 

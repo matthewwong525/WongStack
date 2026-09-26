@@ -53,7 +53,7 @@
 # This script DOES install its own tool, and says so. It never installs a
 # language runtime: that still asks first, per the toolchain convention.
 #
-# Depends on: git, curl; agent-browser only when a browser journey exists.
+# Depends on: git, curl, node; agent-browser only when a browser journey exists.
 # (`publish` additionally uses wrangler, and is optional and stack-pack-only —
 # nothing else here needs it. Its WALK_MEDIA_* variables keep their historical
 # names: renaming a variable users already set breaks them silently.)
@@ -86,18 +86,24 @@ resolve_primary_root() {
 # .env — the same durable store setup's provisioning writes. Load only the
 # allowlisted credentials the walk understands; never source arbitrary shell
 # from a dotenv file and never print a value. All three are optional: they
-# matter only when the preview sits behind Cloudflare Access.
+# matter only when the preview sits behind Cloudflare Access. The memory
+# skill's parser reads the file, so quotes, `export`, and CRLF mean the same
+# thing here as there.
 load_credentials() {
-  local active_root="$1" primary_root env_file key value
+  local active_root="$1" primary_root env_file line key
   primary_root=$(resolve_primary_root "$active_root") || return 1
   env_file="$primary_root/.env"
   if [ -f "$env_file" ]; then
-    for key in CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
-      if [ -z "${!key:-}" ]; then
-        value=$(grep -E "^${key}=" "$env_file" | head -1 | cut -d= -f2-)
-        printf -v "$key" '%s' "$value"
-      fi
-    done
+    while IFS= read -r line; do
+      key="${line%%=*}"
+      [ -z "${!key:-}" ] && printf -v "$key" '%s' "${line#*=}"
+    done < <(node --input-type=module -e '
+      const [store, file, ...keys] = process.argv.slice(1);
+      const { parseEnv } = await import((await import("node:url")).pathToFileURL(store));
+      const env = parseEnv((await import("node:fs")).readFileSync(file, "utf8"));
+      for (const key of keys) if (env[key]) console.log(`${key}=${env[key]}`);
+    ' "$active_root/.claude/skills/memory/scripts/lib/store.mjs" "$env_file" \
+      CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET)
   fi
   export CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
 }

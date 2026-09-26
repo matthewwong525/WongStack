@@ -59,11 +59,11 @@ The preflight SHALL use the target's component choices and recorded local skill 
 
 ### Requirement: Sync preserves installation context
 
-The payload inventory and install record SHALL remain available to the normal workflow. The install record SHALL advance only after implementation, preserve local skill names and component flags, and identify the source version and commit used. Both entry skills SHALL accept the legacy `.claude/.wong-framework.json` record when the current path is absent. A missing record SHALL route to setup. A seed record SHALL mean incomplete setup. Running in the WongStack source itself SHALL stop without target changes.
+The payload inventory and install record SHALL remain available to the normal workflow. The install record SHALL advance only after implementation, preserve local skill names and the relocated docs path, and identify the source version and commit used. Both entry skills SHALL read only `.claude/.wong-stack.json`. A missing record SHALL route to setup. A seed record SHALL mean incomplete setup. Running in the WongStack source itself SHALL stop without target changes.
 
 #### Scenario: Local installation choices
-- **WHEN** the install record contains renamed skills or optional components
-- **THEN** the exploration and implementation use those choices without creating duplicate skills or enabling other components
+- **WHEN** the install record contains renamed skills or a relocated docs path
+- **THEN** the exploration and implementation use those choices without creating duplicate skills
 
 #### Scenario: Missing or incomplete installation
 - **WHEN** the record is missing or has null version and commit
@@ -74,8 +74,8 @@ The payload inventory and install record SHALL remain available to the normal wo
 - **THEN** the skill reports that it cannot sync the source with itself
 
 #### Scenario: Legacy installation record
-- **WHEN** only `.claude/.wong-framework.json` exists with an installed version
-- **THEN** sync uses that record and its local choices without routing back to setup
+- **WHEN** only `.claude/.wong-framework.json` exists
+- **THEN** the skill treats the record as missing and routes to setup
 
 ### Requirement: Preflight reads a symlinked payload file through its link
 
@@ -141,36 +141,3 @@ The install record MAY set `components.docsPath` to a safe repo-relative folder 
 
 - **WHEN** `components.docsPath` is absolute or escapes the target
 - **THEN** the report status is `error` with an `unsafe-path` diagnostic
-
-### Requirement: Sync plans the move of notes into the memory store
-
-When a sync brings in the memory store to a repo that has a `notes/` directory, the planned update SHALL include tasks to provision the store, and then, for every `notes/<slug>.md`: upload the note's text to R2 when the store has a bucket, record a session with agent `migration` for it, and extract its facts through the write gate with source `migration` and the note's original dates. The plan SHALL then verify that every note has its migration session, and only then delete `notes/` and its path rule. A note with no fact worth keeping SHALL still get its migration session, recorded as `skipped`. A locally changed `notes/README.md` SHALL be reported so its local conventions can move to an owning page.
-
-#### Scenario: An installed repo with notes
-
-- **WHEN** `/wong-sync` plans an update to this release in a repo with 12 notes
-- **THEN** the plan migrates 12 notes, verifies that 12 migration sessions exist in the store, and only then deletes `notes/`
-
-#### Scenario: The migration fails midway
-
-- **WHEN** the migration stops after 5 of 12 notes
-- **THEN** `notes/` stays in place and the task reports the 7 notes that have no migration session
-
-#### Scenario: A note's text is kept
-
-- **WHEN** a note is migrated into a store with a bucket
-- **THEN** its full text is in R2, and each of its facts links to its migration session
-
-### Requirement: Sync migrates repos installed before 18.0.0
-
-A sync that brings in 18.0.0 SHALL plan these tasks for a repo that needs them: move a real `.claude/` folder to `.agents/` and add `.claude` and `.codex` links to it, preserving every local file; move a real `.codex/config.toml` and `.codex/hooks.json` into `.agents/`, merging with any local entries; remove the `wong-cloudflare` skill; and, where the repo has the stack pack, mint a `<repo>-deploy` token from the user token in the host `.env` and set it as the GitHub secret `CLOUDFLARE_API_TOKEN`. The plan SHALL recommend rolling the user token's value, because CI could read it before this release. The sync SHALL follow setup's provisioning runbook from the source checkout for the token step.
-
-#### Scenario: A legacy layout moves
-
-- **WHEN** `/wong-sync` runs in a repo with a real `.claude/` folder
-- **THEN** its plan moves the folder to `.agents/`, adds both links, and lists every local file it preserves
-
-#### Scenario: The GitHub secret is replaced
-
-- **WHEN** `/wong-sync` runs in a stack-pack repo whose GitHub secret holds the user token
-- **THEN** its plan mints the deploy token, replaces the secret, and recommends rolling the user token

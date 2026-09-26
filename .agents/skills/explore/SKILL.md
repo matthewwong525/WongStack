@@ -43,7 +43,7 @@ Do not ask what a live fact already answers. State the fact, with its age and au
 
 ## Question mechanism
 
-[Asking the user](references/asking-the-user.md) owns the format, the host tool order, and the fallbacks: Codex `request_user_input`, then Claude `AskUserQuestion`, then another structured equivalent, then numbered chat — and recommended defaults marked **assumed** only where nobody can answer. A pending question stays pending. `/explore` adds one allowance of its own: the exit-capacity rule below permits assumptions for questions outside the final group.
+[Asking the user](references/asking-the-user.md) owns the format, the host tool order, and the fallbacks. A pending question stays pending. `/explore` adds one allowance of its own: the exit round below permits assumptions for questions outside the final group.
 
 `/explore` **writes nothing** — not the answers, not a file, not an artifact. Answers and assumptions stay in the conversation until [`/plan`](../plan/SKILL.md) records them in the proposal's Decision log.
 
@@ -56,7 +56,7 @@ At the explore-to-plan transition, collect the unresolved material decisions in 
 - **Count a completed exit round.** A bounded pass or nested call for the same work cannot reset this allowance or ask a second group.
 - **After the round, fill gaps with supported assumptions and reasons.** This includes incomplete details, dependent questions, and later UX layout choices. Do not reopen clarification during the current workflow. An explicit user return to standalone `/explore` permits further groups.
 
-This limit governs clarification for the selected work. Action authorization and delivery gates retain their own rules.
+This limit governs clarification only; action authorization and delivery gates keep their own rules.
 
 ## When `/plan` invokes `/explore`
 
@@ -67,7 +67,7 @@ This limit governs clarification for the selected work. Action authorization and
 3. **Run the [exit round](#the-exit-round) only if needed and not already completed.** Resolve pending answers before dependent planning. Use the [nobody-can-answer fallback](references/asking-the-user.md#which-tool-carries-it) when nobody can answer.
 4. **Summarize** the answers and assumptions, then **return to `/plan`**. Fill remaining and later gaps with supported assumptions; do not start another clarification round.
 
-Write no file and create no OpenSpec artifact. The summary is the return signal. Standalone `/explore` remains a flexible discussion with several related question groups for as long as the user wants to explore.
+Write no file and create no OpenSpec artifact. The summary is the return signal.
 
 ## Ask whether it should be code
 
