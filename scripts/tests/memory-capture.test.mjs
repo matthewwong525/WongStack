@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -9,7 +9,7 @@ import { buildDigest, consolidationDue, currentSlug, MAX_BYTES, MAX_LINES } from
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
-import { agentCommand, runbook, takeLock } from '../../.agents/skills/memory/scripts/run.mjs';
+import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
 import { memory, node, rows, SECRET, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
@@ -209,12 +209,15 @@ test('two writers of the seen-set at once keep both entries and never read a tor
   assert.deepEqual(Object.keys(JSON.parse(readFileSync(file, 'utf8'))).sort(), ['claude:a', 'claude:b']);
 });
 
-test('the background runbook runs only the granted script, sends input on stdin, and never writes a file', () => {
-  const prompt = runbook('claude:live');
-  const [, args] = agentCommand('claude', prompt, '/state');
-  const grants = args.slice(args.indexOf('--allowedTools') + 1);
-  assert.deepEqual(grants, [`Bash(${SCRIPT}:*)`]);
-  const prefix = `${grants[0].match(/^Bash\((.*):\*\)$/)[1]} `;
+test('the background runbook runs only the granted script and writes files only in its input folder', () => {
+  const dir = '/tmp/wong-memory-test';
+  const prompt = runbook('claude:live', dir);
+  const [, args] = agentCommand('claude', prompt, '/state', dir);
+  const at = args.indexOf('--allowedTools');
+  assert.deepEqual(args.slice(at + 1, at + 3), [`Bash(${SCRIPT}:*)`, `Edit(/${dir}/**)`]);
+  assert.equal(args[args.indexOf('--add-dir') + 1], dir);
+  assert.doesNotMatch(prompt, /<</, 'the runbook never passes JSON through a heredoc');
+  const prefix = `${args[at + 1].match(/^Bash\((.*):\*\)$/)[1]} `;
   const spans = [...prompt.matchAll(/`([^`\n]+)`/g)].map(match => match[1]);
   const codeLines = prompt.split('\n').filter(line => line.startsWith('node '));
   const commands = [...spans, ...codeLines].filter(text => text.startsWith('node ') || Object.hasOwn(COMMANDS, text.split(' ')[0]))
@@ -225,10 +228,21 @@ test('the background runbook runs only the granted script, sends input on stdin,
   for (const command of commands) {
     assert.ok(command.startsWith(prefix), `${command} is outside the grant`);
     assert.doesNotMatch(command, /(^|\s)>|[;|&]/, `${command} redirects to a file or chains another command`);
-    if (/ (gate|put-facts)\b/.test(command) && command.includes('--file')) assert.match(command, /--file -( |$)/, `${command} reads a file`);
+    const file = command.match(/--file (\S+)/)?.[1];
+    if (file) assert.ok(file === '<input>' || file.startsWith(`${dir}/`), `${command} reads input from outside the folder`);
   }
   const fileWrites = prompt.split(/(?<=[.!?])\s+/).filter(sentence => /\b(write|create|save|edit)\b[^.]*\bfiles?\b/i.test(sentence) && !/^never\b/i.test(sentence.trim()));
-  assert.deepEqual(fileWrites, []);
+  assert.ok(fileWrites.length > 0, 'the runbook says where to write its input');
+  for (const sentence of fileWrites) assert.match(sentence, /input folder|\/tmp\/wong-memory-test/, `${sentence} writes outside the input folder`);
+  const [, codex] = agentCommand('codex', prompt, '/state', dir);
+  assert.ok(codex.includes(`sandbox_workspace_write.writable_roots=["/state","${dir}"]`));
+});
+
+test('the input folder is outside the repo and is removed when the run fails', () => {
+  let seen;
+  assert.throws(() => withInputDir(dir => { seen = dir; writeFileSync(join(dir, 'put-1.json'), '{}'); throw new Error('run failed'); }), /run failed/);
+  assert.ok(seen.startsWith(realpathSync(tmpdir())) && !seen.includes('.git'));
+  assert.equal(existsSync(seen), false);
 });
 
 test('the digest stays within its limits and states what it left out', () => {

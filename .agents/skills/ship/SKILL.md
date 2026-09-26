@@ -90,9 +90,15 @@ gh pr merge --squash --match-head-commit "$SHA" || exit 1
 for n in $(gh pr list --state open --base "$BRANCH" --json number --jq '.[].number'); do
   gh api -X PATCH "repos/:owner/:repo/pulls/$n" -f base="$DEFAULT" --jq '.number' || exit 1
 done
-git push origin --delete "$BRANCH"
+# GitHub may have deleted the branch at merge: exit 2 means already gone; any other failure stops.
+git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; rc=$?
+case $rc in
+  0) git push origin --delete "$BRANCH" || exit 1 ;;
+  2) echo "$BRANCH was already deleted at merge" ;;
+  *) exit 1 ;;
+esac
 ```
-**Any failure stops here**, and the branch and the PR stay as they are: no default branch name, a refused merge, a state other than `MERGED`, or a failed retarget. Report the exact `gh` error. A failed merge deletes nothing.
+**Any failure stops here**, and the branch and the PR stay as they are: no default branch name, a refused merge, a state other than `MERGED`, a failed retarget, or a failed `ls-remote`. Report the exact `gh` error. A failed merge deletes nothing.
 
 **Retarget before you delete, always.** Deleting a branch that an open PR uses as its base **closes that PR**, and GitHub will not reopen it or retarget it. Do not rely on GitHub's auto-retarget: the delete races it, with no completion signal. Name every PR you retargeted in the report.
 
@@ -125,6 +131,7 @@ Ask **which checkout has `main` out**, not whether you are in a worktree. **Any 
 - **Checkpoint** — `/save` result and CI outcome, including auto-fix pushes.
 - **Walk** — the verdict, the evidence comment link, and, when a `FAILURE` was merged anyway, that the user chose to. Where the skill was absent, one line saying so.
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.
+- **Branch** — deleted, or already deleted at merge by GitHub.
 - **Synced** — the checkout whose `main` advanced to the merged commit, or the one-line reason the sync was skipped.
 
 Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally start the next change, walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.

@@ -388,7 +388,7 @@ async function spool(ctx) {
     const input = readJson(file, { facts: [] });
     console.log(`# Spooled: ${file} (${(input.facts || []).length} facts, session ${input.session || 'none'})`);
     await gateFacts(ctx, { ...input, facts: (input.facts || []).filter(fact => fact.action !== 'drop') }, store);
-    console.log(`Decide these candidates, then send the decisions as JSON on stdin to: put-facts --file - --spooled ${file}\n`);
+    console.log(`Decide these candidates, then send the decisions as JSON to: put-facts --file <input> --spooled ${file}\n`);
   }
 }
 
