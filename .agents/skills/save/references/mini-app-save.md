@@ -8,17 +8,20 @@ Follow the main save procedure's credential exclusion before every commit and pu
 
 Take it when every changed path is inside one app's folder, `mini-apps/apps/<name>/`, and every commit ahead of the default branch touches only that folder. It is the second direct route beside [the prose save](prose-save.md), with the same limits.
 
-1. **Run the app's tests on this host.** It is the gate for this route, because there is no pull request for CI to gate:
+1. **Commit** only the folder's paths, never the generated `index.html` or `routes.gen.ts`, with `feat(mini): <name> — <what changed>` and the usual trailer. Do not switch a dirty checkout or overwrite another worktree to make the route fit.
+2. **Test and push** with the script. It runs the app's tests on this host, the gate for this route, because there is no pull request for CI to gate. Then it pushes, and when the default branch moved, it rebases once, tests again, and pushes again. It never forces a push:
 
    ```bash
-   (cd "mini-apps/apps/<name>" && node --test)
+   bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/mini-app-push.sh" "<name>" main
    ```
 
-   A failing test stops the save: report it, and push nothing. A folder with no test file says so in the report and goes on.
-2. **Commit** only the folder's paths, never the generated `index.html` or `routes.gen.ts`, with `feat(mini): <name> — <what changed>` and the usual trailer.
-3. **Push** `git push origin HEAD:main`, using the resolved default branch. Do not switch a dirty checkout or overwrite another worktree to make the route fit.
+   Pass the resolved default branch. Read its exit code:
 
-A rejected push — protection with no bypass, required review, or a branch that moved — is never forced or retried. Take the fallback below.
+   | Exit | Meaning | Next |
+   |---|---|---|
+   | 0 | pushed (`rebased=yes` when it retried) | report below |
+   | 1 | the app's tests failed; nothing pushed | report the failing test and stop |
+   | 3 | `reason=` outside, refused, rebase-conflict, tests-after-rebase, or second-push | take the fallback below |
 
 Report in two lines: the commit on the default branch, and that the app goes live on production at its production URL, with production data, once CI deploys. Print no `SAVE_GATE_RESULT` line; nothing waited. CI on the default branch runs the app's tests again and deploys only the production mini Worker.
 

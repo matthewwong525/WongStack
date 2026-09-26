@@ -44,7 +44,7 @@ The script builds the dashboard, applies pending staging migrations, creates the
 [`/save`](../../.agents/skills/save/references/mini-app-save.md) takes a direct route, like [the prose save](../development/the-change-loop.md#the-prose-allowlist), when every changed path is inside one app's folder:
 
 1. It runs that app's tests on the agent host. A failing test stops the save; nothing is pushed.
-2. It commits the folder and pushes it to `main`, with no branch and no pull request.
+2. It commits the folder and pushes it to `main`, with no branch and no pull request. When `main` moved during the save, it rebases once, runs the tests again, and pushes again.
 3. CI on `main` runs the app's tests again and deploys only the production mini Worker. The main app's jobs skip, because [the push leaves the main app untouched](../development/the-change-loop.md#the-gate).
 
 The app is then live on production data, and the dashboard lists it. The folder on `main` is the record; there is no OpenSpec change. Running tests on the host bends the rule that [nothing builds locally](../development/the-change-loop.md#the-gate): for this one route, the host test run is the gate that a pull request would be.
@@ -54,7 +54,7 @@ The app is then live on production data, and the dashboard lists it. The folder 
 Some saves fall back to save's normal route, with a branch and a pull request:
 
 - **The diff leaves the app's folder** — a migration under `schema/migrations/`, a change to `mini-apps/worker.ts` or `mini-apps/wrangler.jsonc`. A person reviews those, because they reach the shared database or every app.
-- **The push is rejected** — you can not bypass the rules, or `main` moved. The save never forces it.
+- **The push is refused** — you can not bypass the rules, or `main` moved and one rebase could not fix it: the rebase conflicted, the tests failed on the new `main`, or the second push was rejected too. The save never forces a push.
 
 [`/ship`](../../.agents/skills/ship/SKILL.md#merge-a-mini-app-pull-request) then merges that pull request after CI runs the app's tests, with no OpenSpec change, no archive, and no walk.
 
