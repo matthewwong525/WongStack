@@ -47,3 +47,5 @@ None. The Purpose lines of `delivery-gate` and `secrets-convention` are edited i
 - **2026-09-26** — Assumed: CI runs `openspec validate --specs --strict` from now on, because the user asked how to keep records from drifting, and this check is free and deterministic. It covers live specs only, so an in-progress change on a branch is not blocked by it.
 - **2026-09-26** — Assumed: a patch release, 24.0.2, because no command's behavior changes.
 - **2026-09-26** — Saved all 9 tasks for CI as ready to ship. `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `openspec validate --specs --strict` pass locally under 1.13.2.
+- **2026-09-26** — Distilled facts before the archive: no repeatable fact. The session's facts are threads for `consolidate-and-simplify` and one OpenSpec reference, kept in memory.
+- **2026-09-26** — Archived after CI passed on PR #132 (`6eda2b9`). No deltas to sync (`skip_specs`).

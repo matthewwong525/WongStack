@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · update-openspec-1-13</title>
+<title>Review · 2026-09-26-update-openspec-1-13</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -74,11 +74,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="update-openspec-1-13">
+<body data-change="2026-09-26-update-openspec-1-13">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>update-openspec-1-13</h1>
+  <h1>2026-09-26-update-openspec-1-13</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
@@ -109,6 +109,8 @@
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: CI runs <code>openspec validate --specs --strict</code> from now on, because the user asked how to keep records from drifting, and this check is free and deterministic. It covers live specs only, so an in-progress change on a branch is not blocked by it.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: a patch release, 24.0.2, because no command's behavior changes.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Saved all 9 tasks for CI as ready to ship. <code>node scripts/check-payload-links.mjs</code>, <code>node scripts/check-openspec-config.mjs</code>, and <code>openspec validate --specs --strict</code> pass locally under 1.13.2.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distilled facts before the archive: no repeatable fact. The session's facts are threads for <code>consolidate-and-simplify</code> and one OpenSpec reference, kept in memory.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archived after CI passed on PR #132 (<code>6eda2b9</code>). No deltas to sync (<code>skip_specs</code>).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
