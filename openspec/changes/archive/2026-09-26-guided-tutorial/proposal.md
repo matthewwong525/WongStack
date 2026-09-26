@@ -1,6 +1,6 @@
 # Learn the development loop by chatting
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** tutorial-redesign-change-loop
 **Open questions:** none
 
@@ -99,3 +99,6 @@ None.
 - **2026-09-26** — Assumed: when the list fails to load, the page says to reload instead of linking to `/apps/`, because that page no longer exists.
 - **2026-09-26** — Assumed: `/wong-sync` for an older install whose own landing page does not read `/apps/apps.json` adds a task to list the apps there, because `/apps/` stops listing them.
 - **2026-09-26** — Save checkpoint: the list page is gone, `/apps/` redirects home, the example apps link Home, and the home page takes the mini apps' look; the `mini-apps` deltas synced into `openspec/specs/`. Host checks pass: 260 script tests, oxlint, `tsc -b`, Vitest (34 tests, 100% coverage), knip, and Stryker (100%). Task 4.3 waits on the new preview.
+- **2026-09-26** — Task 4.3 on the preview, headless Chromium at 390×844 (touch): the box and the app list render with no sideways scroll; Copy put the exact message on the clipboard and read `Copied`; Hello's Home link and `/apps/` both land on `/`.
+- **2026-09-26** — Distilled facts at ship: the store holds no live fact for this change or its branch, so no repeatable fact moved. The wiki edits ride in this change: `wiki/stack/mini-apps.md`, `wiki/stack/getting-started.md`, and `wiki/stack/README.md`.
+- **2026-09-26** — Archive checkpoint: every task checked, the change archived with `--skip-specs` after confirming both `mini-apps` requirements in `openspec/specs/` equal the deltas.

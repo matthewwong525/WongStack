@@ -20,7 +20,7 @@
 
 - [x] 4.1 Bump `VERSION` to 24.1.0 and add the `CHANGELOG.md` entry
 - [x] 4.2 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`
-- [ ] 4.3 `/save` for CI and the preview; on the preview, check the box at phone width and press Copy
+- [x] 4.3 `/save` for CI and the preview; on the preview, check the box at phone width and press Copy
 
 ## 5. One home page (mini-apps/, scripts/, app/)
 

@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · guided-tutorial</title>
+<title>Review · 2026-09-26-guided-tutorial</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -74,11 +74,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="guided-tutorial">
+<body data-change="2026-09-26-guided-tutorial">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>guided-tutorial</h1>
+  <h1>2026-09-26-guided-tutorial</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
@@ -156,6 +156,9 @@
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: when the list fails to load, the page says to reload instead of linking to <code>/apps/</code>, because that page no longer exists.</li>
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: <code>/wong-sync</code> for an older install whose own landing page does not read <code>/apps/apps.json</code> adds a task to list the apps there, because <code>/apps/</code> stops listing them.</li>
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Save checkpoint: the list page is gone, <code>/apps/</code> redirects home, the example apps link Home, and the home page takes the mini apps' look; the <code>mini-apps</code> deltas synced into <code>openspec/specs/</code>. Host checks pass: 260 script tests, oxlint, <code>tsc -b</code>, Vitest (34 tests, 100% coverage), knip, and Stryker (100%). Task 4.3 waits on the new preview.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Task 4.3 on the preview, headless Chromium at 390×844 (touch): the box and the app list render with no sideways scroll; Copy put the exact message on the clipboard and read <code>Copied</code>; Hello's Home link and <code>/apps/</code> both land on <code>/</code>.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distilled facts at ship: the store holds no live fact for this change or its branch, so no repeatable fact moved. The wiki edits ride in this change: <code>wiki/stack/mini-apps.md</code>, <code>wiki/stack/getting-started.md</code>, and <code>wiki/stack/README.md</code>.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archive checkpoint: every task checked, the change archived with <code>--skip-specs</code> after confirming both <code>mini-apps</code> requirements in <code>openspec/specs/</code> equal the deltas.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
