@@ -44,48 +44,18 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 
-// Only the exports that exist in every v8 copy of the library. `/wong-sync`
-// never modifies a file the target already has, so a repo that installed the
-// pack earlier still has the older library — importing anything newer would
-// make this file crash the moment it was copied in. Hence the local JSONC
-// parsing further down rather than a library addition.
-import { findWranglerConfig, repoRoot } from "./lib-wrangler-config.mjs";
+import {
+  findWranglerConfig,
+  findWranglerConfigOrNull,
+  parseConfig,
+  repoRoot,
+  WranglerConfigError,
+} from "./lib-wrangler-config.mjs";
 
 const STAGING_ENV = "staging";
-
-/** The config filenames wrangler accepts, in the order it prefers them. */
-const CONFIG_NAMES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"];
-
-/**
- * The library's `findWranglerConfig()` without the `process.exit(1)`: returns
- * the path, or `null` when the repo has no wrangler config at all. Same search
- * order — repo root first, then each immediate subdirectory (the `app/` layout)
- * — so the two agree on which file they'd pick; they differ only in what
- * happens when there isn't one.
- */
-function findWranglerConfigOrNull() {
-  const firstIn = (dir) => {
-    for (const name of CONFIG_NAMES) {
-      const candidate = resolve(dir, name);
-      if (existsSync(candidate)) return candidate;
-    }
-    return null;
-  };
-
-  const atRoot = firstIn(repoRoot);
-  if (atRoot) return atRoot;
-
-  for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
-    const found = firstIn(resolve(repoRoot, entry.name));
-    if (found) return found;
-  }
-  return null;
-}
 
 /** The file the Worker's runtime secrets are declared in. */
 const SOURCE = ".dev.vars";
@@ -142,73 +112,16 @@ function fail(message) {
 /* ── config ────────────────────────────────────────────────────────────────── */
 
 /**
- * Strip `//` and block comments and trailing commas so `JSON.parse` accepts a
- * JSONC file. Scans character by character rather than running a regex over the
- * whole text, so a `//` or `,` inside a string literal survives — a database id
- * or a queue name containing either would otherwise corrupt the parse.
+ * The parsed wrangler config, or null with a warning when the shared parser
+ * refuses it (TOML, bad JSONC). An unreadable config skips the binding
+ * comparison rather than failing the gate.
  */
-function stripJsonc(text) {
-  let out = "";
-  let inString = false;
-  let inLine = false;
-  let inBlock = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    const next = text[i + 1];
-
-    if (inLine) {
-      if (ch === "\n") {
-        inLine = false;
-        out += ch;
-      }
-      continue;
-    }
-    if (inBlock) {
-      if (ch === "*" && next === "/") {
-        inBlock = false;
-        i += 1;
-      }
-      continue;
-    }
-    if (inString) {
-      out += ch;
-      if (ch === "\\") {
-        out += next ?? "";
-        i += 1;
-      } else if (ch === '"') {
-        inString = false;
-      }
-      continue;
-    }
-    if (ch === '"') {
-      inString = true;
-      out += ch;
-      continue;
-    }
-    if (ch === "/" && next === "/") {
-      inLine = true;
-      i += 1;
-      continue;
-    }
-    if (ch === "/" && next === "*") {
-      inBlock = true;
-      i += 1;
-      continue;
-    }
-    out += ch;
-  }
-
-  // Trailing commas: `,` followed by only whitespace before a closer.
-  return out.replace(/,(\s*[}\]])/g, "$1");
-}
-
-/** The parsed wrangler config, or null when it can't be read as an object. */
-function parseConfig(configPath) {
-  if (configPath.endsWith(".toml")) return null;
+function readConfigOrNull(configPath) {
   try {
-    return JSON.parse(stripJsonc(readFileSync(configPath, "utf8")));
-  } catch {
+    return parseConfig(configPath);
+  } catch (error) {
+    if (!(error instanceof WranglerConfigError)) throw error;
+    warn(`${error.message} (skipping the binding comparison)`);
     return null;
   }
 }
@@ -414,12 +327,7 @@ function bindingsIn(block) {
 
 /** Presence of every production binding inside env.staging. Returns failures. */
 function checkBindings(config) {
-  if (!config) {
-    warn(
-      "could not parse the wrangler config as JSON (a .toml config is not read) — skipping the binding comparison.",
-    );
-    return [];
-  }
+  if (!config) return [];
 
   const staging = config.env?.[STAGING_ENV];
   if (!staging) {
@@ -549,7 +457,7 @@ function check(appDir, configPath) {
   // The binding half needs no credential, so it runs even on an unprovisioned
   // repo — that much signal is available before provisioning.
   const problems = [
-    ...checkBindings(parseConfig(configPath)),
+    ...checkBindings(readConfigOrNull(configPath)),
     ...checkSecrets(appDir),
   ];
 
@@ -596,10 +504,7 @@ if (mode !== "push" && mode !== "check") {
 // all is the pack's shipping state — before setup's Cloudflare provisioning runs there is
 // nothing to check, and the gate's requirement is to skip rather than fail.
 // `push` keeps the library's aborting lookup: it has real work to do and cannot
-// do it without a config. The lookup is duplicated here rather than added to
-// `lib-wrangler-config.mjs` because copy-if-absent never updates a library a
-// repo already has — a script that must work the moment it lands cannot depend
-// on a library export newer than itself.
+// do it without a config.
 const configPath =
   mode === "check" ? findWranglerConfigOrNull() : findWranglerConfig();
 

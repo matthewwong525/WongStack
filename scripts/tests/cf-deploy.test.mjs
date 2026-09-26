@@ -53,7 +53,7 @@ function deploy(t, { branch, generated } = {}) {
   const root = mkdtempSync('/tmp/cf-deploy-');
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'scripts'));
-  for (const name of ['cf-deploy.sh', 'lib-wrangler-config.sh']) {
+  for (const name of ['cf-deploy.sh', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs']) {
     copyFileSync(join(repo, 'scripts', name), join(root, 'scripts', name));
   }
   mkdirSync(join(root, 'app'));

@@ -143,7 +143,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: ${{ steps.app.outputs.configured == 'true' }}
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: ${{ steps.app.outputs.dir }}/package-lock.json
 

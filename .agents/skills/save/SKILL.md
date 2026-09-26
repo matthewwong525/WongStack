@@ -23,7 +23,7 @@ Load each matching procedure before its actions; conditions can combine:
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md), before authoring |
 | Exact selected handoff is archived | [Archive maintenance](references/archived-save.md), before updating it |
 
-Assume default branch `main`. If it exists neither locally nor remotely, resolve `defaultBranchRef.name` with `gh repo view`. Fetch that branch before comparing; failed inspection is an error, not evidence of no work.
+Check [the preconditions](references/preconditions.md) first; a failed check stops the save with its fix. Assume default branch `main`. If it exists neither locally nor remotely, resolve `defaultBranchRef.name` with `gh repo view`. Fetch that branch before comparing; failed inspection is an error, not evidence of no work.
 
 ```bash
 git fetch origin main

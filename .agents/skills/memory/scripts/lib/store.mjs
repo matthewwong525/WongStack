@@ -1,6 +1,6 @@
 // Memory store client: repo context, config, credentials, local state, the D1 and R2 REST calls, and the spool.
 import { execFileSync } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,7 +48,8 @@ export function checkouts(ctx) {
   return [ctx.primaryRoot, ...linked].filter(path => path && existsSync(path));
 }
 
-function parseEnv(text) {
+// The reference .env parser: quotes, `export`, and CRLF. verify-staging.sh reads values through it.
+export function parseEnv(text) {
   const env = {};
   for (const line of text.split(/\r?\n/)) {
     const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
@@ -129,7 +130,12 @@ export function statePath(ctx, ...parts) {
 }
 
 export const readJson = (path, fallback) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return fallback; } };
-export const writeJson = (path, value) => writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+// Write a temp file, then rename it: a concurrent reader sees the old file or the new one, never a torn one.
+export function writeJson(path, value) {
+  const temp = `${path}.${process.pid}.tmp`;
+  writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`);
+  renameSync(temp, path);
+}
 
 // The first `bytes` of a file, without reading the rest.
 export function readHead(file, bytes) {

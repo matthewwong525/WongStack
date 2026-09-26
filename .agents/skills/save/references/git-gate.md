@@ -7,8 +7,10 @@ Everything below assumes a feature branch with commits already on it. `main` sta
 ## 1 — open or update the pull request
 
 ```bash
-gh pr view --json number,state,url 2>/dev/null
+gh pr view --json number,state,url
 ```
+
+Exit 1 with `no pull requests found` is the **none** row. Any other failure is not "no PR": stop, and fix it with [the preconditions](preconditions.md).
 
 | PR state | Action |
 |---|---|

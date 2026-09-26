@@ -8,11 +8,14 @@ import { memory, rows, SECRET, setup, writeJsonFile } from './fixtures/memory/ha
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
 
-test('migrations run twice without changing anything', async () => {
+test('a recorded migration never runs again', async () => {
   const env = await setup();
   const before = rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n;
+  const calls = env.fake.calls.length;
   const again = await memory(env.repo, env.fake, ['migrate']);
   assert.equal(again.code, 0);
+  assert.match(again.stdout, /up to date/);
+  assert.equal(env.fake.calls.length - calls, 2, 'a second run only reads what is recorded');
   assert.equal(rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n, before);
   assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, 1);
 });

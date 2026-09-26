@@ -53,4 +53,21 @@ if (complaint) {
   process.exit(1);
 }
 
+// A crash or a non-zero exit without a JSON answer proves nothing about the
+// config. Passing it would be the check that lies, so it fails.
+if (run.status !== 0 && !isJson(run.stdout || '')) {
+  console.error(`FAIL  \`openspec context --json\` exited ${run.status ?? run.signal} without JSON — cannot confirm ${configPath} parses.`);
+  if (output.trim()) console.error(`      ${output.trim().split('\n')[0]}`);
+  process.exit(1);
+}
+
 console.log(`openspec config: ${configPath} parses — per-artifact rules are in effect.`);
+
+function isJson(text) {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}

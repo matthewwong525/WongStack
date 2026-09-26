@@ -391,17 +391,23 @@ async function spool(ctx) {
     const input = readJson(file, { facts: [] });
     console.log(`# Spooled: ${file} (${(input.facts || []).length} facts, session ${input.session || 'none'})`);
     await gateFacts(ctx, { ...input, facts: (input.facts || []).filter(fact => fact.action !== 'drop') }, store);
-    console.log(`Write decisions for this file, then run: put-facts --file <decisions.json> --spooled ${file}\n`);
+    console.log(`Decide these candidates, then send the decisions as JSON on stdin to: put-facts --file - --spooled ${file}\n`);
   }
 }
 
+// Apply each migration not yet in schema_migrations, then record it; a recorded one never runs again.
 async function migrate(ctx) {
   const store = openStore(ctx);
+  const [{ n }] = await store.query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'");
+  const applied = new Set(n ? (await store.query('SELECT version FROM schema_migrations')).map(row => row.version) : []);
   const dir = join(HERE, '..', 'migrations');
-  for (const file of readdirSync(dir).filter(name => name.endsWith('.sql')).sort()) {
+  const files = readdirSync(dir).filter(name => name.endsWith('.sql') && !applied.has(parseInt(name, 10))).sort();
+  for (const file of files) {
     await store.query(readFileSync(join(dir, file), 'utf8'));
+    await store.query('INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)', [parseInt(file, 10), now()]);
     console.log(`applied ${file}`);
   }
+  if (!files.length) console.log('The store is up to date: every migration is recorded.');
 }
 
 // Who first committed each notes/<slug>.md, from one git call.
@@ -463,7 +469,7 @@ async function importNotes(ctx, { values }) {
   console.log(`imported ${imported} notes now; ${count.n} migration sessions exist in the store.`);
 }
 
-const COMMANDS = {
+export const COMMANDS = {
   migrate, search, show, source, tags, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
@@ -481,8 +487,8 @@ const USAGE = `usage: memory.mjs <command>
   show <slug> [--all]          a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
-  gate --file candidates.json  neighbours for each candidate fact
-  put-facts --file decisions.json [--spooled path]
+  gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
+  put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   pending [--limit n] [--exclude ids]   strip <session-id>   live   digest   stats   spool   due
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
   migrate   import --file migration.json`;
@@ -497,4 +503,6 @@ if (isMain(import.meta.url)) {
     console.error(error instanceof StoreError ? error.message : `memory: ${error.message}`);
     process.exitCode = 1;
   }
+  // Exit once the output is flushed, so an open socket cannot keep the process alive.
+  process.stdout.write('', () => process.exit());
 }

@@ -113,3 +113,18 @@ test('the deploy token permission list is pinned', () => {
       `the deploy token must never mint tokens or touch Access (${row.name}) — ${surface}`);
   }
 });
+
+test('setup creates the repository and origin before its first gh secret set', () => {
+  const surface = 'a new folder has no GitHub repository until setup makes one, and gh secret set needs it';
+  const runbook = read(`${setup}/references/cloudflare.md`);
+  const at = needle => {
+    const index = runbook.indexOf(needle);
+    assert.ok(index >= 0, `${setup}/references/cloudflare.md must run \`${needle}\` — ${surface}`);
+    return index;
+  };
+  const secret = at('gh secret set');
+  assert.ok(at('gh auth status') < at('api.cloudflare.com'), `gh auth status must come before the first Cloudflare call — ${surface}`);
+  assert.ok(at('git init') < secret, `git init must come before the first gh secret set — ${surface}`);
+  assert.ok(at('gh repo create') < secret, `gh repo create must come before the first gh secret set — ${surface}`);
+  assert.match(runbook.slice(at('gh repo create'), secret), /^gh repo create .*--private --source \. --remote origin$/m, surface);
+});

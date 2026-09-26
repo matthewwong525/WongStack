@@ -11,7 +11,10 @@ import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url));
 const requireFromApp = createRequire(resolve(here, '../../app/package.json'));
-const { JSDOM } = requireFromApp('jsdom');
+// jsdom comes from app/node_modules. Without it the page checks skip and say why.
+let JSDOM;
+try { ({ JSDOM } = requireFromApp('jsdom')); } catch { /* reported by needsDom */ }
+const needsDom = { skip: JSDOM ? false : 'jsdom cannot be resolved — run `npm ci` in app/ to run the review page checks' };
 const checker = readFileSync(resolve(here, '../../.agents/skills/plan/scripts/check-review.js'), 'utf8');
 const proposal = '## Why\n\nReduce repeated work.\n\n## What Changes\n\n- A new flow. (review.html#/flow/after/new)\n';
 const fragment = '<section class="visual flow" id="flow" data-kind="flow" data-states="after today"><div class="frame"><div class="state state-after"><div class="flow-card" data-target-id="new" data-mark="new">New</div></div><div class="state state-today"><div class="flow-card">Old</div></div></div><div class="notes"><ol><li>Less work.</li></ol></div></section>\n';
@@ -37,7 +40,7 @@ function inspect(html) {
   return output;
 }
 
-test('assembly is portable, deterministic, and structurally valid', () => fixture(root => {
+test('assembly is portable, deterministic, and structurally valid', needsDom, () => fixture(root => {
   const page = join(root, 'review.html');
   assert.deepEqual(buildReview(root, { requireCurrent: true }), { kind: 'current', changed: true });
   const html = readFileSync(page, 'utf8');
@@ -52,7 +55,7 @@ test('assembly is portable, deterministic, and structurally valid', () => fixtur
   assert.deepEqual(inspect(readFileSync(page, 'utf8')), { ok: true, issues: [] });
 }));
 
-test('proposal script delimiters remain visible text', () => fixture(root => {
+test('proposal script delimiters remain visible text', needsDom, () => fixture(root => {
   writeFileSync(join(root, 'proposal.md'), proposal.replace('Reduce repeated work.', 'Show </script><script>window.injection=1</script> as text.'));
   buildReview(root);
   const dom = new JSDOM(readFileSync(join(root, 'review.html'), 'utf8'), browserOptions);
@@ -88,7 +91,7 @@ test('legacy refresh touches only proposal markers', () => fixture(root => {
   assert.deepEqual(buildReview(root), { kind: 'legacy', changed: false });
 }));
 
-test('diagnostics distinguish broken routes, state collisions, and valid links', () => fixture(root => {
+test('diagnostics distinguish broken routes, state collisions, and valid links', needsDom, () => fixture(root => {
   buildReview(root);
   const html = readFileSync(join(root, 'review.html'), 'utf8');
   assert.deepEqual(inspect(html.replace('data-mark="new"', 'data-mark="after"')).issues.map(x => x.code).sort(), ['dead-anchor', 'missing-mark', 'state-mark-collision', 'unreferenced-mark']);
@@ -98,7 +101,7 @@ test('diagnostics distinguish broken routes, state collisions, and valid links',
   assert.ok(inspect(html.replace('data-mark="new"', 'data-local-state="missing" data-mark="new"')).issues.some(x => x.code === 'missing-local-state'));
 }));
 
-test('wrapped bullets, flow lanes, screen states, and shared actions', () => fixture(root => {
+test('wrapped bullets, flow lanes, screen states, and shared actions', needsDom, () => fixture(root => {
   writeFileSync(join(root, 'proposal.md'), proposal.replace('A new flow. (', 'A new flow\n  with detail. ('));
   buildReview(root);
   const html = readFileSync(join(root, 'review.html'), 'utf8');
@@ -115,7 +118,7 @@ test('wrapped bullets, flow lanes, screen states, and shared actions', () => fix
 }));
 
 
-test('documented builder alias executes generation and reports invalid input', () => fixture(root => {
+test('documented builder alias executes generation and reports invalid input', needsDom, () => fixture(root => {
   for (const alias of ['.agents', '.claude']) {
     const command = resolve(here, `../../${alias}/skills/plan/scripts/build-review.mjs`);
     rmSync(join(root, 'review.html'), { force: true });

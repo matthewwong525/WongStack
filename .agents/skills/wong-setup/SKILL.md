@@ -24,13 +24,13 @@ Every later step needs a Cloudflare account and one user token. Before anything 
 
 Use the source checkout's `.claude/skills/<verb>/SKILL.md`, starting with [`explore`](../explore/SKILL.md). Resolve their references in the source checkout, while keeping the target as the working directory for investigation, planning, and edits. This skill stays source-only.
 
-Delegate Git initialization to `/save` first, then take the token value with Step 1 of the [provisioning runbook](references/cloudflare.md), which writes it only to the ignored `.env`. Leave the commit and push until the install is complete. Prepare the OpenSpec CLI and run `openspec init --tools none` at the point of need; use the source config rules for the first plan.
+Then run Step 1 of the [provisioning runbook](references/cloudflare.md). It checks `gh auth status` and stops before any Cloudflare call when `gh` is signed out. It initializes Git, creates the private GitHub repository and `origin`, and writes the token value only to the ignored `.env`. Leave the commit and push until the install is complete. Prepare the OpenSpec CLI and run `openspec init --tools none` at the point of need; use the source config rules for the first plan.
 
 Invoke `/explore` with this description, filled with the target, source version, path, commit, and the user's intent:
 
 > Set up WongStack in this empty folder using <source path>, version <version>, commit <commit>. Ask how the user and their team will work. Install the full payload from the source inventory: the workflow skills, the knowledge surfaces, the stack pack, the app scaffold, and the UI pages, in a real `.agents/` folder with `.claude` and `.codex` links to it. Include the required wiki hubs, environment ignore rules, and the install record with `components.stackPack`, `components.appScaffold`, and `components.ui` set to `true`. After the payload lands, run the provisioning runbook at <source path>/.agents/skills/wong-setup/references/cloudflare.md, Steps 2–5. Carry this through the normal workflow to the stage the user requested.
 
-Let `/explore` own questions and `/plan` own the plan; any question this skill asks itself uses [the shared ask format](../explore/references/asking-the-user.md). Ask no component question: an empty folder takes everything. Keep `/apply` responsible for the install and the provisioning runbook, and `/save` for Git setup, identity, commits, remote setup, and the checkpoint whose push starts the first deploy.
+Let `/explore` own questions and `/plan` own the plan; any question this skill asks itself uses [the shared ask format](../explore/references/asking-the-user.md). Ask no component question: an empty folder takes everything. Keep `/apply` responsible for the install and the provisioning runbook, and `/save` for Git identity, commits, and the checkpoint whose push starts the first deploy.
 
 <a id="step-7--bootstrap-seed-hand-off"></a>
 

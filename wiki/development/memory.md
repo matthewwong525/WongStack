@@ -19,7 +19,7 @@ A fact is dated context, not an instruction. Check it against the repo, and the 
 ## How facts are captured
 
 - **`/save`** writes facts from the session so far. Nothing to capture beyond the diff and the Decision log means no facts.
-- **The background run** captures what `/save` missed. When the hook finds sessions of this repo idle for an hour with no capture, it starts a detached run of the same agent's command-line tool, with a small model, and returns at once. Your first reply never waits for it. The run may only call the memory script and write files in its own work folder. It captures at most five sessions, newest first, and the next digest reports what it did. It spends your own model quota: a headless run costs about $0.01 to $0.03 in fixed prompt overhead even for one command, so budget it per session captured, not per call.
+- **The background run** captures what `/save` missed. When the hook finds sessions of this repo idle for an hour with no capture, it starts a detached run of the same agent's command-line tool, with a small model, and returns at once. Your first reply never waits for it. The run may only call the memory script, and it passes JSON to it on stdin, so it writes no file. It captures at most five sessions, newest first, and the next digest reports what it did. It spends your own model quota: a headless run costs about $0.01 to $0.03 in fixed prompt overhead even for one command, so budget it per session captured, not per call.
 
 Every write passes the **write gate**: the script shows the live facts on the same slug and the closest keyword matches, and the writer adds, supersedes, or drops each candidate. A fact that cannot reach the store waits in a local spool, and the next run sends it through the gate.
 

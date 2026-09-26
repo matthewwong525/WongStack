@@ -11,6 +11,7 @@
 #         the PRODUCTION D1, then build.
 #       - any other branch → apply migrations to the STAGING D1 (the one
 #         declared by the `staging` environment in wrangler.jsonc), then build.
+#       - a Worker that binds no D1 database → skip the migrate, then build.
 #   - Anywhere else (a developer's terminal, a quality gate) → skip migrate
 #     and just build. A remote database is never touched from a developer
 #     machine.
@@ -78,50 +79,42 @@ BRANCH="$CI_BRANCH"
 PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-main}"
 echo "cf-build: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
-# Read a `database_name` out of the wrangler config — no name is baked into
-# this script, so every repo's copy is identical. With an environment argument,
-# read the name declared *inside* that environment's block: staging binds a
-# twin database, which has its own name. The `env.staging` block must therefore
-# declare its own `d1_databases` entry (see the stack-pack config fragments).
-#
-# `|| true` so a no-match grep doesn't trip `set -e`/`pipefail` and kill the
-# script before the explanatory error below can print.
-read_database_name() {
-  local env_name="${1:-}"
-  local text
-  if [ -n "$env_name" ]; then
-    # Everything from the environment's key onwards.
-    text=$(sed -n "/\"$env_name\"[[:space:]]*:/,\$p" "$WRANGLER_CONFIG" || true)
-  else
-    text=$(cat "$WRANGLER_CONFIG")
-  fi
-  printf '%s' "$text" \
-    | grep -oE '"?database_name"?[[:space:]]*[:=][[:space:]]*"[^"]+"' \
-    | head -1 | sed -E 's/.*[:=][[:space:]]*"([^"]+)".*/\1/' || true
-}
-
 if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   WHICH="production"
-  DB_NAME=$(read_database_name)
+  CONFIG_ENV=""
   WRANGLER_ENV=()
 else
   WHICH="staging"
-  DB_NAME=$(read_database_name staging)
+  CONFIG_ENV="staging"
   WRANGLER_ENV=(--env staging)
 fi
 
-if [ -z "$DB_NAME" ]; then
-  echo "cf-build: ERROR — could not read the $WHICH database_name from $WRANGLER_CONFIG" >&2
-  if [ "$WHICH" = "staging" ]; then
-    echo "cf-build: the \`staging\` environment needs its own d1_databases entry." >&2
-  fi
+# Which database to migrate. No name is baked into this script, so every repo's
+# copy is identical: `wong_config` reads the top-level `d1_databases` for
+# production and the `staging` environment's own entry for staging. Each read is
+# an assignment, so a config the parser refuses stops the build under `set -e`.
+# `$CONFIG_ENV` is unquoted on purpose: empty means no argument (production).
+HAS_D1=$(wong_config has-d1 $CONFIG_ENV)
+PROD_HAS_D1=$(wong_config has-d1)
+
+# Only staging can differ from production here. An environment inherits no
+# binding, so staging code would run against no database.
+if [ "$HAS_D1" = false ] && [ "$PROD_HAS_D1" = true ]; then
+  echo "cf-build: ERROR — could not read the staging database_name from $WRANGLER_CONFIG" >&2
+  echo "cf-build: the \`staging\` environment needs its own d1_databases entry." >&2
   exit 1
 fi
 
-echo "cf-build: $WHICH branch — applying migrations to the $WHICH D1 ($DB_NAME)"
-# wrangler resolves config-relative paths (migrations_dir, assets) from the
-# config's own directory, so run it from there.
-(cd "$APP_DIR" && npx wrangler d1 migrations apply "$DB_NAME" --remote ${WRANGLER_ENV[@]+"${WRANGLER_ENV[@]}"})
+# A Worker that binds no D1 database has nothing to migrate.
+if [ "$HAS_D1" = true ]; then
+  DB_NAME=$(wong_config database-name $CONFIG_ENV)
+  echo "cf-build: $WHICH branch — applying migrations to the $WHICH D1 ($DB_NAME)"
+  # wrangler resolves config-relative paths (migrations_dir, assets) from the
+  # config's own directory, so run it from there.
+  (cd "$APP_DIR" && npx wrangler d1 migrations apply "$DB_NAME" --remote ${WRANGLER_ENV[@]+"${WRANGLER_ENV[@]}"})
+else
+  echo "cf-build: $WHICH binds no D1 database — skipping migrations"
+fi
 
 # Regenerate the binding types before building. `wrangler.jsonc` is the source
 # of truth for bindings and `worker-configuration.d.ts` is generated from it, so

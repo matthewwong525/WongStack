@@ -18,6 +18,8 @@ Read the helper fields and root/base options in [the evidence contract](../save/
 
 ## Step 1 — preflight
 
+Check [the preconditions](../save/references/preconditions.md) first; a failed check stops the ship with its fix.
+
 ```bash
 git rev-parse --abbrev-ref HEAD
 git status
@@ -26,14 +28,15 @@ git log origin/main..HEAD --oneline
 gh api repos/:owner/:repo/commits/main/check-runs \
   --jq '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)'
 ```
-- On the default branch → nothing to ship yet; go to [the pull-in](#the-pull-in-nothing-to-ship-yet) (`/ship` runs on a feature branch).
+- On the default branch with uncommitted changes → invoke ordinary `/save`. It creates the feature branch and commits the work. Re-run this preflight on that branch.
+- On a clean default branch → nothing to ship yet; go to [the pull-in](#the-pull-in-nothing-to-ship-yet) (`/ship` runs on a feature branch).
 - Clean tree and 0 commits ahead → nothing to ship yet; go to [the pull-in](#the-pull-in-nothing-to-ship-yet). A dirty feature branch with 0 commits is valid: the delegated `/save` below will create its first commit.
-- Default branch's CI is `failure` → **stop**; fix it first (`ok`/empty = proceed). An intent does **not** override this one.
+- Default branch's CI is `failure` → **stop**; fix it first. Only `ok` proceeds: an empty answer or a failed `gh` call is `UNKNOWN`, so **stop** and report gh's message. An intent does **not** override this one.
 - Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`. Do not commit, push, open a PR, or wait on branch checks here — those are `/save`'s single checkpoint after the archive move.
 
 ### The pull-in: nothing to ship yet
 
-**When either stop condition above holds** — on the default branch, or a clean tree with 0 commits ahead — there is nothing to ship *yet*, so make it: **invoke the [`apply` skill](../apply/SKILL.md)**, then **re-run this preflight** on the branch `/save` created and continue to Step 2. Two forms:
+**When either stop condition above holds** — on a clean default branch, or a clean tree with 0 commits ahead — there is nothing to ship *yet*, so make it: **invoke the [`apply` skill](../apply/SKILL.md)**, then **re-run this preflight** on the branch `/save` created and continue to Step 2. Two forms:
 
 - **An intent was given** (`/ship <intent>`) → invoke `/apply` with the argument **verbatim**.
 - **No argument** → invoke `/apply` **with no argument**, when [`/apply`'s resolve order](../apply/SKILL.md#resolve-the-plan-first) lands on a change you named, a change created or discussed in this session, or a change evidenced by this branch's files, recorded Branch line, or legacy name — or on its separate branch for a session that states clear implementation intent with no change yet.
@@ -95,21 +98,24 @@ If the walk's fix loop advanced `HEAD`, its own delegated `/save` already re-gat
 
 ## Step 5 — merge (worktree-safe)
 
-Merge via the API, then delete the **remote** branch explicitly. **Never `gh pr merge --delete-branch`** — it switches the local checkout to delete the local branch, which fails in a worktree where the default branch is checked out elsewhere.
+Merge the gated commit via the API, confirm the merge, then delete the **remote** branch explicitly. **Never `gh pr merge --delete-branch`** — it switches the local checkout to delete the local branch, which fails in a worktree where the default branch is checked out elsewhere.
 ```bash
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-gh pr merge --squash
+SHA=$(git rev-parse HEAD)   # the commit /save gated
+DEFAULT=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name) && [ -n "$DEFAULT" ] || exit 1
+gh pr merge --squash --match-head-commit "$SHA" || exit 1
+[ "$(gh pr view --json state --jq .state)" = MERGED ] || exit 1
 # Retarget anything stacked on this branch BEFORE deleting it (see below):
 for n in $(gh pr list --state open --base "$BRANCH" --json number --jq '.[].number'); do
-  gh api -X PATCH "repos/:owner/:repo/pulls/$n" -f base=main --jq '.number'
+  gh api -X PATCH "repos/:owner/:repo/pulls/$n" -f base="$DEFAULT" --jq '.number' || exit 1
 done
 git push origin --delete "$BRANCH"
 ```
-The squash carries the archived change onto the default branch.
+**Any failure stops here**, and the branch and the PR stay as they are: no default branch name, a refused merge, a state other than `MERGED`, or a failed retarget. Report the exact `gh` error. The squash carries the archived change onto the default branch.
 
 **Retarget before you delete, always.** Deleting a branch that an open PR still uses as its base **closes that PR**, and the loss is unrecoverable: GitHub will not reopen a PR whose base branch is gone, nor retarget a closed one. Do not rely on GitHub's own auto-retarget — the delete races it, and the race has no completion signal to wait on. Name every PR you retargeted in the report.
 
-On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke ordinary `/save` again so the changed merge commit receives the same checkpoint and gate. Retry the merge only on its `SUCCESS` or `NONE`. Other failure (branch protection, draft) → surface the exact `gh` error.
+On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke ordinary `/save` again so the changed merge commit receives the same checkpoint and gate. Retry the merge only on its `SUCCESS` or `NONE`. Other failure (branch protection, draft, a head that moved after the gate) → surface the exact `gh` error.
 
 ## Step 6 — sync the durable checkout
 
@@ -151,7 +157,7 @@ Close with [the next step](../explore/references/asking-the-user.md#end-every-re
 - **Never archive a change with unchecked tasks.** Finish it through `/apply` first. This runbook's authorization covers the archive of a complete change and nothing else — never treat it as the answer to the archive step's incomplete-task confirmation.
 - **A bare `/ship` continues this session's thread, and stops cold when there isn't one.** A sole active change the conversation does not establish never starts a merge, and a stop is always reported rather than silent.
 - **The walk informs, never blocks.** Run it once, report every verdict, and let no verdict but a user-answered `FAILURE` change what happens next. Never skip it to save time, and never re-run it hunting a greener result.
-- **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
+- **Merge worktree-safely:** `gh pr merge --squash --match-head-commit`, confirm `MERGED`, then `git push origin --delete`, never `--delete-branch`. A failed merge deletes nothing.
 - **Never delete a branch another open PR is based on.** Retarget dependents to the default branch first; a closed-by-deletion PR cannot be recovered.
 - **The post-merge sync is fast-forward only, and never a gate.** It touches one other checkout, so it requires a clean tree there and skips with a reason on any obstacle. It deletes no local branch, and it cannot fail a ship that has already merged.
 - No GitHub summary issue. The only automatic wiki edit is the distillation of this change's facts before the archive; every other wiki update is explicit work.

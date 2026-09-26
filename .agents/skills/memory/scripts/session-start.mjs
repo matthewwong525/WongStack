@@ -36,7 +36,7 @@ async function main() {
   const sessionId = `${agent}:${input.session_id || 'unknown'}`;
   const background = process.env.WONG_MEMORY_RUN === '1';
   registerSession(ctx, { id: sessionId, agent, transcript: input.transcript_path || null, cwd: input.cwd || ctx.root, startedAt: new Date().toISOString(), ...(background ? { background } : {}) });
-  if (background) return;
+  if (background) return '';
 
   // The digest fetch runs while local discovery reads the disk.
   const digest = (async () => loadDigest(ctx, openStore(ctx, { timeoutMs: BUDGET_MS }), BUDGET_MS))().catch(error => ({ error }));
@@ -52,9 +52,10 @@ async function main() {
     if (result.text) out.push(result.text);
     if ((result.due || localWork) && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));
   }
-  if (out.length) process.stdout.write(`${out.join('\n\n')}\n`);
+  return out.length ? `${out.join('\n\n')}\n` : '';
 }
 
 if (isMain(import.meta.url)) {
-  main().catch(error => { process.stdout.write(`Memory: skipped (${error.message}).\n`); }).finally(() => { process.exitCode = 0; });
+  // Exit once the output is flushed: an aborted fetch's socket would otherwise hold the hook past its timeout.
+  main().catch(error => `Memory: skipped (${error.message}).\n`).then(out => process.stdout.write(out, () => process.exit(0)));
 }

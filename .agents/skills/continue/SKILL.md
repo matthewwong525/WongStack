@@ -12,7 +12,7 @@ Rehydrate a fresh session from a saved OpenSpec change and pick up the work. **T
 
 This skill trusts the change as the source of truth. It deliberately does **not** reload the PR diff or review threads wholesale — `/save` keeps the change current, so the change alone is the spine; a cheap **counts-only drift check** (step 4) flags when reality has moved past the change. `/save` records the actual feature branch in the proposal header; the change and branch may have different names.
 
-> **OpenSpec never runs git — this skill owns it.** `openspec show`/`openspec list` only read the `openspec/` folder; the `git`/`gh` checkout is here. Repo is whatever `gh` resolves in the current directory — never hardcode owner/repo.
+> **OpenSpec never runs git — this skill owns it.** `openspec show`/`openspec list` only read the `openspec/` folder; the `git`/`gh` checkout is here. Repo is whatever `gh` resolves in the current directory — never hardcode owner/repo. Check [the preconditions](../save/references/preconditions.md) before the first `git` or `gh` command; a failed check stops with its fix.
 >
 > `main` stands for the repo's default branch — **assume it**. Every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and substitute it.
 
