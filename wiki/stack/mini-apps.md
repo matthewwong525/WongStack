@@ -66,6 +66,6 @@ Some saves fall back to save's normal route, with a branch and a pull request:
 
 Move a mini app into `app/` when it needs the main app's login, data model, or navigation. That is an ordinary change through [the change loop](../development/the-change-loop.md), with the main app's own tests. Serving mini apps at the main app's address, through a service binding from the main Worker, is not built yet.
 
-In the WongStack source repo, the example app `hello/` is payload, so a change to it is a release with a pull request, not a direct save.
+In the WongStack source repo, only the example app `hello/` is payload, so a change to it is a release with a pull request. Any other app there saves like in any repo, and never ships to other repos.
 
 Part of [the Cloudflare stack](README.md).

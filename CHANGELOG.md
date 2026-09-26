@@ -20,6 +20,10 @@
 3. Only then, delete the old `<repo>-memory` Cloudflare token.
 
 Until step 2, the store keeps working with the old token. Teammates who held that token need a member key from the admin.
+## 22.0.1 — Only the mini-app scaffold ships, not every mini app
+
+- **The scaffold lists what ships.** `payload-files.json` named the whole `mini-apps/` folder, so an app made in the WongStack source repo would have reached every repo that installs or syncs WongStack. It now lists the mini Worker (`worker.ts`, its editor config, and its ignore files) and the example app `mini-apps/apps/hello/`, and nothing else. `mini-apps/wrangler.jsonc` stays out, as before. A sync test with the real manifest checks that a second app folder is never selected. A repo on 22.0.0 already has these files, so its next `/wong-sync` changes nothing.
+
 ## 22.0.0 — A lighter loop, mini apps, and verbs for any work
 
 **Breaking.** `/plan`'s review page, `/ship`'s checkpoints, and `/apply`'s completion inside `/ship` change their contracts.
