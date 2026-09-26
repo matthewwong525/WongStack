@@ -3,9 +3,7 @@
 ## Purpose
 
 Make the public WongStack repository safe and legal to reuse: a license, a way to report security problems, no committed secrets, and a setup prompt whose URL works for a first-time reader.
-
 ## Requirements
-
 ### Requirement: The repository carries an open-source license and a security policy
 
 The repository root SHALL contain an MIT `LICENSE` with the copyright holder and year, and a `SECURITY.md`. `SECURITY.md` SHALL say how to report a vulnerability privately, and SHALL name each Cloudflare credential WongStack uses, where it is stored, and what it can do. The README SHALL link both files.
@@ -65,7 +63,12 @@ The repository SHALL contain a contributing guide, a code of conduct, issue temp
 
 ### Requirement: The README states the problem, the requirements, and the layout
 
-The README's first screen SHALL state the problem WongStack solves and what it does about it before any install step. The README SHALL list every tool that setup needs, including Node, `curl`, the OpenSpec install command, and the Windows symlink setting. It SHALL say why Cloudflare is required and link `SECURITY.md`. It SHALL name every top-level folder and file of the repository with its purpose. Working from the source SHALL start with a fork.
+The README's first screen SHALL be written for a non-technical reader. It SHALL say what the assistant does, with example requests, before any install step, and SHALL NOT depend on terms such as git, OpenSpec, CI, or pull request. The developer material SHALL sit under one later heading. That section SHALL list every tool that setup needs, including Node, `curl`, the OpenSpec install command, and the Windows symlink setting. It SHALL say why Cloudflare is required and link `SECURITY.md`. It SHALL name every top-level folder and file of the repository with its purpose. Working from the source SHALL start with a fork.
+
+#### Scenario: A non-technical reader opens the README
+
+- **WHEN** a reader who has never used a coding agent reads the README's first screen
+- **THEN** they learn what they can ask the assistant and how to start, without meeting a developer term
 
 #### Scenario: A reader checks prerequisites
 
@@ -117,3 +120,4 @@ Each release SHALL be tagged `v<VERSION>` on its merge commit, and SHALL have a 
 
 - **WHEN** a user looks for release 19.0.0
 - **THEN** the tag `v19.0.0` and its GitHub Release exist, and the release body is the 19.0.0 changelog entry
+

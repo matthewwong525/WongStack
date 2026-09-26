@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 23.1.0 — The assistant comes first, in short plain messages
+
+- **Short, plain messages replace STE100.** The `WONG-STACK` block no longer asks for ASD-STE100 Simplified Technical English. One rule, *keep messages short and plain*, replaces it and "Answer in a few lines": the point first, a few lines, everyday words. The agent names git, OpenSpec, or CI only when the person asks or must act. Code, commands, identifiers, and quotations stay exact. [`wiki/voice.md`](wiki/voice.md) owns the rule and gains an everyday-words line. `asking-the-user.md` points to it.
+- **Plain requests come first.** "Do a plain request directly" is now the first rule in the block, before the change loop.
+- **The README and wiki welcome a newcomer.** The README opens with what the assistant does, example requests, three setup steps, and where to chat, with no developer terms. The commands, comparison, requirements, and layout sit under "For developers". [`wiki/README.md`](wiki/README.md) opens with the assistant and links [getting started](wiki/stack/getting-started.md), which now shows asking for anything before the change loop.
+
+**Updating.** `/wong-sync` brings the new rule, `voice.md`, and the reference line. Nothing else to do. Your own wiki pages keep their prose until you next edit them.
+
 ## 23.0.1 — A mini-app save retries once when main moved
 
 - **A moved `main` gets one rebase, not a pull request.** A mini-app save now pushes through the new `save/scripts/mini-app-push.sh`. It runs the app's tests and pushes. When the push is rejected only because `main` moved, it rebases once, runs the tests again, and pushes again. It never forces a push. It falls back to a pull request when the rebase conflicts, the tests fail on the new `main`, the second push is rejected, or the push is refused for another reason, such as branch rules. It prints `pushed`, `rebased`, and `reason`, and a real-git test covers each path. Before this, any rejected push fell back to a pull request, as the first saved mini app did when another release landed during its save.

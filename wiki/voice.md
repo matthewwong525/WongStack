@@ -1,10 +1,14 @@
 # Voice and tone
 
 **Say the most in the fewest words a stranger can still follow.** Density and clarity aren't
-rivals — you win both by cutting filler and choosing exact words, not by cramming clauses.
+rivals — you win both by cutting filler and choosing exact words, not by cramming clauses. This
+page owns the `WONG-STACK` rule *keep messages short and plain*.
 [Wiki style](wiki-style.md) owns a page's shape; this owns its sentences. Every page in
 [the wiki](README.md) gets both.
 
+- **Use everyday words.** Write for a reader who knows no tools. Say *saved*, *live*, and
+  *a link to look at*, not *pushed*, *merged*, and *preview deploy* — unless the reader asks
+  or must act on the detail. Keep code, commands, and names exact.
 - **Lead with the point.** First sentence says what it is or what to do — no runway. Search
   and hover previews quote it.
 - **Cut every word that isn't working.** Brevity is subtraction. *Gardened at ship time* beats

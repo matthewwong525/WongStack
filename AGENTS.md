@@ -2,7 +2,7 @@
 
 ## What this is
 
-This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents run the same workflows, preserve decisions, and improve the process as work happens. The payload is the repo root: [`.claude/skills/`](.agents/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI and planning records (`openspec/`), [`.claude/rules/`](.agents/rules/), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. [`wong-setup`](.agents/skills/wong-setup/SKILL.md) installs WongStack into an empty folder once, and provisions Cloudflare there; [`wong-sync`](.agents/skills/wong-sync/SKILL.md) — with the canonical [payload manifest](.agents/skills/wong-sync/references/payload-manifest.md) inside it — plans each update through the normal workflow. See the [README](README.md) for the user story.
+This repo is **WongStack** — a personal AI assistant and knowledge center that lives in a repo, distributed as a **template you clone and work from**. You ask for anything and it gets done; what it learns, and the process for changing code, stay in repo files so humans and agents share one memory. The payload is the repo root: [`.claude/skills/`](.agents/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI and planning records (`openspec/`), [`.claude/rules/`](.agents/rules/), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. [`wong-setup`](.agents/skills/wong-setup/SKILL.md) installs WongStack into an empty folder once, and provisions Cloudflare there; [`wong-sync`](.agents/skills/wong-sync/SKILL.md) — with the canonical [payload manifest](.agents/skills/wong-sync/references/payload-manifest.md) inside it — plans each update through the normal workflow. See the [README](README.md) for the user story.
 
 It is a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/wong-setup` or `/wong-sync` here; this is the source, not a target (both stop when the clone *is* the current repo).
 
@@ -27,8 +27,8 @@ Credentials already live in the repo's environment files — `.env.example` is t
 
 ## Rules
 
-- **Write user-facing prose in ASD-STE100 Simplified Technical English**, best effort, in [our voice](wiki/voice.md); keep code, commands, identifiers, and quotations exact.
 - **Do a plain request directly.** Research, errands, reminders, and questions need no verb and no question round; ask only when you cannot act without an answer.
+- **Keep messages short and plain**, in [our voice](wiki/voice.md): the point first, a few lines, everyday words. Name git, OpenSpec, or CI only when the person asks or must act; give more detail only when asked. Keep code, commands, identifiers, and quotations exact.
 - **Build or change code through the verbs** `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence, `/improve` for maintenance, `/routine` for schedules, and `/wong-sync` for updates. A verb whose precondition is missing invokes the verb before it: [the change loop](wiki/development/the-change-loop.md). A verb the person invokes also serves work that changes no repo file, with a to-do and a confirm before each outward action.
 - **Build a new standalone page or tool as a mini app**: its own folder beside the main app, a preview in seconds, and no question round. Saving it runs its tests here and pushes straight to the default branch, which puts it live: [mini apps](wiki/stack/mini-apps.md).
 - **The WongStack skills own all git; OpenSpec never runs git.** `/apply` reads branch changes but makes none: [the change loop](wiki/development/the-change-loop.md).
@@ -38,7 +38,6 @@ Credentials already live in the repo's environment files — `.env.example` is t
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge to the wiki when you learn it** — the test: will it help with a future task that is not this one? Place it by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge); a change's specifics stay in its proposal and archive.
 - **Browse as the person, one task at a time**: [saved logins](wiki/development/home.md#saved-browser-logins).
-- **Answer in a few lines**; give more detail only when asked.
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads the rules whose `paths:` match the files it touches.
 
 <!-- WONG-STACK:END -->
