@@ -53,12 +53,12 @@ No live Markdown link SHALL pass through a symbolic link, because GitHub's web v
 
 ### Requirement: Live files carry no private names
 
-No live file outside `openspec/changes/archive/` and `CHANGELOG.md` SHALL name a private downstream repository or service. Examples and tests SHALL use generic names.
+No tracked file outside `openspec/changes/` and `CHANGELOG.md` SHALL name a private downstream repository or service. Change folders are exempt because an active change may name a private repository to describe its task, and it becomes part of the archive when it ships. Examples and tests SHALL use generic names.
 
 #### Scenario: A reader searches the code
 
 - **WHEN** a reader searches the live files for a private downstream name
-- **THEN** there is no match outside the archive and the changelog
+- **THEN** there is no match outside the change folders and the changelog
 
 ### Requirement: Each release is tagged
 

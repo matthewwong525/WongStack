@@ -1,6 +1,6 @@
 # Staging walkthrough
 
-What [`/verify`](../../.claude/skills/verify/SKILL.md) does: the change's own OpenSpec scenarios exercised end to end against the deployed preview and graded against what those scenarios said would happen. Each scenario gets the strongest probe that can observe it — a real browser where the scenario is about UI, a direct HTTP request where it is about the request path, an existing command reading deployed state where the effect lands somewhere else — and the evidence and verdict land as a comment on the pull request.
+What [`/verify`](../../.agents/skills/verify/SKILL.md) does: the change's own OpenSpec scenarios exercised end to end against the deployed preview and graded against what those scenarios said would happen. Each scenario gets the strongest probe that can observe it — a real browser where the scenario is about UI, a direct HTTP request where it is about the request path, an existing command reading deployed state where the effect lands somewhere else — and the evidence and verdict land as a comment on the pull request.
 
 It exists because CI answers *did it build and did the checks pass*. It doesn't answer *does this do what it promised*. The promise is already written down — every requirement in a change's delta specs is a `#### Scenario:` with a `WHEN` and a `THEN` — and any branch that publishes a preview URL already puts the change somewhere a probe can reach. The walkthrough is the wire between the two.
 
@@ -10,7 +10,7 @@ It exists because CI answers *did it build and did the checks pass*. It doesn't 
 
 ## The probe ladder
 
-The scout matches each scenario to the **strongest probe that can observe it end to end**: a browser journey for something rendered, a request probe for the request path, or a state probe where an existing command reads deployed state. [The walkthrough reference](../../.claude/skills/verify/references/walkthrough.md#a--scout-the-scenarios) owns the ladder. The browser is one probe among three, so an API-only change still gets evidence.
+The scout matches each scenario to the **strongest probe that can observe it end to end**: a browser journey for something rendered, a request probe for the request path, or a state probe where an existing command reads deployed state. [The walkthrough reference](../../.agents/skills/verify/references/walkthrough.md#a--scout-the-scenarios) owns the ladder. The browser is one probe among three, so an API-only change still gets evidence.
 
 A scenario **no probe reaches** is **listed by name as unverified**, never silently dropped: excluding it silently is how an unchecked assumption starts to look checked. Its e2e home is a CI test; the walk exercises what CI deployed, and only that.
 
@@ -99,7 +99,7 @@ Nothing is saved. The journeys and evidence live in a temp directory and leave w
 
 A screenshot taken before the destination has painted captures the **previous page**, and a grader reads it as evidence. This is not theoretical: a two-step journey whose click navigated correctly produced two byte-identical screenshots of the page it had already left. The walk would have graded confidently and wrongly.
 
-So every navigating step gets an explicit wait before its screenshot ([the mechanics](../../.claude/skills/verify/references/walkthrough.md#b--write-the-journeys)). It is the easiest way to produce a confidently wrong walk, which is why it is a rule rather than a tip.
+So every navigating step gets an explicit wait before its screenshot ([the mechanics](../../.agents/skills/verify/references/walkthrough.md#b--write-the-journeys)). It is the easiest way to produce a confidently wrong walk, which is why it is a rule rather than a tip.
 
 ### Walk the app the way a person does
 
@@ -116,7 +116,7 @@ The same fact read the other way is why request probes work: a non-navigation re
 
 ## The verdicts
 
-[The skill's verdict table](../../.claude/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything.
+[The skill's verdict table](../../.agents/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything.
 
 **`UNKNOWN` is not `NONE`.** An un-runnable walk is *unverified*, which is not the same as *absent*. A comment that reads like a pass because a login page rendered is exactly the outcome worth preventing, whether or not a merge was waiting on it. There is no opt-in, so `NONE` means only that the change has nothing any probe can reach.
 
@@ -124,7 +124,7 @@ Every report also says **each journey's probe and where it ran**. A walk driven 
 
 ## When the walk can't get in
 
-An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` mints a service token, stores it, and retries once, rather than sending you on an errand ([the heal step](../../.claude/skills/verify/SKILL.md#step-4--verify-healing-the-block-you-can-fix)). The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, the verdict is `UNKNOWN` naming the wall, never a graded login page.
+An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` mints a service token, stores it, and retries once, rather than sending you on an errand ([the heal step](../../.agents/skills/verify/SKILL.md#step-4--verify-healing-the-block-you-can-fix)). The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, the verdict is `UNKNOWN` naming the wall, never a graded login page.
 
 **One heal and one retry**, never a loop. A block that survives its repair is `UNKNOWN` with the attempt named, so an unverified walk never looks like an untried one.
 
@@ -134,14 +134,14 @@ The evidence is posted first, because a failing walk's evidence is the whole poi
 
 The reset isn't housekeeping. A walk that starts against the half-mutated database a failed walk left behind produces a *different* failure than the first run, and you end up debugging leftovers instead of the bug. A **passing** walk's data is left alone — staging is a fixture, not something to preserve.
 
-Then `/verify` fixes the failure only when it is [in scope](../../.claude/skills/verify/references/walkthrough.md#e--after-a-failure), at most twice. The report states which way it judged, so you can disagree. The two-attempt bound is what keeps the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug is how a walk quietly turns into a different change.
+Then `/verify` fixes the failure only when it is [in scope](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure), at most twice. The report states which way it judged, so you can disagree. The two-attempt bound is what keeps the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug is how a walk quietly turns into a different change.
 
 ## What it is not
 
 - **Not a test suite.** Nothing is saved, so coverage never accumulates. Regression tests belong in CI as real tests.
 - **Not automatic on `/save`.** Staging redeploys on every push, so a walk there would fire many times per change while the surface still changes. You choose the moments.
 - **Not a gate.** A gate would force an unrunnable walk to block, and you could only see your app when you were done with it. `/ship` runs one walk for evidence; a `FAILURE` puts the decision in front of you.
-- **No second judging agent.** An agent that grades its own walk has every reason to see success. The check is *provenance*: [`/plan`](../../.claude/skills/plan/SKILL.md) wrote the `THEN` before the walk existed. Ambiguous evidence goes to a human.
+- **No second judging agent.** An agent that grades its own walk has every reason to see success. The check is *provenance*: [`/plan`](../../.agents/skills/plan/SKILL.md) wrote the `THEN` before the walk existed. Ambiguous evidence goes to a human.
 - **Not a regression sweep of `openspec/specs/`.** A delta-scoped walk stays flat; a full-surface walk grows with the app forever.
 - **Not an unbounded fix loop.** An agent that fixes and re-verifies until something passes will eventually pass something. The walk's value is its willingness to report a failure.
 - **No local execution, and no invented tooling.** A scenario that only local code or new tooling could observe is reported as unverified, by name, rather than counted as passing.

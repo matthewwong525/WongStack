@@ -15,11 +15,11 @@ Beyond them, no core payload script or skill invokes another runtime: **no `jq`,
 
 | Tool | Why |
 |---|---|
-| `agent-browser` | The browser [`/verify`](../../.claude/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. `/verify` installs it on the machine the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
+| `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. `/verify` installs it on the machine the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 
 It is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` never acquires it, and every other core verb still needs only the four commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
-**One optional verb uses Paseo: [`/routine`](../../.claude/skills/routine/SKILL.md).** It schedules recurring runs through [Paseo](https://paseo.sh). WongStack never installs Paseo. Without it, `/routine` says so and changes nothing, and every other verb works as before. The script uses Paseo's own daemon client, because `paseo schedule create` cannot set worktree isolation. A Paseo update that changes that client makes `/routine` stop and give the steps for the Paseo app.
+**One optional verb uses Paseo: [`/routine`](../../.agents/skills/routine/SKILL.md).** It schedules recurring runs through [Paseo](https://paseo.sh). WongStack never installs Paseo. Without it, `/routine` says so and changes nothing, and every other verb works as before. The script uses Paseo's own daemon client, because `paseo schedule create` cannot set worktree isolation. A Paseo update that changes that client makes `/routine` stop and give the steps for the Paseo app.
 
 **Setup adds one account: Cloudflare.** Every repo keeps its [memory store](memory.md) there, and every new install hosts its app there.
 
@@ -34,7 +34,7 @@ It is a **tool, not a toolchain**: nothing is added to your repository — no `p
 
 ## Symbolic links in the agent folder
 
-Every install keeps its agent files in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it ([the agent folder](../../.claude/skills/wong-sync/references/payload-manifest.md#the-agent-folder)). Git stores a link as a link, and macOS and Linux check it out as one. **On Windows, turn on `core.symlinks`** before you clone (`git config --global core.symlinks true`, with Developer Mode on). Without it, Git writes each link as a small text file that holds the path, and neither agent finds its skills.
+Every install keeps its agent files in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it ([the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder)). Git stores a link as a link, and macOS and Linux check it out as one. **On Windows, turn on `core.symlinks`** before you clone (`git config --global core.symlinks true`, with Developer Mode on). Without it, Git writes each link as a small text file that holds the path, and neither agent finds its skills.
 
 To check that Codex reads the shared folder, run `codex features list` (the Default-mode question flag shows `true`) and `codex debug prompt-input "hi"` (each skill appears once). Neither calls a model. Run them in a trusted checkout: Codex ignores the project `config.toml` in an untrusted one, whatever the layout.
 
@@ -87,12 +87,12 @@ gh pr checks --json name,bucket,link | jq -r '.[] | .name'
 
 Keep filters inside the syntax jq and gojq share — `select`, `map`, string interpolation, indexing. That covers everything the payload needs.
 
-**For local JSON files, just read them.** Skills are instructions to an agent, and an agent reading a small file beats a subshell parsing it: state the fields, their defaults, and any expansion in prose. It handles absent keys, renamed files, and malformed input by *noticing*, where `jq -r '.x // empty'` silently yields a blank. [`/wong-sync`](../../.claude/skills/wong-sync/SKILL.md) Step 0 reads `.claude/.wong-stack.json` this way.
+**For local JSON files, just read them.** Skills are instructions to an agent, and an agent reading a small file beats a subshell parsing it: state the fields, their defaults, and any expansion in prose. It handles absent keys, renamed files, and malformed input by *noticing*, where `jq -r '.x // empty'` silently yields a blank. [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) Step 0 reads `.claude/.wong-stack.json` this way.
 
 Reach for a shell pipeline only when you need determinism or volume — parsing four scalars is neither.
 
 ## Adding a dependency
 
-Don't, unless the payload genuinely can't work without it. If a change seems to need a new tool, the first question is whether `gh`, `git`, or the agent itself can already do the job. If a new tool is truly required, it belongs in this page, in [the preconditions](../../.claude/skills/save/references/preconditions.md) when a verb must check it, and in the `CHANGELOG.md` entry for that change — a downstream repo shouldn't discover it by failing.
+Don't, unless the payload genuinely can't work without it. If a change seems to need a new tool, the first question is whether `gh`, `git`, or the agent itself can already do the job. If a new tool is truly required, it belongs in this page, in [the preconditions](../../.agents/skills/save/references/preconditions.md) when a verb must check it, and in the `CHANGELOG.md` entry for that change — a downstream repo shouldn't discover it by failing.
 
 Other development processes live in [Development](README.md).

@@ -2,7 +2,7 @@
 
 How code and data ship on the [Cloudflare stack](README.md): **two environments, two Workers, migrations that apply on deploy.** A push to a feature branch migrates and deploys the *staging* Worker; a merge to the default branch migrates and deploys the *production* Worker. The [pack scripts](#the-scripts) implement it and read every repo-specific value from `wrangler.jsonc`, so they're identical in every repo that takes the pack.
 
-**The pipeline needs a Worker to run through it.** Everything below describes what happens to an application once it exists. An install starts from an empty folder and receives WongStack's own starter app, the [app scaffold](../../.claude/skills/wong-sync/references/payload-manifest.md#the-app-scaffold). The `wrangler.jsonc` that binds it to these two environments is written by [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
+**The pipeline needs a Worker to run through it.** Everything below describes what happens to an application once it exists. An install starts from an empty folder and receives WongStack's own starter app, the [app scaffold](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold). The `wrangler.jsonc` that binds it to these two environments is written by [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
 
 This is the runnable half of the stack — the [core stack](core-stack.md) is *what* you build on, this is *how* changes reach production safely. Skip to the [recovery runbooks](#recovery-a-bad-migration-reached-production) when production is red; read top-to-bottom to set it up.
 
@@ -167,7 +167,7 @@ The last two bite differently. A missing staging secret fails **loudly** on the 
 
 You don't have to catch either by eye: **`npm run secrets:check`** fails the build when a binding declared at the top level is missing from `env.staging` or when the two Workers' secret names disagree, and warns when a staging service binding still targets production's service. It runs on every push.
 
-The exact JSONC to merge is in the pack's [config fragments](../../.claude/skills/wong-sync/references/stack-pack-fragments.md).
+The exact JSONC to merge is in the pack's [config fragments](../../.agents/skills/wong-sync/references/stack-pack-fragments.md).
 
 ### Cron triggers inherit; omitting them does not disable them
 
@@ -313,7 +313,7 @@ npm run secrets:push         # load both Workers from .dev.vars
 npm run secrets:check        # do the two Workers still agree?
 ```
 
-The two `db:migrate:*` aliases are the one part of that list provisioning writes rather than copies, since they name your databases literally and a hardcoded name can't travel between repos — they arrive through the [`package.json` fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#packagejson--scripts). They're a convenience only: `cf-build.sh` migrates on every build, reading the name out of the wrangler config itself.
+The two `db:migrate:*` aliases are the one part of that list provisioning writes rather than copies, since they name your databases literally and a hardcoded name can't travel between repos — they arrive through the [`package.json` fragment](../../.agents/skills/wong-sync/references/stack-pack-fragments.md#packagejson--scripts). They're a convenience only: `cf-build.sh` migrates on every build, reading the name out of the wrangler config itself.
 
 ## CI is GitHub Actions
 
@@ -341,7 +341,7 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
 [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) writes the config and sets the secrets; after it runs, the workflow deploys.
 
-**One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.claude/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
+**One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.agents/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
 
 ### Why not Cloudflare's own Workers Builds
 
@@ -369,7 +369,7 @@ The default Time Travel window is 30 days on the standard plan — confirm your 
 
 **The build script is the only thing that should run DDL against production.** It replays `schema/migrations/` through `wrangler d1 migrations apply`, which records each file it ran in the `d1_migrations` ledger. Run an `ALTER TABLE` / `CREATE TABLE` against production by hand and you change the schema **without** recording anything in that ledger. The next deploy re-runs the migration file that "owns" that change and fails — `duplicate column name`, `table already exists` — turning the default branch red and blocking *every* deploy until it's reconciled. (This is not hypothetical: a hand-applied column once kept a production branch red for 8 commits.)
 
-So ship every schema change as a migration through the normal flow: [`/save`](../../.claude/skills/save/SKILL.md) exercises it on staging, the merge applies it to production. If a genuine emergency forces a hand-apply, record it in the ledger **in the same session** so history matches reality:
+So ship every schema change as a migration through the normal flow: [`/save`](../../.agents/skills/save/SKILL.md) exercises it on staging, the merge applies it to production. If a genuine emergency forces a hand-apply, record it in the ledger **in the same session** so history matches reality:
 
 ```bash
 npx wrangler d1 execute <db-name> --remote \

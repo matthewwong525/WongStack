@@ -1,10 +1,10 @@
 # Session memory
 
-Session memory is the repo's private store of **facts**: short typed lines that past sessions learned, which the next session reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The `memory` skill](../../.claude/skills/memory/SKILL.md) is its one door; this page is the convention. It is one of the knowledge surfaces in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.
+Session memory is the repo's private store of **facts**: short typed lines that past sessions learned, which the next session reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The `memory` skill](../../.agents/skills/memory/SKILL.md) is its one door; this page is the convention. It is one of the knowledge surfaces in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.
 
 ## What is stored
 
-- **Facts**, in a D1 database named `<repo>-memory`. A fact is at most 400 characters, with a slug (the change name, or a topic), a type, tags, an author, a time, and its source session. The types: `user` (who the user is), `feedback` (how they want work done), `project` (decisions and ruled-out options, with reasons), `reference` (pointers to outside resources), and `thread` (an open question). [Writing facts](../../.claude/skills/memory/references/writing-facts.md) owns what a good fact keeps.
+- **Facts**, in a D1 database named `<repo>-memory`. A fact is at most 400 characters, with a slug (the change name, or a topic), a type, tags, an author, a time, and its source session. The types: `user` (who the user is), `feedback` (how they want work done), `project` (decisions and ruled-out options, with reasons), `reference` (pointers to outside resources), and `thread` (an open question). [Writing facts](../../.agents/skills/memory/references/writing-facts.md) owns what a good fact keeps.
 - **Sessions**, one row per transcript: agent, branch, status (`captured`, `skipped`, or `private`), and how far it was read.
 - **Raw transcripts**, in a private R2 bucket of the same name, kept forever. Known `.env` values are replaced before upload. The bucket is optional: see [without R2](#without-r2).
 
@@ -12,9 +12,9 @@ A fact is never edited or deleted. A later fact **supersedes** it, and only live
 
 ## When memory loads
 
-When a session starts or resumes, the `SessionStart` hook prints a **digest**: the open threads of the change on your branch first, then other open threads, then the other live facts by type and age. Code builds it from one query, with no model, in under two seconds. It is capped at 40 lines and 6 KB, and [`memory search`](../../.claude/skills/memory/SKILL.md) finds the rest; the last line says how many facts it left out. Offline, the hook prints the last cached digest with its age. The digest stays the same for the whole session, so the prompt cache holds. A fact written now shows at the next start.
+When a session starts or resumes, the `SessionStart` hook prints a **digest**: the open threads of the change on your branch first, then other open threads, then the other live facts by type and age. Code builds it from one query, with no model, in under two seconds. It is capped at 40 lines and 6 KB, and [`memory search`](../../.agents/skills/memory/SKILL.md) finds the rest; the last line says how many facts it left out. Offline, the hook prints the last cached digest with its age. The digest stays the same for the whole session, so the prompt cache holds. A fact written now shows at the next start.
 
-A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.claude/skills/explore/SKILL.md) searches before it asks a question, `/continue` reads the change's facts, and `/ship` distills them into the wiki.
+A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/skills/explore/SKILL.md) searches before it asks a question, `/continue` reads the change's facts, and `/ship` distills them into the wiki.
 
 ## How facts are captured
 

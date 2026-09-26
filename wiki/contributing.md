@@ -1,6 +1,6 @@
 # Contributing a WongStack improvement upstream
 
-Improved a WongStack skill, a convention page in [this wiki](README.md), or the `WONG-STACK` block here? Send it to WongStack upstream as an ordinary pull request. It's a manual, deliberate act — [`/wong-sync`](../.claude/skills/wong-sync/SKILL.md) brings improvements *down* into this repo and never sends anything up.
+Improved a WongStack skill, a convention page in [this wiki](README.md), or the `WONG-STACK` block here? Send it to WongStack upstream as an ordinary pull request. It's a manual, deliberate act — [`/wong-sync`](../.agents/skills/wong-sync/SKILL.md) brings improvements *down* into this repo and never sends anything up.
 
 ## The bar: does this belong in *every* WongStack repo?
 
@@ -9,11 +9,11 @@ That's the whole test, and it's worth applying before you write anything. WongSt
 - **Yes** — a skill that handles a case it used to fumble, a sharper convention in [wiki style](wiki-style.md) or [voice](voice.md), a `WONG-STACK` block rule that any repo would want.
 - **No** — anything that encodes *this* repo: your stack, your deploy target, your team's naming, your one-off workaround. Useful here, noise everywhere else.
 
-If it doesn't clear the bar, keep it local. A repo that diverges from upstream on purpose is fine — [`/wong-sync`](../.claude/skills/wong-sync/SKILL.md) keeps your version as local context and does not push you toward WongStack's.
+If it doesn't clear the bar, keep it local. A repo that diverges from upstream on purpose is fine — [`/wong-sync`](../.agents/skills/wong-sync/SKILL.md) keeps your version as local context and does not push you toward WongStack's.
 
 ## What's in scope
 
-Only files on the [payload manifest](../.claude/skills/wong-sync/references/payload-manifest.md): the workflow skills, the convention pages at this wiki's root, and the `WONG-STACK` block of `CLAUDE.md`. Your app code, app skills, and business docs aren't WongStack's to carry.
+Only files on the [payload manifest](../.agents/skills/wong-sync/references/payload-manifest.md): the workflow skills, the convention pages at this wiki's root, and the `WONG-STACK` block of `CLAUDE.md`. Your app code, app skills, and business docs aren't WongStack's to carry.
 
 ## The route
 
@@ -25,8 +25,9 @@ Only files on the [payload manifest](../.claude/skills/wong-sync/references/payl
    - add a newest-first entry to `CHANGELOG.md` naming what changed and why.
 
    A payload change without these is incomplete: the updater relies on them to tell every other repo that something moved.
+   After the squash merge, tag the merge commit and publish the release from its changelog entry: `git tag v<VERSION> <merge-sha>`, `git push origin v<VERSION>`, then `gh release create v<VERSION> --title v<VERSION> --notes-file <entry>`.
 5. **Open the PR** against WongStack, with the generality argument in the body — why this belongs in every repo, not just yours. That's the case a reviewer is actually weighing.
 
 ## Why this isn't automated
 
-It used to be, as `/wong-sync contribute`. Contributing turns out to be rare and deliberate, and the automation cost more in machinery and prose than it saved in typing — while forcing the sync to keep a tight read boundary so that nothing local could leak into a PR. Removing it let the sync read this repo properly, which is what lets [`/wong-sync`](../.claude/skills/wong-sync/SKILL.md) adapt an update to it.
+It used to be, as `/wong-sync contribute`. Contributing turns out to be rare and deliberate, and the automation cost more in machinery and prose than it saved in typing — while forcing the sync to keep a tight read boundary so that nothing local could leak into a PR. Removing it let the sync read this repo properly, which is what lets [`/wong-sync`](../.agents/skills/wong-sync/SKILL.md) adapt an update to it.

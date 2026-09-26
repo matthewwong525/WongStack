@@ -93,7 +93,7 @@ export function modeFor(agent) {
   return mode;
 }
 
-/** `/improve` in ClaymooApp → `improve ClaymooApp`; plain prompts use their first four words. */
+/** `/improve` in MyApp → `improve MyApp`; plain prompts use their first four words. */
 export function defaultName(prompt, repoDir) {
   const text = String(prompt).trim();
   const head = text.startsWith('/')

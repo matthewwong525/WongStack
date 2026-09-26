@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Pin, in deterministic tests, the paths, names, and deploy behavior that downstream users rely on, so that a WongStack change cannot silently break `wongstack-cloud`, installed repos, or the staging model.
+Pin, in deterministic tests, the paths, names, and deploy behavior that downstream users rely on, so that a WongStack change cannot silently break hosted setups, installed repos, or the staging model.
 
 ## Requirements
 

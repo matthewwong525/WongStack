@@ -4,7 +4,7 @@ The stack every WongStack install runs on: a React + Vite SPA on Cloudflare Work
 
 It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch preview URLs, and a change that ships the moment its PR lands. [One token](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) is all it takes to stand up.
 
-**It doesn't assume you already have an app.** Every install gets WongStack's [starter app](../../.claude/skills/wong-sync/references/payload-manifest.md#the-app-scaffold), so there is a real address people can open from day one.
+**It doesn't assume you already have an app.** Every install gets WongStack's [starter app](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold), so there is a real address people can open from day one.
 
 ## Pages
 
@@ -19,4 +19,4 @@ Every install takes the pack. Standing it up is [setup's provisioning step](http
 
 > Session memory is not part of this pack: every repo gets it, and [its page](../development/memory.md) lives with the core process docs.
 >
-> **This section installs with the stack pack** — see [the payload manifest](../../.claude/skills/wong-sync/references/payload-manifest.md#the-stack-pack).
+> **This section installs with the stack pack** — see [the payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md#the-stack-pack).

@@ -10,7 +10,7 @@ const read = path => readFileSync(join(repo, path), 'utf8');
 const setup = '.agents/skills/wong-setup';
 
 // The live smoke run confirmed this set is enough to migrate and deploy, and
-// wongstack-cloud relies on it when it mints the CI deploy token.
+// hosted setups rely on it when they mint the CI deploy token.
 const DEPLOY_TOKEN_ALWAYS = ['Workers Scripts Write', 'D1 Write', 'Account Settings Read'];
 
 // Every index entry, path → mode. The index holds staged work too.
@@ -36,7 +36,7 @@ function linkPrefix(modes, path) {
 }
 
 test('every raw setup URL in the README names a real tracked file', () => {
-  const surface = 'wongstack-cloud and the README setup prompt fetch this URL';
+  const surface = 'hosted setups and the README setup prompt fetch this URL';
   const base = 'https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/';
   const paths = [...read('README.md').matchAll(/https:\/\/raw\.githubusercontent\.com\/matthewwong525\/WongStack\/refs\/heads\/main\/([^\s)"'`<>]+)/g)]
     .map(match => match[1]);
@@ -54,12 +54,12 @@ test('.env.example declares the Cloudflare variables', () => {
   const env = read('.env.example');
   for (const name of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_MEMORY_TOKEN']) {
     assert.match(env, new RegExp(`^${name}=`, 'm'),
-      `.env.example must declare ${name}= — /wong-setup, the memory scripts, and wongstack-cloud read this name from the host .env`);
+      `.env.example must declare ${name}= — /wong-setup, the memory scripts, and hosted setups read this name from the host .env`);
   }
 });
 
 test('deploy.yml reads only the two Cloudflare deploy secrets', () => {
-  const surface = 'installed repos and wongstack-cloud set exactly these GitHub secrets';
+  const surface = 'installed repos and hosted setups set exactly these GitHub secrets';
   const names = new Set([...read('.github/workflows/deploy.yml').matchAll(/secrets\.([A-Za-z0-9_]+)/g)].map(match => match[1]));
   const cloudflare = [...names].filter(name => /^CLOUDFLARE_/.test(name)).sort();
   assert.deepEqual(cloudflare, ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'], surface);
@@ -70,7 +70,7 @@ test('deploy.yml reads only the two Cloudflare deploy secrets', () => {
 });
 
 test('/wong-setup owns the Cloudflare runbook', () => {
-  const surface = 'wongstack-cloud and the README setup prompt run /wong-setup and its provisioning runbook';
+  const surface = 'hosted setups and the README setup prompt run /wong-setup and its provisioning runbook';
   assert.ok(existsSync(join(repo, `${setup}/references/cloudflare.md`)), `${setup}/references/cloudflare.md is missing — ${surface}`);
   assert.ok(existsSync(join(repo, `${setup}/references/permission-groups.md`)), `${setup}/references/permission-groups.md is missing — ${surface}`);
   assert.ok(!existsSync(join(repo, '.agents/skills/wong-cloudflare')), `.agents/skills/wong-cloudflare must be gone — ${surface}`);
@@ -83,7 +83,7 @@ test('/wong-setup owns the Cloudflare runbook', () => {
 function deployTokenRows() {
   const lines = read(`${setup}/references/permission-groups.md`).split('\n');
   const start = lines.findIndex(line => line.trim() === '### The CI deploy token');
-  assert.ok(start >= 0, 'permission-groups.md needs a "### The CI deploy token" section — wongstack-cloud mints the deploy token from it');
+  assert.ok(start >= 0, 'permission-groups.md needs a "### The CI deploy token" section — hosted setups mint the deploy token from it');
   const end = lines.findIndex((line, i) => i > start && /^#/.test(line));
   const rows = [];
   for (const line of lines.slice(start + 1, end < 0 ? undefined : end)) {
@@ -97,7 +97,7 @@ function deployTokenRows() {
 }
 
 test('the deploy token permission list is pinned', () => {
-  const surface = 'wongstack-cloud and /wong-setup mint the CI deploy token from this table';
+  const surface = 'hosted setups and /wong-setup mint the CI deploy token from this table';
   const rows = deployTokenRows();
   assert.ok(rows.length > 0, `the CI deploy token table has no rows — ${surface}`);
   for (const row of rows) assert.match(row.id, /^`[0-9a-f]{32}`$/, `${row.name} needs a backticked id — ${surface}`);

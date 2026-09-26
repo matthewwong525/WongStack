@@ -17,3 +17,13 @@ This wiki is WongStack's process memory: the reusable knowledge a human or agent
 Where the app runs. The process above does not depend on it, but every new install uses it.
 
 - [Cloudflare stack](stack/README.md) — the opinionated stack for AI-driven dev (React + Vite on Cloudflare Workers, D1, Access). Every install runs on it. The flow: `/wong-setup` once in an empty folder, which puts the app online, then `/wong-sync` to stay current.
+
+## Terms the agent may use
+
+You do not need these before you start. They explain what WongStack sets up.
+
+- **Repo:** the project folder and its saved history.
+- **Pull request:** a reviewable package of work. You or your team inspect what changed before it joins the main project.
+- **CI:** automated checks, such as tests, that run on saved work. When your project has them, WongStack waits for them.
+- **OpenSpec:** the planning layer that records what is being built and what shipped. [The change loop](development/the-change-loop.md) shows where it fits.
+- **Wiki:** the repo's place for reusable team knowledge and conventions. You are in it.

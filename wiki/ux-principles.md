@@ -66,7 +66,7 @@ Worker-only or UI-less changes skip the section entirely and draw no screen. The
 
 ### The review file
 
-The picture lives beside the section, at `openspec/changes/<name>/review.html` — one page per change, built from [the plan skill's kit](../.claude/skills/plan/references/review-kit.html), `proposal.md`, and the change's `review-visuals.html`. The kit owns the chrome, panel, primitives, and routing; the [visual author guide](../.claude/skills/plan/references/review-author.md) owns the fragment format. **The proposal's What Changes list is the navigation:** a reviewer clicks a change and the stage shows a picture of that change, so the argument and the evidence are never more than one click apart.
+The picture lives beside the section, at `openspec/changes/<name>/review.html` — one page per change, built from [the plan skill's kit](../.agents/skills/plan/references/review-kit.html), `proposal.md`, and the change's `review-visuals.html`. The kit owns the chrome, panel, primitives, and routing; the [visual author guide](../.agents/skills/plan/references/review-author.md) owns the fragment format. **The proposal's What Changes list is the navigation:** a reviewer clicks a change and the stage shows a picture of that change, so the argument and the evidence are never more than one click apart.
 
 Four kinds of visual, and a change uses whichever fits each bullet:
 

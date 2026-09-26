@@ -1,0 +1,12 @@
+# LF everywhere, so shell scripts and hooks still run after a Windows checkout.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
