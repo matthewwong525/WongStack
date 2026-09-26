@@ -66,7 +66,7 @@ The memory database SHALL hold `sessions` (one row per transcript), `facts`, `ta
 
 ### Requirement: A write gate decides add, supersede, or drop
 
-Before the store accepts a fact, the memory script SHALL show the writer the live facts with the same slug and the closest keyword matches across all slugs. The writer SHALL then add the fact, supersede one named live fact, or drop the fact. The script SHALL record a supersede in the same batch as the new fact. The gate SHALL be the same for `/save`, the background capture, the migration, and consolidation.
+Before the store accepts a fact, the memory script SHALL show the writer the live facts with the same slug and the closest keyword matches across all slugs. The writer SHALL then add the fact, supersede one named live fact, or drop the fact. The script SHALL record a supersede in the same batch as the new fact. The gate SHALL be the same for `/save`, the background capture, and consolidation.
 
 #### Scenario: A paraphrase of a live fact
 
@@ -174,3 +174,18 @@ The memory script's `migrate` command SHALL record each applied migration and SH
 
 - **WHEN** `migrate` runs on a store where every migration is recorded
 - **THEN** no migration statement runs again
+
+### Requirement: Records from an earlier notes migration stay readable
+
+The memory script SHALL NOT offer a command that imports `notes/` files. A store that already holds sessions with agent `migration`, facts with source `migration`, or R2 objects under `migration/` SHALL keep them unchanged. Search, show, and the digest SHALL return those facts like any other fact, and `source` SHALL print the stored note text behind a migrated fact.
+
+#### Scenario: The import command is gone
+
+- **WHEN** a user runs `memory.mjs import --file migration.json`
+- **THEN** the script prints its usage and exits with a non-zero status
+- **AND** the store does not change
+
+#### Scenario: A migrated fact is traced to its note
+
+- **WHEN** a store with a bucket holds a fact whose session is `migration:<slug>` with a stored note text
+- **THEN** `memory.mjs source <fact-id>` prints that note text
