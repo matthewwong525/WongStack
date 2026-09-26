@@ -81,7 +81,8 @@ function drawing(item, fence, first, warnings) {
   }
   const lines = fence.lines.map((line, i) => (line.trim()
     ? `<span class="ln" data-note="item-${item.n}-line-${first + i}" tabindex="0">${esc(line)}</span>` : esc(line)));
-  return `<figure class="drawing"><div class="frame"><pre class="art">\n${lines.join('\n')}</pre></div></figure>`;
+  return '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
+    + `<div class="frame"><pre class="art">\n${lines.join('\n')}</pre></div></details>`;
 }
 
 function changes(section, warnings) {
@@ -92,7 +93,7 @@ function changes(section, warnings) {
     const art = block.drawings.map(fence => { const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out; });
     const text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');
     html += `${open ? '' : '<ol class="items">\n'}<li class="item card" id="item-${block.n}"><span class="num">${block.n}</span><div class="body">`
-      + `<div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div>${art.join('')}</div></li>\n`;
+      + `<div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div></div>${art.join('')}</li>\n`;
     open = true;
   }
   return html + (open ? '</ol>' : '');

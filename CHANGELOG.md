@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 24.1.0 — The review page works on a phone
+
+- **One tap to comment.** Every Why paragraph, item, and decision on `review.html` shows a **+ Note** button that opens the note box. A saved note's pin takes its place. A mouse click on the text still offers "Add note"; a touch tap on text does nothing, so a stray tap while scrolling opens nothing.
+- **Drawings fold and use the full width.** `build-review.mjs` writes each drawing as a `<details class="drawing">` after the item's text column, so it starts folded and spans the whole card when opened. The fold row counts the notes on the drawing's lines. The page fits a drawing by font size and has no zoom buttons; a drag scrolls the page.
+- **A full-screen view zooms and moves the drawing.** A tap on a drawing, or **Full screen**, opens it bigger. −, Fit, +, a pinch, and a Ctrl or Cmd wheel zoom it; the browser's own scrolling moves it, so a host app such as Paseo should no longer take the drag for a sidebar swipe. Tap a line to note it. Escape or Close returns to the page.
+- **The phone note box stays on screen.** It is placed from the top of the visible screen and capped at its height, so a keyboard never pushes its top out of view. Its location line is one line, and "Discard draft" is now "Discard".
+
+Note ids, labels, storage, and the copy format do not change, so saved notes stay attached. An active change picks up the new kit on its next page build; archived pages are not rebuilt.
+
 ## 24.0.1 — The Worker runs first for all its routes
 
 - **Memory and the API work again in production.** 24.0.0 set `run_worker_first` to `["/apps/*"]`. With a list, every path not in it gets the single-page fallback, so `POST /_memory/*` and `POST /api/*` answered 405. The `wrangler.jsonc` fragment and the app config now list `["/api/*", "/_memory/*", "/apps/*"]`, and a script test holds that list. An install on 24.0.0: add the two missing entries to `run_worker_first` in `app/wrangler.jsonc`; `/wong-sync` plans it.
