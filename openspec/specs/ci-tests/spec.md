@@ -12,7 +12,7 @@ while a walk is throwaway acceptance for one change and gates nothing.
 
 The payload SHALL ship `.github/workflows/test.yml` in the **core** category, so a repo receives a test pipeline whether or not it took the stack pack. The workflow SHALL run the repo's `test` script, discovered root-first and then in each immediate subdirectory, so a repo whose application lives in a subdirectory is covered without configuration. When no `package.json` declares a `test` script, the job SHALL print why and exit green — a real check, never a permanently red one.
 
-**A change that leaves the main app untouched runs no suite.** When every path that a feature branch changes compared with the default branch — or, on the default branch, every path the push changed — is under `wiki/`, `openspec/`, or `mini-apps/`, or ends in `.md`, the job SHALL say so and SHALL NOT install or run the main app's suite. When such a branch changes mini apps, the job SHALL run the tests of the changed mini apps only, as `mini-apps` defines; otherwise it SHALL exit green. The comparison SHALL cover the whole branch, never only the last commit. When the comparison can not be made, the job SHALL run the suite. One core script SHALL make this decision, and the pack's deploy workflow SHALL use the same script. The skip SHALL happen inside the job, so a required `test` check still reports.
+**A change that leaves the main app untouched runs no suite.** When every path that a feature branch changes compared with the default branch — or, on the default branch, every path the push changed — is under `wiki/`, `openspec/`, or `mini-apps/apps/`, or ends in `.md`, the job SHALL say so and SHALL NOT install or run the main app's suite. A change to a shared file under `mini-apps/` outside `mini-apps/apps/` touches the main app, because the main app's Worker imports it. When such a branch changes mini apps, the job SHALL run the tests of the changed mini apps only, as `mini-apps` defines; otherwise it SHALL exit green. The comparison SHALL cover the whole branch, never only the last commit. When the comparison can not be made, the job SHALL run the suite. One core script SHALL make this decision, and the pack's deploy workflow SHALL use the same script. The deploy workflow SHALL still build and deploy the main app when the change touches `mini-apps/apps/`, because the main app's Worker serves the mini apps. The skip SHALL happen inside the job, so a required `test` check still reports.
 
 The workflow SHALL carry the same event condition the deploy workflow uses to collapse the `push`/`pull_request` double-fire, so one commit produces one test run.
 
@@ -75,6 +75,11 @@ The pack's `deploy.yml` SHALL NOT contain a `test` job, so a pack repo runs its 
 
 - **WHEN** the job can not find the default branch to compare with
 - **THEN** it runs the suite
+
+#### Scenario: A shared mini-app file
+
+- **WHEN** a branch changes only a file under `mini-apps/` that is outside `mini-apps/apps/`
+- **THEN** the job runs the main app's suite
 
 ### Requirement: Test coverage grows in the loop, not at the checkpoint
 

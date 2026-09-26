@@ -45,7 +45,7 @@ With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)** and 
 
 ### Merge a mini-app pull request
 
-A mini app normally needs no `/ship`: [its save](../save/references/mini-app-save.md) pushes straight to the default branch. A save that fell back to a pull request — a migration, a change to the mini Worker, or a rejected push — ships here without an OpenSpec change. Recognize it by the session, or by a PR body in the renderer's mini-app mode, with a diff under `mini-apps/` and `schema/migrations/`. Skip Steps 2 to 4: no change selection, no archive, no walk. Invoke the `save` skill once, which updates the pull request and waits for CI. Merge on its `SUCCESS` or `NONE` through [Step 5](#step-5--merge-and-sync), and report the app's dashboard entry. [Mini apps](../../../wiki/stack/mini-apps.md) owns the layout.
+A mini app normally needs no `/ship`: [its save](../save/references/mini-app-save.md) pushes straight to the default branch. A save that fell back to a pull request — a migration, a change to a shared mini-app file, or a rejected push — ships here without an OpenSpec change. Recognize it by the session, or by a PR body in the renderer's mini-app mode, with a diff under `mini-apps/` and `schema/migrations/`. Skip Steps 2 to 4: no change selection, no archive, no walk. Invoke the `save` skill once, which updates the pull request and waits for CI. Merge on its `SUCCESS` or `NONE` through [Step 5](#step-5--merge-and-sync), and report the app's `/apps/<name>/` address. [Mini apps](../../../wiki/stack/mini-apps.md) owns the layout.
 
 ## Step 2 — archive the change
 
@@ -116,7 +116,7 @@ It compares the worktree copy, the primary, and the baseline recorded at seed. I
 Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, and what changed for them — then the lines below.
 
 - PR number + URL, **merged (squash)** to the default branch.
-- **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result. For a mini-app pull request: the app's folder and its dashboard entry instead.
+- **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result. For a mini-app pull request: the app's folder and its `/apps/<name>/` address instead.
 - **Checkpoint** — `/save` result and CI outcome, including auto-fix pushes.
 - **Walk** — the verdict, the evidence comment link, and, when a `FAILURE` was merged anyway, that the user chose to. Where the skill was absent, one line saying so.
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.

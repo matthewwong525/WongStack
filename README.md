@@ -40,7 +40,7 @@ You end with a working assistant, a starter site online, and memory that carries
 ## What you get
 
 - **An assistant that remembers.** Each chat starts with what earlier chats learned about you and your work. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
-- **Small apps from one request.** A [mini app](wiki/stack/mini-apps.md) gets a link to try in under a minute, and goes live when you say save.
+- **Small apps from one request.** A [mini app](wiki/stack/mini-apps.md) gets a link to try, and goes live at `/apps/<name>/` when you say save.
 - **Your own site, online for free.** Every change gets its own link to look at before it goes live.
 - **A notebook that grows.** What the assistant learns — how you like work done, who is who — goes into [a wiki](wiki/README.md) it reads next time.
 - **Your home base.** Your [home](wiki/development/home.md) folder carries who you are into every other project.

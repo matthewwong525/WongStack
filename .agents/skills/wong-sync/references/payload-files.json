@@ -83,7 +83,7 @@
       "schema/seed.sql",
       "schema/migrations/.gitkeep",
       "app/.dev.vars.example",
-      "scripts/cf-mini.sh",
+      "scripts/cf-preview.sh",
       "scripts/mini-dashboard.mjs"
     ],
     "dirs": [
@@ -96,10 +96,10 @@
       "mini-apps/apps/hello"
     ],
     "files": [
-      "mini-apps/worker.ts",
-      "mini-apps/tsconfig.json",
-      "mini-apps/.gitignore",
-      "mini-apps/apps/.assetsignore"
+      "mini-apps/router.mjs",
+      "mini-apps/router.d.mts",
+      "mini-apps/routes.mjs",
+      "mini-apps/routes.d.mts"
     ],
     "exclude": [
       "app/wrangler.jsonc"

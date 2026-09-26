@@ -1,6 +1,6 @@
 ---
 name: apply
-description: Implement the selected OpenSpec change, planning first when needed, and hand a completed change to /save. Also builds a mini app on a fast preview, or works a non-code to-do with a confirm before each outward action. Use for new implementation; use /continue to resume a saved change cold.
+description: Implement the selected OpenSpec change, planning first when needed, and hand a completed change to /save. Also builds a mini app on a preview from this host, or works a non-code to-do with a confirm before each outward action. Use for new implementation; use /continue to resume a saved change cold.
 user-invocable: true
 ---
 
@@ -41,17 +41,17 @@ When it reaches an **all-tasks-complete** state — including when the selected 
 
 ## The mini-app path
 
-A mini app lives in its own folder on a small Worker beside the main app, so its preview never builds `app/`. [Mini apps](../../../wiki/stack/mini-apps.md) owns the layout. Ask only when you can not act without an answer.
+A mini app lives in its own folder, and the main app's Worker serves it at `/apps/<name>/`. [Mini apps](../../../wiki/stack/mini-apps.md) owns the layout. Ask only when you can not act without an answer.
 
 1. Pick a short kebab-case `<name>`. Write `mini-apps/apps/<name>/` like the example app beside it: `index.html` with plain JS, `app.json` with a `title` and a one-line `description`, and an optional `api.mjs` handler in plain JavaScript.
 2. Write tests for the app's logic — its `api.mjs` and its scripts — in the same folder, runnable with `node --test` from that folder. `/save` runs them before the app goes live.
 3. Upload the preview from this host, with the Cloudflare credential sourced from the primary worktree's `.env` as [the secrets convention](../../../wiki/development/secrets.md) says:
 
    ```bash
-   bash "$(git rev-parse --show-toplevel)/scripts/cf-mini.sh" preview --alias "mini-<name>"
+   bash "$(git rev-parse --show-toplevel)/scripts/cf-preview.sh" --alias "mini-<name>"
    ```
 
-   Report the preview URL. It runs on staging data and expires after seven days; a new upload renews it. When the upload can not run, say why in one line.
+   It builds the whole app, so the first run in a checkout also installs it. Report the preview URL with `/apps/<name>/` added. It runs on staging data. When the upload can not run, say why in one line.
 4. **Do not save on your own.** A save puts the app live on production, with production data. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): save it to go live *(Recommended when the preview looks right)*, change it more, or stop. [`/save`](../save/references/mini-app-save.md) runs the app's tests here and pushes straight to the default branch.
 
 For each change the person asks for, repeat step 3.

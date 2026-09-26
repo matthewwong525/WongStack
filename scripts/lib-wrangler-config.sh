@@ -35,9 +35,7 @@ wong_resolve_wrangler_config() {
       base=$(basename "$dir")
       # Skip node_modules and dotted directories — match on the basename only,
       # since the repo's own absolute path may contain a dotted component.
-      # Skip mini-apps/ too: its config is the mini-app Worker's, never the
-      # main app's, and `mini-apps` sorts before `site/` or `web/`.
-      case "$base" in node_modules|mini-apps|.*) continue ;; esac
+      case "$base" in node_modules|.*) continue ;; esac
       for name in wrangler.jsonc wrangler.json wrangler.toml; do
         if [ -f "$dir$name" ]; then WRANGLER_CONFIG="$dir$name"; break 2; fi
       done
@@ -68,12 +66,13 @@ wong_resolve_wrangler_config() {
 # `database_name`, or a comment from a key. Call wong_resolve_wrangler_config
 # first; the parser reads the same file.
 #
-# Usage: wong_config <worker-name|database-name|has-d1> [environment]
+# Usage: wong_config <worker-name|database-name|has-d1|assets-dir> [environment]
 #   worker-name    the Worker wrangler will deploy. Production always comes from
 #                  the source config; an environment reads the build's generated
 #                  config when a plugin build redirected wrangler at one.
 #   database-name  the first D1 `database_name` of production or the environment
 #   has-d1         `true` or `false`
+#   assets-dir     the static-assets folder of the last build (after a build only)
 #
 # Prints the answer. On a config error (TOML, bad JSONC, a missing key) it prints
 # the reason and returns 1, so call it in an assignment under `set -e`.

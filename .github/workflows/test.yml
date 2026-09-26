@@ -14,8 +14,9 @@
 # A change that leaves the main app untouched runs no suite. The first step,
 # `.github/scripts/app-untouched.sh`, compares the whole branch (or, on the
 # default branch, the whole push) with its base: when every changed path is
-# docs or under `mini-apps/`, the main app's steps skip, and only the changed
-# mini apps' own tests run. The skip is inside the job, never a `paths-ignore`,
+# docs or under `mini-apps/apps/`, the main app's steps skip, and only the
+# changed mini apps' own tests run. The rest of `mini-apps/` is the main
+# Worker's code, so a change there runs the suite. The skip is inside the job, never a `paths-ignore`,
 # so the required `test` check still reports. When the comparison can not be
 # made, the suite runs. The last step writes one summary line either way.
 #

@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20260925.1 2026-07-28 nodejs_compat
 interface __BaseEnv_Env {
 	DB: D1Database;
+	ASSETS: Fetcher;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -10,6 +11,7 @@ declare namespace Cloudflare {
 	}
 	interface StagingEnv {
 		DB: D1Database;
+		ASSETS: Fetcher;
 	}
 	interface Env extends __BaseEnv_Env {}
 }

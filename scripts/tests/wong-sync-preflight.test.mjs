@@ -380,29 +380,28 @@ test('docsPath refuses colliding pages and unsafe folders', t => {
   }
 });
 
-test('the real scaffold ships the mini Worker and its example, never another app', t => {
+test('the real scaffold ships the mini-app router and its example, never another app', t => {
   const real = JSON.parse(readFileSync(join(repo, '.agents/skills/wong-sync/references/payload-files.json'), 'utf8'));
   const f = fixture(t, { manifest: inventory({ scaffold: real.scaffold }) });
   const files = {
-    'mini-apps/worker.ts': 'worker\n',
-    'mini-apps/tsconfig.json': '{}\n',
-    'mini-apps/.gitignore': '.wrangler/\n',
-    'mini-apps/wrangler.jsonc': '{ "name": "source-mini" }\n',
-    'mini-apps/apps/.assetsignore': '*.ts\n',
+    'mini-apps/router.mjs': 'router\n',
+    'mini-apps/router.d.mts': 'types\n',
+    'mini-apps/routes.mjs': 'routes\n',
+    'mini-apps/routes.d.mts': 'types\n',
     'mini-apps/apps/hello/index.html': 'hello\n',
     'mini-apps/apps/hello/app.json': '{}\n',
     'mini-apps/apps/tips/index.html': 'a source-only app\n',
     'mini-apps/apps/tips/app.json': '{}\n',
   };
   for (const [path, content] of Object.entries(files)) write(f.source, path, content);
-  f.commit('add the mini Worker, its example, and a source-only app');
+  f.commit('add the mini-app router, its example, and a source-only app');
   const paths = f.inspect().changes.map(change => change.sourcePath).filter(path => path.startsWith('mini-apps/'));
   assert.deepEqual(paths.sort(), [
-    'mini-apps/.gitignore',
-    'mini-apps/apps/.assetsignore',
     'mini-apps/apps/hello/app.json',
     'mini-apps/apps/hello/index.html',
-    'mini-apps/tsconfig.json',
-    'mini-apps/worker.ts',
+    'mini-apps/router.d.mts',
+    'mini-apps/router.mjs',
+    'mini-apps/routes.d.mts',
+    'mini-apps/routes.mjs',
   ]);
 });

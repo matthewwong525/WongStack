@@ -2,8 +2,10 @@
 # Does this change leave the main app untouched? One answer for every workflow.
 #
 # `test.yml` (core) and the pack's `deploy.yml` both call this first, so a
-# branch that changes only docs or mini apps installs, tests, and deploys none
-# of the main app. The skip happens INSIDE each job: a workflow-level
+# branch that changes only docs installs, tests, and deploys none of the main
+# app, and a branch that changes only mini apps runs their tests, not the main
+# suite. The main Worker serves the mini apps, so `deploy.yml` still deploys it
+# when mini_changed is true. The skip happens INSIDE each job: a workflow-level
 # `paths-ignore` would leave a required check pending forever and block the
 # merge. See wiki/development/the-change-loop.md.
 #
@@ -11,10 +13,11 @@
 # to stderr:
 #
 #   untouched=true|false   true only when EVERY changed path is under wiki/,
-#                          openspec/, or mini-apps/, or ends in .md
+#                          openspec/, or mini-apps/apps/, or ends in .md. The
+#                          rest of mini-apps/ is the main Worker's code.
 #   mini_apps=<names>      the folders under mini-apps/apps/ the change
 #                          touches, sorted, space-separated
-#   mini_changed=true|false  whether any path under mini-apps/ changed
+#   mini_changed=true|false  whether any path under mini-apps/apps/ changed
 #
 # The comparison covers the WHOLE change, never only the last commit, so a docs
 # commit on top of a code commit still runs the suite. The base is:
@@ -26,7 +29,7 @@
 # When the comparison can not be made — an all-zero BEFORE_SHA (a new branch or
 # a first push), a ref that no fetch can find, no merge base, an unknown event —
 # every answer assumes a change: untouched=false, every mini app listed, and
-# mini_changed=true when mini-apps/ exists. An empty diff is untouched=false
+# mini_changed=true when mini-apps/apps/ exists. An empty diff is untouched=false
 # too. A skipped suite must be a proven skip; a guess runs the suite.
 #
 # Input (environment):
@@ -72,7 +75,7 @@ answer() { # answer <untouched> <mini_apps> <mini_changed>
 unknown() {
   note "$* — comparison not possible; assuming the main app changed"
   local changed=false
-  git cat-file -e HEAD:mini-apps 2>/dev/null && changed=true
+  git cat-file -e HEAD:mini-apps/apps 2>/dev/null && changed=true
   answer false "$(all_mini_apps)" "$changed"
 }
 
@@ -131,7 +134,7 @@ NAMES=""
 while IFS= read -r -d '' path; do
   COUNT=$((COUNT + 1))
   case "$path" in
-    mini-apps/*) MINI_CHANGED=true ;;
+    mini-apps/apps/*) MINI_CHANGED=true ;;
     wiki/*|openspec/*|*.md) ;;
     *) UNTOUCHED=false ;;
   esac

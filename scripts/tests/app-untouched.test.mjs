@@ -104,18 +104,16 @@ test('a mini-apps-only branch is untouched and names each changed app once', t =
     'mini-apps/apps/tips/index.html': '<p>tips</p>\n',
     'mini-apps/apps/tips/api.ts': 'export default {};\n',
     'mini-apps/apps/hello/app.json': '{"title":"Hello"}\n',
-    'mini-apps/apps/.assetsignore': '*.ts\n',
-    'mini-apps/worker.ts': 'export default {};\n',
   }, 'tips');
   f.push();
   assert.deepEqual(f.check(f.onBranch('mini/tips')), { untouched: 'true', mini_apps: 'hello tips', mini_changed: 'true' });
 });
 
-test('a change to the mini-app Worker alone names no app', t => {
+test('a change to the mini-app router is a change to the main app', t => {
   const f = fixture(t);
-  f.branch('mini-worker');
-  f.commit({ 'mini-apps/worker.ts': 'export default {};\n', 'mini-apps/NOTES.md': '# Notes\n' }, 'worker');
-  assert.deepEqual(f.check(f.onBranch('mini-worker')), { untouched: 'true', mini_apps: '', mini_changed: 'true' });
+  f.branch('mini-router');
+  f.commit({ 'mini-apps/router.mjs': 'export {};\n', 'mini-apps/NOTES.md': '# Notes\n' }, 'router');
+  assert.deepEqual(f.check(f.onBranch('mini-router')), { untouched: 'false', mini_apps: '', mini_changed: 'false' });
 });
 
 test('a docs commit on top of a code commit runs the suite', t => {

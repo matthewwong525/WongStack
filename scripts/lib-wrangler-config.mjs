@@ -44,8 +44,7 @@ export function findWranglerConfigOrNull() {
 
   for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    // mini-apps/ holds the mini-app Worker's config, never the main app's.
-    if (entry.name === "node_modules" || entry.name === "mini-apps" || entry.name.startsWith(".")) continue;
+    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
     const found = firstConfigIn(resolve(repoRoot, entry.name));
     if (found) return found;
   }
@@ -200,17 +199,33 @@ export function deployedWorkerName(configPath, env) {
   const config = parseConfig(configPath);
   if (!env) return workerName(config);
 
-  const redirectDir = resolve(dirname(configPath), ".wrangler/deploy");
-  const redirect = resolve(redirectDir, "config.json");
-  if (existsSync(redirect)) {
-    const target = parseConfig(redirect).configPath;
-    const generated = target && resolve(redirectDir, target);
-    if (generated && existsSync(generated)) return workerName(parseConfig(generated));
-  }
-  return workerName(config, env);
+  const generated = redirectedConfig(configPath);
+  return generated ? workerName(parseConfig(generated)) : workerName(config, env);
 }
 
-/* ── CLI: `node lib-wrangler-config.mjs <worker-name|database-name|has-d1> [env]` ──
+/** The generated config a plugin build redirected wrangler at, or `null`. */
+function redirectedConfig(configPath) {
+  const redirectDir = resolve(dirname(configPath), ".wrangler/deploy");
+  const redirect = resolve(redirectDir, "config.json");
+  if (!existsSync(redirect)) return null;
+  const target = parseConfig(redirect).configPath;
+  const generated = target && resolve(redirectDir, target);
+  return generated && existsSync(generated) ? generated : null;
+}
+
+/**
+ * The folder wrangler uploads as the Worker's static assets, after a build.
+ * A plugin build names it in its generated config; a plain build names it in
+ * the source config. Relative to the config that names it.
+ */
+export function assetsDirectory(configPath) {
+  const from = redirectedConfig(configPath) ?? configPath;
+  const directory = parseConfig(from).assets?.directory;
+  if (!directory) throw new WranglerConfigError("The built wrangler config names no `assets.directory` — build the app first.");
+  return resolve(dirname(from), directory);
+}
+
+/* ── CLI: `node lib-wrangler-config.mjs <worker-name|database-name|has-d1|assets-dir> [env]` ──
  * Reads the config named by $WRANGLER_CONFIG, else the one found from the repo
  * root. Prints the answer; on a config error prints it and exits 1. */
 
@@ -218,6 +233,7 @@ const COMMANDS = {
   "worker-name": (path, env) => deployedWorkerName(path, env),
   "database-name": (path, env) => readDatabaseName(path, env),
   "has-d1": (path, env) => String(hasD1(parseConfig(path), env)),
+  "assets-dir": (path) => assetsDirectory(path),
 };
 
 if (isMain(import.meta.url)) {

@@ -43,8 +43,12 @@ This fragment is the **only thing in the payload that creates a wrangler config*
   "main": "worker/index.ts",
   "compatibility_date": "<today, YYYY-MM-DD>",
   "compatibility_flags": ["nodejs_compat"],
+  // The Worker runs first under /apps/, so a mini app's API wins over the
+  // single-page fallback; it hands every other /apps/ path back to ASSETS.
   "assets": {
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/apps/*"]
   },
   "d1_databases": [
     {
@@ -107,43 +111,6 @@ Twin every other stateful binding the same way. A queue needs both halves inside
 **If the app builds through `@cloudflare/vite-plugin`, the environment is chosen at BUILD time.** The plugin flattens the selected environment into a generated `dist/<worker>/wrangler.json` and writes `.wrangler/deploy/config.json` redirecting wrangler at it — after which [Cloudflare's docs are explicit](https://developers.cloudflare.com/workers/vite-plugin/reference/cloudflare-environments/) that `--env` on `wrangler deploy` "will have no effect". `cf-build.sh` therefore exports `CLOUDFLARE_ENV=staging` on non-production branches, and `cf-deploy.sh` drops `--env staging` when it sees the redirect. Both are handled for you; the reason it matters is that getting it wrong deploys branch code to production **without any error at all**.
 
 There is no `preview_database_id` and no swap script: which database a branch binds is decided by which Worker it deploys to. See [`d1-pipeline.md`](../../../../wiki/stack/d1-pipeline.md) for the full twin table and the reasoning.
-
-## `mini-apps/wrangler.jsonc` → the mini-app Worker
-
-[Mini apps](../../../../wiki/stack/mini-apps.md) run on a second, small Worker. Its config is excluded from the payload for the same reason as the app's: it carries live `database_id`s. Create it with the **same two databases** as the app's config:
-
-```jsonc
-{
-  "name": "<your-worker>-mini",
-  "main": "worker.ts",
-  "compatibility_date": "<today, YYYY-MM-DD>",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": { "directory": "apps", "binding": "ASSETS", "run_worker_first": true },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "<your-db-name>",
-      "database_id": "<production database_id>",
-      "migrations_dir": "../schema/migrations"
-    }
-  ],
-  "env": {
-    "staging": {
-      "name": "<your-worker>-mini-staging",
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "<your-db-name>-staging",
-          "database_id": "<staging database_id>",
-          "migrations_dir": "../schema/migrations"
-        }
-      ]
-    }
-  }
-}
-```
-
-The rules for the app's config above apply here too: `env.staging` has its own `name` and its own `d1_databases` entry, and `migrations_dir` is relative to this file. `run_worker_first` lets the Worker check a preview's expiry and route `/<name>/api/*` before any asset is served. Declare no crons and no service bindings.
 
 ## Workers Builds fallback only: the deploy command
 

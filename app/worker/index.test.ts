@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import worker from "./index";
 
-// The routing contract the SPA fallback sits in front of: `/api/*` and `/_memory/*` are the
-// Worker's, everything else is not found and is left to the static assets.
+// The routing contract the SPA fallback sits in front of: `/api/*`, `/_memory/*`, and `/apps/*`
+// are the Worker's, everything else is not found and is left to the static assets.
 describe("worker routing", () => {
+  const assets = { fetch: async () => new Response("asset", { status: 200 }) };
   const call = (path: string) =>
     worker.fetch(
       new Request(`https://example.com${path}`),
-      {} as Env,
+      { ASSETS: assets } as unknown as Env,
       {} as ExecutionContext,
     );
 
@@ -34,8 +35,15 @@ describe("worker routing", () => {
     });
   });
 
+  it("sends /apps/* to the mini-app route, which serves the static assets", async () => {
+    const response = await call("/apps/tips/");
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("asset");
+  });
+
   it("answers anything else with 404", async () => {
-    for (const path of ["/", "/index.html", "/api", "/apiary/thing", "/_memory"]) {
+    for (const path of ["/", "/index.html", "/api", "/apiary/thing", "/_memory", "/apps", "/appstore/"]) {
       const response = await call(path);
       expect(response.status, path).toBe(404);
     }
