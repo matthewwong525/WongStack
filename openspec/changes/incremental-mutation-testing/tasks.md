@@ -17,5 +17,5 @@
 ## 4. Evidence
 
 - [x] 4.1 `/save` the change and record the first CI run: Test job time, Stryker time, and whether the cache restored a file (expected: no file on the first run, unless `main` has one with the same hash).
-- [ ] 4.2 Push a commit that changes one app source file and one line of its test, `/save` it, and record the second run: Test job time, Stryker time, and Stryker's count of reused mutants. Revert the probe edit in the next commit if it is not a real improvement.
-- [ ] 4.3 Put both runs' timings in the PR body, beside wongstack-cloud run 36255581190 (Stryker 14m06s) as the reason for the change.
+- [x] 4.2 Push a commit that changes one app source file and one line of its test, `/save` it, and record the second run: Test job time, Stryker time, and Stryker's count of reused mutants. Revert the probe edit in the next commit if it is not a real improvement.
+- [x] 4.3 Put both runs' timings in the PR body, beside wongstack-cloud run 36255581190 (Stryker 14m06s) as the reason for the change.

@@ -1,6 +1,6 @@
 # Make mutation testing incremental
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** stryker-incremental
 **Open questions:** none.
 
@@ -34,6 +34,7 @@ Non-goals: moving Stryker to its own CI job, sharding mutants across runners, `i
 - assumed: the workflow detects Stryker by a `stryker.conf.*` or `stryker.config.*` file in the suite folder, and caches the default `reports/stryker-incremental.json` path. Why: that is the scaffold's layout. A repo that moves the file edits its own copy.
 - **2026-09-26** — implemented tasks 1–3: `"incremental": true` in the scaffold config; `test.yml` restore and save steps pinned to `actions/cache` v6.1.0; release 20.1.0. Changed during apply: the locate step hashes the key inputs once with `sha256sum` and outputs `stryker-key`, so key and restore key cannot drift (rejected: two long `hashFiles()` expressions). The key ends in the run ID and the run attempt, so a re-run does not collide with the first attempt's save. `rel` is a prefix (empty at the root, `app/` below it) so one path expression works in both. Specs synced to `openspec/specs/`. Evidence tasks 4.1–4.3 wait on CI.
 - **2026-09-26** — evidence, first run ([36260123214](https://github.com/matthewwong525/WongStack/actions/runs/36260123214), push of `119b2ed`): Test job 62 s. Restore found no file for `stryker-Linux-44e135fdca13e925-` (no file on `main` yet). Stryker logged "No incremental result file found … a full mutation testing run will be performed", tested all 170 mutants, and finished in 14 s. The save step stored `stryker-Linux-44e135fdca13e925-36260123214-1`. The key hash equals the one the locate snippet printed locally.
+- **2026-09-26** — evidence, second run ([36260232923](https://github.com/matthewwong525/WongStack/actions/runs/36260232923), push of `250b6eb`, one comment line in `app/worker/index.ts`): Test job 53 s (was 62 s). Restore found the first run's file on this branch. Stryker's `IncrementalDiffer` reported "170 of 170 mutant result(s) are reused" and finished in 3 s (was 14 s). The save step stored the next key. The probe line is reverted; it was not an improvement. The one-file push re-tested no mutant, because a comment changes no mutant's code; a code edit re-tests the mutants in that code, which the spec scenario covers.
 
 ## Capabilities
 
