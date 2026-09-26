@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Shared shell helpers for the pack's bash pipeline scripts.
 #
-# `cf-build.sh` and `cf-deploy.sh` both need to answer the same two questions —
-# where is the wrangler config, and which directory should wrangler run from —
-# and they must answer them identically or a build and its deploy would target
-# different apps. One copy of the rule, sourced by both.
+# `cf-build.sh`, `cf-deploy.sh`, and `cf-preview.sh` all need to answer the same
+# questions — where is the wrangler config, which directory should wrangler run
+# from, which alias a branch previews under — and they must answer them
+# identically or a build and its deploy would target different apps. One copy of
+# each rule, sourced by all three.
 #
 # The .mjs scripts get the same rule from `lib-wrangler-config.mjs`; keep the
 # two in step if the resolution order ever changes. Reading the config itself
@@ -13,7 +14,8 @@
 # Sourced, never executed:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib-wrangler-config.sh"
 #
-# Sets: WRANGLER_CONFIG, APP_DIR, BUILD_DIR (see wong_resolve_wrangler_config).
+# Sets: WRANGLER_CONFIG, APP_DIR, BUILD_DIR (see wong_resolve_wrangler_config);
+# BRANCH, PRODUCTION_BRANCH (see wong_ci_branch).
 
 _WONG_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -78,4 +80,54 @@ wong_resolve_wrangler_config() {
 # the reason and returns 1, so call it in an assignment under `set -e`.
 wong_config() {
   WRANGLER_CONFIG="$WRANGLER_CONFIG" node "$_WONG_LIB_DIR/lib-wrangler-config.mjs" "$@"
+}
+
+# The branch in CI. `CF_BRANCH` is the CI-neutral name the pack's GitHub Actions
+# workflow sets; `WORKERS_CI_BRANCH` is what Cloudflare Workers Builds sets on
+# its own. Either backend works, and a repo can run both while it migrates.
+# BRANCH is empty outside CI. The production branch defaults to `main`.
+#
+# Usage: wong_ci_branch
+wong_ci_branch() {
+  BRANCH="${CF_BRANCH:-${WORKERS_CI_BRANCH:-}}"
+  PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-main}"
+}
+
+# The preview alias for a branch or a name. An alias must be lowercase
+# alphanumeric-and-hyphen and at most 63 characters, so a branch like
+# `feat/Add_Thing` can't be passed through as-is. Prints nothing when no usable
+# character is left; the caller refuses that.
+#
+# Usage: wong_preview_alias <branch-or-name>
+wong_preview_alias() {
+  printf '%s' "$1" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+    | cut -c1-63 \
+    | sed -E 's/-+$//'
+}
+
+# The preview URL from a `wrangler versions upload` log: the first workers.dev
+# URL that contains the alias, else the first workers.dev URL, else nothing.
+#
+# **Harvested, never constructed.** The URL shape is documented, so building
+# `<alias>-<worker>-staging.<subdomain>.workers.dev` by hand is tempting — and
+# wrong. A constructed URL is a guess that answers 200 even when it points at a
+# different commit or a Worker the deploy never touched, which is precisely the
+# failure a preview URL exists to rule out. If wrangler didn't print one, this
+# prints nothing and the caller reports "no preview URL" honestly.
+#
+# Every grep is `|| true`-guarded: the callers run under `set -e`, and a grep
+# that matches nothing exits 1. Finding no URL must degrade to "no preview URL",
+# never abort an upload that already succeeded.
+#
+# Usage: wong_preview_url <upload-log> <alias>
+wong_preview_url() {
+  local all url
+  all=$(grep -oE 'https://[a-z0-9._-]+\.workers\.dev[^[:space:]]*' "$1" || true)
+  url=$(printf '%s\n' "$all" | grep -F "$2" | head -1 || true)
+  if [ -z "$url" ]; then
+    url=$(printf '%s\n' "$all" | head -1 || true)
+  fi
+  printf '%s\n' "$url"
 }

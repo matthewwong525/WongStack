@@ -189,7 +189,7 @@ Exercising a cron by manual trigger instead is a reasonable choice, and it costs
 
 ## One declared list of secrets, two Workers
 
-`env.staging` is a second Worker, so it has a second secret store. Nothing syncs the two: a `wrangler secret put` reaches exactly one of them, which makes "remember two commands, forever" the maintenance burden and drift the default state.
+`env.staging` is a second Worker, so it has a second secret store. Nothing syncs the two: a `wrangler secret put` reaches exactly one of them, which makes "remember two commands, forever" the maintenance burden and drift the default state. A secret missing from staging is the most common staging failure. It is the friendly kind: the binding is absent, so the Worker throws on first use rather than doing something subtly wrong.
 
 The pack collapses that to one declared list.
 

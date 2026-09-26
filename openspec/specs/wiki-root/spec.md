@@ -47,17 +47,3 @@ Every live payload file — the skills under `.claude/skills/`, `CLAUDE.md`, `RE
 
 - **WHEN** a payload skill links the rulebook or `ux-principles.md` by relative path
 - **THEN** those paths point at files that exist under `wiki/`
-
-### Requirement: The rename is a payload release
-
-The rename SHALL follow the payload release ritual: a semver `VERSION` bump and a newest-first `CHANGELOG.md` entry explaining the move, the unchanged fallback, and that no installed repo needs to act. Historical `CHANGELOG.md` entries and archived changes under `openspec/changes/archive/` SHALL NOT be rewritten — they record what shipped at the paths that existed then.
-
-#### Scenario: Updater can explain the change
-
-- **WHEN** a target repo runs `/wong-sync` after this release
-- **THEN** the CHANGELOG entry tells its owner the source wiki moved, that the fallback still holds, and that renaming their own `docs/` is optional
-
-#### Scenario: History is left alone
-
-- **WHEN** the change is implemented
-- **THEN** no entry under `openspec/changes/archive/` and no pre-existing CHANGELOG section has its `docs/` paths rewritten

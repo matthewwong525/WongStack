@@ -1,14 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync,
-} from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { handleMiniApp, MINI_PREFIX } from '../../mini-apps/router.mjs';
-
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+import { pack, REPO as repo } from './fixtures/pack.mjs';
 
 const bash = spawnSync('bash', ['--version']);
 if (bash.error || bash.status !== 0) throw new Error('mini-app tests need bash on PATH');
@@ -72,16 +68,14 @@ const app = (title, description, extra = {}) => ({ 'app.json': JSON.stringify({ 
 // mini-apps/ with the hello app and `apps` extra folders
 // ({ name: { 'app.json': ..., 'api.mjs': ... } }). `config: null` leaves out
 // app/wrangler.jsonc.
-function miniRepo(t, { branch = 'mini/tips', apps = {}, config = mainConfig(), installed = true, stagingExists = false } = {}) {
-  const root = mkdtempSync('/tmp/mini-apps-');
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  mkdirSync(join(root, 'scripts'));
-  for (const name of PACK) copyFileSync(join(repo, 'scripts', name), join(root, 'scripts', name));
+// Each repo root's pack fixture (fixtures/pack.mjs), which runs its scripts.
+const fixtures = new Map();
 
-  mkdirSync(join(root, 'app'));
-  if (config !== null) writeFileSync(join(root, 'app/wrangler.jsonc'), config);
-  writeFileSync(join(root, 'app/package.json'), '{ "scripts": { "build:app": "node fake-build.mjs" } }\n');
-  writeFileSync(join(root, 'app/fake-build.mjs'), fakeBuild);
+function miniRepo(t, { branch = 'mini/tips', apps = {}, config = mainConfig(), installed = true, stagingExists = false } = {}) {
+  const fixture = pack(t, { scripts: PACK, config, tools: { npm: fakeNpm, npx: fakeNpx }, prefix: 'mini-apps-' });
+  const { root } = fixture;
+  fixture.write('app/package.json', '{ "scripts": { "build:app": "node fake-build.mjs" } }\n');
+  fixture.write('app/fake-build.mjs', fakeBuild);
   if (installed) mkdirSync(join(root, 'app/node_modules'));
 
   const mini = join(root, 'mini-apps');
@@ -94,14 +88,9 @@ function miniRepo(t, { branch = 'mini/tips', apps = {}, config = mainConfig(), i
 
   execFileSync('git', ['init', '-q', '-b', branch], { cwd: root, env: { PATH: process.env.PATH, HOME: root, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' } });
 
-  const bin = join(root, 'bin');
-  mkdirSync(bin);
-  for (const [tool, text] of [['npm', fakeNpm], ['npx', fakeNpx]]) {
-    writeFileSync(join(bin, tool), text);
-    chmodSync(join(bin, tool), 0o755);
-  }
   mkdirSync(join(root, 'state'));
   if (stagingExists) writeFileSync(join(root, 'state/staging-exists'), '');
+  fixtures.set(root, fixture);
   return root;
 }
 
@@ -110,29 +99,12 @@ const read = path => (existsSync(path) ? readFileSync(path, 'utf8') : '');
 // Runs a script in the repo. `vars` adds to or, with `undefined`, removes from
 // the environment; the Cloudflare token is set unless removed.
 function run(root, script, args = [], vars = {}) {
-  const env = {
-    PATH: `${join(root, 'bin')}:${process.env.PATH}`,
-    HOME: root,
-    GIT_CONFIG_NOSYSTEM: '1',
-    GIT_CONFIG_GLOBAL: '/dev/null',
-    FAKE_ROOT: root,
-    FAKE_LOG: join(root, 'calls.log'),
-    FAKE_STATE: join(root, 'state'),
-    CLOUDFLARE_API_TOKEN: 'test-token',
-    ...vars,
-  };
-  for (const key of Object.keys(env)) if (env[key] === undefined) delete env[key];
-  const command = script.endsWith('.mjs') ? process.execPath : 'bash';
-  const result = spawnSync(command, [join(root, 'scripts', script), ...args], { cwd: root, encoding: 'utf8', env });
-  assert.equal(result.error, undefined, `${command} failed to start: ${result.error}`);
-  const calls = read(join(root, 'calls.log')).split('\n').filter(Boolean);
-  rmSync(join(root, 'calls.log'), { force: true });
+  const env = { FAKE_STATE: join(root, 'state'), CLOUDFLARE_API_TOKEN: 'test-token', ...vars };
+  const result = fixtures.get(root).run(script, args, { env });
   return {
-    status: result.status,
-    out: `${result.stdout}${result.stderr}`,
-    stderr: result.stderr,
-    cwds: calls.map(call => call.split('|')[0]),
-    calls: calls.map(call => call.slice(call.indexOf('|') + 1)),
+    ...result,
+    cwds: result.calls.map(call => call.split('|')[0]),
+    calls: result.calls.map(call => call.slice(call.indexOf('|') + 1)),
   };
 }
 

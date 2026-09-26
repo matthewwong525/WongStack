@@ -2,7 +2,9 @@
 
 ## Purpose
 Give every WongStack repo one private, searchable store of short typed facts, and of raw session transcripts when R2 is available, so that session context survives without a commit and a team can query it across topics, people, and time.
+
 ## Requirements
+
 ### Requirement: Every repo has one memory store on Cloudflare
 
 Every WongStack repo SHALL have one memory store: one D1 database named `<repo>-memory` in the repo's Cloudflare account, plus one private R2 bucket of the same name when the account has R2 enabled. The bucket SHALL be optional. Without it, the store SHALL keep no raw transcripts, and every other memory behavior SHALL work the same. The store SHALL be separate from any application database, and it SHALL have no staging twin. Only the app's production Worker SHALL bind it, for the memory route alone. The account id, database id, and bucket name (or its absence) SHALL be recorded under `components.memory` in `.claude/.wong-stack.json`. They are not secrets.
@@ -27,7 +29,7 @@ Every WongStack repo SHALL have one memory store: one D1 database named `<repo>-
 
 ### Requirement: Access uses a dedicated memory token
 
-The store SHALL be read and written through the app's production Worker with a memory key named `CLOUDFLARE_MEMORY_TOKEN`, stored in the git-ignored `.env` under the secrets convention, as `memory-worker` requires. The key SHALL open only this repo's store. It SHALL NOT be set as a CI secret, and it SHALL NOT be the widened provisioning token. No person SHALL hold a Cloudflare token for memory, except an older store's token until its move finishes.
+The store SHALL be read and written through the app's production Worker with a memory key named `CLOUDFLARE_MEMORY_TOKEN`, stored in the git-ignored `.env` under the secrets convention. The requirements below define how the production Worker serves it. The key SHALL open only this repo's store. It SHALL NOT be set as a CI secret, and it SHALL NOT be the widened provisioning token. No person SHALL hold a Cloudflare token for memory, except an older store's token until its move finishes.
 
 #### Scenario: CI cannot read transcripts
 
@@ -186,7 +188,6 @@ When a fact cannot be written to the store because the network, the token, or th
 - **WHEN** a later session starts with the store reachable and the spool holds facts
 - **THEN** the background run passes them through the write gate, uploads them, and removes them from the spool
 
-
 ### Requirement: Store migrations apply once
 
 The memory script's `migrate` command SHALL record each applied migration and SHALL skip a migration that is already recorded. A migration that is not idempotent SHALL be safe to ship.
@@ -210,3 +211,118 @@ The memory script SHALL NOT offer a command that imports `notes/` files. A store
 
 - **WHEN** a store with a bucket holds a fact whose session is `migration:<slug>` with a stored note text
 - **THEN** `memory.mjs source <fact-id>` prints that note text
+
+### Requirement: Every memory call uses a memory key
+
+The memory script SHALL send every store call made with a memory key to the Worker URL recorded under `components.memory.worker`, with the memory key from `CLOUDFLARE_MEMORY_TOKEN`. Only `migrate` and the admin commands SHALL instead use the admin's `CLOUDFLARE_API_TOKEN`, straight to Cloudflare. The Worker SHALL answer the same D1 query and R2 object requests, in the same shapes, that the memory script sends to the Cloudflare REST API. Each key SHALL open one repo's store, as `admin` or `member`. The Worker SHALL refuse a key it does not know with HTTP 401. The key hashes SHALL be kept in a table in the memory database, and the Worker SHALL refuse, with HTTP 403 and without running it, any statement that names that table or changes the schema's write protection, so that no key can read or change a key. A `CLOUDFLARE_MEMORY_TOKEN` that is not a memory key SHALL keep using the Cloudflare REST API with the same requests, until the store is moved. When the Worker URL answers 404, the script SHALL treat the store as not yet reachable, so that facts wait in the spool.
+
+#### Scenario: A member searches facts
+
+- **WHEN** a member runs `memory.mjs search deploy`
+- **THEN** the result is the same as the admin's search on the same store, before the personal-fact filter
+
+#### Scenario: A key for another repo
+
+- **WHEN** a key made for `billing`'s store is sent to `home`'s production Worker
+- **THEN** the Worker answers 401 and runs nothing
+
+#### Scenario: An unknown key
+
+- **WHEN** a request carries a key that is not in the store's key table
+- **THEN** the Worker answers 401 and does nothing
+
+#### Scenario: A key tries to read the keys
+
+- **WHEN** an admin or member key sends a statement that names the key table, in any letter case or quoting
+- **THEN** the Worker answers 403, and no statement in the batch runs
+
+#### Scenario: An older store's token
+
+- **WHEN** `CLOUDFLARE_MEMORY_TOKEN` holds a Cloudflare token, not a memory key, and a Worker URL is recorded
+- **THEN** the script calls the Cloudflare REST API with that token, as before the move
+
+#### Scenario: Production has not deployed the route yet
+
+- **WHEN** a fact is written with a memory key and the Worker URL answers 404
+- **THEN** the fact waits in the local spool, and the next run sends it
+
+### Requirement: A member reads only their own transcripts
+
+A `member` key SHALL write and read R2 objects only under `sessions/<member email>/`. Any other key SHALL be refused with HTTP 403. An `admin` key SHALL read every object in its repo's bucket, including keys with no email. When the memory script is refused a transcript, it SHALL state that only the author and the admin can read it.
+
+#### Scenario: A member follows their own fact to its source
+
+- **WHEN** a member asks for the source of a fact from their own session
+- **THEN** they get the session's reduced text
+
+#### Scenario: A member follows a teammate's fact
+
+- **WHEN** a member asks for the source of a fact from a teammate's session
+- **THEN** no transcript is shown, and the script states that only the author and the admin can read it
+
+#### Scenario: The admin reads an old transcript
+
+- **WHEN** the admin asks for a transcript stored at `sessions/<agent>/<session-id>.jsonl`
+- **THEN** they get its reduced text, and a member asking for the same key is refused
+
+### Requirement: Existing installs move behind the memory Worker
+
+`/wong-sync` SHALL move an install whose `CLOUDFLARE_MEMORY_TOKEN` is still a Cloudflare token to the app's production Worker. Its planned change SHALL add the memory bindings and the memory route to the app, record the Worker URL, apply the memory migrations, and, when the store has a bucket, give the `<repo>-deploy` token `Workers R2 Storage Write`. After that change merges and production deploys, the admin SHALL create an admin key for their git email with `member add --admin --env`, and SHALL delete the old `<repo>-memory` Cloudflare token only after a store call through the Worker succeeds. Until then the old token SHALL keep working. The move SHALL tell the admin that teammates who held the old token need a member key.
+
+#### Scenario: A solo install is moved
+
+- **WHEN** the sync change has merged, production has deployed, and the admin finishes the move
+- **THEN** `.env` holds an admin key, the digest loads through the app's production Worker, and the old token no longer exists
+
+#### Scenario: Before production deploys
+
+- **WHEN** the sync change is on a branch and not yet deployed to production
+- **THEN** memory calls still use the old token through the Cloudflare REST API and succeed
+
+#### Scenario: The Worker call fails during the move
+
+- **WHEN** the first store call through the Worker fails
+- **THEN** the old token and `.env` value stay as they were, and the move reports the failure
+
+### Requirement: The app's production Worker serves the memory store
+
+Each repo's memory store SHALL be served by the repo's own production app Worker, under the path prefix `/_memory/`. The production Worker SHALL bind the memory database as `MEMORY_DB` and, when the store has one, the bucket as `MEMORY_BUCKET`. The staging Worker and every preview SHALL bind neither, and SHALL answer every `/_memory/` request with HTTP 404. The bindings SHALL be declared in the app's wrangler config and deployed by CI with the app; no separate memory Worker and no person's deploy command SHALL exist. The memory request handling SHALL ship with the memory skill, so that `/wong-sync` updates it, and the app's Worker SHALL reach it through one route. The Worker URL recorded under `components.memory.worker` SHALL be the production Worker's `workers.dev` address followed by `/_memory`.
+
+#### Scenario: Production serves memory
+
+- **WHEN** a member runs `memory.mjs search deploy` in a repo whose production Worker has deployed the memory route
+- **THEN** the request goes to `https://<worker>.<subdomain>.workers.dev/_memory/...` and returns the facts
+
+#### Scenario: A preview has no memory
+
+- **WHEN** any request reaches `/_memory/` on the staging Worker or a preview alias
+- **THEN** the Worker answers 404 and reads no memory database
+
+#### Scenario: A merge deploys a memory change
+
+- **WHEN** a change to the memory request handling merges to `main`
+- **THEN** CI's production deploy carries it, and nobody runs a separate memory deploy
+
+### Requirement: The admin manages memory keys with the memory script
+
+The memory script SHALL have `member add <email> [--admin]`, `member remove <email>`, and `member list` commands. They SHALL run with the admin's `CLOUDFLARE_API_TOKEN`, straight to the memory database. `member add` SHALL create a random key for the email on this repo's store, store only its hash, and print the key once, and SHALL NOT write it to any file. With `--env`, it SHALL instead write the key to this clone's `.env` as `CLOUDFLARE_MEMORY_TOKEN`, and SHALL NOT print it. Adding an email again SHALL replace its earlier key. The first member who is not an admin SHALL set `components.memory.team` to `true`. `member remove` SHALL revoke the email's key on this repo at once. `member list` SHALL print this repo's emails and roles, and no key or hash. The script SHALL have no command that deploys a Worker. When the admin's token lacks a permission a command needs, the command SHALL stop, name the permission, and change nothing.
+
+#### Scenario: A teammate joins
+
+- **WHEN** the admin runs `member add ana@example.com`
+- **THEN** a key is printed once, no file holds it, and `components.memory.team` is `true`
+
+#### Scenario: A member is removed
+
+- **WHEN** the admin runs `member remove ana@example.com`
+- **THEN** the next call with Ana's key is refused with 401
+
+#### Scenario: The token cannot write D1
+
+- **WHEN** `member add` runs with a `CLOUDFLARE_API_TOKEN` that lacks `D1 Write`
+- **THEN** the command stops, names that permission, and changes nothing
+
+#### Scenario: No deploy command
+
+- **WHEN** someone runs `memory.mjs worker deploy`
+- **THEN** the script stops with its usage, and nothing is deployed

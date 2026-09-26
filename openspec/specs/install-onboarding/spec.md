@@ -3,15 +3,8 @@
 ## Purpose
 
 Adopt WongStack through the normal workflow skills, using current source skills when a new target has no installed workflow yet.
+
 ## Requirements
-### Requirement: install-wong-stack is removed outright
-
-The `install-wong-stack` skill SHALL be deleted — directory and all live references (README, payload manifest, wong-sync, docs, legacy-trace lists) — with no tombstone or migration machinery, since no installed base exists. Historical CHANGELOG entries SHALL keep the old name as the release record.
-
-#### Scenario: No trace in the tree
-
-- **WHEN** the payload ships at 6.0.0
-- **THEN** `.claude/skills/install-wong-stack/` does not exist and the only remaining mentions of the name are historical CHANGELOG entries and archived changes
 
 ### Requirement: Warm one-paste front door
 
@@ -183,4 +176,3 @@ Setup's exploration SHALL ask whether the new repo is the person's home. When it
 
 - **WHEN** setup creates a home on a machine that already records another home
 - **THEN** setup asks before it changes the machine record
-

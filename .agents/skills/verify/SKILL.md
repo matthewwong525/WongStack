@@ -25,7 +25,7 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" scout-check
 
 ## Step 2 — /save
 
-**Invoke the `save` skill** and let it finish. It commits, pushes, opens or updates the PR, waits for CI, and returns the per-commit preview URL. `/verify` implements no git of its own.
+**Invoke the `save` skill** and let it finish. It commits, pushes, opens or updates the PR, waits for CI, and returns the per-commit preview URL; [git stays with the git verbs](../../../wiki/development/the-change-loop.md).
 
 ## Step 3 — preflight
 
@@ -92,11 +92,11 @@ These describe what gets **reported**. None of them gates anything.
 | **UNKNOWN** | the walk could not run or could not be trusted, after any heal | **unverified** — the comment says so, and why |
 | **TIMEOUT** | the walk exceeded its budget | **unverified** — what completed, and where it stopped |
 
-**`UNKNOWN` is not `NONE`.** Report a walk that cannot run as *unverified*, and name any heal that did not take. `NONE` means only that this change has nothing any probe can reach; there is no opt-in.
+Report `UNKNOWN` as *unverified*, naming any heal that did not take — [`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure), and [the walkthrough](../../../wiki/development/staging-walkthrough.md#the-verdicts) says why for a walk.
 
 ## Hard rules
 
 - **Install the tool, never a repo dependency.** The browser CLI, [`agent-browser`](../agent-browser/SKILL.md), and its Chrome install on the machine, and only when a browser journey exists. Nothing is added to `package.json` or a lockfile. Installing a **language runtime** still asks first.
-- **Exercise the deployment, never the working tree.** No probe builds, installs, or executes the repo's own code locally, and no tooling is added to the repo to observe a scenario.
+- **Exercise the deployment, never the working tree** — [no local execution, no invented tooling](../../../wiki/development/staging-walkthrough.md#what-it-is-not).
 - **Never write inside the repo.** Journeys and evidence live in the temp run directory. Run `cleanup` on **every** exit path, including a stop on `UNKNOWN` and a pause to ask the user.
 - **Never merge, never archive.** That's `/ship`.

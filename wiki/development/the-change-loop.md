@@ -50,25 +50,7 @@ Loop back any time: invoke `/save` as often as you like while building — each 
 
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` never invokes `/save` as a way of **stopping**. Work that is paused, blocked, interrupted,
-or failed — or that simply ends with tasks still pending — is reported to you, and you checkpoint it
-deliberately. That is the property worth keeping: a `/apply` that gives up leaves nothing pushed.
-
-But when a task's own definition of done needs the gate — CI green, a live preview, browser evidence
-— invoking `/save` **is** how that task gets implemented, because `/apply` owns no git and
-[nothing builds locally](#the-gate). `/apply` runs it, reads the result, marks the task, and carries
-on down the list. One automatic save still closes the change when the last task lands.
-
-So the boundary is **exit versus implementation**, not complete versus incomplete. A task-driven
-save is unbounded — `tasks.md` bounds it — while "exactly once" qualifies the completion handoff
-alone; when the final task is itself gate-requiring, its save already checkpointed that state and no
-second one follows. A task-driven save that comes back failing or unverifiable is the ordinary
-blocked path: the task stays unchecked, `/apply` reports and stops, and adds no exit checkpoint on
-top. [`/verify`](#verifying-the-app) has always worked this way — it invokes `/save` mid-change and
-gates nothing — and this is the same rule, stated for the whole loop.
-
-`/plan` writes such a task so it says so, naming `/save` as how the verification happens. Most
-changes have none: the completion handoff covers them.
+`/apply` never invokes `/save` to **stop**. Paused, blocked, or unfinished work is reported, and you checkpoint it yourself, so a `/apply` that gives up leaves nothing pushed. The exception is a task whose done needs [the gate](#the-gate) — CI green, a live preview, browser evidence: `/apply` runs `/save` to implement it, marks it on a pass, and stops with it unchecked on a failing or unverifiable result, as [`/verify`](#verifying-the-app) does. `/plan` names `/save` in such a task; when it is the last task, its save is the completion save, not a second one.
 
 ### Verbs for any work
 
@@ -83,7 +65,7 @@ The work decides the form; no mode or setting does.
 
 ### Mini apps
 
-"Make me a …" builds a small app in its own folder, `mini-apps/apps/<name>/`. The main app's Worker serves it at `/apps/<name>/`. `/apply` builds the whole app on the agent host and uploads a preview on staging data. `/save` then takes [a direct route](#the-prose-allowlist): it runs the app's tests on the host and pushes to the default branch. CI then deploys the main app to production, and the app list shows the new app. A diff outside the app's folder falls back to a PR, which `/ship` merges with no change record. [Mini apps](../stack/mini-apps.md) owns the layout and the rules.
+"Make me a …" builds a small app in `mini-apps/apps/<name>/`, previewed from the agent host and saved [straight to the default branch](#the-prose-allowlist). [Mini apps](../stack/mini-apps.md) owns the layout, the preview, and the save.
 
 ### Verifying the app
 
@@ -137,22 +119,14 @@ all: its facts go to the [memory store](memory.md), and the save makes no commit
 The gate isn't weakened — it applies where behavior does. A wiki page carries none: it is prose
 you reviewed in the diff that produced it. The
 carve-out is scoped by path and exact; one changed path outside the allowlist and the
-normal flow applies to the whole save. It never keys on file extension — markdown under `.claude/`
+normal flow applies to the whole save. It never keys on file extension — markdown under `.agents/`
 is the payload and markdown under `openspec/` is the spec, and `AGENTS.md`/`CLAUDE.md`,
 `README.md`, `CHANGELOG.md`, `VERSION`, `app/**` and every config file keep the full gate. The
 allowlist is closed: a surface that isn't named here gets the gate until someone deliberately adds
 it. One exception, in the WongStack source repo only: a `wiki/` page that ships as payload is a
 release, so it takes a branch, a PR, and a `VERSION` and `CHANGELOG.md` bump.
 
-**A mini-app save is the second direct route.** When every changed path is inside one app's
-folder, `mini-apps/apps/<name>/`, `/save` runs that app's own tests on the agent host and then
-pushes to the default branch, like a prose save. The host test run is the gate here, because there
-is no PR for CI to gate. After the push, CI runs the tests again, skips the main app's suite, and
-deploys the main app, which serves the new app. This is the one place a skill runs tests on the host
-as a condition of saving. It is scoped to one app's folder, which holds no main-app code. When the default branch moved during the
-save, it rebases once, tests again, and pushes again. A path outside the folder, such as a
-migration, a file under `app/`, or a shared file under `mini-apps/`, or a push that one rebase can not fix takes the normal route. [Mini apps](../stack/mini-apps.md)
-owns the details; in the source repo, the example app is payload and takes a PR.
+**A mini-app save is the second direct route.** When every changed path is inside one app's folder, `/save` runs that app's tests on the agent host and pushes to the default branch; anything else takes the normal route. [Mini apps](../stack/mini-apps.md#save-it-straight-to-production) owns the rules.
 
 ## The change is a living handoff, not just a plan
 
@@ -166,7 +140,7 @@ owns the details; in the source repo, the example app is payload and takes a PR.
 
 The plan is the change folder, saved on the feature branch with the work. `/continue <name>` can find that folder on a fetched remote branch from a fresh clone. The record of what shipped is the **archived change** on the default branch plus the synced `openspec/specs/`. There are no GitHub planning or summary issues; the change *is* the plan and its archive *is* the record.
 
-**The branch and change can have different names.** The OpenSpec folder and the session's facts use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. Each verb selects a change by [named rungs](../../.agents/skills/save/references/checkpoint-evidence.md#selection-rungs): the change you named or this session used, then a unique changed folder on the branch, then a Branch-line match. A branch name alone never selects a change, and `/ship` will not merge a branch that carries another active change folder.
+**The branch and change can have different names.** The OpenSpec folder and the session's facts use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. Each verb selects a change by [the selection rungs](../../.agents/skills/save/references/checkpoint-evidence.md#selection-rungs), and `/ship` will not merge a branch that carries another active change folder.
 
 ## Spec deltas are optional
 
@@ -176,6 +150,6 @@ Most changes are `proposal.md` + `tasks.md` only. A change writes delta specs un
 
 Both end up working the change's `tasks.md`, but they enter from different places. **`/apply`** is the live-session implement stage: use it after `/plan`, directly after `/explore`, or with a clear new implementation request. It reuses an applicable ready change or invokes `/plan` first, and finishing every task automatically hands the result to `/save`. **`/continue`** is the *resume* on-ramp: it takes a handle (change name, PR, or the menu), checks out the branch, orients you (Status + Decision-log tail + drift check), then hands off to `/apply` and therefore gets the same completion behavior. Cold on another machine → `/continue`; already here → `/apply`.
 
-Adding a verb of your own is a matter of writing a `SKILL.md` under `.claude/skills/<name>/` and pointing at it from this page — the loop above is a convention, not a hardcoded list.
+Adding a verb of your own is a matter of writing a `SKILL.md` under `.agents/skills/<name>/` and pointing at it from this page — the loop above is a convention, not a hardcoded list.
 
 Part of [working on WongStack](README.md).

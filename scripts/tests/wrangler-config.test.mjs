@@ -1,14 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
   assetsDirectory, databaseName, deployedWorkerName, hasD1, parseConfig, workerName, WranglerConfigError,
 } from '../lib-wrangler-config.mjs';
+import { logger, pack, REPO as repo } from './fixtures/pack.mjs';
 
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const bash = spawnSync('bash', ['--version']);
+if (bash.error || bash.status !== 0) throw new Error('wrangler-config tests need bash on PATH');
+
+const LIB = ['lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs'];
 
 // env.staging lists its database before its name, and a comment above the real
 // block mentions "staging": — both fooled the old regex reads.
@@ -33,35 +36,67 @@ const pointsAtProduction = `{
   "env": { "staging": { "d1_databases": [{ "binding": "DB", "database_name": "demo-db" }], "name": "demo" } }
 }`;
 
-// A throwaway repo: the pack scripts, `app/wrangler.jsonc`, and a fake npx and
-// npm that log each call.
-function repoWith(t, config) {
-  const root = mkdtempSync('/tmp/wrangler-config-');
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  mkdirSync(join(root, 'scripts'));
-  for (const name of ['cf-build.sh', 'cf-deploy.sh', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'reset-staging-d1.mjs', 'lib-cli.mjs']) {
-    copyFileSync(join(repo, 'scripts', name), join(root, 'scripts', name));
+// The same shape as the stack-pack wrangler.jsonc fragment.
+const deployConfig = `{
+  "name": "demo",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-25",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "demo-db", "database_id": "prod-id", "migrations_dir": "../schema/migrations" }
+  ],
+  "env": {
+    "staging": {
+      "name": "demo-staging",
+      "d1_databases": [
+        { "binding": "DB", "database_name": "demo-db-staging", "database_id": "staging-id", "migrations_dir": "../schema/migrations" }
+      ]
+    }
   }
-  mkdirSync(join(root, 'app'));
-  writeFileSync(join(root, 'app/wrangler.jsonc'), config);
-  const bin = join(root, 'bin');
-  mkdirSync(bin);
-  for (const tool of ['npx', 'npm']) {
-    writeFileSync(join(bin, tool), `#!/usr/bin/env bash\necho "${tool} $*" >> "$FAKE_LOG"\n`);
-    chmodSync(join(bin, tool), 0o755);
-  }
-  return root;
+}
+`;
+
+// A fake npx and npm that only log each call.
+const loggers = { npx: logger('npx '), npm: logger('npm ') };
+
+// A fake `npx` for cf-deploy logs one line per call. For `wrangler versions
+// upload` it prints a version URL first and the alias URL second, like real
+// wrangler.
+const deployNpx = `#!/usr/bin/env bash
+echo "$*" >> "$FAKE_LOG"
+case "$1 $2 $3" in
+  "wrangler versions upload")
+    echo "Uploaded demo-staging"
+    echo "Version Preview URL: https://0a1b2c3d-demo-staging.example.workers.dev"
+    echo "Version Preview Alias URL: https://feature-x-demo-staging.example.workers.dev"
+    ;;
+  "wrangler deploy"*)
+    echo "Deployed triggers"
+    echo "  https://demo.example.workers.dev"
+    ;;
+esac
+exit 0
+`;
+
+// Runs `script` in a throwaway repo with `config` on `branch`.
+function runIn(t, config, script, branch) {
+  const scripts = ['cf-build.sh', 'reset-staging-d1.mjs', ...LIB];
+  return pack(t, { scripts, config, tools: loggers, prefix: 'wrangler-config-' })
+    .run(script, [], { env: { CF_BRANCH: branch, CF_PRODUCTION_BRANCH: 'main' } });
 }
 
-function run(root, command, args, branch) {
-  const log = join(root, 'calls.log');
-  const env = { PATH: `${join(root, 'bin')}:${process.env.PATH}`, HOME: root, FAKE_LOG: log, CF_BRANCH: branch, CF_PRODUCTION_BRANCH: 'main' };
-  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', env });
-  return {
-    status: result.status,
-    out: `${result.stdout}${result.stderr}`,
-    calls: existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean) : [],
-  };
+// Runs cf-deploy on `branch` and returns the exit status, output, recorded npx
+// calls, and GITHUB_OUTPUT. `generated` fakes a plugin build that named that
+// Worker.
+function deploy(t, { branch, generated, config = deployConfig } = {}) {
+  const fixture = pack(t, { scripts: ['cf-deploy.sh', ...LIB], config, tools: { npx: deployNpx }, prefix: 'cf-deploy-' });
+  if (generated) {
+    // What @cloudflare/vite-plugin leaves behind: a redirect to a flattened config.
+    fixture.write('app/.wrangler/deploy/config.json', '{ "configPath": "../../dist/demo/wrangler.json" }');
+    fixture.write('app/dist/demo/wrangler.json', JSON.stringify({ name: generated, main: 'index.js' }));
+  }
+  const output = join(fixture.dir, 'github-output');
+  const result = fixture.run('cf-deploy.sh', [], { env: { GITHUB_OUTPUT: output, CF_BRANCH: branch, CF_PRODUCTION_BRANCH: 'main' } });
+  return { ...result, github: existsSync(output) ? readFileSync(output, 'utf8') : '' };
 }
 
 function configFile(t, text, name = 'wrangler.jsonc') {
@@ -113,36 +148,69 @@ test('the staging name comes from the redirected build config; production never 
   assert.equal(deployedWorkerName(path), 'demo');
 });
 
+test('the default branch deploys the production Worker and uploads no alias', t => {
+  const run = deploy(t, { branch: 'main' });
+  assert.equal(run.status, 0, run.out);
+  assert.deepEqual(run.calls, ['wrangler deploy']);
+  assert.ok(!run.calls.some(call => call.includes('versions upload')), 'production uploads no preview alias');
+  assert.equal(run.github, '');
+});
+
+test('a feature branch deploys only to staging and publishes the alias URL', t => {
+  const run = deploy(t, { branch: 'feature/x' });
+  assert.equal(run.status, 0, run.out);
+  assert.ok(run.calls.length > 0, 'no wrangler call was recorded');
+  for (const call of run.calls) assert.match(call, /--env staging/, `not aimed at staging: ${call}`);
+  assert.ok(run.calls.includes('wrangler deploy --env staging'), run.calls.join('\n'));
+  assert.ok(run.calls.includes('wrangler versions upload --env staging --preview-alias feature-x'), run.calls.join('\n'));
+  assert.ok(run.calls.indexOf('wrangler deploy --env staging') < run.calls.findIndex(call => call.includes('versions upload')),
+    'the staging Worker must be deployed before a version is uploaded');
+  assert.equal(run.github, 'preview-url=https://feature-x-demo-staging.example.workers.dev\n');
+  assert.match(run.out, /preview URL https:\/\/feature-x-demo-staging\.example\.workers\.dev/);
+});
+
+test('a plugin build that already chose staging drops --env and still deploys staging', t => {
+  const run = deploy(t, { branch: 'feature/x', generated: 'demo-staging' });
+  assert.equal(run.status, 0, run.out);
+  assert.deepEqual(run.calls, ['wrangler deploy', 'wrangler versions upload --preview-alias feature-x']);
+  assert.equal(run.github, 'preview-url=https://feature-x-demo-staging.example.workers.dev\n');
+});
+
+// Both ways staging can land on production: the source config names it, or the
+// build's generated config does.
 test('cf-deploy refuses a staging environment that names the production Worker', t => {
-  const result = run(repoWith(t, pointsAtProduction), 'bash', ['scripts/cf-deploy.sh'], 'feature/x');
-  assert.equal(result.status, 1, result.out);
-  assert.match(result.out, /production Worker 'demo'/);
-  assert.deepEqual(result.calls, [], 'nothing may be deployed');
+  for (const [name, options] of [['source config', { config: pointsAtProduction }], ['build', { generated: 'demo' }]]) {
+    const result = deploy(t, { branch: 'feature/x', ...options });
+    assert.equal(result.status, 1, `${name}: ${result.out}`);
+    assert.match(result.out, /resolves to the[\s\S]*production Worker 'demo'/, name);
+    assert.deepEqual(result.calls, [], `${name}: nothing may be deployed or uploaded`);
+    assert.equal(result.github, '', name);
+  }
 });
 
 test('cf-build migrates the staging database read from the real staging block', t => {
-  const result = run(repoWith(t, tricky), 'bash', ['scripts/cf-build.sh'], 'feature/x');
+  const result = runIn(t, tricky, 'cf-build.sh', 'feature/x');
   assert.equal(result.status, 0, result.out);
   assert.deepEqual(result.calls, ['npx wrangler d1 migrations apply demo-db-staging --remote --env staging', 'npm run build:app']);
 });
 
 test('cf-build builds a Worker with no D1 without a migration', t => {
   for (const branch of ['main', 'feature/x']) {
-    const result = run(repoWith(t, noD1), 'bash', ['scripts/cf-build.sh'], branch);
+    const result = runIn(t, noD1, 'cf-build.sh', branch);
     assert.equal(result.status, 0, result.out);
     assert.deepEqual(result.calls, ['npm run build:app'], branch);
   }
 });
 
 test('cf-build stops when production binds D1 and staging does not', t => {
-  const result = run(repoWith(t, stagingWithoutD1), 'bash', ['scripts/cf-build.sh'], 'feature/x');
+  const result = runIn(t, stagingWithoutD1, 'cf-build.sh', 'feature/x');
   assert.equal(result.status, 1, result.out);
   assert.match(result.out, /needs its own d1_databases entry/);
   assert.deepEqual(result.calls, []);
 });
 
 test('the staging reset refuses the production database and drops nothing', t => {
-  const result = run(repoWith(t, pointsAtProduction), process.execPath, ['scripts/reset-staging-d1.mjs']);
+  const result = runIn(t, pointsAtProduction, 'reset-staging-d1.mjs');
   assert.equal(result.status, 1, result.out);
   assert.match(result.out, /names the production database 'demo-db'/);
   assert.deepEqual(result.calls, [], 'no wrangler call may run');

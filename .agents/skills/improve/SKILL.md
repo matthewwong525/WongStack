@@ -12,7 +12,7 @@ Find the most valuable improvement that the evidence supports. A normal run deli
 
 ## Establish the run
 
-Read the repository instructions and owning documentation. The default branch is `main`, per [the default-branch rule](../save/references/git-gate.md#the-default-branch).
+Read the repository instructions and owning documentation. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
 For a normal run, require all of these conditions before selection:
 

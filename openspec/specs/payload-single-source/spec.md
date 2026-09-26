@@ -94,7 +94,7 @@ A payload change that alters such a value SHALL be treated as a behavioural chan
 
 Where the payload documents files produced by an external tool rather than copied from the payload, that description SHALL match what the currently supported version of the tool produces, and SHALL be re-checked when the tool's version moves. A claim that a file is generated is a claim a reader will act on — by expecting a command to exist, or by not copying something they then lack.
 
-`.claude/commands/opsx/` is the live instance: the payload manifest describes it as produced by `openspec init`, but the OpenSpec CLI now creates the five `openspec-*` skills and no commands. Any payload prose that offers `/opsx:*` as an available command surface SHALL be consistent with that.
+`openspec init --tools none` is the live instance: setup runs it, and it generates no `openspec-*` skills and no `/opsx:*` commands. Payload prose SHALL NOT offer either as an available surface.
 
 #### Scenario: The manifest matches the generator
 

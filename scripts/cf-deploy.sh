@@ -65,21 +65,16 @@ ROOT=$(dirname "$SCRIPT_DIR")
 # shellcheck source=lib-wrangler-config.sh
 source "$SCRIPT_DIR/lib-wrangler-config.sh"
 
-# The branch in CI. `CF_BRANCH` is the CI-neutral name the pack's GitHub Actions
-# workflow sets; `WORKERS_CI_BRANCH` is what Cloudflare Workers Builds sets on
-# its own. Either backend works, and a repo can run both while it migrates.
-CI_BRANCH="${CF_BRANCH:-${WORKERS_CI_BRANCH:-}}"
+wong_ci_branch
 
 # Local (non-CI) runs: deploy nothing.
-if [ -z "$CI_BRANCH" ]; then
+if [ -z "$BRANCH" ]; then
   echo "cf-deploy: not in CI — nothing deployed"
   exit 0
 fi
 
 wong_resolve_wrangler_config "$ROOT"
 
-BRANCH="$CI_BRANCH"
-PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-main}"
 echo "cf-deploy: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
 if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
@@ -93,13 +88,7 @@ if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   exit 0
 fi
 
-# A preview alias must be lowercase alphanumeric-and-hyphen and at most 63
-# characters, so a branch like `feat/Add_Thing` can't be passed through as-is.
-ALIAS=$(printf '%s' "$BRANCH" \
-  | tr '[:upper:]' '[:lower:]' \
-  | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
-  | cut -c1-63 \
-  | sed -E 's/-+$//')
+ALIAS=$(wong_preview_alias "$BRANCH")
 if [ -z "$ALIAS" ]; then
   echo "cf-deploy: ERROR — branch '$BRANCH' has no usable preview alias" >&2
   exit 1
@@ -162,23 +151,9 @@ UPLOAD_LOG=$(mktemp)
 # preview URL onto the commit, which is where `/save` and `/ship` look for it.
 # The Actions workflow has no such integration — wrangler prints the URL into a
 # job log and it dies there. So we lift it out and hand it to the workflow,
-# which publishes it as a GitHub Deployment.
-#
-# **Harvested, never constructed.** The URL shape is documented, so building
-# `<alias>-<worker>-staging.<subdomain>.workers.dev` by hand is tempting — and
-# wrong. A constructed URL is a guess that answers 200 even when it points at a
-# different commit or a Worker the deploy never touched, which is precisely the
-# failure a preview URL exists to rule out. If wrangler didn't print one, we
-# publish nothing and the caller reports "no preview URL" honestly.
-#
-# Every extraction below is `|| true`-guarded: this script runs under `set -e`,
-# and a grep that matches nothing exits 1. Failing to find a URL must degrade to
-# "no preview URL", never abort a deploy that already succeeded.
-ALL_URLS=$(grep -oE 'https://[a-z0-9._-]+\.workers\.dev[^[:space:]]*' "$UPLOAD_LOG" || true)
-PREVIEW_URL=$(printf '%s\n' "$ALL_URLS" | grep -F "$ALIAS" | head -1 || true)
-if [ -z "$PREVIEW_URL" ]; then
-  PREVIEW_URL=$(printf '%s\n' "$ALL_URLS" | head -1 || true)
-fi
+# which publishes it as a GitHub Deployment. The URL is harvested from what
+# wrangler printed, never constructed — see wong_preview_url.
+PREVIEW_URL=$(wong_preview_url "$UPLOAD_LOG" "$ALIAS")
 rm -f "$UPLOAD_LOG"
 
 if [ -n "$PREVIEW_URL" ]; then

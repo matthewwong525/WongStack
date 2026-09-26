@@ -1,9 +1,5 @@
-# session-notes Specification
+## ADDED Requirements
 
-## Purpose
-
-Define `notes/` — the repo-committed surface that holds the permanent record of what a session figured out, one note per line of work keyed by the same slug as the branch and the OpenSpec change. `/save` is the sole capture point, and `/continue` reads the note with the change so the record travels to any clone.
-## Requirements
 ### Requirement: Session capture excludes credential values
 
 When `/save` or the background capture turns a session into facts, it SHALL exclude every real credential value supplied, rotated, read, or written during the session. It MAY preserve the variable name, the fact that it changed, its purpose, where it is obtained, and any non-secret operational decision. The same exclusion SHALL apply to the change's Status, Decision log, tasks, commit message, PR body, `/save` report, and background-run counts.
@@ -29,48 +25,6 @@ When `/save` or the background capture turns a session into facts, it SHALL excl
 - **WHEN** `/save` runs after a session with no diff and no plan
 - **THEN** no `openspec/changes/<name>/` folder is created
 - **AND** no proposal describing nothing changing and no empty `tasks.md` are written
-
-### Requirement: A prose-only save commits directly to the default branch
-
-When a `/save`'s entire diff falls inside the **prose allowlist** — the path prefix `wiki/**` — `/save` SHALL commit and push directly to the default branch: no feature branch, no PR, no CI wait, and no `/ship` needed. The carve-out SHALL be decided by exact path scope; any changed path outside the allowlist restores the normal branch + PR flow for the whole save. `/save` SHALL NOT route on file extension, and SHALL NOT make a judgment call about whether a prose edit is consequential enough to warrant a PR. `/save` SHALL NOT merge a pull request under any circumstance, and no scheduled job or other skill SHALL merge on its behalf.
-
-A save that only stores facts has no diff. It SHALL write the facts to the memory store and make no commit.
-
-If the direct push is rejected (protected default branch, required reviews, non-fast-forward), `/save` SHALL NOT force or retry; it SHALL fall back to the normal branch + PR flow and say why.
-
-#### Scenario: Conversation-only session lands in one command
-
-- **WHEN** `/save` runs after a session whose only output is understanding
-- **THEN** its facts are written to the memory store
-- **AND** no commit, branch, or PR is created, and the user is not asked to run `/ship`
-
-#### Scenario: A dream session lands in one command
-
-- **WHEN** `/save` runs after explicit wiki work and every changed path is under `wiki/`
-- **THEN** the whole diff is committed and pushed to the default branch
-- **AND** no branch is created, no PR is opened, and the user is not asked to run `/ship`
-
-#### Scenario: Mixed session keeps the gate
-
-- **WHEN** a save's diff contains a wiki page plus a source, skill, spec, or config file
-- **THEN** the wiki page rides along on the change's feature branch and goes through the PR flow with it
-
-#### Scenario: Markdown outside the allowlist keeps the gate
-
-- **WHEN** a save's diff touches `.claude/skills/**/*.md`, `CLAUDE.md`, `README.md`, `CHANGELOG.md`, or `openspec/**`
-- **THEN** the normal branch + PR flow applies, because routing is by path prefix and not by extension
-
-#### Scenario: Prose-only save reports without a PR link
-
-- **WHEN** a prose-only save completes
-- **THEN** the report names the changed prose paths and states they landed on the default branch
-- **AND** it omits the PR, CI, and preview sections rather than reporting them as missing
-
-#### Scenario: Protected default branch falls back
-
-- **WHEN** a prose-only save's direct push to the default branch is rejected
-- **THEN** `/save` cuts a branch, opens a PR whose body is the prose change, and states that the default branch is protected
-- **AND** it never force-pushes
 
 ### Requirement: Session context lives as facts in the memory store
 
@@ -115,4 +69,3 @@ A session's facts SHALL keep what the user stated (facts, constraints, preferenc
 
 - **WHEN** a session ends with a question that nobody answered
 - **THEN** a `thread` fact records it, and it stays live until a later fact supersedes it
-

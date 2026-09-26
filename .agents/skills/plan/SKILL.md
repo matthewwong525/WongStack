@@ -12,7 +12,7 @@ Create an apply-ready OpenSpec change and its required `review.html`. The page i
 
 ## Explore first
 
-Invoke [`/explore`](../explore/SKILL.md) in bounded mode. Read prior answers and investigate only gaps. The exit round may ask at most one final group for this transition; a completed exit round cannot be repeated. Once settled, fill cheap details with recorded assumptions and ask nothing more during this plan. Record each decision as its own Decision-log bullet: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every earlier answer and the exit round, and `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one. The review page labels a bullet by its first word.
+Invoke [`/explore`](../explore/SKILL.md) in bounded mode; [its exit round](../explore/SKILL.md#the-exit-round) is the only question round, and nothing more is asked during this plan. Record each decision as its own Decision-log bullet: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every earlier answer and the exit round, and `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one. The review page labels a bullet by its first word.
 
 ## Draft with the CLI
 
@@ -20,7 +20,7 @@ Follow the shared [CLI contract](references/openspec-cli.md): select the root or
 
 If `/apply` selected an incomplete change, complete that exact change rather than creating another. If planning blocks, report it to `/apply` without beginning implementation. A standalone `/plan` stops for review after producing and validating the artifacts.
 
-Before tasks, decide whether a repeated process belongs in deterministic code. Use the judgment in [`agent-knowledge-center.md`](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai). A change to testable behavior gets a coverage task beside the related implementation; a prose-only change does not.
+Before tasks, decide whether a repeated process belongs in deterministic code, by [the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai); when that fork changes the scope, raise it in the exit round. A change to testable behavior gets a coverage task beside the related implementation; a prose-only change does not.
 
 Write the proposal's Why and What Changes for the person who asked, at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level). For a non-technical reader, say what they will see, get, or be able to do; put file names, code, and commands in the design, specs, and tasks, which the page does not show. Capabilities and Impact may stay technical.
 
@@ -47,6 +47,10 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.
 The builder prints its status line, then the page's absolute path. The builder reads the proposal directly and writes a standalone page from the fixed kit; do not keep another copy of Why, What Changes, or the drawings. It stops on a missing section or an unclosed fence, and warns about a drawing line wider than 60 columns: shorten that line. A clean build proves the page is well formed, not that a drawing explains its bullet; the reviewer's notes do that.
 
 For screens, add a `## UX` design section with a brief, flow, hierarchy, components, and a `### Review` subsection that links `review.html` and names the items that sketch each screen. Sketch phone work phone-first. UI-less changes omit this section.
+
+## Review notes
+
+A `/continue` instruction that begins `Review notes from review.html` is feedback on an existing change. Read its artifact paths from `openspec status --change "<name>" --json`, by the [CLI contract](references/openspec-cli.md). Apply each note where it belongs — the proposal and its drawings, design, delta specs, tasks — and keep them coherent. Append one Decision-log line naming what each note changed or why it was declined. For a substantial rewrite, use `openspec instructions <artifact-id> --change "<name>" --json`, then validate. Rebuild the page (above) before implementing. Create no artifact the notes did not ask for.
 
 ## Finish
 

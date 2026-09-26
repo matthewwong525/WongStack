@@ -1,8 +1,5 @@
-# memory-worker Specification
+## ADDED Requirements
 
-## Purpose
-Serve every memory call from the repo's own production Worker, so that a memory key reaches only its own repo's memory store, never the app's data, and each person's transcripts stay private to them and the repo's admin.
-## Requirements
 ### Requirement: Every memory call uses a memory key
 
 The memory script SHALL send every store call made with a memory key to the Worker URL recorded under `components.memory.worker`, with the memory key from `CLOUDFLARE_MEMORY_TOKEN`. Only `migrate` and the admin commands SHALL instead use the admin's `CLOUDFLARE_API_TOKEN`, straight to Cloudflare. The Worker SHALL answer the same D1 query and R2 object requests, in the same shapes, that the memory script sends to the Cloudflare REST API. Each key SHALL open one repo's store, as `admin` or `member`. The Worker SHALL refuse a key it does not know with HTTP 401. The key hashes SHALL be kept in a table in the memory database, and the Worker SHALL refuse, with HTTP 403 and without running it, any statement that names that table or changes the schema's write protection, so that no key can read or change a key. A `CLOUDFLARE_MEMORY_TOKEN` that is not a memory key SHALL keep using the Cloudflare REST API with the same requests, until the store is moved. When the Worker URL answers 404, the script SHALL treat the store as not yet reachable, so that facts wait in the spool.
@@ -117,3 +114,25 @@ The memory script SHALL have `member add <email> [--admin]`, `member remove <ema
 
 - **WHEN** someone runs `memory.mjs worker deploy`
 - **THEN** the script stops with its usage, and nothing is deployed
+
+## MODIFIED Requirements
+
+### Requirement: Access uses a dedicated memory token
+
+The store SHALL be read and written through the app's production Worker with a memory key named `CLOUDFLARE_MEMORY_TOKEN`, stored in the git-ignored `.env` under the secrets convention. The requirements below define how the production Worker serves it. The key SHALL open only this repo's store. It SHALL NOT be set as a CI secret, and it SHALL NOT be the widened provisioning token. No person SHALL hold a Cloudflare token for memory, except an older store's token until its move finishes.
+
+#### Scenario: CI cannot read transcripts
+
+- **WHEN** a reviewer inspects the repository's CI secrets after provisioning
+- **THEN** `CLOUDFLARE_MEMORY_TOKEN` is not among them
+
+#### Scenario: The token is missing
+
+- **WHEN** a memory command runs on a machine whose `.env` has no `CLOUDFLARE_MEMORY_TOKEN`
+- **THEN** the command stops with a message that names the variable and the page that owns it
+- **AND** no value is printed
+
+#### Scenario: A teammate joins
+
+- **WHEN** a teammate needs memory access
+- **THEN** the admin gives them a member key, not a Cloudflare token

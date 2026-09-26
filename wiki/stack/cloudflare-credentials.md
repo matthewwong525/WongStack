@@ -69,29 +69,27 @@ CLOUDFLARE_ACCOUNT_ID=
 
 So each credential lives in one place: the user token in the primary worktree's git-ignored `.env`, and the deploy token in GitHub's sealed secret store. To rotate the deploy token, ask your agent; it rolls the value and sets the secret again. You see the token in the dashboard under **Manage Account → Account API Tokens**, where you or a teammate can revoke it. (A repo on the Workers Builds fallback needs no secret: that CI runs inside Cloudflare.)
 
-The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-token) owns that name and what a key can reach.
+The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-key) owns that name and what a key can reach.
 
 ## How two checkboxes become enough
 
-The token rewrites its own permissions: it reads its own id and policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified working against the live API: a token with only `API Tokens Write` widened itself and nine endpoints went from `Authentication error` to resolving. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no second secret, no re-paste.
-
-The full protocol — the call sequence, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall — is owned by [the widen protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md). The practical payoff: someone who never wants authentication never grants anything Zero-Trust-shaped.
+The token rewrites its own permissions: it reads its own policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified against the live API. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no re-paste. [The widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md) owns the calls, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall. Someone who never wants a login wall never grants anything Zero-Trust-shaped.
 
 ### The widen is pre-authorized
 
-> **This page owns the standing authorization.** Providing a token that carries these two permission groups **is** the permission to widen it, and to mint the narrow memory and CI deploy tokens from it — the groups exist for no other purpose, and a token that couldn't widen itself would be useless here. An agent that reaches the widen performs it and reports which permissions it granted; it does not stop to ask whether it may change the token's scope. Every other surface that instructs an agent to widen — [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), [the protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md) — restates that as a rule and links here for the reasoning.
+> **This page owns the standing authorization.** Providing a token that carries these two permission groups **is** the permission to widen it, and to mint the CI deploy token and write the memory key with it — the groups exist for no other purpose, and a token that couldn't widen itself would be useless here. An agent that reaches the widen performs it and reports which permissions it granted; it does not stop to ask whether it may change the token's scope. Every other surface that instructs an agent to widen links here.
 
 The authorization covers the widen and nothing else:
 
 - **Creating or deleting anything billable still asks first.** Widening costs nothing; a database is a different question.
-- **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set — see [the protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md).
+- **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set.
 - **Narrowing back is still offered, never assumed.** Below.
 
-Read it against the trade-off two sections down: this is a real grant, on a token that is effectively account-root, and it's stated here so the permission and its cost are read together.
+Read it against [the trade-off](#the-security-trade-off-stated-plainly): this is a real grant, on a token that is effectively account-root.
 
 ### Narrowing back
 
-The same call in reverse. Provision, then hand the extra permissions back; widen again next time you need them. Offered, never automatic. The one rule that must survive any hand-editing: the two API-token groups stay in the policy, or the token can never widen again (the wholesale-`PUT` rule in [the protocol reference](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md)). Narrowing the user token does not affect the deploy or memory tokens: each has its own policy.
+The same call in reverse: provision, hand the extra permissions back, widen again next time. Offered, never automatic. The two API-token groups must stay in the policy, or the token can never widen again. Narrowing the user token does not touch the deploy token or memory keys.
 
 ## The security trade-off, stated plainly
 
@@ -103,50 +101,11 @@ Treat the token like a root password. Its one copy lives in the primary worktree
 
 ## Access service token
 
-Only relevant if you turned on the [Access](cloudflare-access.md) login wall. A **service token** is how a non-interactive caller — CI, a script, anything without a browser — gets past Access to reach a gated preview URL.
-
-It's an ID/secret pair sent as request headers:
-
-```
-   CF-Access-Client-Id:     <client id>
-   CF-Access-Client-Secret: <client secret>
-```
-
-```bash
-# Cloudflare Access service token — lets CI reach Access-gated preview URLs.
-# Created under Zero Trust → Access → Service Auth; the policy must accept it.
-CF_ACCESS_CLIENT_ID=
-CF_ACCESS_CLIENT_SECRET=
-```
-
-Create it while you're setting up Access ([step 5](cloudflare-access.md#5-create-the-service-token-do-it-now)) — adding it later means re-opening the policy.
-
-**Or let `/verify` create it.** A walk that meets the login wall with no pair stored mints one named for the repo, confirms the policy accepts it, writes both values here, and retries — under the same [standing authorization](#the-widen-is-pre-authorized) that lets the token widen itself, and widening into the Access permission groups first if it has to. So this pair may appear in your `.env` without you putting it there; that's the walkthrough's [self-repair](../development/staging-walkthrough.md#when-the-walk-cant-get-in), and it reports what it minted. A pair you set by hand is never replaced.
-
-### What a service-token request looks like at the Worker
-
-This is the part that catches people out, because it is the opposite of what the two headers above suggest:
-
-- **The two headers you sent are stripped at the edge.** `CF-Access-Client-Id` and `CF-Access-Client-Secret` do not reach your Worker; Access consumes them.
-- **No email header is set.** Access sets `Cf-Access-Authenticated-User-Email` for a *human* who signed in through your identity provider. A service token has no email, so the header is simply absent. A Worker that authenticates by reading it therefore rejects **every machine caller** — CI, scripts, and WongStack's own [`/verify`](../development/staging-walkthrough.md) — with a `401`, while working fine in your browser. That asymmetry is why the header pattern looks correct right up until automation needs in.
-- **What does arrive** is `cf-access-jwt-assertion` — the signed assertion — alongside the ordinary `cf-connecting-ip`, `cf-ipcountry`, `cf-ray`, and `cf-visitor`.
-
-So the assertion is the only signal that covers humans and machines both. In its verified claims, a human carries `email` and a service token carries `common_name` (the token's Client ID, with `sub` an empty string) — one code path, both callers. That is what [`app/worker/access.ts`](cloudflare-access.md#the-auth-model-verify-the-signed-assertion) does, and why the Access runbook rejects plain header trust.
+Only for an [Access](cloudflare-access.md) login wall: the ID/secret pair that lets CI, a script, or `/verify` reach a gated preview without a browser. [Cloudflare Access](cloudflare-access.md#5-create-the-service-token-do-it-now) owns how to create and store it, and [the auth model](cloudflare-access.md#the-auth-model-verify-the-signed-assertion) owns what reaches the Worker.
 
 ## Worker secrets are per environment
 
-The credentials above are yours — they live in the primary worktree's `.env` and let *you* and an agent talk to Cloudflare. A **Worker secret** is different: it belongs to a deployed Worker, and the runtime reads it off `env`. An API key the Worker itself calls out with is this kind.
-
-Secrets are scoped to a single Worker, and [staging is a separate Worker](d1-pipeline.md#why-staging-is-a-whole-worker). So every secret has to be put twice:
-
-```bash
-npx wrangler secret put GEMINI_API_KEY                  # the production Worker
-npx wrangler secret put GEMINI_API_KEY --env staging    # the staging Worker
-```
-
-Forgetting the second one is the single most common staging failure, and it's the friendly kind — the binding is simply missing, so the Worker throws on first use rather than doing something subtly wrong. Add a secret to production and put it in staging in the same sitting.
-
-Locally, the same values go in `app/.dev.vars` (git-ignored, per the [secrets convention](../development/secrets.md)) — `wrangler dev` reads that instead, and `npm run secrets:push` loads both Workers from it. [Which file holds what](d1-pipeline.md#env-and-devvars-are-not-interchangeable).
+The credentials above are yours: they let *you* and an agent talk to Cloudflare. A **Worker secret** belongs to a deployed Worker, which reads it off `env` — an API key the Worker calls out with, say. [Staging is a separate Worker](d1-pipeline.md#why-staging-is-a-whole-worker), so each secret goes to both. [One declared list of secrets](d1-pipeline.md#one-declared-list-of-secrets-two-workers) owns how: `app/.dev.vars`, `npm run secrets:push`, and the parity check.
 
 ## Next
 

@@ -6,7 +6,7 @@ user-invocable: true
 
 # /save
 
-The checkpoint owns branch creation, record maintenance, spec reconciliation, commit, push, PR updates, and CI recovery. Invocation authorizes these actions and they are taken without a prompt. Confirm actions outside this runbook, in [the ask format every skill uses](../explore/references/asking-the-user.md). Never force push, bypass hooks, amend merged commits, or merge a PR. OpenSpec owns planning files and never runs Git. [The change loop](../../../wiki/development/the-change-loop.md) owns delivery policy; nothing builds locally as a prerequisite.
+The checkpoint owns branch creation, record maintenance, spec reconciliation, commit, push, PR updates, and CI recovery. Invocation authorizes these actions and they are taken without a prompt. Confirm actions outside this runbook, in [the ask format every skill uses](../explore/references/asking-the-user.md). Never force push, bypass hooks, amend merged commits, or merge a PR. [The change loop](../../../wiki/development/the-change-loop.md) owns the git boundary and delivery policy; nothing builds locally as a prerequisite.
 
 Input: `/save [note]`. A status-like note sets `in-progress`, `blocked (<reason>)`, `ready-to-ship`, or `parked`; other notes seed the dated Decision-log entry. Save captures session understanding for cold resume. Required facts must be in pushed repo files, with repo-relative paths.
 
@@ -22,7 +22,7 @@ Load each matching procedure before its actions; conditions can combine:
 | Every changed path is under `wiki/`, or the session only produced facts, including a to-do that changed no repo file | [Prose save](references/prose-save.md), before staging or publication |
 | The session built or changed a mini app | [Mini-app save](references/mini-app-save.md): straight to the default branch when every changed path is inside one app's folder, else a pull request |
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md), before authoring |
-| Exact selected handoff is archived | [Archive maintenance](references/archived-save.md), before updating it |
+| Exact selected handoff is archived | [The archived handoff](#the-archived-handoff), before updating it |
 
 Check [the preconditions](references/preconditions.md) first; a failed check stops the save with its fix. `main` is the default branch, per [the default-branch rule](references/git-gate.md#the-default-branch). Fetch it before comparing; failed inspection is an error, not evidence of no work.
 
@@ -39,7 +39,7 @@ An archive always uses the normal route. Otherwise compare **every** dirty path,
 
 ## 2. Maintain the handoff and capture context
 
-For normal work, use the latest agreed plan and relevant diff. Keep its existing headings; make the current intent self-contained. Follow new-plan or archive procedures only when their conditions apply.
+For normal work, use the latest agreed plan and relevant diff. Keep its existing headings; make the current intent self-contained. Follow the new-plan procedure only when its condition applies.
 
 Keep an existing feature branch. On the default branch or detached HEAD, create a feature branch with `git checkout -b "$SLUG"`. Derive its name from the selected change or new topic; only if the session is unreadable use the worktree name. Append a short SHA on a name collision. Never change an established `NAME` to match the branch. Establish the plan before committing and create required artifacts before their checkpoint.
 
@@ -58,7 +58,11 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.
 
 Unchanged output stays unchanged. Missing or invalid inputs leave the old page intact: report it as stale even if the checkpoint continues. Stage the generated page with the handoff.
 
-For an active change with deltas, follow [spec reconciliation](references/spec-sync.md). Without deltas, skip reconciliation and honor the schema's permitted `skip_specs` when validating. Archived changes skip active sync. Use CLI status/list for actual artifact and task progress, not guessed paths or an assumed four-artifact schema.
+For an active change with deltas, [reconcile them](../plan/references/openspec-cli.md#reconcile-deltas). Without deltas, skip reconciliation and honor the schema's permitted `skip_specs` when validating. Use CLI status/list for actual artifact and task progress, not guessed paths or an assumed four-artifact schema.
+
+### The archived handoff
+
+The archive is the completed plan. Keep the exact `CHANGE_ROOT`, and recover `NAME` from the dated folder only if the caller did not supply it. Set Status to `ready-to-ship`, keep the actual Branch, and append a dated entry for the archive checkpoint. Never rebuild its plan from the conversation, author a new one, or recreate an active folder. Refresh its review and skip active delta reconciliation: the CLI archive did it. Stage the archive plus its tracked removals and implementation paths. The PR renderer runs in archive mode, with no continue command; report the archived path.
 
 ## 3. Stage, exclude values, and commit
 

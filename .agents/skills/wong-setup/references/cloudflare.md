@@ -25,7 +25,7 @@ This runbook turns a fresh WongStack install into a running app with session mem
 - **Never print a token value.** Not in a summary, not in an error, not in a command you echo.
 - **The user token stays on the host.** It lives only in the primary worktree's `.env`. It never becomes a GitHub secret, and no step copies it anywhere else.
 - **Ask before creating or deleting anything billable.** State what you are about to make, then make it. Every question is [a choice with a recommendation](../../explore/references/asking-the-user.md), in the plain voice above.
-- **The widen and the two mints are not in that rule's scope — do them, then report them.** They cost nothing and are reversible, and a user who pastes a two-permission token has authorized them ([the standing authorization](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)).
+- **The widen and the two mints are [pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized):** do them, then report them.
 
 ## Step 1 — the credential
 
@@ -89,7 +89,7 @@ Success returns the token's own `id`, which Step 2 needs. **Translate every fail
 
 ## Step 2 — the token widens itself
 
-**Do this without asking, and report what you granted afterward.** Follow [the widen protocol](permission-groups.md): resolve group ids by name, `PUT` the widened set with the two API-token groups preserved, re-verify, and probe each added surface. The user granted two groups; this runbook grants itself only the groups in [a normal provision](permission-groups.md#a-normal-provision), and the Access groups only when a user asks for a login wall.
+**Do this without asking ([pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)), and report what you granted afterward.** Follow [the widen protocol](permission-groups.md): resolve group ids by name, `PUT` the widened set with the two API-token groups preserved, re-verify, and probe each added surface. The user granted two groups; this runbook grants itself only the groups in [a normal provision](permission-groups.md#a-normal-provision), and the Access groups only when a user asks for a login wall.
 
 If the widen did not take: **stop, provision nothing**, and list the permission names for the user to add by hand.
 
@@ -236,13 +236,3 @@ State, in plain language:
 - That the app is **public**: anyone with the link can open it. A login wall is [the Access runbook](../../../../wiki/stack/cloudflare-access.md).
 
 End on the URL and the one next command.
-
-## Hard rules
-
-- **Idempotent.** Reuse, never duplicate. Report reuse as a success, not a warning.
-- **Nothing committed.** `/save` owns that.
-- **No token values in output**, ever. The deploy token's value goes from the API response to `gh secret set` through a pipe and nowhere else.
-- **The user token never leaves the host.**
-- **Plain language at every failure.** The user always knows which single thing to fix.
-- **Never assume the account.** Ask whenever the count is not exactly one.
-- **Names derived, not requested.**

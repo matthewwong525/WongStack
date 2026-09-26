@@ -54,7 +54,7 @@ The browser tool the walk uses SHALL also be available for ordinary browser work
 #### Scenario: A repo with no stack pack receives the skill
 
 - **WHEN** WongStack is installed or synced into a repo whose `components.stackPack` is absent or false
-- **THEN** the `walk` skill is copied in with the rest of the core category
+- **THEN** the `verify` skill is copied in with the rest of the core category
 - **AND** no Cloudflare file, script, or config fragment is copied with it
 
 #### Scenario: A repo in any language walks
@@ -81,7 +81,7 @@ The browser tool the walk uses SHALL also be available for ordinary browser work
 - **THEN** the walk runs against whatever is deployed for the current commit
 - **AND** the incomplete state of the change is not treated as an error
 
-### Requirement: /verify begins by invoking /save
+### Requirement: /verify scouts before it invokes /save
 
 `/verify` SHALL scout the change's scenarios into candidate journeys **before** invoking `/save` and before any credential preflight. The scout reads only local files (the change's delta specs and any touched synced specs), so it costs no push, no CI wait, and no API call. When the scout finds no scenario that any probe can reach, the verdict SHALL be `NONE`, reported in one line, and `/save`, preflight, and every remote step SHALL be skipped.
 
@@ -310,7 +310,7 @@ Where the evidence is genuinely ambiguous, the walk SHALL stop and ask the user,
 
 ### Requirement: Verdicts report, and gate nothing
 
-The walk SHALL resolve to exactly one of five verdicts — `NONE`, `SUCCESS`, `FAILURE`, `UNKNOWN`, `TIMEOUT` — and each SHALL be reported to the user and on the pull request. **No verdict SHALL block, delay, or condition a merge**, because `/verify` performs no merge and no other skill consults its result.
+The walk SHALL resolve to exactly one of five verdicts — `NONE`, `SUCCESS`, `FAILURE`, `UNKNOWN`, `TIMEOUT` — and each SHALL be reported to the user and on the pull request. **`/verify` SHALL block, delay, or condition nothing**, because it performs no merge. Only `/ship` consults a verdict: on `FAILURE` it asks the user whether to fix or merge anyway, as `delivery-gate` defines, and the user decides.
 
 - **NONE** — this change has no scenario any probe can reach. Report why, in one line. `NONE` SHALL NOT be used to mean "not adopted": adoption no longer exists.
 - **SUCCESS** — every journey satisfied its `THEN`.
@@ -326,7 +326,7 @@ When the walk lands on a Cloudflare Access challenge, the heal SHALL be gated on
 
 - **WHEN** a walk returns `FAILURE`
 - **THEN** the failure is reported and posted
-- **AND** no merge, push, or other skill is prevented from running afterwards
+- **AND** `/verify` prevents no merge, push, or other skill from running afterwards
 
 #### Scenario: Nothing to walk
 

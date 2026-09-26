@@ -2,7 +2,7 @@
 
 Load when the session built or changed a mini app. A mini app has no OpenSpec change and no branch of its own: its folder on the default branch and the app list at `/apps/` are the record. [Mini apps](../../../../wiki/stack/mini-apps.md) owns the layout.
 
-Follow the main save procedure's credential exclusion before every commit and publication.
+Apply [credential exclusion](../SKILL.md#1-protect-credentials-and-select-the-route) before every commit and publication.
 
 ## The direct route — straight to the default branch
 
