@@ -1,29 +1,30 @@
-# .dev.vars.example — the secrets the WORKER reads at runtime.
+# app/.dev.vars.example — the secrets the WORKER reads at runtime.
 #
 # HOW THIS WORKS
 #   • This file is committed and carries KEY NAMES ONLY, never a value. It is
 #     the reviewable list of what the Worker expects, and `secrets:check`
 #     compares it against what each Worker actually holds.
-#   • Copy it to a git-ignored `.dev.vars` and fill in the real values:
-#         cp .dev.vars.example .dev.vars
+#   • It sits beside app/wrangler.jsonc, because the secrets script reads
+#     `.dev.vars` from the folder that holds the wrangler config. Copy it to a
+#     git-ignored `.dev.vars` in this same folder and fill in the real values:
+#         cp app/.dev.vars.example app/.dev.vars
 #   • Load both Workers from it — one command, no per-environment `wrangler
 #     secret put` to forget:
 #         npm run secrets:push
-#   • `wrangler dev` reads `.dev.vars` automatically, so the same file serves
-#     local development and both deployed Workers.
+#   • In a linked worktree, app/.dev.vars is the branch's own copy. Adds and
+#     rotations also go to the primary worktree's copy now; deletions wait for
+#     the merge. See wiki/development/secrets.md.
 #
-# THIS IS NOT `.env`, AND THE DIFFERENCE MATTERS
-#   .env       what CI and the pack's scripts authenticate WITH — chiefly
-#              CLOUDFLARE_API_TOKEN, which can widen its own permissions and
-#              create account resources. It must NEVER reach a Worker: a log
-#              leak or code-execution bug there would escalate to the whole
-#              Cloudflare account. `secrets:push` refuses to load it.
-#   .dev.vars  what the Worker itself reads off `env`. This file.
+# THIS IS NOT THE ROOT `.env`
+#   The root `.env` holds what you and the scripts use to reach Cloudflare,
+#   chiefly CLOUDFLARE_API_TOKEN. It must NEVER reach a Worker, and
+#   `secrets:push` refuses to load it. Which file holds what:
+#   wiki/stack/d1-pipeline.md#env-and-devvars-are-not-interchangeable
 #
 # STAGING VALUES
 #   By default both Workers get identical values — `secrets:push` falls back to
 #   `.dev.vars` for staging. To give staging its own value for a key, create a
-#   git-ignored `.dev.vars.staging`; no command changes.
+#   git-ignored `app/.dev.vars.staging`; no command changes.
 #
 #   Diverge for anything with third-party WRITE side effects — payment keys,
 #   outbound email/SMS, webhook targets. Sharing those lets a branch on staging

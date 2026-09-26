@@ -1,9 +1,5 @@
-# path-scoped-rules Specification
+## MODIFIED Requirements
 
-## Purpose
-
-The payload ships path-scoped rule files under `.claude/rules/` that load the owning convention into an agent's context exactly when it works with matching files — so conventions surface at the moment of the edit instead of relying on the agent to go find them.
-## Requirements
 ### Requirement: The payload ships path-scoped rules in the core category
 
 The payload SHALL include a `.claude/rules/` directory (real path `.agents/rules/` in this repo, reached through the `.claude` symlink) as a core, copy-if-absent category on the payload manifest. Each rule file SHALL carry YAML frontmatter with a `paths:` list of glob patterns, so an agent loads it only when reading files those patterns match. Four rules SHALL ship:
@@ -68,18 +64,3 @@ A rule file SHALL NOT restate a convention another payload file owns — it SHAL
 - **WHEN** an agent in a linked worktree is about to add, rotate, or delete a value in `.env` or `app/.dev.vars`
 - **THEN** the `secrets.md` rule in its context tells it which of the two files the value belongs in
 - **AND** it tells the agent to write an add or a rotation to the primary as well, and to keep a deletion in the worktree copy until the merge
-
-### Requirement: Meta-only rules stay out of the manifest
-
-The meta-repo MAY keep rules in `.claude/rules/` that guide work on WongStack itself and are not payload. `payload.md` SHALL be such a rule: scoped to the payload surfaces, it SHALL own the working-on-WongStack conventions that CLAUDE.md's meta half previously carried — editing the payload is a release (VERSION bump, newest-first CHANGELOG entry, `node scripts/check-payload-links.mjs` passes), a template or fragment is code and never a `docs(...)` commit, skills reference files by repo-relative path, and a git-fronting skill keeps its OpenSpec step intact. A meta-only rule SHALL NOT be listed in `payload-files.json`, so `/wong-sync` never proposes it to a target.
-
-#### Scenario: A target repo never receives a meta-only rule
-
-- **WHEN** `/wong-sync` reads the manifest in a target repo
-- **THEN** `payload.md` is not among the files it may copy
-
-#### Scenario: The release ritual surfaces at edit time
-
-- **WHEN** an agent in this repo edits a payload file
-- **THEN** `payload.md` is in its context, carrying the release ritual and the template-is-code rule
-

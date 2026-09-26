@@ -146,7 +146,7 @@ npx wrangler secret put GEMINI_API_KEY --env staging    # the staging Worker
 
 Forgetting the second one is the single most common staging failure, and it's the friendly kind — the binding is simply missing, so the Worker throws on first use rather than doing something subtly wrong. Add a secret to production and put it in staging in the same sitting.
 
-Locally, the same values go in `.dev.vars` (git-ignored, per the [secrets convention](../development/secrets.md)) — `wrangler dev` reads that instead.
+Locally, the same values go in `app/.dev.vars` (git-ignored, per the [secrets convention](../development/secrets.md)) — `wrangler dev` reads that instead, and `npm run secrets:push` loads both Workers from it. [Which file holds what](d1-pipeline.md#env-and-devvars-are-not-interchangeable).
 
 ## Next
 
