@@ -1,9 +1,8 @@
+# mini-apps Specification
+
 ## Purpose
-
 Let a person get a working app from one request in under a minute, however large the main app is, try it on a preview, change it by chatting, and save it straight to production, where a dashboard lists every mini app.
-
-## ADDED Requirements
-
+## Requirements
 ### Requirement: A mini app lives apart from the main app
 
 Each mini app SHALL live in its own folder, `mini-apps/apps/<name>/`, beside the main app, with a manifest `app.json` that holds at least a title and a one-line description. All mini apps SHALL run on one small Worker with a staging twin, bound to the repo's database (the staging database for previews). A mini app's pages SHALL need no build step. The main app's build, lint, and tests SHALL NOT include `mini-apps/`, and a change to a mini app SHALL NOT build the main app.
@@ -122,3 +121,4 @@ A script SHALL build the mini Worker's dashboard page from the `app.json` of eac
 
 - **WHEN** a folder's `app.json` is missing a title
 - **THEN** the script names the folder and fails the upload or deploy
+
