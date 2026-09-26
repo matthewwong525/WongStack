@@ -1,0 +1,32 @@
+<section class="visual tree" id="notes-migration" data-kind="tree" data-title="Notes migration records">
+  <p class="caption">Files and records this change touches. A spec requirement and two tests protect migrated records. The code and stored data stay as they are.</p>
+  <div class="frame">
+    <p class="label">Edited</p>
+    <ul>
+      <li class="edit">openspec/specs/memory-store/spec.md · write gate <span class="why">no longer names "the migration" as a writer</span></li>
+      <li class="add">openspec/specs/memory-store/spec.md · "Records from an earlier notes migration stay readable" <span class="why">new requirement</span></li>
+      <li class="add">scripts/tests/memory-store.test.mjs · <code>source</code> prints a seeded migrated note <span class="why">new test <i class="callout">1</i></span></li>
+      <li class="add">scripts/tests/memory-store.test.mjs · <code>import</code> exits non-zero and writes nothing <span class="why">new test</span></li>
+      <li class="edit">VERSION <span class="why">19.0.1</span></li>
+      <li class="edit">CHANGELOG.md <span class="why">new 19.0.1 entry</span></li>
+    </ul>
+    <p class="label">Kept, unchanged</p>
+    <ul>
+      <li>.agents/skills/memory/scripts/memory.mjs · <code>source</code> and <code>'migration'</code> in <code>SOURCES</code> <span class="why">still read stored migration facts</span></li>
+      <li>.agents/skills/memory/migrations/0001_memory.sql · CHECK constraints <span class="why">keep the <code>migration</code> agent and source <i class="callout">2</i></span></li>
+      <li>R2 <code>migration/&lt;slug&gt;.md</code> objects and <code>migration:&lt;slug&gt;</code> sessions <span class="why">stay in existing stores; <code>source</code> prints them</span></li>
+    </ul>
+    <p class="label">Already removed</p>
+    <ul>
+      <li class="del">.agents/skills/memory/scripts/memory.mjs · <code>import</code> command <span class="why">done in 19.0.0 (#105)</span></li>
+      <li class="del">wong-sync notes step and payload manifest section <span class="why">done in 19.0.0 (#105)</span></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a WongStack maintainer who keeps old store records safe. <b>Done:</b> a requirement and CI tests protect migrated notes, and no command imports <code>notes/</code>.</p>
+    <ol>
+      <li>The test seeds rows directly. The <code>import</code> command is gone, so the test writes the session row, the fact, and the R2 object into the fake store. The rows match what the 18.1.0 import wrote. No test-only code ships.</li>
+      <li>The schema keeps <code>migration</code> because stored rows use it. This repo's store holds migration sessions and facts. If a schema migration removed the value, those rows would fail the check. So the schema and stored rows do not change.</li>
+    </ol>
+  </div>
+</section>

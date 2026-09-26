@@ -157,3 +157,24 @@ test('helpers: FTS query, tag normalization, near tags, redaction', () => {
   assert.equal(redact(`x ${SECRET} y`, values), 'x [redacted:.env] y');
   assert.equal(findCredential('eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4', []), 'JWT');
 });
+
+test('a fact from an earlier notes migration still prints its note', async () => {
+  const env = await setup();
+  const now = '2026-09-01T00:00:00Z';
+  env.fake.db.prepare("INSERT INTO sessions (id, agent, status, raw_key, raw_bytes, updated_at) VALUES ('migration:old', 'migration', 'captured', 'migration/old.md', 14, ?)").run(now);
+  const { id } = env.fake.db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at) VALUES ('old', 'project', 'The cap is 100 lines.', 'migration:old', 'migration', ?) RETURNING id").get(now);
+  env.fake.objects.set('migration/old.md', Buffer.from('Old note text.'));
+  const source = await memory(env.repo, env.fake, ['source', String(id)]);
+  assert.equal(source.code, 0, source.stderr);
+  assert.match(source.stdout, /Old note text\./);
+});
+
+test('no command imports notes', async () => {
+  const env = await setup();
+  const file = writeJsonFile(env.repo.home, 'migration.json', { notes: [{ slug: 'old', text: 'Old note text.', facts: [] }] });
+  const before = env.fake.calls.length;
+  const result = await memory(env.repo, env.fake, ['import', '--file', file]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /usage: memory\.mjs/);
+  assert.equal(env.fake.calls.length, before, 'nothing reaches the store');
+});
