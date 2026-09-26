@@ -35,7 +35,7 @@ The user's `/apply` invocation authorizes the plan-then-implement shortcut. Afte
 
 Run `openspec instructions apply --change "<name>" --json` for that selected change, applying the [CLI contract](../plan/references/openspec-cli.md) for a store or non-default schema. Read every `contextFiles` path it reports. Work the pending tasks in order, make the edits, mark each completed checkbox, and refresh progress from the same change. A `blocked` state stops implementation; an `all_done` state goes to the completion handoff. Treat returned context as project constraints and operation guidance as advice, not evidence that a task is done. Report incomplete work or actual blockers.
 
-When it reaches an **all-tasks-complete** state — including when the selected change was already complete at invocation — immediately invoke the **`save` skill** once and follow it verbatim, then report the implementation and checkpoint results together. When a task-driven `/save` completed the final task, report from its result instead of a second save.
+When it reaches an **all-tasks-complete** state — including when the selected change was already complete at invocation — immediately invoke the **`save` skill** once and follow it verbatim, then report the implementation and checkpoint results together. Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview link, then the checkpoint lines. When a task-driven `/save` completed the final task, report from its result instead of a second save.
 
 **Inside `/ship`, return instead.** When `/ship` invoked you, report completion and return without `/save`: `/ship` archives and makes the run's one checkpoint.
 
