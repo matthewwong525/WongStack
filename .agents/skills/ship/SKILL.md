@@ -133,6 +133,16 @@ Ask **which checkout has `main` out**, not whether you are in a worktree — a p
 
 **Any obstacle skips, and the skip is one line.** A dirty target checkout, a diverged `main`, a `merge --ff-only` that refuses — leave that checkout alone and say why in the report. The pull request is already merged, so **nothing after Step 5 can fail the ship**. Never check out, switch, stash, reset, or force a branch to make the sync succeed, and never delete a local branch.
 
+### Promote the branch's secret edits
+
+A linked worktree keeps its own copy of each live secrets file. The branch wrote its adds and rotations to the primary already; its deletions and branch-only values waited for this merge. Apply them now, from the worktree you shipped:
+
+```bash
+node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/worktree-secrets.mjs" promote
+```
+
+It compares the worktree copy, the primary, and the baseline recorded at seed. It changes only the keys this branch changed, skips and names a key the primary also changed, and prints key names, never values. In the primary checkout it does nothing. The [secrets convention](../../../wiki/development/secrets.md) owns the lifecycle. The same skip rule applies: any error is one line in the report, and it cannot fail the ship.
+
 ## Step 7 — report
 
 - PR number + URL, **merged (squash)** to the default branch.
@@ -141,6 +151,7 @@ Ask **which checkout has `main` out**, not whether you are in a worktree — a p
 - **Walk** — the verdict, the evidence comment link, and — when a `FAILURE` was merged anyway — that the user chose to. Where the skill was absent, one line saying so.
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.
 - **Synced** — the checkout whose `main` advanced to the merged commit, or the one-line reason the sync was skipped.
+- **Secrets** — the promoted, skipped, and unresolved key names from the promote, never a value, or the one-line reason it was skipped.
 
 Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): the work the merge makes possible — normally start the next change, walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.
 
@@ -153,5 +164,5 @@ Close with [the next step](../explore/references/asking-the-user.md#end-every-re
 - **The walk informs, never blocks.** Run it once, report every verdict, and let no verdict but a user-answered `FAILURE` change what happens next. Never skip it to save time, and never re-run it hunting a greener result.
 - **Merge worktree-safely:** `gh pr merge --squash` then `git push origin --delete`, never `--delete-branch`.
 - **Never delete a branch another open PR is based on.** Retarget dependents to the default branch first; a closed-by-deletion PR cannot be recovered.
-- **The post-merge sync is fast-forward only, and never a gate.** It touches one other checkout, so it requires a clean tree there and skips with a reason on any obstacle. It deletes no local branch, and it cannot fail a ship that has already merged.
+- **The post-merge sync is fast-forward only, and never a gate.** It touches one other checkout, so it requires a clean tree there and skips with a reason on any obstacle. It deletes no local branch, and it cannot fail a ship that has already merged. The secrets promote follows the same rule, and runs only after a successful merge.
 - No GitHub summary issue. The only automatic wiki edit is the distillation of this change's facts before the archive; every other wiki update is explicit work.

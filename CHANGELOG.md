@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 18.2.0 — one file per secrets role, and branch copies in worktrees
+
+- Two live secrets files, one role and one place each. The root `.env` holds what you and the scripts use to reach Cloudflare, and never reaches a Worker. `app/.dev.vars` holds the secrets the Worker reads at runtime. [Which file holds what](wiki/stack/d1-pipeline.md#env-and-devvars-are-not-interchangeable).
+- `.dev.vars.example` moves from the repo root to `app/.dev.vars.example`, beside `app/wrangler.jsonc`. `secrets:push` and `secrets:check` always read that folder, so the root copy was never read. **If your repo has a root `.dev.vars`, move it to `app/.dev.vars`** (beside your wrangler config) by hand, and move the example with it.
+- A linked worktree works on its own branch copy of each live file. The new [`worktree-secrets.mjs`](.claude/skills/ship/scripts/worktree-secrets.mjs) `seed` copies the primary's files into a new worktree and records a baseline of key-name hashes in the worktree's Git directory. Wire it into your worktree tool's setup; this repo's `paseo.json` does. [The secrets convention](wiki/development/secrets.md#worktrees-and-branch-copies) owns the lifecycle.
+- A branch writes an add or a rotation to both copies now, and keeps a deletion or a branch-only value in its own copy. [`/ship`](.claude/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies only what the branch changed, skips and names a key both sides changed, and prints key names, never values. Like the post-merge sync, it cannot fail a merged ship.
+- The [secrets rule](.claude/rules/secrets.md) now loads for `.dev.vars*` too. It says which file holds what and how each kind of edit reaches the primary. `/save`'s named-secret step writes an add or a rotation to the seeded branch copy as well as the primary.
+- `secrets:push` in a linked worktree that has no `app/.dev.vars` reads the primary checkout's copy, and says so. A local copy still wins, and the `.env` refusal is unchanged.
+
 ## 18.1.0 — `/routine`: recurring work through Paseo schedules
 
 - New skill [`/routine`](.claude/skills/routine/SKILL.md). Say what to run and when, for example `/routine every weekday at 9am: /improve`. The skill turns the time into cron, shows you the schedule, and creates it in [Paseo](https://paseo.sh) after you accept. Any prompt or verb can be scheduled. `/routine` alone lists this repo's routines. `pause`, `resume`, `run`, `logs`, `change`, and `delete` act on one routine by name or id.
