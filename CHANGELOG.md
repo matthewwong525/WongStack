@@ -20,6 +20,12 @@
 
 Until you move, the store keeps working with the old token. Teammates who held that token need a member key from the admin.
 
+## 20.1.0 — Mutation testing re-tests only what changed
+
+- **Stryker is incremental.** The scaffold's `app/stryker.conf.json` sets `"incremental": true`. Stryker keeps each mutant's result in `app/reports/stryker-incremental.json` (git-ignored) and reuses it when the mutant's code and the test that killed it did not change; it tests every other mutant. The 100% break threshold and the one `npm test` command stay. `npx stryker run --force` tests every mutant.
+- **The Test workflow keeps the result file between runs.** [`test.yml`](.github/workflows/test.yml) restores the file before "Test" and saves it after, also after a red run. A branch starts from its own newest file, else the default branch's. The key hashes the suite's lockfile, Stryker config, and Vitest config, so a dependency or config change tests every mutant. A suite with no Stryker config runs no cache step.
+- **Why:** a full mutation run grows with the app. In one downstream repo it took 14 of the Test check's 15 minutes, on every push. The first run after this update has no file and tests every mutant; later pushes re-test only what changed. If you edited your own `stryker.conf.json`, `/wong-sync` adapts the one-line change.
+
 ## 20.0.0 — An assistant in every repo: direct requests, a wiki that grows from use, and home
 
 **Breaking.** Every install changes how it handles requests and what it writes to the wiki. There is no mode: every repo follows the same rules.
