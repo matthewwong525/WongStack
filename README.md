@@ -62,7 +62,7 @@ You end with a working assistant, a starter site online, and memory that carries
 /explore -> /plan -> /apply -> /save -> /continue -> /ship
 ```
 
-You do not have to run each one. A command whose input is missing runs the one before it, so `/apply` plans first when there is no plan. [The change loop](wiki/development/the-change-loop.md) owns the details.
+You do not have to type them. Ask for what you want, such as "add a sign-up page", and the agent runs the commands. It stops twice: at the plan, which ends with a link to its review page, and before it publishes. The commands are shortcuts: `/ship` runs everything with no stops. A command whose input is missing runs the one before it, so `/apply` plans first when there is no plan. [The change loop](wiki/development/the-change-loop.md) owns the details.
 
 | Command | What it does |
 | --- | --- |

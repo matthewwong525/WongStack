@@ -58,7 +58,7 @@ None.
 - **Always-loaded surfaces:** `AGENTS.md` (the `WONG-STACK` block and the meta intro).
 - **Skills:** `.agents/skills/explore/references/asking-the-user.md` (one line).
 - **Wiki:** `voice.md`, `README.md`, `stack/getting-started.md`.
-- **Root:** `README.md`, `VERSION` (23.1.0), `CHANGELOG.md`.
+- **Root:** `README.md`, `VERSION` (23.2.0), `CHANGELOG.md`.
 - **Specs:** the three modified capabilities above. The `simplified-technical-english` capability keeps its path, and its Purpose is updated.
 - Installed repos get the new rule and voice through `/wong-sync`.
 
@@ -77,3 +77,4 @@ None.
 - **2026-09-26** — Implementation checkpoint: version 23.1.0. `AGENTS.md` has the merged short-and-plain rule, after the plain-request rule; `voice.md` owns it and gained the everyday-words line; the README leads with the assistant and keeps the developer material under "For developers"; `wiki/README.md` and getting started welcome a newcomer. The payload link check, the OpenSpec config check, and the downstream-contract test pass. No STE100 text is left in `AGENTS.md`, `.agents/skills/`, the README, or the wiki.
 - **2026-09-26** — Distill: the store holds no facts for this change or its branch; no repeatable fact to move into the wiki.
 - **2026-09-26** — Archive checkpoint: archived as `openspec/changes/archive/2026-09-26-assistant-first-front-door/`; the CLI synced the three delta specs into `openspec/specs/`. `/ship`'s delegated `/save` commits the archive with the implementation.
+- **2026-09-26** — Renumbered to 23.2.0: `main` shipped 23.1.0 ("Plans a non-technical person can read", #128) during this change. The merge keeps both sides: this change's rule order and short-and-plain rule, plus #128's reader-level link and its "just ask" verbs rule.

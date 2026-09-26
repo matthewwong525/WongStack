@@ -22,6 +22,6 @@
 ## 5. Specs and release
 
 - [x] 5.1 Update the Purpose of `openspec/specs/simplified-technical-english/spec.md` to describe short, plain messages
-- [x] 5.2 Bump `VERSION` to 23.1.0 and add the `CHANGELOG.md` entry
+- [x] 5.2 Bump `VERSION` to 23.2.0 and add the `CHANGELOG.md` entry
 - [x] 5.3 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`
 - [x] 5.4 Confirm no "STE100" or "Simplified Technical English" remains in `AGENTS.md` or `.agents/skills/` (outside archived history)

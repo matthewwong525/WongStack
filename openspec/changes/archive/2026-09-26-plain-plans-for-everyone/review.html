@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · 2026-09-26-assistant-first-front-door</title>
+<title>Review · 2026-09-26-plain-plans-for-everyone</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -74,11 +74,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="2026-09-26-assistant-first-front-door">
+<body data-change="2026-09-26-plain-plans-for-everyone">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>2026-09-26-assistant-first-front-door</h1>
+  <h1>2026-09-26-plain-plans-for-everyone</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
@@ -86,54 +86,64 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">WongStack already works like a personal assistant: it does plain requests directly, it remembers across sessions, and it builds small apps on request. But the front door reads like a developer tool. The README opens with coding agents, then shows six commands, a comparison with spec tools, and a list of tools to install. The always-loaded rules also ask for ASD-STE100 Simplified Technical English, which produces stiff, long text. A non-technical person who wants something like <a href="https://www.explainx.ai/blog/openmuse-open-source-personal-agent-2026">Meta's Muse</a>, where you sign in, chat, and it gets things done, leaves before they find out that WongStack can do this. The repo is already public, so this front door is the launch.</p>
+<p data-note="why-1" tabindex="0">Many WongStack users are not engineers, but its plans are written for engineers. The last plan used words such as <code>isMain</code> and &quot;delta specs&quot;. Its questions ask about &quot;compatibility and migration&quot;. A failed check asks &quot;fix or merge anyway?&quot;. People must also learn six commands named after git steps. After a plan, nothing tells them where to look. A person who can not read the plan can not really review it, so the review step does not protect them.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The README leads with the assistant.</b> The first screen says what you get: an assistant that remembers you and gets things done, with example requests. Next come three setup steps and where to chat. Everything for developers moves under one lower heading. It keeps the commands, the comparison, the requirements, the layout, and working from the source.</div><figure class="drawing"><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">BEFORE                AFTER</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">───────────────────   ───────────────────</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">Coding agents forget  Your own assistant</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">review.html picture   What you can ask</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">Start here (paste)    Start in 3 steps</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">What you get          Where you chat</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">The commands          What you get</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0">How it compares       ── For developers ──</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0">Repository layout     The commands</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0">Requirements          How it compares</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0">Work from source      Requirements</span>
-<span class="ln" data-note="item-1-line-12" tabindex="0">                      Repository layout</span>
-<span class="ln" data-note="item-1-line-13" tabindex="0">                      Work from the source</span></pre></div></figure></div></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Short, plain messages replace STE100.</b> One rule in the <code>WONG-STACK</code> block replaces two: the ASD-STE100 rule and &quot;Answer in a few lines&quot;. <a href="../../../wiki/voice.md"><code>wiki/voice.md</code></a> owns how the rule reads in practice. It gains a line on everyday words: say <i>saved</i> and <i>live</i>, not <i>pushed</i> and <i>merged</i>, unless the person asks. Code, commands, identifiers, and quotations stay exact. The line in <a href="../../../.agents/skills/explore/references/asking-the-user.md"><code>asking-the-user.md</code></a> that cites STE100 points to the voice page instead.</div><figure class="drawing"><div class="frame"><pre class="art">
-<span class="ln" data-note="item-2-line-1" tabindex="0">- Write user-facing prose in ASD-STE100</span>
-<span class="ln" data-note="item-2-line-2" tabindex="0">  Simplified Technical English ...</span>
-<span class="ln" data-note="item-2-line-3" tabindex="0">- Answer in a few lines; ...</span>
-<span class="ln" data-note="item-2-line-4" tabindex="0">+ Keep messages short and plain: the</span>
-<span class="ln" data-note="item-2-line-5" tabindex="0">  point first, a few lines, everyday</span>
-<span class="ln" data-note="item-2-line-6" tabindex="0">  words. Name git, OpenSpec, or CI only</span>
-<span class="ln" data-note="item-2-line-7" tabindex="0">  when asked. Keep code exact.</span></pre></div></figure></div></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The rules put the assistant first.</b> In the <code>WONG-STACK</code> block, &quot;Do a plain request directly&quot; moves to the top of the rules. The change loop comes after it, as the path for code. The meta intro of <code>AGENTS.md</code> (not shipped) now calls WongStack a personal assistant and knowledge center that lives in a repo.</div></div></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>The wiki's entry pages welcome a newcomer.</b> <a href="../../../wiki/README.md"><code>wiki/README.md</code></a> opens with what the assistant does, and links <a href="../../../wiki/stack/getting-started.md">getting started</a> for a first-time reader. In getting started, &quot;how you work&quot; shows asking for anything first, and the change loop second.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Plans are written for the person who asked.</b> Their page in <code>wiki/people/</code> has one line that says whether they are technical. When no page says, the plan assumes they are not. For a non-technical reader, the Why, the list of changes, and every question use plain words about what they will see and get. File names, code, and commands go into the design and the tasks, which the review page does not show. An engineer's plan stays as it is today.</div></div></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>You just ask; the agent runs the commands.</b> Say &quot;add a sign-up page&quot; and the agent plans, builds, and publishes it with the same commands as today. It stops twice for your approval: The commands stay as shortcuts. When you type <code>/ship</code>, it still does everything with no stops, as today.</div><figure class="drawing"><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">&quot;add a sign-up page&quot;</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">       │</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">       ▼</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">plan ──▶ review page</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">       │</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">◆ Build it now?</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0">       │ yes</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">       ▼</span>
+<span class="ln" data-note="item-2-line-9" tabindex="0">build ──▶ preview link</span>
+<span class="ln" data-note="item-2-line-10" tabindex="0">       │</span>
+<span class="ln" data-note="item-2-line-11" tabindex="0">◆ Publish it?</span>
+<span class="ln" data-note="item-2-line-12" tabindex="0">       │ yes</span>
+<span class="ln" data-note="item-2-line-13" tabindex="0">       ▼</span>
+<span class="ln" data-note="item-2-line-14" tabindex="0">     live</span></pre></div></figure></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Every plan ends with a link to its review page.</b> The last lines of the reply tell you to click the link to see the plan, then ask what to do next: The page builder prints where the page is, so the link always goes to the correct file.</div><figure class="drawing"><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">Plan ready: add a sign-up page</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">──────────────────────────────</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">People can make an account</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">with their email address.</span>
+
+<span class="ln" data-note="item-3-line-6" tabindex="0">Click here to see the plan:</span>
+<span class="ln" data-note="item-3-line-7" tabindex="0">review.html   ← link</span>
+
+<span class="ln" data-note="item-3-line-9" tabindex="0">What next?</span>
+<span class="ln" data-note="item-3-line-10" tabindex="0">1. Build it now (Recommended)</span>
+<span class="ln" data-note="item-3-line-11" tabindex="0">2. Change the plan first</span>
+<span class="ln" data-note="item-3-line-12" tabindex="0">3. Stop here</span></pre></div></figure></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Problems are fixed first, then explained as outcomes.</b> When a check fails, the agent tries to fix it, as it does today. If it still needs you, it says what does not work and what each choice means for you. For example: &quot;The sign-up button does not work on the preview. Fix it first, or publish anyway?&quot; It does not ask you to judge CI results or git terms.</div></div></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> No hosted service. It stays a separate repo, as decided on 2026-09-25. No Gmail, Calendar, or other connectors. No change to setup steps, skills behavior, scripts, or the version line beyond a minor bump. No mass rewrite of the skills or deeper wiki pages. No files removed, and no change to the archive or <code>CHANGELOG.md</code> history.</p>
+<p class="aside"><b>Non-goals:</b> No new command and no renamed command. No change to a plan for a person whose page says they are technical. No web address for the review page (that is still an open item). No change to mini apps, which already go live after one question.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked what &quot;work like Muse&quot; means for this repo → chose an assistant-first reframe of the existing engine, not a hosted service here and not new connectors.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked how far the repo cleanup goes → chose plain-language docs: the README, <code>AGENTS.md</code>, and the wiki entry pages. Removing maintainer-only files, pruning the archive, and resetting the version were not chosen.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked what replaces STE100 → chose concise, short messages.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the skills and deeper wiki pages keep their current prose, because a mass rewrite could change how skills behave and was not asked for.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the version goes to 23.1.0, because the rule and doc changes break no installed repo.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the <code>simplified-technical-english</code> capability keeps its path and gets a new Purpose, because moving a spec adds churn and breaks history links for no reader benefit.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the README names the Claude desktop app as the easiest place to chat, with any capable coding agent still supported, because a non-technical reader should not need a terminal and the front door must stay agent-agnostic.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the jargon rule lets the agent name git, OpenSpec, or CI when the person asks or must act on it, because some steps (a PR review, a CI failure) still need the person.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>The bounded explore exit round is complete. Remaining details use the assumptions above.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the CI task is not a separate task, because <code>/ship</code> runs this change and merges only on its one checkpoint's <code>SUCCESS</code> or <code>NONE</code>.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Implementation checkpoint: version 23.1.0. <code>AGENTS.md</code> has the merged short-and-plain rule, after the plain-request rule; <code>voice.md</code> owns it and gained the everyday-words line; the README leads with the assistant and keeps the developer material under &quot;For developers&quot;; <code>wiki/README.md</code> and getting started welcome a newcomer. The payload link check, the OpenSpec config check, and the downstream-contract test pass. No STE100 text is left in <code>AGENTS.md</code>, <code>.agents/skills/</code>, the README, or the wiki.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distill: the store holds no facts for this change or its branch; no repeatable fact to move into the wiki.</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archive checkpoint: archived as <code>openspec/changes/archive/2026-09-26-assistant-first-front-door/</code>; the CLI synced the three delta specs into <code>openspec/specs/</code>. <code>/ship</code>'s delegated <code>/save</code> commits the archive with the implementation.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Renumbered to 23.2.0: <code>main</code> shipped 23.1.0 (&quot;Plans a non-technical person can read&quot;, #128) during this change. The merge keeps both sides: this change's rule order and short-and-plain rule, plus #128's reader-level link and its &quot;just ask&quot; verbs rule.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked who the plan and its questions are written for → chose the person asking, with their level read from their people page.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked whether non-technical people must type the commands → chose no: they just ask, and the agent picks the command; the commands stay as shortcuts.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked what a non-technical person sees when a check fails → chose: the agent tries to fix it first, and asks only in outcome terms.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked what to assume when no page records the level → chose non-technical.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked how far the agent goes with no command → chose: stop at the plan review (&quot;build it now?&quot;), then build, return the preview, and ask &quot;publish it?&quot; before the merge.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked where the review link goes → chose the end of the plan reply, with a line that tells people to click it (the user's own request).</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the level is one line on the person page, <code>**Technical level:** technical</code> or <code>non-technical</code>, because that page already holds how the person likes work done.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the agent records the level when the person says it or asks for more or less detail, and never guesses it from one message, because a wrong guess sticks for every later plan.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: only the Why, What Changes, questions, and reports follow the reader level; Capabilities, Impact, specs, design, and tasks stay technical, because the review page shows only the first and tools and engineers read the rest.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the two stops apply to every code change asked for with no command, whatever the level, because a person who wants no stops can type <code>/ship</code>.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: an invoked <code>/ship</code> or <code>/apply</code> keeps its current authorization, because a change there would break one-go runs.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: &quot;publish it?&quot; comes after <code>/save</code> returns the CI result and the preview; <code>/ship</code>'s walk still runs after the yes, and a failed walk asks in outcome words, because the walk lives inside <code>/ship</code>.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the link is a Markdown link to the page's absolute path, because a pull request can not show the page yet.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the link line sits just above the next-step question, because every reply must end with that question.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: no people page is seeded in this repo, because the wiki grows from use.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the release is 23.1.0, a minor version, because no existing install breaks.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distill: the store held no live facts for this change or branch; no repeatable fact beyond the People rule this change already writes to <code>wiki/wiki-style.md</code>.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Landed all 13 tasks: the reader-level rule in the ask convention, the no-verb two-stop path, the review link after every stopping plan, and the builder's path line (tests pass). Archived; version 23.1.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

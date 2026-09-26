@@ -27,4 +27,4 @@ See proposal.md, Why. The engine already routes plain requests directly (`reques
 
 ## Migration Plan
 
-Release 23.1.0. `/wong-sync` brings the new block rule, `voice.md`, and the skill reference line to installed repos. Rollback is a revert of the pull request.
+Release 23.2.0. `/wong-sync` brings the new block rule, `voice.md`, and the skill reference line to installed repos. Rollback is a revert of the pull request.

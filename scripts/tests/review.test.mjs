@@ -147,6 +147,8 @@ test('a wide drawing line warns with its item and line and still writes', () => 
 test('a change without a page is reported and left untouched', () => fixture(root => {
   assert.deepEqual(buildReview(root), { kind: 'no-page', changed: false, warnings: [] });
   assert.equal(existsSync(join(root, 'review.html')), false);
+  const cli = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });
+  assert.equal(cli.stdout, 'review: no-page, unchanged\n', 'no path line when there is no page');
 }));
 
 test('an older page gets a proposal-only refresh and keeps its viewer', () => fixture(root => {
@@ -178,7 +180,7 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
     rmSync(join(root, 'review.html'), { force: true });
     const result = spawnSync(process.execPath, [resolve(here, `../../${alias}/skills/plan/scripts/build-review.mjs`), root, '--require-current'], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, 'review: current, updated\n');
+    assert.equal(result.stdout, `review: current, updated\n${join(resolve(root), 'review.html')}\n`);
   }
   writeFileSync(join(root, 'proposal.md'), proposal.replace('  c ─→ d', `  ${'y'.repeat(61)}`));
   const warned = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });
