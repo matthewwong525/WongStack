@@ -12,4 +12,4 @@
 - [x] 3.1 Update `wiki/development/required-tools.md`: the server script is the one place WongStack installs Paseo, for a server.
 - [x] 3.2 Add `server/` to "Not copied" in the payload manifest, and a row for `server/` in the README's layout table.
 - [x] 3.3 Bump `VERSION` to 20.2.0 and add the `CHANGELOG.md` entry.
-- [ ] 3.4 Run `/save` so CI runs the tests and payload checks. The task is done when CI passes.
+- [x] 3.4 Run `/save` so CI runs the tests and payload checks. The task is done when CI passes.

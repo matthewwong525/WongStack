@@ -1,6 +1,6 @@
 # Server setup script
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** server-setup-script
 **Open questions:** none
 
@@ -45,3 +45,4 @@ A person who wants their agents on an always-on server has no WongStack way to m
 - **2026-09-26** — Assumed: the budget is 12 KiB. With the base64 cost (4/3) that leaves room in a 32 KiB first-boot limit for a host's own agent and config.
 - **2026-09-26** — Assumed: the one input is `WORKSPACE_USER`, default `wong`. Everything else is fixed in the script, and a fork changes it by editing the script.
 - **2026-09-26** — Landed the script, its README contract, the size test, the required-tools line, the "Not copied" entry, the layout row, and 20.2.0. The script ports the hosted service's cloud-init build step for step, with the user as an input and the self-check added. It has not run end to end yet; the hosted service's first staging build after this merge is that run.
+- **2026-09-26** — CI passed on PR #122 (`47bf7c1`): test, payload, and build. Distilled facts before the archive: no reusable fact. Archived with `--skip-specs`, because `/save` already synced the deltas into `openspec/specs/`. After the merge, `/ship` tags `v20.2.0` and publishes the release per the release ritual.
