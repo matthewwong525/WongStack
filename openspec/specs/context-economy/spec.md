@@ -3,7 +3,9 @@
 ## Purpose
 
 The instructions that load into every session — CLAUDE.md, the WONG-STACK block, and skill frontmatter descriptions — are a shared budget. This capability bounds what each always-loaded surface may carry, so context spends on the work instead of on restatements.
+
 ## Requirements
+
 ### Requirement: The WONG-STACK block carries orientation only
 
 The WONG-STACK block in `CLAUDE.md` SHALL carry only what an agent needs before it touches any file: what the repo's knowledge surfaces are and where each kind of fact lives, the change loop named in one line, the git-ownership boundary (the WongStack skills own all git; OpenSpec never runs git), and the rules that apply to every session regardless of surface. The block SHALL NOT restate a fact that a skill frontmatter description, a path-scoped rule, or a wiki page owns — it SHALL link to the owner instead. Every fact removed from the block SHALL have a surviving owner that loads on file touch (a rule), on invocation (a skill), or by link (a wiki page).
@@ -60,7 +62,7 @@ The vendored `agent-browser` skill SHALL remain exempt from the description budg
 
 The completed change SHALL report before-and-after word and byte counts for a fixed inventory of core workflow skill descriptions, bodies, and linked procedure references, including removed generated instructions and new references. The inventory SHALL show a net reduction and SHALL identify shared owner documents separately. Counts of source text SHALL NOT be presented as measured runtime token savings. Generated review code, executable helpers, and historical records SHALL be accounted for separately.
 
-The report SHALL also name required-reading inventories for ordinary active save, named-secret save, prose save, mini-app save, new-plan fallback, archived save, and cold resume. Ordinary save SHALL require less source reading than the recorded baseline. Every special-route increase SHALL be reported with its reason. Completion SHALL include behavior regression evidence and an audit that required checks remain reachable.
+The report SHALL also name required-reading inventories for ordinary active save, named-secret save, prose save, new-plan fallback, archived save, and cold resume. Ordinary save SHALL require less source reading than the recorded baseline. Every special-route increase SHALL be reported with its reason. Completion SHALL include behavior regression evidence and an audit that required checks remain reachable.
 
 #### Scenario: The implementation is reviewed
 
@@ -82,7 +84,7 @@ The report SHALL also name required-reading inventories for ordinary active save
 
 ### Requirement: Save loads conditional procedures only when applicable
 
-The save skill SHALL expose a complete main procedure and explicit entry conditions for named-secret persistence, prose-only handling, mini-app handling, new-plan fallback, and archived handoffs. Each applicable procedure SHALL be loaded before its actions. Unconditional credential exclusion, workflow ownership, and gate-result handling SHALL remain visible in the main procedure. Extracted procedures SHALL retain all required checks.
+The save skill SHALL expose a complete main procedure and explicit entry conditions for named-secret persistence, prose-only handling, new-plan fallback, and archived handoffs. Each applicable procedure SHALL be loaded before its actions. Unconditional credential exclusion, workflow ownership, and gate-result handling SHALL remain visible in the main procedure. Extracted procedures SHALL retain all required checks.
 
 #### Scenario: Ordinary active change checkpoint
 
@@ -98,8 +100,8 @@ The save skill SHALL expose a complete main procedure and explicit entry conditi
 
 #### Scenario: A mini-app save
 
-- **WHEN** save runs for a direct mini-app save
-- **THEN** it loads the mini-app procedure and does not load the pull-request and CI-wait procedure
+- **WHEN** save runs for a change to a mini app
+- **THEN** it loads the same procedures as any code change, and there is no mini-app procedure to load
 
 ### Requirement: Billed usage is measurable per task
 
@@ -166,4 +168,3 @@ A vendored skill that only a WongStack verb calls SHALL NOT be offered for autom
 
 - **WHEN** a user asks about unread Slack messages in a WongStack repo
 - **THEN** the vendored browser skill is not triggered by its description
-

@@ -55,7 +55,7 @@ None.
 - **Builder:** `.agents/skills/plan/scripts/build-review.mjs` (drawing markup: a `<details>` outside the item's text column).
 - **Tests:** `scripts/tests/review.test.mjs`, `app/review/review.test.mjs`.
 - **Docs:** `wiki/ux-principles.md`, `.agents/skills/plan/SKILL.md`, `README.md` caption.
-- **Release:** `VERSION` 24.1.0 and `CHANGELOG.md`. Active changes pick the new kit up on their next page build; archived pages are not rebuilt.
+- **Release:** `VERSION` 25.1.0 and `CHANGELOG.md`. Active changes pick the new kit up on their next page build; archived pages are not rebuilt.
 
 ## Decision log
 
@@ -66,8 +66,9 @@ None.
 - **2026-09-26** — Assumed: clicking text with a mouse still shows "Add note", and a touch tap on text does nothing extra, because the Note button now covers touch and a stray tap while scrolling should do nothing.
 - **2026-09-26** — Assumed: the docked note box is placed from the top of the visible screen and capped at its height, because placing it from the bottom pushed its top under the host's header when the keyboard was open.
 - **2026-09-26** — Assumed: the Discard draft button is renamed Discard to keep the buttons on one row at 320px, because the requirement names the action, not the label.
-- **2026-09-26** — Assumed: this ships as 24.1.0, a new feature with no breaking change.
+- **2026-09-26** — Assumed: this ships as a minor release (planned as 24.1.0), a new feature with no breaking change.
 - **2026-09-26** — Changed during apply: the Full screen button sits on the drawing's fold row, not over the drawing, because over the drawing it hid the top-right characters. The README screenshot is retaken with the new kit from the `lighten-the-loop` proposal.
 - **2026-09-26** — Tested locally with a borrowed Playwright 1.61 and Chromium: `node --test scripts/tests/*.test.mjs` 259 pass, `app/review/review.test.mjs` 9 pass. A 260px-tall screen keeps the whole note box visible. Not tested: a real iPhone inside the Paseo app, so whether a drag in the full-screen view still opens Paseo's sidebar is for the user to check on their next review page.
 - **2026-09-26** — Distilled facts before the archive: the store holds no facts for this change or branch yet, so no repeatable fact.
 - **2026-09-26** — Archive checkpoint: saved the archived change with the kit, builder, tests, docs, and 24.1.0 release for CI.
+- **2026-09-26** — Merged main (25.0.0, 24.0.2) into the branch before the merge; CHANGELOG and VERSION conflicted, so this release is renumbered 25.1.0.

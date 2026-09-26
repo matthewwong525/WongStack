@@ -1,10 +1,4 @@
-# request-routing Specification
-
-## Purpose
-
-Let every WongStack repo act as an assistant: do plain requests directly, let a verb the person invokes serve any work, and run the full change loop for changing the repo's code or process, a new standalone page or tool included, with the same rules in every repo.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Plain requests are done directly
 
@@ -43,12 +37,3 @@ A code or process change the person asks for with no verb SHALL stop for the per
 
 - **WHEN** the person invokes `/plan` for their week
 - **THEN** the agent writes a to-do in the conversation and creates no OpenSpec change
-
-### Requirement: No repo has a mode
-
-No install record field, flag, or file SHALL change how a repo handles requests or writes its wiki. A home repo and a work repo SHALL follow the same rules. Home SHALL differ only in that the machine records it as the person's own repo.
-
-#### Scenario: The same request in home and at work
-
-- **WHEN** the same errand is asked in home and in a work repo
-- **THEN** both handle it the same way

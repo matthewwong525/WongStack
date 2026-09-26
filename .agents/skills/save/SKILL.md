@@ -20,7 +20,6 @@ Load each matching procedure before its actions; conditions can combine:
 |---|---|
 | User supplied or rotated an explicitly named secret | [Named-secret persistence](references/named-secrets.md), before writing records |
 | Every changed path is under `wiki/`, or the session only produced facts, including a to-do that changed no repo file | [Prose save](references/prose-save.md), before staging or publication |
-| The session built or changed a mini app | [Mini-app save](references/mini-app-save.md): straight to the default branch when every changed path is inside one app's folder, else a pull request |
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md), before authoring |
 | Exact selected handoff is archived | [Archive maintenance](references/archived-save.md), before updating it |
 
@@ -78,6 +77,6 @@ A CI failure takes the gate's three-attempt fix loop. `UNKNOWN` is unverified, n
 
 For a normal save, report branch and commit, PR link, maintained change or archive and Status, facts added, superseded, and dropped (or skipped) and whether they were stored or spooled, CI result (including fixes or uncertainty), and the discovered preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, using the actual single value. Name the active continue command only for an active change. Keep errors explicit and values excluded.
 
-A successful direct prose or mini-app save uses only the two-line report from its reference. Save never merges any route; ship owns archive and merge.
+A successful direct prose save uses only the two-line report from its reference. Save never merges any route; ship owns archive and merge.
 
 A save invoked directly by the user ends with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) after the gate line — normally continue the tasks, ship it (*publish it*, for a non-technical reader), or stop here; on a failing or unverified gate, the supported ways to clear it. A save inside an authorized chain reports and returns without asking.

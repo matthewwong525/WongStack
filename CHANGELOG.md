@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 24.1.0 — The review page works on a phone
+## 25.1.0 — The review page works on a phone
 
 - **One tap to comment.** Every Why paragraph, item, and decision on `review.html` shows a **+ Note** button that opens the note box. A saved note's pin takes its place. A mouse click on the text still offers "Add note"; a touch tap on text does nothing, so a stray tap while scrolling opens nothing.
 - **Drawings fold and use the full width.** `build-review.mjs` writes each drawing as a `<details class="drawing">` after the item's text column, so it starts folded and spans the whole card when opened. The fold row counts the notes on the drawing's lines. The page fits a drawing by font size and has no zoom buttons; a drag scrolls the page.
@@ -11,6 +11,25 @@
 - **The phone note box stays on screen.** It is placed from the top of the visible screen and capped at its height, so a keyboard never pushes its top out of view. Its location line is one line, and "Discard draft" is now "Discard".
 
 Note ids, labels, storage, and the copy format do not change, so saved notes stay attached. An active change picks up the new kit on its next page build; archived pages are not rebuilt.
+
+## 25.0.0 — One route for every change, with a preview right after building
+
+**Breaking.** A mini app no longer has its own route, and `/apply` no longer saves when it finishes.
+
+- **`/apply` ends with a preview from this machine.** When every task is done, it asks `.github/scripts/app-untouched.sh --worktree` whether the app changed. If it did, it runs `scripts/cf-preview.sh --alias <change-name>` and reports the link. Then it asks *publish it?*, *change it more*, or *save it*. It never invokes `/save` on completion. A change that leaves the app untouched gets no upload: the agent does the task and reports. Inside `/ship`, `/apply` still returns with no upload, and task-driven saves still run mid-list.
+- **Only `/save` and `/ship` push.** `/save` opens the pull request when you want a checkpoint. `/ship` saves once, waits for CI, walks the preview, and merges, as before.
+- **A mini app takes the same loop.** "Make me a …" gets a plan with a review link and *build it now?*, then the host preview at `/apps/<name>/`, then *publish it?*. It goes live only through `/ship`, and CI still runs only the changed app's tests.
+- **`app-untouched.sh` gains `--worktree`.** It answers for the uncommitted work, untracked files included, against the merge base with `origin/<default>`. The CI mode does not change.
+- **Removed:** `save/references/mini-app-save.md`, `save/scripts/mini-app-push.sh`, the `mini-app` mode of `save/scripts/render-pr-body.mjs`, `/apply`'s mini-app path, and `/ship`'s mini-app merge. The `WONG-STACK` block's mini-app rule no longer mentions a direct save.
+
+**Updating.** Finish or save a half-built mini app before you sync: a save after the update opens a pull request instead of pushing to `main`. `/wong-sync` deletes the removed files. Apps you already saved stay live and unchanged.
+
+## 24.0.2 — OpenSpec 1.13.2
+
+- **OpenSpec 1.13.2 replaces 1.8.0.** The install command in `save/references/preconditions.md`, the CI install, and the docs name 1.13.2. The commands WongStack uses (`init --tools none`, `context`, `list`, `status`, `instructions`, `validate`, `archive`) keep their JSON shape; `instructions apply` adds `taskTrackingConfigured`.
+- **CI validates every spec strictly.** The `payload` check runs `openspec validate --specs --strict`, which since 1.11.0 fails a Purpose still left as the archive's `TBD` placeholder. `delivery-gate` and `secrets-convention` get a real Purpose.
+
+**Updating.** Run `npm install -g @fission-ai/openspec@1.13.2`. In your own repo, `openspec validate --specs --strict` names any spec whose Purpose still says `TBD`; write what it is for.
 
 ## 24.0.1 — The Worker runs first for all its routes
 

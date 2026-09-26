@@ -39,12 +39,25 @@
 #   BEFORE_SHA      ${{ github.event.before }}; read only on a push to the
 #                   default branch
 #
+# With `--worktree`, it answers for the uncommitted work instead: the working
+# tree, staged and untracked paths included, against the merge base of HEAD and
+# origin/$DEFAULT_BRANCH. `/apply` uses it to skip a host preview when the
+# change leaves the main app untouched. It reads no GITHUB_* variable.
+#
 # Needs a full-history checkout (`fetch-depth: 0`); it fetches a missing base
 # ref itself. Always exits 0: the answer is the output, never the status.
 #
 # Usage: bash .github/scripts/app-untouched.sh >> "$GITHUB_OUTPUT"
+#        DEFAULT_BRANCH=main bash .github/scripts/app-untouched.sh --worktree
 
 set -uo pipefail
+
+WORKTREE=false
+case "${1:-}" in
+  "") ;;
+  --worktree) WORKTREE=true ;;
+  *) echo "usage: bash .github/scripts/app-untouched.sh [--worktree]" >&2; exit 2 ;;
+esac
 
 note() { echo "app-untouched: $*" >&2; }
 
@@ -88,6 +101,7 @@ if [ -z "$DEFAULT" ]; then
 fi
 
 EVENT="${GITHUB_EVENT_NAME:-}"
+$WORKTREE && EVENT=worktree
 REF="${GITHUB_REF_NAME:-}"
 BASE=""
 
@@ -116,6 +130,12 @@ case "$EVENT" in
       note "push to $REF: comparing the whole branch with origin/$DEFAULT"
     fi
     ;;
+  worktree)
+    [ -n "$DEFAULT" ] || unknown "no default branch named"
+    TARGET=$(remote_branch "$DEFAULT") || unknown "can not fetch origin/$DEFAULT"
+    BASE=$(git merge-base "$TARGET" HEAD 2>/dev/null) || unknown "no merge base with origin/$DEFAULT"
+    note "working tree: comparing with the merge base of origin/$DEFAULT"
+    ;;
   *)
     unknown "event '${EVENT:-none}' is not push or pull_request"
     ;;
@@ -125,7 +145,13 @@ esac
 # into wiki/ still counts as a change to app/. `-z` keeps odd names intact.
 CHANGED=$(mktemp)
 trap 'rm -f "$CHANGED"' EXIT
-git diff --name-only --no-renames -z "$BASE" HEAD > "$CHANGED" 2>/dev/null || unknown "git diff failed"
+if $WORKTREE; then
+  # No second commit: the working tree itself, then every untracked file.
+  { git diff --name-only --no-renames -z "$BASE" && git ls-files --others --exclude-standard -z; } \
+    > "$CHANGED" 2>/dev/null || unknown "git diff failed"
+else
+  git diff --name-only --no-renames -z "$BASE" HEAD > "$CHANGED" 2>/dev/null || unknown "git diff failed"
+fi
 
 UNTOUCHED=true
 MINI_CHANGED=false
