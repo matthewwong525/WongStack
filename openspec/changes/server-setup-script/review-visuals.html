@@ -1,0 +1,33 @@
+<section class="visual flow" id="setup" data-kind="flow" data-states="after today">
+  <p class="caption">How a server becomes a WongStack workspace, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="setup-source" data-mark="source"><h3>WongStack or your fork holds the build <span class="tag">New</span> <i class="callout">1</i></h3><p><code>server/setup.sh</code> and its contract, <code>server/README.md</code>.</p><details><summary>Details</summary><p>Actor: the fork owner. Action: edit the script and keep the contract. Result: every server the fork makes gets the new tool list.</p></details></div>
+      <p class="flow-connector">↓ A host gets the script</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="setup-host-vps" data-mark="host"><h3>Any VPS, by hand <span class="tag">New</span></h3><p><code>sudo bash server/setup.sh</code></p><details><summary>Details</summary><p>Actor: a person with a fresh Ubuntu 24.04 server. Action: clone the repo and run the script as root. Result: the script runs with no questions.</p></details></div>
+        <div class="flow-branch" data-target-id="setup-host-service" data-mark="host"><h3>A hosted service <span class="tag">Changed</span> <i class="callout">2</i></h3><p>Pins a commit and puts the script in first-boot data.</p><details><summary>Details</summary><p>Actor: the hosted service. Action: read the script at a pinned commit of WongStack or a fork, and embed it. Result: the server runs it on first boot, with no network fetch of the script.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Both paths run the same script</p>
+      <div class="step flow-card" data-target-id="setup-install" data-mark="script"><h3>The script installs the tools <span class="tag">New</span></h3><p>Makes <code>WORKSPACE_USER</code> (default <code>wong</code>), then installs Node.js 24, <code>git</code>, <code>gh</code>, OpenSpec, Paseo, Claude Code, Codex, OpenCode, and agent-browser with Chrome.</p><details><summary>Details</summary><p>Actor: the script, as root. Action: install what is missing. Result: the same end state on a new server or on a second run.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="setup-paseo" data-mark="script"><h3>Paseo starts for the workspace user <span class="tag">New</span></h3><p>A service that runs as <code>WORKSPACE_USER</code>.</p><details><summary>Details</summary><p>Actor: the script. Action: add and start the Paseo service. Result: chat works through Paseo. The script opens no port.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="setup-check" data-mark="check"><h3>The script checks itself <span class="tag">New</span> <i class="callout">3</i></h3><p>Exit 0, or exit non-zero with the name of what is missing.</p><details><summary>Details</summary><p>Actor: the script. Action: look for each tool and the service. Result: the host knows the server is ready, or knows which part failed.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="setup-host-extra"><h3>The host adds only its own parts</h3><p>Its agent, token, or firewall.</p><details><summary>Details</summary><p>Actor: the host. Action: add what is special to it. Result: the script holds no secret and touches no host file.</p></details></div>
+    </div></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-hosted"><h3>A hosted service keeps its own build</h3><p>A cloud-init build in the service's own repo.</p><details><summary>Details</summary><p>Actor: the hosted service. Action: install Node, <code>gh</code>, OpenSpec, Paseo, Claude Code, Codex, OpenCode, agent-browser, and the Paseo service. Result: only that service can make a server.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-fork"><h3>A fork cannot change its servers</h3><p>The tool list is not in WongStack, so a fork has nothing to edit.</p><details><summary>Details</summary><p>Actor: a fork owner. Action: none is possible. Result: the fork's servers get the service's tools.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-self"><h3>A person with their own server has nothing to run</h3><p>No WongStack script exists.</p><details><summary>Details</summary><p>Actor: a person with a VPS. Action: install each tool by hand. Result: each server can be different.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes"><ol>
+    <li>The build moves into WongStack. A fork owns its server template, and a host only runs it.</li>
+    <li>The host pins a commit and embeds the script, so the script has a 12 KiB budget and does not fetch itself.</li>
+    <li>The self-check is last. A host reads the exit code and the missing name, not a log.</li>
+  </ol></div>
+</section>
