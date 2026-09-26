@@ -73,7 +73,7 @@ The work decides the form; no mode or setting does.
 
 ### Mini apps
 
-"Make me a …" builds a small app in its own folder, `mini-apps/apps/<name>/`, on one small Worker beside the main app. `/apply` uploads a preview from the agent host in seconds, on staging data; it expires after seven days. `/save` then takes [a direct route](#the-prose-allowlist): it runs the app's tests on the host and pushes to the default branch, where CI deploys the app to production and lists it on the dashboard. A diff outside the app's folder falls back to a PR, which `/ship` merges with no change record. [Mini apps](../stack/mini-apps.md) owns the layout and the rules.
+"Make me a …" builds a small app in its own folder, `mini-apps/apps/<name>/`. The main app's Worker serves it at `/apps/<name>/`. `/apply` builds the whole app on the agent host and uploads a preview on staging data. `/save` then takes [a direct route](#the-prose-allowlist): it runs the app's tests on the host and pushes to the default branch. CI then deploys the main app to production, and the app list shows the new app. A diff outside the app's folder falls back to a PR, which `/ship` merges with no change record. [Mini apps](../stack/mini-apps.md) owns the layout and the rules.
 
 ### Verifying the app
 
@@ -88,7 +88,7 @@ restating it. Two rules, and one carve-out.
 control, OpenSpec, and everything-lives-in-the-repo; GitHub Actions is an optional accelerator,
 honored when configured. Where checks exist, push and let CI run — the skills wait and fix failures.
 Where they don't, the PR (plus the OpenSpec change and its archive) is the record a human reviews.
-Either way, **nothing builds locally as a prerequisite.** A [mini-app](#mini-apps) preview upload from the agent host is no exception: it gates nothing and never reaches production.
+Either way, **nothing builds locally as a prerequisite.** A [mini-app](#mini-apps) preview builds the app on the agent host, but it is no exception: it gates nothing and never reaches production.
 
 **The ladder is CI-when-present → merge**, and a skipped rung is never a failure. Nothing else gates
 a merge. The app's own test suite is not a separate rung — it runs *inside* CI as an ordinary check,
@@ -98,10 +98,12 @@ subdirectory**, so an app in `app/` is covered with nothing added at the root �
 package manifest on WongStack's behalf.
 
 **A branch that leaves the main app untouched skips its suite.** When every path a branch changes,
-compared with the default branch, is under `wiki/`, `openspec/`, or `mini-apps/`, or ends in `.md`,
+compared with the default branch, is under `wiki/`, `openspec/`, or `mini-apps/apps/`, or ends in `.md`,
 the Test and Deploy jobs say so and skip the main app's steps. The skip happens inside each job, so
 a required check still reports green. The comparison covers the whole branch, never only the last
-commit. A mini-app branch runs the changed apps' own tests instead. In the WongStack source repo, the
+commit. A mini-app branch runs the changed apps' own tests instead, and Deploy still deploys the main
+app, because its Worker serves the mini apps. A shared file under `mini-apps/` outside
+`mini-apps/apps/`, such as `router.mjs`, is main-app code and runs the suite. In the WongStack source repo, the
 Payload checks run on every push, because its skill Markdown is the payload.
 
 **The staging walkthrough is not a rung either.** `/ship` runs [`/verify`](#verifying-the-app) once for
@@ -135,11 +137,11 @@ release, so it takes a branch, a PR, and a `VERSION` and `CHANGELOG.md` bump.
 **A mini-app save is the second direct route.** When every changed path is inside one app's
 folder, `mini-apps/apps/<name>/`, `/save` runs that app's own tests on the agent host and then
 pushes to the default branch, like a prose save. The host test run is the gate here, because there
-is no PR for CI to gate; CI runs the tests again after the push and deploys only the mini-app
-Worker. This is the one place a skill runs tests on the host as a condition of saving. It is scoped
-to one app, which runs on its own Worker and can not change the main app. When the default branch moved during the
+is no PR for CI to gate. After the push, CI runs the tests again, skips the main app's suite, and
+deploys the main app, which serves the new app. This is the one place a skill runs tests on the host
+as a condition of saving. It is scoped to one app's folder, which holds no main-app code. When the default branch moved during the
 save, it rebases once, tests again, and pushes again. A path outside the folder, such as a
-migration, or a push that one rebase can not fix takes the normal route. [Mini apps](../stack/mini-apps.md)
+migration, a file under `app/`, or a shared file under `mini-apps/`, or a push that one rebase can not fix takes the normal route. [Mini apps](../stack/mini-apps.md)
 owns the details; in the source repo, the example app is payload and takes a PR.
 
 ## The change is a living handoff, not just a plan

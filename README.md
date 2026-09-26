@@ -30,7 +30,7 @@ Claude Code and Codex get full support. Other agents, such as Cursor, can follow
 - **One command for each stage of the work**, from the first idea to the merge.
 - **A record written during the work.** Plans, decisions, and lessons are written down as part of each step, not afterward.
 - **A reviewable package** for each change, which your team inspects before it joins `main`.
-- **[Mini apps](wiki/stack/mini-apps.md) from one request.** Ask for a small tool and get a preview link in under a minute, however large your main app is. Save it, and it goes live.
+- **[Mini apps](wiki/stack/mini-apps.md) from one request.** Ask for a small tool and get a preview link. Your app serves it at `/apps/<name>/`. Save it, and it goes live.
 - **[Memory across sessions](wiki/development/memory.md).** Each session starts with the facts that earlier sessions learned. The store is in your Cloudflare account, not in git.
 - **An assistant as well as a builder.** Plain requests get done directly, what the agent learns grows the wiki, and your [home](wiki/development/home.md) repo carries who you are into every other repo.
 - **No lock-in to one agent.** The durable part is the files in the repo.

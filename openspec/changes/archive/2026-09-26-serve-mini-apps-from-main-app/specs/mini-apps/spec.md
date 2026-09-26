@@ -1,8 +1,5 @@
-# mini-apps Specification
+## MODIFIED Requirements
 
-## Purpose
-Let a person get a working app from one request in under a minute, however large the main app is, try it on a preview, change it by chatting, and save it straight to production, where a dashboard lists every mini app.
-## Requirements
 ### Requirement: A mini app lives apart from the main app
 
 Each mini app SHALL live in its own folder, `mini-apps/apps/<name>/`, beside the main app, with a manifest `app.json` that holds at least a title and a one-line description. The main app's Worker SHALL serve every mini app: its pages under `/apps/<name>/`, and its optional handler under `/apps/<name>/api/*`. A handler SHALL receive the repo's app database and no other binding, so a mini app can never read the memory store. A mini app's pages SHALL need no build step of their own. The main app's lint and tests SHALL NOT include `mini-apps/apps/`. There SHALL be no separate mini-app Worker.
@@ -26,34 +23,6 @@ Each mini app SHALL live in its own folder, `mini-apps/apps/<name>/`, beside the
 
 - **WHEN** a mini app's handler runs on the production Worker, which binds the memory store
 - **THEN** the handler's environment holds the app database and no memory binding
-
-### Requirement: A mini-app request builds without the full loop
-
-When the person asks for a new standalone page or small tool, `/apply` SHALL build it as a mini app, with no branch, no OpenSpec change, and no review page. It SHALL ask only when it can not act without an answer. A request that changes the main app SHALL take the full change loop.
-
-#### Scenario: A new tool
-
-- **WHEN** the person asks "make me a tip calculator"
-- **THEN** the agent builds `mini-apps/apps/tips/` with no `/explore` round and no OpenSpec change
-
-#### Scenario: A change to the main app
-
-- **WHEN** the person asks to change the main app's login page
-- **THEN** the agent runs the full change loop
-
-### Requirement: A mini app carries its own tests
-
-`/apply` SHALL write tests for a mini app's logic — its API handler and its scripts — in the app's own folder, runnable by Node's built-in test runner with no install. Before a direct save, `/save` SHALL run that app's tests on the agent host, and a failing test SHALL stop the save with nothing pushed. On a push that changes mini apps, CI SHALL run the tests of the changed mini apps only, in the required `test` check.
-
-#### Scenario: Save an app with a failing test
-
-- **WHEN** the person saves a mini app whose test fails on the host
-- **THEN** the save stops, names the failing test, and pushes nothing
-
-#### Scenario: Only the changed app is tested
-
-- **WHEN** a push changes `mini-apps/apps/tips/` and no other mini app
-- **THEN** CI runs the tests under `mini-apps/apps/tips/` and no other suite
 
 ### Requirement: The mini-app preview comes from the agent host
 
@@ -128,6 +97,8 @@ A script SHALL build the mini-app list from the `app.json` of each folder under 
 - **WHEN** a folder's `app.json` is missing a title
 - **THEN** the script names the folder and fails the build
 
+## ADDED Requirements
+
 ### Requirement: The starter landing page lists the mini apps and teaches the loop
 
 The starter app's landing page SHALL list the mini apps from `/apps/apps.json`, each with its title, description, and a link to it. With no mini apps, it SHALL say how to ask for one. Below the list, it SHALL show a short tutorial that teaches the loop: ask for a mini app, save it, and change the main app through the change loop. The tutorial's last step SHALL tell the person to ask the agent to remove the tutorial, and the tutorial SHALL be one part of the page that can be removed with no other change.
@@ -147,3 +118,10 @@ The starter app's landing page SHALL list the mini apps from `/apps/apps.json`, 
 - **WHEN** the person asks the agent to remove the tutorial
 - **THEN** the landing page shows only the app list, and nothing else on it changes
 
+## REMOVED Requirements
+
+### Requirement: A mini-app preview expires
+
+**Reason**: A mini-app preview is now an ordinary preview version of the staging main Worker, like every pull-request preview, which never expired.
+
+**Migration**: None. An old preview link on the removed `<repo>-mini-staging` Worker stops answering when that Worker is deleted.

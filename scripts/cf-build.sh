@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# CI build wrapper: apply D1 migrations to the right database, then build.
+# CI build wrapper: apply D1 migrations to the right database, then build, then
+# copy the mini apps (mini-apps/apps/) into the build under /apps/.
 #
 # Wire it up as your `build` script (package.json). Cloudflare Workers Builds
 # runs `npm run build` on every push, so this wrapper makes the dashboard's
@@ -69,10 +70,24 @@ wong_resolve_wrangler_config "$ROOT"
 # its own. Either backend works, and a repo can run both while it migrates.
 CI_BRANCH="${CF_BRANCH:-${WORKERS_CI_BRANCH:-}}"
 
+# Build the app, then copy the mini apps into its static assets under /apps/.
+# The copy reads the assets folder from the config the build just wrote, so it
+# follows whichever environment the build selected. A repo with no mini-apps/
+# folder builds as before.
+build() {
+  (cd "$BUILD_DIR" && npm run build:app)
+  if [ -d "$ROOT/mini-apps/apps" ]; then
+    local assets
+    assets=$(wong_config assets-dir)
+    node "$SCRIPT_DIR/mini-dashboard.mjs" --dir "$ROOT/mini-apps" --into "$assets"
+  fi
+}
+
 # Local (non-CI) runs: skip the migrate, just build.
 if [ -z "$CI_BRANCH" ]; then
   echo "cf-build: not in CI — running plain build only"
-  cd "$BUILD_DIR" && exec npm run build:app
+  build
+  exit 0
 fi
 
 BRANCH="$CI_BRANCH"
@@ -147,4 +162,4 @@ if [ "$WHICH" = "staging" ]; then
   echo "cf-build: CLOUDFLARE_ENV=staging (selects the staging environment at build time)"
 fi
 
-cd "$BUILD_DIR" && npm run build:app
+build

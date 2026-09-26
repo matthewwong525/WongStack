@@ -11,9 +11,11 @@
 // header, which is what makes it correct for machine callers too: Access sets no
 // email header for a service token, so the header pattern 401s CI and /verify.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
+import { handleMiniApp, MINI_PREFIX } from "../../mini-apps/router.mjs";
+import miniApps from "../../mini-apps/routes.mjs";
 
 export default {
-  fetch(request, env) {
+  fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // Session memory, served from the memory skill on the production Worker's
@@ -21,6 +23,12 @@ export default {
     // memory key authenticates each call: wiki/development/memory.md.
     if (url.pathname.startsWith(MEMORY_PREFIX)) {
       return handleMemory(request, env);
+    }
+
+    // Mini apps, from mini-apps/: their pages are in the static assets, and
+    // /apps/<name>/api/* goes to the app's handler. wiki/stack/mini-apps.md
+    if (url.pathname.startsWith(MINI_PREFIX)) {
+      return handleMiniApp(request, env, ctx, miniApps);
     }
 
     if (url.pathname.startsWith("/api/")) {

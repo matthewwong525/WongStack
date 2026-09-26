@@ -119,8 +119,6 @@ Derive every name from the repository name. State what you chose; never make the
                          staging    recipe-box-db-staging
                          worker     recipe-box
                          staging    recipe-box-staging  (the env.staging name)
-                         mini apps  recipe-box-mini
-                         staging    recipe-box-mini-staging
                          memory     recipe-box-memory   (database and bucket, bound
                                                          to the production Worker only)
                          CI token   recipe-box-deploy
@@ -158,7 +156,14 @@ If the check fails, put the old token back in `.env` and stop. Teammates who hel
 
 Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The memory store from 4b goes at the top level only: `MEMORY_DB`, and `MEMORY_BUCKET` when it has a bucket. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
 
-Then create `mini-apps/wrangler.jsonc` from [its fragment](../../wong-sync/references/stack-pack-fragments.md#mini-appswranglerjsonc--the-mini-app-worker), with the `<repo>-mini` and `<repo>-mini-staging` names and the same two database ids. The first mini-app preview creates the staging Worker, and the first kept app creates production; [mini apps](../../../../wiki/stack/mini-apps.md) owns the rest.
+The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`, so they need no Worker or config of their own.
+
+**Moving older mini apps.** An install with `mini-apps/wrangler.jsonc` has mini apps on their own Workers, `<repo>-mini` and `<repo>-mini-staging`. They move to the main Worker:
+1. In the sync change: the `/apps/` route in `app/worker/index.ts` (the [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold)'s import and branch), `assets.binding` and `run_worker_first` from the `wrangler.jsonc` fragment, and deletion of `mini-apps/wrangler.jsonc`, `mini-apps/worker.ts`, `mini-apps/tsconfig.json`, `mini-apps/.gitignore`, and `mini-apps/apps/.assetsignore`.
+2. After that change merges and production deploys, open `/apps/` and each saved app's `/apps/<name>/` on the production address.
+3. Only when they answer, delete both Workers: `DELETE /accounts/{account_id}/workers/scripts/<repo>-mini`, then the same for `<repo>-mini-staging`. Then delete the `staging-mini` GitHub environment, if there is one.
+
+If an app does not answer, keep the old Workers and stop.
 
 ### 4d. The CI deploy token
 

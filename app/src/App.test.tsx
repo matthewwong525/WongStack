@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
 
@@ -9,33 +9,72 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("renders the scaffold and handles both buttons", async () => {
-  const json = vi.fn(async () => ({ name: "Ada" }));
-  const fetchMock = vi.fn(async () => ({ json }));
+const serve = (response: { ok: boolean; json?: () => Promise<unknown> }) => {
+  const fetchMock = vi.fn(async () => response);
   vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+};
 
-  render(<App />);
+const apps = [
+  { name: "hello", title: "Hello", description: "Say hello from the API", href: "/apps/hello/" },
+  { name: "tips", title: "Tips", description: "Split a bill with a tip", href: "/apps/tips/" },
+];
 
-  const counter = screen.getByRole("button", { name: "Count is 0" });
-  expect(screen.getByRole("button", { name: "get name" }).textContent).toBe(
-    "Name from API is: unknown",
-  );
-  const buttonList = counter.closest("ul");
-  expect(buttonList?.style.display).toBe("flex");
-  expect(buttonList?.style.gap).toBe("1rem");
-  expect(buttonList?.style.listStyle).toBe("none");
-  expect(buttonList?.style.padding).toBe("0px");
+it("lists each mini app with its title, description, and link", async () => {
+  let finish = (_: unknown) => {};
+  const fetchMock = serve({ ok: true, json: () => new Promise((resolve) => (finish = resolve)) });
 
-  fireEvent.click(counter);
-  expect(counter.textContent).toBe("Count is 1");
-
-  fireEvent.click(screen.getByRole("button", { name: "get name" }));
-
-  await waitFor(() => {
-    expect(screen.getByRole("button", { name: "get name" }).textContent).toBe(
-      "Name from API is: Ada",
-    );
+  await act(async () => {
+    render(<App />);
   });
-  expect(fetchMock).toHaveBeenCalledWith("/api/");
-  expect(json).toHaveBeenCalledOnce();
+
+  expect(screen.getByText("Loading your apps…")).toBeTruthy();
+  await act(async () => finish(apps));
+  const links = screen.getAllByRole("link");
+  expect(fetchMock).toHaveBeenCalledWith("/apps/apps.json");
+  expect(links.map((link) => link.getAttribute("href"))).toEqual(["/apps/hello/", "/apps/tips/"]);
+  expect(links.map((link) => link.textContent)).toEqual([
+    "HelloSay hello from the API",
+    "TipsSplit a bill with a tip",
+  ]);
+  expect(screen.queryByText("Loading your apps…")).toBeNull();
+});
+
+it("says how to ask for an app when there are none", async () => {
+  serve({ ok: true, json: async () => [] });
+
+  await act(async () => {
+    render(<App />);
+  });
+
+  expect((await screen.findByText(/No mini apps yet/)).textContent).toBe(
+    "No mini apps yet. Ask the agent: make me a tip calculator",
+  );
+  expect(screen.queryAllByRole("link")).toEqual([]);
+});
+
+it("links to the list page when the list does not load", async () => {
+  serve({ ok: false, json: async () => [] });
+
+  await act(async () => {
+    render(<App />);
+  });
+
+  const link = await screen.findByRole("link", { name: "See every app" });
+  expect(link.getAttribute("href")).toBe("/apps/");
+  expect(screen.queryByText(/No mini apps yet/)).toBeNull();
+});
+
+it("teaches the loop, ending with removing the tutorial", async () => {
+  serve({ ok: true, json: async () => [] });
+
+  await act(async () => {
+    render(<App />);
+  });
+
+  const tutorial = screen.getByRole("region", { name: "Get started" });
+  const steps = within(tutorial).getAllByRole("listitem");
+  expect(steps).toHaveLength(4);
+  expect(steps[3].textContent).toBe("Done with this tour? Say remove the tutorial.");
+  await screen.findByText(/No mini apps yet/);
 });
