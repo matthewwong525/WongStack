@@ -15,7 +15,7 @@ Every install starts from an empty folder and takes **every** category below.
 
 A target keeps the payload in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it, the same layout as this source. The inventory uses logical `.claude/` paths; the install writes each one under `.agents/`. So `.claude/hooks.json` is also `.codex/hooks.json`, which Codex reads, and `.claude/config.toml` is `.codex/config.toml`, which enables Codex's Default-mode questions. Codex loads `.agents/skills` natively, so each skill loads once in each agent.
 
-A skill installed under a recorded local name stays under that name. The target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The preflight bounds payload comparison; exploration starts with its changed units and reads another target path only for a named dependency or impact. The inventory limits copying, not that evidence-based expansion. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source.
+A skill installed under a recorded local name stays under that name. The target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The preflight bounds payload comparison; exploration starts with its changed units and reads another target path only for a named dependency or impact. The inventory limits copying, not that evidence-based expansion. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source. `wiki/people/` and other knowledge sections are target content that grows from use: no install seeds them.
 
 ## Deterministic sync preflight
 
@@ -65,3 +65,5 @@ Fresh setup initializes the OpenSpec planning home with `openspec init --tools n
 ## Install record
 
 `.claude/.wong-stack.json` records the installed source version and commit, the memory store ids, actual local skill names, a relocated docs path, upstream location, and install/update dates. Setup or sync advances it only after its agreed changes and the applicable generated-layer migration are complete. A proposal alone does not advance the record.
+
+The record holds no mode: every install follows the same rules. The machine's [home](../../../../wiki/development/home.md) lives outside every repo, in `~/.wong-stack/machine.json`, and setup or sync never copies it.

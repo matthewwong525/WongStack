@@ -120,3 +120,50 @@ export function readCache(ctx, now = Date.now()) {
   const text = readFileSync(file, 'utf8');
   return text.trim() ? { text, age: ageDays(new Date(statSync(file).mtimeMs).toISOString(), now) } : null;
 }
+
+// ---------- the home part: the person's page and personal facts from the machine's home repo ----------
+
+export const HOME_PAGE_BYTES = 4 * 1024;
+export const HOME_FACT_LINES = 15;
+export const HOME_FACT_BYTES = 3 * 1024;
+export const HOME_FACTS = [`SELECT ${FACT_COLUMNS} FROM facts WHERE superseded_by IS NULL AND type IN ('user', 'feedback') ORDER BY created_at DESC, id DESC LIMIT ${HOME_FACT_LINES}`];
+
+// The page under home's wiki/people/ that lists home's git email as a whole address, or null.
+export function personPage(home) {
+  const dir = join(home.root, 'wiki', 'people');
+  const email = (home.author || '').toLowerCase();
+  if (!email || !existsSync(dir)) return null;
+  const pattern = new RegExp(`(^|[^\\w.+-])${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w.-])`);
+  for (const name of readdirSync(dir).sort()) {
+    if (!name.endsWith('.md') || name === 'README.md') continue;
+    const text = readFileSync(join(dir, name), 'utf8');
+    if (pattern.test(text.toLowerCase())) return { path: `wiki/people/${name}`, text };
+  }
+  return null;
+}
+
+const cut = (text, bytes) => Buffer.from(text).subarray(0, bytes).toString('utf8').replace(/�+$/, '');
+
+// Builds the home part within its own caps. Returns '' when there is nothing to show.
+export function buildHomePart({ home, page = null, facts = [], error = null, now = Date.now() }) {
+  if (!page && !facts.length && !error) return '';
+  const lines = [`## From home (${home.root})`, 'Your page and personal facts from your home repo: dated context, like the facts above.'];
+  if (page) {
+    const size = Buffer.byteLength(page.text);
+    lines.push(`### Your page: ${page.path}`, cut(page.text, HOME_PAGE_BYTES).trimEnd());
+    if (size > HOME_PAGE_BYTES) lines.push(`(Cut at 4 KB. Read the rest in ${join(home.root, page.path)}.)`);
+  }
+  if (facts.length) {
+    lines.push('### Your facts');
+    let bytes = 0;
+    for (const fact of facts.slice(0, HOME_FACT_LINES)) {
+      const line = formatFact(fact, now);
+      if (bytes + Buffer.byteLength(line) + 1 > HOME_FACT_BYTES) break;
+      lines.push(line);
+      bytes += Buffer.byteLength(line) + 1;
+    }
+    lines.push(`Search more: \`${SCRIPT} search --home <terms>\`.`);
+  }
+  if (error) lines.push(`Home's facts were not loaded (${error.reason || error.message}).`);
+  return lines.join('\n');
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -27,6 +27,7 @@ function fixture(t) {
 [ "$1" = "--version" ] && echo "agent-browser 0.0.0"
 [ "$3" = "set" ] && printf '%s' "$5" > "${root}/headers.json" && printf '%s' "$CLOUDFLARE_API_TOKEN" > "${root}/token"
 [ "$3" = "get" ] && echo "http://127.0.0.1/"
+[ "$3" = "open" ] && printf '%s' "$AGENT_BROWSER_PROFILE" > "${root}/profile"
 exit 0
 `);
   chmodSync(join(bin, 'agent-browser'), 0o755);
@@ -52,4 +53,17 @@ test('the walk reads .env through the memory parser and escapes the Access heade
   assert.equal(seen[0]['cf-access-client-secret'], SECRET);
   assert.deepEqual(JSON.parse(readFileSync(join(root, 'headers.json'), 'utf8')), { 'CF-Access-Client-Id': 'client-id.access', 'CF-Access-Client-Secret': SECRET });
   assert.equal(readFileSync(join(root, 'token'), 'utf8'), 'tok=en==');
+});
+
+test('each browser journey runs in a throwaway profile, removed when the walk ends', async t => {
+  const { root, work, bin, run } = fixture(t);
+  const server = createServer((req, res) => res.end('ok'));
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => server.close());
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, AGENT_BROWSER_PROFILE: join(root, 'personal-profile') };
+  await new Promise((done, fail) => execFile('bash', [script, 'run', run, `http://127.0.0.1:${server.address().port}`], { cwd: work, env, encoding: 'utf8' },
+    (error, out, err) => (error ? fail(new Error(err || out)) : done(out))));
+  const used = readFileSync(join(root, 'profile'), 'utf8');
+  assert.match(used, /wong-verify-profile\.[^/]+\/page$/, 'not the personal profile');
+  assert.equal(existsSync(dirname(used)), false, 'the profile folder is removed');
 });

@@ -1,8 +1,8 @@
 // Memory store client: repo context, config, credentials, local state, the D1 and R2 REST calls, and the spool.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
-import { dirname, join } from 'node:path';
+import { homedir, hostname } from 'node:os';
+import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
@@ -37,6 +37,20 @@ export function repoContext(cwd = process.cwd()) {
     machine: hostname(),
     stateDir: process.env.WONG_MEMORY_STATE_DIR || join(commonDir, 'wong-memory'),
   };
+}
+
+// The machine record names the person's home repo: ~/.wong-stack/machine.json, {"home": "<absolute path>"}.
+export const machineFile = () => process.env.WONG_MACHINE_FILE || join(homedir(), '.wong-stack', 'machine.json');
+
+// Home's context, or null. A missing or unreadable record, or a path with no memory store, means no home.
+// `isCurrent` marks the case where this repo is home; home's own state folder never follows WONG_MEMORY_STATE_DIR.
+export function homeContext(ctx) {
+  const path = readJson(machineFile(), null)?.home;
+  if (typeof path !== 'string' || !isAbsolute(path) || !existsSync(path)) return null;
+  let home;
+  try { home = repoContext(path); loadConfig(home); } catch { return null; }
+  if (ctx && home.commonDir === ctx.commonDir) return Object.assign(Object.create(ctx), { isHome: true, isCurrent: true });
+  return Object.assign(home, { stateDir: join(home.commonDir, 'wong-memory'), isHome: true, isCurrent: false });
 }
 
 // Every checkout of this clone: the primary one plus each linked worktree that still exists.
@@ -79,7 +93,8 @@ function loadConfig(ctx) {
 export function openStore(ctx, { timeoutMs = 15000 } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
-  const token = process.env[TOKEN_VAR] || env[TOKEN_VAR];
+  // Another repo's store (home) uses its own .env token first, never this process's.
+  const token = ctx.isHome && !ctx.isCurrent ? env[TOKEN_VAR] || process.env[TOKEN_VAR] : process.env[TOKEN_VAR] || env[TOKEN_VAR];
   if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env`, { kind: 'unconfigured', help: TOKEN_PAGE });
   const api = (process.env.WONG_MEMORY_API || 'https://api.cloudflare.com/client/v4').replace(/\/$/, '');
   const base = `${api}/accounts/${config.accountId}`;

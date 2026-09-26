@@ -10,7 +10,7 @@ import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
-import { memory, node, rows, SECRET, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, node, rows, SECRET, setup, setupHome, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
 const age = (file, ms) => { const time = new Date(Date.now() - ms); utimesSync(file, time, time); };
@@ -286,4 +286,60 @@ test('the session that started a background run can never be listed or stripped 
   const refused = await memory(env.repo, env.fake, ['strip', own.id], { env: exclude });
   assert.equal(refused.code, 1);
   assert.match(refused.stderr, /no transcript found/);
+});
+
+async function homeWithPerson(env) {
+  const home = await setupHome(env, { email: 'ana@mail.com' });
+  mkdirSync(join(home.root, 'wiki', 'people'), { recursive: true });
+  writeFileSync(join(home.root, 'wiki', 'people', 'hana.md'), '# Hana\n\nGit email: hana@mail.com\n');
+  writeFileSync(join(home.root, 'wiki', 'people', 'ana.md'), `# Ana\n\nGit emails: ana@corp.com, ana@mail.com\n\nPrefers short replies.\n\n${'More notes. '.repeat(500)}\n`);
+  const facts = Array.from({ length: 20 }, (_, i) => ({ action: 'add', type: i % 2 ? 'user' : 'feedback', body: `Personal preference number ${i} that the person stated at home, kept here as a longer line of text.` }));
+  await memory(env.repo, env.fake, ['put-facts', '--home', '--file', writeJsonFile(env.repo.home, 'hf.json', { source: 'save', slug: 'personal', facts })]);
+  return home;
+}
+
+const homePart = stdout => stdout.slice(stdout.indexOf('## From home'));
+
+test("the hook adds the person's page and personal facts from home, within their own caps", async () => {
+  const env = await setup();
+  await homeWithPerson(env);
+  const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
+  assert.equal(result.code, 0, result.stderr);
+  const part = homePart(result.stdout);
+  assert.match(part, /^## From home \(/);
+  assert.match(part, /### Your page: wiki\/people\/ana\.md\n# Ana/, 'the page that lists the email, not a near match');
+  assert.match(part, /Cut at 4 KB/);
+  const facts = part.slice(part.indexOf('### Your facts')).split('\n').filter(line => line.startsWith('- ['));
+  assert.ok(facts.length > 0 && facts.length <= 15, `${facts.length} fact lines`);
+  assert.ok(Buffer.byteLength(facts.join('\n')) <= 3 * 1024);
+});
+
+test('an offline home gives one line, still shows the page, and the hook ends inside its timeout', async () => {
+  const env = await setup();
+  await homeWithPerson(env);
+  env.fake.setOffline(true, 'db-home');
+  const started = Date.now();
+  const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
+  assert.ok(Date.now() - started < 5000, `the hook took ${Date.now() - started} ms`);
+  assert.equal(result.code, 0);
+  const part = homePart(result.stdout);
+  assert.match(part, /### Your page: wiki\/people\/ana\.md/);
+  assert.match(part, /Home's facts were not loaded \(memory store unreachable/);
+  assert.doesNotMatch(part, /### Your facts/);
+});
+
+test('with no home recorded the hook adds no home part, and in home itself only the page', async () => {
+  const env = await setup();
+  const none = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
+  assert.doesNotMatch(none.stdout, /From home/);
+  const home = await homeWithPerson(env);
+  const inHome = await node(home, env.fake, 'session-start.mjs', ['--agent', 'claude'], {
+    input: JSON.stringify({ session_id: 'home-1', transcript_path: null, cwd: home.root }),
+    env: { WONG_MEMORY_NO_HEADLESS: '1', WONG_MEMORY_STATE_DIR: home.stateDir, WONG_MACHINE_FILE: join(env.repo.home, 'machine.json') },
+  });
+  assert.equal(inHome.code, 0, inHome.stderr);
+  const part = homePart(inHome.stdout);
+  assert.match(part, /### Your page: wiki\/people\/ana\.md/);
+  assert.doesNotMatch(part, /### Your facts/, "home's facts are already in its own digest");
+  assert.match(inHome.stdout, /# Memory digest/);
 });

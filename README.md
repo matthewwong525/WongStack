@@ -31,6 +31,7 @@ Claude Code and Codex get full support. Other agents, such as Cursor, can follow
 - **A record written during the work.** Plans, decisions, and lessons are written down as part of each step, not afterward.
 - **A reviewable package** for each change, which your team inspects before it joins `main`.
 - **[Memory across sessions](wiki/development/memory.md).** Each session starts with the facts that earlier sessions learned. The store is in your Cloudflare account, not in git.
+- **An assistant as well as a builder.** Plain requests get done directly, what the agent learns grows the wiki, and your [home](wiki/development/home.md) repo carries who you are into every other repo.
 - **No lock-in to one agent.** The durable part is the files in the repo.
 
 ## The commands
@@ -75,7 +76,7 @@ Checked against each project's README in September 2026.
 | --- | --- |
 | [`AGENTS.md`](AGENTS.md) | The instructions each agent reads first. `CLAUDE.md` is a link to it. |
 | [`.agents/`](.agents/) | The skills, path rules, hooks, and agent settings. `.claude` and `.codex` are links to it. |
-| [`wiki/`](wiki/README.md) | Reusable process and conventions. |
+| [`wiki/`](wiki/README.md) | Repeatable knowledge: process, people, the company, the project. |
 | [`openspec/`](openspec/) | Active changes, shipped specs, and the archive of what shipped and why. |
 | [`app/`](app/) | The starter app: React and Vite on a Cloudflare Worker. |
 | [`schema/`](schema/) | The app's database migrations and staging seed data. |

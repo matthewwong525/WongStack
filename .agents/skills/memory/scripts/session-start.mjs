@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { loadDigest, readCache } from './lib/digest.mjs';
-import { isMain, openStore, repoContext, spoolList } from './lib/store.mjs';
+import { buildHomePart, HOME_FACTS, loadDigest, personPage, readCache } from './lib/digest.mjs';
+import { homeContext, isMain, openStore, repoContext, spoolList } from './lib/store.mjs';
 import { pending, registerSession } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -28,6 +28,23 @@ function startRun(ctx, agent, sessionId) {
   } catch { return false; }
 }
 
+// The person's page and personal facts from home, fetched beside the repo's own digest. Never throws.
+async function loadHome(ctx) {
+  try {
+    const home = homeContext(ctx);
+    if (!home) return '';
+    const page = personPage(home);
+    // In home itself, home's facts are already in the digest.
+    if (home.isCurrent) return buildHomePart({ home, page });
+    try {
+      const facts = await openStore(home, { timeoutMs: BUDGET_MS }).query(...HOME_FACTS);
+      return buildHomePart({ home, page, facts });
+    } catch (error) {
+      return buildHomePart({ home, page, error });
+    }
+  } catch { return ''; }
+}
+
 async function main() {
   let input = {};
   try { input = JSON.parse(readFileSync(0, 'utf8') || '{}'); } catch { /* no input */ }
@@ -40,18 +57,19 @@ async function main() {
 
   // The digest fetch runs while local discovery reads the disk.
   const digest = (async () => loadDigest(ctx, openStore(ctx, { timeoutMs: BUDGET_MS }), BUDGET_MS))().catch(error => ({ error }));
+  const home = loadHome(ctx);
   const localWork = spoolList(ctx).length > 0 || pending(ctx, { exclude: [sessionId] }).length > 0;
   const result = await digest;
+  const homePart = await home;
 
   const out = [];
   if (result.error) {
     const cache = readCache(ctx);
     if (cache) out.push(`${cache.text}\n(This digest is cached and ${cache.age} old: the memory store did not answer.)`);
     out.push(`Memory: skipped the store (${result.error.reason || result.error.message}).`);
-  } else {
-    if (result.text) out.push(result.text);
-    if ((result.due || localWork) && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));
-  }
+  } else if (result.text) out.push(result.text);
+  if (homePart) out.push(homePart);
+  if (!result.error && (result.due || localWork) && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));
   return out.length ? `${out.join('\n\n')}\n` : '';
 }
 

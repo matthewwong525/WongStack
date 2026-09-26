@@ -2,6 +2,8 @@
 
 Every change to WongStack — and to any repo that installs it — moves through one loop, from a rough idea to a shipped, archived spec. The durable handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change** — a folder under `openspec/changes/<name>/` (a `proposal.md` and a `tasks.md`, with optional delta specs) — committed with the code and visible from any clone via `openspec list`.
 
+A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. The loop is for building or changing code.
+
 ```
 /explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
  think      draft the  implement  push +    resume →    merge +
@@ -95,7 +97,7 @@ unmergeable and stops rather than reinterpret or repeat it.
 **A prose-only save is a valid save.** Not every session produces a diff that needs reviewing. When
 a save's entire diff sits inside the **prose allowlist** — the path prefix `wiki/**` — `/save`
 commits it **directly to the default branch**: no change folder, no branch, no PR, no `/ship`.
-Explicit wiki-only work takes it. A conversation that produced only understanding needs no route at
+Explicit wiki-only work takes it, and so does [repeatable knowledge](../wiki-style.md#repeatable-knowledge) written when it is learned. A conversation that produced only understanding needs no route at
 all: its facts go to the [memory store](memory.md), and the save makes no commit.
 
 The gate isn't weakened — it applies where behavior does. A wiki page carries none: it is prose

@@ -17,8 +17,8 @@ The repo is the shared memory for humans and agents. Before any non-trivial chan
 | Surface | Holds | Lifecycle |
 |---|---|---|
 | `openspec/changes/<slug>/` | the plan, and why this change is shaped this way | ships, then archives |
-| memory store (outside git) | facts every session produced — what the user said, decisions, open threads; a digest loads at session start ([convention](wiki/development/memory.md)) | permanent; superseded, never edited |
-| `wiki/` | reusable process and conventions — how we do things ([philosophy](wiki/agent-knowledge-center.md), [style](wiki/wiki-style.md)) | canonical, curated |
+| memory store (outside git) | facts every session produced — what the user said, decisions, open threads; a digest loads at session start, with your own page and facts from [home](wiki/development/home.md) ([convention](wiki/development/memory.md)) | permanent; superseded, never edited |
+| `wiki/` | repeatable knowledge — process, people, the company, the project ([philosophy](wiki/agent-knowledge-center.md), [style](wiki/wiki-style.md)) | canonical, curated; grows from use |
 | `openspec/specs/` + archive | what shipped | immutable record |
 
 Don't duplicate a fact across surfaces. `openspec list` shows active changes; `openspec show <name>` reads one.
@@ -28,13 +28,16 @@ Credentials already live in the repo's environment files — `.env.example` is t
 ## Rules
 
 - **Write user-facing prose in ASD-STE100 Simplified Technical English**, best effort, in [our voice](wiki/voice.md); keep code, commands, identifiers, and quotations exact.
-- **Drive work through the verbs** `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence, `/improve` for maintenance, `/routine` for schedules, and `/wong-sync` for updates. A verb whose precondition is missing invokes the verb before it: [the change loop](wiki/development/the-change-loop.md).
+- **Do a plain request directly.** Research, errands, reminders, and questions need no verb and no question round; ask only when you cannot act without an answer.
+- **Build or change code through the verbs** `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence, `/improve` for maintenance, `/routine` for schedules, and `/wong-sync` for updates. A verb whose precondition is missing invokes the verb before it: [the change loop](wiki/development/the-change-loop.md).
 - **The WongStack skills own all git; OpenSpec never runs git.** `/apply` reads branch changes but makes none: [the change loop](wiki/development/the-change-loop.md).
 - **CI is the gate when present, else PR review; nothing builds locally**: [the gate](wiki/development/the-change-loop.md#the-gate).
 - **Prose goes straight to `main`** when a save's whole diff sits in `wiki/**`: [the prose allowlist](wiki/development/the-change-loop.md#the-prose-allowlist).
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
-- **Don't edit `wiki/` mid-task** unless it is the task; a change's specifics live in its proposal and archive.
+- **Write repeatable knowledge to the wiki when you learn it** — the test: will it help with a future task that is not this one? Place it by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge); a change's specifics stay in its proposal and archive.
+- **Browse as the person, one task at a time**: [saved logins](wiki/development/home.md#saved-browser-logins).
+- **Answer in a few lines**; give more detail only when asked.
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads the rules whose `paths:` match the files it touches.
 
 <!-- WONG-STACK:END -->

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
-import { memory, rows, SECRET, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { homeRows, memory, rows, SECRET, setup, setupHome, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
 
@@ -177,4 +178,45 @@ test('no command imports notes', async () => {
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /usage: memory\.mjs/);
   assert.equal(env.fake.calls.length, before, 'nothing reaches the store');
+});
+
+const putHome = (env, input) => memory(env.repo, env.fake, ['put-facts', '--home', '--file', writeJsonFile(env.repo.home, `home-${Date.now()}-${Math.random()}.json`, input)]);
+const PRIVATE = { source: 'save', slug: 'family', session: 'current', facts: [{ action: 'add', type: 'user', body: "The person's daughter starts school on 2026-10-05." }] };
+
+test('--home with no machine record, or a record with no store, says so and writes nothing', async () => {
+  const env = await setup();
+  const none = await putHome(env, PRIVATE);
+  assert.equal(none.code, 1);
+  assert.match(none.stderr, /no home recorded/);
+  writeFileSync(join(env.repo.home, 'machine.json'), JSON.stringify({ home: mkdtempSync(join(tmpdir(), 'not-a-home-')) }));
+  const bare = await putHome(env, PRIVATE);
+  assert.match(bare.stderr, /no home recorded/);
+  const other = await memory(env.repo, env.fake, ['live', '--home']);
+  assert.match(other.stderr, /--home works with search, show, gate, put-facts/);
+  assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0);
+});
+
+test("--home writes to home's store with no session id and home's git email", async () => {
+  const env = await setup();
+  await setupHome(env, { email: 'ana@mail.com' });
+  const result = await putHome(env, PRIVATE);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /added 1/);
+  assert.deepEqual(homeRows(env, 'SELECT slug, session_id, author FROM facts'), [{ slug: 'family', session_id: null, author: 'ana@mail.com' }]);
+  assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0, 'the work store holds nothing');
+  const found = await memory(env.repo, env.fake, ['search', '--home', 'school']);
+  assert.match(found.stdout, /daughter starts school/);
+  const local = await memory(env.repo, env.fake, ['search', 'school']);
+  assert.match(local.stdout, /No matching facts/);
+});
+
+test("an offline home keeps the fact in home's spool, never in this repo's", async () => {
+  const env = await setup();
+  const home = await setupHome(env);
+  env.fake.setOffline(true, 'db-home');
+  const result = await putHome(env, PRIVATE);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /spooled: 1 facts wait in .*wong-memory/);
+  assert.equal(readdirSync(join(home.root, '.git', 'wong-memory', 'spool')).length, 1);
+  assert.throws(() => readdirSync(join(env.repo.stateDir, 'spool')), /ENOENT/);
 });

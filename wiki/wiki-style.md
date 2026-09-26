@@ -1,6 +1,6 @@
 # Progressive-disclosure wiki: the rulebook
 
-A `wiki/` built this way is a **progressive-disclosure process tree**: one place to start, and every node drills down into more detail. You read the high level, click into the part you care about, and that part breaks down the same way — recursively. This page is how to add to such a wiki so it keeps working that way.
+A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one place to start, and every node drills down into more detail. You read the high level, click into the part you care about, and that part breaks down the same way — recursively. This page is how to add to such a wiki so it keeps working that way.
 
 It uses **plain Markdown and standard Markdown links** — nothing tool-specific — so it works in GitHub's renderer, any static-site generator, an in-app viewer, or just a folder of `.md` files.
 
@@ -58,6 +58,27 @@ Open a section with a `mermaid` diagram when a picture helps see the whole flow 
 - **Hub-coverage:** a hub (a section or folder `README`) must link *every one* of its own children.
 - **No dead-ends:** a page should link onward — up to its hub at least, ideally down/sideways too.
 
+## Repeatable knowledge
+
+The wiki is long-term memory, and it holds **repeatable knowledge**: facts that stay true and apply again — how we do things, who people are and how they like work done, the company, the product, the customers. The test: **will this help with a future task that is not this one?** Yes → the wiki. No → leave it in the [memory store](development/memory.md) or the change's proposal. A single decision, a date, or one change's details fail the test.
+
+- **Write it when you learn it.** When a request teaches something repeatable, write it then, in the same request — "read this and remember it", or an answer worth keeping. Cite a source by URL or path; do not copy the source into git. A wiki-only save goes straight to `main` through [the prose allowlist](development/the-change-loop.md#the-prose-allowlist); during a change, the edit rides in the change's pull request. [`/ship`](../.agents/skills/ship/SKILL.md) catches what a session missed.
+- **Let it grow from use.** Seed nothing. The first fact on a new topic makes its page; the first fact about a person makes the `people/` section. No `index.md` (hubs are the index) and no `log.md` (git history is the log).
+- **The same format everywhere.** A repo for one person and a repo for a team use the same rules: one person is a team of one.
+
+### People
+
+`wiki/people/README.md` is the hub: who is who. Each person gets `wiki/people/<name>.md`, with **every git email they use**, their preferences, and how they like work done. In the person's [home](development/home.md), that means the owner and the people in their life; in a work repo, each teammate plus the customers and contacts who matter.
+
+Find the current person by `git config user.email`: their page is the one that lists it. When no page does, write a short page (name and email) in the next wiki save — do not ask first. The first page also makes the hub and links it from [the wiki's root](README.md).
+
+### Where a fact goes
+
+1. **About one person → their page. About everyone → a topic page.**
+2. **Different preferences are not contradictions.** When two people want different things, keep both, each on its own page. Newest wins only between facts about the same person, or about the whole team.
+3. **Private life stays home.** Health, family, and money go only in the person's [home](development/home.md), never in another repo. A work preference can go in a work repo.
+4. **A shared repo merges wiki edits through git**, like code.
+
 ## Adding a page — the checklist
 
 1. Is this genuinely a new topic, or detail that belongs inside an existing page? **Prefer extending an existing page.**
@@ -69,4 +90,4 @@ Open a section with a `mermaid` diagram when a picture helps see the whole flow 
 
 ## Keeping it tidy
 
-Garden [the wiki](README.md) as explicit work: extend the page that owns each durable fact, merge duplicates, resolve contradictions newest-wins, prune stale content, and repair links under the rules above. Document **general, reusable processes only**; a change's specifics live in its proposal and specs (preserved in `openspec/changes/archive/` when it ships), never the wiki. One topic, one page; link, don't restate.
+Garden [the wiki](README.md) as explicit work: extend the page that owns each durable fact, merge duplicates, resolve contradictions newest-wins, prune stale content, and repair links under the rules above. Document **[repeatable knowledge](#repeatable-knowledge) only**; a change's specifics live in its proposal and specs (preserved in `openspec/changes/archive/` when it ships), never the wiki. One topic, one page; link, don't restate.

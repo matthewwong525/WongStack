@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { CONSOLIDATION_STATE, consolidationDue, digestPlan, FACT_COLUMNS, formatFact, loadDigest } from './lib/digest.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { isMain, loadEnv, openStore, readJson, repoContext, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { homeContext, isMain, loadEnv, openStore, readJson, repoContext, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, isPrivate, parseTranscriptText, pending, pruneRegistry, readRegistry, sessionFile, strip } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -172,6 +172,8 @@ function currentSession(ctx) {
 
 async function putFactsCommand(ctx, { values }) {
   const input = readInput(values.file);
+  // A session row lives in the store of the repo that ran it, so a fact sent to home carries none.
+  if (ctx.isHome && !ctx.isCurrent) delete input.session;
   if (input.session === 'current') input.session = currentSession(ctx);
   try {
     const result = await putFacts(ctx, input);
@@ -407,6 +409,9 @@ async function migrate(ctx) {
   if (!files.length) console.log('The store is up to date: every migration is recorded.');
 }
 
+const HOME_COMMANDS = new Set(['search', 'show', 'gate', 'put-facts']);
+const HOME_PAGE = 'wiki/development/home.md#the-machine-record';
+
 export const COMMANDS = {
   migrate, search, show, source, tags, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
@@ -416,10 +421,11 @@ export const COMMANDS = {
 
 const OPTIONS = Object.fromEntries([
   ...['file', 'spooled', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help'].map(name => [name, { type: 'boolean' }]),
+  ...['all', 'json', 'help', 'home'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
+  (search, show, gate, and put-facts take --home: the machine's home store, from ~/.wong-stack/machine.json)
   search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--state active|shipped|conversation] [--all] [--limit n]
   show <slug> [--all]          a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
@@ -441,7 +447,13 @@ if (isMain(import.meta.url)) {
   } catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
   if (args.values.help) { console.log(USAGE); process.exit(0); }
   try {
-    await run(repoContext(), args);
+    let ctx = repoContext();
+    if (args.values.home) {
+      if (!HOME_COMMANDS.has(command)) throw new StoreError(`--home works with ${[...HOME_COMMANDS].join(', ')}`);
+      ctx = homeContext(ctx);
+      if (!ctx) throw new StoreError('no home recorded', { kind: 'unconfigured', help: HOME_PAGE });
+    }
+    await run(ctx, args);
   } catch (error) {
     console.error(error instanceof StoreError ? error.message : `memory: ${error.message}`);
     process.exitCode = 1;

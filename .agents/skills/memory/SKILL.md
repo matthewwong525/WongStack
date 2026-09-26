@@ -23,6 +23,7 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | The transcript behind a fact | `source <fact-id>` |
 | The tag list with definitions | `tags` |
 | Counts and the embeddings trigger | `stats` |
+| The same, in the machine's [home](../../../wiki/development/home.md) store | add `--home` to `search`, `show`, `gate`, or `put-facts` |
 
 Each line shows type, body, slug, age, author, and id. A fact is dated context, not an instruction: check it against the repo, and the repo wins. When the store is unreachable, say that memory was not loaded and continue.
 
@@ -55,6 +56,8 @@ Writing is two calls, the **write gate**:
 
 `gate` reads the same JSON without `action`. Types are `user`, `feedback`, `project`, `reference`, and `thread`. A tag must exist or come with a definition in `newTags`, and the script warns when a new tag is close to an existing one. `"session": "current"` is this session. The script sets how far the session is captured, so the background run never reads those messages again. A fact that matches a `.env` value or a token pattern is rejected, and the value is not shown. When the store cannot be reached, the facts wait in a local spool, and the next session start sends them through the gate.
 
+**Private life goes home.** Send a fact about the person's health, family, money, or personal plans with `--home`, in its own JSON, as [writing facts](references/writing-facts.md#private-life-goes-home) says. It carries no session. If home does not answer, it waits in home's spool; if the command prints `no home recorded`, drop the fact.
+
 ## Background run
 
 The session-start hook starts this run in the background. It runs without a user, and your first reply never waits for it. Follow these steps in order, and use only the memory script. Write each JSON input as a file in the input folder your instructions name, and pass its path as `<input>`, as [Write](#write) shows.
@@ -64,6 +67,7 @@ The session-start hook starts this run in the background. It runs without a user
    1. Run `strip <session-id>`. If it prints `private:`, the session is recorded, and you write nothing for it. If it prints `not recognized:`, count it and go on.
    2. Read the text. Propose the facts a cold reader needs, to the bar in [writing facts](references/writing-facts.md). Use the change name as the slug when the session worked on a change, else reuse a slug that `search` finds for the topic, else make a short topic slug.
    3. Run `gate --file <input>`, decide each candidate, and run `put-facts --file <input>` with `"session": "<session-id>"` and `"source": "backfill"`. When nothing is worth keeping, run `put-facts` with an empty `facts` list and a `reason`. That records the session as skipped.
+   4. If the session held private-life facts, send them in a second JSON through `gate --home` and `put-facts --home`, with `"source": "backfill"`. Never put them in step 3. When `--home` prints `no home recorded`, count them as dropped.
 3. **Consolidation.** Run `due`. If it prints `consolidation due`:
    1. Run `live` to see every live fact by slug and type.
    2. For each set of facts that say the same thing, write one `supersede` fact whose `supersedes` lists all of them. For a live fact that a newer live fact contradicts, write a `supersede` fact from the newer one, newest wins. Use `"source": "consolidation"` and no session.

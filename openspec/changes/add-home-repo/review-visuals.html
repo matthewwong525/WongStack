@@ -1,0 +1,99 @@
+<section class="visual flow" id="request-routing" data-kind="flow" data-states="after today">
+  <p class="caption">How the agent routes a request in any repo, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="route-request"><h3>A request arrives <span class="tag">Same</span></h3><p>The person asks for research, an errand, a reminder, an answer, or a code change.</p><details><summary>Details</summary><p>Actor: the person. Action: types or speaks a request. Result: the agent reads it.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="route-classify" data-mark="changed"><h3>Classify the request <span class="tag">New</span> <i class="callout">1</i></h3><p>Is it a plain request, or does it build or change code?</p><details><summary>Details</summary><p>Actor: agent. Action: reads the request. Result: one of two paths. The same rule applies in every repo; there is no mode to read.</p></details></div>
+      <p class="flow-connector">↓ Choose one path</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="route-plain" data-mark="changed"><h3>Plain request → do it directly <span class="tag">New</span> <i class="callout">2</i></h3><p>Research, an errand, a reminder, or a question. No verb, no question round.</p><details><summary>Details</summary><p>Actor: agent. Action: does the task and answers. Result: a short reply. Anything repeatable it learned goes to the wiki.</p></details></div>
+        <div class="flow-branch" data-target-id="route-code"><h3>Build or change code <span class="tag">Same</span></h3><p>The change loop, from <code>/explore</code>.</p><details><summary>Details</summary><p>Actor: agent. Action: <code>/explore → /plan → /apply → /save → /ship</code>. Result: a reviewed, shipped change.</p></details></div>
+      </div>
+    </div></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-request"><h3>A request arrives</h3><p>Research, an errand, a reminder, an answer, or a code change.</p><details><summary>Details</summary><p>Actor: the person. Action: asks. Result: the agent reads it.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-verbs"><h3>Go through the verbs</h3><p><code>/explore → /plan → /apply → /save → /ship</code>, for every request.</p><details><summary>Details</summary><p>Actor: agent. Action: explores, then asks a question round before it plans. Result: an errand gets the same ceremony as a code change.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The classification is the only new step. It needs no new file or install field, so every repo gets the same behavior and grows from what it is used for.</li>
+      <li>Only plain requests skip the verbs. Code is still planned, reviewed, and shipped. What a plain request teaches goes to the wiki, as the knowledge flow shows.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual tree" id="wiki-shape" data-kind="tree">
+  <p class="caption">The wiki shape every repo can grow. Setup seeds none of the new sections; each appears when the first fact needs it.</p>
+  <div class="frame">
+    <div class="label">Hub</div>
+    <ul>
+      <li class="edit" data-mark="changed">wiki/README.md <span class="why">scope is now repeatable knowledge, not only process; links each section when it appears</span> <i class="callout">1</i></li>
+    </ul>
+    <div class="label">People · grows from use</div>
+    <ul>
+      <li class="add" data-mark="changed">wiki/people/README.md <span class="why">who is who; created by the first fact about a person</span></li>
+      <li class="add" data-mark="changed">wiki/people/&lt;name&gt;.md <span class="why">one per person: git emails, how they like work done</span> <i class="callout">2</i></li>
+    </ul>
+    <div class="label">Topic pages · grow from use</div>
+    <ul>
+      <li class="add" data-mark="changed">wiki/&lt;topic&gt;.md <span class="why">how we do X, the product, customers, recurring tasks; created when first needed</span> <i class="callout">3</i></li>
+    </ul>
+    <div class="label">Development</div>
+    <ul>
+      <li class="edit">wiki/development/ <span class="why">process pages stay; memory, the change loop, and required tools get edits</span></li>
+      <li class="add" data-mark="changed">wiki/development/home.md <span class="why">home as the machine's recorded personal repo, cross-repo memory, private-fact routing, browser logins</span> <i class="callout">4</i></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The test for a wiki page: will this help with a future task that is not this one? A one-time detail stays in memory or in the change.</li>
+      <li>The agent finds the current person by <code>git config user.email</code>. When no page lists that email, it writes a short page. A page can list more than one email.</li>
+      <li>One person's preference goes on their page. A rule for everyone goes on a topic page. Different preferences are both kept, each on its own page. Private life goes in home only.</li>
+      <li>The format is the same in every repo. Home is only the repo the machine record names; its wiki has no other shape.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual flow" id="knowledge-flow" data-kind="flow" data-states="after today">
+  <p class="caption">Where a session's knowledge goes in any repo, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="kf-session"><h3>A session runs <span class="tag">Same</span></h3><p>Capture writes facts to this repo's D1 store.</p><details><summary>Details</summary><p>Actor: <code>/save</code> or the background run. Action: writes facts through the write gate. Result: live facts in the repo's store.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="kf-learn" data-mark="changed"><h3>Write the wiki when it learns <span class="tag">New</span> <i class="callout">1</i></h3><p>A repeatable lesson goes to the wiki now, in every repo.</p><details><summary>Details</summary><p>Actor: agent. Action: ingests "read this and remember it", or saves an answer worth keeping. It cites sources by URL and stores no copies. Result: see the two routes below.</p></details></div>
+      <p class="flow-connector">↓ Choose one route</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="kf-wiki-only" data-mark="changed"><h3>Wiki-only save <span class="tag">New</span></h3><p>The edit goes straight to <code>main</code>.</p><details><summary>Details</summary><p>Actor: <code>/save</code>. Action: the prose allowlist applies, because the whole diff sits in <code>wiki/**</code>. Result: the lesson is on <code>main</code> with no PR.</p></details></div>
+        <div class="flow-branch" data-target-id="kf-in-change" data-mark="changed"><h3>During a change <span class="tag">New</span></h3><p>The edit rides in the change's PR.</p><details><summary>Details</summary><p>Actor: <code>/save</code>. Action: commits the wiki edit with the change. Result: it merges when the change ships.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ At ship time</p>
+      <div class="step flow-card" data-target-id="kf-ship" data-mark="changed"><h3>/ship catches what was missed <span class="tag">Changed</span> <i class="callout">2</i></h3><p>Reads every live fact from the branch's sessions, and places the repeatable ones.</p><details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: <code>memory.mjs search --branch &lt;branch&gt;</code> plus <code>show &lt;slug&gt;</code>. Result: each repeatable fact goes to its page by progressive disclosure, in the ship PR.</p></details></div>
+      <p class="flow-connector">↓ Private life, from any repo other than home</p>
+      <div class="step flow-card" data-target-id="kf-private" data-mark="changed"><h3>Route private-life facts to home <span class="tag">New</span> <i class="callout">3</i></h3><p>Capture writes them to home's store, never to this repo's store.</p><details><summary>Details</summary><p>Actor: capture. Action: finds home in <code>~/.wong-stack/machine.json</code> and runs <code>memory.mjs put-facts --home</code>. Result: the fact is in home's store. Home offline: the fact waits in the spool. No home recorded: the fact is dropped.</p></details></div>
+      <p class="flow-connector">↓ Next session, in any repo on the machine</p>
+      <div class="step flow-card" data-target-id="kf-digest"><h3>Load this repo's digest <span class="tag">Same</span></h3><p>Open threads, then live facts, capped as today.</p><details><summary>Details</summary><p>Actor: the <code>SessionStart</code> hook. Action: one query on this repo's store. Result: the usual digest.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="kf-home-digest" data-mark="changed"><h3>Load the person from home <span class="tag">New</span> <i class="callout">4</i></h3><p>The person's <code>people/</code> page from home, and their live <code>user</code> and <code>feedback</code> facts from home's store.</p><details><summary>Details</summary><p>Actor: the <code>SessionStart</code> hook. Action: finds home through the machine record and reads home's store in parallel. Result: a small separate part of the digest. Offline or no home adds one line.</p></details></div>
+    </div></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="kf-today-session"><h3>A session runs</h3><p>Capture writes facts to this repo's D1 store.</p><details><summary>Details</summary><p>Actor: <code>/save</code> or the background run. Action: writes facts. Result: all facts stay in this repo's store, private life included.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="kf-today-no-wiki"><h3>No wiki edit mid-task</h3><p>"Don't edit <code>wiki/</code> mid-task" holds the lesson back.</p><details><summary>Details</summary><p>Actor: agent. Action: none. Result: a lesson from a plain request reaches the wiki only if a fact carries it to ship.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="kf-today-ship"><h3>/ship distills</h3><p>Reads only <code>show &lt;change-slug&gt;</code>. Keeps process facts.</p><details><summary>Details</summary><p>Actor: <code>/ship</code>. Action: reads the facts on the change's slug. Result: facts on other slugs from the same sessions never reach the wiki.</p></details></div>
+      <p class="flow-connector">↓ Next session</p>
+      <div class="step flow-card" data-target-id="kf-today-digest"><h3>Load this repo's digest</h3><p>Only this repo's facts.</p><details><summary>Details</summary><p>Actor: the <code>SessionStart</code> hook. Action: one query. Result: what another repo learned about the person is not loaded.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>Every repo writes what it learns when it learns it. The block's mid-task rule becomes: write repeatable knowledge when you learn it; a change's specifics stay in its proposal.</li>
+      <li>Ship is now the safety net, not the only route. The selection is code, because the branch search already exists; only the placement needs a model.</li>
+      <li>A shared store must never hold private life, so capture routes it to home. With no home recorded, there is nowhere safe to keep it.</li>
+      <li>The home part is capped at 15 lines and 3 KB of facts, and the page at 4 KB, within the same 1.5 s budget. No new database.</li>
+    </ol>
+  </div>
+</section>
