@@ -1,10 +1,9 @@
-# apply-completion-handoff Specification
+## RENAMED Requirements
 
-## Purpose
+- FROM: `### Requirement: Completed apply automatically checkpoints`
+- TO: `### Requirement: Completed apply ends with a preview from the agent host`
 
-Define how completed `/apply` work ends — with a preview from the agent host and no automatic `/save` — and the boundary between `/apply` and `/save`, while preserving intentional handling of partial work.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Completed apply ends with a preview from the agent host
 
@@ -60,24 +59,6 @@ This SHALL hold for **every payload surface that fronts the apply step**. No sur
 - **WHEN** the person asks for a different color after `/apply` reported a preview
 - **THEN** `/apply` makes the edit and uploads again under the same alias, with no save and no CI wait
 
-### Requirement: Incomplete apply does not automatically checkpoint
-
-`/apply` MUST NOT invoke `/save` **as a way of stopping**. When implementation is paused, blocked, interrupted, fails, or simply ends with tasks still pending, `/apply` SHALL report the remaining work and SHALL tell the user that `/save` remains available for an intentional partial checkpoint.
-
-This prohibition is scoped to the exit path. It SHALL NOT be stated as a ban on invoking `/save` while pending tasks remain, because a task may itself require the gate — see "Save is how a gate-requiring task is implemented".
-
-#### Scenario: Implementation pauses with pending tasks
-
-- **WHEN** `/apply` stops because of ambiguity, a blocker, interruption, or an implementation failure while tasks remain
-- **THEN** it does not invoke `/save`
-- **AND** it reports the remaining work and the option to run `/save` manually
-
-#### Scenario: A gate-requiring task is not treated as an exit
-
-- **WHEN** `/apply` invokes `/save` to implement a task that requires the gate, and tasks remain after it
-- **THEN** this is not an exit checkpoint and the prohibition does not apply
-- **AND** `/apply` continues with the remaining tasks rather than stopping
-
 ### Requirement: Save is how a gate-requiring task is implemented
 
 `/apply` SHALL invoke `/save` to perform a task whose own definition of done requires something only the gate can produce — a passing CI run, a CI-published preview, pushed browser evidence — then read the result, mark the task accordingly, and continue with the remaining tasks. Invoking `/save` this way is implementation of that task, not a partial checkpoint, because `/apply` owns no git and nothing builds locally as a prerequisite (see the `delivery-gate` capability).
@@ -104,20 +85,6 @@ Payload surfaces that front the apply step SHALL state this distinction by point
 - **WHEN** the last pending task is completed by a task-driven `/save`
 - **THEN** `/apply` reports completion with that checkpoint's result and CI preview
 - **AND** it uploads no second preview from the agent host
-
-### Requirement: Plans name gate-requiring tasks explicitly
-
-`/plan` SHALL author a task that can only be verified through the gate so that the task text says so — naming `/save` as how the verification happens — rather than leaving the implementer to infer it. This SHALL NOT introduce a mandatory verification task: a change whose work needs no gate result mid-list gets none, and the completion handoff covers it.
-
-#### Scenario: A change needs a mid-list build check
-
-- **WHEN** `/plan` writes a task whose done state depends on CI, a deployed preview, or browser evidence
-- **THEN** the task text states that it is verified through `/save`
-
-#### Scenario: A change needs no mid-list gate result
-
-- **WHEN** no task depends on a gate result before later tasks can proceed
-- **THEN** `tasks.md` contains no such verification task
 
 ### Requirement: Save remains independently invocable
 

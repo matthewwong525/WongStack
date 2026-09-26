@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.0.0 — One route for every change, with a preview right after building
+
+**Breaking.** A mini app no longer has its own route, and `/apply` no longer saves when it finishes.
+
+- **`/apply` ends with a preview from this machine.** When every task is done, it asks `.github/scripts/app-untouched.sh --worktree` whether the app changed. If it did, it runs `scripts/cf-preview.sh --alias <change-name>` and reports the link. Then it asks *publish it?*, *change it more*, or *save it*. It never invokes `/save` on completion. A change that leaves the app untouched gets no upload: the agent does the task and reports. Inside `/ship`, `/apply` still returns with no upload, and task-driven saves still run mid-list.
+- **Only `/save` and `/ship` push.** `/save` opens the pull request when you want a checkpoint. `/ship` saves once, waits for CI, walks the preview, and merges, as before.
+- **A mini app takes the same loop.** "Make me a …" gets a plan with a review link and *build it now?*, then the host preview at `/apps/<name>/`, then *publish it?*. It goes live only through `/ship`, and CI still runs only the changed app's tests.
+- **`app-untouched.sh` gains `--worktree`.** It answers for the uncommitted work, untracked files included, against the merge base with `origin/<default>`. The CI mode does not change.
+- **Removed:** `save/references/mini-app-save.md`, `save/scripts/mini-app-push.sh`, the `mini-app` mode of `save/scripts/render-pr-body.mjs`, `/apply`'s mini-app path, and `/ship`'s mini-app merge. The `WONG-STACK` block's mini-app rule no longer mentions a direct save.
+
+**Updating.** Finish or save a half-built mini app before you sync: a save after the update opens a pull request instead of pushing to `main`. `/wong-sync` deletes the removed files. Apps you already saved stay live and unchanged.
+
 ## 24.0.2 — OpenSpec 1.13.2
 
 - **OpenSpec 1.13.2 replaces 1.8.0.** The install command in `save/references/preconditions.md`, the CI install, and the docs name 1.13.2. The commands WongStack uses (`init --tools none`, `context`, `list`, `status`, `instructions`, `validate`, `archive`) keep their JSON shape; `instructions apply` adds `taskTrackingConfigured`.

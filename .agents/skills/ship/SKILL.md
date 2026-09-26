@@ -1,12 +1,12 @@
 ---
 name: ship
-description: Ship a completed change through archive, one /save checkpoint, CI or PR review, preview evidence, and squash merge, or merge a mini app's fallback pull request. If the change is unfinished, invoke /apply first; /apply can invoke /plan and /explore. Use when you want work shipped, merged, and archived.
+description: Ship a completed change through archive, one /save checkpoint, CI or PR review, preview evidence, and squash merge. If the change is unfinished, invoke /apply first; /apply can invoke /plan and /explore. Use when you want work shipped, merged, and archived.
 user-invocable: true
 ---
 
 # /ship
 
-Ship runbook. Invoking it authorizes, without a prompt, the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync. It also authorizes [the pull-in](#the-pull-in-nothing-to-ship-yet): explore, plan, implement, and any save a task needs, and [a mini-app pull request](#merge-a-mini-app-pull-request). It does **not** authorize archiving a change with unchecked tasks; [Step 2](#step-2--archive-the-change) finishes the tasks instead of asking. Confirm anything outside this runbook, such as a force push, `--no-verify`, `git reset --hard`, or `checkout .`, in [the shared ask format](../explore/references/asking-the-user.md).
+Ship runbook. Invoking it authorizes, without a prompt, the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync. It also authorizes [the pull-in](#the-pull-in-nothing-to-ship-yet): explore, plan, implement, and any save a task needs. It does **not** authorize archiving a change with unchecked tasks; [Step 2](#step-2--archive-the-change) finishes the tasks instead of asking. Confirm anything outside this runbook, such as a force push, `--no-verify`, `git reset --hard`, or `checkout .`, in [the shared ask format](../explore/references/asking-the-user.md).
 
 `/ship` is the **archive + merge** step of [the change loop](../../../wiki/development/the-change-loop.md). **The archived change is the record of what shipped**; there is no GitHub summary issue. The merge rides [the gate](../../../wiki/development/the-change-loop.md#the-gate) and nothing else: merge only on `/save`'s `SUCCESS` or `NONE`. `/ship` is the merge, not the review: cleanliness, consolidation, and downstream breakage belong in PR review.
 
@@ -31,7 +31,7 @@ gh api repos/:owner/:repo/commits/main/check-runs \
 
 ### The pull-in: nothing to ship yet
 
-With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)** and tell it that it runs inside `/ship`. It then returns on completion **without** `/save`, and you continue to Step 2 in the same working tree. [The change loop](../../../wiki/development/the-change-loop.md) owns why: a verb whose precondition is missing invokes the verb before it.
+With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)** and tell it that it runs inside `/ship`. It then returns on completion with **no** preview upload and **no** `/save`, and you continue to Step 2 in the same working tree. [The change loop](../../../wiki/development/the-change-loop.md) owns why: a verb whose precondition is missing invokes the verb before it.
 
 - **An intent was given** (`/ship <intent>`) → invoke `/apply` with the argument **verbatim**.
 - **No argument** → invoke `/apply` with no argument when [`/apply`'s resolve order](../apply/SKILL.md#resolve-the-plan-first) lands on any rung before `sole-active`, or when the session states clear implementation intent with no change yet.
@@ -43,17 +43,13 @@ With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)** and 
 
 **Work that changes no repo file** — an errand, a message, research — finishes in `/apply`. Say so in one line and stop, with no git change.
 
-### Merge a mini-app pull request
-
-A mini app normally needs no `/ship`: [its save](../save/references/mini-app-save.md) pushes straight to the default branch. A save that fell back to a pull request — a migration, a change to a shared mini-app file, or a rejected push — ships here without an OpenSpec change. Recognize it by the session, or by a PR body in the renderer's mini-app mode, with a diff under `mini-apps/` and `schema/migrations/`. Skip Steps 2 to 4: no change selection, no archive, no walk. Invoke the `save` skill once, which updates the pull request and waits for CI. Merge on its `SUCCESS` or `NONE` through [Step 5](#step-5--merge-and-sync), and report the app's `/apps/<name>/` address. [Mini apps](../../../wiki/stack/mini-apps.md) owns the layout.
-
 ## Step 2 — archive the change
 
-Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME` by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`. If none selects a change and the branch is not [a mini-app pull request](#merge-a-mini-app-pull-request), stop and report that this branch has no identifiable change record; `/save` can author one. `sole-active` never authorizes a cold merge.
+Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME` by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`. If none selects a change, stop and report that this branch has no identifiable change record; `/save` can author one. `sole-active` never authorizes a cold merge.
 
 If the branch diff or working tree contains **more than one active change folder**, stop before archive even when one was explicitly selected: the merge would carry the other too. Name the folders and ask the user, [as options](../explore/references/asking-the-user.md): ship the selected change alone by moving the other out of the branch *(Recommended)*, or ship both together on purpose. Require `openspec/changes/$CHANGE_NAME/` to exist, and keep `CHANGE_NAME` fixed through archive and checkpoint.
 
-**Read its `tasks.md` before you archive anything.** Unchecked tasks (`- [ ]`) mean the change is not finished: invoke the [`apply` skill](../apply/SKILL.md) for that exact change, tell it that it runs inside `/ship` so it returns without `/save`, then re-read the file. Archive only when every task is checked. Never let this runbook's authorization answer the archive step's incomplete-task confirmation. If `/apply` ends with tasks pending, report that work and stop.
+**Read its `tasks.md` before you archive anything.** Unchecked tasks (`- [ ]`) mean the change is not finished: invoke the [`apply` skill](../apply/SKILL.md) for that exact change, tell it that it runs inside `/ship` so it returns with no upload and no `/save`, then re-read the file. Archive only when every task is checked. Never let this runbook's authorization answer the archive step's incomplete-task confirmation. If `/apply` ends with tasks pending, report that work and stop.
 
 Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$CHANGE_NAME" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$CHANGE_NAME" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$CHANGE_NAME" --json` for any applicable context. Run `openspec archive "$CHANGE_NAME" --yes` only after the task check, validation, and the distillation below. If `/save` already synced the deltas and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists. Do **not** commit the move here.
 
@@ -116,7 +112,7 @@ It compares the worktree copy, the primary, and the baseline recorded at seed. I
 Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, and what changed for them — then the lines below.
 
 - PR number + URL, **merged (squash)** to the default branch.
-- **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result. For a mini-app pull request: the app's folder and its `/apps/<name>/` address instead.
+- **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result.
 - **Checkpoint** — `/save` result and CI outcome, including auto-fix pushes.
 - **Walk** — the verdict, the evidence comment link, and, when a `FAILURE` was merged anyway, that the user chose to. Where the skill was absent, one line saying so.
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.

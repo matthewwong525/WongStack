@@ -7,7 +7,9 @@ repo whether or not it took the stack pack, and the change loop grows that suite
 convention. `npm test` is the whole contract, so any runner satisfies it. Distinct from the
 end-to-end evidence `/verify` produces: these tests accumulate, run on every push, and gate through CI,
 while a walk is throwaway acceptance for one change and gates nothing.
+
 ## Requirements
+
 ### Requirement: A core workflow runs the test suite in every repo
 
 The payload SHALL ship `.github/workflows/test.yml` in the **core** category, so a repo receives a test pipeline whether or not it took the stack pack. The workflow SHALL run the repo's `test` script, discovered root-first and then in each immediate subdirectory, so a repo whose application lives in a subdirectory is covered without configuration. When no `package.json` declares a `test` script, the job SHALL print why and exit green — a real check, never a permanently red one.
@@ -63,7 +65,7 @@ The pack's `deploy.yml` SHALL NOT contain a `test` job, so a pack repo runs its 
 
 #### Scenario: A mini-app push to the default branch
 
-- **WHEN** a direct save pushes a change under `mini-apps/apps/tips/` to the default branch
+- **WHEN** a merge brings a change under `mini-apps/apps/tips/` to the default branch
 - **THEN** the `test` check on that push runs the tests in that folder
 
 #### Scenario: A docs commit on top of code
@@ -184,4 +186,3 @@ A suite with no Stryker config SHALL run as before: no restore step, no save ste
 
 - **WHEN** the discovered suite has no Stryker config
 - **THEN** the workflow runs no cache step, and the job runs `npm test` as before
-

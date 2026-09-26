@@ -2,10 +2,12 @@
 
 ## Purpose
 Decide when saved work may merge: CI when the repo has checks, else PR review, with no local build fallback. Wiki-only prose goes straight to the default branch, and `/ship` archives, checkpoints once through `/save`, and merges only on a passing gate.
+
 ## Requirements
+
 ### Requirement: Ship delegates its checkpoint and branch gate to save
 
-`/ship` SHALL retain its shipping-only responsibilities: verify the feature branch and default-branch state, invoke `openspec-archive-change`, merge the pull request, and delete the remote branch worktree-safely. After archiving and before merging, `/ship` SHALL invoke ordinary `/save` exactly once. When no active change matches the current branch and exactly one matching archive exists, `/save` SHALL use that archive as the handoff record, SHALL NOT author a replacement active change, and SHALL own secret preservation/redaction, session-note capture, commit, push, pull-request creation/update, and the CI wait/auto-fix path. `/ship` SHALL consume that result and SHALL NOT duplicate those checkpoint mechanics or require a special save flag. A mini-app pull request has no change to archive: `/ship` SHALL instead invoke `/save` once in its mini-app pull-request form, as `mini-apps` defines, and SHALL NOT walk it.
+`/ship` SHALL retain its shipping-only responsibilities: verify the feature branch and default-branch state, invoke `openspec-archive-change`, merge the pull request, and delete the remote branch worktree-safely. After archiving and before merging, `/ship` SHALL invoke ordinary `/save` exactly once. When no active change matches the current branch and exactly one matching archive exists, `/save` SHALL use that archive as the handoff record, SHALL NOT author a replacement active change, and SHALL own secret preservation/redaction, session-note capture, commit, push, pull-request creation/update, and the CI wait/auto-fix path. `/ship` SHALL consume that result and SHALL NOT duplicate those checkpoint mechanics or require a special save flag.
 
 Between the delegated `/save` and the merge, `/ship` SHALL invoke `/verify` once as an evidence step. On `NONE`, `UNKNOWN`, or `TIMEOUT`, `/ship` SHALL report the verdict and merge on the save-gate result exactly as before. On `FAILURE` — after `/verify`'s own bounded fix loop is exhausted — `/ship` SHALL stop, present the evidence, and ask the user whether to fix or merge anyway; the user's answer, not the verdict, decides, and a merge-anyway is recorded in the ship report. When the walk's fix loop advanced HEAD, the fix's own delegated `/save` re-gated it, and `/ship` SHALL confirm the latest save-gate result is `SUCCESS` or `NONE` before merging.
 
@@ -74,8 +76,8 @@ When the forge deletes the head branch itself at merge, `/ship` SHALL still reta
 
 #### Scenario: A mini-app pull request
 
-- **WHEN** `/ship` merges a mini-app pull request
-- **THEN** it archives nothing, runs one `/save` in its mini-app form, runs no walk, and merges on that save's result
+- **WHEN** `/ship` merges the pull request of a mini app
+- **THEN** it archives the app's change, runs one `/save` and the walk, and merges on the gate, like any change
 
 ### Requirement: CI is optional, not required
 
@@ -167,11 +169,11 @@ The gate is not weakened by this. A wiki page is prose reviewed in the diff that
 
 ### Requirement: No local build fallback
 
-The skills SHALL NOT build or test the project locally as a prerequisite for `/save` or `/ship`, whether or not CI is present. The absence of CI SHALL NOT trigger a local-verify gate. No skill SHALL run a compile, a unit-test suite, a linter, or a type-check as a condition of saving or shipping, with one exception: the mini-app direct save runs that one app's own tests on the agent host before it pushes to the default branch, because that route has no pull request for CI to gate. CI runs those tests again after the push. Test suites run in CI (the `ci-tests` capability), where they are ordinary checks on the existing ladder.
+The skills SHALL NOT build or test the project locally as a prerequisite for `/save` or `/ship`, whether or not CI is present. The absence of CI SHALL NOT trigger a local-verify gate. No skill SHALL run a compile, a unit-test suite, a linter, or a type-check as a condition of saving or shipping. A mini app's own tests run in CI like every other suite. Test suites run in CI (the `ci-tests` capability), where they are ordinary checks on the existing ladder.
 
 **The boundary is building versus exercising.** Driving a browser — or issuing HTTP requests and existing-command state queries — against an already-deployed staging environment is not a local build: nothing is compiled, nothing is installed, and the artifact under test is the one CI itself published. The opt-in staging walkthrough (`staging-walkthrough`) is therefore permitted, and is bounded by three properties that keep it from becoming a local-verify gate by another name — it SHALL run only against a deployment CI has already published, it SHALL never install a dependency, and it SHALL be absent entirely unless the repo adopted it. It is reached by invoking `/verify`, or by `/ship`'s single evidence step. Its verdict SHALL NOT function as a gate rung: an unrunnable or absent walk never blocks anything, and a walk `FAILURE` at ship time is surfaced as a user decision (fix or merge anyway) rather than consulted as a merge condition.
 
-**A mini-app preview is not a gate.** The mini-app path (`mini-apps`) builds the main app on the agent host and uploads a preview version of the staging main Worker. That build and upload SHALL NOT be a prerequisite or a condition of `/save` or `/ship`, SHALL NOT replace a CI check, and SHALL NOT deploy production.
+**A host preview is not a gate.** A completed `/apply` builds the main app on the agent host and uploads a preview version of the staging Worker, as `apply-completion-handoff` defines. That build and upload SHALL NOT be a prerequisite or a condition of `/save` or `/ship`, SHALL NOT replace a CI check, and SHALL NOT deploy production.
 
 The gate ladder is: **CI when present → merge.** A rung is skipped when its condition does not hold, and a skipped rung SHALL NOT be reported as a failure. Where no rung applies, PR review is the gate.
 
@@ -199,8 +201,8 @@ The gate ladder is: **CI when present → merge.** A rung is skipped when its co
 
 #### Scenario: A preview upload is not a gate
 
-- **WHEN** a mini app was previewed from the agent host and the person saves it
-- **THEN** the save pushes to the default branch only after the app's tests pass on the host
+- **WHEN** `/apply` uploaded a preview from the agent host and the person publishes the change
+- **THEN** `/ship` still saves, waits for CI, and merges only on the gate result
 - **AND** production deploys from CI on the default branch, not from the host
 
 ### Requirement: Ship leaves the durable checkout in sync
@@ -299,4 +301,3 @@ When `/ship` runs on the default branch with uncommitted changes, it SHALL route
 
 - **WHEN** a user runs `/ship` on `main` with modified files
 - **THEN** `/save` moves the work to a new branch and `/ship` continues from there
-
