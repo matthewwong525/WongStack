@@ -7,12 +7,14 @@
 	"name": "wongstack",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-28",
-	// The Worker runs first under /apps/, so a mini app's API wins over the
-	// single-page fallback; it hands every other /apps/ path back to ASSETS.
+	// The Worker runs first for every path it serves. Once this list exists,
+	// any path NOT in it gets the single-page fallback, even a POST (which gets
+	// 405), so each Worker route must be here. /apps/ hands its pages back to
+	// ASSETS.
 	"assets": {
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application",
-		"run_worker_first": ["/apps/*"]
+		"run_worker_first": ["/api/*", "/_memory/*", "/apps/*"]
 	},
 	"observability": {
 		"enabled": true

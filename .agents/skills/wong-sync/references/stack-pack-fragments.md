@@ -43,12 +43,13 @@ This fragment is the **only thing in the payload that creates a wrangler config*
   "main": "worker/index.ts",
   "compatibility_date": "<today, YYYY-MM-DD>",
   "compatibility_flags": ["nodejs_compat"],
-  // The Worker runs first under /apps/, so a mini app's API wins over the
-  // single-page fallback; it hands every other /apps/ path back to ASSETS.
+  // The Worker runs first for every path it serves. Once this list exists,
+  // any path NOT in it gets the single-page fallback, even a POST (which gets
+  // 405), so each Worker route must be here — add your own prefixes too.
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/apps/*"]
+    "run_worker_first": ["/api/*", "/_memory/*", "/apps/*"]
   },
   "d1_databases": [
     {
