@@ -66,6 +66,8 @@ The agent does the rest: gives itself the permissions it needs, sets up your dat
 
 Open it. If you took the starter site, the page loads and has a button that fetches something live from your project — clicking it is the proof that the whole chain works: your address, your code, your data storage. If it answers, you're online.
 
+At the top of the page is a box called *Learn the development loop*. Press **Copy** and paste the message into your chat. Your first change removes that box, and the agent explains each step as it goes.
+
 ## After that: how you work
 
 You never need to run anything on your own computer.

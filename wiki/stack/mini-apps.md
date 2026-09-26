@@ -16,7 +16,7 @@ repo/
          └─ api.test.mjs
 ```
 
-The main app's Worker, `app/worker/index.ts`, sends every request under `/apps/` to `mini-apps/router.mjs`. The router sends `/apps/<name>/api/*` to that app's `api.mjs`, and serves every other path from the build's static assets. `routes.mjs` finds the handlers when Vite bundles the Worker, so a new app needs no edit outside its folder.
+The main app's Worker, `app/worker/index.ts`, sends every request under `/apps/` to `mini-apps/router.mjs`. The router sends `/apps/<name>/api/*` to that app's `api.mjs`, sends `/apps/` itself to the home page, and serves every other path from the build's static assets. `routes.mjs` finds the handlers when Vite bundles the Worker, so a new app needs no edit outside its folder.
 
 ## The rules
 
@@ -38,13 +38,14 @@ A mini app goes through [the change loop](../development/the-change-loop.md) lik
 
 ## The app list
 
-`scripts/cf-build.sh` runs `scripts/mini-dashboard.mjs` after each build of the main app, with no model step. The script reads every app's `app.json` and writes three things into the build's assets:
+`scripts/cf-build.sh` runs `scripts/mini-dashboard.mjs` after each build of the main app, with no model step. The script reads every app's `app.json` and writes two things into the build's assets:
 
 - `/apps/<name>/` — each app's pages. It never copies `api.mjs`, tests, TypeScript files, or dotfiles.
-- `/apps/index.html` — the list page, with each app's title, description, and link.
-- `/apps/apps.json` — the same list as data.
+- `/apps/apps.json` — the list as data: each app's title, description, and link.
 
-The starter landing page, `app/src/App.tsx`, opens with a tutorial message: your first change is to ask the agent to remove it, and doing that walks you through the whole loop. Below it, the page reads `/apps/apps.json` and lists the apps.
+There is no separate list page: the home page is the list, and each app's *Home* link goes back to it.
+
+The starter landing page, `app/src/App.tsx`, opens with a tutorial, *Learn the development loop*: a message to copy into the chat. The message asks the agent to remove the tutorial and explain each step, so your first change teaches you the whole loop. Below it, the page reads `/apps/apps.json` and lists the apps. It shares the mini apps' plain look — the device's font, light or dark to match the device, and outlined cards — so moving between them feels like one site.
 
 On production the list shows every published app; on a preview it also shows the app that you preview. A bad folder name, or a missing title or description, stops the build and names the folder.
 

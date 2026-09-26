@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.1.0 — Learn the development loop by chatting
+
+- **A new tutorial.** The starter landing page opens with *Learn the development loop*: one plain message and a **Copy** button. The message asks the agent to remove the tutorial and explain each step, so the first change teaches the plan, the preview, and publishing in the chat. When the browser blocks copying, the button says to copy the message by hand. The tutorial's test moves to `app/src/Tutorial.test.tsx`, so removing the tutorial takes its test with it.
+- **One home page.** The build no longer writes the `/apps/` list page; `mini-apps/router.mjs` redirects `/apps/` to `/`, and the home page is the list. The example app's back link reads *Home* and points at `/`. When the list does not load, the home page says to reload instead of linking to `/apps/`.
+- **The home page looks like the mini apps.** `app/src/index.css` and `App.css` drop the Vite template's purple theme for the mini apps' plain style: `system-ui`, `color-scheme: light dark`, system colors, and 1px outlines.
+- **Setup points to it.** The closing report of [setup's provisioning runbook](.agents/skills/wong-setup/references/cloudflare.md#step-5--the-closing-report) ends on the site's address and the message to copy.
+
+**Updating.** `/wong-sync` replaces the old tutorial message only when your landing page still shows it. If you removed it, it stays removed. If your own landing page does not list the mini apps, the plan adds the list, because `/apps/` now opens your home page. Your own mini apps keep their *All mini apps* link; it still works, and lands on the home page.
+
 ## 25.0.0 — One route for every change, with a preview right after building
 
 **Breaking.** A mini app no longer has its own route, and `/apply` no longer saves when it finishes.

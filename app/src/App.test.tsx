@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
 
@@ -53,34 +53,28 @@ it("says how to ask for an app when there are none", async () => {
   expect(screen.queryAllByRole("link")).toEqual([]);
 });
 
-it("links to the list page when the list does not load", async () => {
+it("says to reload when the list does not load", async () => {
   serve({ ok: false, json: async () => [] });
 
   await act(async () => {
     render(<App />);
   });
 
-  const link = await screen.findByRole("link", { name: "See every app" });
-  expect(link.getAttribute("href")).toBe("/apps/");
-  expect(screen.queryByText(/No mini apps yet/)).toBeNull();
+  expect((await screen.findByText(/did not load/)).textContent).toBe(
+    "The list did not load. Reload the page to try again.",
+  );
+  expect(screen.queryAllByRole("link")).toEqual([]);
 });
 
-it("opens with the tutorial, whose one task is to remove itself", async () => {
+it("opens with the tutorial, above the app list", async () => {
   serve({ ok: true, json: async () => [] });
 
   await act(async () => {
     render(<App />);
   });
 
-  const tutorial = screen.getByRole("region", { name: "Start here: remove this message" });
+  const tutorial = screen.getByRole("region", { name: "Learn the development loop" });
   expect(tutorial.compareDocumentPosition(screen.getByRole("heading", { name: "Your apps" }))).toBe(
     Node.DOCUMENT_POSITION_FOLLOWING,
   );
-  const steps = within(tutorial).getAllByRole("listitem");
-  expect(steps.map((step) => step.textContent)).toEqual([
-    "Tell the agent: remove the tutorial message.",
-    "It sends you a plan to read. Say yes to build it.",
-    "It sends you a preview link to try. Say yes to publish it.",
-    "Open this page again. The message is gone.",
-  ]);
 });
