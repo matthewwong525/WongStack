@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · fix-worker-first-routes</title>
+<title>Review · 2026-09-26-fix-worker-first-routes</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -74,11 +74,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="fix-worker-first-routes">
+<body data-change="2026-09-26-fix-worker-first-routes">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>fix-worker-first-routes</h1>
+  <h1>2026-09-26-fix-worker-first-routes</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
@@ -103,6 +103,8 @@
 <li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Found after the 24.0.0 production deploy: <code>memory.mjs search</code> failed with HTTP 405, and production answered <code>POST /_memory/…</code> and <code>POST /api/x</code> with 405 and <code>GET</code> on both with the React page. The 24.0.0 walk probed only <code>/apps/</code> paths.</li>
 <li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: list each route rather than drop <code>run_worker_first</code>, because a browser opening <code>/apps/&lt;name&gt;/api/…</code> still needs the Worker to run first.</li>
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: release 24.0.1, a fix with no breaking change.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>CI passed on PR #131, and its preview sent <code>GET</code> and <code>POST /_memory/…</code> to the Worker (404 <code>no_store</code>, as staging binds no store), <code>POST /api/x</code> answered 200, and <code>/apps/tips/</code> and <code>/</code> still load. The user chose to ship it at once. Distilled facts at ship: no repeatable fact beyond the fragment comment, which now says each Worker route must be in the list.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archive checkpoint: every task checked, deltas synced into <code>openspec/specs/stack-pack/spec.md</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

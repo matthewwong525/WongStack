@@ -40,3 +40,5 @@ None.
 - **2026-09-26** — Found after the 24.0.0 production deploy: `memory.mjs search` failed with HTTP 405, and production answered `POST /_memory/…` and `POST /api/x` with 405 and `GET` on both with the React page. The 24.0.0 walk probed only `/apps/` paths.
 - **2026-09-26** — Assumed: list each route rather than drop `run_worker_first`, because a browser opening `/apps/<name>/api/…` still needs the Worker to run first.
 - **2026-09-26** — Assumed: release 24.0.1, a fix with no breaking change.
+- **2026-09-26** — CI passed on PR #131, and its preview sent `GET` and `POST /_memory/…` to the Worker (404 `no_store`, as staging binds no store), `POST /api/x` answered 200, and `/apps/tips/` and `/` still load. The user chose to ship it at once. Distilled facts at ship: no repeatable fact beyond the fragment comment, which now says each Worker route must be in the list.
+- **2026-09-26** — Archive checkpoint: every task checked, deltas synced into `openspec/specs/stack-pack/spec.md`.
