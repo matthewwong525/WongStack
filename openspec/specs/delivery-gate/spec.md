@@ -13,6 +13,8 @@ The walk step SHALL check that the `walk` skill is present before invoking it. W
 
 Before deleting the merged branch from the remote, `/ship` SHALL find every open pull request that targets that branch as its base and retarget each to the default branch. Only then SHALL the branch be deleted, and the ship report SHALL name any pull request it retargeted. Deleting a base branch that an open pull request still targets closes that pull request, and the loss is unrecoverable: the forge will neither reopen a pull request whose base branch is gone nor retarget a closed one. `/ship` SHALL NOT rely on the forge retargeting dependents on its own, because that is a race with no completion signal.
 
+When the forge deletes the head branch itself at merge, `/ship` SHALL still retarget every open pull request that targets the branch. It SHALL then check whether the remote still has the branch, and delete it only when it does. A branch that is already gone SHALL NOT be reported as an error; the ship report SHALL say that the forge deleted it at merge. When `/ship` cannot tell whether the branch exists, because the remote query itself fails, it SHALL stop and report that failure as for any other delete failure.
+
 #### Scenario: Shipping checkpoints the archive through save
 
 - **WHEN** `/ship` archives a completed change
@@ -63,6 +65,12 @@ Before deleting the merged branch from the remote, `/ship` SHALL find every open
 
 - **WHEN** `/ship` merges a branch that no open pull request targets
 - **THEN** the branch is deleted directly with no retargeting step
+
+#### Scenario: The forge already deleted the branch at merge
+
+- **WHEN** `/ship` merges a pull request in a repository that deletes head branches on merge
+- **THEN** it retargets any open pull request that still targets the branch, skips the delete, and prints no error
+- **AND** the ship report says the branch was deleted at merge
 
 ### Requirement: CI is optional, not required
 
