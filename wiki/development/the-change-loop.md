@@ -23,6 +23,16 @@ So you can enter anywhere. `/apply` with no apply-ready change invokes `/plan`, 
 
 Entering late never skips a stop: **no verb merges as a way of stopping.** A paused `/plan`, an `/apply` that ends with tasks pending, or a failing checkpoint inside the chain reports the blocker and stops before the archive. A partial change is never archived or merged.
 
+### Just ask
+
+A person does not need to know the verbs. When they ask for a change to the repo's code or process with no verb, the agent runs the loop and stops twice:
+
+1. **`/plan`**, which ends with the review link and asks *build it now?*
+2. On yes, **`/apply`**. Its completion save returns the CI result and the preview, then asks *publish it?*
+3. On yes, **`/ship`**, to the merge.
+
+A verb the person types keeps its own reach: `/ship` still runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is written at [the reader's level](../../.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level), so a non-technical person reviews outcomes, not mechanisms.
+
 ### Asking before drafting
 
 `/explore` owns clarification. Standalone, it asks small groups of questions for as long as the thinking needs. At the transition into `/plan`, however planning was invoked, it asks **at most one round**, and only the decisions where a wrong guess makes the artifacts *wrong*, not merely *different*. Later gaps become recorded assumptions. [The exit round](../../.agents/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` records the answers in the proposal's Decision log.

@@ -81,7 +81,7 @@ Count a fact that both commands print once. Keep only the facts that pass the te
 **Invoke the `verify` skill once** and follow it verbatim. Never skip it, and never re-run it for a better verdict. If the repo has no `verify` skill, say so in one line and go to Step 5; never install it.
 
 - `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue to the merge.
-- `FAILURE`, after `/verify`'s own fix attempts → **stop and ask the user** as [a two-option question](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix the failure first *(Recommended)*, or merge anyway and record that the walk failed.
+- `FAILURE`, after `/verify`'s own fix attempts → **stop and ask the user** as [a two-option question](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix the failure first *(Recommended)*, or merge anyway and record that the walk failed. Say what does not work at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): for a non-technical reader, what they would see on the preview, and *publish anyway* for the merge.
 
 If the walk's fix loop advanced `HEAD`, its own delegated `/save` already gated the new commit. Confirm that result is `SUCCESS` or `NONE`, and merge that commit.
 
@@ -112,6 +112,8 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/worktree-secr
 It compares the worktree copy, the primary, and the baseline recorded at seed. It changes only the keys this branch changed, skips and names a key the primary also changed, and prints key names, never values. In the primary checkout it does nothing. The [secrets convention](../../../wiki/development/secrets.md) owns the lifecycle. The same skip rule applies: any error is one line in the report, and it cannot fail the ship.
 
 ## Step 6 — report
+
+Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, and what changed for them — then the lines below.
 
 - PR number + URL, **merged (squash)** to the default branch.
 - **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result. For a mini-app pull request: the app's folder and its dashboard entry instead.

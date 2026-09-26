@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 23.1.0 — Plans a non-technical person can read
+
+- **Plans are written for the person who asked.** A person page in `wiki/people/` can hold one line, `**Technical level:** technical` or `non-technical`. With no line, the agent assumes non-technical. A plan's Why and What Changes then say what the person will see, get, or be able to do, and file names, code, and commands move into the design, specs, and tasks. [The ask convention](.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level) owns the rule, and `openspec/config.yaml` gives it to every draft. A technical reader's plan does not change.
+- **Questions and reports name outcomes.** Every ask, blocker report, and next-step question uses the reader's level. A skill tries the fixes its rules allow before it asks, and `/ship`'s failed-walk question becomes *fix it first, or publish anyway?* for a non-technical reader. `/apply` and `/ship` start their reports with the outcome.
+- **You just ask.** A code change asked for with no command stops twice: at the plan (*build it now?*) and after the preview (*publish it?*). `/ship` and `/apply` keep their reach when you type them. [The change loop](wiki/development/the-change-loop.md#just-ask) owns the rule, and the `WONG-STACK` block states it.
+- **Every plan ends with a link to its review page.** `build-review.mjs` prints the page's absolute path after its status line, and a standalone `/plan` ends with *Click here to see the plan:* and that link, just above the next-step question.
+
+**Updating.** `/wong-sync` takes the new text and script. Nothing to migrate: with no level line, plans become plain. An engineer says once that they are technical, and the agent records it on their page.
+
 ## 23.0.1 — A mini-app save retries once when main moved
 
 - **A moved `main` gets one rebase, not a pull request.** A mini-app save now pushes through the new `save/scripts/mini-app-push.sh`. It runs the app's tests and pushes. When the push is rejected only because `main` moved, it rebases once, runs the tests again, and pushes again. It never forces a push. It falls back to a pull request when the rebase conflicts, the tests fail on the new `main`, the second push is rejected, or the push is refused for another reason, such as branch rules. It prints `pushed`, `rebased`, and `reason`, and a real-git test covers each path. Before this, any rejected push fell back to a pull request, as the first saved mini app did when another release landed during its save.

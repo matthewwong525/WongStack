@@ -3,9 +3,7 @@
 ## Purpose
 
 How every WongStack skill puts a question to the user: the choice format with a recommended option, the host question tool and its fallbacks, the treatment of confirmations and offers, and the next-step question that ends a reply.
-
 ## Requirements
-
 ### Requirement: Every user-facing ask uses structured choices
 
 Every point where a WongStack skill asks the user for input SHALL present a structured question with two or three meaningful options. The recommended option SHALL be first and labelled `(Recommended)`. Each option SHALL state a short tradeoff. The user SHALL keep a custom-answer path, through the tool's own free-text facility where one exists, and a skill SHALL NOT add a duplicate Other option. A custom answer SHALL keep its meaning and SHALL NOT be forced into a suggested option. Where meaningful options cannot be formed, the skill SHALL ask a structured free-text question rather than invent alternatives.
@@ -151,3 +149,25 @@ The WongStack source repository and every install SHALL enable Codex's supported
 - **THEN** `request_user_input` is callable for a structured question
 - **AND** the user's global Codex configuration is unchanged
 - **AND** the project setting has no scope outside the WongStack checkout
+
+### Requirement: Asks name outcomes at the reader's level
+
+Every ask, including a clarification question, a confirmation, a next-step question, and a blocked-state fork, SHALL state its question and each option's tradeoff in terms the reader can judge, at the level that `reader-level` defines. For a non-technical reader, it SHALL name what the person will see, get, lose, or risk, not the mechanism. It SHALL NOT offer a choice that needs technical judgment the person does not have. Where a skill can fix a failure within its own rules, it SHALL try the fix before it asks. The shared ask convention SHALL state this rule once.
+
+#### Scenario: A clarification about compatibility
+
+- **WHEN** `/explore` must ask a non-technical person about a data migration
+- **THEN** the question asks what should happen to the accounts that exist today
+- **AND** it does not use the words "migration" or "schema"
+
+#### Scenario: A walk fails after its fix attempts
+
+- **WHEN** `/verify` fails for a non-technical reader after its own fix attempts inside `/ship`
+- **THEN** `/ship` says what does not work on the preview, in plain words
+- **AND** asks whether to fix it first or publish anyway, with what each choice means for the person
+
+#### Scenario: A technical reader
+
+- **WHEN** the same walk fails for a person whose page says technical
+- **THEN** the ask may name the failed scenario, the check, and the evidence link
+

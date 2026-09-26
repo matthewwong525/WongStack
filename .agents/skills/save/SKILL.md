@@ -80,4 +80,4 @@ For a normal save, report branch and commit, PR link, maintained change or archi
 
 A successful direct prose or mini-app save uses only the two-line report from its reference. Save never merges any route; ship owns archive and merge.
 
-A save invoked directly by the user ends with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) after the gate line — normally continue the tasks, ship it, or stop here; on a failing or unverified gate, the supported ways to clear it. A save inside an authorized chain reports and returns without asking.
+A save invoked directly by the user ends with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) after the gate line — normally continue the tasks, ship it (*publish it*, for a non-technical reader), or stop here; on a failing or unverified gate, the supported ways to clear it. A save inside an authorized chain reports and returns without asking.
