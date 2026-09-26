@@ -170,9 +170,15 @@ test('an API path goes to its app, with the app database and no other binding', 
   assert.deepEqual(seen[0].ctx, { tag: 'ctx' });
 });
 
+test('/apps/ sends a person to the landing page, which lists the apps', async () => {
+  const response = await call('/apps/');
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), 'https://app.example/');
+});
+
 test('every other /apps/ path is a static asset', async () => {
   const routes = { tips: { fetch: () => new Response('tips api') } };
-  for (const path of ['/apps/', '/apps/tips/', '/apps/tips/apiary', '/apps/nothing/api/x', '/apps/constructor/api/x']) {
+  for (const path of ['/apps/index.html', '/apps/tips/', '/apps/tips/apiary', '/apps/nothing/api/x', '/apps/constructor/api/x']) {
     assert.equal(await (await call(path, routes)).text(), `asset ${path}`, path);
   }
 });
@@ -187,7 +193,7 @@ test('source files and a bad path are never served', async () => {
 
 // ── The copy into the build ─────────────────────────────────────────────────
 
-test('the copy lists every app sorted by folder, with its text escaped, as a page and as data', t => {
+test('the copy lists every app sorted by folder as data, and writes no list page', t => {
   const root = miniRepo(t, {
     apps: {
       zeta: app('<Zeta> & "Co"', "Zeta's app"),
@@ -197,22 +203,17 @@ test('the copy lists every app sorted by folder, with its text escaped, as a pag
   });
   const result = copyInto(root);
   assert.equal(result.status, 0, result.out);
-  const html = read(join(root, 'out/apps/index.html'));
-  const links = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(links, ['./alpha/', './hello/', './mid-2/', './zeta/']);
-  assert.match(html, /&lt;Zeta&gt; &amp; &quot;Co&quot;/);
-  assert.match(html, /Zeta&#39;s app/);
-  assert.match(html, /Runs &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
-  assert.doesNotMatch(html, /<script>/);
-  assert.match(html, /name="viewport"/);
+  assert.equal(existsSync(join(root, 'out/apps/index.html')), false, 'the landing page is the list');
 
   const data = JSON.parse(read(join(root, 'out/apps/apps.json')));
   assert.deepEqual(data.map(entry => entry.href), ['/apps/alpha/', '/apps/hello/', '/apps/mid-2/', '/apps/zeta/']);
   assert.deepEqual(data[3], { name: 'zeta', title: '<Zeta> & "Co"', description: "Zeta's app", href: '/apps/zeta/' });
 
-  const first = { html, json: read(join(root, 'out/apps/apps.json')) };
+  assert.equal(data[0].description, 'Runs <script>alert(1)</script>', 'data keeps the text; React escapes it');
+
+  const first = read(join(root, 'out/apps/apps.json'));
   assert.equal(copyInto(root, join(root, 'again')).status, 0);
-  assert.deepEqual({ html: read(join(root, 'again/apps/index.html')), json: read(join(root, 'again/apps/apps.json')) }, first,
+  assert.equal(read(join(root, 'again/apps/apps.json')), first,
     'the same folders must write the same bytes');
 });
 
@@ -231,16 +232,15 @@ test('the copy takes the pages and leaves every handler, test, and source file o
   });
   assert.equal(copyInto(root).status, 0);
   assert.deepEqual(files(join(root, 'out/apps')), [
-    'apps.json', 'hello/app.json', 'hello/index.html', 'index.html', 'tips/app.json', 'tips/index.html', 'tips/tip.mjs',
+    'apps.json', 'hello/app.json', 'hello/index.html', 'tips/app.json', 'tips/index.html', 'tips/tip.mjs',
   ]);
 });
 
-test('with no apps the list says so', t => {
+test('with no apps the list is empty', t => {
   const root = miniRepo(t);
   rmSync(join(root, 'mini-apps/apps/hello'), { recursive: true });
   const result = copyInto(root);
   assert.equal(result.status, 0, result.out);
-  assert.match(read(join(root, 'out/apps/index.html')), /No mini apps yet\. Ask the agent to make one\./);
   assert.equal(read(join(root, 'out/apps/apps.json')), '[]\n');
 });
 
@@ -268,7 +268,7 @@ test('a second copy replaces the first, so a removed app is gone', t => {
   assert.equal(copyInto(root).status, 0);
   rmSync(join(root, 'mini-apps/apps/tips'), { recursive: true });
   assert.equal(copyInto(root).status, 0);
-  assert.deepEqual(files(join(root, 'out/apps')), ['apps.json', 'hello/app.json', 'hello/index.html', 'index.html']);
+  assert.deepEqual(files(join(root, 'out/apps')), ['apps.json', 'hello/app.json', 'hello/index.html']);
 });
 
 test('the copy script follows the CLI conventions', t => {
@@ -287,7 +287,7 @@ test('cf-build copies the mini apps into the assets folder the build wrote', t =
   const result = run(root, 'cf-build.sh');
   assert.equal(result.status, 0, result.out);
   assert.deepEqual(result.calls, ['npm run build:app']);
-  assert.deepEqual(files(join(root, 'app/dist/client/apps')), ['apps.json', 'hello/app.json', 'hello/index.html', 'index.html']);
+  assert.deepEqual(files(join(root, 'app/dist/client/apps')), ['apps.json', 'hello/app.json', 'hello/index.html']);
 
   rmSync(join(root, 'mini-apps'), { recursive: true });
   rmSync(join(root, 'app/dist'), { recursive: true });

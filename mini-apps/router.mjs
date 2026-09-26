@@ -2,12 +2,12 @@
  * The mini-app route, served by the main app's Worker. `app/worker/index.ts`
  * sends every request under `/apps/` here:
  *
- *   /apps/                  the list of apps, `index.html` from the build
+ *   /apps/                  a redirect to the landing page, which lists the apps
  *   /apps/<name>/           the app's pages, copied into the build's assets
  *   /apps/<name>/api/*      the app's handler, `apps/<name>/api.mjs`, when it has one
  *
- * `scripts/mini-dashboard.mjs` copies each app's pages and writes the list after
- * every build. `routes.mjs` maps each app folder to its handler. Plain
+ * `scripts/mini-dashboard.mjs` copies each app's pages and writes the list's data
+ * after every build. `routes.mjs` maps each app folder to its handler. Plain
  * JavaScript, so `node --test` runs this file with no build.
  */
 
@@ -31,6 +31,7 @@ export function handleMiniApp(request, env, ctx, routes) {
 		return notFound();
 	}
 	if (SOURCE.test(path)) return notFound();
+	if (path === MINI_PREFIX) return Response.redirect(new URL("/", request.url), 302);
 
 	const name = /^\/apps\/([^/]+)\/api(?:\/|$)/.exec(path)?.[1];
 	if (name && Object.hasOwn(routes, name)) return routes[name].fetch(request, { DB: env.DB }, ctx);

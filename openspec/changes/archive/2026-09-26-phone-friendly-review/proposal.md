@@ -55,7 +55,7 @@ None.
 - **Builder:** `.agents/skills/plan/scripts/build-review.mjs` (drawing markup: a `<details>` outside the item's text column).
 - **Tests:** `scripts/tests/review.test.mjs`, `app/review/review.test.mjs`.
 - **Docs:** `wiki/ux-principles.md`, `.agents/skills/plan/SKILL.md`, `README.md` caption.
-- **Release:** `VERSION` 25.1.0 and `CHANGELOG.md`. Active changes pick the new kit up on their next page build; archived pages are not rebuilt.
+- **Release:** `VERSION` 25.2.0 and `CHANGELOG.md`. Active changes pick the new kit up on their next page build; archived pages are not rebuilt.
 
 ## Decision log
 
@@ -72,3 +72,4 @@ None.
 - **2026-09-26** — Distilled facts before the archive: the store holds no facts for this change or branch yet, so no repeatable fact.
 - **2026-09-26** — Archive checkpoint: saved the archived change with the kit, builder, tests, docs, and 24.1.0 release for CI.
 - **2026-09-26** — Merged main (25.0.0, 24.0.2) into the branch before the merge; CHANGELOG and VERSION conflicted, so this release is renumbered 25.1.0.
+- **2026-09-26** — Merged main again (another 25.1.0 landed first), so this release is renumbered 25.2.0.

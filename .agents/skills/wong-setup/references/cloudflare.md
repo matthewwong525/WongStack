@@ -235,7 +235,7 @@ State, in plain language:
 - That CI publishes with its own small key, `<repo>-deploy`
 - That the app is **public**: anyone with the link can open it. A login wall is [the Access runbook](../../../../wiki/stack/cloudflare-access.md).
 
-End on the URL and the one next command.
+End on the URL and the one next step. With the starter app, that step is: open the URL and copy the message in the box at the top into this chat. It walks the person through their first change.
 
 ## Hard rules
 
