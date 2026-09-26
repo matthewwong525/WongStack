@@ -74,19 +74,19 @@ You never need to run anything on your own computer.
 
 **Ask for anything.** Look something up, plan your week, draft a message, or remind you on a schedule. The agent does it and answers, with no commands. It asks before it sends or changes anything outside the chat. What it learns about you stays for next time, in [memory](../development/memory.md) and [the wiki](../README.md).
 
-**Ask for a small tool** — a tip splitter, a run log — and you get a link to try it. Say save, and it is live. [Mini apps](mini-apps.md) has the details.
+**Ask for a small tool** — a tip splitter, a run log — and it goes through the same steps as any change below: a plan, a link to try it, then publish. [Mini apps](mini-apps.md) has the details.
 
 **Change the site itself** through a short, reviewable loop:
 
 ```
-   ask for a change  →  agent builds it  →  /save  →  you get a link
-                                                       ↓
-                                              open it, look at it
-                                                       ↓
-                                              happy? /ship  →  it's live
+   ask for a change  →  read the plan  →  agent builds it  →  you get a link
+                                                                 ↓
+                                                        open it, look at it
+                                                                 ↓
+                                                        happy? publish  →  it's live
 ```
 
-Each change gets its own link, running against the practice data. Your real site keeps working the whole time, untouched, until you ship.
+Each change gets its own link, running against the practice data. Your real site keeps working the whole time, untouched, until you publish.
 
 ## Honest list of what you have to do yourself
 

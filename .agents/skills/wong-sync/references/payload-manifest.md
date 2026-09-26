@@ -38,7 +38,7 @@ The JSON report contains the complete changed-unit list, counts, paths, and clas
 
 The **improve** skill ships its dependency-free survey helper and investigation references as one directory. The helper reads supported tracked text and Git history through the Node.js runtime that OpenSpec already needs. It does not add a package or contact a service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduler requirements.
 
-The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), and the builder as one directory. Every new change gets a standalone `review.html`, built from its `proposal.md` alone; the viewer's runtime is bundled into that output. `/save` refreshes it through the same builder. The **save** skill's [mini-app save](../../save/references/mini-app-save.md) ships with it. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure in a target.
+The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), and the builder as one directory. Every new change gets a standalone `review.html`, built from its `proposal.md` alone; the viewer's runtime is bundled into that output. `/save` refreshes it through the same builder. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure in a target.
 
 ## The memory store and its hooks
 

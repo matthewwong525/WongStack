@@ -1,10 +1,4 @@
-# apply-plan-handoff Specification
-
-## Purpose
-
-Define how `/apply` resolves or creates the applicable OpenSpec plan before implementation while preserving the existing workflow ownership boundaries.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Apply ensures an applicable plan exists
 
@@ -57,22 +51,6 @@ The plan `/apply` needs SHALL depend on the kind of work. A change to the repo's
 
 - **WHEN** the person asks for a new standalone page and no change represents it
 - **THEN** `/apply` invokes `/plan` first, like any code change, and builds the page from that change
-
-### Requirement: Planning and implementation remain delegated
-
-The shortcut SHALL invoke the existing `/plan` workflow for artifact authoring and the existing OpenSpec apply workflow for implementation. It SHALL pass the planned change name explicitly into the apply workflow so another active change cannot be selected between the two stages.
-
-#### Scenario: Automatic planning completes
-
-- **WHEN** `/apply` invokes `/plan` and the change becomes apply-ready
-- **THEN** `/apply` announces the planned change
-- **AND** it invokes the OpenSpec apply workflow with that exact change name
-
-#### Scenario: Automatic planning pauses
-
-- **WHEN** `/plan` pauses because required intent is unclear or artifact creation is blocked
-- **THEN** `/apply` does not begin implementation
-- **AND** it reports the planning blocker
 
 ### Requirement: The shortcut preserves workflow ownership
 

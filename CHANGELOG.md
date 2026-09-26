@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 24.1.0 — Learn the development loop by chatting
+## 25.1.0 — Learn the development loop by chatting
 
 - **A new tutorial.** The starter landing page opens with *Learn the development loop*: one plain message and a **Copy** button. The message asks the agent to remove the tutorial and explain each step, so the first change teaches the plan, the preview, and publishing in the chat. When the browser blocks copying, the button says to copy the message by hand. The tutorial's test moves to `app/src/Tutorial.test.tsx`, so removing the tutorial takes its test with it.
 - **One home page.** The build no longer writes the `/apps/` list page; `mini-apps/router.mjs` redirects `/apps/` to `/`, and the home page is the list. The example app's back link reads *Home* and points at `/`. When the list does not load, the home page says to reload instead of linking to `/apps/`.
@@ -11,6 +11,18 @@
 - **Setup points to it.** The closing report of [setup's provisioning runbook](.agents/skills/wong-setup/references/cloudflare.md#step-5--the-closing-report) ends on the site's address and the message to copy.
 
 **Updating.** `/wong-sync` replaces the old tutorial message only when your landing page still shows it. If you removed it, it stays removed. If your own landing page does not list the mini apps, the plan adds the list, because `/apps/` now opens your home page. Your own mini apps keep their *All mini apps* link; it still works, and lands on the home page.
+
+## 25.0.0 — One route for every change, with a preview right after building
+
+**Breaking.** A mini app no longer has its own route, and `/apply` no longer saves when it finishes.
+
+- **`/apply` ends with a preview from this machine.** When every task is done, it asks `.github/scripts/app-untouched.sh --worktree` whether the app changed. If it did, it runs `scripts/cf-preview.sh --alias <change-name>` and reports the link. Then it asks *publish it?*, *change it more*, or *save it*. It never invokes `/save` on completion. A change that leaves the app untouched gets no upload: the agent does the task and reports. Inside `/ship`, `/apply` still returns with no upload, and task-driven saves still run mid-list.
+- **Only `/save` and `/ship` push.** `/save` opens the pull request when you want a checkpoint. `/ship` saves once, waits for CI, walks the preview, and merges, as before.
+- **A mini app takes the same loop.** "Make me a …" gets a plan with a review link and *build it now?*, then the host preview at `/apps/<name>/`, then *publish it?*. It goes live only through `/ship`, and CI still runs only the changed app's tests.
+- **`app-untouched.sh` gains `--worktree`.** It answers for the uncommitted work, untracked files included, against the merge base with `origin/<default>`. The CI mode does not change.
+- **Removed:** `save/references/mini-app-save.md`, `save/scripts/mini-app-push.sh`, the `mini-app` mode of `save/scripts/render-pr-body.mjs`, `/apply`'s mini-app path, and `/ship`'s mini-app merge. The `WONG-STACK` block's mini-app rule no longer mentions a direct save.
+
+**Updating.** Finish or save a half-built mini app before you sync: a save after the update opens a pull request instead of pushing to `main`. `/wong-sync` deletes the removed files. Apps you already saved stay live and unchanged.
 
 ## 24.0.2 — OpenSpec 1.13.2
 

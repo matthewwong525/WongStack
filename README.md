@@ -11,7 +11,7 @@
 - *"Find three quiet cafés near the office that open before 8."*
 - *"Plan my week around the Thursday deadline."*
 - *"Every weekday at 9, list what is due today."* With the optional [Paseo](https://paseo.sh) app, it runs on a schedule.
-- *"Make me a page that splits a restaurant bill."* You get a link to try it in about a minute. Say save, and it is live.
+- *"Make me a page that splits a restaurant bill."* You read a short plan, get a link to try it, and say publish to put it live.
 - *"Remember that I prefer short answers."* It still knows next week.
 
 It asks before it sends, buys, or deletes anything.
@@ -40,7 +40,7 @@ You end with a working assistant, a starter site online, and memory that carries
 ## What you get
 
 - **An assistant that remembers.** Each chat starts with what earlier chats learned about you and your work. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
-- **Small apps from one request.** A [mini app](wiki/stack/mini-apps.md) gets a link to try, and goes live at `/apps/<name>/` when you say save.
+- **Small apps from one request.** A [mini app](wiki/stack/mini-apps.md) gets a plan and a link to try, and goes live at `/apps/<name>/` when you publish it.
 - **Your own site, online for free.** Every change gets its own link to look at before it goes live.
 - **A notebook that grows.** What the assistant learns — how you like work done, who is who — goes into [a wiki](wiki/README.md) it reads next time.
 - **Your home base.** Your [home](wiki/development/home.md) folder carries who you are into every other project.
@@ -68,7 +68,7 @@ You do not have to type them. Ask for what you want, such as "add a sign-up page
 | --- | --- |
 | `/explore` | Think through an idea before you decide what to do. |
 | `/plan` | Write the plan, tasks, and decisions, and build the `review.html` page. For work that is not code, write a short to-do. |
-| `/apply` | Do the planned work, then save it when every task is complete. It also builds mini apps, and asks before each outward action in work that is not code. |
+| `/apply` | Do the planned work, then put it on a preview link from this machine. It saves nothing; it asks before each outward action in work that is not code. |
 | `/save` | Commit, push, open or update the pull request, and wait for CI. A plain conversation saves only its facts. |
 | `/continue` | Pick up saved work later, from any machine or session. |
 | `/ship` | Finish the change, run CI once, walk the preview, merge, and keep the record of what shipped. |

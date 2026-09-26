@@ -77,7 +77,7 @@ None.
 - **App:** `app/src/index.css` and `App.css` take the mini apps' style; `AppList.tsx`'s failure state drops its `/apps/` link. `app/src/Tutorial.tsx` is rewritten with the message and a Copy button; its test moves from `App.test.tsx` to a new `app/src/Tutorial.test.tsx`; `App.css` gains the box's styles. Removing the tutorial stays one step: delete `Tutorial.tsx`, `Tutorial.test.tsx`, its styles, and one line in `App.tsx`.
 - **Skills:** `wong-setup/references/cloudflare.md` Step 5 ends by pointing to the box; `wong-sync`'s payload manifest says a removed tutorial is not restored.
 - **Docs:** `wiki/stack/getting-started.md`, `wiki/stack/mini-apps.md`, `wiki/stack/README.md`, and the mini-app save reference.
-- **Release:** 24.1.0.
+- **Release:** 25.1.0 (planned as 24.1.0; main reached 25.0.0 first).
 
 ## Decision log
 
@@ -102,3 +102,4 @@ None.
 - **2026-09-26** — Task 4.3 on the preview, headless Chromium at 390×844 (touch): the box and the app list render with no sideways scroll; Copy put the exact message on the clipboard and read `Copied`; Hello's Home link and `/apps/` both land on `/`.
 - **2026-09-26** — Distilled facts at ship: the store holds no live fact for this change or its branch, so no repeatable fact moved. The wiki edits ride in this change: `wiki/stack/mini-apps.md`, `wiki/stack/getting-started.md`, and `wiki/stack/README.md`.
 - **2026-09-26** — Archive checkpoint: every task checked, the change archived with `--skip-specs` after confirming both `mini-apps` requirements in `openspec/specs/` equal the deltas.
+- **2026-09-26** — Merged `origin/main` at 25.0.0 (#134, mini apps take the full loop) before the merge: the release becomes 25.1.0; `save/references/mini-app-save.md` stays deleted as main removed it; `openspec/specs/mini-apps/spec.md` keeps both this change's removed-tutorial scenario and main's new same-loop requirement; `wiki/stack/README.md` takes main's wording plus "on the home page".
