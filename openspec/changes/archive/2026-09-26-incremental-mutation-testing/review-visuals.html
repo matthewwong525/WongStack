@@ -1,0 +1,43 @@
+<section class="visual flow" id="ci-run" data-kind="flow" data-title="Test run in CI" data-states="after today">
+  <p class="caption">The Test workflow on one push, today and after this change. The numbers come from wongstack-cloud run 36255581190.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="after-push"><h3>Push</h3><p>A push starts the Test workflow.</p><details><summary>Details</summary><p>Actor: developer or <code>/save</code>. Action: push a commit. Result: the <code>test</code> job starts.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-locate"><h3>Locate the test suite <span class="tag">Changed</span></h3><p>Find the suite. Also output its repo-relative path and whether it has a Stryker config.</p><details><summary>Details</summary><p>Actor: workflow. Action: find the first <code>package.json</code> with a <code>test</code> script, then look for <code>stryker.conf.*</code> or <code>stryker.config.*</code> in that folder. Result: the cache steps know the path and whether to run.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-restore"><h3>Restore the result file <span class="tag">New</span></h3><p><code>actions/cache/restore</code> gets <code>reports/stryker-incremental.json</code> by key prefix. <i class="callout">1</i></p><details><summary>Details</summary><p>Actor: workflow. Key: <code>stryker-&lt;hash of lockfile + stryker config + vitest config&gt;-&lt;run id&gt;</code>. Restore key: the same text without the run ID. Result: the newest file on this branch, else the newest file on the default branch, else no file.</p></details></div>
+      <p class="flow-connector">↓ One of three outcomes</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="branch-own"><h3>Hit on own branch</h3><p>Use this branch's newest result file.</p><details><summary>Details</summary><p>Actor: cache. Action: match the prefix on the current branch. Result: Stryker starts from this branch's last run.</p></details></div>
+        <div class="flow-branch" data-target-id="branch-default"><h3>Hit from default branch</h3><p>Use the default branch's newest result file.</p><details><summary>Details</summary><p>Actor: cache. Action: find no entry on this branch, then match the prefix on the default branch. Result: a new branch starts from <code>main</code>'s last run.</p></details></div>
+        <div class="flow-branch" data-target-id="branch-miss"><h3>Miss</h3><p>A new dependency or config hash, or a first run. No file.</p><details><summary>Details</summary><p>Actor: cache. Action: find no entry with this prefix. Result: Stryker tests every mutant.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ All paths rejoin here</p>
+      <div class="step flow-card" data-target-id="after-test"><h3>Test <span class="tag">Changed</span></h3><p><code>npm test</code> runs the same checks. <code>stryker run</code> is now incremental.</p><details><summary>Details</summary><p>Actor: <code>npm test</code>. Action: run lint, Vitest with coverage, <code>node --test</code>, knip, jscpd, then <code>stryker run</code>. Stryker reuses a killed mutant when its code and the test that killed it did not change. It tests all other mutants. Result: the break threshold stays at 100, so one surviving mutant fails the check.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-save"><h3>Save the result file <span class="tag">New</span></h3><p><code>actions/cache/save</code> stores the file under a new key. It runs also when the test fails. <i class="callout">2</i> <i class="callout">3</i></p><details><summary>Details</summary><p>Actor: workflow. Condition: the result file exists. Action: save it with a key that ends in the run ID. Result: the next push on this branch starts from this run.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-check"><h3>Check result</h3><p>The Test check passes or fails, as today.</p><details><summary>Details</summary><p>Actor: GitHub. Action: report the job result. Result: <code>/save</code> and <code>/ship</code> read the check.</p></details></div>
+      <p class="flow-connector">·</p>
+      <div class="step flow-card" data-target-id="after-no-stryker"><h3>Suite with no Stryker config <span class="tag">New</span></h3><p>The workflow skips both cache steps.</p><details><summary>Details</summary><p>Actor: workflow. Condition: the suite folder has no <code>stryker.conf.*</code> or <code>stryker.config.*</code>. Result: the job runs as today.</p></details></div>
+    </div></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card"><h3>Push</h3><p>A push starts the Test workflow.</p><details><summary>Details</summary><p>Actor: developer or <code>/save</code>. Action: push a commit. Result: the <code>test</code> job starts.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card"><h3>Set up</h3><p>Checkout, locate the suite, <code>npm ci</code>, and install Playwright.</p><details><summary>Details</summary><p>Actor: workflow. In wongstack-cloud: setup and <code>npm ci</code> 15 s, Playwright Chromium 29 s.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card"><h3>Test</h3><p><code>npm test</code> runs every check. <code>stryker run</code> tests every mutant.</p><details><summary>Details</summary><p>Actor: <code>npm test</code>. Action: run lint, Vitest with coverage, <code>node --test</code>, knip, jscpd, then <code>stryker run</code>. In wongstack-cloud: 1,610 mutants take 14m06s of a 15m32s job.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card"><h3>Check result</h3><p>The Test check passes or fails.</p><details><summary>Details</summary><p>Actor: GitHub. Action: report the job result. Result: every <code>/save</code> and <code>/ship</code> waits for it.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a developer who pushes and waits for the Test check. <b>Done:</b> the check reports, and Stryker tests only changed mutants. <b>Frequency:</b> every push.</p>
+    <ol>
+      <li>The key holds a hash of the lockfile, Stryker config, and Vitest config. Stryker's incremental mode does not see a dependency or config change. A new hash gives a miss, so that run tests every mutant, and an old result cannot hide a surviving mutant.</li>
+      <li>Save runs also when the test fails. The next push fixes the failure, and it then reuses every result that is still valid.</li>
+      <li>Each save gets a new key that ends in the run ID. GitHub cannot overwrite a cache entry. Restore by prefix searches the current branch first, then the default branch, so no extra logic is necessary.</li>
+    </ol>
+  </div>
+</section>
