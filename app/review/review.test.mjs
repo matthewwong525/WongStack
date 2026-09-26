@@ -224,6 +224,8 @@ test('a drawing folds, fits the item\'s full width, and zooms and scrolls full s
   assert.equal(await fold.evaluate(el => el.open), false);
   assert.equal(await page.locator('#item-3 .frame').isVisible(), false);
   await fold.locator('summary').click();
+  // Opening a fold fires its toggle event a moment later, and that event fits the drawing.
+  await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-3 .art')).fontSize) < 13);
   const inline = () => page.evaluate(() => {
     const frame = document.querySelector('#item-3 .frame').getBoundingClientRect(), card = document.querySelector('#item-3').getBoundingClientRect();
     const art = document.querySelector('#item-3 .art'), box = art.getBoundingClientRect();
