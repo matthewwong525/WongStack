@@ -93,11 +93,16 @@
   "scaffold": {
     "dirs": [
       "app",
-      "mini-apps"
+      "mini-apps/apps/hello"
+    ],
+    "files": [
+      "mini-apps/worker.ts",
+      "mini-apps/tsconfig.json",
+      "mini-apps/.gitignore",
+      "mini-apps/apps/.assetsignore"
     ],
     "exclude": [
-      "app/wrangler.jsonc",
-      "mini-apps/wrangler.jsonc"
+      "app/wrangler.jsonc"
     ]
   },
   "seededBySetup": {

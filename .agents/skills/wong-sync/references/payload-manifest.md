@@ -48,13 +48,13 @@ The **memory** skill ships its script, schema migrations, the account's memory W
 
 Every install takes the pack. Its drop-in files follow the manifest's ordinary copy-or-adapt rule. Configuration fragments instead merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md); live database IDs and secrets are created in the target, never copied. The whole [`wiki/stack/`](../../../../wiki/stack/README.md) section ships with the pack. The [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core because `/verify` works on other hosts too.
 
-No copied file may carry a live `database_id` or a source-repo database name. The source's `app/wrangler.jsonc` and `mini-apps/wrangler.jsonc` are excluded; [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) creates the target's config from a fragment.
+No copied file may carry a live `database_id` or a source-repo database name. The source's `app/wrangler.jsonc` is excluded, and `mini-apps/wrangler.jsonc` is not listed; [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) creates the target's config from a fragment.
 
 ## The app scaffold
 
 The scaffold is a starting React/Vite Worker app, not a required runtime for WongStack. It includes its own test suite and package manifest. The core test workflow finds a repo's `npm test` script at the root or in an immediate subdirectory; when none exists, it reports that and succeeds. No root `package.json` is copied on behalf of a target.
 
-The scaffold also carries `mini-apps/`: the small Worker, its example app, and its ignore files for [mini apps](../../../../wiki/stack/mini-apps.md). Its `wrangler.jsonc` is created by provisioning from [its fragment](stack-pack-fragments.md#mini-appswranglerjsonc--the-mini-app-worker), never copied. Each app's tests run with Node's built-in runner, so the folder has no package manifest.
+The scaffold also carries the [mini apps](../../../../wiki/stack/mini-apps.md) Worker, listed file by file: `worker.ts`, its editor config, its ignore files, and the example app `mini-apps/apps/hello/`. Nothing else under `mini-apps/` ships, so an app made in this repo stays here; a new scaffold file must be added to the list by hand. Its `wrangler.jsonc` is created by provisioning from [its fragment](stack-pack-fragments.md#mini-appswranglerjsonc--the-mini-app-worker), never copied. Each app's tests run with Node's built-in runner, so the folder has no package manifest.
 
 ## OpenSpec integration and migration
 
