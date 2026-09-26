@@ -28,11 +28,12 @@ jobs:
       - run: npm ci
         working-directory: app
       - name: Install supported OpenSpec CLI
-        run: npm install -g @fission-ai/openspec@1.8.0
+        run: npm install -g @fission-ai/openspec@1.13.2
       - name: Review assembly and migration fixtures
         run: node --test scripts/tests/*.test.mjs
       - name: Release checks
         run: |
           node scripts/check-payload-links.mjs
           node scripts/check-openspec-config.mjs
+          openspec validate --specs --strict --no-interactive
           node scripts/measure-context.mjs --check

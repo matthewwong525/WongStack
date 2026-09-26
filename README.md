@@ -97,7 +97,7 @@ Checked against each project's README in September 2026.
 - **A coding agent** that edits files, runs shell commands, and asks questions.
 - **[`gh`](https://cli.github.com/)**, signed in, and **`git`**. Setup creates the GitHub repo.
 - **[Node.js](https://nodejs.org/) 22**, the version in [`.nvmrc`](.nvmrc).
-- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: `npm install -g @fission-ai/openspec@1.8.0`.
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: `npm install -g @fission-ai/openspec@1.13.2`.
 - **`curl`**, for Cloudflare provisioning.
 - **A [Cloudflare](https://cloudflare.com) account** (the free plan works) and one user token. Cloudflare is required, because session memory and hosting run there. The token stays in the git-ignored `.env` on your computer. [`SECURITY.md`](SECURITY.md) says what each token can do, and [the credentials page](wiki/stack/cloudflare-credentials.md) has the click path.
 - **On Windows**, run `git config --global core.symlinks true` and turn on Developer Mode before you clone. The skills folder links are symbolic links ([why](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).

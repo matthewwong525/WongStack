@@ -18,4 +18,4 @@ Run `openspec context --json` and `openspec list --json` from the working repo. 
 
 `openspec validate "<name>" --strict --no-interactive` checks artifacts and delta specs before readiness or archive. `openspec instructions archive --change "<name>" --json` can provide advisory context. After task and gate preflight, `openspec archive "<name>" --yes` performs the archive and syncs unsynced deltas. Use `--skip-specs` only when the change's deltas are already confirmed equal to the main specs. Report a missing or changed CLI field; do not guess a replacement and claim success.
 
-The CLI does not offer a standalone `sync` command in version 1.8.0. Save's semantic delta reconciliation remains in [its own reference](../../save/references/spec-sync.md). Git stays with `/save`, `/continue`, and `/ship`.
+The CLI does not offer a standalone `sync` command in version 1.13.2. Save's semantic delta reconciliation remains in [its own reference](../../save/references/spec-sync.md). Git stays with `/save`, `/continue`, and `/ship`.
