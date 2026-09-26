@@ -1,6 +1,6 @@
 # Keep records from the removed notes migration readable
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore-r2-migration-folder
 **Open questions:** none
 
@@ -45,3 +45,6 @@ This change edits `openspec/specs/memory-store/spec.md` (through the delta), `sc
 - **2026-09-26** — `/ship` preflight found that `main` had moved to 19.0.0 (#105), which already removed `import`, its test, the sync step, the manifest section, the `wong-sync` requirement, and the stale change-loop line. The branch fast-forwarded to it and is now `explore-r2-migration-folder`. Asked what to do with this change → chose to ship the leftover as 19.0.1: the write-gate wording plus a requirement and tests that keep migrated records readable. The earlier 19.0.0 and sync decisions above are superseded by #105.
 - **2026-09-26** — Implemented tasks 1.1 to 2.2. The two tests seed the fake store directly (no import path exists). The memory suite also ran locally once while the tests were written; CI stays the gate. The review page was redrawn for the smaller scope; the checker passes at desktop width and at 390 px.
 - **2026-09-26** — Saved for CI (task 2.3). The memory-store delta is reconciled into `openspec/specs/memory-store/spec.md`. One session fact stored: which downstream repos still have `notes/`, and that each handles its own.
+- **2026-09-26** — Saved on PR #114 (`9ab641f`), and CI passed, which completes task 2.3.
+- **2026-09-26** — Distilled facts before the archive: no reusable fact. The one live fact names downstream repos that still have `notes/`; it is project state, not process.
+- **2026-09-26** — Archive checkpoint from `/ship`: archived with `--skip-specs`, because the main `memory-store` spec already equals the delta.

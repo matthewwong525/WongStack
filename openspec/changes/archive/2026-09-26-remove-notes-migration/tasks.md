@@ -7,4 +7,4 @@
 
 - [x] 2.1 Bump `VERSION` to 19.0.1 and add a newest-first `CHANGELOG.md` entry.
 - [x] 2.2 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`. Fix any dead link.
-- [ ] 2.3 Run `/save` so CI runs the memory suite. The task is done when CI passes.
+- [x] 2.3 Run `/save` so CI runs the memory suite. The task is done when CI passes.
