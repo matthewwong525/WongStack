@@ -51,6 +51,8 @@ Who can read what, stated plainly:
 - A member can still write a fact under another name or delete rows. Give keys only to people you trust with the store; D1 restores a database to any time in the last 30 days.
 - A secret that was never in `.env` stays in the raw transcript. Use `#private` for sessions that handle one.
 
+The script reads `CLOUDFLARE_MEMORY_TOKEN` from the process environment first, then from `.env`. A shell that loaded a `.env` sends that value to every repo it runs in, so unset it (`env -u CLOUDFLARE_MEMORY_TOKEN ...`) when you work with another repo's store.
+
 ### Add or remove a teammate
 
 The admin runs these with `CLOUDFLARE_API_TOKEN`, the [user token](../stack/cloudflare-credentials.md):
