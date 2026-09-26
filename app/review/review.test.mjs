@@ -1,276 +1,267 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs';
 
-const root = resolve(import.meta.dirname, '../..');
-const examples = readFileSync(join(root, '.agents/skills/plan/references/review-examples.html'), 'utf8');
-const files = [];
-let browser;
-
+const fence = '```';
+const long = 'The reviewer reads every word of this item before the next one. ';
 const proposal = `## Why
 
-Reviewers need to read one complete change at a time.
+Reviewers read the plan on a phone.
+
+A long token stays readable: openspec/changes/a-very-long-change-name-that-never-seems-to-end/review-visuals-and-more.html
 
 ## What Changes
 
-- **Find orders quickly** with a full description that wraps onto another line and keeps \`reference\` text beside its picture.
-  The full second sentence must remain visible. (review.html#/list/default/search)
-- **Receive an order** with one action. (review.html#/detail/default/finish)
-- **Follow a workflow** with cards and branches. (review.html#/receive-flow/after/new)
-- **Read the rule** in a comparison. (review.html#/list-rule/added)
-- **Review files** in a tree. (review.html#/files)
-- **Keyboard focus** is a behavior-only change.
-`;
+- **Item one** has a small drawing.
+  ${fence}text
+  you ask
+     │
+  done
+  ${fence}
+- **Item two** links [the reason](#why) and wraps
+  onto a second line.
+- **Item three** carries a wide drawing.
+  ${fence}text
+${Array.from({ length: 12 }, (_, i) => `  ${String(i + 1).padStart(2, '0')} ${'─'.repeat(90)}┤`).join('\n')}
+  ${fence}
+- **Item four** is text. ${long.repeat(4)}
+- **Item five** is text. ${long.repeat(4)}
+- **Item six** names \`openspec/changes/another-very-long-path/with/many/segments/that/wrap.md\`. ${long.repeat(4)}
 
-function fixture(source = proposal, change = '') {
+**Non-goals:** none.
+
+## Decision log
+
+- **2026-09-26** — Asked how to draw → chose text.
+- **2026-09-26** — Assumed: forty columns, because phones are narrow.
+`;
+const temps = [];
+let browser;
+
+function fixture(source = proposal) {
   const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
-  const dir = join(temp, change || 'review-fixture');
+  const dir = join(temp, 'review-fixture');
   mkdirSync(dir);
-  files.push(temp);
+  temps.push(temp);
   writeFileSync(join(dir, 'proposal.md'), source);
-  writeFileSync(join(dir, 'review-visuals.html'), examples);
   buildReview(dir, { requireCurrent: true });
-  const path = join(dir, 'review.html');
-  return { path, url: pathToFileURL(path).href };
+  return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-async function open(url, width = 1200, initScript) {
-  const context = await browser.newContext({ viewport: { width, height: 800 } });
-  if (initScript) await context.addInitScript(initScript);
+async function open(url, { width = 1200, height = 800, init } = {}) {
+  const context = await browser.newContext({ viewport: { width, height } });
+  if (init) await context.addInitScript(init);
   const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
-  await page.locator('#panel h2').first().waitFor({ state: 'attached' });
-  return { page, context };
+  return { page, context, errors };
+}
+
+const at = (page, id) => page.locator(`[data-note="${id}"]`);
+async function tap(page, id) { await at(page, id).click({ position: { x: 4, y: 4 } }); }
+async function draft(page, id, text) {
+  await tap(page, id);
+  await page.locator('#chip').click();
+  await page.locator('#editor textarea').fill(text);
+}
+async function note(page, id, text) {
+  await draft(page, id, text);
+  await page.locator('#editor [data-act="save"]').click();
+}
+async function copied(page) {
+  await page.locator('#copy').click();
+  return page.locator('#copybuf').inputValue();
 }
 
 before(async () => { browser = await chromium.launch({ headless: true }); });
-after(async () => { if (browser) await browser.close(); files.forEach(path => rmSync(path, { recursive: true, force: true })); });
+after(async () => { if (browser) await browser.close(); temps.forEach(path => rmSync(path, { recursive: true, force: true })); });
 
-test('new kit shows the complete selected item and keeps local states in that item', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/list/default/search');
-  assert.match(await page.locator('#item-title').innerText(), /full second sentence must remain visible/);
-  assert.equal(await page.locator('.visual[data-active]').getAttribute('id'), 'list');
-  assert.equal(await page.locator('#panel ol.changes li.on').count(), 1);
-  await page.locator('#list a[href="#/list/empty/create"]').click();
-  assert.equal(await page.locator('.visual[data-active]').getAttribute('id'), 'list');
-  assert.match(await page.locator('#panel ol.changes li.on').innerText(), /Find orders/);
-  assert.equal(await page.locator('#list .state-empty').getAttribute('data-on'), '');
-  await page.goto(f.url + '#/list-rule/added');
-  assert.equal(await page.locator('.visual[data-active]').getAttribute('id'), 'list-rule');
-  assert.match(await page.locator('#item-title').innerText(), /Read the rule/);
+test('a still tap offers a note; a drag, a zoom button, and a link do not', async () => {
+  const { page, context, errors } = await open(fixture().url);
+  const chip = page.locator('#chip');
+  await tap(page, 'item-2');
+  assert.equal(await chip.isVisible(), true);
+  assert.equal(await chip.innerText(), 'Add note');
+  await page.keyboard.press('Escape');
+  assert.equal(await chip.isVisible(), false);
+  const box = await at(page, 'item-4').boundingBox();
+  await page.mouse.move(box.x + 20, box.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 20, box.y + 60, { steps: 5 });
+  await page.mouse.up();
+  assert.equal(await chip.isVisible(), false);
+  await page.locator('#item-3 button[aria-label="Zoom in"]').click();
+  assert.equal(await chip.isVisible(), false);
+  await page.locator('#item-2 a').click();
+  assert.equal(await chip.isVisible(), false);
+  assert.match(page.url(), /#why$/);
+  await tap(page, 'item-2');
+  await chip.click();
+  assert.equal(await page.locator('#editor-where').innerText(), '#/2 · item "Item two links the reason and wraps onto a second line."');
+  assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('empty, invalid, and text-only entries have clear fallbacks', async () => {
-  const empty = fixture('## Why\n\nNothing yet.\n\n## What Changes\n');
-  const first = await open(empty.url);
-  assert.match(await first.page.locator('#landing').innerText(), /No changes to review/);
-  assert.equal(await first.page.locator('#prev').isDisabled(), true);
-  await first.context.close();
-  const f = fixture();
-  const second = await open(f.url + '#/unknown/state');
-  assert.equal(await second.page.locator('.visual[data-active]').getAttribute('id'), '_landing');
-  await second.page.locator('#panel ol.changes li').last().click();
-  assert.equal(await second.page.locator('.visual[data-active]').getAttribute('id'), '_text');
-  assert.match(await second.page.locator('#item-title').innerText(), /Keyboard focus/);
-  await second.context.close();
-});
-
-test('change navigation and step Details work while annotation is active', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new');
-  await page.locator('#annotate').click();
-  await page.locator('#receive-flow .state-after .flow-card summary').first().click();
-  assert.equal(await page.locator('#receive-flow .state-after .flow-card details').first().getAttribute('open'), '');
-  assert.equal(await page.locator('.popover').count(), 0);
-  await page.locator('#receive-flow .state-after .flow-card h3').first().click();
-  assert.equal(await page.locator('.popover').count(), 1);
-  await page.locator('.popover .close').click();
-  await page.getByRole('button', { name: 'branches', exact: true }).click();
-  assert.match(page.url(), /#\/receive-flow\/branches/);
-  assert.match(await page.locator('#panel ol.changes li.on').innerText(), /Follow a workflow/);
-  await page.locator('#receive-flow .state-branches .flow-branch summary').first().click();
-  assert.equal(await page.locator('.popover').count(), 0);
-  await page.locator('#receive-flow .state-branches .flow-branch h3').first().click();
-  assert.match(await page.locator('.popover .where').innerText(), /branch/);
-  await page.locator('.popover .close').click();
-  await page.locator('#panel ol.changes li').nth(1).click();
-  assert.equal(await page.locator('.popover').count(), 0);
-  assert.match(await page.locator('#item-title').innerText(), /Receive an order/);
-  assert.equal(await page.locator('#annotate').getAttribute('aria-pressed'), 'true');
-  await page.waitForFunction(() => document.activeElement.id === 'item-title');
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'item-title');
+test('saving adds a pin and a list entry, and Copy notes writes the /continue block', async () => {
+  const { page, context } = await open(fixture().url);
+  await note(page, 'why-1', 'Say who reads it.');
+  await note(page, 'item-2', 'Name the reason.');
+  await note(page, 'item-1-line-3', 'Show the end state.');
+  await note(page, 'decision-2', 'Check this one.');
+  assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '2');
+  assert.equal(await page.locator('#note-list .entry').count(), 4);
+  assert.equal(await page.locator('.bar .note-count').innerText(), '4 notes');
+  assert.equal(await copied(page), [
+    '/continue review-fixture',
+    'Review notes from review.html (4):',
+    '1. #/why · paragraph 1 "Reviewers read the plan on a phone." — Say who reads it.',
+    '2. #/2 · item "Item two links the reason and wraps onto a second line." — Name the reason.',
+    '3. #/1 · drawing line 3 "done" — Show the end state.',
+    '4. #/decisions/2 · decision "Assumed: forty columns, because phones are narrow." — Check this one.',
+  ].join('\n'));
   await context.close();
 });
 
-test('annotation intercepts a mock product action while the action works in viewing mode', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/detail/default/finish');
-  await page.locator('#annotate').click();
-  await page.locator('#detail [data-local-state="loading"]').click();
-  assert.equal(await page.locator('.popover').count(), 1);
-  assert.match(page.url(), /#\/detail\/default\/finish/);
-  await page.locator('.popover .close').click();
-  await page.locator('#annotate').click();
-  await page.locator('#detail [data-local-state="loading"]').click();
-  assert.match(page.url(), /#\/detail\/loading/);
-  await context.close();
-});
-
-test('drafts follow their original target, and copy includes saved notes only', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new');
-  await page.locator('#annotate').click();
-  await page.locator('#receive-flow .state-after [data-target-id="flow-search"] h3').click();
-  await page.locator('.popover textarea').fill('Show who owns this step.');
-  await page.locator('#panel ol.changes li').nth(1).click();
-  assert.match(await page.locator('#panel ol.changes li').nth(2).innerText(), /1 draft/);
-  await page.locator('#draftlist button').click();
-  assert.equal(await page.locator('.popover textarea').inputValue(), 'Show who owns this step.');
-  await page.locator('.popover .save').click();
-  assert.equal(await page.locator('#draftlist button').count(), 0);
-  await page.locator('#receive-flow .state-after [data-target-id="flow-receive"] h3').click();
-  await page.locator('.popover textarea').fill('This stays a draft.');
-  await page.locator('#copy').click();
-  const copied = await page.locator('#copybuf').inputValue();
-  assert.match(copied, /^\/continue review-fixture\nReview notes from review.html \(1\):/);
-  assert.match(copied, /Show who owns this step/);
-  assert.doesNotMatch(copied, /This stays a draft/);
+test('drafts stay on their targets, survive a reload, and are never copied', async () => {
+  const { page, context } = await open(fixture().url);
+  await draft(page, 'item-2', 'Draft two');
+  await draft(page, 'item-4', 'Draft four');
+  assert.equal(await at(page, 'item-2').locator('.pin.draft').innerText(), 'Draft');
+  assert.equal(await page.locator('#editor textarea').inputValue(), 'Draft four');
+  await page.locator('#editor [data-act="close"]').click();
+  await note(page, 'why-1', 'Saved');
+  await at(page, 'why-1').locator('.pin').click();
+  await page.locator('#editor textarea').fill('Edited');
+  const text = await copied(page);
+  assert.match(text, /\(1\):\n1\. .* — Saved$/);
+  assert.doesNotMatch(text, /Edited|Draft two|Draft four/);
+  await page.locator('#editor [data-act="discard"]').click();
+  await at(page, 'why-1').locator('.pin').click();
+  assert.equal(await page.locator('#editor textarea').inputValue(), 'Saved');
   await page.reload();
-  assert.equal(await page.locator('#draftlist button').count(), 1);
-  await page.locator('#draftlist button').click();
-  assert.equal(await page.locator('.popover textarea').inputValue(), 'This stays a draft.');
+  assert.equal(await page.locator('#note-list .entry').count(), 3);
+  assert.equal(await page.locator('#note-list .tag', { hasText: 'Draft' }).count(), 2);
+  await page.locator('#note-list .entry', { hasText: 'Item two' }).click();
+  assert.equal(await page.locator('#editor textarea').inputValue(), 'Draft two');
   await context.close();
 });
 
-test('state and target switches retain separate drafts', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new');
-  await page.locator('#annotate').click();
-  await page.locator('#receive-flow .state-after [data-target-id="flow-search"] h3').click();
-  await page.locator('.popover textarea').fill('First state draft');
-  await page.getByRole('button', { name: 'branches', exact: true }).click();
-  assert.equal(await page.locator('.popover').count(), 0);
-  await page.locator('#receive-flow .state-branches [data-target-id="branch-open"] h3').click();
-  await page.locator('.popover textarea').fill('Second state draft');
-  await page.locator('.popover .close').click();
-  assert.equal(await page.locator('#draftlist button').count(), 2);
-  await page.locator('#draftlist button').first().click();
-  assert.equal(await page.locator('.popover textarea').inputValue(), 'First state draft');
+test('refused storage keeps notes for the session and says so', async () => {
+  const init = () => { Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new Error('storage refused'); } }); };
+  const { page, context, errors } = await open(fixture().url, { init });
+  assert.equal(await page.locator('.bar .session').isVisible(), true);
+  await draft(page, 'item-2', 'Session draft');
+  assert.equal(await page.locator('#editor .session').isVisible(), true);
+  await page.locator('#editor [data-act="save"]').click();
+  assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '1');
+  assert.match(await copied(page), /\(1\):\n1\. #\/2 .* — Session draft$/);
+  assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('an unsaved edit preserves saved feedback, and Discard restores it', async () => {
+test('a refresh keeps notes attached, and a note whose text changed shows as possibly moved', async () => {
   const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new');
-  await page.locator('#annotate').click();
-  await page.locator('#receive-flow .state-after [data-target-id="flow-search"] h3').click();
-  await page.locator('.popover textarea').fill('Original saved text');
-  await page.locator('.popover .save').click();
-  await page.locator('#notelist button').click();
-  await page.locator('.popover textarea').fill('New unfinished text');
-  await page.locator('#copy').click();
-  assert.match(await page.locator('#copybuf').inputValue(), /Original saved text/);
-  assert.doesNotMatch(await page.locator('#copybuf').inputValue(), /New unfinished text/);
-  await page.locator('.popover .discard').click();
-  await page.locator('#notelist button').click();
-  assert.equal(await page.locator('.popover textarea').inputValue(), 'Original saved text');
+  const { page, context } = await open(f.url);
+  await note(page, 'item-4', 'Keep me');
+  buildReview(f.dir, { requireCurrent: true });
+  writeFileSync(join(f.dir, 'proposal.md'), proposal.replace('**Item five** is text.', '**Item five** changed.'));
+  buildReview(f.dir, { requireCurrent: true });
+  await page.reload();
+  assert.equal(await at(page, 'item-4').locator('.pin').innerText(), '1');
+  writeFileSync(join(f.dir, 'proposal.md'), proposal.replace('**Item four** is text.', '**Item four** moved.'));
+  buildReview(f.dir, { requireCurrent: true });
+  await page.reload();
+  assert.equal(await page.locator('.pin').count(), 0);
+  assert.match(await page.locator('#note-list .entry').innerText(), /possibly moved/);
+  await page.locator('#note-list .entry').click();
+  assert.equal(await page.locator('#editor .moved').isVisible(), true);
+  assert.equal(await page.locator('#editor textarea').inputValue(), 'Keep me');
   await context.close();
 });
 
-test('unavailable storage keeps session drafts and identifies their shorter lifetime', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new', 1200, () => {
-    Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new Error('storage refused'); } });
+test('a wide drawing fits, zooms past fit to pan, and returns to fit', async () => {
+  const { page, context } = await open(fixture().url, { width: 390 });
+  const frame = page.locator('#item-3 .frame');
+  const fit = () => page.evaluate(() => {
+    const frameBox = document.querySelector('#item-3 .frame').getBoundingClientRect();
+    const art = document.querySelector('#item-3 .art');
+    const box = art.getBoundingClientRect();
+    return { scale: new DOMMatrix(getComputedStyle(art).transform).a, inside: box.left >= frameBox.left - 1 && box.right <= frameBox.right + 1 && box.bottom <= frameBox.bottom + 1 };
   });
-  assert.equal(await page.locator('#storage-status').isVisible(), true);
-  await page.locator('#annotate').click();
-  await page.locator('#receive-flow .state-after [data-target-id="flow-search"] h3').click();
-  await page.locator('.popover textarea').fill('Session draft');
-  await page.locator('#panel ol.changes li').nth(1).click();
-  assert.equal(await page.locator('#draftlist button').count(), 1);
-  await page.locator('#draftlist button').click();
-  assert.equal(await page.locator('.popover textarea').inputValue(), 'Session draft');
+  const start = await fit();
+  assert.ok(start.scale < 1 && start.inside, JSON.stringify(start));
+  assert.equal(await frame.evaluate(el => getComputedStyle(el).touchAction), 'pan-y');
+  for (let i = 0; i < 3; i += 1) await page.locator('#item-3 button[aria-label="Zoom in"]').click();
+  assert.equal(await frame.evaluate(el => getComputedStyle(el).touchAction), 'none');
+  const transform = () => page.locator('#item-3 .art').evaluate(el => el.style.transform);
+  const zoomed = await transform();
+  const scrollY = await page.evaluate(() => window.scrollY);
+  const box = await frame.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 - 20, { steps: 6 });
+  await page.mouse.up();
+  assert.notEqual(await transform(), zoomed);
+  assert.equal(await page.evaluate(() => window.scrollY), scrollY);
+  assert.equal(await page.locator('#chip').isVisible(), false);
+  await page.locator('#item-3 .zoom button', { hasText: 'Fit' }).click();
+  assert.deepEqual(await fit(), start);
+  await frame.evaluate(el => {
+    const r = el.getBoundingClientRect();
+    el.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, clientX: r.left + 10, clientY: r.top + 10, bubbles: true, cancelable: true }));
+  });
+  assert.ok((await fit()).scale > start.scale);
   await context.close();
 });
 
-test('moved draft target stays recoverable without attaching to another box', async () => {
+test('no width from 320px scrolls sideways, and the phone editor docks', async () => {
   const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new');
-  await page.locator('#annotate').click();
-  await page.locator('#receive-flow .state-after [data-target-id="flow-search"] h3').click();
-  await page.locator('.popover textarea').fill('Keep this text');
-  await page.locator('.popover .close').click();
-  await page.evaluate(() => { document.querySelector('[data-target-id="flow-search"]').remove(); });
-  await page.locator('#draftlist button').click();
-  assert.match(await page.locator('.popover .status').first().innerText(), /target moved/);
-  assert.equal(await page.locator('.popover textarea').inputValue(), 'Keep this text');
-  await context.close();
-});
-
-test('phone and desktop layouts keep content in view and hide inactive comparison sections', async () => {
-  const f = fixture(proposal.replace('full description', 'full description ' + 'long'.repeat(100)));
-  const html = readFileSync(f.path, 'utf8').replace('class="visual diff-visual"', 'class="visual diff"');
-  writeFileSync(f.path, html);
-  for (const width of [320, 390, 760, 761, 1200]) {
-    const { page, context } = await open(f.url + '#/receive-flow/branches', width);
-    const dimensions = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
-    assert.ok(dimensions.document <= dimensions.viewport, `horizontal overflow at ${width}px`);
-    const cards = page.locator('#receive-flow .state-branches .flow-branch');
-    assert.equal(await cards.count(), 3);
-    const first = await cards.nth(0).boundingBox(), second = await cards.nth(1).boundingBox();
-    if (width <= 760) assert.ok(second.y > first.y, `branches must stack at ${width}px`);
-    if (width <= 760) await page.locator('#menu').click();
-    await page.locator('#panel ol.changes li').first().click();
-    const longTextWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-    assert.ok(longTextWidth <= width, `long change text overflows at ${width}px`);
-    if (width <= 760) await page.locator('#menu').click();
-    await page.locator('#panel ol.changes li').last().click();
-    assert.equal(await page.locator('.visual[data-active]').getAttribute('id'), '_text');
-    assert.equal(await page.locator('#list-rule').evaluate(el => getComputedStyle(el).display), 'none');
+  for (const width of [320, 390, 1200]) {
+    const { page, context } = await open(f.url, { width });
+    await page.locator('#item-3 button[aria-label="Zoom in"]').click();
+    const size = await page.evaluate(() => ({ view: innerWidth, page: document.documentElement.scrollWidth }));
+    assert.ok(size.page <= size.view, `horizontal overflow at ${width}px`);
     await context.close();
   }
-});
-
-test('phone editor stays reachable in a short viewport and a drag does not start a note', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new', 320);
-  await page.setViewportSize({ width: 320, height: 500 });
-  await page.locator('#tools-toggle').click();
-  await page.locator('#annotate').click();
-  const card = page.locator('#receive-flow .state-after [data-target-id="flow-search"]');
-  await card.evaluate(el => {
-    const start = new Touch({ identifier: 1, target: el, clientX: 100, clientY: 200 });
-    const moved = new Touch({ identifier: 1, target: el, clientX: 100, clientY: 250 });
-    el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [start] }));
-    el.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, touches: [moved] }));
-  });
-  await card.click();
-  assert.equal(await page.locator('.popover').count(), 0);
-  await card.click();
-  const box = await page.locator('.popover').boundingBox();
-  assert.ok(box.y + box.height <= 500, 'editor actions fit the visible phone area');
-  const fontSize = await page.locator('.popover textarea').evaluate(el => getComputedStyle(el).fontSize);
-  assert.ok(parseFloat(fontSize) >= 16);
+  const { page, context } = await open(f.url, { width: 320, height: 500 });
+  await draft(page, 'item-6', 'On a phone');
+  assert.match(await page.locator('#editor').getAttribute('class'), /docked/);
+  assert.equal(await page.locator('.bar').isVisible(), false);
+  assert.ok(parseFloat(await page.locator('#editor textarea').evaluate(el => getComputedStyle(el).fontSize)) >= 16);
+  for (const act of ['save', 'discard']) {
+    const box = await page.locator(`#editor [data-act="${act}"]`).boundingBox();
+    assert.ok(box.y >= 0 && box.y + box.height <= 500, `${act} is reachable`);
+  }
   await context.close();
+  const desk = await open(f.url, { width: 1200 });
+  await draft(desk.page, 'item-2', 'Beside it');
+  const editor = await desk.page.locator('#editor').boundingBox(), target = await at(desk.page, 'item-2').boundingBox();
+  const overlap = editor.x < target.x + target.width && target.x < editor.x + editor.width && editor.y < target.y + target.height && target.y < editor.y + editor.height;
+  assert.equal(overlap, false);
+  await desk.context.close();
 });
 
-test('keyboard navigation leaves editor arrow keys alone', async () => {
-  const f = fixture();
-  const { page, context } = await open(f.url + '#/receive-flow/after/new');
-  await page.locator('#panel ol.changes li').nth(1).focus();
+test('#/3 scrolls to item 3, and a keyboard note returns focus to its target', async () => {
+  const { page, context } = await open(fixture().url + '#/3', { height: 400 });
+  const top = (await page.locator('#item-3').boundingBox()).y;
+  assert.ok(top >= 0 && top < 20, `item 3 starts at ${top}px`);
+  await at(page, 'item-3').focus();
   await page.keyboard.press('Enter');
-  assert.match(await page.locator('#item-title').innerText(), /Receive an order/);
-  await page.locator('#annotate').click();
-  await page.locator('#detail [data-mark="finish"]').click();
-  await page.locator('.popover textarea').fill('Cursor moves here');
-  await page.locator('.popover textarea').press('ArrowRight');
-  assert.match(await page.locator('#item-title').innerText(), /Receive an order/);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'chip');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Via keys');
+  const scrollY = await page.evaluate(() => window.scrollY);
+  for (const key of ['ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight']) await page.keyboard.press(key);
+  assert.equal(await page.evaluate(() => window.scrollY), scrollY);
+  assert.equal(await page.locator('#editor textarea').inputValue(), 'Via keys');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('data-note')), 'item-3');
+  assert.equal(await at(page, 'item-3').locator('.pin.draft').count(), 1);
   await context.close();
 });

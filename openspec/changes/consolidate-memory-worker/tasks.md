@@ -18,7 +18,7 @@
 - [x] 3.2 Add the memory bindings and a production-only rule to the `wrangler.jsonc` fragment in `stack-pack-fragments.md`; update the payload manifest's memory section and `/wong-sync`'s provisioning line
 - [x] 3.3 Rewrite `wiki/development/memory.md`'s memory-token section for the app Worker; update the memory skill, `SECURITY.md`, `required-tools.md`, `cloudflare-credentials.md`, the teardown steps in `getting-started.md`, and the Access page's bypass note for `/_memory/*`
 - [x] 3.4 Update the `memory-worker` main spec's Purpose line for the app Worker
-- [x] 3.5 Bump `VERSION` to 22.0.0 with a `CHANGELOG.md` entry, and run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`
+- [x] 3.5 Bump `VERSION` to 23.0.0 with a `CHANGELOG.md` entry, and run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`
 
 ## 4. Proof
 

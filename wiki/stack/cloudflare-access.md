@@ -94,6 +94,8 @@ Add your app's own hostnames explicitly, on a custom domain:
 
 Route each to the corresponding Worker (production, and the [staging Worker](d1-pipeline.md#why-staging-is-a-whole-worker)) with a Workers custom domain or route, then add these as the application's domains.
 
+[Mini apps](mini-apps.md) run on their own Worker, `<repo>-mini`, with its own staging twin. To wall them too, give them their own hostnames the same way — for example `apps.example.com` for kept apps and `*-mini-staging.example.com` for their previews — and add those to the same application.
+
 **Scope to your app, never to the whole subdomain.** An earlier version of this page recommended `*.<subdomain>.workers.dev` as "the trick that makes previews free". It is worse than unreliable — that pattern matches **every Worker in the account**, so for one adopter it would have walled five unrelated ones. If you do add a `workers.dev` pattern for any reason, the Access API accepts **partial-label wildcards**, which is what scoping needs and is not obvious:
 
 ```

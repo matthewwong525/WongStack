@@ -35,7 +35,9 @@ wong_resolve_wrangler_config() {
       base=$(basename "$dir")
       # Skip node_modules and dotted directories — match on the basename only,
       # since the repo's own absolute path may contain a dotted component.
-      case "$base" in node_modules|.*) continue ;; esac
+      # Skip mini-apps/ too: its config is the mini-app Worker's, never the
+      # main app's, and `mini-apps` sorts before `site/` or `web/`.
+      case "$base" in node_modules|mini-apps|.*) continue ;; esac
       for name in wrangler.jsonc wrangler.json wrangler.toml; do
         if [ -f "$dir$name" ]; then WRANGLER_CONFIG="$dir$name"; break 2; fi
       done

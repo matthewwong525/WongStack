@@ -21,44 +21,31 @@ context: |
 rules:
   proposal:
     - Keep it tight — what changes and why, plus a Non-goals line.
-    - Each "What Changes" bullet that has a picture on the change's review page
-      ends with its anchor, '(review.html#/<visual>[/<state>][/<mark>])'. The
-      state segment is optional; a segment that is not one of the visual's
-      states is read as a mark. A bullet with nothing to show carries none.
+    - A What Changes bullet that needs a picture carries it as a fenced text
+      block indented inside the bullet, in plain characters, read top to bottom
+      and about 40 columns wide. One drawing carries the change by default;
+      sketch each new or restructured user-facing screen. Other bullets stay
+      text. Bullets carry no review anchors.
+    - Each Decision log bullet holds one decision and starts after its date with
+      Asked (a question the user answered) or Assumed (an inferred choice and
+      its reason), so the review page can label it.
   design:
     - Every change gets a standalone review page at openspec/changes/<name>/review.html,
-      assembled by .claude/skills/plan/scripts/build-review.mjs from the proposal,
-      the fixed review kit, and change-specific review-visuals.html. Draw one
-      visual that carries the change by default, of kind screen (a
-      low-fidelity UI wireframe with its empty/loading/error states and one
-      primary action per state when the job calls for one), flow (connected
-      today/after step cards and labeled branches), diff
-      (before/after text) or tree (files added/edited/removed). Draw each screen
-      when the change adds or restructures user-facing screens. State a reason
-      for any further visual. Leave every other bullet as text. Each visual has
-      one owning bullet. Put data-mark on the changed elements. The kit shows
-      the complete selected bullet text above the visual.
-      Draw no second change list inside it and no link to another bullet.
-      Workflow cards keep title, short description, change label, and Details
-      within one border. Branches name each condition and their common join.
-      Use stable data-target-id values for note targets and ordinary vertical
-      scrolling. Low fidelity, no network
-      reference. Edit only review-visuals.html; never hand-edit the generated
-      page's runtime or proposal block. New kit behavior applies to pages
-      generated from the current kit. Do not rewrite historical archives.
+      built by .claude/skills/plan/scripts/build-review.mjs from the proposal and
+      the fixed review kit. The page shows Why, What Changes with their text
+      drawings, and the Decision log. Never hand-edit the generated page. Do not
+      rewrite historical archives.
     - If the change adds or meaningfully restructures a user-facing screen (a page
       or component — not merely touching a UI file), also include a "## UX" section
       following wiki/ux-principles.md — use-case brief (who, the job, what done
       looks like, context of use, common vs edge case, stated frequency assumptions),
       the shortest flow from intent to done, hierarchy (the one primary action per
-      screen), the component inventory, and a "### Review" subsection linking
-      review.html by anchor. Prefer mirroring the closest existing screen; name it
-      in the brief. When the brief says the job is done on a phone, draw the phone
-      layout first using the kit's phone-only/desktop-only helpers. A UI-less change
-      (worker, CLI, library) skips this section and draws no screen visual — it
+      screen), the component inventory, and a "### Review" subsection that links
+      review.html and names the What Changes items that sketch each screen, without
+      repeating the sketches. Prefer mirroring the closest existing screen; name it
+      in the brief. When the brief says the job is done on a phone, sketch the phone
+      layout first. A UI-less change (worker, CLI, library) skips this section and
       still gets the review page.
   tasks:
     - Group tasks by the surface they touch (skill, script, docs, CLAUDE.md).
-    - A task that builds or edits something the review page shows cites its
-      anchor (e.g. 'Build the list view per review.html#/list/default').
     - A payload change is not done until VERSION and CHANGELOG.md are updated.

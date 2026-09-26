@@ -108,6 +108,43 @@ Twin every other stateful binding the same way. A queue needs both halves inside
 
 There is no `preview_database_id` and no swap script: which database a branch binds is decided by which Worker it deploys to. See [`d1-pipeline.md`](../../../../wiki/stack/d1-pipeline.md) for the full twin table and the reasoning.
 
+## `mini-apps/wrangler.jsonc` → the mini-app Worker
+
+[Mini apps](../../../../wiki/stack/mini-apps.md) run on a second, small Worker. Its config is excluded from the payload for the same reason as the app's: it carries live `database_id`s. Create it with the **same two databases** as the app's config:
+
+```jsonc
+{
+  "name": "<your-worker>-mini",
+  "main": "worker.ts",
+  "compatibility_date": "<today, YYYY-MM-DD>",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": "apps", "binding": "ASSETS", "run_worker_first": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "<your-db-name>",
+      "database_id": "<production database_id>",
+      "migrations_dir": "../schema/migrations"
+    }
+  ],
+  "env": {
+    "staging": {
+      "name": "<your-worker>-mini-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "<your-db-name>-staging",
+          "database_id": "<staging database_id>",
+          "migrations_dir": "../schema/migrations"
+        }
+      ]
+    }
+  }
+}
+```
+
+The rules for the app's config above apply here too: `env.staging` has its own `name` and its own `d1_databases` entry, and `migrations_dir` is relative to this file. `run_worker_first` lets the Worker check a preview's expiry and route `/<name>/api/*` before any asset is served. Declare no crons and no service bindings.
+
 ## Workers Builds fallback only: the deploy command
 
 Not a fragment, and **not part of the default install**: the pack's CI is [GitHub Actions](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions), which needs no dashboard step. Only a repo that chose the [Workers Builds fallback](../../../../wiki/stack/d1-pipeline.md#why-not-cloudflares-own-workers-builds) has this one dashboard setting to change — pointing the deploy command at `bash scripts/cf-deploy.sh` — and that page owns it. Mention it only when a repo is actually on that fallback.

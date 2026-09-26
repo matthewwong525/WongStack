@@ -41,7 +41,7 @@ None.
 - **Risks accepted:** a failed production deploy also stops memory, and app code can reach `MEMORY_DB` and `MEMORY_BUCKET`, so an app bug could expose transcripts.
 - **Setup and sync:** the provisioning runbook, the teardown steps, and `/wong-sync`'s move step.
 - **Docs:** `wiki/development/memory.md`, the memory skill, the payload manifest, the stack pack fragments, the Access page, `SECURITY.md`, and the credential pages.
-- **Release:** 22.0.0, because a command and the shared Worker are removed.
+- **Release:** 23.0.0, because a command and the shared Worker are removed.
 
 ## Decision log
 
@@ -60,3 +60,4 @@ None.
 - **2026-09-26** — Found: this repo's CI deploys with a token that has `Workers R2 Storage Write` (the main deploy at 18:30 UTC matches its last use), so binding `wongstack-memory` in production will not fail the deploy.
 - **2026-09-26** — Assumed: release 22.0.0.
 - **2026-09-26** — Rehearsed on real infrastructure in account `040f88e2…`: a scratch Worker bundling the real route, with a scratch D1 and R2 bucket. `migrate`, `member add` (admin and member), a fact written with the admin key, `search` and `digest` with keys, transcript PUT/GET (a member got 403 on the admin's transcript; the admin read the member's), three key-table probes (403 `keys_table`), a real D1 batch in Cloudflare's shape, and `member remove` (the next call got 401) all behaved as specified. A missing `workers.dev` hostname answered 404, and the fact spooled. Every scratch resource was deleted.
+- **2026-09-26** — `main` shipped its own 22.0.0 (#123: a lighter loop, mini apps) during this work. Merged `origin/main` into the branch: the setup names table keeps both the mini-app Workers and the production-only memory line, and this change becomes **23.0.0**. The delta specs are synced into `openspec/specs/`. The review page keeps its old format, refreshed from the proposal only, as #123 allows for an active change.

@@ -60,7 +60,7 @@ The vendored `agent-browser` skill SHALL remain exempt from the description budg
 
 The completed change SHALL report before-and-after word and byte counts for a fixed inventory of core workflow skill descriptions, bodies, and linked procedure references, including removed generated instructions and new references. The inventory SHALL show a net reduction and SHALL identify shared owner documents separately. Counts of source text SHALL NOT be presented as measured runtime token savings. Generated review code, executable helpers, and historical records SHALL be accounted for separately.
 
-The report SHALL also name required-reading inventories for ordinary active save, named-secret save, prose save, new-plan fallback, archived save, cold resume, and routine visual authoring. Ordinary save and routine authoring SHALL require less source reading than the recorded baseline. Every special-route increase SHALL be reported with its reason. Completion SHALL include behavior regression evidence and an audit that required checks remain reachable.
+The report SHALL also name required-reading inventories for ordinary active save, named-secret save, prose save, mini-app save, new-plan fallback, archived save, and cold resume. Ordinary save SHALL require less source reading than the recorded baseline. Every special-route increase SHALL be reported with its reason. Completion SHALL include behavior regression evidence and an audit that required checks remain reachable.
 
 #### Scenario: The implementation is reviewed
 
@@ -82,7 +82,7 @@ The report SHALL also name required-reading inventories for ordinary active save
 
 ### Requirement: Save loads conditional procedures only when applicable
 
-The save skill SHALL expose a complete main procedure and explicit entry conditions for named-secret persistence, prose-only handling, new-plan fallback, and archived handoffs. Each applicable procedure SHALL be loaded before its actions. Unconditional credential exclusion, workflow ownership, and gate-result handling SHALL remain visible in the main procedure. Extracted procedures SHALL retain all required checks.
+The save skill SHALL expose a complete main procedure and explicit entry conditions for named-secret persistence, prose-only handling, mini-app handling, new-plan fallback, and archived handoffs. Each applicable procedure SHALL be loaded before its actions. Unconditional credential exclusion, workflow ownership, and gate-result handling SHALL remain visible in the main procedure. Extracted procedures SHALL retain all required checks.
 
 #### Scenario: Ordinary active change checkpoint
 
@@ -96,15 +96,10 @@ The save skill SHALL expose a complete main procedure and explicit entry conditi
 - **THEN** it loads both applicable procedures
 - **AND** preserves the secret in the required durable location and does not recreate the active change
 
-### Requirement: Routine review authors use a focused authoring contract
+#### Scenario: A mini-app save
 
-Routine visual authors SHALL use the author guide and relevant examples without a required full read of the fixed viewer implementation. The builder SHALL continue to produce the standalone page from that viewer. The structural check SHALL remain required; no rendered critique or revision round SHALL be required. Specific viewer inspection SHALL remain available for a concrete question the author contract does not answer.
-
-#### Scenario: A workflow change needs a flow visual
-
-- **WHEN** an author creates a routine flow using documented primitives
-- **THEN** the guide and relevant examples provide the required authoring inputs
-- **AND** the generated page receives the existing structural check and no critic pass
+- **WHEN** save runs for a direct mini-app save
+- **THEN** it loads the mini-app procedure and does not load the pull-request and CI-wait procedure
 
 ### Requirement: Billed usage is measurable per task
 
@@ -171,3 +166,4 @@ A vendored skill that only a WongStack verb calls SHALL NOT be offered for autom
 
 - **WHEN** a user asks about unread Slack messages in a WongStack repo
 - **THEN** the vendored browser skill is not triggered by its description
+

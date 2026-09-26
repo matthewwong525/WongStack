@@ -1,6 +1,7 @@
 # Cloudflare stack pack — build and deploy when the repo is provisioned.
 #
-#   build  migrate + build + deploy, green when the repo is unprovisioned
+#   build  migrate + build + deploy, green when the repo is unprovisioned;
+#          then the mini-app Worker, when mini-apps/ changed
 #
 # The test suite is NOT here. It runs in the core `test.yml` workflow, which
 # every repo receives whether or not it took this pack — so a commit is tested
@@ -15,6 +16,15 @@
 #   scripts/cf-build.sh   migrate the right database, then build
 #   scripts/cf-deploy.sh  default branch → the production Worker
 #                         any other      → the staging Worker + a preview alias
+#   scripts/cf-mini.sh    the same split for the mini-app Worker (mini-apps/)
+#
+# The main app deploys only when the change touches it. The first step,
+# `.github/scripts/app-untouched.sh` (the same check test.yml runs), compares
+# the whole branch — or, on the default branch, the whole push — with its base.
+# When every changed path is docs or under `mini-apps/`, every main-app step
+# skips and the job says so: a docs branch or a mini-app keep never redeploys
+# the main app. The mini-app step has its own condition, `mini-apps/` changed,
+# and runs whether or not the main app did.
 #
 # So both CI backends run identical code, and a repo can switch between them by
 # changing where the scripts are invoked from. See wiki/stack/d1-pipeline.md.
@@ -113,14 +123,34 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
     steps:
+      # Full history: the untouched check compares the whole branch with its base.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
 
+      - name: Check what the change touches
+        id: scope
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          SCOPE=$(bash .github/scripts/app-untouched.sh)
+          echo "$SCOPE" | tee -a "$GITHUB_OUTPUT"
+          if grep -qx 'untouched=true' <<< "$SCOPE"; then
+            echo "The main app is untouched (only docs or mini apps changed), so no main-app migration, build, or deploy ran." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Skipped when the main app is untouched. Every main-app step below —
+      # through "Publish the preview URL" — is gated on this step's
+      # `configured`, so they skip with it.
+      #
       # Exit 3 means "no wrangler config yet" — not a failure, just a repo that
       # has taken the pack and not yet been provisioned. Report it and let every
       # later step skip, so the check is green and says what to do next. Any
       # other non-zero exit is a real error and still fails the job.
       - name: Locate the app
         id: app
+        if: ${{ steps.scope.outputs.untouched != 'true' }}
         run: |
           set +e
           DIR=$(bash scripts/cf-build.sh --app-dir)
@@ -216,6 +246,53 @@ jobs:
             -f ref="$GITHUB_SHA" \
             -f environment=staging \
             -f description="Preview for $CF_BRANCH" \
+            -F auto_merge=false \
+            -f 'required_contexts[]' \
+            --jq .id)
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" \
+            -f state=success \
+            -f environment_url="$PREVIEW_URL" \
+            --jq .id > /dev/null
+          echo "published $PREVIEW_URL as deployment $DEPLOYMENT_ID"
+
+      # ── The mini-app Worker ──────────────────────────────────────────────
+      # Only when mini-apps/ changed, and whether or not the main app did.
+      # cf-mini.sh deploys the production mini Worker on the default branch,
+      # and the staging twin plus a preview alias on any other. It never
+      # touches the main app. A repo with no mini-app config stays green.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: ${{ steps.scope.outputs.mini_changed == 'true' && env.CLOUDFLARE_API_TOKEN != '' && steps.app.outputs.configured != 'true' }}
+        with:
+          node-version-file: .nvmrc
+
+      - name: Deploy the mini apps
+        id: mini
+        if: ${{ steps.scope.outputs.mini_changed == 'true' && env.CLOUDFLARE_API_TOKEN != '' }}
+        env:
+          MINI_CHANGED: ${{ steps.scope.outputs.mini_changed }}
+        run: bash scripts/cf-mini.sh ci
+
+      # The same publication as the main app's preview, under its own
+      # environment name. One Deployment per commit: preview-url.sh takes the
+      # first it finds, and /verify must walk the main app when the commit
+      # changed it. So when the main app published a preview, the mini-app URL
+      # goes in the job summary only.
+      - name: Publish the mini-app preview URL
+        if: ${{ steps.mini.outputs.preview-url != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_URL: ${{ steps.mini.outputs.preview-url }}
+          MAIN_PREVIEW_URL: ${{ steps.deploy.outputs.preview-url }}
+        run: |
+          echo "Mini-app preview: $PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$MAIN_PREVIEW_URL" ]; then
+            echo "The main app published this commit's preview; the mini-app preview is in the job summary."
+            exit 0
+          fi
+          DEPLOYMENT_ID=$(gh api "repos/$GITHUB_REPOSITORY/deployments" \
+            -f ref="$GITHUB_SHA" \
+            -f environment=staging-mini \
+            -f description="Mini-app preview for $CF_BRANCH" \
             -F auto_merge=false \
             -f 'required_contexts[]' \
             --jq .id)
