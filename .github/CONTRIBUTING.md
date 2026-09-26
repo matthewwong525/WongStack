@@ -17,17 +17,18 @@ A change to a payload file is a release. Bump `VERSION` and add a `CHANGELOG.md`
 
 ## Run the checks
 
-Use Node.js 22 ([`.nvmrc`](../.nvmrc)) and OpenSpec 1.8.0 (`npm install -g @fission-ai/openspec@1.8.0`). From the repository root:
+Use Node.js 22 ([`.nvmrc`](../.nvmrc)) and OpenSpec 1.13.2 (`npm install -g @fission-ai/openspec@1.13.2`). From the repository root:
 
 ```bash
 (cd app && npm ci && npm test)
 node --test scripts/tests/*.test.mjs
 node scripts/check-payload-links.mjs
 node scripts/check-openspec-config.mjs
+openspec validate --specs --strict --no-interactive
 node scripts/measure-context.mjs --check
 ```
 
-`npm test` in `app/` is the `test` check. The other four commands are the `payload` check. Without `npm ci` in `app/`, the review page tests skip.
+`npm test` in `app/` is the `test` check. The other five commands are the `payload` check. Without `npm ci` in `app/`, the review page tests skip.
 
 ## What CI does on a pull request from a fork
 

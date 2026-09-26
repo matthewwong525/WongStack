@@ -1,7 +1,7 @@
 # delivery-gate Specification
 
 ## Purpose
-TBD - created by archiving change optional-ci-gate. Update Purpose after archive.
+Decide when saved work may merge: CI when the repo has checks, else PR review, with no local build fallback. Wiki-only prose goes straight to the default branch, and `/ship` archives, checkpoints once through `/save`, and merges only on a passing gate.
 ## Requirements
 ### Requirement: Ship delegates its checkpoint and branch gate to save
 

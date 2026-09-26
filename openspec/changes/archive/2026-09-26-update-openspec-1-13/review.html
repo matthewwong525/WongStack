@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · guided-tutorial</title>
+<title>Review · 2026-09-26-update-openspec-1-13</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -74,11 +74,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="guided-tutorial">
+<body data-change="2026-09-26-update-openspec-1-13">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>guided-tutorial</h1>
+  <h1>2026-09-26-update-openspec-1-13</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
@@ -86,62 +86,31 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">Today's tutorial tells you to type a command yourself, and says nothing about why each step happens. A new person learns faster with one ready-made message to paste, and an assistant that explains each step while it does the work.</p>
+<p data-note="why-1" tabindex="0">The repo pinned OpenSpec 1.8.0, five releases behind. Newer versions catch mistakes 1.8.0 lets through. One is a record whose purpose line was never written: two of ours still say &quot;TBD&quot;, and 1.8.0's strictest check passed them.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The tutorial becomes one box with a message to copy.</b> It is titled <i>Learn the development loop</i>. It holds a plain message and a Copy button. You paste the message into your chat with the assistant, and it walks you through the rest.</div><figure class="drawing"><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">┌──────────────────────────────┐</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">│ Learn the development loop   │</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">│                              │</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">│ Your first change removes    │</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">│ this box. Copy this message  │</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">│ into your chat:              │</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">│ ┌──────────────────────────┐ │</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0">│ │ Remove the tutorial from │ │</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0">│ │ my home page. Walk me    │ │</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0">│ │ through each step and    │ │</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0">│ │ explain what it does.    │ │</span>
-<span class="ln" data-note="item-1-line-12" tabindex="0">│ └──────────────────────────┘ │</span>
-<span class="ln" data-note="item-1-line-13" tabindex="0">│ [ Copy ]                     │</span>
-<span class="ln" data-note="item-1-line-14" tabindex="0">│                              │</span>
-<span class="ln" data-note="item-1-line-15" tabindex="0">│ Your apps                    │</span>
-<span class="ln" data-note="item-1-line-16" tabindex="0">│ ┌──────────────────────────┐ │</span>
-<span class="ln" data-note="item-1-line-17" tabindex="0">│ │ Hello                    │ │</span>
-<span class="ln" data-note="item-1-line-18" tabindex="0">│ │ Say hello from the API   │ │</span>
-<span class="ln" data-note="item-1-line-19" tabindex="0">│ └──────────────────────────┘ │</span>
-<span class="ln" data-note="item-1-line-20" tabindex="0">└──────────────────────────────┘</span></pre></div></figure></div></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>You learn by chatting.</b> The message asks the assistant to explain each step. It writes a plan and sends a link so you can read it. It asks <i>build it now?</i>, and then sends a link to try the change. It asks <i>publish it?</i>, and then the change goes live. Before each step it says what the step is for. Nothing new is installed for this; the message does the teaching.</div><figure class="drawing"><div class="frame"><pre class="art">
-<span class="ln" data-note="item-2-line-1" tabindex="0">paste the message</span>
-<span class="ln" data-note="item-2-line-2" tabindex="0"> │</span>
-<span class="ln" data-note="item-2-line-3" tabindex="0"> ▼</span>
-<span class="ln" data-note="item-2-line-4" tabindex="0">plan to read ── &quot;build it now?&quot; ── yes</span>
-<span class="ln" data-note="item-2-line-5" tabindex="0"> │</span>
-<span class="ln" data-note="item-2-line-6" tabindex="0"> ▼</span>
-<span class="ln" data-note="item-2-line-7" tabindex="0">link to try ─── &quot;publish it?&quot; ──── yes</span>
-<span class="ln" data-note="item-2-line-8" tabindex="0"> │</span>
-<span class="ln" data-note="item-2-line-9" tabindex="0"> ▼</span>
-<span class="ln" data-note="item-2-line-10" tabindex="0">live: the box is gone</span></pre></div></figure></div></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Setup's last message points to the box.</b> It gives your site's address and says to open it and copy the message.</div></div></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>An update never brings the tutorial back.</b> If you already removed it, updating WongStack leaves it removed. A site that still shows the old tutorial gets the new box.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>OpenSpec 1.13.2 everywhere.</b> Setup, the checks, and the contributing guide install 1.13.2 instead of 1.8.0. Every command the assistant uses behaves the same; the new version only adds one field.</div></div></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The two unfinished records get a purpose.</b> The publishing record and the secrets record now say what they are for.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The checks now test every record.</b> Each check run validates all records strictly, so a record left unfinished fails the check instead of slipping through.</div><figure class="drawing"><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">change ──▶ checks ──▶ every record</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">                       strict?</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">                   no ─┴─ yes</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">                   fail   pass</span></pre></div></figure></div></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> no lessons, progress ticks, or new assistant skill. No login-wall lesson; that stays in <a href="../../../wiki/stack/cloudflare-access.md">the Access guide</a>. No change to how a plan, a preview, or publishing works.</p>
+<p class="aside"><b>Non-goals:</b> No other tool or app dependency is updated. The pending cleanup plan is a separate change.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked where the tutorial lives → first chose <b>home page plus an agent guide</b>. Replaced by the answer below.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked how security fits in → first chose <b>an optional last lesson</b>. Dropped by the answer below.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked when the tutorial starts → chose <b>after setup; its closing message points to the tutorial</b>.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked, after reading the first plan (the user): &quot;This might be too much… just have a prompt with a copy button… it'll go create a plan… ask them to apply it then ask them to ship… 'Learn the development loop'… they learn just by chatting with ai&quot; → chose <b>one box with a copyable plain message, no lessons, no new skill</b>.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the message is plain words, not a command: <i>Remove the tutorial from my home page. Walk me through each step and explain what it does.</i> The plain request already stops at the plan to ask &quot;build it now?&quot; and after the preview to ask &quot;publish it?&quot;, and asking for explanations makes the assistant teach without a new skill.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: when the browser blocks copying, the button says to select the message and copy it by hand, and the message stays selectable, because some phones and embedded browsers refuse clipboard access.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: <code>/wong-sync</code> copies the tutorial file only when the target's <code>App.tsx</code> still renders <code>&lt;Tutorial /&gt;</code>, because a person who removed the tutorial finished it.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Review note on the page sketch (&quot;Remove 1,2,3&quot;) → removed the three what-happens-next lines from the box; the box holds only the title, one intro line, the message, and Copy, because the assistant explains the steps in chat.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: release 24.1.0, because this changes the starter page and removes nothing a target relies on.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed during apply: the button keeps saying <code>Copied</code> rather than resetting after two seconds, because a reset timer adds a cleanup that no test can observe, and the page's mutation bar is 100%.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Apply evidence on the host: oxlint, <code>tsc -b</code>, Vitest (34 tests, 100% coverage), knip, and Stryker (193 mutants, 100%; <code>Tutorial.tsx</code> 13 killed) pass; the payload link check and the OpenSpec config check pass. CI stays the gate.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Save checkpoint: the tutorial box, its tests, setup's closing line, the sync rule, docs, and 24.1.0 landed; the <code>mini-apps</code> delta synced into <code>openspec/specs/</code>. <code>origin/main</code> moved to 24.0.2 (24.0.1 #131, then OpenSpec 1.13.2); merged it, keeping 24.1.0 and both changelog entries. Task 4.3 waits on CI and the preview.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked to update OpenSpec, after finding that the leftover &quot;TBD&quot; check was fixed upstream in 1.11.0 (Fission-AI/OpenSpec#1671) → updated 1.8.0 → 1.13.2 on its own branch, apart from <code>consolidate-and-simplify</code>.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Checked the CLI contract on a throwaway repo under 1.8.0 and 1.13.2: <code>init --tools none</code>, <code>context</code>, <code>list</code>, <code>new change</code>, <code>status</code>, <code>instructions</code> (proposal, specs, design, tasks, apply, archive), <code>validate --strict</code>, and <code>archive --yes</code> with <code>--skip-specs</code> and <code>--no-validate</code>. The JSON keys match; 1.13.2 adds <code>taskTrackingConfigured</code> to <code>instructions apply</code>. No sync command exists in 1.13.2.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Under 1.13.2, <code>openspec validate --specs --strict</code> failed <code>delivery-gate</code> and <code>secrets-convention</code> on their placeholder Purpose. Both got a real Purpose, and all 50 specs pass. <code>node --test</code> on the six OpenSpec-facing test files: 37 pass.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: CI runs <code>openspec validate --specs --strict</code> from now on, because the user asked how to keep records from drifting, and this check is free and deterministic. It covers live specs only, so an in-progress change on a branch is not blocked by it.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: a patch release, 24.0.2, because no command's behavior changes.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Saved all 9 tasks for CI as ready to ship. <code>node scripts/check-payload-links.mjs</code>, <code>node scripts/check-openspec-config.mjs</code>, and <code>openspec validate --specs --strict</code> pass locally under 1.13.2.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distilled facts before the archive: no repeatable fact. The session's facts are threads for <code>consolidate-and-simplify</code> and one OpenSpec reference, kept in memory.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archived after CI passed on PR #132 (<code>6eda2b9</code>). No deltas to sync (<code>skip_specs</code>).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

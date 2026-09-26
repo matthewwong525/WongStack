@@ -10,6 +10,17 @@
 
 **Updating.** `/wong-sync` replaces the old tutorial message only when your landing page still shows it. If you removed it, it stays removed.
 
+## 24.0.2 — OpenSpec 1.13.2
+
+- **OpenSpec 1.13.2 replaces 1.8.0.** The install command in `save/references/preconditions.md`, the CI install, and the docs name 1.13.2. The commands WongStack uses (`init --tools none`, `context`, `list`, `status`, `instructions`, `validate`, `archive`) keep their JSON shape; `instructions apply` adds `taskTrackingConfigured`.
+- **CI validates every spec strictly.** The `payload` check runs `openspec validate --specs --strict`, which since 1.11.0 fails a Purpose still left as the archive's `TBD` placeholder. `delivery-gate` and `secrets-convention` get a real Purpose.
+
+**Updating.** Run `npm install -g @fission-ai/openspec@1.13.2`. In your own repo, `openspec validate --specs --strict` names any spec whose Purpose still says `TBD`; write what it is for.
+
+## 24.0.1 — The Worker runs first for all its routes
+
+- **Memory and the API work again in production.** 24.0.0 set `run_worker_first` to `["/apps/*"]`. With a list, every path not in it gets the single-page fallback, so `POST /_memory/*` and `POST /api/*` answered 405. The `wrangler.jsonc` fragment and the app config now list `["/api/*", "/_memory/*", "/apps/*"]`, and a script test holds that list. An install on 24.0.0: add the two missing entries to `run_worker_first` in `app/wrangler.jsonc`; `/wong-sync` plans it.
+
 ## 24.0.0 — Your app serves the mini apps
 
 **Breaking.** There is no separate mini-app Worker any more. Your app's Worker serves every mini app at `/apps/<name>/`, and the old `<repo>-mini` address stops working.
