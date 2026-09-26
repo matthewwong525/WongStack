@@ -43,4 +43,4 @@
 
 - [x] 5.1 Bump `VERSION` to 19.1.0 and add a newest-first `CHANGELOG.md` entry. It covers the example move and says that an installed repo with a root `.dev.vars` moves it to `app/.dev.vars` by hand. It also covers the worktree-secrets helper, the `/ship` promote, and the rule.
 - [x] 5.2 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`. Fix any dead link. Run `grep -rn "dev.vars" --exclude-dir=archive` to confirm that no live surface still names a root `.dev.vars`.
-- [ ] 5.3 Run `/save` so CI runs the suite with the new tests. The task is done when CI passes.
+- [x] 5.3 Run `/save` so CI runs the suite with the new tests. The task is done when CI passes.

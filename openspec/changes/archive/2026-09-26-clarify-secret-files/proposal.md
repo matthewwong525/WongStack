@@ -1,6 +1,6 @@
 # Make it clear which secrets file to use
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** clarify-env-dev-vars
 **Open questions:** none
 
@@ -52,3 +52,5 @@ Moves `.dev.vars.example` to `app/.dev.vars.example`. Adds `.agents/skills/ship/
 - **2026-09-26** — Found in `/simplify` review: "seeded" must be decided per file, not per worktree. Otherwise a file that `seed` left unseeded gets three-way treatment against an empty baseline. Assumed: `status` lists the seeded files, `/save` writes only to those, and every other file is report-only.
 - **2026-09-26** — Assumed: `secrets:push` keeps local-wins, so a branch copy pushes its own values. Pushing is a deliberate operator action. `wiki/stack/d1-pipeline.md` says to push from the primary checkout when production must match `main`. Refusing while edits are pending would couple the pack script to a skill script.
 - **2026-09-26** — Save: `main` moved to 19.0.2 while this branch was open, so the branch merged `origin/main` and the release is renumbered 18.2.0 → 19.1.0. Main's 19.0.0 removed `/ship`'s Hard rules and the legacy staging-adoption section of `wiki/stack/d1-pipeline.md`; the merge keeps those removals. Main's link checker now fails links through the `.claude` symlink, so the new links name `.agents/` paths, and the README's link to the example now names `app/.dev.vars.example`. Main's 19.0.2 changelog entry already has a garbled line on `main`; this change leaves it alone.
+- **2026-09-26** — Ship: CI passed on PR #117 (174 tests). Distilled the session fact "prefer a path-scoped rule to a hook for an edit-time convention" into `wiki/agent-knowledge-center.md` under "What each surface owns".
+- **2026-09-26** — Archive checkpoint: every task is checked, and the change is archived at `openspec/changes/archive/2026-09-26-clarify-secret-files/`. The main specs were already reconciled at the earlier save, so the archive skipped a second spec sync.

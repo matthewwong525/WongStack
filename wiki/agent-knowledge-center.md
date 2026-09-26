@@ -53,6 +53,7 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 ## What each surface owns
 
 - **Agent instructions** orient the agent before it acts. [`CLAUDE.md`](../CLAUDE.md) carries the repo-specific overview plus the generic WongStack rules. Repos that use other agents can add an `AGENTS.md` pointer to the same skills and process.
+- **Path-scoped rules** in [`.agents/rules/`](../.agents/rules/) carry a convention to the moment an agent reads or edits a matching file, such as [the secrets rule](../.agents/rules/secrets.md) for `.env*` and `.dev.vars*`. For an edit-time convention, prefer a rule to a hook: a rule tells the agent what to do, and a hook acts on its own, where a wrong guess is harder to see.
 - **The wiki** owns reusable process and conventions, in the shape [the rulebook](wiki-style.md) sets and the sentences [voice](voice.md) asks for.
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
