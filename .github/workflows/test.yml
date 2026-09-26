@@ -30,6 +30,19 @@
 # differs between the two triggers, so groups keyed on the branch alone never
 # match, and a key that DID match would let one run cancel the other — which
 # `gh pr checks` reports as `fail`, blocking /ship.
+#
+# ---------------------------------------------------------------------------
+# Why Stryker's result file is cached
+#
+# Mutation testing is the slow gate, and it grows with the app: a full run
+# re-tests every mutant on every push. The scaffold's Stryker config turns on
+# incremental mode, which reuses a mutant's result when its code and the test
+# that killed it did not change. This job keeps that file between runs. Each
+# save gets a new key (entries are immutable); restore matches by prefix, which
+# searches this branch first, then the default branch. The key hashes the
+# lockfile and the Stryker and Vitest configs, because Stryker's own diff does
+# not see them: a dependency or config change must test every mutant again.
+# A suite with no Stryker config runs no cache step.
 
 name: Test
 
@@ -100,6 +113,15 @@ jobs:
           fi
           echo "found=true" >> "$GITHUB_OUTPUT"
           echo "dir=$FOUND" >> "$GITHUB_OUTPUT"
+          # Cache paths and hashFiles() are workspace-relative: "" at the root, "app/" below it.
+          REL="${FOUND#"$PWD"}"; REL="${REL#/}"
+          echo "rel=${REL:+$REL/}" >> "$GITHUB_OUTPUT"
+          if compgen -G "$FOUND/stryker.conf.*" >/dev/null || compgen -G "$FOUND/stryker.config.*" >/dev/null; then
+            echo "stryker=true" >> "$GITHUB_OUTPUT"
+            # Inputs Stryker's own diff does not see; a change to any of them starts from no file.
+            INPUTS=$(cd "$FOUND" && ls package-lock.json stryker.conf.* stryker.config.* vitest.config.* 2>/dev/null | xargs sha256sum | sha256sum | cut -c1-16)
+            echo "stryker-key=stryker-$RUNNER_OS-$INPUTS" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         if: ${{ steps.suite.outputs.found == 'true' }}
@@ -121,16 +143,32 @@ jobs:
             npx playwright install --with-deps chromium
           fi
 
+      - name: Restore mutation results
+        if: ${{ steps.suite.outputs.stryker == 'true' }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.suite.outputs.rel }}reports/stryker-incremental.json
+          key: ${{ steps.suite.outputs.stryker-key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ steps.suite.outputs.stryker-key }}-
+
       - name: Test
         id: test
         if: ${{ steps.suite.outputs.found == 'true' }}
         working-directory: ${{ steps.suite.outputs.dir }}
         run: npm test
 
+      # Also after a red run, so the fixing push reuses what this one learned.
+      - name: Save mutation results
+        if: ${{ always() && !cancelled() && steps.suite.outputs.stryker == 'true' && hashFiles(format('{0}reports/stryker-incremental.json', steps.suite.outputs.rel)) != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.suite.outputs.rel }}reports/stryker-incremental.json
+          key: ${{ steps.suite.outputs.stryker-key }}-${{ github.run_id }}-${{ github.run_attempt }}
+
       # Each changed mini app's own tests, with Node's built-in runner and no
       # install. They run whenever the change touches a mini app, so a failing
-      # test holds the keep merge. Node needs setting up only when the main
-      # suite did not already do it.
+      # test turns this check red, on a direct push to main as on a pull request.
+      # Node needs setting up only when the main suite did not already do it.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         if: ${{ steps.scope.outputs.mini_apps != '' && steps.suite.outputs.found != 'true' }}
         with:

@@ -13,6 +13,23 @@
 - **A verb you invoke serves any work.** Work that changes no repo file gets a to-do from `/plan`, a confirm before each outward action in `/apply`, a memory thread from `/save`, and a resume from `/continue`. `/ship` stays for repo changes. A plain request still needs no verb.
 - **CI skips the main app when a branch leaves it untouched.** The new core `.github/scripts/app-untouched.sh` compares the whole branch with the default branch. On a docs-only branch (`wiki/`, `openspec/`, or `.md` files) or a mini-apps-only branch, `test.yml` and `deploy.yml` skip the main app's steps inside the job, so a required check still reports. A mini-app branch runs only the changed apps' tests.
 
+## 20.2.0 — A server setup script you can fork
+
+- **`server/setup.sh` turns a fresh Ubuntu 24.04 server into a workspace for agents.** Run it as root: it makes the workspace user (`WORKSPACE_USER`, default `wong`), installs Node.js 24, `git`, `gh`, OpenSpec, Paseo, Claude Code, Codex, OpenCode, and agent-browser with its Chrome, and runs Paseo as a service for that user. It checks its own result last and prints `missing: <name>` on a gap. It is safe to run again.
+- **[`server/README.md`](server/README.md) is the contract a host relies on:** the command, the input, the end state, the paths it never touches, and a 12 KiB size budget, so a host can embed the script in first-boot data. A new test holds the script to the budget, checks its syntax, and checks that the final check covers every promised tool.
+- **Your fork is your template.** Edit the script in your fork to change what every server gets; a host that runs a pinned commit of your fork builds your servers, and you own the template.
+- **Source-only.** `server/` is not payload, so `/wong-sync` adds nothing to installed repos. [Required tools](wiki/development/required-tools.md) now names the script as the one place WongStack installs Paseo.
+
+## 20.1.1 — Override the vulnerable qs in the app scaffold
+
+- **`qs` resolves to 6.16.0.** `app/package.json` gets `"overrides": { "qs": "^6.16.0" }`. Stryker 10.0.0 pins `typed-rest-client ~2.3.0`, which pins the vulnerable `qs` 6.15.1, so no normal update could fix it. Only Stryker's dashboard reporter uses `qs`; the app's runtime does not change. Remove the override when Stryker moves to `typed-rest-client` 3.
+
+## 20.1.0 — Mutation testing re-tests only what changed
+
+- **Stryker is incremental.** The scaffold's `app/stryker.conf.json` sets `"incremental": true`. Stryker keeps each mutant's result in `app/reports/stryker-incremental.json` (git-ignored) and reuses it when the mutant's code and the test that killed it did not change; it tests every other mutant. The 100% break threshold and the one `npm test` command stay. `npx stryker run --force` tests every mutant.
+- **The Test workflow keeps the result file between runs.** [`test.yml`](.github/workflows/test.yml) restores the file before "Test" and saves it after, also after a red run. A branch starts from its own newest file, else the default branch's. The key hashes the suite's lockfile, Stryker config, and Vitest config, so a dependency or config change tests every mutant. A suite with no Stryker config runs no cache step.
+- **Why:** a full mutation run grows with the app. In one downstream repo it took 14 of the Test check's 15 minutes, on every push. The first run after this update has no file and tests every mutant; later pushes re-test only what changed. If you edited your own `stryker.conf.json`, `/wong-sync` adapts the one-line change.
+
 ## 20.0.0 — An assistant in every repo: direct requests, a wiki that grows from use, and home
 
 **Breaking.** Every install changes how it handles requests and what it writes to the wiki. There is no mode: every repo follows the same rules.

@@ -62,7 +62,7 @@ Fresh setup initializes the OpenSpec planning home with `openspec init --tools n
 
 ## Not copied
 
-`wong-setup`, `update-dependencies`, `VERSION`, `CHANGELOG.md`, this source repo's own install record, meta-only release checks, and the meta-only payload CI are outside the target inventory. `.claude/.wong-stack.json` is the target's install record, written after agreed implementation rather than copied upstream. Existing legacy verdict files may inform exploration but are not generated again.
+`wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this source repo's own install record, meta-only release checks, and the meta-only payload CI are outside the target inventory. `.claude/.wong-stack.json` is the target's install record, written after agreed implementation rather than copied upstream. Existing legacy verdict files may inform exploration but are not generated again.
 
 ## Install record
 
