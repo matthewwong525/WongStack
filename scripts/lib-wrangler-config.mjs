@@ -44,7 +44,8 @@ export function findWranglerConfigOrNull() {
 
   for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+    // mini-apps/ holds the mini-app Worker's config, never the main app's.
+    if (entry.name === "node_modules" || entry.name === "mini-apps" || entry.name.startsWith(".")) continue;
     const found = firstConfigIn(resolve(repoRoot, entry.name));
     if (found) return found;
   }

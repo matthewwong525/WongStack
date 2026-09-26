@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The review stage of `/plan` gives every change one self-contained HTML review page — `review.html`, whose What Changes list is the navigation and whose stage shows a low-fidelity picture of each change (a screen wireframe, a flow, a diff, a file tree) — that a reviewer opens on a laptop or a phone, walks, annotates, and copies notes from back into `/continue`. It is committed with the change and archived with it. (The capability keeps its `ux-wireframes` name from when it covered wireframes alone.)
+The review stage of `/plan` gives every change one self-contained HTML review page — `review.html`, one scrolling document with the proposal's Why, its What Changes items with their text drawings, and its decisions labeled asked or assumed — that a reviewer opens on a laptop or a phone, reads, zooms into, annotates by tapping an item, and copies notes from back into `/continue`. It is committed with the change and archived with it. (The capability keeps its `ux-wireframes` name from when it covered wireframes alone.)
 
 ## Requirements
 

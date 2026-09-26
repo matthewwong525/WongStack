@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Let every WongStack repo act as an assistant: do plain requests directly, and keep the change verbs for building or changing code, with the same rules in every repo.
+Let every WongStack repo act as an assistant: do plain requests directly, let a verb the person invokes serve any work, send a new standalone page or tool down the mini-app path, and keep the full change loop for changing the repo's code or process, with the same rules in every repo.
 
 ## Requirements
 

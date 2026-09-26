@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -138,4 +139,17 @@ test('the staging reset refuses the production database and drops nothing', t =>
   assert.equal(result.status, 1, result.out);
   assert.match(result.out, /names the production database 'demo-db'/);
   assert.deepEqual(result.calls, [], 'no wrangler call may run');
+});
+
+test('the shell resolver never takes the mini-app Worker config for the main app', t => {
+  const root = mkdtempSync(join(tmpdir(), 'wong-resolve-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const dir of ['mini-apps', 'web']) {
+    mkdirSync(join(root, dir));
+    writeFileSync(join(root, dir, 'wrangler.jsonc'), '{ "name": "x" }\n');
+  }
+  const lib = fileURLToPath(new URL('../lib-wrangler-config.sh', import.meta.url));
+  const result = spawnSync('bash', ['-c', `source "${lib}" && wong_resolve_wrangler_config "$1" && echo "$WRANGLER_CONFIG"`, 'resolve', root], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), join(root, 'web', 'wrangler.jsonc'));
 });

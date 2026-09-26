@@ -1,0 +1,6 @@
+# Written by scripts/mini-dashboard.mjs before every upload or deploy.
+apps/index.html
+apps/routes.gen.ts
+
+# wrangler's local state.
+.wrangler/

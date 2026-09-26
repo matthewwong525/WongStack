@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Resume a saved OpenSpec change by name, PR, or menu, with an optional instruction: check out its branch, recap the plan and facts, check drift, and hand off to /apply. Use to continue, resume, or pick up a thread.
+description: Resume a saved OpenSpec change by name, PR, or menu, or an open thread of non-code work, with an optional instruction: check out its branch, recap the plan and facts, check drift, and hand off to /apply. Use to continue, resume, or pick up a thread.
 user-invocable: true
 ---
 
@@ -28,7 +28,8 @@ The input is a change reference, **optionally followed by an explicit instructio
 
 - **First token** = the handle — a **change name**, a **PR number**, or a PR **URL** (e.g. `/continue add-auth`, `/continue 57`, `/continue https://github.com/owner/repo/pull/57`).
 - **Everything after** (if anything) = an **explicit instruction** for what to do once the change is loaded — e.g. `/continue add-auth rebase onto main and fix the failing test`. Hold onto it for step 4; it overrides the default "work the tasks" behavior. Most calls are a bare handle — that's the normal case, and the tasks drive the work.
-- **No handle at all** → run `openspec list` and let the user pick from active changes, as [an ordinary ask](../explore/references/asking-the-user.md) — the recommended option first, which is normally the change the branch or the most recent checkpoint points at. For each option, show the change's **`Status:`** line (read from its `proposal.md` header — `in-progress` / `blocked (<on what>)` / `ready-to-ship` / `parked`) alongside the name and task progress, so "what can I pick up?" is answerable from the menu. Don't guess.
+- **No handle at all** → run `openspec list`, and list open threads of non-code work with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. Let the user pick from both, as [an ordinary ask](../explore/references/asking-the-user.md) — the recommended option first, which is normally the change the branch or the most recent checkpoint points at. For each option, show the change's **`Status:`** line (read from its `proposal.md` header — `in-progress` / `blocked (<on what>)` / `ready-to-ship` / `parked`) alongside the name and task progress, so "what can I pick up?" is answerable from the menu. Show a thread with its slug, its age, and its next step. Don't guess.
+- **A thread of non-code work** (chosen from the menu, or a handle that names a topic slug with open threads and no change) → there is no branch and no change. Run `memory.mjs show <slug>`, recap what is done and what is next, and hand the remaining steps to `/apply` as its to-do. Skip steps 2 to 4.
 
 ### 2. Resolve the change and the branch
 
@@ -92,7 +93,7 @@ Give the user a tight recap so they can confirm the loaded state:
 
 Then continue:
 
-  - **If the instruction is a pasted review block** — it begins `Review notes from review.html` — read the change's existing artifact paths from `openspec status --change "<name>" --json`, following the [CLI contract](../plan/references/openspec-cli.md). Apply each note to the existing proposal, design, delta specs, tasks, and `review-visuals.html` where relevant; keep them coherent. Append one Decision-log line naming what each note changed or why it was declined. Use `openspec instructions <artifact-id> --change "<name>" --json` for a substantial artifact rewrite, then validate the change. Refresh `review.html` with `plan/scripts/build-review.mjs` before implementing. Do not create an unrequested new artifact while updating feedback.
+  - **If the instruction is a pasted review block** — it begins `Review notes from review.html` — read the change's existing artifact paths from `openspec status --change "<name>" --json`, following the [CLI contract](../plan/references/openspec-cli.md). Apply each note to the existing proposal (including the text drawings in its bullets), design, delta specs, and tasks where relevant; keep them coherent. Append one Decision-log line naming what each note changed or why it was declined. Use `openspec instructions <artifact-id> --change "<name>" --json` for a substantial artifact rewrite, then validate the change. Refresh `review.html` with `plan/scripts/build-review.mjs` before implementing. Do not create an unrequested new artifact while updating feedback.
 - **If any other explicit instruction was passed** (step 1), do *that* — the change is the backdrop, the instruction is the task. Reconcile the two (e.g. "fix the failing test" → the tasks tell you which and why), but let the instruction steer.
 - **Otherwise**, **invoke the `/apply` skill** (via the Skill tool) to work the tasks — it owns the implement loop (start the first unchecked `- [ ]` in `tasks.md`, check off `- [x]` as tasks land, pause on ambiguity).
 

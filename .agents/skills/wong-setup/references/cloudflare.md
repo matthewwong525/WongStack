@@ -119,6 +119,8 @@ Derive every name from the repository name. State what you chose; never make the
                          staging    recipe-box-db-staging
                          worker     recipe-box
                          staging    recipe-box-staging  (the env.staging name)
+                         mini apps  recipe-box-mini
+                         staging    recipe-box-mini-staging
                          memory     recipe-box-memory   (database, bucket, and token)
                          CI token   recipe-box-deploy
 ```
@@ -145,6 +147,8 @@ Apply the id-free config fragments now — `package.json` scripts, `.env.example
 `GET /accounts/{account_id}/d1/database` first — reuse by name. Otherwise `POST` each: production, and a staging copy that branch deploys run against, so a branch can never write to real data. Say it in those terms: *"Two databases: the real one, and a practice one your test versions use."*
 
 Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
+
+Then create `mini-apps/wrangler.jsonc` from [its fragment](../../wong-sync/references/stack-pack-fragments.md#mini-appswranglerjsonc--the-mini-app-worker), with the `<repo>-mini` and `<repo>-mini-staging` names and the same two database ids. The first mini-app preview creates the staging Worker, and the first kept app creates production; [mini apps](../../../../wiki/stack/mini-apps.md) owns the rest.
 
 ### 4d. The CI deploy token
 

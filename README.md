@@ -6,9 +6,9 @@
 
 **Coding agents forget your decisions between sessions, and your process lives in chat and in people's heads.** WongStack keeps the process, the plans, and the decisions in the repo, and gives agents a repeatable loop that writes down what each change teaches.
 
-![A review page for a planned change: the change list on the left, and a before-and-after view of the selected change on the right](wiki/assets/review-page.png)
+![A review page for a planned change: numbered changes in one scrolling page, each with its text drawing and zoom buttons, and a Copy notes bar at the bottom](wiki/assets/review-page.png)
 
-*Each plan gets a `review.html` page like this. You read each change, see it drawn, and add notes before any code is written.*
+*Each plan gets a `review.html` page like this. You read each change and its text drawing, check each decision the agent asked or assumed, and tap an item to add a note before any code is written.*
 
 ## Start here
 
@@ -30,6 +30,7 @@ Claude Code and Codex get full support. Other agents, such as Cursor, can follow
 - **One command for each stage of the work**, from the first idea to the merge.
 - **A record written during the work.** Plans, decisions, and lessons are written down as part of each step, not afterward.
 - **A reviewable package** for each change, which your team inspects before it joins `main`.
+- **[Mini apps](wiki/stack/mini-apps.md) from one request.** Ask for a small tool and get a preview link in under a minute, however large your main app is. Save it, and it goes live.
 - **[Memory across sessions](wiki/development/memory.md).** Each session starts with the facts that earlier sessions learned. The store is in your Cloudflare account, not in git.
 - **An assistant as well as a builder.** Plain requests get done directly, what the agent learns grows the wiki, and your [home](wiki/development/home.md) repo carries who you are into every other repo.
 - **No lock-in to one agent.** The durable part is the files in the repo.
@@ -45,11 +46,11 @@ You do not have to run each one. A command whose input is missing runs the one b
 | Command | What it does |
 | --- | --- |
 | `/explore` | Think through an idea before you decide what to do. |
-| `/plan` | Write the plan, tasks, and decisions, and build the `review.html` page. |
-| `/apply` | Do the planned work, then save it when every task is complete. |
+| `/plan` | Write the plan, tasks, and decisions, and build the `review.html` page. For work that is not code, write a short to-do. |
+| `/apply` | Do the planned work, then save it when every task is complete. It also builds mini apps, and asks before each outward action in work that is not code. |
 | `/save` | Commit, push, open or update the pull request, and wait for CI. A plain conversation saves only its facts. |
 | `/continue` | Pick up saved work later, from any machine or session. |
-| `/ship` | Finish the change, merge it, and keep the record of what shipped. |
+| `/ship` | Finish the change, run CI once, walk the preview, merge, and keep the record of what shipped. |
 | `/improve [area]` | Review recent work and one area, then ship one maintenance fix. `--audit-only` reports findings with no edits. |
 | `/routine <when>: <prompt>` | Run a prompt or command on a schedule. Optional: it needs [Paseo](https://paseo.sh). |
 | `/wong-sync` | Get the latest WongStack and plan the update, up to a review page. |

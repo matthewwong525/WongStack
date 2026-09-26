@@ -200,8 +200,6 @@
         ".agents/skills/explore/SKILL.md",
         ".agents/skills/plan/references/openspec-cli.md",
         "wiki/agent-knowledge-center.md",
-        ".agents/skills/plan/references/review-author.md",
-        ".agents/skills/plan/references/review-examples.html",
         ".agents/skills/save/references/new-plan.md"
       ]
     },
@@ -239,18 +237,22 @@
       ],
       "increaseReason": "The orientation reads the new explicit evidence/root contract. This small increase preserves branch and ambiguity handling; completion saves are measured separately."
     },
-    "visual-author": {
+    "mini-app-save": {
       "before": [
-        ".agents/skills/plan/references/review-author.md",
-        ".agents/skills/plan/references/review-examples.html",
-        ".agents/skills/plan/references/review-kit.html"
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/git-gate.md",
+        "notes/README.md",
+        "wiki/development/the-change-loop.md"
       ],
       "after": [
-        ".agents/skills/plan/references/review-author.md",
-        ".agents/skills/plan/references/review-examples.html"
+        ".agents/skills/save/SKILL.md",
+        ".agents/skills/save/references/mini-app-save.md",
+        ".agents/skills/save/references/git-gate.md",
+        ".agents/skills/memory/references/writing-facts.md",
+        "wiki/development/the-change-loop.md"
       ],
       "requireReduction": true
     }
   },
-  "notes": "Fixed source-input model, not runtime telemetry. Active/archive routes include meaningful note capture but no spec deltas. Cold resume measures orientation; visual author measures shared author inputs. Change-specific artifacts, implementation context, and repeated agent invocations vary and are excluded. Route files are counted once. Shared loop/owner reading is included conservatively on both sides. Baseline helper counts are read from the named Git revision."
+  "notes": "Fixed source-input model, not runtime telemetry. Active/archive routes include meaningful note capture but no spec deltas. Cold resume measures orientation. Mini-app save measures its try and keep forms together against the ordinary save a mini app took before; there is no visual-author route, because the planning agent draws in the proposal. Change-specific artifacts, implementation context, and repeated agent invocations vary and are excluded. Route files are counted once. Shared loop/owner reading is included conservatively on both sides. Baseline helper counts are read from the named Git revision."
 }

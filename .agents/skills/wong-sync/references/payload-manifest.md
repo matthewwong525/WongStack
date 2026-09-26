@@ -38,7 +38,7 @@ The JSON report contains the complete changed-unit list, counts, paths, and clas
 
 The **improve** skill ships its dependency-free survey helper and investigation references as one directory. The helper reads supported tracked text and Git history through the Node.js runtime that OpenSpec already needs. It does not add a package or contact a service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduler requirements.
 
-The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), [visual author guide](../../plan/references/review-author.md), [CLI contract](../../plan/references/openspec-cli.md), builder, and structural checker as one directory. Every new change gets a standalone `review.html`; the viewer's runtime is bundled into that output. The author writes only the change's visual fragment. `/save` refreshes it through the same builder. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure in a target.
+The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), and the builder as one directory. Every new change gets a standalone `review.html`, built from its `proposal.md` alone; the viewer's runtime is bundled into that output. `/save` refreshes it through the same builder. The **save** skill's [mini-app save](../../save/references/mini-app-save.md) ships with it. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure in a target.
 
 ## The memory store and its hooks
 
@@ -48,11 +48,13 @@ The **memory** skill ships its script, schema migrations, runbook, and [writing 
 
 Every install takes the pack. Its drop-in files follow the manifest's ordinary copy-or-adapt rule. Configuration fragments instead merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md); live database IDs and secrets are created in the target, never copied. The whole [`wiki/stack/`](../../../../wiki/stack/README.md) section ships with the pack. The [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core because `/verify` works on other hosts too.
 
-No copied file may carry a live `database_id` or a source-repo database name. The source's `app/wrangler.jsonc` is excluded; [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) creates the target's config from a fragment.
+No copied file may carry a live `database_id` or a source-repo database name. The source's `app/wrangler.jsonc` and `mini-apps/wrangler.jsonc` are excluded; [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) creates the target's config from a fragment.
 
 ## The app scaffold
 
 The scaffold is a starting React/Vite Worker app, not a required runtime for WongStack. It includes its own test suite and package manifest. The core test workflow finds a repo's `npm test` script at the root or in an immediate subdirectory; when none exists, it reports that and succeeds. No root `package.json` is copied on behalf of a target.
+
+The scaffold also carries `mini-apps/`: the small Worker, its example app, and its ignore files for [mini apps](../../../../wiki/stack/mini-apps.md). Its `wrangler.jsonc` is created by provisioning from [its fragment](stack-pack-fragments.md#mini-appswranglerjsonc--the-mini-app-worker), never copied. Each app's tests run with Node's built-in runner, so the folder has no package manifest.
 
 ## OpenSpec integration and migration
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
+`/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, with one checkpoint before its walk, and can keep a mini app through one short merge, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
 ## Requirements
 ### Requirement: Ship pulls in apply when there is nothing to ship
 
