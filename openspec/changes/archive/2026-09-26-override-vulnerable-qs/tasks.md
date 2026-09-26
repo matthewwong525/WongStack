@@ -5,4 +5,4 @@
 ## 2. Release
 
 - [x] 2.1 Bump `VERSION` to 20.1.1 and add the `CHANGELOG.md` entry
-- [ ] 2.2 Pass CI through `/save`
+- [x] 2.2 Pass CI through `/save`

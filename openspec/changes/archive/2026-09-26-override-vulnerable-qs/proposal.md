@@ -1,6 +1,6 @@
 # Override the vulnerable qs in the app scaffold
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** fix/qs-override
 **Open questions:** none
 
@@ -33,3 +33,5 @@ None. A dependency pin changes no spec-level behavior, so the change sets `skip_
 
 - **2026-09-26** — `/ship` of PR #120 (add-team-memory) stopped: `main`'s only failed check was Dependabot's `qs` security update; `build`, `test`, and `payload` passed. Asked whether to fix `qs` first or ship anyway → the user chose **fix `qs` first**, in its own change.
 - **2026-09-26** — Traced `qs`: only `typed-rest-client` 2.3.1 needs it, pinned to 6.15.1, and only `@stryker-mutator/core` 10.0.0 (latest) needs that, as `~2.3.0`. `typed-rest-client` 3.1.2 needs `qs ^6.16.0`, but Stryker does not accept 3.x. Chose an npm `overrides` entry over waiting for Stryker.
+- **2026-09-26** — CI passed on PR #121. Distilled facts before the archive: no repeatable fact (the store holds none for this change or branch).
+- **2026-09-26** — Archived after CI passed on PR #121; this checkpoint commits the archive move.
