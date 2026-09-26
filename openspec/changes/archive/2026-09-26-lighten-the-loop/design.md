@@ -129,7 +129,7 @@ With an all-zero `before`, a failed fetch, or an empty diff, it prints `untouche
 
 ### 11. Release
 
-21.0.0, with a newest-first `CHANGELOG.md` entry. `payload-files.json` adds `.github/scripts/app-untouched.sh` (core), `scripts/cf-mini.sh`, `scripts/mini-dashboard.mjs`, and `wiki/stack/mini-apps.md` (pack), and `mini-apps/` (scaffold). The plan skill directory drops three files. `scripts/fixtures/context-baseline.json` and the inventory in `scripts/measure-context.mjs` drop the visual-author route and add the mini-app save route. The main-spec Purpose lines of `ux-wireframes`, `staging-walkthrough`, and `ship-full-cycle` are edited directly, because a delta can not change a Purpose.
+22.0.0, with a newest-first `CHANGELOG.md` entry. `payload-files.json` adds `.github/scripts/app-untouched.sh` (core), `scripts/cf-mini.sh`, `scripts/mini-dashboard.mjs`, and `wiki/stack/mini-apps.md` (pack), and `mini-apps/` (scaffold). The plan skill directory drops three files. `scripts/fixtures/context-baseline.json` and the inventory in `scripts/measure-context.mjs` drop the visual-author route and add the mini-app save route. The main-spec Purpose lines of `ux-wireframes`, `staging-walkthrough`, and `ship-full-cycle` are edited directly, because a delta can not change a Purpose.
 
 ## UX
 

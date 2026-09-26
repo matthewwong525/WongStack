@@ -36,7 +36,7 @@
 - [x] 5.5 Add `scripts/mini-dashboard.mjs` (validate each `app.json`, write `index.html` and `routes.gen.ts`) and `scripts/cf-mini.sh` (preview and ci modes per design §8), with `scripts/tests/mini-apps.test.mjs`: dashboard entries and escaping; a missing title fails with the folder name; preview refuses the default branch; the staging twin is created only when missing; the production-name guard stops everything; `ci` does nothing when `mini-apps/` did not change; every non-production upload or deploy passes a seven-day `PREVIEW_EXPIRES` and production passes none; no mode touches `app/`. Cover the Worker's 410 page for a past expiry in the same suite
 - [x] 5.6 Extend provisioning (setup and the pack's Cloudflare step) to write `mini-apps/wrangler.jsonc` names and D1 ids, and add the mini Worker to `wiki/stack/cloudflare-access.md`
 - [x] 5.7 Rehearse on real infrastructure: with a one-line app, run `cf-mini.sh preview --alias rehearsal` from the host, open the URL and the dashboard, and confirm that the main app's Workers did not change. Record the timing and result in the Decision log
-- [ ] 5.8 Pass CI on this branch through `/save`, and confirm from the job logs that Test ran the suite (the branch changes code)
+- [x] 5.8 Pass CI on this branch through `/save`, and confirm from the job logs that Test ran the suite (the branch changes code)
 
 ## 6. Docs and the block
 
@@ -51,6 +51,6 @@
 
 - [x] 7.1 Update `.agents/skills/wong-sync/references/payload-files.json` and `payload-manifest.md`: `.github/scripts/app-untouched.sh` (core); `scripts/cf-mini.sh`, `scripts/mini-dashboard.mjs`, and `wiki/stack/mini-apps.md` (pack); `mini-apps/` (scaffold, with its generated files excluded); the plan skill's contents; the mini-app save reference
 - [x] 7.2 Update the inventory in `scripts/measure-context.mjs` and `scripts/fixtures/context-baseline.json`: drop the visual-author route, add the mini-app save route. Run `node scripts/measure-context.mjs --check`
-- [x] 7.3 Compare `VERSION` with `origin/main`, set it to 21.0.0 (or the next major above main), and add a newest-first `CHANGELOG.md` entry
+- [x] 7.3 Compare `VERSION` with `origin/main`, set it to the next major above main (22.0.0 after #120), and add a newest-first `CHANGELOG.md` entry
 - [x] 7.4 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`
-- [ ] 7.5 Reconcile the deltas and pass CI through `/save`
+- [x] 7.5 Reconcile the deltas and pass CI through `/save`

@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · lighten-the-loop</title>
+<title>Review · 2026-09-26-lighten-the-loop</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -74,11 +74,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="lighten-the-loop">
+<body data-change="2026-09-26-lighten-the-loop">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>lighten-the-loop</h1>
+  <h1>2026-09-26-lighten-the-loop</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
@@ -136,7 +136,7 @@
 <span class="ln" data-note="item-3-line-15" tabindex="0">└──────────────────────────────┘</span></pre></div></figure></div></li>
 <li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>BREAKING: A one-go <code>/ship</code> runs CI once.</b> When <code>/ship</code> pulls in <code>/apply</code>, <code>/apply</code> returns without a checkpoint, and <code>/ship</code> archives and then saves once. <code>/verify</code> still walks the preview before the merge, so a mistake is fixed in the same PR. One script does the merge, retarget, branch delete, and sync. The wiki catch-up that #118 rewrote stays in <code>/ship</code>.</div></div></li>
 <li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>A branch that leaves the main app untouched skips its Test and Deploy.</b> That covers docs-only changes and mini-app changes; a mini-app push runs only the changed apps' tests. The check runs inside each job, so the required <code>test</code> check still reports green. It compares the whole branch with the default branch, not only the last commit. Payload checks still run in this repo, because skill Markdown is the payload here.</div></div></li>
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Release 21.0.0, on top of #118.</b> The loop page, README, <code>WONG-STACK</code> block, OpenSpec config rules, and payload manifest describe the new loop.</div></div></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Release 22.0.0, on top of #118 and #120.</b> The loop page, README, <code>WONG-STACK</code> block, OpenSpec config rules, and payload manifest describe the new loop.</div></div></li>
 </ol>
 <p class="aside"><b>Non-goals:</b> a home or chat mode; connectors to email, calendar, or chat services; saving review notes to a database; rebuilding archived review pages; serving mini apps at the main app's address; porting a mini app into <code>app/</code> (an ordinary change when needed).</p>
 
@@ -187,6 +187,9 @@
 <li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Rehearsed on real Cloudflare from the agent host: <code>cf-mini.sh preview --alias rehearsal</code> created <code>wongstack-mini-staging</code> and uploaded a preview in 28 s; a second upload took 12 s. The dashboard, <code>/hello/</code>, and <code>/hello/api/greeting</code> answered 200, and <code>api.mjs</code>, the test file, and <code>routes.gen.ts</code> answered 404. Production <code>wongstack</code> did not change; a <code>wongstack-staging</code> deploy in the same minute came from the <code>server-setup-script</code> branch's CI, per its job log.</li>
 <li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: <code>cf-mini.sh</code> uses the main app's installed wrangler when there is one, else <code>npx wrangler@4</code> with <code>npm_config_yes</code>, because a mini-only CI run skips the app's install and an unpinned <code>npx wrangler</code> would fetch whatever is newest.</li>
 <li class="decision card" id="decision-44" data-note="decision-44" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Checkpoint: every task but the CI ones is done. 229 script tests and the app's <code>npm test</code> pass locally (Stryker 100%). Merged <code>origin/main</code> (20.1.0 incremental mutation testing, 20.1.1 qs override) before the push; this change stays 21.0.0 above them. The mini-app agent's two findings were fixed in this change: plain-JavaScript handlers, and a config resolver that skips <code>mini-apps/</code>.</li>
+<li class="decision card" id="decision-45" data-note="decision-45" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>At ship time <code>main</code> had taken #120 (team memory) as 21.0.0, so this change is renumbered to 22.0.0 above it; main's shipped release keeps its number. Merged <code>origin/main</code> and kept both sides of the setup naming table (the mini Worker and the shared memory Worker).</li>
+<li class="decision card" id="decision-46" data-note="decision-46" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Wiki catch-up at ship: no repeatable fact left to place. The two live facts are already on their pages: <code>/verify</code> before the merge (so a failure is fixed in the same PR) in <code>wiki/development/the-change-loop.md</code>, and plain-JavaScript handlers that run on any Node in <code>wiki/stack/mini-apps.md</code>. The two open threads stay in memory.</li>
+<li class="decision card" id="decision-47" data-note="decision-47" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archive checkpoint: every task checked (35 of 35), the deltas were already synced into <code>openspec/specs/</code> and confirmed equal, so the archive used <code>--skip-specs</code>. Version 22.0.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
