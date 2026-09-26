@@ -23,4 +23,4 @@
 ## 4. Proof
 
 - [x] 4.1 Rehearse on real infrastructure: a scratch Worker bundling `handleMemory` with a scratch D1 and R2 bucket; run `migrate`, `member add`, a fact write, `search`, `source`, a key-table probe, and `member remove` through the memory script; then delete every scratch resource
-- [ ] 4.2 Get CI green on the branch through `/save`
+- [x] 4.2 Get CI green on the branch through `/save`

@@ -67,7 +67,7 @@ node .claude/skills/memory/scripts/memory.mjs member list
 
 Send the key privately. The teammate puts it in the `.env` of their main checkout as `CLOUDFLARE_MEMORY_TOKEN`. The first member makes the repo a team: `member add` sets `components.memory.team` in `.claude/.wong-stack.json`, so save that change. Adding an email again replaces its key, and `member remove` stops a key at once.
 
-The route's URL, `https://<worker>.<subdomain>.workers.dev/_memory`, is recorded as `components.memory.worker`; it is not a secret. Only a memory key (`wongm_...`) goes there. An older store whose `CLOUDFLARE_MEMORY_TOKEN` is still a Cloudflare token keeps using the Cloudflare API until [setup's runbook moves it](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store).
+The route's URL, `https://<worker>.<subdomain>.workers.dev/_memory`, is recorded as `components.memory.worker`; it is not a secret. Only a memory key goes there: `wongm_<the email, base64url>.<random>`. A value of any other shape counts as a Cloudflare token and goes to the Cloudflare API, so a test key must carry an email too. An older store whose `CLOUDFLARE_MEMORY_TOKEN` is still a Cloudflare token keeps using the Cloudflare API until [setup's runbook moves it](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store).
 
 ## Without R2
 

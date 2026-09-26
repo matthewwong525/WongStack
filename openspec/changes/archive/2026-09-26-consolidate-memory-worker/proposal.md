@@ -1,6 +1,6 @@
 # Consolidate memory into the app Worker
 
-**Status:** implemented, awaiting CI
+**Status:** ready-to-ship
 **Branch:** consolidate-memory-worker
 **Open questions:** none
 
@@ -61,3 +61,6 @@ None.
 - **2026-09-26** — Assumed: release 22.0.0.
 - **2026-09-26** — Rehearsed on real infrastructure in account `040f88e2…`: a scratch Worker bundling the real route, with a scratch D1 and R2 bucket. `migrate`, `member add` (admin and member), a fact written with the admin key, `search` and `digest` with keys, transcript PUT/GET (a member got 403 on the admin's transcript; the admin read the member's), three key-table probes (403 `keys_table`), a real D1 batch in Cloudflare's shape, and `member remove` (the next call got 401) all behaved as specified. A missing `workers.dev` hostname answered 404, and the fact spooled. Every scratch resource was deleted.
 - **2026-09-26** — `main` shipped its own 22.0.0 (#123: a lighter loop, mini apps) during this work. Merged `origin/main` into the branch: the setup names table keeps both the mini-app Workers and the production-only memory line, and this change becomes **23.0.0**. The delta specs are synced into `openspec/specs/`. The review page keeps its old format, refreshed from the proposal only, as #123 allows for an active change.
+- **2026-09-26** — CI passed on PR #125: the app suite (26 tests, 100% coverage, Stryker), the script tests, the payload checks, and a staging deploy. The live staging Worker answers `/_memory/` with 404 `no_store` and `/api/` with 200. Wrangler warns at build that `MEMORY_DB` is not on `env.staging`; the fragment rule now says that warning is expected.
+- **2026-09-26** — Distilled facts at ship: `wiki/development/memory.md` now says a memory key carries its email and any other shape goes to the Cloudflare API. The other facts stay in the store: this repo's move is an open thread, and the rest is in this change.
+- **2026-09-26** — Archive checkpoint: every task checked, the change archived with `--skip-specs` (the deltas were synced into `openspec/specs/` at the earlier save), and `main`'s 22.0.1 (#124) merged in before the gate.
