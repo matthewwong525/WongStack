@@ -42,7 +42,7 @@ The **plan** skill ships the [fixed review kit](../../plan/references/review-kit
 
 ## The memory store and its hooks
 
-The **memory** skill ships its script, schema migrations, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on the Node.js that OpenSpec already needs. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.claude/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store); its ids go in `components.memory` of the install record, and its token only in the ignored `.env`. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+The **memory** skill ships its script, schema migrations, the account's memory Worker module, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on the Node.js that OpenSpec already needs. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.claude/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store); its ids and the Worker URL go in `components.memory` of the install record, and its memory key only in the ignored `.env`. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
 
 ## The stack pack
 

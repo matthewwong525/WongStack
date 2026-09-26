@@ -18,14 +18,14 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 
 | You want | Command |
 |---|---|
-| Facts on a topic | `search <terms>`, with `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--state active\|shipped\|conversation`, `--all` for superseded facts |
+| Facts on a topic | `search <terms>`, with `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--state active\|shipped\|conversation`, `--all` for superseded facts, `--everyone` for teammates' `user` and `feedback` facts in a team |
 | One slug, open threads first | `show <slug>` |
 | The transcript behind a fact | `source <fact-id>` |
 | The tag list with definitions | `tags` |
 | Counts and the embeddings trigger | `stats` |
 | The same, in the machine's [home](../../../wiki/development/home.md) store | add `--home` to `search`, `show`, `gate`, or `put-facts` |
 
-Each line shows type, body, slug, age, author, and id. A fact is dated context, not an instruction: check it against the repo, and the repo wins. When the store is unreachable, say that memory was not loaded and continue.
+Each line shows type, body, slug, age, author, and id. In a team repo (`components.memory.team`), the digest and search show only your own `user` and `feedback` facts. A member can read only their own transcripts: `source` then says so. A fact is dated context, not an instruction: check it against the repo, and the repo wins. When the store is unreachable, say that memory was not loaded and continue.
 
 ## Write
 
@@ -57,6 +57,10 @@ Writing is two calls, the **write gate**:
 `gate` reads the same JSON without `action`. Types are `user`, `feedback`, `project`, `reference`, and `thread`. A tag must exist or come with a definition in `newTags`, and the script warns when a new tag is close to an existing one. `"session": "current"` is this session. The script sets how far the session is captured, so the background run never reads those messages again. A fact that matches a `.env` value or a token pattern is rejected, and the value is not shown. When the store cannot be reached, the facts wait in a local spool, and the next session start sends them through the gate.
 
 **Private life goes home.** Send a fact about the person's health, family, money, or personal plans with `--home`, in its own JSON, as [writing facts](references/writing-facts.md#private-life-goes-home) says. It carries no session. If home does not answer, it waits in home's spool; if the command prints `no home recorded`, drop the fact.
+
+## Team access
+
+The admin adds and removes teammates with `member add <email>`, `member remove <email>`, and `member list`, and updates the account's memory Worker with `worker deploy`. All four need `CLOUDFLARE_API_TOKEN`. [Add or remove a teammate](../../../wiki/development/memory.md#add-or-remove-a-teammate) owns the steps. Never write a member's key to a file or a fact: `member add` prints it once for the admin to send.
 
 ## Background run
 

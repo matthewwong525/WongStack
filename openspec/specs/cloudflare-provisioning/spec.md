@@ -195,7 +195,7 @@ Before relying on a push, the step SHALL check that the stored `gh` credentials 
 
 ### Requirement: Everything provisioned can be torn down
 
-A teardown runbook in `wiki/stack/` SHALL remove the resources a provisioning run created — both Workers, both D1 databases, the memory store, the deploy and memory tokens, any Access resources, and the GitHub secrets — so repeated testing does not leak billable infrastructure. Teardown SHALL name every resource it intends to delete and require confirmation before deleting, and SHALL report anything it declined to touch.
+A teardown runbook in `wiki/stack/` SHALL remove the resources a provisioning run created — both Workers, both D1 databases, the memory store, this repo's bindings and keys in the memory Worker, the deploy token, any Access resources, and the GitHub secrets — so repeated testing does not leak billable infrastructure. Teardown SHALL name every resource it intends to delete and require confirmation before deleting, and SHALL report anything it declined to touch. It SHALL delete the memory Worker and the keys database only when no other repo is attached.
 
 #### Scenario: Teardown removes what provisioning created
 
@@ -208,6 +208,11 @@ A teardown runbook in `wiki/stack/` SHALL remove the resources a provisioning ru
 - **WHEN** the account contains databases or Workers that this repo did not create
 - **THEN** teardown does not delete them
 - **AND** it names them as skipped
+
+#### Scenario: Another repo shares the memory Worker
+
+- **WHEN** teardown runs for `billing` and the memory Worker also serves `home`
+- **THEN** teardown removes only `billing`'s bindings and keys, and the Worker keeps serving `home`
 
 ### Requirement: The account is chosen before anything is created
 
@@ -304,28 +309,28 @@ Where Access is in front, the skill SHALL additionally state that the smoke test
 
 ### Requirement: Setup provisions the memory store in every install
 
-Setup's provisioning step SHALL provision the memory store in every new install: it SHALL create the `<repo>-memory` D1 database, and the private R2 bucket of the same name when R2 is enabled, apply the memory migrations, and use the user token to mint a separate memory token that carries only D1 permissions, plus R2 permissions when a bucket exists. It SHALL write that token to the git-ignored `.env`, SHALL NOT set it as a CI secret, and SHALL record the resource ids under `components.memory` in `.claude/.wong-stack.json`. A run that finds the store already provisioned SHALL change nothing. Minting the memory token is covered by the same pre-authorization as the widen. Creating the database and bucket SHALL still require asking, as other billable resources do.
+Setup's provisioning step SHALL provision the memory store in every new install: it SHALL create the `<repo>-memory` D1 database, and the private R2 bucket of the same name when R2 is enabled, deploy the account's memory Worker or attach the repo to it, apply the memory migrations with the user token, and create an admin key for the installer's git email, as `memory-worker` requires. It SHALL write that key to the git-ignored `.env` as `CLOUDFLARE_MEMORY_TOKEN` without printing it, SHALL NOT mint a Cloudflare token for memory, SHALL NOT set the key as a CI secret, and SHALL record the resource ids and the Worker URL under `components.memory` in `.claude/.wong-stack.json`. A run that finds the store already provisioned SHALL change nothing. Deploying the memory Worker and creating the key are covered by the same pre-authorization as the widen. Creating the database and bucket SHALL still require asking, as other billable resources do.
 
-Before it creates the bucket, the step SHALL check whether R2 is enabled on the account. R2 needs a payment method on file even inside its free tier, and an API token cannot enable it. When R2 is not enabled, the step SHALL provision the database and the token without a bucket, record the absence under `components.memory`, and report that transcripts are not stored, with the dashboard step that turns R2 on. A later run that finds R2 enabled SHALL add the bucket and SHALL add R2 permissions to the existing memory token.
+Before it creates the bucket, the step SHALL check whether R2 is enabled on the account. R2 needs a payment method on file even inside its free tier, and an API token cannot enable it. When R2 is not enabled, the step SHALL provision the database and the key without a bucket, record the absence under `components.memory`, and report that transcripts are not stored, with the dashboard step that turns R2 on. A later run that finds R2 enabled SHALL add the bucket and SHALL attach it to the memory Worker; the key does not change.
 
 #### Scenario: The memory token is narrow
 
-- **WHEN** provisioning mints the memory token
-- **THEN** the token carries D1 permissions, and R2 permissions only when a bucket exists, and no token-write, Worker, or Access permission
+- **WHEN** provisioning creates the installer's memory key
+- **THEN** the key opens only this repo's memory store through the memory Worker, and no Cloudflare token is minted for memory
 - **AND** it is written to `.env` and not to any CI secret
 
 #### Scenario: R2 is not enabled
 
 - **WHEN** provisioning creates the memory store on an account where R2 is not enabled
-- **THEN** it creates the memory database and token, and no bucket
+- **THEN** it creates the memory database and key, and no bucket
 - **AND** it reports that transcripts are not stored and names the dashboard step that enables R2
 
 #### Scenario: R2 is enabled later
 
 - **WHEN** a later run finds R2 enabled and the store has no bucket
-- **THEN** it creates the bucket, adds R2 permissions to the memory token, and records the bucket
+- **THEN** it creates the bucket, attaches it to the memory Worker, and records the bucket
 
 #### Scenario: Provisioning runs again
 
-- **WHEN** the memory store and token already exist and verify
+- **WHEN** the memory store, the Worker attachment, and the key already exist and verify
 - **THEN** the run reports the store as current and creates nothing

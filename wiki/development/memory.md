@@ -35,13 +35,35 @@ The same background run tidies the live facts once 24 hours and five captured se
 
 ## The memory token
 
-`CLOUDFLARE_MEMORY_TOKEN` reads and writes the store. **This page owns that name.** [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store) mints it with `D1 Write`, plus `Workers R2 Storage Write` when the store has a bucket, on this account only, and writes it to the ignored `.env` under [the secrets convention](secrets.md). It is **never** a GitHub secret, so CI cannot read transcripts. When the user token cannot mint tokens, create this one by hand with those permissions.
+`CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**: it opens this repo's store and nothing else. **This page owns that name.** It lives in the ignored `.env` under [the secrets convention](secrets.md), and it is **never** a GitHub secret, so CI cannot read transcripts.
+
+Every memory call goes through the account's **memory Worker**, `wong-memory`. One Worker serves every repo in a Cloudflare account, home included. It is not part of any app, and it can reach only the memory databases and buckets. A small `wong-memory-keys` database holds a hash of each key; no key can read or change it. No person holds a Cloudflare token for memory, because Cloudflare's D1 permissions reach every database in the account, the app's too.
+
+A key has one of two roles:
+
+- **Admin:** the person who ran setup. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store) writes their key to `.env`. They read every transcript in the store.
+- **Member:** a teammate. They read and write facts like the admin, but they read only their own transcripts.
 
 Who can read what, stated plainly:
 
-- Everyone with the memory token can read every teammate's raw transcripts.
-- D1 permissions are account-wide in Cloudflare, so the memory token can also read the app's databases in that account.
+- Facts are shared. In a team, the digest and search show only your own `user` and `feedback` facts, matched on every email on your [people page](../wiki-style.md#people). `project` and `thread` facts come from everyone. `memory.mjs search --everyone` shows all.
+- Transcripts are filed under their author's email. A member reads only their own; the admin reads all, including ones filed before keys existed.
+- A member can still write a fact under another name or delete rows. Give keys only to people you trust with the store; D1 restores a database to any time in the last 30 days.
 - A secret that was never in `.env` stays in the raw transcript. Use `#private` for sessions that handle one.
+
+### Add or remove a teammate
+
+The admin runs these with `CLOUDFLARE_API_TOKEN`, the [user token](../stack/cloudflare-credentials.md):
+
+```bash
+node .claude/skills/memory/scripts/memory.mjs member add ana@example.com   # prints Ana's key once
+node .claude/skills/memory/scripts/memory.mjs member remove ana@example.com
+node .claude/skills/memory/scripts/memory.mjs member list
+```
+
+Send the key privately. The teammate puts it in the `.env` of their main checkout as `CLOUDFLARE_MEMORY_TOKEN`. The first member makes the repo a team: `member add` sets `components.memory.team` in `.claude/.wong-stack.json`, so save that change. Adding an email again replaces its key, and `member remove` stops a key at once.
+
+`memory.mjs worker deploy` deploys or updates the Worker and attaches this repo, keeping every other repo's attachment. Setup and [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) run it for you. The Worker's URL is recorded as `components.memory.worker`; it is not a secret.
 
 ## Without R2
 
