@@ -80,6 +80,7 @@ Checked against each project's README in September 2026.
 | [`openspec/`](openspec/) | Active changes, shipped specs, and the archive of what shipped and why. |
 | [`app/`](app/) | The starter app: React and Vite on a Cloudflare Worker. |
 | [`schema/`](schema/) | The app's database migrations and staging seed data. |
+| [`server/`](server/README.md) | The script that turns a fresh Ubuntu server into a workspace for agents. Fork it to change what your servers get. |
 | [`scripts/`](scripts/) | The deploy pipeline, the payload checks, and the tests. |
 | [`.github/`](.github/) | CI workflows, issue and PR templates, and [the contributing guide](.github/CONTRIBUTING.md). |
 | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md) | The current release, and what changed in each release. |
