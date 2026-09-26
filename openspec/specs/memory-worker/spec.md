@@ -1,7 +1,7 @@
 # memory-worker Specification
 
 ## Purpose
-Put every memory call behind one memory Worker per Cloudflare account, so that a memory key reaches only its own repo's memory store, never the app's data, and each person's transcripts stay private to them and the repo's admin.
+Serve every memory call from the repo's own production Worker, so that a memory key reaches only its own repo's memory store, never the app's data, and each person's transcripts stay private to them and the repo's admin.
 ## Requirements
 ### Requirement: One memory Worker serves every store in an account
 

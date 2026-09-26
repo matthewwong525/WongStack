@@ -119,9 +119,8 @@ Derive every name from the repository name. State what you chose; never make the
                          staging    recipe-box-db-staging
                          worker     recipe-box
                          staging    recipe-box-staging  (the env.staging name)
-                         memory     recipe-box-memory   (database and bucket)
-                         shared     wong-memory         (the account's memory Worker,
-                                    wong-memory-keys     and its keys database)
+                         memory     recipe-box-memory   (database and bucket, bound
+                                                         to the production Worker only)
                          CI token   recipe-box-deploy
 ```
 
@@ -131,22 +130,22 @@ Apply the id-free config fragments now — `package.json` scripts, `.env.example
 
 ### 4b. The memory store
 
-[The memory convention](../../../../wiki/development/memory.md) owns what it holds and who can read it. It is a separate database with no staging twin, and the app's Worker never binds it.
+[The memory convention](../../../../wiki/development/memory.md) owns what it holds and who can read it. It is a separate database with no staging twin. Only the production Worker binds it, for the memory route under `/_memory/`; staging and previews never do.
 
 1. **Is R2 on?** `GET /accounts/{account_id}/r2/buckets`. Success means yes. An error that says to enable R2 means no: R2 needs a payment method on file, and no token can turn it on. Give the dashboard step (**Storage & databases → R2 → Overview → add the R2 subscription**) and continue without a bucket: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
 2. **The database.** Reuse `<repo>-memory` from `GET /accounts/{account_id}/d1/database`, or `POST` it.
 3. **The bucket, only when R2 is on.** Reuse or `POST /accounts/{account_id}/r2/buckets` with `{"name":"<repo>-memory"}`. Buckets are private by default; never turn on public access.
-4. **Record** the ids under `components.memory` in `.claude/.wong-stack.json` — `accountId`, `databaseId`, `database`, and `bucket` (or `null`). They are not secrets.
-5. **Attach the memory Worker.** With `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`, run `$M worker deploy`. It creates the account's `wong-memory` Worker and `wong-memory-keys` database the first time, attaches this repo's database and bucket, keeps every other repo's attachment, and records the Worker URL. It needs `Workers Scripts Write` and `D1 Write`; widen for a permission it names.
-6. **Apply the schema** with `$M migrate`. With a Worker recorded, it runs with `CLOUDFLARE_API_TOKEN`.
-7. **The admin key.** Run `$M member add "$(git config user.email)" --admin --env`. It writes the key to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env` and never prints it. Mint no Cloudflare token for memory. **Never** set the key as a GitHub secret: CI must not read transcripts.
-8. **Verify** with `$M digest`: it reads through the Worker with the new key.
+4. **Record** the ids under `components.memory` in `.claude/.wong-stack.json` — `accountId`, `databaseId`, `database`, and `bucket` (or `null`) — and the memory URL as `worker`: `https://<worker>.<subdomain>.workers.dev/_memory`, with `<subdomain>` from `GET /accounts/{account_id}/workers/subdomain`. None of them is a secret.
+5. **Apply the schema.** With `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`, run `$M migrate`. With a Worker recorded, it runs with `CLOUDFLARE_API_TOKEN`.
+6. **The admin key.** Run `$M member add "$(git config user.email)" --admin --env`. It writes the key to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env` and never prints it. It needs `D1 Write`; widen if it names it. Mint no Cloudflare token for memory. **Never** set the key as a GitHub secret: CI must not read transcripts.
 
-**Re-runs.** A store that verifies is current; create nothing. A store with no bucket, on an account that now has R2, gets its bucket: create it, record it, and run `$M worker deploy` to attach it. The key does not change.
+[4c](#4c-the-two-app-databases-and-the-config) binds the store in the production Worker's config. Memory answers once CI deploys production; until then, facts wait in the local spool. [4g](#4g-smoke-test-what-you-built) checks it.
 
-**Moving an older store.** A store with no `components.memory.worker` still reaches Cloudflare with an old `<repo>-memory` token. Move it in this order:
-1. Run steps 5 and 7.
-2. Check `$M digest` through the Worker.
+**Re-runs.** A store that verifies is current; create nothing. A store with no bucket, on an account that now has R2, gets its bucket: create it, record it, add `MEMORY_BUCKET` to the production config, and give `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key does not change.
+
+**Moving an older store.** A store whose `CLOUDFLARE_MEMORY_TOKEN` is an old `<repo>-memory` Cloudflare token (not a `wongm_` key) moves to the production Worker. The token keeps working until the last step, because only a memory key goes to the Worker.
+1. In the sync change: the memory route in `app/worker/index.ts` (the [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold)'s one import and branch), `MEMORY_DB` and `MEMORY_BUCKET` in the production config as in 4c, `worker` in the install record as in step 4, the R2 row on `<repo>-deploy` when the store has a bucket, and `$M migrate`.
+2. After that change merges and production deploys, run step 6, then check `$M digest` through the Worker.
 3. Only when that passes, delete the old token: find `<repo>-memory` in `GET /user/tokens`, then `DELETE /user/tokens/{id}`.
 
 If the check fails, put the old token back in `.env` and stop. Teammates who held the old token need a member key: [add a teammate](../../../../wiki/development/memory.md#add-or-remove-a-teammate).
@@ -155,7 +154,7 @@ If the check fails, put the old token back in `.env` and stop. Teammates who hel
 
 `GET /accounts/{account_id}/d1/database` first — reuse by name. Otherwise `POST` each: production, and a staging copy that branch deploys run against, so a branch can never write to real data. Say it in those terms: *"Two databases: the real one, and a practice one your test versions use."*
 
-Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
+Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The memory store from 4b goes at the top level only: `MEMORY_DB`, and `MEMORY_BUCKET` when it has a bucket. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
 
 ### 4d. The CI deploy token
 
@@ -213,6 +212,8 @@ curl -s -o /dev/null -w '%{http_code}' "https://<worker>.<subdomain>.workers.dev
 ```
 
 A public app returns `200`. Retry across the propagation window before calling it a failure, and on a real mismatch name the request and what it returned. An app behind a login wall is checked by [the Access runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser), not here.
+
+Once production has deployed, check memory with `$M digest`: it reads through the production Worker with the admin key from 4b. Until the first production deploy, the memory route does not exist and the digest reports that the Worker does not answer yet.
 
 ## Step 5 — the closing report
 

@@ -18,7 +18,8 @@ test('a recorded migration never runs again', async () => {
   assert.match(again.stdout, /up to date/);
   assert.equal(env.fake.calls.length - calls, 2, 'a second run only reads what is recorded');
   assert.equal(rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n, before);
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, 1);
+  const files = readdirSync(new URL('../../.agents/skills/memory/migrations/', import.meta.url)).filter(name => name.endsWith('.sql'));
+  assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, files.length);
 });
 
 test('a fact is never edited or deleted; a later fact supersedes it', async () => {

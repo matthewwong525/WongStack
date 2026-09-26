@@ -60,7 +60,7 @@ Writing is two calls, the **write gate**:
 
 ## Team access
 
-The admin adds and removes teammates with `member add <email>`, `member remove <email>`, and `member list`, and updates the account's memory Worker with `worker deploy`. All four need `CLOUDFLARE_API_TOKEN`. [Add or remove a teammate](../../../wiki/development/memory.md#add-or-remove-a-teammate) owns the steps. Never write a member's key to a file or a fact: `member add` prints it once for the admin to send.
+The admin adds and removes teammates with `member add <email>`, `member remove <email>`, and `member list`. All three need `CLOUDFLARE_API_TOKEN`. The memory route ships in the app's production Worker, so CI deploys it with the app. [Add or remove a teammate](../../../wiki/development/memory.md#add-or-remove-a-teammate) owns the steps. Never write a member's key to a file or a fact: `member add` prints it once for the admin to send.
 
 ## Background run
 

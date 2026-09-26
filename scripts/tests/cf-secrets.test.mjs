@@ -42,6 +42,22 @@ test('a correctly twinned queue consumer passes', t => {
   assert.equal(result.status, 0, result.output);
 });
 
+test('the memory bindings are production-only; any other untwinned binding still fails', t => {
+  const memoryOnly = check(t, {
+    d1_databases: [{ binding: 'DB', database_name: 'app-db' }, { binding: 'MEMORY_DB', database_name: 'app-memory' }],
+    r2_buckets: [{ binding: 'MEMORY_BUCKET', bucket_name: 'app-memory' }],
+    env: { staging: { d1_databases: [{ binding: 'DB', database_name: 'app-db-staging' }] } },
+  });
+  assert.equal(memoryOnly.status, 0, memoryOnly.output);
+  const untwinned = check(t, {
+    r2_buckets: [{ binding: 'MEMORY_BUCKET', bucket_name: 'app-memory' }, { binding: 'UPLOADS', bucket_name: 'app-uploads' }],
+    env: { staging: {} },
+  });
+  assert.equal(untwinned.status, 1);
+  assert.match(untwinned.output, /binding 'UPLOADS' is declared at the top level/);
+  assert.doesNotMatch(untwinned.output, /MEMORY_BUCKET/);
+});
+
 test('a queue consumer missing from staging fails and names both counts', t => {
   const result = check(t, {
     queues: queues('app-jobs', ['app-jobs']),

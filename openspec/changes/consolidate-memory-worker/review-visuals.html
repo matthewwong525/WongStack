@@ -1,0 +1,44 @@
+<section class="visual flow" id="one-worker" data-kind="flow" data-states="after today deploy">
+  <p class="caption">Where a memory call goes, today (21.0.0) and after this change, and how memory ships.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="after-client"><h3><code>memory.mjs</code> sends a memory call</h3><p>A member or the admin, with a memory key (<code>wongm_...</code>).</p><details><summary>Details</summary><p>Actor: <code>memory.mjs</code>. Action: send the D1 query or R2 request to the recorded URL, <code>https://&lt;worker&gt;.&lt;subdomain&gt;.workers.dev/_memory</code>. Result: the request reaches the repo's own app Worker.</p></details></div>
+      <p class="flow-connector">↓ Which Worker answers?</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="after-production"><h3>Production Worker <code>&lt;repo&gt;</code> <span class="tag">Changed</span> <i class="callout">1</i></h3><p><code>/_memory/*</code> goes to the memory module. All other paths go to the app.</p><details><summary>Details</summary><p>Actor: the app Worker. Action: check the key hash, then run the call on its bindings. Bindings: <code>DB</code> (the app), <code>MEMORY_DB</code>, and <code>MEMORY_BUCKET</code>. Result: the same endpoints and shapes as 21.0.0.</p></details></div>
+        <div class="flow-branch" data-target-id="after-staging"><h3>Staging Worker and previews <span class="tag">Changed</span> <i class="callout">2</i></h3><p>No memory bindings. <code>/_memory/*</code> answers 404.</p><details><summary>Details</summary><p>Actor: the staging Worker or a preview. Action: none for memory. Result: HTTP 404. A branch cannot read or write memory.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Production only</p>
+      <div class="step flow-card" data-target-id="after-store"><h3>The repo's memory store <span class="tag">Changed</span> <i class="callout">3</i></h3><p>The memory database, with a <code>memory_keys</code> table inside it, and the bucket.</p><details><summary>Details</summary><p>Actor: the memory module. Action: refuse every statement that names <code>memory_keys</code> or <code>writable_schema</code>. Result: no key can read or change keys. A key from another repo is not in this table, so it gets HTTP 401.</p></details></div>
+    </div><p><a href="#/one-worker/deploy">See how memory ships</a></p></div>
+    <div class="state state-today"><h2>Today (21.0.0)</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-client"><h3><code>memory.mjs</code> sends a memory call</h3><p>With a memory key, to the account's shared Worker.</p><details><summary>Details</summary><p>Actor: <code>memory.mjs</code>. Action: send the call to the <code>wong-memory</code> URL. Result: the call does not touch the repo's app Worker.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-shared"><h3>Shared Worker <code>wong-memory</code>, one per account</h3><p>Binds every repo's memory database and bucket, and <code>KEYS</code>.</p><details><summary>Details</summary><p>Actor: the shared Worker. Action: find the binding for the database id or bucket name in the path. Result: the binding list grows with each repo, and a person deploys it with <code>memory.mjs worker deploy</code>.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="today-stores"><h3>Each repo's memory store</h3><p>A memory database and a bucket for each repo.</p><details><summary>Details</summary><p>Actor: the shared Worker. Action: run the call on the matched binding. Result: one Worker serves many stores.</p></details></div>
+        <div class="flow-branch" data-target-id="today-keys"><h3><code>wong-memory-keys</code> database</h3><p>The key hashes for all repos. One more D1 database.</p><details><summary>Details</summary><p>Actor: the shared Worker. Action: check the key hash. Result: no request path reaches this database.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Separate from memory</p>
+      <div class="step flow-card" data-target-id="today-app"><h3>App Worker <code>&lt;repo&gt;</code></h3><p>Serves the app only. CI deploys it.</p><details><summary>Details</summary><p>Actor: CI. Action: deploy the app on each push. Result: the app and memory are two things to deploy and manage.</p></details></div>
+    </div></div>
+    <div class="state state-deploy"><h2>How memory ships</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="deploy-push"><h3>A push to GitHub</h3><p>A memory change is app code now.</p><details><summary>Details</summary><p>Actor: a person or <code>/save</code>. Action: push a commit. Result: <code>deploy.yml</code> runs <code>cf-build.sh</code> and <code>cf-deploy.sh</code>.</p></details></div>
+      <p class="flow-connector">↓ Which branch?</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="deploy-main"><h3>Merge to <code>main</code> <span class="tag">Changed</span> <i class="callout">4</i></h3><p>CI deploys the production Worker with <code>MEMORY_DB</code> and <code>MEMORY_BUCKET</code>.</p><details><summary>Details</summary><p>Actor: CI, with the deploy token. Action: <code>wrangler deploy</code> from <code>app/wrangler.jsonc</code>. Result: the memory route goes live. The token needs <code>Workers R2 Storage Write</code> when the store has a bucket.</p></details></div>
+        <div class="flow-branch" data-target-id="deploy-branch"><h3>Any other branch</h3><p>CI deploys the staging Worker and a preview, with no memory bindings.</p><details><summary>Details</summary><p>Actor: CI. Action: <code>wrangler deploy --env staging</code>, then a preview upload. Result: <code>/_memory/*</code> answers 404 there. CI never migrates the memory database as the app's.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Not through the Worker</p>
+      <div class="step flow-card" data-target-id="deploy-admin"><h3>Admin commands go straight to Cloudflare <span class="tag">Changed</span> <i class="callout">5</i></h3><p><code>member add</code>, <code>member remove</code>, <code>member list</code>.</p><details><summary>Details</summary><p>Actor: the admin. Action: run the command with <code>CLOUDFLARE_API_TOKEN</code>. Result: it writes <code>memory_keys</code> through the Cloudflare D1 REST API. No person runs a memory deploy; <code>memory.mjs worker deploy</code> is removed.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes"><ol>
+    <li>Memory moves into the app Worker that every install already has. Per account, one Worker and one D1 database are fewer. The risk: a failed production deploy also stops memory, and app code can reach the memory bindings.</li>
+    <li>Only production gets the bindings, so a branch or preview cannot read transcripts. The 404 also makes a new install spool its facts until the first production deploy.</li>
+    <li>The keys table sits in the memory database because a separate keys database per repo costs one of the free plan's 10 D1 databases. The Worker ignores the database id and bucket name in the path, because it serves one store.</li>
+    <li>The bindings come from the stack pack's <code>wrangler.jsonc</code> fragment, in production only. <code>secrets:check</code> does not ask staging for a <code>MEMORY_*</code> twin.</li>
+    <li>Key management never passes through the Worker, so no memory key, not even the admin's, can change keys.</li>
+  </ol></div>
+</section>

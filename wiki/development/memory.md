@@ -37,7 +37,9 @@ The same background run tidies the live facts once 24 hours and five captured se
 
 `CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**: it opens this repo's store and nothing else. **This page owns that name.** It lives in the ignored `.env` under [the secrets convention](secrets.md), and it is **never** a GitHub secret, so CI cannot read transcripts.
 
-Every memory call goes through the account's **memory Worker**, `wong-memory`. One Worker serves every repo in a Cloudflare account, home included. It is not part of any app, and it can reach only the memory databases and buckets. A small `wong-memory-keys` database holds a hash of each key; no key can read or change it. No person holds a Cloudflare token for memory, because Cloudflare's D1 permissions reach every database in the account, the app's too.
+Every memory call goes through your app's **production Worker**, under `/_memory/`. It binds the memory database as `MEMORY_DB` and the bucket as `MEMORY_BUCKET`; the staging Worker and previews bind neither, and answer 404. CI deploys the route with the app on each merge to `main`, so no one deploys memory by hand. The route's code lives in [the memory skill](../../.agents/skills/memory/SKILL.md), so [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps it current; `app/worker/index.ts` only imports it. A `memory_keys` table in the memory database holds a hash of each key. The route refuses any statement that names that table, so no key can read or change it. No person holds a Cloudflare token for memory, because Cloudflare's D1 permissions reach every database in the account, the app's too.
+
+Two costs come with one Worker. A failed production deploy stops memory too; facts wait in the local spool and go through on the next run. And the app's own code can read `MEMORY_DB` and `MEMORY_BUCKET`, so a bug there could expose transcripts: keep every other route away from them.
 
 A key has one of two roles:
 
@@ -65,7 +67,7 @@ node .claude/skills/memory/scripts/memory.mjs member list
 
 Send the key privately. The teammate puts it in the `.env` of their main checkout as `CLOUDFLARE_MEMORY_TOKEN`. The first member makes the repo a team: `member add` sets `components.memory.team` in `.claude/.wong-stack.json`, so save that change. Adding an email again replaces its key, and `member remove` stops a key at once.
 
-`memory.mjs worker deploy` deploys or updates the Worker and attaches this repo, keeping every other repo's attachment. Setup and [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) run it for you. The Worker's URL is recorded as `components.memory.worker`; it is not a secret.
+The route's URL, `https://<worker>.<subdomain>.workers.dev/_memory`, is recorded as `components.memory.worker`; it is not a secret. Only a memory key (`wongm_...`) goes there. An older store whose `CLOUDFLARE_MEMORY_TOKEN` is still a Cloudflare token keeps using the Cloudflare API until [setup's runbook moves it](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store).
 
 ## Without R2
 

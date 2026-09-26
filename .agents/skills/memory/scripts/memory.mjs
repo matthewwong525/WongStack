@@ -403,7 +403,8 @@ async function spool(ctx) {
 }
 
 // Apply each migration not yet in schema_migrations, then record it; a recorded one never runs again.
-// With a memory Worker, migrations go straight to Cloudflare with the admin's token (see openStore).
+// With a memory Worker recorded, migrations go straight to Cloudflare with the admin's token (see openStore):
+// the Worker refuses the keys table, and a Worker's D1 binding runs one statement at a time.
 async function migrate(ctx) {
   const store = openStore(ctx, { admin: Boolean(loadConfig(ctx).worker) });
   const [{ n }] = await store.query("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'");
@@ -445,8 +446,7 @@ const USAGE = `usage: memory.mjs <command>
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   pending [--limit n] [--exclude ids]   strip <session-id>   live   digest   stats   spool   due
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
-  migrate                      (with a memory Worker, runs with the admin's CLOUDFLARE_API_TOKEN)
-  worker deploy                deploy the account's memory Worker and attach this repo (admin)
+  migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)
   member add <email> [--admin] [--env] | member remove <email> | member list   memory keys for this repo (admin)`;
 
 if (isMain(import.meta.url)) {

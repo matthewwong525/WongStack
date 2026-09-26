@@ -5,7 +5,8 @@
       "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
       "databaseId": "dd7fc25d-9325-4ad5-945e-f4a336549c52",
       "database": "wongstack-memory",
-      "bucket": "wongstack-memory"
+      "bucket": "wongstack-memory",
+      "worker": "https://wongstack.matthewwong525.workers.dev/_memory"
     }
   }
 }

@@ -79,6 +79,14 @@ test('a database listed before the name and a commented "staging": do not fool t
   assert.equal(databaseName(config, 'staging'), 'demo-db-staging');
 });
 
+test('the memory database is never read as the app database, in any order', t => {
+  const config = parseConfig(configFile(t, '{ "name": "demo", "d1_databases": [{ "binding": "MEMORY_DB", "database_name": "demo-memory" }, { "binding": "DB", "database_name": "demo-db" }] }'));
+  assert.equal(databaseName(config), 'demo-db');
+  const memoryOnly = parseConfig(configFile(t, '{ "name": "demo", "d1_databases": [{ "binding": "MEMORY_DB", "database_name": "demo-memory" }] }'));
+  assert.equal(hasD1(memoryOnly), false);
+  assert.throws(() => databaseName(memoryOnly), WranglerConfigError);
+});
+
 test('an environment without a name gets wrangler\'s default', () => {
   assert.equal(workerName({ name: 'demo', env: { staging: {} } }, 'staging'), 'demo-staging');
 });

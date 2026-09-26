@@ -69,7 +69,7 @@ CLOUDFLARE_ACCOUNT_ID=
 
 So each credential lives in one place: the user token in the primary worktree's git-ignored `.env`, and the deploy token in GitHub's sealed secret store. To rotate the deploy token, ask your agent; it rolls the value and sets the secret again. You see the token in the dashboard under **Manage Account → Account API Tokens**, where you or a teammate can revoke it. (A repo on the Workers Builds fallback needs no secret: that CI runs inside Cloudflare.)
 
-The session memory store needs no Cloudflare token of its own. Provisioning uses this token to deploy the account's memory Worker and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-token) owns that name and what a key can reach.
+The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-token) owns that name and what a key can reach.
 
 ## How two checkboxes become enough
 

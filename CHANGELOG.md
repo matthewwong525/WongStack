@@ -3,6 +3,24 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 22.0.0 — Memory lives in your app's production Worker
+
+**Breaking.** There is no separate memory Worker any more. Your app's production Worker serves session memory, and CI deploys it with the app.
+
+- **One Worker per repo.** `app/worker/index.ts` sends `/_memory/*` to the memory skill's route module, on the production Worker's `MEMORY_DB` and `MEMORY_BUCKET` bindings. The staging Worker and previews bind neither and answer 404. The route keeps the same requests, keys, roles, and transcript rules as 21.0.0. The shared `wong-memory` Worker and its `wong-memory-keys` database are gone.
+- **`memory.mjs worker deploy` is removed.** A merge to `main` deploys a memory change. `member add`, `member remove`, and `member list` stay, with `CLOUDFLARE_API_TOKEN`.
+- **Keys live in the memory database.** Migration `0002` adds a `memory_keys` table. The route refuses every statement that names it, so no key can read or change keys.
+- **The token picks the route.** A memory key (`wongm_...`) goes to `components.memory.worker`, now `https://<worker>.<subdomain>.workers.dev/_memory`. Any other token goes to the Cloudflare API, as before. Before production first deploys the route, a key's facts wait in the spool.
+- **The pipeline knows the memory bindings.** `secrets:check` does not ask staging to twin a `MEMORY_*` binding, and `cf-build.sh` never reads `MEMORY_DB` as the app's database. The [`wrangler.jsonc` fragment](.agents/skills/wong-sync/references/stack-pack-fragments.md#wranglerjsonc--the-worker-entry-bindings-and-envstaging) gains both bindings at the top level only.
+- **Access.** Keep `workers.dev` on for the production Worker, or bypass `/_memory/*`: [the Access page](wiki/stack/cloudflare-access.md#4-bypass-the-public-surface).
+
+**Updating.** `/wong-sync` plans the move through [setup's provisioning runbook](.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store):
+1. The sync change adds the route to `app/worker/index.ts`, the memory bindings to `app/wrangler.jsonc`, and `worker` to the install record. It runs `memory.mjs migrate`, and gives `<repo>-deploy` R2 access when the store has a bucket.
+2. After it merges and production deploys, run `memory.mjs member add <your git email> --admin --env`, then `memory.mjs digest`.
+3. Only then, delete the old `<repo>-memory` Cloudflare token.
+
+Until step 2, the store keeps working with the old token. Teammates who held that token need a member key from the admin.
+
 ## 21.0.0 — Team memory: every memory call goes through one memory Worker per account
 
 **Breaking.** Every install changes how it reaches its memory store. No person holds a Cloudflare token for memory any more, because D1 permissions reach every database in the account, the app's production database included.
