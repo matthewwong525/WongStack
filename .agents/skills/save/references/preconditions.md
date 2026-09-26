@@ -6,6 +6,6 @@
 |---|---|---|
 | `gh auth status` | `gh` is signed out or its token expired | `gh auth login` |
 | `git remote get-url origin` | the repository has no `origin` | `gh repo create --source . --remote origin` for a new GitHub repository, or `git remote add origin <url>` for one that exists |
-| `openspec --version` | the OpenSpec CLI is not installed | `npm install -g @fission-ai/openspec@1.8.0` |
+| `openspec --version` | the OpenSpec CLI is not installed | `npm install -g @fission-ai/openspec@1.13.2` |
 
 Run each check once per verb, not before each command. [Required tools](../../../../wiki/development/required-tools.md) owns why each tool is needed; [the git gate](git-gate.md) reads a `gh pr view` failure against this page.

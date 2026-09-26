@@ -1,7 +1,7 @@
 # secrets-convention Specification
 
 ## Purpose
-TBD - created by archiving change secrets-convention. Update Purpose after archive.
+Keep credentials out of git while every clone knows what it needs: a committed, values-blank `.env.example` names each variable, and real values live in one git-ignored store at the primary worktree that every linked worktree and skill reads.
 ## Requirements
 
 ### Requirement: A stack-neutral secrets-example convention ships in the payload
