@@ -68,15 +68,15 @@ test('evidence preserves sources, rename paths, ambiguity, and remote isolation 
   }
 });
 
-test('selected root and base, legacy matches, and invalid refs remain explicit', t => {
+test('selected root and base, same-name folders, and invalid refs remain explicit', t => {
   const root = fixture(t);
   file(root, 'planning/changes/editor-work/proposal.md', '# Other root\n');
   file(root, 'planning/changes/archive/2026-09-22-editor-work/proposal.md', '# Archived\n');
   const result = checkpointEvidence({ repo: root, changesDir: 'planning/changes', base: 'main' });
   assert.deepEqual(result.active, ['editor-work']);
   assert.deepEqual(result.archive, ['2026-09-22-editor-work']);
-  assert.deepEqual(result.legacy.active, ['editor-work']);
-  assert.deepEqual(result.legacy.archive, ['2026-09-22-editor-work']);
+  assert.deepEqual(result.recorded, []);
+  assert.equal('legacy' in result, false);
   file(root, 'planning/changes/blank/proposal.md', '# Blank\n**Branch:**\neditor-work\n');
   assert.deepEqual(checkpointEvidence({ repo: root, changesDir: 'planning/changes' }).recorded, []);
   assert.throws(() => checkpointEvidence({ repo: root, ref: 'missing' }));

@@ -8,7 +8,7 @@ user-invocable: true
 
 Get the latest WongStack source, check that the target is an empty folder, get the Cloudflare token, then invoke `/explore` with the setup intent.
 
-Follow [latest source](../wong-sync/references/latest-source.md). From a pasted URL, first obtain `https://github.com/matthewwong525/WongStack` in a separate local checkout, then read that reference there. Do not set up the source repo itself. A target with a real install record at `.claude/.wong-stack.json` (or legacy `.claude/.wong-framework.json`) goes straight to `/wong-sync`.
+Follow [latest source](../wong-sync/references/latest-source.md). From a pasted URL, first obtain `https://github.com/matthewwong525/WongStack` in a separate local checkout, then read that reference there. Do not set up the source repo itself. A target with a real install record at `.claude/.wong-stack.json` goes straight to `/wong-sync`.
 
 ## Start from an empty folder
 
@@ -28,7 +28,7 @@ Then run Step 1 of the [provisioning runbook](references/cloudflare.md). It chec
 
 Invoke `/explore` with this description, filled with the target, source version, path, commit, and the user's intent:
 
-> Set up WongStack in this empty folder using <source path>, version <version>, commit <commit>. Ask how the user and their team will work. Install the full payload from the source inventory: the workflow skills, the knowledge surfaces, the stack pack, the app scaffold, and the UI pages, in a real `.agents/` folder with `.claude` and `.codex` links to it. Include the required wiki hubs, environment ignore rules, and the install record with `components.stackPack`, `components.appScaffold`, and `components.ui` set to `true`. After the payload lands, run the provisioning runbook at <source path>/.agents/skills/wong-setup/references/cloudflare.md, Steps 2–5. Carry this through the normal workflow to the stage the user requested.
+> Set up WongStack in this empty folder using <source path>, version <version>, commit <commit>. Ask how the user and their team will work. Install the full payload from the source inventory: the workflow skills, the knowledge surfaces, the stack pack, the app scaffold, and the UI pages, in a real `.agents/` folder with `.claude` and `.codex` links to it. Include the required wiki hubs, environment ignore rules, and the install record. After the payload lands, run the provisioning runbook at <source path>/.agents/skills/wong-setup/references/cloudflare.md, Steps 2–5. Carry this through the normal workflow to the stage the user requested.
 
 Let `/explore` own questions and `/plan` own the plan; any question this skill asks itself uses [the shared ask format](../explore/references/asking-the-user.md). Ask no component question: an empty folder takes everything. Keep `/apply` responsible for the install and the provisioning runbook, and `/save` for Git identity, commits, and the checkpoint whose push starts the first deploy.
 

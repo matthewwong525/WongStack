@@ -26,8 +26,7 @@ prose is correct; **editing** through it is not.
 
 **`grep -r` does not follow symlinks.** A repo-wide grep reports hits under `.agents/` and none under
 `.claude/`, so a sweep that searches for `.claude/skills/...` — or that counts how many files state a
-rule — will under-count. This is not hypothetical: the `widen-save-prose-fast-path` change audited
-five sites, missed a sixth, and found it only during implementation.
+rule — will under-count.
 
 When you need every occurrence, search `.agents/` (and `AGENTS.md`), or pass `grep -r --dereference-recursive`
 if you specifically want the `.claude/` names in the output.

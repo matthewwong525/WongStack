@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Fixed source-load accounting, not a runtime token estimator.
-import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain, parseCli } from './lib-cli.mjs';
 
 const verbs = ['explore', 'plan', 'apply', 'save', 'continue', 'ship', 'verify'];
 const canonical = path => path.replace(/^\.claude\//, '.agents/');
@@ -60,19 +61,18 @@ export function measureContext(root, baseline) {
   return { baseline: baseline.revision, metric: 'Source words and UTF-8 bytes; not measured runtime tokens', assumptions: baseline.notes, categories, routes, inventory, issues };
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
+  const { values } = parseCli({ usage: 'usage: measure-context.mjs [--json] [--check]', options: { json: { type: 'boolean' }, check: { type: 'boolean' } } });
   try {
-    const args = process.argv.slice(2);
     const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
     const report = measureContext(root, JSON.parse(readFileSync(join(root, 'scripts/fixtures/context-baseline.json'), 'utf8')));
-    if (args.some(arg => !['--json', '--check'].includes(arg))) throw new Error('usage: measure-context.mjs [--json] [--check]');
-    if (args.includes('--json')) console.log(JSON.stringify(report, null, 2));
+    if (values.json) console.log(JSON.stringify(report, null, 2));
     else {
       console.log(report.metric);
       for (const [name, counts] of Object.entries(report.categories)) console.log(`${name}: ${counts.before.words} -> ${counts.after.words} words; ${counts.before.bytes} -> ${counts.after.bytes} bytes`);
       for (const [name, counts] of Object.entries(report.routes)) console.log(`${name}: ${counts.before.words} -> ${counts.after.words} words; ${counts.before.bytes} -> ${counts.after.bytes} bytes${counts.increaseReason ? ` (${counts.increaseReason})` : ''}`);
       for (const issue of report.issues) console.log(`ISSUE: ${issue}`);
     }
-    if (args.includes('--check') && report.issues.length) process.exitCode = 1;
+    if (values.check && report.issues.length) process.exitCode = 1;
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

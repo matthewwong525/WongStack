@@ -1360,7 +1360,7 @@ those was a place to stall. Live probing found most of it unnecessary. The manua
 
 ## 8.0.0 — staging is its own Worker; the D1 preview swap is gone
 
-**Only the [stack pack](.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-stack-pack) changes.** A repo that declined it is untouched by this release.
+**Only the [stack pack](.claude/skills/wong-sync/references/payload-manifest.md#the-stack-pack) changes.** A repo that declined it is untouched by this release.
 
 The pack isolated staging at the *binding* level: one Worker, two database ids, and `swap-d1-id.js` rewriting `wrangler.jsonc` on preview branches. That only ever covered one code path. Cloudflare Workers Builds uploads a **version** on a non-production branch, and a version serves HTTP and nothing else — queue consumers, cron triggers, and every other non-request handler run on the **deployed** version, with production bindings. So a repo that added a queue couldn't exercise it on staging at all, and staging messages were handled by production code against the production database. The unit of isolation on Cloudflare is the Worker; this release uses one.
 

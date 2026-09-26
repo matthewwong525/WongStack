@@ -19,7 +19,9 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseCli } from './lib-cli.mjs';
 
+parseCli({ usage: 'usage: check-openspec-config.mjs  (run from the repo root)' });
 const root = process.cwd();
 const candidates = ['openspec/config.yaml', 'openspec/config.yml'];
 const configPath = candidates.find((p) => existsSync(join(root, p)));

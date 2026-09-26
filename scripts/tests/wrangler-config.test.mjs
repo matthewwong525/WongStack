@@ -39,7 +39,7 @@ function repoWith(t, config) {
   const root = mkdtempSync('/tmp/wrangler-config-');
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'scripts'));
-  for (const name of ['cf-build.sh', 'cf-deploy.sh', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'reset-staging-d1.mjs']) {
+  for (const name of ['cf-build.sh', 'cf-deploy.sh', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'reset-staging-d1.mjs', 'lib-cli.mjs']) {
     copyFileSync(join(repo, 'scripts', name), join(root, 'scripts', name));
   }
   mkdirSync(join(root, 'app'));

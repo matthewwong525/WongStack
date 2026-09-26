@@ -26,7 +26,9 @@ import {
   repoRoot,
   WranglerConfigError,
 } from "./lib-wrangler-config.mjs";
+import { parseCli } from "./lib-cli.mjs";
 
+parseCli({ usage: "usage: node scripts/reset-staging-d1.mjs  (rebuilds the staging D1 from schema/seed.sql)" });
 const root = repoRoot;
 const wranglerPath = findWranglerConfig();
 const STAGING_ENV = "staging";

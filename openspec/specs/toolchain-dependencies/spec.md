@@ -14,7 +14,7 @@ Core payload scripts MAY run on Node.js, which the OpenSpec CLI already requires
 
 The **opt-in Cloudflare stack pack** MAY require additional tools — `node`/`npm` and `wrangler` in that repo's own build/CI, and `curl` in the pack's own provisioning skill — but only in a repo that explicitly took the pack. Provisioning SHALL use `curl` against the Cloudflare REST API rather than `wrangler` or a Node script, so that setting up the app requires no language runtime on the user's machine.
 
-The required-tools page SHALL state this split precisely: the three universal tools, the browser CLI scoped to `/verify`, `curl` as a provisioning dependency, and dependency-free Node scripts on the runtime OpenSpec brings. The governing rule SHALL be stated there: use a tool where it is already required, and never let a WongStack skill be the reason a *runtime* gets installed without asking.
+The required-tools page SHALL state this split precisely: the three universal tools, Node.js as a required runtime (because OpenSpec, the session-start hooks, and the dependency-free scripts run on it), the browser CLI scoped to `/verify`, and `curl` as a provisioning dependency. The governing rule SHALL be stated there: use a tool where it is already required, and never let a WongStack skill be the reason a *runtime* gets installed without asking.
 
 #### Scenario: A pack-gated script uses node where node already exists
 
@@ -32,7 +32,7 @@ The required-tools page SHALL state this split precisely: the three universal to
 
 - **WHEN** a reader consults the required-tools page to learn what the toolkit needs
 - **THEN** the browser CLI is listed as required by `/verify` specifically
-- **AND** the rest of the core payload is still stated to need only `git`, `gh`, and `openspec`
+- **AND** the rest of the core payload is stated to need `git`, `gh`, `openspec`, and the Node.js runtime that `openspec` requires
 
 #### Scenario: Walking adds no toolchain to the repo
 
@@ -148,4 +148,3 @@ Every WongStack repo SHALL require a Cloudflare account for its memory store. R2
 - **WHEN** a reader opens the required-tools page
 - **THEN** a Cloudflare account is listed as required for the memory store, and R2 is listed as optional with the payment-method step
 - **AND** the stack pack is still described as opt-in
-

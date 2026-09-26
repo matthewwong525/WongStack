@@ -5,6 +5,8 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const USAGE = 'usage: checkpoint-evidence.mjs (active|archive [ref] | --json) [--repo DIR] [--ref REF] [--base REF] [--changes-dir DIR] [--branch NAME]';
+const usageError = message => Object.assign(new Error(message), { usage: true });
 const splitNull = text => text.split('\0').filter(Boolean);
 const sorted = values => [...new Set(values)].sort();
 
@@ -77,10 +79,6 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
     active: names.filter(name => !name.startsWith('archive/')),
     archive: names.filter(name => name.startsWith('archive/')).map(name => name.slice(8)),
     recorded: branch ? sorted([...proposals].filter(([name, value]) => !name.startsWith('archive/') && value === branch).map(([name]) => name)) : [],
-    legacy: {
-      active: branch && proposals.has(branch) ? [branch] : [],
-      archive: branch ? sorted([...proposals.keys()].filter(name => name.startsWith('archive/') && name.slice(8).replace(/^\d{4}-\d{2}-\d{2}-/, '') === branch).map(name => name.slice(8))) : [],
-    },
     sources: Object.fromEntries(names.map(name => [name, sorted(sources.get(name))])),
     diagnostics: [],
   };
@@ -93,24 +91,27 @@ function parseArgs(args) {
   const keys = { '--repo': 'repo', '--ref': 'ref', '--base': 'base', '--changes-dir': 'changesDir', '--branch': 'branch' };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    if (arg === '--help') return { help: true };
     if (arg === '--json') json = true;
     else if (keys[arg]) {
-      if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`missing value for ${arg}`);
+      if (!args[i + 1] || args[i + 1].startsWith('--')) throw usageError(`missing value for ${arg}`);
       options[keys[arg]] = args[++i];
     } else if (!mode && ['active', 'archive'].includes(arg)) mode = arg;
     else if (mode && !options.ref && !arg.startsWith('-')) options.ref = arg;
-    else throw new Error(`invalid argument: ${arg}`);
+    else throw usageError(`invalid argument: ${arg}`);
   }
-  if (!json && !mode) throw new Error('expected active|archive [ref] or --json');
+  if (!json && !mode) throw usageError('expected active|archive [ref] or --json');
   return { options, mode, json };
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const { options, mode, json } = parseArgs(process.argv.slice(2));
+    const { help, options, mode, json } = parseArgs(process.argv.slice(2));
+    if (help) { console.log(USAGE); process.exit(0); }
     const result = checkpointEvidence(options);
     process.stdout.write(json ? `${JSON.stringify(result)}\n` : result[mode].map(name => `${name}\n`).join(''));
   } catch (error) {
+    if (error.usage) { console.error(`checkpoint evidence: ${error.message}\n${USAGE}`); process.exit(2); }
     console.error(`checkpoint evidence: ${error.status !== undefined ? 'Git inspection failed; check the selected root, ref, and base' : error.message}`);
     process.exitCode = 1;
   }

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { buildDigest, consolidationDue, currentSlug, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { buildDigest, consolidationDue, currentSlug, MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
@@ -129,8 +129,14 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   mkdirSync(join(env.repo.root, 'openspec/changes/add-po-search'), { recursive: true });
   writeFileSync(join(env.repo.root, 'openspec/changes/add-po-search/proposal.md'), '# x\n\n**Branch:** main\n');
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 'add-po-search', facts: [
+    { action: 'add', type: 'user', body: 'The user runs the release.' },
+    { action: 'add', type: 'reference', body: 'Dashboards live in Grafana.' },
+    { action: 'add', type: 'project', body: 'Search ships in October.' },
     { action: 'add', type: 'thread', body: 'Should search rank by recency?' },
     { action: 'add', type: 'feedback', body: 'User wants terse replies.' },
+  ] })]);
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'g.json', { source: 'save', slug: 'other-work', facts: [
+    { action: 'add', type: 'thread', body: 'Is the other change blocked?' },
   ] })]);
   claudeSession(env, 1, [['user', 'Old work.']]);
   const bin = join(env.repo.home, 'bin');
@@ -142,7 +148,7 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /# Memory digest\nFacts are dated context/);
   assert.match(result.stdout, /## Open threads on `add-po-search`\n- \[thread\] Should search rank by recency\?/);
-  assert.match(result.stdout, /## Live facts\n- \[feedback\] User wants terse replies\./);
+  assert.match(result.stdout, /## Live facts\n- \[thread\] Is the other change blocked\?.*\n- \[feedback\] .*\n- \[project\] .*\n- \[reference\] .*\n- \[user\] /);
   for (let i = 0; i < 100 && !existsSync(marker); i += 1) await new Promise(done => setTimeout(done, 100));
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
@@ -226,12 +232,20 @@ test('the background runbook runs only the granted script, sends input on stdin,
 });
 
 test('the digest stays within its limits and states what it left out', () => {
-  const facts = Array.from({ length: 400 }, (_, i) => ({ id: i + 1, slug: 's', type: 'project', body: `Fact number ${i} with some words.`, author: 'a@b', created_at: '2026-09-01T00:00:00Z' }));
-  const text = buildDigest({ facts, now: Date.parse('2026-09-11T00:00:00Z') });
+  const fact = (i, type, slug, words) => ({ id: i + 1, slug, type, body: `Fact number ${i} ${'with some words '.repeat(words)}`.trim(), author: 'a@b', created_at: '2026-09-01T00:00:00Z' });
+  const facts = Array.from({ length: 400 }, (_, i) => fact(i, 'project', 's', 1));
+  const threads = [fact(400, 'thread', 'add-po-search', 1), fact(401, 'thread', 'add-po-search', 1)];
+  const now = Date.parse('2026-09-11T00:00:00Z');
+  const text = buildDigest({ facts: [...threads, ...facts], live: 402, threads, slug: 'add-po-search', now });
   const lines = text.split('\n');
-  assert.ok(lines.length <= MAX_LINES);
-  assert.match(lines.at(-1), /^\d+ more live facts are not shown\. Search them:/);
-  assert.match(text, /- \[project\] Fact number 0 with some words\. \(s, 10d, a, #1\)/);
+  assert.equal(lines.length, MAX_LINES);
+  assert.deepEqual(lines.slice(2, 5), ['## Open threads on `add-po-search`', '- [thread] Fact number 400 with some words (add-po-search, 10d, a, #401)', '- [thread] Fact number 401 with some words (add-po-search, 10d, a, #402)']);
+  assert.equal(lines[5], '## Live facts');
+  assert.match(text, /- \[project\] Fact number 0 with some words \(s, 10d, a, #1\)/);
+  assert.equal(lines.at(-1), '367 more live facts are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search <terms>`.');
+  const long = buildDigest({ facts: Array.from({ length: 400 }, (_, i) => fact(i, 'project', 's', 20)), now });
+  assert.ok(Buffer.byteLength(long) <= MAX_BYTES && long.split('\n').length < MAX_LINES);
+  assert.match(long.split('\n').at(-1), /^\d+ more live facts are not shown\. Search them:/);
   assert.equal(buildDigest({ facts: [] }), '');
 });
 

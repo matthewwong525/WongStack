@@ -1,11 +1,6 @@
 #!/usr/bin/env node
 // Paseo schedules for this repo — the one door /routine uses for every Paseo call.
-//
-//   routine.mjs create --cron <expr> --prompt <text> --agent claude|codex
-//                      [--name <n>] [--timezone <iana>] [--model <m>] [--dry-run]
-//   routine.mjs ls
-//   routine.mjs pause|resume|run|logs|delete <name|id>
-//   routine.mjs change <name|id> [--cron <expr>] [--timezone <iana>] [--prompt <text>]
+// USAGE below lists the commands.
 //
 // Prints one JSON object on stdout. Exit codes: 0 ok, 2 bad input, 3 Paseo not
 // installed, 4 daemon not answering, 5 Paseo's client module missing or changed.
@@ -26,6 +21,12 @@ import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const EXIT = { ok: 0, input: 2, noPaseo: 3, noDaemon: 4, client: 5 };
+const USAGE = `usage: routine.mjs create --cron <expr> --prompt <text> --agent claude|codex
+                          [--name <n>] [--timezone <iana>] [--model <m>] [--dry-run]
+       routine.mjs ls
+       routine.mjs pause|resume|run|logs|delete <name|id>
+       routine.mjs change <name|id> [--cron <expr>] [--timezone <iana>] [--prompt <text>]`;
+const VALUE_FLAGS = ['cron', 'prompt', 'agent', 'name', 'timezone', 'model'];
 
 const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 
@@ -290,6 +291,7 @@ function parseArgs(argv) {
     const a = rest[i];
     if (a === '--dry-run') flags.dryRun = true;
     else if (a.startsWith('--')) {
+      if (!VALUE_FLAGS.includes(a.slice(2))) throw new RoutineError(EXIT.input, `Unknown flag ${a}.`);
       const value = rest[i + 1];
       if (value === undefined) throw new RoutineError(EXIT.input, `${a} needs a value.`);
       flags[a.slice(2)] = value;
@@ -353,6 +355,7 @@ async function run(argv, env) {
 }
 
 async function main(argv = process.argv.slice(2), env = process.env) {
+  if (argv.slice(0, 2).includes('--help')) { process.stdout.write(`${USAGE}\n`); return EXIT.ok; }
   try {
     const result = await run(argv, env);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

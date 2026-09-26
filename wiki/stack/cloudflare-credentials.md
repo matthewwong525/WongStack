@@ -99,7 +99,7 @@ The same call in reverse. Provision, then hand the extra permissions back; widen
 
 Self-widening and least privilege are mutually exclusive, and this design chose usability: you visit the dashboard once either way, so ticking two boxes instead of nine saves a real step — and it means optional features cost nothing up front. If you'd rather have least privilege, grant the specific groups above by hand and skip the widening; everything downstream works the same.
 
-Treat the token like a root password. Its one copy lives in the primary worktree's git-ignored `.env`. Provisioning never sends it to GitHub and never creates a linked-worktree copy; CI gets the [deploy token](#the-ci-deploy-token) instead. A repo installed before WongStack 18.0.0 had the user token in its GitHub secret: `/wong-sync` replaces it, and you should roll the user token's value afterward.
+Treat the token like a root password. Its one copy lives in the primary worktree's git-ignored `.env`. Provisioning never sends it to GitHub and never creates a linked-worktree copy; CI gets the [deploy token](#the-ci-deploy-token) instead.
 
 ## Access service token
 

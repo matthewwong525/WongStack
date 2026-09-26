@@ -15,6 +15,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isMain, parseCli, usageError } from "./lib-cli.mjs";
 
 /** Searched in this order. TOML is found only so it can be refused by name. */
 const CONFIG_NAMES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"];
@@ -211,13 +212,11 @@ const COMMANDS = {
   "has-d1": (path, env) => String(hasD1(parseConfig(path), env)),
 };
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [command, env] = process.argv.slice(2);
+if (isMain(import.meta.url)) {
+  const usage = `usage: node lib-wrangler-config.mjs <${Object.keys(COMMANDS).join("|")}> [env]`;
+  const [command, env, ...extra] = parseCli({ usage, allowPositionals: true }).positionals;
   const run = COMMANDS[command];
-  if (!run) {
-    console.error(`Usage: node lib-wrangler-config.mjs <${Object.keys(COMMANDS).join("|")}> [env]`);
-    process.exit(2);
-  }
+  if (!run || extra.length) usageError(usage);
   const configPath = process.env.WRANGLER_CONFIG || findWranglerConfig();
   try {
     console.log(run(configPath, env));

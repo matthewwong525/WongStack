@@ -23,24 +23,16 @@ Entering late never skips a stop: **no verb merges as a way of stopping.** A pau
 
 ### Asking before drafting
 
-`/explore` owns clarification. In standalone exploration it can ask several small groups of related questions as the discussion develops. Each group gives recommended choices, short tradeoffs, and a custom-answer path. It uses an available structured question tool, or numbered choices in chat when the user can answer but no such tool is usable.
-
-At the transition into `/plan`, there is **at most one clarification round**. This also applies when a later step such as `/apply` or `/ship` invokes planning. The round asks only unresolved material decisions, within four questions and the active tool's limit. An exit round already completed for that work counts; nested calls cannot start another. If every decision is settled, it asks nothing.
-
-After the round, remaining and later gaps become supported assumptions with reasons, including UX layout choices. An explicit return to standalone `/explore` permits more groups. This limit governs clarification; action authorization and delivery gates keep their own rules.
-
-The **80/20 test** decides what to ask: a wrong guess must make the artifacts *wrong*, not merely *different*. Scope, observable behavior, compatibility, and acceptance criteria are questions; naming, placement, and wording are assumptions. Where nobody can answer, recommended defaults are marked **assumed**. A missing tool alone does not mean nobody can answer.
-
-`/explore` writes nothing. `/plan` records answers from the full discussion and later assumptions in the proposal's Decision log, with user choices distinct from defaults. The [explore skill](../../.claude/skills/explore/SKILL.md#the-exit-round) is the runbook for the question format, tool selection, waiting, and final-round limits.
+`/explore` owns clarification. Standalone, it asks small groups of questions for as long as the thinking needs. At the transition into `/plan`, however planning was invoked, it asks **at most one round**, and only the decisions where a wrong guess makes the artifacts *wrong*, not merely *different*. Later gaps become recorded assumptions. [The exit round](../../.claude/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` records the answers in the proposal's Decision log.
 
 ## The steps
 
-- **[`/explore`](../../.claude/skills/explore/SKILL.md)** — think a problem through with related question groups, and own the single [question round](#asking-before-drafting) at the transition to planning. It **always runs**: invoke it yourself for as long as the thinking needs, or `/plan` invokes it for you in a bounded pass that reads the conversation, investigates only the gap, asks once, and returns. Reads OpenSpec context when relevant. Nothing is written yet.
-- **[`/plan`](../../.claude/skills/plan/SKILL.md)** — draft the change: a folder `openspec/changes/<name>/` holding the proposal, tasks, optional design, and optional delta specs. Invokes `/explore` first, always, and records its answers in the Decision log. Uses the CLI to build the schema-required artifacts and always produces an interactive `review.html`. Still no git. **A change that touches behavior plans its tests**: `tasks.md` carries a task to add or extend the app's test coverage, which `/apply` writes while implementing and CI then runs on every push forever. Prose-only changes get no such task, and `/save` never authors tests — coverage grows where the context is richest, not at the checkpoint.
-- **[`/apply`](../../.claude/skills/apply/SKILL.md)** — ensure the current work has an apply-ready plan, invoking `/plan` first when it does not; then implement the exact change's `tasks.md`, writing the code and checking off `- [x]` as each task lands. Uses the CLI task instructions for implementation, then invokes `/save` exactly once when every task is complete. Where the `/save` boundary falls mid-list is [one distinction](#apply-never-saves-to-stop-but-may-save-to-finish-a-task), stated below.
-- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint, the git stage: preserve explicitly named session secrets in the primary worktree while excluding their values from every durable surface; commit code + change together; push; open/update a PR whose body **mirrors the change**; wait for CI when present (auto-fixing failures; no checks → PR review is the gate); and return a preview URL. Before committing it **syncs the change** — plan sections update in place, the `**Status:**` header is maintained, a dated entry is **appended** to the `## Decision log`, and delta specs (if any) fold into `openspec/specs/` (using the save skill’s spec-sync reference). Skipped `/plan`? `/save` authors the change from your session as a fallback, so nothing ships without its handoff. It also writes the credential-redacted **session note** (`notes/<slug>.md`) as permanent cold-resume context for `/continue`. After `/ship` archives, ordinary `/save` recognizes that branch's archive and checkpoints it, so the git/PR/CI logic exists once.
-- **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name, by PR, or from the `openspec list` menu (which shows each change's Status): find the branch recorded in the proposal or the PR head, check it out, recap the proposal + the tail of its Decision log + the session note when one exists, run a counts-only drift check, then hand off to `/apply`. Picks up cold on any machine from a fresh clone.
-- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — verify the feature/default branches, archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/` through the OpenSpec CLI, invoke ordinary `/save` exactly once so that exact archive commit is pushed and gated, run [`/verify`](#verifying-the-app) once for evidence, then squash-merge and delete the remote branch worktree-safely. It owns no duplicate commit, PR, or branch-CI implementation. The walk is evidence, not a rung: every verdict but `FAILURE` reports and the merge proceeds on the gate result, and a `FAILURE` asks you whether to fix or merge anyway. On a branch with nothing to ship it invokes `/apply` first and continues once that returns — a one-go run, which therefore has **two** checkpoints (apply's completion save, then ship's archive save) and merges on [the gate](#the-gate) as always. A bare `/ship` takes that route for the thread this session established, and stops cold when there isn't one. Before archiving it reads `tasks.md`: an unfinished change is finished through `/apply`, never archived on the archive step's incomplete-task warning.
+- **[`/explore`](../../.claude/skills/explore/SKILL.md)** — think a problem through, and own the single [question round](#asking-before-drafting) before planning. It **always runs**: you invoke it, or `/plan` invokes it in a bounded pass. Nothing is written yet.
+- **[`/plan`](../../.claude/skills/plan/SKILL.md)** — draft the change: a folder `openspec/changes/<name>/` holding the proposal, tasks, optional design, optional delta specs, and an interactive `review.html`. Still no git. **A change that touches behavior plans its tests**: `tasks.md` carries a task to add or extend test coverage, which `/apply` writes and CI then runs on every push. `/save` never authors tests; coverage grows where the context is richest.
+- **[`/apply`](../../.claude/skills/apply/SKILL.md)** — ensure an apply-ready plan, invoking `/plan` first when there is none; then implement the change's `tasks.md` and invoke `/save` once when every task is complete. Where the `/save` boundary falls mid-list is [stated below](#apply-never-saves-to-stop-but-may-save-to-finish-a-task).
+- **[`/save`](../../.claude/skills/save/SKILL.md)** — checkpoint, the git stage: commit code and change together, push, open or update a PR whose body **mirrors the change**, wait for CI when present, and return a preview URL. Before committing it **syncs the change** ([the living handoff](#the-change-is-a-living-handoff-not-just-a-plan)) and records the session's **facts** in the [memory store](memory.md) for `/continue`. Skipped `/plan`? `/save` authors the change from your session, so nothing ships without its handoff. After `/ship` archives, the same `/save` checkpoints the archive, so the git, PR, and CI logic exists once.
+- **[`/continue`](../../.claude/skills/continue/SKILL.md)** — resume a change by name, by PR, or from a menu: check out its recorded branch, recap the proposal, the tail of its Decision log, and its memory facts, run a counts-only drift check, then hand off to `/apply`. Picks up cold on any machine from a fresh clone.
+- **[`/ship`](../../.claude/skills/ship/SKILL.md)** — archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`, invoke `/save` once so the archive commit is pushed and gated, run [`/verify`](#verifying-the-app) once for evidence, then squash-merge on [the gate](#the-gate). On a branch with nothing to ship it invokes `/apply` first, so a one-go run has **two** checkpoints: apply's completion save, then ship's archive save. An unfinished change is finished through `/apply`, never archived.
 
 Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
 
@@ -68,9 +60,7 @@ changes have none: the completion handoff covers them.
 
 ### Verifying the app
 
-**[`/verify`](../../.claude/skills/verify/SKILL.md)** sits *beside* the loop rather than in it. It scouts the change's own OpenSpec scenarios and matches each to the strongest probe that can observe it end to end — a browser journey for UI, a direct HTTP request probe for the request path, an existing command reading deployed state for the rest — and when any scenario is reachable it invokes `/save`, drives the journeys against the deployed preview, and posts the evidence and a verdict to the PR. Scenarios no probe reaches are listed by name as unverified. A change with nothing observable costs nothing — the scout answers `NONE` before anything is pushed. Invoke it whenever you want to see the thing working — mid-change, twice in a row, or right before `/ship`.
-
-It **gates nothing**, which is what makes it safe to run early and often. `/ship` runs it once as an evidence step and merges on the CI gate regardless of the verdict; the single exception is a `FAILURE`, which stops to ask you whether to fix or merge anyway — a decision surfaced, not a rung applied. No verdict blocks a merge on its own, and no other verb consults its result. It works in any repo on any stack — its browser is a standalone CLI installed on the machine, never a dependency added to your project — and [`staging-walkthrough.md`](staging-walkthrough.md) is its runbook.
+**[`/verify`](../../.claude/skills/verify/SKILL.md)** sits *beside* the loop rather than in it. It exercises the change's own OpenSpec scenarios against the deployed preview and posts the evidence and a verdict to the PR. It **gates nothing** ([the gate](#the-gate)), which makes it safe to run early and often. [The staging walkthrough](staging-walkthrough.md) explains how and why.
 
 ## The gate
 
@@ -91,9 +81,8 @@ subdirectory**, so an app in `app/` is covered with nothing added at the root �
 package manifest on WongStack's behalf.
 
 **The staging walkthrough is not a rung either.** `/ship` runs [`/verify`](#verifying-the-app) once for
-evidence, and merges on the gate result whatever the walk says. A walk that cannot run — not adopted,
-no credential, budget spent — never blocks anything; that property is exactly what the old
-walk-as-gate lacked, and why it was removed. The one place a walk changes what happens is a
+evidence, and merges on the gate result whatever the walk says. A walk that cannot run — no
+credential, budget spent — never blocks anything. The one place a walk changes what happens is a
 `FAILURE`, where `/ship` stops and **asks the user** to fix or merge anyway. That is a decision put
 in front of a human, not a condition evaluated by a skill: *merge anyway* is always available.
 
@@ -116,7 +105,8 @@ normal flow applies to the whole save. It never keys on file extension — markd
 is the payload and markdown under `openspec/` is the spec, and `AGENTS.md`/`CLAUDE.md`,
 `README.md`, `CHANGELOG.md`, `VERSION`, `app/**` and every config file keep the full gate. The
 allowlist is closed: a surface that isn't named here gets the gate until someone deliberately adds
-it.
+it. One exception, in the WongStack source repo only: a `wiki/` page that ships as payload is a
+release, so it takes a branch, a PR, and a `VERSION` and `CHANGELOG.md` bump.
 
 ## The change is a living handoff, not just a plan
 
@@ -130,7 +120,7 @@ it.
 
 The plan is the change folder, saved on the feature branch with the work. `/continue <name>` can find that folder on a fetched remote branch from a fresh clone. The record of what shipped is the **archived change** on the default branch plus the synced `openspec/specs/`. There are no GitHub planning or summary issues; the change *is* the plan and its archive *is* the record.
 
-**The branch and change can have different names.** The OpenSpec folder and the session's facts use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. A command first uses the change named by the user or this session. On the current branch, it next checks for a unique changed OpenSpec folder across uncommitted files and the branch diff; committed work still counts after the tree becomes clean. A saved Branch line or legacy name match can resolve a change when no folder changed. Multiple changed folders stop selection for clarification, and `/ship` will not merge a branch that carries another active change folder. Older same-name changes remain resumable.
+**The branch and change can have different names.** The OpenSpec folder and the session's facts use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. Each verb selects a change by [named rungs](../../.claude/skills/save/references/checkpoint-evidence.md#selection-rungs): the change you named or this session used, then a unique changed folder on the branch, then a Branch-line match. A branch name alone never selects a change, and `/ship` will not merge a branch that carries another active change folder.
 
 ## Spec deltas are optional
 
@@ -141,3 +131,5 @@ Most changes are `proposal.md` + `tasks.md` only. A change writes delta specs un
 Both end up working the change's `tasks.md`, but they enter from different places. **`/apply`** is the live-session implement stage: use it after `/plan`, directly after `/explore`, or with a clear new implementation request. It reuses an applicable ready change or invokes `/plan` first, and finishing every task automatically hands the result to `/save`. **`/continue`** is the *resume* on-ramp: it takes a handle (change name, PR, or the menu), checks out the branch, orients you (Status + Decision-log tail + drift check), then hands off to `/apply` and therefore gets the same completion behavior. Cold on another machine → `/continue`; already here → `/apply`.
 
 Adding a verb of your own is a matter of writing a `SKILL.md` under `.claude/skills/<name>/` and pointing at it from this page — the loop above is a convention, not a hardcoded list.
+
+Part of [working on WongStack](README.md).

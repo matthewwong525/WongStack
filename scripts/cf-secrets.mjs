@@ -54,6 +54,7 @@ import {
   repoRoot,
   WranglerConfigError,
 } from "./lib-wrangler-config.mjs";
+import { parseCli, usageError } from "./lib-cli.mjs";
 
 const STAGING_ENV = "staging";
 
@@ -486,19 +487,17 @@ function check(appDir, configPath) {
 
 /* ── entry ─────────────────────────────────────────────────────────────────── */
 
-const mode = process.argv[2];
-if (mode !== "push" && mode !== "check") {
-  console.error("Usage: node scripts/cf-secrets.mjs <push|check> [file]");
-  console.error("");
-  console.error(`  push   load ${SOURCE} into the production and staging Workers`);
-  console.error("  check  fail if the two Workers' secrets or bindings disagree");
-  console.error("");
-  console.error(
-    `  [file] push only: read a file other than ${SOURCE}. Account-credential`,
-  );
-  console.error("         files such as .env are refused.");
-  process.exit(1);
-}
+const USAGE = [
+  "usage: node scripts/cf-secrets.mjs <push|check> [file]",
+  "",
+  `  push   load ${SOURCE} into the production and staging Workers`,
+  "  check  fail if the two Workers' secrets or bindings disagree",
+  "",
+  `  [file] push only: read a file other than ${SOURCE}. Account-credential`,
+  "         files such as .env are refused.",
+].join("\n");
+const [mode, file, ...extra] = parseCli({ usage: USAGE, allowPositionals: true }).positionals;
+if (!["push", "check"].includes(mode) || extra.length || (file && mode !== "push")) usageError(USAGE);
 
 // `check` resolves the config WITHOUT exiting, because a repo with no config at
 // all is the pack's shipping state — before setup's Cloudflare provisioning runs there is
@@ -521,5 +520,5 @@ if (mode === "check" && !configPath) {
 const appDir = dirname(configPath);
 console.log(`cf-secrets: ${mode} (config: ${configPath.slice(repoRoot.length + 1)})`);
 
-if (mode === "push") push(appDir, process.argv[3]);
+if (mode === "push") push(appDir, file);
 else check(appDir, configPath);

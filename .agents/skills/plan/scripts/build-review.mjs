@@ -3,11 +3,13 @@
 import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 
 const start = '<!-- proposal:start -->';
 const end = '<!-- proposal:end -->';
 const slot = '<!-- review:visuals -->';
 const format = '<!-- wong-review:2 -->';
+const USAGE = 'usage: build-review.mjs <change-root> [--require-current]';
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
 
 function one(text, marker, name) {
@@ -73,21 +75,21 @@ export function buildReview(changeRoot, { requireCurrent = false } = {}) {
     const next = `${format}\n` + splice(titled.replace(slot, fragment.trimEnd()), proposal);
     return { kind: 'current', changed: writeIfDifferent(reviewPath, next) };
   }
-  if (requireCurrent || (existsSync(reviewPath) && readFileSync(reviewPath, 'utf8').startsWith(format))) {
-    throw new Error(`missing ${visualPath} for a current-format review`);
-  }
-  if (!existsSync(reviewPath)) return { kind: 'legacy-skip', changed: false };
-  const old = readFileSync(reviewPath, 'utf8');
-  if (!old.includes(start) || !old.includes(end)) return { kind: 'legacy-skip', changed: false };
-  return { kind: 'legacy', changed: writeIfDifferent(reviewPath, splice(old, proposal)) };
+  if (requireCurrent || existsSync(reviewPath)) throw new Error(`missing ${visualPath}`);
+  return { kind: 'no-page', changed: false };
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const root = process.argv[2];
-  if (!root) { console.error('usage: build-review.mjs <change-root> [--require-current]'); process.exitCode = 2; }
+  let args;
+  try {
+    args = parseArgs({ options: { 'require-current': { type: 'boolean' }, help: { type: 'boolean' } }, allowPositionals: true, strict: true });
+  } catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
+  const [root, ...extra] = args.positionals;
+  if (args.values.help) console.log(USAGE);
+  else if (!root || extra.length) { console.error(USAGE); process.exitCode = 2; }
   else {
     try {
-      const result = buildReview(root, { requireCurrent: process.argv.includes('--require-current') });
+      const result = buildReview(root, { requireCurrent: args.values['require-current'] === true });
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }

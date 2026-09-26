@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -79,16 +79,14 @@ test('invalid current inputs preserve the last valid page', () => fixture(root =
   assert.equal(readFileSync(page, 'utf8'), good);
 }));
 
-test('legacy refresh touches only proposal markers', () => fixture(root => {
+test('a change without a page is reported and left untouched', () => fixture(root => {
   rmSync(join(root, 'review-visuals.html'));
+  assert.deepEqual(buildReview(root), { kind: 'no-page', changed: false });
+  assert.equal(existsSync(join(root, 'review.html')), false);
   const page = join(root, 'review.html');
   writeFileSync(page, 'before<!-- proposal:start -->old<!-- proposal:end -->after');
-  assert.deepEqual(buildReview(root), { kind: 'legacy', changed: true });
-  const changed = readFileSync(page, 'utf8');
-  assert.ok(changed.startsWith('before<!-- proposal:start -->'));
-  assert.ok(changed.endsWith('<!-- proposal:end -->after'));
-  assert.match(changed, /Reduce repeated work/);
-  assert.deepEqual(buildReview(root), { kind: 'legacy', changed: false });
+  assert.throws(() => buildReview(root), /missing .*review-visuals/);
+  assert.equal(readFileSync(page, 'utf8'), 'before<!-- proposal:start -->old<!-- proposal:end -->after');
 }));
 
 test('diagnostics distinguish broken routes, state collisions, and valid links', needsDom, () => fixture(root => {

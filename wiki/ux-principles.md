@@ -91,3 +91,5 @@ What a `screen` must hold is what the rest of this page argues for:
 **A reviewer annotates in place.** Turn on Annotate and click a target inside the selected visual. The outer change list stays navigation. Unfinished text remains a draft on its original target; Save makes it feedback, and Copy notes includes saved feedback only. Notes and drafts stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
 
 Tasks cite what they build (`review.html#/list/empty`), so the picture and the brief are both in hand at implementation time.
+
+Part of [the WongStack wiki](README.md).

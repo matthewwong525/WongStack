@@ -1,6 +1,6 @@
 ---
 name: memory
-description: Search and record what this repo remembers across sessions — short typed facts in the repo's memory store, with their age, author, and source. Use to look up past decisions, preferences, and open threads, to see a topic's facts, or to follow a fact to its transcript. /explore, /save, /continue, and /ship call it; the session-start hook and its background run use its runbook.
+description: Search and record this repo's memory: short typed facts with age, author, and source. Use to look up past decisions, preferences, and open threads, see a topic's facts, or follow a fact to its transcript.
 user-invocable: true
 ---
 

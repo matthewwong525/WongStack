@@ -18,6 +18,9 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseCli } from "./lib-cli.mjs";
+
+parseCli({ usage: "usage: check-payload-links.mjs  (exits 1 when a payload link dangles)" });
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -54,8 +57,8 @@ function walk(dir) {
 // a target's own `README.md` was pointing at the wrong file anyway.
 const TARGET_PROVIDED = MANIFEST.seededBySetup.files;
 
-/** The files a target receives, given which optional categories it took. */
-function payloadFor({ pack, scaffold, ui }) {
+/** The files a target receives: every install takes every category. */
+function payload() {
   const files = new Set(["CLAUDE.md"]);
   const addCategory = (cat) => {
     if (!cat) return;
@@ -69,10 +72,7 @@ function payloadFor({ pack, scaffold, ui }) {
         .forEach((f) => files.add(f));
     }
   };
-  addCategory(MANIFEST.core);
-  if (ui) addCategory(MANIFEST.ui);
-  if (pack) addCategory(MANIFEST.pack);
-  if (scaffold && pack) addCategory(MANIFEST.scaffold);
+  for (const category of ["core", "ui", "pack", "scaffold"]) addCategory(MANIFEST[category]);
   return files;
 }
 
@@ -125,51 +125,11 @@ function checkLinks(files) {
   return dangling;
 }
 
-const SHAPES = [
-  { name: "plain repo (no pack, no scaffold, no UI)", pack: false, scaffold: false, ui: false },
-  { name: "UI repo, no pack", pack: false, scaffold: false, ui: true },
-  { name: "pack, own app", pack: true, scaffold: false, ui: true },
-  { name: "pack + app scaffold", pack: true, scaffold: true, ui: true },
-];
-
-// The fullest install — everything opted in. A link that dangles even here
-// points at something no repo ever receives, and is dead in every target.
-const EVERYTHING = payloadFor({ pack: true, scaffold: true, ui: true });
-
-let dead = 0;
-const conditional = new Map();
-
-for (const shape of SHAPES) {
-  const dangling = checkLinks(payloadFor(shape));
-  // Split the two failure kinds. A link that resolves in the fullest install but
-  // not in this shape is CONDITIONAL — it points into an opt-in category this
-  // repo declined. That is a boundary question about how the payload references
-  // gated content, not a broken link, so it is reported and does not fail.
-  const hard = dangling.filter((d) => !EVERYTHING.has(d.resolved));
-  for (const d of dangling) {
-    if (EVERYTHING.has(d.resolved)) {
-      const key = `${d.file} -> ${d.target}`;
-      conditional.set(key, (conditional.get(key) ?? 0) + 1);
-    }
-  }
-  if (hard.length === 0) {
-    console.log(`  ok      ${shape.name}`);
-  } else {
-    dead += hard.length;
-    console.log(`  FAIL    ${shape.name} — ${hard.length} dead`);
-    for (const d of hard) console.log(`            ${d.file} -> ${d.target}`);
-  }
-}
-
-if (conditional.size) {
-  console.log(`\n${conditional.size} conditional link(s) — resolve only where the`);
-  console.log("target took the opt-in category they point into:");
-  for (const key of [...conditional.keys()].sort()) console.log(`  ~ ${key}`);
-}
-
-if (dead) {
-  console.error(`\n${dead} dead link(s): they resolve in NO install shape.`);
+const dead = checkLinks(payload());
+if (dead.length) {
+  console.error(`${dead.length} dead link(s): they resolve in no install.`);
+  for (const d of dead) console.error(`  ${d.file} -> ${d.target}`);
   console.error("Either add the referenced page to the manifest, or generalize the reference.");
   process.exit(1);
 }
-console.log("\nNo dead links: every internal link resolves wherever its category ships.");
+console.log("No dead links: every internal link in the payload resolves in a target.");

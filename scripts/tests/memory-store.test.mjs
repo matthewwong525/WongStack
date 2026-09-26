@@ -157,34 +157,3 @@ test('helpers: FTS query, tag normalization, near tags, redaction', () => {
   assert.equal(redact(`x ${SECRET} y`, values), 'x [redacted:.env] y');
   assert.equal(findCredential('eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4', []), 'JWT');
 });
-
-test('import writes each note through the shared path, links supersedes by key, and resumes', async () => {
-  const env = await setup();
-  const file = writeJsonFile(env.repo.home, 'migration.json', {
-    tags: [{ name: 'save', definition: 'The checkpoint verb.' }],
-    notes: [
-      { slug: 'old', started: '2026-07-01', updated: '2026-07-02', text: 'Old note text.', facts: [{ key: 'old#1', type: 'project', body: 'The cap is 100 lines.', tags: ['save'] }] },
-      { slug: 'new', updated: '2026-08-01', text: 'New note text.', facts: [{ key: 'new#1', type: 'project', body: 'The cap is 150 lines.', supersedes: ['old#1'] }] },
-      { slug: 'empty', updated: '2026-08-02', text: 'Nothing reusable.', facts: [] },
-    ],
-  });
-  const first = await memory(env.repo, env.fake, ['import', '--file', file]);
-  assert.equal(first.code, 0, first.stderr);
-  assert.match(first.stdout, /3 migration sessions exist/);
-  const facts = rows(env, 'SELECT id, slug, body, created_at, superseded_by, source FROM facts ORDER BY id');
-  assert.equal(facts[0].superseded_by, facts[1].id);
-  assert.equal(facts[0].created_at, '2026-07-02T00:00:00Z');
-  assert.ok(facts.every(fact => fact.source === 'migration'));
-  assert.deepEqual(rows(env, "SELECT status FROM sessions WHERE id = 'migration:empty'"), [{ status: 'skipped' }]);
-  assert.equal(env.fake.objects.get('migration/old.md').toString(), 'Old note text.');
-  const again = await memory(env.repo, env.fake, ['import', '--file', file]);
-  assert.match(again.stdout, /skip old: already imported/);
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 2);
-  const grown = writeJsonFile(env.repo.home, 'migration-2.json', {
-    tags: [{ name: 'save', definition: 'The checkpoint verb.' }, { name: 'hosting', definition: 'Where the service runs.' }],
-    notes: [{ slug: 'old', updated: '2026-07-02', facts: [] }, { slug: 'late', updated: '2026-09-25', text: 'Added later.', facts: [{ type: 'project', body: 'One VM per user.', tags: ['hosting'] }] }],
-  });
-  const resumed = await memory(env.repo, env.fake, ['import', '--file', grown]);
-  assert.equal(resumed.code, 0, resumed.stderr);
-  assert.deepEqual(rows(env, "SELECT tag FROM fact_tags JOIN facts ON facts.id = fact_id WHERE slug = 'late'"), [{ tag: 'hosting' }]);
-});

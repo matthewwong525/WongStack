@@ -1,6 +1,6 @@
 # Provision Cloudflare
 
-This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) asks for the token (Step 1) before it plans the install. `/apply` runs Steps 2–5 after the payload lands. `/wong-sync` follows the parts a legacy repo is missing. The user does two things: sign up for Cloudflare and create one token.
+This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) asks for the token (Step 1) before it plans the install. `/apply` runs Steps 2–5 after the payload lands. `/wong-sync` follows the parts an update adds. The user does two things: sign up for Cloudflare and create one token.
 
 ```
    the user's whole job                     everything below is this runbook
@@ -144,7 +144,7 @@ Apply the id-free config fragments now — `package.json` scripts, `.env.example
 
 `GET /accounts/{account_id}/d1/database` first — reuse by name. Otherwise `POST` each: production, and a staging copy that branch deploys run against, so a branch can never write to real data. Say it in those terms: *"Two databases: the real one, and a practice one your test versions use."*
 
-Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
+Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
 
 ### 4d. The CI deploy token
 

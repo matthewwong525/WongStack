@@ -9,7 +9,7 @@ That's the whole test, and it's worth applying before you write anything. WongSt
 - **Yes** — a skill that handles a case it used to fumble, a sharper convention in [wiki style](wiki-style.md) or [voice](voice.md), a `WONG-STACK` block rule that any repo would want.
 - **No** — anything that encodes *this* repo: your stack, your deploy target, your team's naming, your one-off workaround. Useful here, noise everywhere else.
 
-If it doesn't clear the bar, keep it local. A repo diverging from upstream on purpose is fine — it's what [the adapt step](../.claude/skills/wong-sync/references/adapt.md) calls a `divergent` capability, and it leaves your version alone rather than nagging you toward WongStack's.
+If it doesn't clear the bar, keep it local. A repo that diverges from upstream on purpose is fine — [`/wong-sync`](../.claude/skills/wong-sync/SKILL.md) keeps your version as local context and does not push you toward WongStack's.
 
 ## What's in scope
 
@@ -29,6 +29,4 @@ Only files on the [payload manifest](../.claude/skills/wong-sync/references/payl
 
 ## Why this isn't automated
 
-It used to be, as `/wong-sync contribute`. Contributing turns out to be rare and deliberate, and the automation cost more in machinery and prose than it saved in typing — while forcing the sync to keep a tight read boundary so that nothing local could leak into a PR. Removing it let the sync read this repo properly, which is what makes [adaptation](../.claude/skills/wong-sync/references/adapt.md) work at all.
-
-If you have a contribution branch parked in the cached clone from an older version of the skill, it's still there and untouched. Push it to your fork and open the PR by hand.
+It used to be, as `/wong-sync contribute`. Contributing turns out to be rare and deliberate, and the automation cost more in machinery and prose than it saved in typing — while forcing the sync to keep a tight read boundary so that nothing local could leak into a PR. Removing it let the sync read this repo properly, which is what lets [`/wong-sync`](../.claude/skills/wong-sync/SKILL.md) adapt an update to it.

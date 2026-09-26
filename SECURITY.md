@@ -13,10 +13,3 @@ WongStack uses three Cloudflare tokens. Each one lives in one place, and only on
 | Memory token (`CLOUDFLARE_MEMORY_TOKEN`) | The git-ignored `.env` | `D1 Write`, plus `Workers R2 Storage Write` when the memory store has a bucket. Everyone with it can read every stored session transcript. It is never a GitHub secret. |
 
 [The credentials page](wiki/stack/cloudflare-credentials.md) owns the details, including how to narrow the user token and how to rotate the deploy token. [The memory page](wiki/development/memory.md#the-memory-token) owns the memory token.
-
-## Before 18.0.0
-
-Before WongStack 18.0.0, setup copied the user token into the GitHub secret, so any workflow in the repo could read a token that can mint others. If your repo was installed before 18.0.0:
-
-1. Run `/wong-sync`. It replaces the secret with a deploy token.
-2. Roll the user token's value in the Cloudflare dashboard (**My Profile → API Tokens → Roll**), and put the new value in `.env`.

@@ -151,9 +151,7 @@ The gates SHALL be absolute, not baselined: the scaffold as shipped SHALL pass e
 
 ### Requirement: The app scaffold ships in the core payload
 
-The payload SHALL include WongStack's own `app/` — a React-on-Workers-with-D1 application — as part of the core payload for new installs. Setup starts from an empty folder, so every new install SHALL receive the scaffold, and its install record SHALL set `components.appScaffold: true` beside `components.stackPack: true`.
-
-For a repo installed before 18.0.0, `/wong-sync` SHALL continue to honor `components.appScaffold`: a repo whose record has `components.stackPack: true` and lacks `appScaffold: true` SHALL receive none of the scaffold's files, and `appScaffold: true` without `stackPack: true` remains an invalid state.
+The payload SHALL include WongStack's own `app/` — a React-on-Workers-with-D1 application — as part of the core payload. Setup starts from an empty folder, so every install SHALL receive the scaffold. No install-record flag SHALL gate it.
 
 #### Scenario: A new install receives the scaffold
 
@@ -162,6 +160,5 @@ For a repo installed before 18.0.0, `/wong-sync` SHALL continue to honor `compon
 
 #### Scenario: A legacy repo without the flag receives no scaffold
 
-- **WHEN** `/wong-sync` runs in a legacy repo with `components.appScaffold` absent or false
-- **THEN** no file under `app/` is written to it
-- **AND** the repo's own application layout is untouched
+- **WHEN** an install record carries `components.appScaffold: false` from an earlier release
+- **THEN** the flag is ignored, and the repo is not supported until it is set up again

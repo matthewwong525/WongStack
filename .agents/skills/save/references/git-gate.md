@@ -2,7 +2,11 @@
 
 The pull-request and CI runbook **ordinary `/save` performs for every checkpoint**, including the one `/ship` delegates after archiving. `/ship` consumes the result instead of repeating these mechanics.
 
-Everything below assumes a feature branch with commits already on it. `main` stands for the repo's default branch — **assume it**, since every repo `/wong-setup` creates is on `main` and `git symbolic-ref refs/remotes/origin/HEAD` fails on a freshly created one. Only where `main` doesn't exist, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
+Everything below assumes a feature branch with commits already on it.
+
+## The default branch
+
+`main` stands for the repo's default branch. **Assume it**: every repo `/wong-setup` creates is on `main`, and `git symbolic-ref refs/remotes/origin/HEAD` fails on a new repo. Only when `main` exists neither locally nor on `origin`, resolve the real name with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` and use it wherever a command says `main`. This page owns the rule; every skill links here.
 
 ## 1 — open or update the pull request
 
@@ -80,5 +84,5 @@ This cap covers the CI fix-and-repush loop only, and it is per `/save` invocatio
 This runbook does **not** own, and each skill states for itself:
 
 - **`/save`** — the preview-URL discovery, staging by path (never `git add .`), the prose fast path, the session facts, and the OpenSpec sync.
-- **`/ship`** — the default-branch-CI preflight, OpenSpec archive invocation, strict interpretation of `SAVE_GATE_RESULT`, worktree-safe merge, and remote-branch deletion. The archive commit/push/PR/branch-CI checkpoint belongs to its delegated ordinary `/save` call.
+- **`/ship`** — the default-branch-CI preflight, OpenSpec archive invocation, strict interpretation of `SAVE_GATE_RESULT`, worktree-safe merge, and remote-branch deletion. The archive checkpoint belongs to its delegated ordinary `/save` call.
 - **`/verify`** — the staging walkthrough, which it runs after invoking `/save`; it gates nothing here.

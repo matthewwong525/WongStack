@@ -1,6 +1,6 @@
 # Trim legacy paths and restated rules
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** plan-aot-opensource
 **Open questions:** none
 
@@ -17,6 +17,7 @@ WongStack now starts fresh, with no installs older than this release to support.
   - The legacy `review.html` refresh and its compatibility entry point.
   - Change matching by name when a proposal has no Branch line.
   - The pack's adoption runbook for the previous staging model.
+  - The retire migration for the generated `openspec-*` layer from before 16.0.0.
   - The "Before 18.0.0" section in `SECURITY.md`, and the `adapt.md` stub. (review.html#/removed)
 - **The session digest is smaller.** The always-loaded memory digest drops from 25 KB to about 6 KB. Open threads and the current change's facts come first, and `memory search` reaches the rest. The Claude hook runs only on `startup` and `resume`, like the Codex hook, not after `/clear` or compaction.
 - **Each rule has one owner.**
@@ -57,6 +58,8 @@ None.
 - `ux-wireframes`: The legacy page refresh is removed.
 - `context-economy`: The digest has a smaller limit and hook scope. Each rule has one owner. Vendored skills do not add descriptions to every session.
 - `memory-recall`: The digest limit and its ordering change.
+- `openspec-cli-workflow`: The retire migration for the generated `openspec-*` layer (before 16.0.0) is removed.
+- `toolchain-dependencies`: The required-tools page lists Node.js as a required runtime.
 
 ## Impact
 
@@ -74,3 +77,7 @@ None.
 - **2026-09-25** — Assumed: the digest limit is about 6 KB, ordered open threads, then the current change's facts, then the newest facts. The 25 KB limit fills one fifth of the fixed session load, and `memory search` gives the rest on demand.
 - **2026-09-25** — Assumed: `agent-browser` gets `disable-model-invocation: true` in its frontmatter, instead of a rewritten description, so the vendored file stays close to upstream. `/verify` names it explicitly. If the host still lists it, the description is shortened as a fallback.
 - **2026-09-25** — Assumed: `components.skills` renames and `components.docsPath` stay, because they record a target's own choices, not a legacy state.
+- **2026-09-26** — Changed during apply: the retire migration for the generated `openspec-*` layer (before 16.0.0) is removed too, with its hash list and test, because it is a legacy path. That needed a REMOVED delta for `openspec-cli-workflow` and a MODIFIED `context-economy` requirement, which said the vendored `agent-browser` skill stays unchanged. Its one local edit is now `disable-model-invocation: true`, recorded in `.agents/rules/payload.md`. A new Claude Code session no longer lists it.
+- **2026-09-26** — Changed during apply: `toolchain-dependencies` is modified so the required-tools page lists Node.js as a required runtime. The `memory.mjs import` command and `noteAuthors` existed only for the notes migration and are removed. `check-payload-links.mjs` checks one install shape, because every install takes every category. `scripts/lib-cli.mjs` joins the pack, because pack scripts import it. Skill scripts keep their own `isMain`, because a skill ships alone.
+- **2026-09-26** — Measured with `node scripts/measure-context.mjs`: instruction words 17,491 → 14,246 from this change (18,812 → 14,246 against the script's baseline), owner words 11,058 → 8,985. `/ship` 2,990 → 1,823 words, `/verify` 2,420 → 1,086, `AGENTS.md` 801 → 577. Helper words rose 5,245 → 6,641, from the new parser, CLI library, and help text in the scripts. `node --test scripts/tests/*.test.mjs`: 143 pass. No dead links.
+- **2026-09-26** — Saved the implementation (20 of 20 tasks) for CI, with the deltas reconciled into `openspec/specs/`. It ships with `harden-edge-cases` and `open-source-surface` in PR #105.

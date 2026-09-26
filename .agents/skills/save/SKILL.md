@@ -23,7 +23,7 @@ Load each matching procedure before its actions; conditions can combine:
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md), before authoring |
 | Exact selected handoff is archived | [Archive maintenance](references/archived-save.md), before updating it |
 
-Check [the preconditions](references/preconditions.md) first; a failed check stops the save with its fix. Assume default branch `main`. If it exists neither locally nor remotely, resolve `defaultBranchRef.name` with `gh repo view`. Fetch that branch before comparing; failed inspection is an error, not evidence of no work.
+Check [the preconditions](references/preconditions.md) first; a failed check stops the save with its fix. `main` is the default branch, per [the default-branch rule](references/git-gate.md#the-default-branch). Fetch it before comparing; failed inspection is an error, not evidence of no work.
 
 ```bash
 git fetch origin main
@@ -32,14 +32,7 @@ openspec list --json
 bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json
 ```
 
-Use the [evidence contract](references/checkpoint-evidence.md) for fields and selected-root/base/ref options. Read it before interpreting helper output. The helper never selects intent or mutates Git; errors stop selection. Refresh observations after state changes.
-
-Keep `BRANCH`, `NAME`, and `CHANGE_ROOT` separate. Select in this order:
-
-1. Exact user/session change, or the exact archive passed by ship.
-2. Unique changed active candidate, else unique changed archive candidate.
-3. Unique recorded Branch match, then legacy same-name active or archive match.
-4. No applicable change: author only if the session established code or a code plan. Multiple plausible matches require clarification before staging; do not guess or create a duplicate named for the branch.
+Keep `BRANCH`, `NAME`, and `CHANGE_ROOT` separate. Select by [the rungs](references/checkpoint-evidence.md#selection-rungs) `explicit` (including the exact archive `/ship` passes), `session`, `changed-active`, `changed-archive`, then `recorded-branch`; there is no `sole-active`. Refresh the evidence after state changes. With no change selected, author one only if the session established code or a code plan. Clarify ambiguity before staging; never create a duplicate named for the branch.
 
 An archive always uses the normal route. Otherwise compare **every** dirty path, including rename sources, with the exact `wiki/` allowlist. One other path makes the whole save normal; never split a mixed diff or route by extension. Follow the prose reference when its condition holds. A pure conversation gets facts, not an empty plan, and no commit. Nothing learned, decided, or changed means report and stop.
 
@@ -62,7 +55,7 @@ Refresh active and archived reviews through the builder:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "$CHANGE_ROOT"
 ```
 
-Unchanged output stays unchanged. Marked legacy pages receive proposal-only refresh; unsupported or missing legacy pages are reported and left alone. Missing/invalid current-format inputs leave the old page intact: report it as stale even if the checkpoint continues. Stage the visual input and generated page with the handoff.
+Unchanged output stays unchanged. Missing or invalid inputs leave the old page intact: report it as stale even if the checkpoint continues. Stage the visual input and generated page with the handoff.
 
 For an active change with deltas, follow [spec reconciliation](references/spec-sync.md). Without deltas, skip reconciliation and honor the schema's permitted `skip_specs` when validating. Archived changes skip active sync. Use CLI status/list for actual artifact and task progress, not guessed paths or an assumed four-artifact schema.
 
@@ -78,7 +71,7 @@ Commit staged work with a one-line message in repo style (inspect recent subject
 
 Discover the preview with [preview-url.sh](scripts/preview-url.sh); never construct a URL from a naming convention. Follow [the git gate](references/git-gate.md) to open or update the PR, assemble its body with the renderer, push, and wait for CI. The body uses the maintained change, exact checklist, agent-written summary, and optional discovered links. An archive remains the selected source.
 
-CI failure uses the existing three-attempt fix/commit/push/wait loop. Other outcomes retain their meaning: `UNKNOWN` is unverified, never no checks. Save can finish unverified because it does not merge. Ship may merge only on `SUCCESS` or `NONE`. No checkpoint reuse is introduced; task-driven saves and completion/archive saves keep their existing boundaries.
+A CI failure takes the gate's three-attempt fix loop. `UNKNOWN` is unverified, never no checks; save can finish unverified because it does not merge. The git gate owns what each result means to `/ship`.
 
 ## 5. Report
 

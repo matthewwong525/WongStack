@@ -12,7 +12,7 @@ A fact is never edited or deleted. A later fact **supersedes** it, and only live
 
 ## When memory loads
 
-At every session start, the `SessionStart` hook prints a **digest**: live facts ordered by type and age, with the open threads of the change on your branch first. Code builds it from one query, with no model, in under two seconds. It is capped at 150 lines and 25 KB; the last line says how many facts it left out. Offline, the hook prints the last cached digest with its age. The digest stays the same for the whole session, so the prompt cache holds. A fact written now shows at the next start.
+When a session starts or resumes, the `SessionStart` hook prints a **digest**: the open threads of the change on your branch first, then other open threads, then the other live facts by type and age. Code builds it from one query, with no model, in under two seconds. It is capped at 40 lines and 6 KB, and [`memory search`](../../.claude/skills/memory/SKILL.md) finds the rest; the last line says how many facts it left out. Offline, the hook prints the last cached digest with its age. The digest stays the same for the whole session, so the prompt cache holds. A fact written now shows at the next start.
 
 A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.claude/skills/explore/SKILL.md) searches before it asks a question, `/continue` reads the change's facts, and `/ship` distills them into the wiki.
 
