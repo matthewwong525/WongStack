@@ -63,22 +63,6 @@ Fresh WongStack setup SHALL initialize the OpenSpec planning home without genera
 - **WHEN** an already migrated repo updates its toolchain
 - **THEN** the generated workflow layer remains absent and existing changes remain readable
 
-### Requirement: Migration preserves local ownership
-
-Migration SHALL remove only identified, unmodified generated files owned by the old WongStack integration, including the accepted visibility-key difference. It SHALL preserve and report edited, unrecognized, or independently installed integration files. It SHALL preserve public command names, local skill mappings, schemas, changes, main specs, archives, and notes, and SHALL not mark an unresolved migration complete.
-
-#### Scenario: Known generated files are present
-
-- **WHEN** an installed file matches the known generated content for the installed version, with or without the old visibility patch
-- **THEN** the reviewed migration retires it and obsolete WongStack regeneration instructions
-- **AND** a second migration run makes no further change
-
-#### Scenario: A target customized a generated skill
-
-- **WHEN** a target's generated-looking file differs from the known installed content
-- **THEN** migration leaves it intact and identifies the unresolved decision
-- **AND** it does not delete other skills based on a name prefix
-
 ### Requirement: Review feedback remains an input to continuation
 
 Continue SHALL accept the existing copied review-note format, reconcile the affected existing artifacts using CLI-provided paths, record how each note was handled, and refresh the review before resuming implementation. The generated update skill SHALL NOT be required.

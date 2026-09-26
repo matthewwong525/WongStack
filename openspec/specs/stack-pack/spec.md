@@ -216,21 +216,6 @@ The pipeline page SHALL open with the diagnostic that motivates the model — a 
 - **WHEN** a repo did not take the pack
 - **THEN** the pack's pipeline docs are not installed
 
-### Requirement: The pack documents its adoption path for repos on the previous model
-
-Because `/wong-sync` never modifies a file that already exists, a repo that installed the previous staging model keeps its old scripts and config indefinitely. The pack SHALL therefore document an ordered, human-run adoption runbook covering: creating the staging twins, adding the `env.staging` block and removing `preview_database_id`, putting secrets per environment, repointing service bindings, confirming Access covers the staging hostname, taking the new and updated scripts and deleting `scripts/swap-d1-id.js`, updating the `db:*` scripts, and repointing the Workers Builds deploy command. The runbook SHALL order the steps so an interrupted upgrade leaves the repo behaving as it did before.
-
-#### Scenario: An existing repo upgrades deliberately
-
-- **WHEN** a repo that took the previous pack syncs WongStack
-- **THEN** its existing pack files are left untouched and the gap is surfaced through the adapt step
-- **AND** the runbook gives the ordered steps to adopt the staging environment by hand
-
-#### Scenario: A partial upgrade is not broken
-
-- **WHEN** a repo has added `env.staging` but has not yet repointed the Workers Builds deploy command
-- **THEN** branch deploys continue to behave as they did before the upgrade
-
 ### Requirement: The pack ships a GitHub Actions workflow as its CI
 
 The pack SHALL include a GitHub Actions workflow file that runs the pack's build and deploy scripts on push, supplying the branch name they need and reading the Cloudflare credentials from GitHub repository secrets. It SHALL be a drop-in payload file subject to the same copy-if-absent, never-overwrite rule as every other pack file, and SHALL surface as a pull-request check so the existing delivery gate has something to wait on.
@@ -425,22 +410,63 @@ exit status SHALL NOT change, so CI behaviour stays exactly as it is.
 
 ### Requirement: The Cloudflare stack pack ships in the core payload
 
-The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — as part of the core payload. Every new install SHALL receive the pack, and setup SHALL record `components.stackPack: true` and `components.appScaffold: true` in the new install record, so that a later sync selects both categories. Setup SHALL NOT ask the user whether to take either.
-
-A repo installed before 18.0.0 MAY carry `components.stackPack` and `components.appScaffold`. `/wong-sync` SHALL continue to honor those flags for such a repo: a repo with `components.stackPack` false or absent SHALL receive none of the pack's files, and a repo with `stackPack: true` and no scaffold SHALL receive no `app/` file.
+The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — as part of the core payload. Every install SHALL receive the pack and the app scaffold. Setup SHALL NOT ask the user whether to take either, and the install record SHALL carry no flag that gates them.
 
 #### Scenario: A new install receives the pack
 
 - **WHEN** setup installs WongStack into an empty folder
 - **THEN** the target receives the pack scripts, the seed template, the workflow, and the pipeline docs
-- **AND** its install record has `components.stackPack` and `components.appScaffold` set to `true`
+- **AND** its install record has no `components.stackPack` or `components.appScaffold` flag
+
+#### Scenario: Sync always selects the pack
+
+- **WHEN** `/wong-sync` runs in an installed repo
+- **THEN** its preflight selects the pack and scaffold files with the rest of the core payload
 
 #### Scenario: A legacy repo that declined the pack is unaffected
 
-- **WHEN** `/wong-sync` runs in a repo whose install record has `components.stackPack` false
-- **THEN** no pack script, seed file, config fragment, or pipeline doc is written to it
+- **WHEN** an install record carries `components.stackPack: false` from an earlier release
+- **THEN** the flag is ignored, and the repo is not supported until it is set up again
 
 #### Scenario: A legacy repo keeps its own app
 
-- **WHEN** `/wong-sync` runs in a repo with `components.stackPack: true` and no `components.appScaffold`
-- **THEN** no `app/` file is written to it
+- **WHEN** an install record carries `components.appScaffold: false` from an earlier release
+- **THEN** the flag is ignored, and the repo is not supported until it is set up again
+
+### Requirement: The pack reads the wrangler config with a real parser
+
+Every pack script SHALL read the wrangler config through one shared JSONC parser. The parser SHALL ignore comments and SHALL read a key only at its real position in the structure. The Worker name of an environment SHALL come from that environment's `name` key, never from a key that contains `name`, such as `database_name`. A TOML config SHALL be refused with a message that names the supported formats.
+
+#### Scenario: A database key sits before the Worker name
+
+- **WHEN** `env.staging` lists `d1_databases` before its `name`
+- **THEN** the staging Worker name is the value of `env.staging.name`
+- **AND** the production guard refuses a deploy whose staging name equals production's
+
+#### Scenario: A comment mentions staging
+
+- **WHEN** a comment in the config contains `"staging":`
+- **THEN** the scripts read the staging block from the config, not from the comment
+
+#### Scenario: A TOML config
+
+- **WHEN** the app's config is `wrangler.toml`
+- **THEN** the pack script stops and says that it reads `wrangler.jsonc` or `wrangler.json`
+
+### Requirement: A Worker without D1 builds and deploys
+
+When the config binds no D1 database, the build wrapper SHALL skip the migration step and build the Worker. It SHALL stop with its remedy only when production binds D1 and the staging environment does not.
+
+#### Scenario: A Worker with no database
+
+- **WHEN** CI builds a branch for a Worker whose config has no `d1_databases`
+- **THEN** the build succeeds without running a migration
+
+### Requirement: The staging reset refuses the production database
+
+The staging database reset SHALL stop, and drop nothing, when the database it would reset has the production database's name. It SHALL drop the staging tables in one batched command.
+
+#### Scenario: Staging points at production
+
+- **WHEN** the staging environment's `database_name` equals production's
+- **THEN** the reset stops with an error and no table is dropped

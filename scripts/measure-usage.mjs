@@ -2,10 +2,10 @@
 // Billed cost per task from Claude Code transcripts (~/.claude/projects/<project>/<session>.jsonl,
 // subagents under <session>/subagents/). measure-context.mjs counts source words; this reads the
 // usage the API actually billed, split by billing type, skill, cache-miss cause, and context source.
-import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMain, parseCli } from './lib-cli.mjs';
 
 // $ per million tokens: input, output, cache write 5m, cache write 1h, cache read.
 // Anthropic list prices, checked 2026-09-24. Unknown models are reported, never guessed.
@@ -192,15 +192,12 @@ function print(report) {
   if (report.unpriced.length) console.log(`\nUnpriced models (excluded from $): ${report.unpriced.join(', ')}`);
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
+  const { values: options } = parseCli({
+    usage: 'usage: measure-usage.mjs [--dir DIR] [--cwd SUBSTRING] [--since YYYY-MM-DD] [--json]',
+    options: { dir: { type: 'string', default: join(homedir(), '.claude', 'projects') }, cwd: { type: 'string' }, since: { type: 'string' }, json: { type: 'boolean' } },
+  });
   try {
-    const args = process.argv.slice(2), options = { dir: join(homedir(), '.claude', 'projects') };
-    for (let i = 0; i < args.length; i++) {
-      const [flag, value] = [args[i], args[i + 1]];
-      if (flag === '--json') options.json = true;
-      else if (['--dir', '--cwd', '--since'].includes(flag) && value) { options[flag.slice(2)] = value; i++; }
-      else throw new Error('usage: measure-usage.mjs [--dir DIR] [--cwd SUBSTRING] [--since YYYY-MM-DD] [--json]');
-    }
     const report = measureUsage(options);
     if (options.json) console.log(JSON.stringify(report, null, 2));
     else print(report);

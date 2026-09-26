@@ -1,0 +1,18 @@
+# Weekly update PRs for the app's npm dependencies and the workflows' pinned
+# actions. Dependabot moves each action's SHA and its `# vX.Y.Z` comment together.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # The types follow the Node major in .nvmrc; move both together by hand.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

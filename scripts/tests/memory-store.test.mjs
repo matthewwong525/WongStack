@@ -8,11 +8,14 @@ import { memory, rows, SECRET, setup, writeJsonFile } from './fixtures/memory/ha
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
 
-test('migrations run twice without changing anything', async () => {
+test('a recorded migration never runs again', async () => {
   const env = await setup();
   const before = rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n;
+  const calls = env.fake.calls.length;
   const again = await memory(env.repo, env.fake, ['migrate']);
   assert.equal(again.code, 0);
+  assert.match(again.stdout, /up to date/);
+  assert.equal(env.fake.calls.length - calls, 2, 'a second run only reads what is recorded');
   assert.equal(rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n, before);
   assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, 1);
 });
@@ -155,33 +158,23 @@ test('helpers: FTS query, tag normalization, near tags, redaction', () => {
   assert.equal(findCredential('eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4', []), 'JWT');
 });
 
-test('import writes each note through the shared path, links supersedes by key, and resumes', async () => {
+test('a fact from an earlier notes migration still prints its note', async () => {
   const env = await setup();
-  const file = writeJsonFile(env.repo.home, 'migration.json', {
-    tags: [{ name: 'save', definition: 'The checkpoint verb.' }],
-    notes: [
-      { slug: 'old', started: '2026-07-01', updated: '2026-07-02', text: 'Old note text.', facts: [{ key: 'old#1', type: 'project', body: 'The cap is 100 lines.', tags: ['save'] }] },
-      { slug: 'new', updated: '2026-08-01', text: 'New note text.', facts: [{ key: 'new#1', type: 'project', body: 'The cap is 150 lines.', supersedes: ['old#1'] }] },
-      { slug: 'empty', updated: '2026-08-02', text: 'Nothing reusable.', facts: [] },
-    ],
-  });
-  const first = await memory(env.repo, env.fake, ['import', '--file', file]);
-  assert.equal(first.code, 0, first.stderr);
-  assert.match(first.stdout, /3 migration sessions exist/);
-  const facts = rows(env, 'SELECT id, slug, body, created_at, superseded_by, source FROM facts ORDER BY id');
-  assert.equal(facts[0].superseded_by, facts[1].id);
-  assert.equal(facts[0].created_at, '2026-07-02T00:00:00Z');
-  assert.ok(facts.every(fact => fact.source === 'migration'));
-  assert.deepEqual(rows(env, "SELECT status FROM sessions WHERE id = 'migration:empty'"), [{ status: 'skipped' }]);
-  assert.equal(env.fake.objects.get('migration/old.md').toString(), 'Old note text.');
-  const again = await memory(env.repo, env.fake, ['import', '--file', file]);
-  assert.match(again.stdout, /skip old: already imported/);
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 2);
-  const grown = writeJsonFile(env.repo.home, 'migration-2.json', {
-    tags: [{ name: 'save', definition: 'The checkpoint verb.' }, { name: 'hosting', definition: 'Where the service runs.' }],
-    notes: [{ slug: 'old', updated: '2026-07-02', facts: [] }, { slug: 'late', updated: '2026-09-25', text: 'Added later.', facts: [{ type: 'project', body: 'One VM per user.', tags: ['hosting'] }] }],
-  });
-  const resumed = await memory(env.repo, env.fake, ['import', '--file', grown]);
-  assert.equal(resumed.code, 0, resumed.stderr);
-  assert.deepEqual(rows(env, "SELECT tag FROM fact_tags JOIN facts ON facts.id = fact_id WHERE slug = 'late'"), [{ tag: 'hosting' }]);
+  const now = '2026-09-01T00:00:00Z';
+  env.fake.db.prepare("INSERT INTO sessions (id, agent, status, raw_key, raw_bytes, updated_at) VALUES ('migration:old', 'migration', 'captured', 'migration/old.md', 14, ?)").run(now);
+  const { id } = env.fake.db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at) VALUES ('old', 'project', 'The cap is 100 lines.', 'migration:old', 'migration', ?) RETURNING id").get(now);
+  env.fake.objects.set('migration/old.md', Buffer.from('Old note text.'));
+  const source = await memory(env.repo, env.fake, ['source', String(id)]);
+  assert.equal(source.code, 0, source.stderr);
+  assert.match(source.stdout, /Old note text\./);
+});
+
+test('no command imports notes', async () => {
+  const env = await setup();
+  const file = writeJsonFile(env.repo.home, 'migration.json', { notes: [{ slug: 'old', text: 'Old note text.', facts: [] }] });
+  const before = env.fake.calls.length;
+  const result = await memory(env.repo, env.fake, ['import', '--file', file]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /usage: memory\.mjs/);
+  assert.equal(env.fake.calls.length, before, 'nothing reaches the store');
 });

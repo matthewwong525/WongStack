@@ -52,7 +52,7 @@ Route each edit by its kind, so `main` sees an edit only when it is safe:
 | Rotate a value (the old one no longer works) | both, now | the primary must not keep a dead value |
 | Delete a key, or set a value only this branch needs | the branch copy only | `main` still reads the old one until the merge |
 
-[`/ship`](../../.claude/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key that both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
+[`/ship`](../../.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key that both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
 
 WongStack's own tools, such as the memory store, read the primary `.env` first, so keep branch-only values to the settings your app reads. Merged outside `/ship`, for example in the GitHub UI? Run `promote` yourself from the worktree before you delete it. An abandoned branch needs nothing: delete the worktree and its deferred edits go with it.
 

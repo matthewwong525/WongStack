@@ -1,0 +1,43 @@
+<section class="visual flow" id="capture" data-kind="flow" data-states="after today">
+  <p class="caption">Background memory capture: one run from the session-start hook to the digest, in 19.0.0 and in 19.0.2.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After (19.0.2)</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="after-hook"><h3>Session starts <span class="tag">Unchanged</span></h3><p>The session-start hook starts <code>run.mjs</code> in the background.</p><details><summary>Details</summary><p>Actor: session-start hook. Action: start <code>run.mjs</code>. Result: the capture run begins. The session does not wait for it.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-tempdir"><h3>Make a temp folder <span class="tag">New</span> <i class="callout">1</i></h3><p><code>run.mjs</code> calls <code>mkdtemp</code> under <code>os.tmpdir()</code>, for example <code>/tmp/wong-memory-AbC123</code>.</p><details><summary>Details</summary><p>Actor: <code>run.mjs</code>. Action: make one new folder for this run. Result: a folder outside the repo and outside <code>.git/</code>. Each run gets its own folder.</p></details></div>
+      <p class="flow-connector">↓ Start the agent with a write grant for this folder only</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="after-grant-claude"><h3>If the agent is Claude Code <span class="tag">Changed</span> <i class="callout">2</i></h3><p><code>claude -p --permission-mode dontAsk --allowedTools "Bash(node .claude/skills/memory/scripts/memory.mjs:*)" "Edit(//tmp/wong-memory-AbC123/**)" --add-dir /tmp/wong-memory-AbC123</code></p><details><summary>Details</summary><p>Actor: <code>run.mjs</code>. Action: add one <code>Edit(...)</code> rule and one <code>--add-dir</code> for the folder. Result: the model can write files in the folder and nowhere else. The <code>Bash(...)</code> rule stays the same.</p></details></div>
+        <div class="flow-branch" data-target-id="after-grant-codex"><h3>If the agent is Codex <span class="tag">Changed</span></h3><p><code>codex exec --sandbox workspace-write</code> with the folder added to <code>sandbox_workspace_write.writable_roots</code>.</p><details><summary>Details</summary><p>Actor: <code>run.mjs</code>. Action: add the same folder as a writable root, next to the memory state folder. Result: Codex can write the same files in the same folder.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ Both paths follow the same runbook</p>
+      <div class="step flow-card" data-target-id="after-write"><h3>Write the JSON to a file <span class="tag">New</span></h3><p>The model uses its file-write tool to write <code>/tmp/wong-memory-AbC123/gate-1.json</code>.</p><details><summary>Details</summary><p>Actor: model. Action: write each input as a file in the folder. Result: JSON with <code>&lt;name&gt;</code>, <code>&gt;</code>, <code>|</code>, or <code>$</code> goes to disk as it is. The shell never reads it.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-put"><h3>Pass the path <span class="tag">Changed</span> <i class="callout">3</i></h3><p><code>node .claude/skills/memory/scripts/memory.mjs put-facts --file /tmp/wong-memory-AbC123/put-1.json</code></p><details><summary>Details</summary><p>Actor: model. Action: run one single-line command. Result: the <code>Bash(...)</code> grant allows it, and <code>memory.mjs</code> reads the JSON from the file.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-cleanup"><h3>Delete the folder <span class="tag">New</span> <i class="callout">4</i></h3><p><code>run.mjs</code> removes the folder in a <code>finally</code> block.</p><details><summary>Details</summary><p>Actor: <code>run.mjs</code>. Action: delete the folder and its files. Result: no input file stays on disk, also when the run fails.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-digest"><h3>Digest shows a successful run <span class="tag">Changed</span></h3><p>The next session start shows the new facts and no failure line.</p><details><summary>Details</summary><p>Actor: session-start digest. Action: read the last run result. Result: the run is recorded as a success.</p></details></div>
+    </div></div>
+    <div class="state state-today"><h2>Today (19.0.0)</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-hook"><h3>Session starts</h3><p>The session-start hook starts <code>run.mjs</code> in the background.</p><details><summary>Details</summary><p>Actor: session-start hook. Action: start <code>run.mjs</code>. Result: the capture run begins.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-start"><h3>Start the agent</h3><p><code>claude -p --permission-mode dontAsk --allowedTools "Bash(node .claude/skills/memory/scripts/memory.mjs:*)"</code></p><details><summary>Details</summary><p>Actor: <code>run.mjs</code>. Action: grant one <code>Bash(...)</code> rule. Result: the model has no write grant. A write under <code>.git/</code> is always denied, so the earlier file approach also failed.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-heredoc"><h3>Send the JSON on stdin</h3><p><code>… memory.mjs put-facts --file - &lt;&lt;'EOF'</code> with JSON that holds <code>&lt;name&gt;</code> or <code>&gt;</code>.</p><details><summary>Details</summary><p>Actor: model. Action: run a multi-line heredoc command. Result: the JSON is part of the command text.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-denied"><h3>Permission check denies it</h3><p>Claude Code does not match the multi-line command to the grant.</p><details><summary>Details</summary><p>Actor: Claude Code. Action: check the command under <code>dontAsk</code>. Result: denied. No user is present to approve it.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-fail"><h3>Run fails</h3><p>The run exits non-zero. The digest shows "Last background capture run failed".</p><details><summary>Details</summary><p>Actor: <code>run.mjs</code>. Action: record the exit code. Result: no facts are saved, on every run.</p></details></div>
+    </div></div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> the background capture run, with no user present. <b>Done:</b> the session's facts are in the memory store. <b>Frequency:</b> each session start.</p>
+    <ol>
+      <li>The folder is outside the repo and outside <code>.git/</code>. Claude Code always denies writes under <code>.git/</code>. A folder in the worktree shows in <code>git status</code>.</li>
+      <li>The rule is <code>Edit(...)</code>, not <code>Write(...)</code>. In Claude Code, <code>Edit</code> rules control every tool that writes a file, the Write tool also.</li>
+      <li>Each command is one line. The grant allows a single-line command, and the JSON never goes through the shell.</li>
+      <li>The <code>finally</code> block removes the folder when the run ends, also when the run fails.</li>
+    </ol>
+  </div>
+</section>

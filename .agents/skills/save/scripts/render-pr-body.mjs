@@ -54,14 +54,16 @@ export function writePrBody(options, outputFile) {
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const keys = { '--repo-root': 'repoRoot', '--change-root': 'changeRoot', '--mode': 'mode', '--repo-url': 'repoUrl', '--branch': 'branch', '--summary-file': 'summaryFile', '--preview-url': 'previewUrl', '--output': 'output' };
+  const usage = `usage: render-pr-body.mjs ${Object.keys(keys).map(key => `${key} <value>`).join(' ')}`;
+  const args = process.argv.slice(2);
+  if (args[0] === '--help') { console.log(usage); process.exit(0); }
+  const options = {};
+  for (let i = 0; i < args.length; i += 2) {
+    if (!keys[args[i]] || !args[i + 1]) { console.error(`PR body: invalid option or missing value\n${usage}`); process.exit(2); }
+    options[keys[args[i]]] = args[i + 1];
+  }
   try {
-    const options = {};
-    const keys = { '--repo-root': 'repoRoot', '--change-root': 'changeRoot', '--mode': 'mode', '--repo-url': 'repoUrl', '--branch': 'branch', '--summary-file': 'summaryFile', '--preview-url': 'previewUrl', '--output': 'output' };
-    const args = process.argv.slice(2);
-    for (let i = 0; i < args.length; i += 2) {
-      if (!keys[args[i]] || !args[i + 1]) throw new Error('invalid option or missing value');
-      options[keys[args[i]]] = args[i + 1];
-    }
     console.log(`PR body: ${writePrBody(options, options.output) ? 'updated' : 'unchanged'}`);
   } catch (error) { console.error(`PR body: ${error.message}`); process.exitCode = 1; }
 }

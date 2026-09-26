@@ -70,3 +70,5 @@ The split keeps it useful: change-specific knowledge stays with the active or ar
 ## Where to go next
 
 Start with [the change loop](development/the-change-loop.md) to see how work moves from idea to shipped record. Use [the wiki rulebook](wiki-style.md) when you add or reorganize reusable process knowledge.
+
+Part of [the WongStack wiki](README.md).

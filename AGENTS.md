@@ -2,11 +2,11 @@
 
 ## What this is
 
-This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents run the same workflows, preserve decisions, and improve the process as work happens. The payload is the repo root: [`.claude/skills/`](.claude/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI and planning records (`openspec/`), [`.claude/rules/`](.claude/rules/), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. [`wong-setup`](.claude/skills/wong-setup/SKILL.md) installs WongStack into an empty folder once, and provisions Cloudflare there; [`wong-sync`](.claude/skills/wong-sync/SKILL.md) — with the canonical [payload manifest](.claude/skills/wong-sync/references/payload-manifest.md) inside it — plans each update through the normal workflow. See the [README](README.md) for the user story.
+This repo is **WongStack** — a repo-native AI knowledge-center toolkit, distributed as a **template you clone and work from**. It centralizes process knowledge in repo files so humans and agents run the same workflows, preserve decisions, and improve the process as work happens. The payload is the repo root: [`.claude/skills/`](.agents/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI and planning records (`openspec/`), [`.claude/rules/`](.agents/rules/), [`wiki/`](wiki/), [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), and the `WONG-STACK` block in this file. [`wong-setup`](.agents/skills/wong-setup/SKILL.md) installs WongStack into an empty folder once, and provisions Cloudflare there; [`wong-sync`](.agents/skills/wong-sync/SKILL.md) — with the canonical [payload manifest](.agents/skills/wong-sync/references/payload-manifest.md) inside it — plans each update through the normal workflow. See the [README](README.md) for the user story.
 
 It is a **meta-repo** that ships WongStack *and* dogfoods it — the block below applies here too. Don't run `/wong-setup` or `/wong-sync` here; this is the source, not a target (both stop when the clone *is* the current repo).
 
-Working on WongStack itself — the release ritual, the link checker, what counts as code — loads from [`.claude/rules/payload.md`](.claude/rules/payload.md) the moment you touch a payload file. The full process lives in [wiki/development/](wiki/development/README.md).
+Working on WongStack itself — the release ritual, the link checker, what counts as code — loads from [`.claude/rules/payload.md`](.agents/rules/payload.md) the moment you touch a payload file. The full process lives in [wiki/development/](wiki/development/README.md).
 
 <!-- WONG-STACK:BEGIN — generic WongStack conventions. The installer lifts this block verbatim into a target repo's CLAUDE.md, so keep it free of repo-specifics. Edit freely between the markers. -->
 
@@ -27,14 +27,14 @@ Credentials already live in the repo's environment files — `.env.example` is t
 
 ## Rules
 
-- **Always use ASD-STE100 Simplified Technical English** for user-facing prose and documentation. Best-effort compliance is sufficient without the full standard. Keep code, commands, identifiers, quotations, and prescribed text exact.
-- **Drive work through the WongStack verbs**: `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence and `/wong-sync` for upstream updates. Use `/explore` for read-only investigation and `/plan` for selected improvement work. **A verb whose precondition is missing invokes the verb before it**, so `/ship` runs the whole cycle — on an intent you give it, or on the thread this session established — and `/explore` always asks its questions before anything is drafted. Each verb's loaded description says when to use it; [the change loop](wiki/development/the-change-loop.md) owns what each verb does and where the git boundary falls. The change and its facts share a name; the feature branch may have another name. `/save` records the actual branch in the change.
-- **The WongStack skills own all git; OpenSpec never runs git.** `/save`·`/continue`·`/ship` own branch, commit, PR, and merge actions; `/apply` may read branch changes to select a plan but implements no git changes.
-- **CI is the gate when present, else PR review; nothing builds locally.** The ladder: [the gate](wiki/development/the-change-loop.md#the-gate). `/verify` gates nothing.
-- **Prose goes straight to `main`.** A `/save` whose entire diff sits in `wiki/**` commits to the default branch — no branch, PR, or `/ship`; a save that only writes facts makes no commit. Routing is by path prefix, never file extension: [the prose allowlist](wiki/development/the-change-loop.md#the-prose-allowlist).
-- **Stay in sync with WongStack with `/wong-sync`** — it gets the latest source and invokes `/plan`, which asks one round of questions and stops at the update's `review.html`; the normal workflow then applies the agreed update while preserving local work. Sending an improvement back is a manual pull request: [contributing](wiki/contributing.md).
-- **Use `/improve` for a bounded maintenance spot check** — it reviews recent work and one rotating area, then hands one supported change to `/ship`. `--audit-only` reports findings without edits. Scheduling stays external and requires a clean, current, serialized checkout plus explicit unattended context: [repository improvement](wiki/development/repository-improvement.md).
-- **Don't edit `wiki/` mid-task** unless it's explicitly the task. The wiki documents general, reusable processes only; a change's specifics live in its proposal and archive.
-- **Path-scoped conventions load from [`.claude/rules/`](.claude/rules/)** when you work with matching files. An agent that doesn't auto-load them: read the rules whose `paths:` match the files you touch.
+- **Write user-facing prose in ASD-STE100 Simplified Technical English**, best effort, in [our voice](wiki/voice.md); keep code, commands, identifiers, and quotations exact.
+- **Drive work through the verbs** `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence, `/improve` for maintenance, `/routine` for schedules, and `/wong-sync` for updates. A verb whose precondition is missing invokes the verb before it: [the change loop](wiki/development/the-change-loop.md).
+- **The WongStack skills own all git; OpenSpec never runs git.** `/apply` reads branch changes but makes none: [the change loop](wiki/development/the-change-loop.md).
+- **CI is the gate when present, else PR review; nothing builds locally**: [the gate](wiki/development/the-change-loop.md#the-gate).
+- **Prose goes straight to `main`** when a save's whole diff sits in `wiki/**`: [the prose allowlist](wiki/development/the-change-loop.md#the-prose-allowlist).
+- **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
+- **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
+- **Don't edit `wiki/` mid-task** unless it is the task; a change's specifics live in its proposal and archive.
+- **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads the rules whose `paths:` match the files it touches.
 
 <!-- WONG-STACK:END -->

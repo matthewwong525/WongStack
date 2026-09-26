@@ -249,7 +249,7 @@ The repo has both `.env` and `.dev.vars`, and nothing tells you at a glance whic
 - `/ship` runs `worktree-secrets.mjs promote` after the merge, beside its post-merge sync. It reports the promoted and skipped key names, never values. As with the sync, a failure skips with one line and cannot fail a merged ship. `/save`'s named-secret step writes an add or a rotation to the seeded worktree copy as well as the primary, and stops reporting that copy as a duplicate to reconcile.
 - `secrets:push` in a linked worktree reads `app/.dev.vars` (and `app/.dev.vars.staging`) from the primary worktree when the linked checkout has none. A local copy still wins. The `.env` refusal and the credential-key check stay the same.
 - The docs say the same thing everywhere: `wiki/stack/d1-pipeline.md` owns the "which file" table and names `app/.dev.vars`. `wiki/development/secrets.md` owns the branch-copy lifecycle. `wiki/stack/cloudflare-credentials.md`, the header comments of both example files, and the script's messages link to those pages or use that path.
-- Release as WongStack 18.2.0.
+- Release as WongStack 19.1.0.
 
 **Non-goals:** No migration for repos that have a root `.dev.vars`; every install starts from an empty folder. No hook. No merge of the two files into one `.env`. `CLOUDFLARE_API_TOKEN` must never reach a Worker, so the split stays. No change to `secrets:check` parity logic, to CI, or to what `secrets:push` sends to the deployed Workers.
 <!-- proposal:end -->

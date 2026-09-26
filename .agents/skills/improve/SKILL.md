@@ -12,7 +12,7 @@ Find the most valuable improvement that the evidence supports. A normal run deli
 
 ## Establish the run
 
-Read the repository instructions and owning documentation. Discover the default branch. Prefer `git symbolic-ref refs/remotes/origin/HEAD`; if that reference is absent and GitHub context is available, use `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`. Do not assume `main`.
+Read the repository instructions and owning documentation. The default branch is `main`, per [the default-branch rule](../save/references/git-gate.md#the-default-branch).
 
 For a normal run, require all of these conditions before selection:
 

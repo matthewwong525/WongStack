@@ -1,6 +1,6 @@
 # Provision Cloudflare
 
-This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) asks for the token (Step 1) before it plans the install. `/apply` runs Steps 2–5 after the payload lands. `/wong-sync` follows the parts a legacy repo is missing. The user does two things: sign up for Cloudflare and create one token.
+This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) asks for the token (Step 1) before it plans the install. `/apply` runs Steps 2–5 after the payload lands. `/wong-sync` follows the parts an update adds. The user does two things: sign up for Cloudflare and create one token.
 
 ```
    the user's whole job                     everything below is this runbook
@@ -20,7 +20,7 @@ This runbook turns a fresh WongStack install into a running app with session mem
 
 ## Boundaries
 
-- **No git.** Everything this runbook writes lands uncommitted; `/save` checkpoints it.
+- **No commits or pushes.** Step 1a makes the folder a GitHub repository; everything else this runbook writes lands uncommitted, and `/save` checkpoints it.
 - **`curl` against Cloudflare, not `wrangler`.** Provisioning needs no app dependency installed. Node, which OpenSpec already requires, is used only to apply the memory schema and to read one value out of a JSON response. See [required tools](../../../../wiki/development/required-tools.md).
 - **Never print a token value.** Not in a summary, not in an error, not in a command you echo.
 - **The user token stays on the host.** It lives only in the primary worktree's `.env`. It never becomes a GitHub secret, and no step copies it anywhere else.
@@ -29,7 +29,20 @@ This runbook turns a fresh WongStack install into a running app with session mem
 
 ## Step 1 — the credential
 
-### 1a. Make the file, not the user
+### 1a. The GitHub repository
+
+CI reads its deploy key from a GitHub secret, so the repository must exist before Step 4d. Check GitHub before any Cloudflare call:
+
+```bash
+gh auth status
+[ -e .git ] || git init -b main
+git remote get-url origin || gh repo create "$(basename "$PWD")" --private --source . --remote origin
+```
+
+- **`gh auth status` fails** → **stop before any Cloudflare call**, and tell the user to run `gh auth login`. Nothing is created.
+- **`origin` exists** → use it, and create nothing.
+
+### 1b. Make the file, not the user
 
 Resolve the durable credential file before asking for or accepting a value. Do not infer worktrees from a hosting tool's directory names; ask Git:
 
@@ -59,13 +72,13 @@ If `ACTIVE_ROOT` differs from `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file 
 
 Every later reference to `.env` means `DURABLE_ENV`. When writing a variable, replace only its exact `KEY=` line or append that one line; preserve every unrelated line.
 
-### 1b. Ask for the token
+### 1c. Ask for the token
 
 If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it, giving the route from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md), which owns the click path. The short form: **My Profile → API Tokens → Create Custom Token**, two permission rows (`User ▸ API Tokens ▸ Edit`, `Account ▸ API Tokens ▸ Edit`), and **Account Resources: Include → their account**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
 
 Have them paste it into the durable file, or paste it to you and narrowly write the one variable yourself. Re-read `DURABLE_ENV`, export the value for the calls below without printing it, and continue. **No token → setup stops here and writes nothing else**; pasting the token later continues setup from this step.
 
-### 1c. Verify before doing anything
+### 1d. Verify before doing anything
 
 ```bash
 curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
@@ -131,7 +144,7 @@ Apply the id-free config fragments now — `package.json` scripts, `.env.example
 
 `GET /accounts/{account_id}/d1/database` first — reuse by name. Otherwise `POST` each: production, and a staging copy that branch deploys run against, so a branch can never write to real data. Say it in those terms: *"Two databases: the real one, and a practice one your test versions use."*
 
-Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
+Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: the production database in the top-level `d1_databases` entry, and the staging database inside `env.staging`'s own `d1_databases` entry. The fragment's rules are owned there — follow them, don't restate them. The config carries the Worker entry point as well as the ids (`main`, `assets`, `compatibility_date`, `compatibility_flags`), because the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
 
 ### 4d. The CI deploy token
 

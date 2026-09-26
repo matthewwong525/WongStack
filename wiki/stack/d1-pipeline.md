@@ -2,9 +2,9 @@
 
 How code and data ship on the [Cloudflare stack](README.md): **two environments, two Workers, migrations that apply on deploy.** A push to a feature branch migrates and deploys the *staging* Worker; a merge to the default branch migrates and deploys the *production* Worker. The [pack scripts](#the-scripts) implement it and read every repo-specific value from `wrangler.jsonc`, so they're identical in every repo that takes the pack.
 
-**The pipeline needs a Worker to run through it, and doesn't assume the repo brought one.** Everything below describes what happens to an application once it exists; where it came from is settled earlier. A repo that already had a Worker keeps it — the pack is wiring, never a rewrite. A new install starts from an empty folder and receives WongStack's own starter app, the [app scaffold](../../.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-app-scaffold). Either way the `wrangler.jsonc` that binds it to these two environments is written by [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
+**The pipeline needs a Worker to run through it.** Everything below describes what happens to an application once it exists. An install starts from an empty folder and receives WongStack's own starter app, the [app scaffold](../../.agents/skills/wong-sync/references/payload-manifest.md#the-app-scaffold). The `wrangler.jsonc` that binds it to these two environments is written by [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) with the ids it provisions — including `main`, so the config points at whichever entry point the repo ended up with.
 
-This is the runnable half of the stack — the [core stack](core-stack.md) is *what* you build on, this is *how* changes reach production safely. Skip to the [recovery runbooks](#recovery-a-bad-migration-reached-production) when production is red; read top-to-bottom to set it up. Already running the older one-Worker model? Go to [adopting the staging environment](#adopting-the-staging-environment).
+This is the runnable half of the stack — the [core stack](core-stack.md) is *what* you build on, this is *how* changes reach production safely. Skip to the [recovery runbooks](#recovery-a-bad-migration-reached-production) when production is red; read top-to-bottom to set it up.
 
 ## Why staging is a whole Worker
 
@@ -167,7 +167,7 @@ The last two bite differently. A missing staging secret fails **loudly** on the 
 
 You don't have to catch either by eye: **`npm run secrets:check`** fails the build when a binding declared at the top level is missing from `env.staging` or when the two Workers' secret names disagree, and warns when a staging service binding still targets production's service. It runs on every push.
 
-The exact JSONC to merge is in the pack's [config fragments](../../.claude/skills/wong-sync/references/stack-pack-fragments.md).
+The exact JSONC to merge is in the pack's [config fragments](../../.agents/skills/wong-sync/references/stack-pack-fragments.md).
 
 ### Cron triggers inherit; omitting them does not disable them
 
@@ -302,6 +302,7 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging` | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
 | `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load both Workers from `app/.dev.vars`, refusing `.env`; compare the two Workers' secret names and staging's bindings against production's. |
 | `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config" and "what is this environment's database name", so a build and its deploy can't resolve different apps. |
+| `scripts/lib-cli.mjs` | imported by the `.mjs` scripts | One CLI convention: `--help` prints usage and exits 0, and a usage error exits 2. |
 
 Common operations:
 
@@ -314,7 +315,7 @@ npm run secrets:push         # load both Workers from app/.dev.vars
 npm run secrets:check        # do the two Workers still agree?
 ```
 
-The two `db:migrate:*` aliases are the one part of that list provisioning writes rather than copies, since they name your databases literally and a hardcoded name can't travel between repos — they arrive through the [`package.json` fragment](../../.claude/skills/wong-sync/references/stack-pack-fragments.md#packagejson--scripts). They're a convenience only: `cf-build.sh` migrates on every build, reading the name out of the wrangler config itself.
+The two `db:migrate:*` aliases are the one part of that list provisioning writes rather than copies, since they name your databases literally and a hardcoded name can't travel between repos — they arrive through the [`package.json` fragment](../../.agents/skills/wong-sync/references/stack-pack-fragments.md#packagejson--scripts). They're a convenience only: `cf-build.sh` migrates on every build, reading the name out of the wrangler config itself.
 
 ## CI is GitHub Actions
 
@@ -342,7 +343,7 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
 [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) writes the config and sets the secrets; after it runs, the workflow deploys.
 
-**One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.claude/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
+**One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.agents/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
 
 ### Why not Cloudflare's own Workers Builds
 
@@ -351,22 +352,6 @@ It can't be automated. Cloudflare's Builds API triggers builds, patches existing
 Actions is `gh secret set` plus this file. It also produces a real pull-request check, and a red build is `gh run view --log-failed` — the surface `/save` reads for ordinary checkpoints and on `/ship`'s behalf, with no Cloudflare credential involved. The costs, plainly: Actions minutes are billable on private repos (2,000/month free; public unlimited), and the credentials also live in GitHub secrets.
 
 Staying on Workers Builds is supported and needs no changes — point its build command at `scripts/cf-build.sh` and its deploy command at `scripts/cf-deploy.sh`, and don't add the workflow.
-
-## Adopting the staging environment
-
-For a repo running the older model — one Worker, a `preview_database_id`, and a `swap-d1-id.js` that rewrote the binding on preview branches. [`/wong-sync`](../../.claude/skills/wong-sync/SKILL.md) never modifies a file you authored, so it proposes what's missing and the payload files that are provably unmodified, and leaves the rest to you. This is the sequence, ordered so that stopping partway leaves the repo behaving exactly as it did before:
-
-1. **Create the staging twins** — a D1 database (reuse the one `preview_database_id` already points at), plus a queue, bucket, or KV namespace for each stateful binding the Worker has. See [the twin table](#twin-every-stateful-binding).
-2. **Add the `env.staging` block** to `wrangler.jsonc`, redeclaring every stateful binding, and remove `preview_database_id`. Nothing changes yet — the deploy command is still the default.
-3. **Put the secrets**: collect every secret the Worker reads into `.dev.vars` beside your wrangler config and run `npm run secrets:push`, which loads both Workers. Add `.dev.vars.staging` for any value that must differ — see [the secret model](#one-declared-list-of-secrets-two-workers).
-4. **Repoint service bindings** inside `env.staging` at their staging counterparts. This is the quiet one — nothing fails if you skip it.
-5. **Check [Access](cloudflare-access.md) covers the staging Worker's hostname.** The recommended `*.<subdomain>.workers.dev` wildcard already does; a per-hostname application list needs `<worker>-staging` added.
-6. **Take the scripts**: `scripts/cf-deploy.sh`, `scripts/lib-wrangler-config.sh`, and `scripts/cf-secrets.mjs` are new; `cf-build.sh`, `reset-staging-d1.mjs`, and `lib-wrangler-config.mjs` are updated. Delete `scripts/swap-d1-id.js`.
-7. **Update `package.json`**: `db:migrate:staging` moves from `--preview` to `--env staging` and takes the staging database's name.
-8. **Repoint the deploy command** to `bash scripts/cf-deploy.sh`. *This is the switch* — everything before it was preparation.
-9. **Verify**: push a branch, open both [preview URLs](#two-preview-urls-and-only-one-of-them-runs-your-queue), and confirm a queue message is handled by the staging Worker against the staging database.
-
-Rolling back is restoring `swap-d1-id.js`, reverting the config, and resetting the deploy command. No data migration is involved — staging is a [seeded fixture](#seeded-staging-production-untouched) that `db:reset:staging` rebuilds.
 
 ## Recovery: a bad migration reached production
 
@@ -386,7 +371,7 @@ The default Time Travel window is 30 days on the standard plan — confirm your 
 
 **The build script is the only thing that should run DDL against production.** It replays `schema/migrations/` through `wrangler d1 migrations apply`, which records each file it ran in the `d1_migrations` ledger. Run an `ALTER TABLE` / `CREATE TABLE` against production by hand and you change the schema **without** recording anything in that ledger. The next deploy re-runs the migration file that "owns" that change and fails — `duplicate column name`, `table already exists` — turning the default branch red and blocking *every* deploy until it's reconciled. (This is not hypothetical: a hand-applied column once kept a production branch red for 8 commits.)
 
-So ship every schema change as a migration through the normal flow: [`/save`](../../.claude/skills/save/SKILL.md) exercises it on staging, the merge applies it to production. If a genuine emergency forces a hand-apply, record it in the ledger **in the same session** so history matches reality:
+So ship every schema change as a migration through the normal flow: [`/save`](../../.agents/skills/save/SKILL.md) exercises it on staging, the merge applies it to production. If a genuine emergency forces a hand-apply, record it in the ledger **in the same session** so history matches reality:
 
 ```bash
 npx wrangler d1 execute <db-name> --remote \

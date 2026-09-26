@@ -3,18 +3,58 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 18.2.0 — one file per secrets role, and branch copies in worktrees
+## 19.1.0 — one file per secrets role, and branch copies in worktrees
 
 - Two live secrets files, one role and one place each. The root `.env` holds what you and the scripts use to reach Cloudflare, and never reaches a Worker. `app/.dev.vars` holds the secrets the Worker reads at runtime. [Which file holds what](wiki/stack/d1-pipeline.md#env-and-devvars-are-not-interchangeable).
 - `.dev.vars.example` moves from the repo root to `app/.dev.vars.example`, beside `app/wrangler.jsonc`. `secrets:push` and `secrets:check` always read that folder, so the root copy was never read. **If your repo has a root `.dev.vars`, move it to `app/.dev.vars`** (beside your wrangler config) by hand, and move the example with it.
-- A linked worktree works on its own branch copy of each live file. The new [`worktree-secrets.mjs`](.claude/skills/ship/scripts/worktree-secrets.mjs) `seed` copies the primary's files into a new worktree and records a baseline of key-name hashes in the worktree's Git directory. Wire it into your worktree tool's setup; this repo's `paseo.json` does. [The secrets convention](wiki/development/secrets.md#worktrees-and-branch-copies) owns the lifecycle.
-- A branch writes an add or a rotation to both copies now, and keeps a deletion or a branch-only value in its own copy. [`/ship`](.claude/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies only what the branch changed, skips and names a key both sides changed, and prints key names, never values. Like the post-merge sync, it cannot fail a merged ship.
-- The [secrets rule](.claude/rules/secrets.md) now loads for `.dev.vars*` too. It says which file holds what and how each kind of edit reaches the primary. `/save`'s named-secret step writes an add or a rotation to the seeded branch copy as well as the primary.
+- A linked worktree works on its own branch copy of each live file. The new [`worktree-secrets.mjs`](.agents/skills/ship/scripts/worktree-secrets.mjs) `seed` copies the primary's files into a new worktree and records a baseline of key-name hashes in the worktree's Git directory. Wire it into your worktree tool's setup; this repo's `paseo.json` does. [The secrets convention](wiki/development/secrets.md#worktrees-and-branch-copies) owns the lifecycle.
+- A branch writes an add or a rotation to both copies now, and keeps a deletion or a branch-only value in its own copy. [`/ship`](.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies only what the branch changed, skips and names a key both sides changed, and prints key names, never values. Like the post-merge sync, it cannot fail a merged ship.
+- The [secrets rule](.agents/rules/secrets.md) now loads for `.dev.vars*` too. It says which file holds what and how each kind of edit reaches the primary. `/save`'s named-secret step writes an add or a rotation to the seeded branch copy as well as the primary.
 - `secrets:push` in a linked worktree that has no `app/.dev.vars` reads the primary checkout's copy, and says so. A local copy still wins, and the `.env` refusal is unchanged.
+## 19.0.2 — Background capture works in don't-ask mode
+
+- **Memory:** background capture no longer fails under `dontAsk`. Claude Code denied the 19.0.0 heredoc when a fact held characters such as `<`, `>`, `|`, or `# Changelog
+
+`/wong-sync` reads the entries newer than your installed version
+(`.claude/.wong-stack.json`) as context for planning the update. Newest first.
+
+. Each run now makes one temp folder outside the repo, grants writes to it alone (`Edit(...)` and `--add-dir`), and passes `--file <path>` to `memory.mjs`. The folder is deleted when the run ends. Codex gets the same folder as a writable root. Interactive sessions keep the stdin heredoc.
+- **`/ship`** no longer prints a delete error when GitHub already deleted the branch at merge. It checks `git ls-remote --heads` first, and the report says "deleted at merge".
+- This source repo's Dependabot ignores `@types/node` major versions, which follow `.nvmrc`. Not shipped to installs.
+## 19.0.1 — Records from the old notes migration stay readable
+
+- The memory-store spec states that records from an earlier notes migration stay readable: `migration:<slug>` sessions, facts with source `migration`, and `migration/<slug>.md` objects in R2. `memory.mjs source <fact-id>` prints the note text behind a migrated fact. A new test guards this, and a second test checks that no command imports `notes/`.
+- The write-gate requirement no longer names the migration as a writer. No shipped behavior changes.
+
+## 19.0.0 — A fresh start: safer edge cases, no legacy paths, an open-source surface
+
+**Breaking.** Installs from before 19.0.0 are not supported. `/wong-sync` no longer migrates `notes/`, the `.claude/` folder layout, the CI secret, the generated `openspec-*` layer, the `.wong-framework.json` record, or the `components.stackPack`, `appScaffold`, and `ui` flags. Set such a repo up again in an empty folder with [`/wong-setup`](.agents/skills/wong-setup/SKILL.md).
+
+- **Safer failure paths:**
+  - `/ship` merges with `--match-head-commit` and deletes the branch only after the PR state is `MERGED`. It retargets stacked PRs to the real default branch.
+  - The CI gate waits for the pushed commit's checks. `NONE` means that the repo has no workflow files. A failed `gh` call is `UNKNOWN`, and `UNKNOWN` never merges.
+  - `/save`, `/continue`, and `/ship` check [shared preconditions](.agents/skills/save/references/preconditions.md) first. A dirty default branch goes to `/save`.
+  - Setup creates the GitHub repository and `origin`.
+- **Pack scripts read the wrangler config with one JSONC parser** in `scripts/lib-wrangler-config.mjs`. The production guard in `cf-deploy.sh` can no longer be passed by a `database_name` key or by a comment. A Worker with no D1 builds and deploys. The staging reset refuses the production database. TOML config is refused with a clear message. New pack file: `scripts/lib-cli.mjs`.
+- **Memory:**
+  - The session-start hook exits within its 5 s timeout when the store cannot be reached.
+  - Background capture passes JSON on stdin, so it no longer fails in don't-ask mode.
+  - `migrate` applies each migration once. The digest is capped at 40 lines and 6 KB, with open threads first, and it loads only on startup and resume.
+- **Less to read:**
+  - Each rule has one owner. The change-selection order has named rungs in [the evidence contract](.agents/skills/save/references/checkpoint-evidence.md#selection-rungs).
+  - `/ship` and `/verify` are about half their size, and skill instructions are about 3,200 words shorter.
+  - The vendored `agent-browser` skill no longer triggers on its own.
+- **Open-source surface:**
+  - Markdown links name the real `.agents/` paths, so they open on github.com, and the link checker fails on a link through a symlink.
+  - The README states the problem first, and it has a layout table and correct requirements.
+  - New files: `CODE_OF_CONDUCT.md`, `.github/CONTRIBUTING.md`, issue and PR templates, `CODEOWNERS`, `.gitattributes`, `.editorconfig`, and `.nvmrc` (Node 22).
+  - Workflow actions are pinned by SHA and have job timeouts. Production deploys run in a `production` environment.
+  - This source repo also gets Dependabot, which is not shipped to installs.
+- Each release is now tagged `v<VERSION>` and published as a GitHub Release, starting with this one.
 
 ## 18.1.0 — `/routine`: recurring work through Paseo schedules
 
-- New skill [`/routine`](.claude/skills/routine/SKILL.md). Say what to run and when, for example `/routine every weekday at 9am: /improve`. The skill turns the time into cron, shows you the schedule, and creates it in [Paseo](https://paseo.sh) after you accept. Any prompt or verb can be scheduled. `/routine` alone lists this repo's routines. `pause`, `resume`, `run`, `logs`, `change`, and `delete` act on one routine by name or id.
+- New skill [`/routine`](.agents/skills/routine/SKILL.md). Say what to run and when, for example `/routine every weekday at 9am: /improve`. The skill turns the time into cron, shows you the schedule, and creates it in [Paseo](https://paseo.sh) after you accept. Any prompt or verb can be scheduled. `/routine` alone lists this repo's routines. `pause`, `resume`, `run`, `logs`, `change`, and `delete` act on one routine by name or id.
 - Each run is a new agent in its own Paseo worktree of the repo's primary worktree, so it never runs on top of your own work. It uses `bypassPermissions` (Claude) or `full-access` (Codex). The agent is kept after the run, so a question from it waits in Paseo for you. The prompt runs exactly as you wrote it.
 - `paseo schedule create` 0.9.2 cannot set worktree isolation, so the script creates schedules through Paseo's own daemon client. If a Paseo update changes that client, `/routine` creates nothing and gives the steps for the Paseo app. Without Paseo, it says so and changes nothing. Paseo stays optional: [required tools](wiki/development/required-tools.md) lists it for `/routine` only.
 - [Repository improvement](wiki/development/repository-improvement.md) points Paseo users to `/routine`. Its scheduler requirements are unchanged.
@@ -1369,7 +1409,7 @@ those was a place to stall. Live probing found most of it unnecessary. The manua
 
 ## 8.0.0 — staging is its own Worker; the D1 preview swap is gone
 
-**Only the [stack pack](.claude/skills/wong-sync/references/payload-manifest.md#the-opt-in-stack-pack) changes.** A repo that declined it is untouched by this release.
+**Only the [stack pack](.claude/skills/wong-sync/references/payload-manifest.md#the-stack-pack) changes.** A repo that declined it is untouched by this release.
 
 The pack isolated staging at the *binding* level: one Worker, two database ids, and `swap-d1-id.js` rewriting `wrangler.jsonc` on preview branches. That only ever covered one code path. Cloudflare Workers Builds uploads a **version** on a non-production branch, and a version serves HTTP and nothing else — queue consumers, cron triggers, and every other non-request handler run on the **deployed** version, with production bindings. So a repo that added a queue couldn't exercise it on staging at all, and staging messages were handled by production code against the production database. The unit of isolation on Cloudflare is the Worker; this release uses one.
 
@@ -1942,7 +1982,7 @@ now:  /explore → /plan → /apply → /save → /continue → /ship
     a `/continue` footer) — so a forge alone is a complete handoff surface.
   - **author-as-fallback** — a session that skipped `/plan` gets its change authored from the
     conversation via the same OpenSpec artifact process, so nothing pushes without its handoff.
-- **[`/ship`](.claude/skills/ship/SKILL.md)** now reuses `/save`'s change-mirror PR body and names
+- **[`/ship`](.agents/skills/ship/SKILL.md)** now reuses `/save`'s change-mirror PR body and names
   out-of-band review (`/code-review`, PR review) as the deeper-review path — it is the merge, not the
   gate. Stack-specific quality-gate subagents stay out; WongStack is stack-agnostic.
 - **Docs + surfaces updated** — [the change loop](docs/development/the-change-loop.md) is rewritten

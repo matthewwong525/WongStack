@@ -69,8 +69,10 @@ fi
 ACCESS_HEADERS=""
 CURL_ACCESS=()
 if [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
-  ACCESS_HEADERS=$(printf '{"CF-Access-Client-Id":"%s","CF-Access-Client-Secret":"%s"}' \
-    "$CF_ACCESS_CLIENT_ID" "$CF_ACCESS_CLIENT_SECRET")
+  # JSON.stringify escapes a quote or backslash in a value; printf would not.
+  ACCESS_HEADERS=$(node -e '
+    const { CF_ACCESS_CLIENT_ID: id, CF_ACCESS_CLIENT_SECRET: secret } = process.env;
+    console.log(JSON.stringify({ "CF-Access-Client-Id": id, "CF-Access-Client-Secret": secret }));')
   CURL_ACCESS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" \
                -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
 fi

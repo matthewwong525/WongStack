@@ -129,13 +129,14 @@ fi
 # Fail closed: confirm the config wrangler will actually use names a Worker
 # other than production's, BEFORE anything is deployed.
 #
-# `wong_read_worker_name` reads the name wrangler resolves — the generated
+# `wong_config worker-name` reads the name wrangler resolves — the generated
 # config when the build redirected, the source config otherwise. If that equals
 # the production name on a non-production branch, the staging environment did
-# not take effect and deploying would overwrite production. Refuse.
-PROD_NAME=$(wong_read_worker_name)
-STAGING_NAME=$(wong_read_worker_name staging)
-if [ -n "$PROD_NAME" ] && [ "$STAGING_NAME" = "$PROD_NAME" ]; then
+# not take effect and deploying would overwrite production. Refuse. A config
+# the parser cannot read stops here too: the assignment fails under `set -e`.
+PROD_NAME=$(wong_config worker-name)
+STAGING_NAME=$(wong_config worker-name staging)
+if [ "$STAGING_NAME" = "$PROD_NAME" ]; then
   echo "cf-deploy: ERROR — on branch '$BRANCH' the staging environment resolves to the" >&2
   echo "cf-deploy: production Worker '$PROD_NAME'. Deploying would overwrite production." >&2
   echo "cf-deploy:" >&2

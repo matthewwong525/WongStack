@@ -1,6 +1,6 @@
 ---
 name: routine
-description: Put any prompt or WongStack verb on a recurring Paseo schedule for this repo, and list, pause, resume, run, change, or delete those Paseo schedules. Each run is a new agent in its own Paseo worktree with full permissions; its questions wait in Paseo for you. Use to schedule, repeat, or automate work through Paseo ("every weekday at 9am run /improve", "run this nightly", "pause the nightly routine", "what routines does this repo have"). Needs Paseo; for Claude cloud routines, use the built-in schedule skill instead.
+description: Schedule any prompt or verb to recur through Paseo, and list, pause, resume, run, change, or delete those schedules. Use for "run /improve every weekday at 9am" or "pause the nightly routine". Needs Paseo; for Claude cloud routines, use schedule.
 user-invocable: true
 ---
 

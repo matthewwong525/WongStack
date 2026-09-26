@@ -1,0 +1,172 @@
+<section class="visual screen" id="readme" data-kind="screen" data-title="README on GitHub" data-states="after today" data-state="after">
+  <p class="caption">The repository home page on GitHub: the README's first screen and its section order, after this change and today.</p>
+  <div class="frame">
+    <div class="topbar">
+      <div class="logo"></div>
+      <div class="nav desktop-only"><span class="on">Code</span><span>Issues</span><span>Pull requests</span><span>Actions</span><span>Security</span></div>
+      <span class="phone-only">☰</span>
+    </div>
+    <div class="body">
+      <div class="state state-after">
+        <p class="muted">README.md</p>
+        <h1>WongStack</h1>
+        <div class="row" data-target-id="after-badges">
+          <span class="tag">CI: passing</span><span class="tag">License: MIT</span><span class="tag">Version: 19.0.0</span> <i class="callout">1</i>
+        </div>
+        <div class="box" data-target-id="after-problem">
+          <p><b>Coding agents forget your decisions between sessions, and your process lives in chat.</b></p>
+          <p>WongStack keeps the process, the plans, and the decisions in the repo, so each agent runs the same workflow and each change starts with more context. <i class="callout">2</i></p>
+        </div>
+        <div class="hero" data-target-id="after-screenshot"></div>
+        <p class="muted">Screenshot: a <code>review.html</code> page from a real change. <i class="callout">3</i></p>
+
+        <h2>Start here</h2>
+        <div class="box" data-target-id="after-start">
+          <p class="muted">Make an empty folder, open it in your coding agent, and paste:</p>
+          <p><code>Read and follow …/.agents/skills/wong-setup/SKILL.md to install WongStack in this folder …</code></p>
+          <span class="btn primary">Copy the prompt</span> <i class="callout">4</i>
+        </div>
+
+        <h2>What you get</h2>
+        <div class="skeleton"></div><div class="skeleton s"></div><div class="skeleton"></div>
+
+        <h2>How it compares</h2>
+        <table class="desktop-only" data-target-id="after-compare">
+          <thead><tr><th></th><th>Plain <code>AGENTS.md</code></th><th>OpenSpec alone</th><th>GitHub Spec Kit</th><th>WongStack</th></tr></thead>
+          <tbody>
+            <tr><td>Agent instructions in the repo</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Plan and shipped-spec records</td><td>No</td><td>Yes</td><td>Yes</td><td>Yes, through OpenSpec</td></tr>
+            <tr><td>Save, PR, CI wait, and merge</td><td>No</td><td>No</td><td>Part</td><td>Yes</td></tr>
+            <tr><td>Memory across sessions</td><td>No</td><td>No</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Preview per change</td><td>No</td><td>No</td><td>No</td><td>Yes, on Cloudflare</td></tr>
+          </tbody>
+        </table>
+        <div class="phone-only">
+          <dl class="kv"><dt>Plain <code>AGENTS.md</code></dt><dd>Instructions only</dd><dt>OpenSpec alone</dt><dd>Plans and specs</dd><dt>GitHub Spec Kit</dt><dd>Specs, part of the git steps</dd><dt>WongStack</dt><dd>All of these, plus memory and previews</dd></dl>
+        </div>
+        <p class="muted">Cell values are a draft. <i class="callout">5</i></p>
+
+        <h2>Repository layout</h2>
+        <table data-target-id="after-layout">
+          <thead><tr><th>Path</th><th>Holds</th></tr></thead>
+          <tbody>
+            <tr><td><code>.agents/</code></td><td>Skills and path rules. <code>.claude</code> and <code>.codex</code> link here.</td></tr>
+            <tr><td><code>.github/</code></td><td>Workflows, templates, CONTRIBUTING</td></tr>
+            <tr><td><code>app/</code></td><td>The starter app</td></tr>
+            <tr><td><code>openspec/</code></td><td>Active changes, specs, archive</td></tr>
+            <tr><td><code>wiki/</code></td><td>Process and conventions</td></tr>
+            <tr><td><code>schema/</code>, <code>scripts/</code></td><td>Memory schema, checks, tests</td></tr>
+            <tr><td class="muted">Root files</td><td class="muted"><code>AGENTS.md</code>, <code>VERSION</code>, <code>CHANGELOG.md</code>, <code>SECURITY.md</code>, and the rest, one row each</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Requirements</h2>
+        <dl class="kv" data-target-id="after-requirements">
+          <dt>Coding agent</dt><dd>Claude Code or Codex. Cursor with limits, stated.</dd>
+          <dt>Tools</dt><dd>Node.js, <code>curl</code>, <code>gh</code> (signed in), <code>git</code></dd>
+          <dt>OpenSpec</dt><dd><code>npm install -g @fission-ai/openspec</code></dd>
+          <dt>Windows</dt><dd><code>git config --global core.symlinks true</code></dd>
+          <dt>Cloudflare</dt><dd>Required: memory and hosting run there. Links <code>SECURITY.md</code> for what each token can do. <i class="callout">6</i></dd>
+          <dt>Paseo</dt><dd class="muted">Optional, for <code>/routine</code></dd>
+        </dl>
+
+        <h2>Work from the source</h2>
+        <p>Fork first, then clone your fork. <i class="callout">7</i></p>
+
+        <h2>License</h2>
+        <p class="muted">MIT</p>
+      </div>
+
+      <div class="state state-today">
+        <p class="muted">README.md</p>
+        <h1>WongStack</h1>
+        <p>WongStack turns a repo into an AI knowledge center.</p>
+        <p class="muted">Agents need shared knowledge to do useful work. WongStack keeps a team's processes inside the repo …</p>
+        <p class="muted">No badges. No screenshot. No line says what goes wrong without WongStack.</p>
+
+        <h2>Start here</h2>
+        <div class="box">
+          <p class="muted">Empty folder, Claude Code, Codex, Cursor, or another agent. Paste:</p>
+          <p><code>Read and follow …/wong-setup/SKILL.md …</code></p>
+          <span class="btn primary">Copy the prompt</span>
+        </div>
+        <h2>What you get</h2>
+        <div class="skeleton"></div><div class="skeleton s"></div>
+        <h2>How the pieces fit</h2>
+        <div class="skeleton s"></div>
+        <h2>The workflow</h2>
+        <div class="skeleton"></div><div class="skeleton"></div>
+        <h2>Where the knowledge lives</h2>
+        <div class="skeleton s"></div>
+        <h2>A few terms the agent may introduce</h2>
+        <div class="skeleton s"></div>
+        <h2>Learn more</h2>
+        <div class="skeleton s"></div>
+        <h2>Requirements</h2>
+        <dl class="kv">
+          <dt>Tools</dt><dd><code>gh</code>, Node.js. No <code>curl</code>, no OpenSpec install command.</dd>
+          <dt>Windows</dt><dd class="muted">Not named</dd>
+          <dt>Cloudflare</dt><dd>Named, with no reason why it is required</dd>
+        </dl>
+        <h2>Prefer to work from the source?</h2>
+        <p>Clone this repo.</p>
+        <h2>License</h2>
+        <p class="muted">MIT</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a developer who lands on the repository from a link or a search, and decides in under a minute whether WongStack solves a problem they have. <b>Done:</b> they copy the setup prompt, or they know why WongStack is not for them. <b>Context:</b> GitHub on a desktop browser, drawn first; the phone view (toggle View: Phone) keeps the same order and folds the comparison table into a list. <b>Frequency:</b> once per visitor.</p>
+    <ol>
+      <li>Badges come first, so a visitor sees that CI passes, the license, and the version before they read. The version badge reads <code>VERSION</code>.</li>
+      <li>The problem comes before the product. Today the first line names the product ("an AI knowledge center"); a visitor who does not know that term cannot tell if it is for them.</li>
+      <li>One screenshot of a <code>review.html</code> page, not a GIF. It shows the output a user gets, and any change can make a new one.</li>
+      <li>The copy prompt stays the one primary action. Nothing else on the first screen competes with it.</li>
+      <li>The comparison is short and names each other tool fairly. The final cell text is for the README draft to decide; review the rows, not the words.</li>
+      <li>Requirements say why Cloudflare is required and link <code>SECURITY.md</code>, instead of offering a path without Cloudflare.</li>
+      <li>"Fork first" replaces "clone this repo": a visitor cannot push to this repository, and a fork PR is the way to send a change back.</li>
+      <li>Not drawn: the workflow table, "Where the knowledge lives", and "Learn more". The plan does not say if they stay, move to the wiki, or shrink. "A few terms" moves to the wiki.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual tree" id="settings" data-kind="tree">
+  <p class="caption">GitHub repository settings: the value today → the value after. The agent shows each row to you, then applies it with <code>gh</code>. Nothing changes before you see it.</p>
+  <div class="frame">
+    <div class="label">Security</div>
+    <ul>
+      <li class="edit" data-target-id="set-pvr">Private vulnerability reporting: off → on <span class="why">the channel <code>SECURITY.md</code> names works <i class="callout">1</i></span></li>
+      <li class="edit" data-target-id="set-secrets">Secret scanning and push protection: off → on <span class="why">a pushed token is stopped</span></li>
+      <li class="edit" data-target-id="set-dependabot">Dependabot alerts and security updates: off → on <span class="why">pairs with the new <code>dependabot.yml</code></span></li>
+    </ul>
+    <div class="label">Ruleset on main</div>
+    <ul>
+      <li class="add" data-target-id="set-ruleset">Required checks: none → Test and Payload checks <span class="why">"CI is the gate" is enforced <i class="callout">2</i></span></li>
+      <li class="add" data-target-id="set-force">Force-push and deletion: allowed → blocked</li>
+      <li class="add" data-target-id="set-bypass">Bypass: none → repository owner only <span class="why">prose saves go straight to <code>main</code> <i class="callout">3</i></span></li>
+    </ul>
+    <div class="label">Pull requests</div>
+    <ul>
+      <li class="edit" data-target-id="set-merge">Merge methods: merge, rebase, squash → squash only <span class="why">matches what <code>/ship</code> does</span></li>
+      <li class="edit" data-target-id="set-delete">Delete head branch after merge: off → on</li>
+    </ul>
+    <div class="label">About</div>
+    <ul>
+      <li class="edit" data-target-id="set-description">Description: "My harness for building a collaborative AI knowledge center" → a third-person line that states the problem <span class="why">search results quote it</span></li>
+      <li class="add" data-target-id="set-topics">Topics: none → ai-agents, claude-code, codex, openspec, cloudflare-workers, developer-workflow</li>
+      <li class="add" data-target-id="set-homepage">Homepage: empty → a link, shown for your approval <span class="why">value set when the agent shows it</span></li>
+    </ul>
+    <div class="label">Environments</div>
+    <ul>
+      <li class="add" data-target-id="set-env">production: none → deploys from <code>main</code> only <span class="why">a branch cannot deploy to production <i class="callout">4</i></span></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>Today <code>SECURITY.md</code> points to a reporting form that is turned off. Turning it on makes the file true; the file does not change.</li>
+      <li>The check names match the workflow names in <code>.github/workflows/</code>. A check that is renamed later must also be renamed here, or every PR waits for a check that never runs.</li>
+      <li>Without an owner bypass, a wiki-only <code>/save</code> cannot push to <code>main</code>. The bypass is for the owner only; other people still go through a PR.</li>
+      <li>The deploy workflow names the <code>production</code> environment, so the limit to <code>main</code> is enforced by GitHub, not only by the workflow's own branch filter.</li>
+    </ol>
+  </div>
+</section>

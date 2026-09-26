@@ -242,23 +242,22 @@ A What Changes bullet with a visual SHALL end with `(review.html#/<visual>[/<sta
 
 ### Requirement: The proposal text is resynced by `/save`
 
-The generated page SHALL contain the proposal's current Why and What Changes and SHALL render paragraphs, lists, bold, inline code, and links. Plan and save SHALL use one shared refresh implementation. Current-format pages SHALL be assembled from their inputs. Legacy pages with `proposal:start` and `proposal:end` markers SHALL receive the existing proposal-only refresh; legacy pages without supported markers and older changes without a page SHALL be reported and left untouched. A new-format missing input SHALL be reported as an error, not a legacy skip. New plans SHALL always include a page.
+The generated page SHALL contain the proposal's current Why and What Changes and SHALL render paragraphs, lists, bold, inline code, and links. Plan and save SHALL use one shared refresh implementation. Pages SHALL be assembled from their inputs. A missing input SHALL be reported as an error, and the last output SHALL be kept. A change without a page SHALL be reported and left untouched. New plans SHALL always include a page.
 
 #### Scenario: The proposal changes after the file was written
 
 - **WHEN** What Changes is edited during implementation and save runs
 - **THEN** the page displays the proposal's current Why and What Changes
 
-#### Scenario: No file or no markers
-
-- **WHEN** save runs for an older change without a page or supported proposal markers
-- **THEN** the legacy page is not rewritten and the checkpoint reports the limitation and proceeds
-
 #### Scenario: A current-format refresh fails
 
-- **WHEN** the new page's required visual input is missing
+- **WHEN** the page's required visual input is missing
 - **THEN** refresh preserves the last output and reports the failure
-- **AND** the checkpoint does not claim the review is current
+
+#### Scenario: No file or no markers
+
+- **WHEN** save runs for a change without a page
+- **THEN** the page is not created or rewritten, and the checkpoint reports the limitation and proceeds
 
 ### Requirement: A reviewer annotates in place and copies the notes
 

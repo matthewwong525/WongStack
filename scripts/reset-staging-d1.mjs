@@ -18,23 +18,54 @@
 import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 
-import { findWranglerConfig, readDatabaseName, repoRoot } from "./lib-wrangler-config.mjs";
+import {
+  databaseName,
+  findWranglerConfig,
+  hasD1,
+  parseConfig,
+  repoRoot,
+  WranglerConfigError,
+} from "./lib-wrangler-config.mjs";
+import { parseCli } from "./lib-cli.mjs";
 
+parseCli({ usage: "usage: node scripts/reset-staging-d1.mjs  (rebuilds the staging D1 from schema/seed.sql)" });
 const root = repoRoot;
 const wranglerPath = findWranglerConfig();
 const STAGING_ENV = "staging";
-const DB = readDatabaseName(wranglerPath, STAGING_ENV);
+const DB = stagingDatabase(wranglerPath);
 const STAGING_FLAGS = ["--remote", "--env", STAGING_ENV];
 
 // Run wrangler from the config's own directory so config-relative paths
 // (migrations_dir, assets) resolve the way wrangler expects.
 const wranglerCwd = dirname(wranglerPath);
 
-function exec(args, { json = false, quiet = false } = {}) {
+/**
+ * The staging database's name. Stops, before any wrangler call, when the config
+ * cannot be read or when staging names the production database: `--env staging`
+ * would then point every DROP below at production.
+ */
+function stagingDatabase(configPath) {
+  try {
+    const config = parseConfig(configPath);
+    const name = databaseName(config, STAGING_ENV);
+    if (hasD1(config) && name === databaseName(config)) {
+      throw new WranglerConfigError(
+        `env.${STAGING_ENV} names the production database '${name}'. Give staging its own d1_databases entry.`,
+      );
+    }
+    return name;
+  } catch (error) {
+    if (!(error instanceof WranglerConfigError)) throw error;
+    console.error(`Refusing to reset staging: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+function exec(args, { json = false } = {}) {
   const result = execFileSync("npx", ["wrangler", ...args], {
     cwd: wranglerCwd,
     encoding: "utf8",
-    stdio: ["ignore", "pipe", quiet ? "pipe" : "inherit"],
+    stdio: ["ignore", "pipe", "inherit"],
   });
   return json ? JSON.parse(result) : result;
 }
@@ -50,37 +81,17 @@ function listStagingObjects() {
 
 const DROP_KEYWORD = { table: "TABLE", view: "VIEW", trigger: "TRIGGER" };
 
-function dropObject({ type, name }) {
-  try {
-    exec([
-      "d1", "execute", DB, ...STAGING_FLAGS, "--command",
-      `DROP ${DROP_KEYWORD[type]} IF EXISTS "${name}"`,
-    ], { quiet: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
+// One batched command. With foreign keys off, no drop order can fail on a
+// reference, so there is no retry loop. D1 defers the checks instead, so both.
 function dropAllStagingObjects() {
-  let remaining = listStagingObjects();
-  console.log(`Dropping ${remaining.length} object(s) from ${DB} (staging)…`);
-  // Retry as FK references collapse: dropping a parent can unblock a child.
-  let lastSize = -1;
-  while (remaining.length > 0 && remaining.length !== lastSize) {
-    lastSize = remaining.length;
-    const stillThere = [];
-    for (const obj of remaining) {
-      if (!dropObject(obj)) stillThere.push(obj);
-    }
-    remaining = stillThere;
-  }
-  if (remaining.length > 0) {
-    console.error(
-      `Stuck — could not drop: ${remaining.map((o) => `${o.type}:${o.name}`).join(", ")} (likely an FK cycle).`,
-    );
-    process.exit(1);
-  }
+  const objects = listStagingObjects();
+  console.log(`Dropping ${objects.length} object(s) from ${DB} (staging)…`);
+  if (objects.length === 0) return;
+  const drops = objects.map(({ type, name }) => `DROP ${DROP_KEYWORD[type]} IF EXISTS "${name}";`);
+  exec([
+    "d1", "execute", DB, ...STAGING_FLAGS, "--command",
+    ["PRAGMA foreign_keys=OFF;", "PRAGMA defer_foreign_keys=ON;", ...drops].join(" "),
+  ]);
 }
 
 dropAllStagingObjects();

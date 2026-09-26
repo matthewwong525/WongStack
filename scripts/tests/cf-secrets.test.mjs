@@ -11,7 +11,7 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 function scaffold(root, config) {
   mkdirSync(join(root, 'scripts'), { recursive: true });
   mkdirSync(join(root, 'app'));
-  for (const name of ['cf-secrets.mjs', 'lib-wrangler-config.mjs']) {
+  for (const name of ['cf-secrets.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs']) {
     copyFileSync(join(repo, 'scripts', name), join(root, 'scripts', name));
   }
   writeFileSync(join(root, 'app/wrangler.jsonc'), JSON.stringify({ name: 'app', ...config }, null, 2));

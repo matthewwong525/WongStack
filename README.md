@@ -1,14 +1,18 @@
 # WongStack
 
-WongStack turns a repo into an AI knowledge center.
+[![Test](https://img.shields.io/github/actions/workflow/status/matthewwong525/WongStack/test.yml?branch=main&label=test)](https://github.com/matthewwong525/WongStack/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
+[![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
-Agents need shared knowledge to do useful work. WongStack keeps a team's processes inside the repo, then gives agents a repeatable way to run those processes and write down what the work teaches.
+**Coding agents forget your decisions between sessions, and your process lives in chat and in people's heads.** WongStack keeps the process, the plans, and the decisions in the repo, and gives agents a repeatable loop that writes down what each change teaches.
 
-This is one way of working, not the only one. [The principles behind it](wiki/agent-knowledge-center.md) explain the reasoning — adapt what fits your team.
+![A review page for a planned change: the change list on the left, and a before-and-after view of the selected change on the right](wiki/assets/review-page.png)
+
+*Each plan gets a `review.html` page like this. You read each change, see it drawn, and add notes before any code is written.*
 
 ## Start here
 
-Make an **empty folder** and open it in Claude Code, Codex, Cursor, or another coding agent that can read files, edit files, run shell commands, and ask you questions. Have a free [Cloudflare](https://cloudflare.com) account ready. Then paste this:
+Make an **empty folder** and open it in your coding agent. Have a free [Cloudflare](https://cloudflare.com) account ready. Then paste this:
 
 ```
 Read and follow
@@ -16,110 +20,103 @@ https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agen
 to install WongStack in this folder and walk me through the first workflow.
 ```
 
-The agent asks for one Cloudflare token first, with the [exact click path](wiki/stack/cloudflare-credentials.md#create-the-token). Then it uses the normal workflow: it asks how you work, plans the install, applies it, and saves the result. You end with the workflow, a starter app online at its own address, and session memory. Setup starts only from an empty folder; in a folder that already has files, it stops and says so.
+The agent asks for one Cloudflare token first, with the [exact click path](wiki/stack/cloudflare-credentials.md#create-the-token). Then it asks how you work, plans the install, applies it, and saves the result. You end with the workflow, a starter app online, and session memory. In a folder that already has files, setup stops and says so.
+
+Claude Code and Codex get full support. Other agents, such as Cursor, can follow the workflow skills, because they are plain Markdown files. They get no hooks and no session memory.
 
 ## What you get
 
-- **Process in the repo.** Your team's way of working lives in the repo, not scattered across chats, docs, and people's heads.
-- **Commands agents can run.** Exploring, planning, implementing, saving, resuming, shipping, and recurring maintenance each have one.
-- **A record written during the work.** Plans, decisions, shipped changes, and reusable lessons get written down as part of the workflow, not afterwards.
-- **A reviewable work trail.** Work arrives as a package your team can inspect before it joins the main project.
-- **More context for the next change.** Each finished change leaves the repo knowing more than it did.
-- **No lock-in to one agent.** Claude Code is one way to run WongStack. The durable part is the files, instructions, and process in the repo.
+- **Process in the repo**, not in chats, docs, and people's heads.
+- **One command for each stage of the work**, from the first idea to the merge.
+- **A record written during the work.** Plans, decisions, and lessons are written down as part of each step, not afterward.
+- **A reviewable package** for each change, which your team inspects before it joins `main`.
+- **[Memory across sessions](wiki/development/memory.md).** Each session starts with the facts that earlier sessions learned. The store is in your Cloudflare account, not in git.
+- **No lock-in to one agent.** The durable part is the files in the repo.
 
-## How the pieces fit
-
-Keep the process in the repo, let agents run it, then improve the process from what the work teaches you.
-
-```text
-process in the repo
-        |
-        v
-agents can run it
-        |
-        v
-plans and decisions captured
-        |
-        v
-reusable lessons kept
-        |
-        v
-next change starts with more context
-```
-
-The code is one output. The other is a repo that makes the next change easier.
-
-## The workflow
-
-WongStack gives agents a small set of commands that match how work moves from idea to finished record:
+## The commands
 
 ```text
 /explore -> /plan -> /apply -> /save -> /continue -> /ship
 ```
 
-Those are the durable stages, but you do not have to invoke every one. After `/explore`, you can run `/apply` directly: if the current work has no apply-ready change, it runs `/plan` first and then implements that exact plan. Invoke `/plan` yourself when you want to review the artifacts before implementation. Every plan includes a standalone `review.html` where people can see each change, annotate it, and copy feedback. WongStack's skills call the OpenSpec CLI to maintain the plan and shipped records.
+You do not have to run each one. A command whose input is missing runs the one before it, so `/apply` plans first when there is no plan. [The change loop](wiki/development/the-change-loop.md) owns the details.
 
-| Command | Plain-language meaning |
+| Command | What it does |
 | --- | --- |
-| `/explore` | Think through the idea before deciding what to do. |
-| `/plan` | Write the plan, tasks, decisions, and interactive review page. |
-| `/apply` | Ensure the current work has a plan, do it, then automatically save it once every task is complete. |
-| `/save` | Save a checkpoint for review and future continuation at any time — including a plain conversation, whose facts go to the memory store with no branch or PR. |
-| `/continue` | Pick work back up later, even from another machine or session. |
-| `/ship` | Finish the change and preserve the record of what shipped. |
-| `/improve [area]` | Review recent work and one rotating area, then ship one supported maintenance improvement. Add `--audit-only` for findings without edits. |
-| `/routine <when>: <prompt>` | Run any prompt or verb on a schedule through Paseo, each run in its own worktree. `/routine` alone lists this repo's routines. |
-| `/wong-sync` | Get the latest WongStack source and plan the update, ending at a review page you can read. |
+| `/explore` | Think through an idea before you decide what to do. |
+| `/plan` | Write the plan, tasks, and decisions, and build the `review.html` page. |
+| `/apply` | Do the planned work, then save it when every task is complete. |
+| `/save` | Commit, push, open or update the pull request, and wait for CI. A plain conversation saves only its facts. |
+| `/continue` | Pick up saved work later, from any machine or session. |
+| `/ship` | Finish the change, merge it, and keep the record of what shipped. |
+| `/improve [area]` | Review recent work and one area, then ship one maintenance fix. `--audit-only` reports findings with no edits. |
+| `/routine <when>: <prompt>` | Run a prompt or command on a schedule. Optional: it needs [Paseo](https://paseo.sh). |
+| `/wong-sync` | Get the latest WongStack and plan the update, up to a review page. |
 
-Setup also turns on [session memory](wiki/development/memory.md): a private store on your Cloudflare account that every session reads at start and that captures sessions you never saved. It puts the project online with the [Cloudflare stack](wiki/stack/README.md): every change gets its own preview link, and merging deploys it.
+Setup puts the app online on [the Cloudflare stack](wiki/stack/README.md): each change gets a preview link, and a merge deploys it.
 
-## Where the knowledge lives
+## How it compares
 
-- **Agent instructions** tell future agents how to work in the repo.
-- **Session memory** keeps short facts from every session — saved or not — outside the repo, and loads a digest of them when the next session starts.
-- **The wiki** holds reusable team process and conventions.
-- **Active changes** hold the plan, tasks, status, and decisions for work in progress.
-- **Archived changes** preserve what shipped and why.
-- **Skills** are repeatable workflows agents can run.
+| | Plain [`AGENTS.md`](https://agents.md) | [OpenSpec](https://github.com/Fission-AI/OpenSpec) alone | [GitHub Spec Kit](https://github.com/github/spec-kit) | WongStack |
+| --- | --- | --- | --- | --- |
+| Agent instructions in the repo | Yes | Yes | Yes | Yes |
+| Plans and specs in the repo | No | Yes | Yes | Yes, through OpenSpec |
+| Git steps | No | No | Branches and commits, with the opt-in [git extension](https://github.com/github/spec-kit/tree/main/extensions/git) | Branch, commit, PR, CI wait, and merge |
+| Facts kept between sessions | No | No | No | Yes |
+| Preview deploy per change | No | No | No | Yes, on Cloudflare |
+| Agents | Many | 30+ tools | Many, by integration | Claude Code and Codex in full |
+| Setup needs | One file | Node.js | Python 3.11+ and `uv` | Node.js, `gh`, and a Cloudflare account |
 
-For the principles behind these choices, read [AI knowledge centers](wiki/agent-knowledge-center.md). For the operational loop, read [the change loop](wiki/development/the-change-loop.md).
+Checked against each project's README in September 2026.
 
-## A few terms the agent may introduce
+## Repository layout
 
-You do not need these before starting, but they help explain what WongStack sets up:
-
-- **Repo:** the project folder plus its saved history.
-- **Pull request:** a reviewable package of work. It lets you or your team inspect what changed before it becomes part of the main project.
-- **CI:** automated checks that may run on saved work, such as tests or linting. If your project has them, WongStack pays attention to them.
-- **OpenSpec:** the planning layer WongStack uses to write down what is being built and what shipped.
-- **Wiki:** the repo's place for reusable team knowledge and conventions.
-
-## Learn more
-
-- [Wiki](wiki/README.md) - the progressive-disclosure guide to WongStack's process.
-- [AI knowledge centers](wiki/agent-knowledge-center.md) - the six principles behind WongStack, and the mechanism that applies each one.
-- [The change loop](wiki/development/the-change-loop.md) - how work moves from idea to shipped record.
-- [Working on WongStack](wiki/development/README.md) - how to change the toolkit itself.
-- [Changelog](CHANGELOG.md) - what changed between releases.
-- [Security](SECURITY.md) - how to report a vulnerability, and what each Cloudflare token can do.
+| Path | What it holds |
+| --- | --- |
+| [`AGENTS.md`](AGENTS.md) | The instructions each agent reads first. `CLAUDE.md` is a link to it. |
+| [`.agents/`](.agents/) | The skills, path rules, hooks, and agent settings. `.claude` and `.codex` are links to it. |
+| [`wiki/`](wiki/README.md) | Reusable process and conventions. |
+| [`openspec/`](openspec/) | Active changes, shipped specs, and the archive of what shipped and why. |
+| [`app/`](app/) | The starter app: React and Vite on a Cloudflare Worker. |
+| [`schema/`](schema/) | The app's database migrations and staging seed data. |
+| [`scripts/`](scripts/) | The deploy pipeline, the payload checks, and the tests. |
+| [`.github/`](.github/) | CI workflows, issue and PR templates, and [the contributing guide](.github/CONTRIBUTING.md). |
+| [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md) | The current release, and what changed in each release. |
+| [`LICENSE`](LICENSE), [`SECURITY.md`](SECURITY.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | MIT terms, how to report a vulnerability, and community rules. |
+| [`.env.example`](.env.example), [`app/.dev.vars.example`](app/.dev.vars.example) | The names of the local and Worker secrets, with no values. |
+| [`paseo.json`](paseo.json) | Copies `.env` into each new [Paseo](https://paseo.sh) worktree. |
+| [`.nvmrc`](.nvmrc) | The Node.js version. |
+| [`.gitattributes`](.gitattributes), [`.editorconfig`](.editorconfig), [`.gitignore`](.gitignore) | LF line endings, editor basics, and the files git ignores. |
 
 ## Requirements
 
-The setup prompt can help with missing pieces, but WongStack is designed around:
+- **A coding agent** that edits files, runs shell commands, and asks questions.
+- **[`gh`](https://cli.github.com/)**, signed in, and **`git`**. Setup creates the GitHub repo.
+- **[Node.js](https://nodejs.org/) 22**, the version in [`.nvmrc`](.nvmrc).
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: `npm install -g @fission-ai/openspec@1.8.0`.
+- **`curl`**, for Cloudflare provisioning.
+- **A [Cloudflare](https://cloudflare.com) account** (the free plan works) and one user token. Cloudflare is required, because session memory and hosting run there. The token stays in the git-ignored `.env` on your computer. [`SECURITY.md`](SECURITY.md) says what each token can do, and [the credentials page](wiki/stack/cloudflare-credentials.md) has the click path.
+- **On Windows**, run `git config --global core.symlinks true` and turn on Developer Mode before you clone. The skills folder links are symbolic links ([why](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).
 
-- A coding agent that can read files, edit files, run shell commands, and ask questions.
-- An empty folder. Setup creates the GitHub repo for it.
-- A [Cloudflare](https://cloudflare.com) account (the free plan works) and one **user token** with two permissions. The token grants itself only the permissions each setup step needs, tells you what it granted, and can be narrowed back afterward. It stays in the git-ignored `.env` on your computer; CI gets a separate token that can only deploy. [The credentials page](wiki/stack/cloudflare-credentials.md) has the click path and the full list.
-- [`gh`](https://cli.github.com/), authenticated. (That plus `git` and `openspec` is the whole toolchain — no `jq` or other tools required.)
-- [Node.js](https://nodejs.org/) for the [OpenSpec](https://github.com/Fission-AI/OpenSpec) CLI.
+The setup prompt helps with missing pieces. [Required tools](wiki/development/required-tools.md) says why each is needed.
 
-## Prefer to work from the source?
+## Work from the source
 
-Clone this repo and the commands are live here:
+Fork first, then clone your fork:
 
 ```bash
-git clone https://github.com/matthewwong525/WongStack && cd WongStack
+gh repo fork matthewwong525/WongStack --clone && cd WongStack
 ```
+
+A clone of this repository sends `/save` pushes to a repository you cannot write to. In your fork, the commands work, because this repo uses WongStack itself. Session memory stays off: [`.agents/.wong-stack.json`](.agents/.wong-stack.json) names the maintainer's store, and you have no token for it. [The contributing guide](.github/CONTRIBUTING.md) says how to send a change back.
+
+## Learn more
+
+- [Wiki](wiki/README.md): the guide to WongStack's process, and [the terms the agent may use](wiki/README.md#terms-the-agent-may-use).
+- [AI knowledge centers](wiki/agent-knowledge-center.md): the six principles behind WongStack.
+- [The change loop](wiki/development/the-change-loop.md): how work moves from idea to shipped record.
+- [Working on WongStack](wiki/development/README.md): how to change the toolkit itself.
+- [Changelog](CHANGELOG.md): what changed between releases.
 
 ## License
 
