@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 20.0.0 — An assistant in every repo: direct requests, a wiki that grows from use, and home
+
+**Breaking.** Every install changes how it handles requests and what it writes to the wiki. There is no mode: every repo follows the same rules.
+
+- **Plain requests are done directly.** The `WONG-STACK` block now says: do research, errands, reminders, and questions with no verb and no question round; build or change code through the verbs. `/explore` still runs before every plan.
+- **The wiki holds repeatable knowledge and grows from use.** Its scope widens from "general, reusable processes" to process, people, the company, and the project. The test: will this help with a future task that is not this one? The agent writes such knowledge when it learns it, including "read this and remember it" and answers worth keeping, citing sources by URL. The block's "Don't edit `wiki/` mid-task" rule is replaced. [Wiki style](wiki/wiki-style.md#repeatable-knowledge) owns the rules: `wiki/people/<name>.md` pages matched by git email and created on first use, four writing rules, and no seeded sections.
+- **`/ship` is the catch-up.** Its distill step reads every live fact from the sessions on the change's branch (`search --branch`), not only the change's slug, and places repeatable facts by progressive disclosure, people pages included.
+- **Home.** A person can record one repo per machine as their home in `~/.wong-stack/machine.json`; `/wong-setup` asks. Every other repo then loads the person's `people/` page and live `user` and `feedback` facts from home at session start, in a capped **From home** part of the digest. Facts about private life go to home's store through the new `memory.mjs --home` option (on `search`, `show`, `gate`, `put-facts`), wait in home's spool when home is offline, and are dropped when no home is recorded. No new database or token. [Home](wiki/development/home.md) owns the details.
+- **Saved browser logins.** The first login points agent-browser at one persistent profile in `~/.agent-browser/config.json`; the person logs in once, and later tasks reuse the session. Personal browsing runs one task at a time. `/verify` now runs each browser journey in its own temporary profile, so a walk never carries personal logins.
+- **Short chat replies.** The block tells the agent to answer in a few lines and give more detail when asked.
+- **Tests:** the memory harness keys its fake databases by id; new tests cover `--home`, the home spool, the From-home part, and the `/verify` profile. The garbled 19.0.2 entry below is repaired.
+
 ## 19.1.0 — one file per secrets role, and branch copies in worktrees
 
 - Two live secrets files, one role and one place each. The root `.env` holds what you and the scripts use to reach Cloudflare, and never reaches a Worker. `app/.dev.vars` holds the secrets the Worker reads at runtime. [Which file holds what](wiki/stack/d1-pipeline.md#env-and-devvars-are-not-interchangeable).
@@ -12,16 +24,13 @@
 - The [secrets rule](.agents/rules/secrets.md) now loads for `.dev.vars*` too. It says which file holds what and how each kind of edit reaches the primary. `/save`'s named-secret step writes an add or a rotation to the seeded branch copy as well as the primary.
 - `secrets:push` in a linked worktree that has no `app/.dev.vars` reads the primary checkout's copy, and says so. A local copy still wins, and the `.env` refusal is unchanged.
 - [The agent knowledge center](wiki/agent-knowledge-center.md#what-each-surface-owns) lists path-scoped rules as a surface, and says to prefer a rule to a hook for an edit-time convention.
+
 ## 19.0.2 — Background capture works in don't-ask mode
 
-- **Memory:** background capture no longer fails under `dontAsk`. Claude Code denied the 19.0.0 heredoc when a fact held characters such as `<`, `>`, `|`, or `# Changelog
-
-`/wong-sync` reads the entries newer than your installed version
-(`.claude/.wong-stack.json`) as context for planning the update. Newest first.
-
-. Each run now makes one temp folder outside the repo, grants writes to it alone (`Edit(...)` and `--add-dir`), and passes `--file <path>` to `memory.mjs`. The folder is deleted when the run ends. Codex gets the same folder as a writable root. Interactive sessions keep the stdin heredoc.
+- **Memory:** background capture no longer fails under `dontAsk`. Claude Code denied the 19.0.0 heredoc when a fact held characters such as `<`, `>`, `|`, or `$`. Each run now makes one temp folder outside the repo, grants writes to it alone (`Edit(...)` and `--add-dir`), and passes `--file <path>` to `memory.mjs`. The folder is deleted when the run ends. Codex gets the same folder as a writable root. Interactive sessions keep the stdin heredoc.
 - **`/ship`** no longer prints a delete error when GitHub already deleted the branch at merge. It checks `git ls-remote --heads` first, and the report says "deleted at merge".
 - This source repo's Dependabot ignores `@types/node` major versions, which follow `.nvmrc`. Not shipped to installs.
+
 ## 19.0.1 — Records from the old notes migration stay readable
 
 - The memory-store spec states that records from an earlier notes migration stay readable: `migration:<slug>` sessions, facts with source `migration`, and `migration/<slug>.md` objects in R2. `memory.mjs source <fact-id>` prints the note text behind a migrated fact. A new test guards this, and a second test checks that no command imports `notes/`.

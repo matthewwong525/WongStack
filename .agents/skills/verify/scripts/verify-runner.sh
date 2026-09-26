@@ -88,6 +88,12 @@ looks_like_access() { grep -qi 'cloudflareaccess\.com' "$1" 2>/dev/null; }
 ACCESS_HIT=0
 mkdir -p "$RUN_DIR/evidence"
 
+# A throwaway browser profile, one folder per journey. The environment variable
+# wins over ~/.agent-browser/config.json, so a walk never carries the person's
+# saved logins and never waits on their profile's lock.
+PROFILE_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/wong-verify-profile.XXXXXX")
+trap 'rm -rf "$PROFILE_ROOT"' EXIT
+
 # ── Browser journeys ──────────────────────────────────────────────────────────
 for batch in "$JOURNEYS"/*.batch.json; do
   [ -e "$batch" ] || continue
@@ -95,6 +101,7 @@ for batch in "$JOURNEYS"/*.batch.json; do
   session="verify-$(basename "$RUN_DIR")-$id"
   out="$RUN_DIR/evidence/$id.result.json"
   mkdir -p "$RUN_DIR/evidence/$id"
+  export AGENT_BROWSER_PROFILE="$PROFILE_ROOT/$id"
 
   # One session per journey, so a session that dies mid-journey costs that
   # journey alone and the next one starts clean.

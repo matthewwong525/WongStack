@@ -14,6 +14,8 @@ A fact is never edited or deleted. A later fact **supersedes** it, and only live
 
 When a session starts or resumes, the `SessionStart` hook prints a **digest**: the open threads of the change on your branch first, then other open threads, then the other live facts by type and age. Code builds it from one query, with no model, in under two seconds. It is capped at 40 lines and 6 KB, and [`memory search`](../../.agents/skills/memory/SKILL.md) finds the rest; the last line says how many facts it left out. Offline, the hook prints the last cached digest with its age. The digest stays the same for the whole session, so the prompt cache holds. A fact written now shows at the next start.
 
+When the machine records a [home](home.md), the digest ends with a short **From home** part: your page from home's wiki and your live `user` and `feedback` facts from home's store, fetched in parallel within the same budget and capped on their own. [Home](home.md#what-every-repo-reads-from-home) owns the details.
+
 A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/skills/explore/SKILL.md) searches before it asks a question, `/continue` reads the change's facts, and `/ship` distills them into the wiki.
 
 ## How facts are captured
@@ -22,6 +24,8 @@ A fact is dated context, not an instruction. Check it against the repo, and the 
 - **The background run** captures what `/save` missed. When the hook finds sessions of this repo idle for an hour with no capture, it starts a detached run of the same agent's command-line tool, with a small model, and returns at once. Your first reply never waits for it. The run may only call the memory script and write files in one temp folder outside the repo, which it deletes at the end. It writes each JSON input there and passes the path, because a JSON heredoc with characters like `<` or `$` is denied without a user. It captures at most five sessions, newest first, and the next digest reports what it did. It spends your own model quota: a headless run costs about $0.01 to $0.03 in fixed prompt overhead even for one command, so budget it per session captured, not per call. A headless `claude -p` that you start inside the checkout fires the same hook, so set `WONG_MEMORY_RUN=1` on a probe that should not start a run.
 
 Every write passes the **write gate**: the script shows the live facts on the same slug and the closest keyword matches, and the writer adds, supersedes, or drops each candidate. A fact that cannot reach the store waits in a local spool, and the next run sends it through the gate.
+
+A fact about your private life — health, family, money, personal plans — goes to your home's store with `--home`, never to this one. It waits in home's spool when home does not answer, and it is dropped when no home is recorded: [what every repo sends to home](home.md#what-every-repo-sends-to-home).
 
 Put `#private` in any message of a session, and the whole session is recorded as private: nothing is uploaded, and no model reads it.
 

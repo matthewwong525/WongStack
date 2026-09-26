@@ -53,13 +53,15 @@ Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `open
 
 ### Distill the change's facts into the wiki
 
-Before the archive, read the change's live facts:
+This is the catch-up: sessions write [repeatable knowledge](../../../wiki/wiki-style.md#repeatable-knowledge) when they learn it, and this step takes what they missed. Before the archive, read the change's live facts and every live fact from the sessions on its branch:
 
 ```bash
-node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" show "$CHANGE_NAME"
+M="$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"
+node "$M" show "$CHANGE_NAME"
+node "$M" search --branch "$BRANCH" --limit 200
 ```
 
-Keep only **reusable process facts**: a convention or pitfall that applies to future work, not this change's specifics. Edit the wiki page that owns each one, under [the wiki rules](../../rules/wiki.md). Append one Decision-log line naming the pages changed, or `no reusable fact`. When the store does not answer, log that the step was skipped and continue. The edits ride in the archive checkpoint, so a person reviews them in this PR. No other step writes the wiki automatically.
+Count a fact that both commands print once. Keep only the facts that pass the test — *will this help with a future task that is not this one?* — and place each one by [the wiki rules](../../rules/wiki.md): a fact about one person on their `people/` page, a fact about everyone on the topic page that owns it, a new page linked from its hub only when no page owns it. Never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. When the store does not answer, log that the step was skipped and continue. The edits ride in the archive checkpoint, so a person reviews them in this PR.
 
 ## Step 3 — delegate the checkpoint to /save
 
