@@ -150,18 +150,25 @@ export function workerName(config, env) {
   return env ? (block(config, env)?.name ?? `${config.name}-${env}`) : config.name;
 }
 
-/** Whether production (no `env`) or the environment binds a D1 database. */
+/**
+ * The app's D1 entries. Session memory's `MEMORY_DB` is not one: the memory
+ * skill migrates it, so CI must never apply the app's migrations to it.
+ */
+const appDatabases = (config, env) =>
+  (block(config, env)?.d1_databases ?? []).filter((entry) => entry.binding !== "MEMORY_DB");
+
+/** Whether production (no `env`) or the environment binds an app D1 database. */
 export function hasD1(config, env) {
-  return (block(config, env)?.d1_databases?.length ?? 0) > 0;
+  return appDatabases(config, env).length > 0;
 }
 
 /**
- * The first D1 `database_name`. An environment inherits no binding, so the
+ * The first app D1 `database_name`. An environment inherits no binding, so the
  * `env.staging` block must declare its own `d1_databases` entry (see the
  * stack-pack config fragments).
  */
 export function databaseName(config, env) {
-  const name = block(config, env)?.d1_databases?.[0]?.database_name;
+  const name = appDatabases(config, env)[0]?.database_name;
   if (name) return name;
   throw new WranglerConfigError(
     env

@@ -25,6 +25,19 @@
 			"database_name": "wongstack-db",
 			"database_id": "322d78e8-19e1-4bf0-8489-faa13c66deb1",
 			"migrations_dir": "../schema/migrations"
+		},
+		// Session memory, production only: staging and previews bind no memory
+		// store. The memory skill migrates it, never CI. wiki/development/memory.md
+		{
+			"binding": "MEMORY_DB",
+			"database_name": "wongstack-memory",
+			"database_id": "dd7fc25d-9325-4ad5-945e-f4a336549c52"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEMORY_BUCKET",
+			"bucket_name": "wongstack-memory"
 		}
 	],
 	// Staging is a whole second Worker, not a binding swap. It needs its own

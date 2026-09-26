@@ -330,6 +330,10 @@ function push(appDir, override) {
 
 /* ── check ─────────────────────────────────────────────────────────────────── */
 
+// Session memory binds only the production Worker (MEMORY_DB, MEMORY_BUCKET):
+// it has no staging twin by design. wiki/development/memory.md
+const PRODUCTION_ONLY = "MEMORY_";
+
 /** Binding names declared under one config block, keyed by binding type. */
 function bindingsIn(block) {
   const found = new Map();
@@ -382,7 +386,7 @@ function checkBindings(config) {
   for (const [key, names] of production) {
     const present = stagingBindings.get(key) ?? [];
     for (const name of names) {
-      if (!present.includes(name)) {
+      if (!present.includes(name) && !name.startsWith(PRODUCTION_ONLY)) {
         problems.push(
           `\`${key}\` binding '${name}' is declared at the top level but absent from env.${STAGING_ENV} — an environment inherits no binding it does not redeclare, so staging simply does not have it.`,
         );

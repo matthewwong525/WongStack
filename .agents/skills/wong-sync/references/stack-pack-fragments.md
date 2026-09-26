@@ -52,7 +52,17 @@ This fragment is the **only thing in the payload that creates a wrangler config*
       "database_name": "<your-db-name>",
       "database_id": "<production database_id>",
       "migrations_dir": "../schema/migrations"
+    },
+    // Session memory, production only. No migrations_dir: the memory skill migrates it.
+    {
+      "binding": "MEMORY_DB",
+      "database_name": "<your-repo>-memory",
+      "database_id": "<memory database_id>"
     }
+  ],
+  // Only when the memory store has a bucket.
+  "r2_buckets": [
+    { "binding": "MEMORY_BUCKET", "bucket_name": "<your-repo>-memory" }
   ],
   "env": {
     "staging": {
@@ -72,7 +82,7 @@ This fragment is the **only thing in the payload that creates a wrangler config*
 }
 ```
 
-Seven rules the scripts depend on:
+Eight rules the scripts depend on:
 
 - **`migrations_dir` is written per layout, and the block above shows the `app/` one.** Wrangler resolves it relative to the **config file**, exactly like `main` — but unlike `main` the two layouts need *different* text, because the pack ships `schema/` at the **repo root** while the config sits beside the Worker. In the `app/` layout the app scaffold ships (the default for a repo that had no app of its own) that is `../schema/migrations`; where the Worker and its config sit at the repo root, drop the `../` and write `schema/migrations`.
   Getting it wrong costs a build: a config in `app/` saying `schema/migrations` points at `app/schema/migrations`, which never exists, and `cf-build.sh` stops with `No migrations present at …` on the first change that carries one. It is not silent — the wrapper exits non-zero and CI goes red — but the path in the error is one the user never chose and cannot place.
@@ -82,6 +92,8 @@ Seven rules the scripts depend on:
 - **An environment inherits nothing it doesn't redeclare — among `vars` and bindings.** Every stateful binding must be repeated inside `env.staging` pointing at its twin. A binding you forget is simply absent in staging; a *service* binding you copy without repointing quietly calls production. (`npm run secrets:check` fails the build on the first of those and warns on the second.)
 - **Cron triggers are the exception: `triggers` is inheritable.** Leave it out of `env.staging` and the environment inherits production's schedule, so the staging Worker fires on its own against the staging database — the opposite of what omitting a key looks like it does, with no error. To keep staging manual-only, declare `"triggers": { "crons": [] }` explicitly, as above. Omit the key entirely only when staging *should* run production's schedule.
 - **`migrations_dir` is resolved relative to the wrangler config file, not the repo root** — and it must be repeated inside the environment. The value above is right when the config sits at the repo root; in the `app/` layout it's `"../schema/migrations"`, since `schema/` stays at the root. Get it wrong and wrangler reports no migrations to apply rather than erroring.
+
+- **The memory bindings are the one exception to twinning.** `MEMORY_DB` and `MEMORY_BUCKET` sit at the top level only, because session memory lives on the production Worker alone: [the memory convention](../../../../wiki/development/memory.md#the-memory-token). Never add them to `env.staging`. `secrets:check` skips every `MEMORY_*` binding, and the pipeline scripts never read `MEMORY_DB` as the app's database, so CI never runs the app's migrations against it. Wrangler still warns at build that `MEMORY_DB` is not on `env.staging`; that warning is expected, so leave it.
 
 Twin every other stateful binding the same way. A queue needs both halves inside the environment, or staging messages land on the production consumer:
 

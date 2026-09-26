@@ -1,5 +1,6 @@
 // Memory store client: repo context, config, credentials, local state, the D1 and R2 calls, and the spool.
-// Calls go to the account's memory Worker when one is recorded, else to the Cloudflare REST API; the requests are the same.
+// A memory key's calls go to the app's production Worker (components.memory.worker); any other token's go to
+// the Cloudflare REST API. The requests are the same.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, hostname } from 'node:os';
@@ -114,7 +115,8 @@ export function adminToken(ctx) {
 }
 
 // `admin` opens the store straight through the Cloudflare API with the provisioning token, for
-// migrations: a Worker's D1 binding runs one statement at a time, and a migration file holds many.
+// migrations (a Worker's D1 binding runs one statement at a time, and a migration file holds many)
+// and for memory keys (the Worker refuses the keys table to every key).
 export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
@@ -124,7 +126,8 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   if (!admin && keyEmail(token) && !config.worker && !process.env.WONG_MEMORY_API) {
     throw new StoreError(`${TOKEN_VAR} holds a memory key, but .claude/.wong-stack.json records no components.memory.worker; pull the latest main or ask the admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
   }
-  const api = admin ? cloudflareApi() : (process.env.WONG_MEMORY_API || config.worker || CLOUDFLARE_API).replace(/\/$/, '');
+  const viaWorker = !admin && Boolean(keyEmail(token));
+  const api = admin ? cloudflareApi() : (process.env.WONG_MEMORY_API || (viaWorker ? config.worker : cloudflareApi())).replace(/\/$/, '');
   const base = `${api}/accounts/${config.accountId}`;
   const objectPath = key => `/r2/buckets/${config.bucket}/objects/${encodeURI(key)}`;
 
@@ -141,6 +144,10 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
     }
     if (response.status === 401 || response.status === 403) throw new StoreError(`the memory store rejected ${admin ? ADMIN_TOKEN_VAR : TOKEN_VAR} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
     if (response.status >= 500) throw new StoreError(`memory store error (HTTP ${response.status})`, { kind: 'server' });
+    // Only a transcript GET may 404 on its own; any other 404 from the Worker means production has not deployed the route.
+    if (viaWorker && response.status === 404 && (await response.clone().json().catch(() => ({}))).errors?.[0]?.code !== 10007) {
+      throw new StoreError('the memory Worker does not answer yet; it serves memory once production deploys the memory route', { kind: 'unconfigured' });
+    }
     return response;
   }
 

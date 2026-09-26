@@ -42,7 +42,7 @@ The **plan** skill ships the [fixed review kit](../../plan/references/review-kit
 
 ## The memory store and its hooks
 
-The **memory** skill ships its script, schema migrations, the account's memory Worker module, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on the Node.js that OpenSpec already needs. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.claude/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store); its ids and the Worker URL go in `components.memory` of the install record, and its memory key only in the ignored `.env`. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+The **memory** skill ships its script, schema migrations, the memory route module that the app scaffold's Worker imports, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on the Node.js that OpenSpec already needs. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.claude/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store); its ids and the production Worker's memory URL go in `components.memory` of the install record, and its memory key only in the ignored `.env`. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
 
 ## The stack pack
 
@@ -52,7 +52,7 @@ No copied file may carry a live `database_id` or a source-repo database name. Th
 
 ## The app scaffold
 
-The scaffold is a starting React/Vite Worker app, not a required runtime for WongStack. It includes its own test suite and package manifest. The core test workflow finds a repo's `npm test` script at the root or in an immediate subdirectory; when none exists, it reports that and succeeds. No root `package.json` is copied on behalf of a target.
+The scaffold is a starting React/Vite Worker app. Its Worker also serves session memory: `app/worker/index.ts` sends `/_memory/` to the memory skill's route module, so `/wong-sync` updates the route with the skill, and only that one import and branch live in `app/`. It includes its own test suite and package manifest. The core test workflow finds a repo's `npm test` script at the root or in an immediate subdirectory; when none exists, it reports that and succeeds. No root `package.json` is copied on behalf of a target.
 
 The scaffold also carries the [mini apps](../../../../wiki/stack/mini-apps.md) Worker, listed file by file: `worker.ts`, its editor config, its ignore files, and the example app `mini-apps/apps/hello/`. Nothing else under `mini-apps/` ships, so an app made in this repo stays here; a new scaffold file must be added to the list by hand. Its `wrangler.jsonc` is created by provisioning from [its fragment](stack-pack-fragments.md#mini-appswranglerjsonc--the-mini-app-worker), never copied. Each app's tests run with Node's built-in runner, so the folder has no package manifest.
 

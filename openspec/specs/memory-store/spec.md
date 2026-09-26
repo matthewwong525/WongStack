@@ -5,7 +5,7 @@ Give every WongStack repo one private, searchable store of short typed facts, an
 ## Requirements
 ### Requirement: Every repo has one memory store on Cloudflare
 
-Every WongStack repo SHALL have one memory store: one D1 database named `<repo>-memory` in the repo's Cloudflare account, plus one private R2 bucket of the same name when the account has R2 enabled. The bucket SHALL be optional. Without it, the store SHALL keep no raw transcripts, and every other memory behavior SHALL work the same. The store SHALL be separate from any application database, and it SHALL have no staging twin. The account id, database id, and bucket name (or its absence) SHALL be recorded under `components.memory` in `.claude/.wong-stack.json`. They are not secrets.
+Every WongStack repo SHALL have one memory store: one D1 database named `<repo>-memory` in the repo's Cloudflare account, plus one private R2 bucket of the same name when the account has R2 enabled. The bucket SHALL be optional. Without it, the store SHALL keep no raw transcripts, and every other memory behavior SHALL work the same. The store SHALL be separate from any application database, and it SHALL have no staging twin. Only the app's production Worker SHALL bind it, for the memory route alone. The account id, database id, and bucket name (or its absence) SHALL be recorded under `components.memory` in `.claude/.wong-stack.json`. They are not secrets.
 
 #### Scenario: A repo is provisioned
 
@@ -22,11 +22,12 @@ Every WongStack repo SHALL have one memory store: one D1 database named `<repo>-
 #### Scenario: The app database is separate
 
 - **WHEN** the repo also has the stack pack's production and staging databases
-- **THEN** the memory database is a third database, which the app's Worker has no binding to
+- **THEN** the memory database is a third database, bound only to the production Worker as `MEMORY_DB`
+- **AND** the staging Worker has no binding to it, and CI never applies the app's migrations to it
 
 ### Requirement: Access uses a dedicated memory token
 
-The store SHALL be read and written through the account's memory Worker with a memory key named `CLOUDFLARE_MEMORY_TOKEN`, stored in the git-ignored `.env` under the secrets convention, as `memory-worker` requires. The key SHALL open only this repo's store. It SHALL NOT be set as a CI secret, and it SHALL NOT be the widened provisioning token. No person SHALL hold a Cloudflare token for memory.
+The store SHALL be read and written through the app's production Worker with a memory key named `CLOUDFLARE_MEMORY_TOKEN`, stored in the git-ignored `.env` under the secrets convention, as `memory-worker` requires. The key SHALL open only this repo's store. It SHALL NOT be set as a CI secret, and it SHALL NOT be the widened provisioning token. No person SHALL hold a Cloudflare token for memory, except an older store's token until its move finishes.
 
 #### Scenario: CI cannot read transcripts
 

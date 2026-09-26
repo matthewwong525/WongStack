@@ -10,9 +10,18 @@
 // It VERIFIES the signed `Cf-Access-Jwt-Assertion` rather than trusting a plain
 // header, which is what makes it correct for machine callers too: Access sets no
 // email header for a service token, so the header pattern 401s CI and /verify.
+import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
+
 export default {
-  fetch(request) {
+  fetch(request, env) {
     const url = new URL(request.url);
+
+    // Session memory, served from the memory skill on the production Worker's
+    // MEMORY_DB and MEMORY_BUCKET; staging binds neither and answers 404. A
+    // memory key authenticates each call: wiki/development/memory.md.
+    if (url.pathname.startsWith(MEMORY_PREFIX)) {
+      return handleMemory(request, env);
+    }
 
     if (url.pathname.startsWith("/api/")) {
       return Response.json({

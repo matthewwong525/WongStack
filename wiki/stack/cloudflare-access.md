@@ -119,6 +119,8 @@ Not everything should require login. Inbound webhooks, open APIs, and any public
 
 Carve those out with a **Bypass** policy scoped to the public path prefix (e.g. `/public/*`). A bypass policy lets matching requests through with no authentication.
 
+**Session memory is public surface too.** The memory script calls `/_memory/*` on the production Worker with a memory key, not a login: [the memory convention](../development/memory.md#the-memory-token). It uses the `workers.dev` address, which Access does not gate, so keep `workers.dev` on for the production Worker. If you turn it off and point memory at your custom domain, add `/_memory/*` to the Bypass.
+
 **Ordering matters.** Access evaluates an application's policies in order and takes the first match, so the `/public/*` **Bypass must sit above the catch-all Allow** — otherwise the Allow matches first and challenges your webhooks. Put the narrow bypass first, the broad gate last.
 
 ```
