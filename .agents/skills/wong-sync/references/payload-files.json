@@ -81,7 +81,7 @@
       ".github/workflows/deploy.yml",
       "schema/seed.sql",
       "schema/migrations/.gitkeep",
-      ".dev.vars.example"
+      "app/.dev.vars.example"
     ],
     "dirs": [
       "wiki/stack"

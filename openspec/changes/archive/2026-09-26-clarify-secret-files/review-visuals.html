@@ -1,0 +1,77 @@
+<section class="visual tree" id="files" data-kind="tree" data-states="after today">
+  <p class="caption">Secrets files and the folder each one lives in, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after">
+      <h2>After</h2>
+      <div class="label">Repo root — you and the scripts reach Cloudflare</div>
+      <ul>
+        <li>.env <span class="why">unchanged. Git-ignored, real values: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_MEMORY_TOKEN, optional CF_ACCESS_*. Never reaches a Worker.</span></li>
+        <li>.env.example <span class="why">unchanged. Committed, values blank.</span></li>
+      </ul>
+      <div class="label">app/ — the Worker reads these secrets at runtime</div>
+      <ul>
+        <li>app/wrangler.jsonc <span class="why">unchanged. scripts/cf-secrets.mjs looks for .dev.vars files in this folder.</span></li>
+        <li class="add">app/.dev.vars.example <i class="callout">1</i> <span class="why">moved here from the repo root. Committed, values blank.</span></li>
+        <li>app/.dev.vars <i class="callout">2</i> <span class="why">git-ignored, real values. npm run secrets:push loads them into both Workers.</span></li>
+        <li>app/.dev.vars.staging <span class="why">optional. Git-ignored, real values for staging.</span></li>
+      </ul>
+    </div>
+    <div class="state state-today">
+      <h2>Today</h2>
+      <div class="label">Repo root</div>
+      <ul>
+        <li>.env <span class="why">git-ignored, real values: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_MEMORY_TOKEN, optional CF_ACCESS_*.</span></li>
+        <li>.env.example <span class="why">committed, values blank.</span></li>
+        <li class="del">.dev.vars.example <i class="callout">1</i> <span class="why">committed, values blank. Wrong folder: secrets:check never reads it.</span></li>
+      </ul>
+      <div class="label">app/</div>
+      <ul>
+        <li>app/wrangler.jsonc <span class="why">scripts/cf-secrets.mjs reads .dev.vars and .dev.vars.example from this folder.</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a person or an agent who must put a secret in the correct file.</p>
+    <ol>
+      <li>The example moves to <code>app/</code>, where the script already looks. The script does not change where it reads.</li>
+      <li>A linked worktree has its own copy of <code>.env</code> and <code>app/.dev.vars</code> at the same paths. An add or a rotation also goes to the primary's copy now. A deletion waits for the merge. The <code>secret-edits</code> item shows how.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="visual flow" id="secret-edits" data-kind="flow" data-states="after today">
+  <p class="caption">What happens to a secret that a branch edits, from new worktree to merge, today and after this change.</p>
+  <div class="frame">
+    <div class="state state-after"><h2>After</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="after-seed"><h3>New worktree: seed <span class="tag">New</span></h3><p>paseo.json setup runs <code>worktree-secrets.mjs seed</code>. It copies each primary live file into the worktree and records a baseline.</p><details><summary>Details</summary><p>Files: <code>.env</code>, <code>app/.dev.vars</code>, and <code>app/.dev.vars.staging</code> if present. Baseline: key names and value hashes, in the worktree's private Git folder. <i class="callout">2</i></p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-edit"><h3>The branch edits a secret <span class="tag">Changed</span></h3><p>Where the edit goes depends on its kind.</p></div>
+      <p class="flow-connector">↓ Choose one path</p>
+      <div class="flow-branches">
+        <div class="flow-branch" data-target-id="after-add"><h3>Add a key</h3><p>Write it to the worktree copy and to the primary, now.</p><details><summary>Details</summary><p>Other worktrees and the primary can use the key at once.</p></details></div>
+        <div class="flow-branch" data-target-id="after-rotate"><h3>Rotate a value</h3><p>The old value is dead. Write the new one to both, now.</p><details><summary>Details</summary><p>The primary must not keep a dead value until the merge.</p></details></div>
+        <div class="flow-branch" data-target-id="after-delete"><h3>Delete a key or set a branch-only value</h3><p>Write it to the worktree copy only.</p><details><summary>Details</summary><p>The primary changes only when the branch merges.</p></details></div>
+      </div>
+      <p class="flow-connector">↓ All paths rejoin here</p>
+      <div class="step flow-card" data-target-id="after-merge"><h3>The branch merges</h3><p><code>/ship</code> merges the pull request.</p></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="after-promote"><h3>Promote to the primary <span class="tag">New</span></h3><p><code>/ship</code> runs <code>worktree-secrets.mjs promote</code>. It applies the branch's deletions and changes to the primary. <i class="callout">1</i></p><details><summary>Details</summary><p>It compares three ways: the baseline, the worktree copy, and the primary. If the primary also changed a key after the seed, promote skips that key and names it. The output shows key names only, never values. A failure is a one-line skip and cannot fail the merged ship.</p></details></div>
+      <p class="flow-connector">or, if the branch does not merge</p>
+      <div class="step flow-card" data-target-id="after-abandon"><h3>Abandoned branch</h3><p>The worktree is deleted. The primary never changes, except for adds and rotations already written there.</p></div>
+    </div></div>
+    <div class="state state-today"><h2>Today</h2><div class="flow-sequence">
+      <div class="step flow-card" data-target-id="today-create"><h3>New worktree</h3><p>paseo.json copies only <code>.env</code>, one time, when it creates the worktree.</p><details><summary>Details</summary><p><code>app/.dev.vars</code> is not copied.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-edit"><h3>The branch edits a secret</h3><p>The edit stays in the worktree copy.</p><details><summary>Details</summary><p>Worktree edits never reach the primary.</p></details></div>
+      <p class="flow-connector">↓</p>
+      <div class="step flow-card" data-target-id="today-merge"><h3>The branch merges</h3><p>No secrets step runs at merge.</p></div>
+    </div></div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> an agent or a person who edits a secret in a linked worktree.</p>
+    <ol>
+      <li>Promote compares against the baseline, not only the two files. A two-file compare would treat a key that another branch added to the primary as a deletion.</li>
+      <li>No step prints a value. The baseline stores only hashes, and only in the worktree's private Git folder.</li>
+    </ol>
+  </div>
+</section>

@@ -126,6 +126,16 @@ fi
 
 Ask **which checkout has `main` out**, not whether you are in a worktree. **Any obstacle skips, in one line**: a dirty target checkout, a diverged `main`, or a refused `merge --ff-only` leaves that checkout alone, with the reason in the report. The PR is already merged, so **nothing after Step 5 can fail the ship**. Never check out, switch, stash, reset, or force a branch to make the sync succeed, and never delete a local branch.
 
+### Promote the branch's secret edits
+
+A linked worktree keeps its own copy of each live secrets file. The branch wrote its adds and rotations to the primary already; its deletions and branch-only values waited for this merge. Apply them now, from the worktree you shipped:
+
+```bash
+node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/worktree-secrets.mjs" promote
+```
+
+It compares the worktree copy, the primary, and the baseline recorded at seed. It changes only the keys this branch changed, skips and names a key the primary also changed, and prints key names, never values. In the primary checkout it does nothing. The [secrets convention](../../../wiki/development/secrets.md) owns the lifecycle. The same skip rule applies: any error is one line in the report, and it cannot fail the ship.
+
 ## Step 7 — report
 
 - PR number + URL, **merged (squash)** to the default branch.
@@ -135,5 +145,6 @@ Ask **which checkout has `main` out**, not whether you are in a worktree. **Any 
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.
 - **Branch** — deleted, or already deleted at merge by GitHub.
 - **Synced** — the checkout whose `main` advanced to the merged commit, or the one-line reason the sync was skipped.
+- **Secrets** — the promoted, skipped, and unresolved key names from the promote, never a value, or the one-line reason it was skipped.
 
 Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally start the next change, walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.

@@ -2,7 +2,7 @@
 /**
  * Load the Worker's runtime secrets into both Workers, and check they agree.
  *
- *     node scripts/cf-secrets.mjs push     # .dev.vars  -> production + staging
+ *     node scripts/cf-secrets.mjs push     # app/.dev.vars -> production + staging
  *     node scripts/cf-secrets.mjs check    # do the two Workers still match?
  *
  * Wire them up as `secrets:push` and `secrets:check` in package.json.
@@ -45,7 +45,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, relative, resolve } from "node:path";
 
 import {
   findWranglerConfig,
@@ -221,16 +221,49 @@ function guardSourceFile(file) {
   }
 }
 
+/**
+ * The folder to read `.dev.vars` from. A linked worktree that has no copy of
+ * its own reads the primary checkout's, at the same repo-relative folder — the
+ * secrets convention keeps real values there. A local copy always wins.
+ */
+function secretsDir(appDir) {
+  if (existsSync(resolve(appDir, SOURCE))) return appDir;
+  let primaryRoot;
+  try {
+    const commonDir = execFileSync(
+      "git",
+      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { cwd: appDir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    primaryRoot = dirname(commonDir);
+  } catch {
+    return appDir;
+  }
+  const primaryDir = resolve(primaryRoot, relative(repoRoot, appDir));
+  if (primaryDir === appDir || !existsSync(resolve(primaryDir, SOURCE))) return appDir;
+  console.log(
+    `cf-secrets: no ${SOURCE} in this worktree — reading the primary checkout's ${resolve(primaryDir, SOURCE)}`,
+  );
+  return primaryDir;
+}
+
 function push(appDir, override) {
   // An explicit file is allowed — and is exactly the path someone reaches for
   // when they want "the file with the secrets in it". That is why the guard
   // below exists and why it runs before anything is read or sent.
-  const source = override ? resolve(process.cwd(), override) : resolve(appDir, SOURCE);
+  let dir = appDir;
+  let source;
+  if (override) {
+    source = resolve(process.cwd(), override);
+  } else {
+    dir = secretsDir(appDir);
+    source = resolve(dir, SOURCE);
+  }
   if (!existsSync(source)) {
     fail(
       override
         ? `no such file: ${override}`
-        : `no ${SOURCE} next to the wrangler config (${appDir}). Create it — see ${EXAMPLE} for the keys this Worker expects.`,
+        : `no ${relative(repoRoot, source)} next to the wrangler config. Create it — see ${relative(repoRoot, resolve(appDir, EXAMPLE))} for the keys this Worker expects.`,
     );
   }
   guardSourceFile(source);
@@ -238,7 +271,7 @@ function push(appDir, override) {
   // Production, then staging. Staging falls back to the same file, which makes
   // identical values across both Workers the zero-config default; a repo needing
   // divergence adds `.dev.vars.staging` and changes no command.
-  const stagingSource = resolve(appDir, `${SOURCE}.${STAGING_ENV}`);
+  const stagingSource = resolve(dir, `${SOURCE}.${STAGING_ENV}`);
   const targets = [
     { env: null, label: "production", file: source },
     {
@@ -470,7 +503,7 @@ function check(appDir, configPath) {
     for (const problem of problems) console.error(`cf-secrets:   • ${problem}`);
     console.error("cf-secrets:");
     console.error(
-      "cf-secrets: Run `npm run secrets:push` to load both Workers from .dev.vars,",
+      "cf-secrets: Run `npm run secrets:push` to load both Workers from app/.dev.vars,",
     );
     console.error(
       `cf-secrets: or redeclare the missing binding inside env.${STAGING_ENV}.`,

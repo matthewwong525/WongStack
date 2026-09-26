@@ -118,7 +118,7 @@ CF_ACCESS_CLIENT_SECRET=
 
 ## `.gitignore` → the two secrets files
 
-Two files hold real credentials and are never committed: `.env` (the account-level Cloudflare token — the one the credentials page calls *"effectively account-root, treat it like a root password"*) and `.dev.vars` (the Worker's runtime secrets). Both have per-environment variants holding real values, and both have a committed, values-blank `.example` twin. The live files persist in the primary worktree; declarations stay on the active branch. Add these four lines if they aren't already there:
+Two files hold real credentials and are never committed: `.env` (the account-level Cloudflare token — the one the credentials page calls *"effectively account-root, treat it like a root password"*) and `app/.dev.vars` (the Worker's runtime secrets, beside the wrangler config). Both have per-environment variants holding real values, and both have a committed, values-blank `.example` twin. The live files persist in the primary worktree; declarations stay on the active branch. Add these four lines if they aren't already there:
 
 ```gitignore
 .env*
