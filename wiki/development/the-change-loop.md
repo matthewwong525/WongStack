@@ -137,8 +137,9 @@ folder, `mini-apps/apps/<name>/`, `/save` runs that app's own tests on the agent
 pushes to the default branch, like a prose save. The host test run is the gate here, because there
 is no PR for CI to gate; CI runs the tests again after the push and deploys only the mini-app
 Worker. This is the one place a skill runs tests on the host as a condition of saving. It is scoped
-to one app, which runs on its own Worker and can not change the main app. A path outside the folder,
-such as a migration, or a rejected push takes the normal route. [Mini apps](../stack/mini-apps.md)
+to one app, which runs on its own Worker and can not change the main app. When the default branch moved during the
+save, it rebases once, tests again, and pushes again. A path outside the folder, such as a
+migration, or a push that one rebase can not fix takes the normal route. [Mini apps](../stack/mini-apps.md)
 owns the details; in the source repo, the example app is payload and takes a PR.
 
 ## The change is a living handoff, not just a plan
