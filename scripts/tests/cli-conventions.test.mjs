@@ -14,6 +14,7 @@ const scripts = {
   'scripts/check-payload-links.mjs': [],
   'scripts/reset-staging-d1.mjs': [],
   'scripts/cf-secrets.mjs': [],
+  'scripts/mini-dashboard.mjs': [],
   'scripts/lib-wrangler-config.mjs': [],
   '.agents/skills/plan/scripts/build-review.mjs': [],
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],

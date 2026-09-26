@@ -45,7 +45,7 @@ Give that context by [progressive disclosure](wiki-style.md) — one place to st
 
 The more an agent can reach, the more it does for you, and the more damage a wrong step causes. The failure mode is not disobedience: an agent will not refuse your instruction, it will misinterpret it. So keep the access wide and put humans at standard points in the loop:
 
-- **Read the plan before it runs.** `/plan` writes the change and stops; `/apply` implements only what you approved.
+- **Read the plan before it runs.** `/plan` writes the change and its review page and stops; `/apply` implements only what you approved. Work outside the repo gets the same check at a smaller size: `/apply` asks before each action that leaves the conversation.
 - **Review the pull request.** Every code change arrives as a reviewable package.
 - **Let tests and CI catch what review misses.**
 - **Put the app behind a login wall.** [Cloudflare Access](stack/cloudflare-access.md) keeps a preview private if you took that stack, and [secrets stay out of the repo](development/secrets.md) either way.

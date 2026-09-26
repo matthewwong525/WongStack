@@ -1,6 +1,6 @@
 # UX principles
 
-How to decide what a screen should *be* — who it serves, what job it accomplishes, and how the layout earns its shape — before any component gets picked. This is the judgment layer beside your stack's UI/component conventions (which own the mechanics: which component, which token, which library). Every UI-bearing change applies these principles in a `## UX` section of its design.md (see [the change loop](development/the-change-loop.md)); the section template is at the [bottom of this page](#the--ux-section-in-designmd). The screen itself is drawn on [the change's review page](#the-review-file), which every change carries, so the layout is argued from a picture rather than a paragraph.
+How to decide what a screen should *be* — who it serves, what job it accomplishes, and how the layout earns its shape — before any component gets picked. This is the judgment layer beside your stack's UI/component conventions (which own the mechanics: which component, which token, which library). Every UI-bearing change applies these principles in a `## UX` section of its design.md (see [the change loop](development/the-change-loop.md)); the section template is at the [bottom of this page](#the--ux-section-in-designmd). The screen itself is sketched in text on [the change's review page](#the-review-file), which every change carries, so the layout is argued from a picture rather than a paragraph. When the real thing is cheap to build, build it: a [mini app](stack/mini-apps.md) preview shows the actual screen.
 
 **This page is conditional.** It applies only to changes that add or restructure a user-facing screen. A repo with no UI — a CLI, a library, a backend service — can ignore it entirely.
 
@@ -12,7 +12,7 @@ Never start from a layout. Before drawing anything, answer the **UX brief**:
 
 - **Who is here, and what job are they trying to accomplish?** Not the feature name — the actual job. Not "manage the listings page" but "copy our good content onto the stale listings without doing it one-by-one."
 - **What does *done* look like?** The end state the user is trying to reach. The screen should drive toward it, not just display data near it.
-- **Context of use.** Desk or floor? Phone, tablet, or desktop? Gloved hands with a scanner? Interrupted every two minutes? One app can span a writer at a desk and an operator at a station — same design system, very different screens. **When the answer is a phone, the phone layout is the design, not an afterthought:** draw it first on the review page (the kit's `phone-only` and `desktop-only` helpers let one screen carry both). A screen that only works at 960px is not finished.
+- **Context of use.** Desk or floor? Phone, tablet, or desktop? Gloved hands with a scanner? Interrupted every two minutes? One app can span a writer at a desk and an operator at a station — same design system, very different screens. **When the answer is a phone, the phone layout is the design, not an afterthought:** sketch it first, about 40 columns wide, the width of a phone. A screen that only works at 960px is not finished.
 - **Common case vs edge case.** The common case gets the real estate and the straight-line flow; edge cases may cost an extra step or live in a menu. Never let a rare case complicate the frequent one.
 - **Frequency assumptions, stated explicitly.** "Operators run this ~200×/day; admins open the settings ~1×/month." Write the assumption down so it can be challenged — until you have real usage data, these are judgment calls; once you do, cite event counts instead.
 
@@ -53,43 +53,28 @@ where edge cases branch off.
 Per screen: the one primary action; what gets de-emphasized.
 
 ### Review
-A link to review.html, and its screens and states
-listed as #/<screen>/<state> anchors. No sketches here —
-the page is the picture.
+A link to review.html, and the What Changes items
+that sketch each screen. No sketches here —
+the proposal holds them.
 
 ### Components
 The existing components used (per your UI conventions);
 anything new being created and why.
 ```
 
-Worker-only or UI-less changes skip the section entirely and draw no screen. They still get a review page with one flow, diff, or tree visual that carries the change by default; other bullets stay text. Prefer mirroring the closest existing screen over inventing a new pattern — name which screen in the brief.
+Worker-only or UI-less changes skip the section entirely and draw no screen. They still get a review page, with one text drawing of the flow, diff, or file tree that carries the change by default; other bullets stay text. Prefer mirroring the closest existing screen over inventing a new pattern — name which screen in the brief.
 
 ### The review file
 
-The picture lives beside the section, at `openspec/changes/<name>/review.html` — one page per change, built from [the plan skill's kit](../.agents/skills/plan/references/review-kit.html), `proposal.md`, and the change's `review-visuals.html`. The kit owns the chrome, panel, primitives, and routing; the [visual author guide](../.agents/skills/plan/references/review-author.md) owns the fragment format. **The proposal's What Changes list is the navigation:** a reviewer clicks a change and the stage shows a picture of that change, so the argument and the evidence are never more than one click apart.
+The picture lives in the proposal and shows at `openspec/changes/<name>/review.html` — one page per change, built by [the plan skill's builder](../.agents/skills/plan/scripts/build-review.mjs) from `proposal.md` and [the fixed kit](../.agents/skills/plan/references/review-kit.html). The page is one scrolling document: Why, the What Changes items with their drawings, and the decisions, each labeled *asked* or *assumed*.
 
-Four kinds of visual, and a change uses whichever fits each bullet:
+A drawing is a fenced `text` block inside the bullet it explains, in plain characters. One drawing carries the change by default: a flow, a before-and-after diff, a file tree, or a screen. What a screen sketch must hold is what the rest of this page argues for:
 
-| Kind | Shows |
-|---|---|
-| `screen` | a UI screen at low fidelity, with the empty, loading, and error states the flow names |
-| `flow` | connected step cards, with today and after states or labeled paths that split and rejoin |
-| `diff` | before-and-after text — a rule, a config value, a template, prose |
-| `tree` | files added, edited, removed |
+- **Every screen in the flow**, and each empty, loading, or error state the flow names, as its own small sketch. A state a reviewer can not see is a state nobody designed.
+- **One primary action per state.**
+- **The phone layout first when the brief says phone** — see [context of use](#part-1--start-from-the-use-case) above. Keep a sketch about 40 columns wide, top to bottom.
+- **Low fidelity on purpose**: boxes and labels, no brand. It argues about the change; it is not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
 
-What a `screen` must hold is what the rest of this page argues for:
-
-- **Every screen in the flow**, each with the empty, loading, and error states the flow names. A state a reviewer cannot reach is a state nobody designed.
-- **One primary action visible at a time**, with local controls that show the next state of the selected item. Count per state: a header button that shows in every state plus an inline button in the empty state is two.
-- **A phone layout when the brief says phone** — see [context of use](#part-1--start-from-the-use-case) above.
-- **A numbered callout per layout choice** that matters, with its reasoning in the notes block beside it — the page has to stand alone for a reader who never opens design.md.
-- **Low fidelity, enforced by the kit**: grey boxes, no brand, no design tokens, no product typography. It is an argument about the change, not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
-- **No network reference of any kind**, so it opens from a clone with no server and still renders years later out of the change's archive folder.
-
-**What an author does:** write one visual that carries the change in `review-visuals.html` by default. Draw each screen when the change adds or restructures screens, and state a reason for any further visual. Leave other What Changes bullets as text. Put `data-mark` on changed elements, give note targets stable `data-target-id` values, and anchor each pictured bullet with `(review.html#/<visual>[/<state>][/<mark>])`. Each visual has one owning bullet. A mark must never share a name with one of that visual's states. The viewer shows the selected bullet's full text above its visual; draw no second change list inside it. **What the tooling does:** `/plan` builds the page from the fragment and proposal; `/save` refreshes it from the same inputs. The page renders the panel, highlights a bullet's marks, and carries the annotate layer. The reviewer's annotations are the page's review.
-
-**A reviewer annotates in place.** Turn on Annotate and click a target inside the selected visual. The outer change list stays navigation. Unfinished text remains a draft on its original target; Save makes it feedback, and Copy notes includes saved feedback only. Notes and drafts stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
-
-Tasks cite what they build (`review.html#/list/empty`), so the picture and the brief are both in hand at implementation time.
+The page opens each drawing fitted to the screen; the reviewer pinches or presses + to zoom and drags to pan. **A reviewer taps an item to add a note** — there is no annotate mode, and a drag still scrolls. Unfinished text stays a draft on its target; Save makes it a note. Notes stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
 
 Part of [the WongStack wiki](README.md).

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
+`/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, with one checkpoint before its walk, and can keep a mini app through one short merge, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
 ## Requirements
 ### Requirement: Ship pulls in apply when there is nothing to ship
 
@@ -11,13 +11,13 @@ When `/ship`'s preflight finds nothing to ship — the current branch is the def
 - **An argument was given.** `/ship` SHALL hand the argument to `/apply` verbatim.
 - **No argument was given.** `/ship` SHALL invoke `/apply` with no argument when `/apply`'s resolve order selects a change the user named, a change created or discussed in this session, or a unique active change evidenced by the current worktree or branch diff, recorded for the branch, or matching the branch by legacy convention — or when no change exists yet and the session states clear implementation intent. Where resolution would instead fall through to the sole-active-change fallback that the conversation does not establish, or to no resolvable intent, `/ship` SHALL stop and SHALL state that it found nothing to continue.
 
-`/ship` SHALL resolve nothing itself: the test is a question about which item of `/apply`'s existing resolve order applies, and `/ship` SHALL NOT implement a second intent resolver or override `/apply`'s ordering. `/apply` SHALL resolve the work under its existing rules, invoking `/plan` when no apply-ready change exists, implementing the tasks, and invoking `/save` on completion. `/ship` SHALL then continue from its preflight on the branch `/save` created. The `/ship` invocation SHALL authorize the whole chain — explore, plan, implement, save, archive, verify, merge — with no re-prompt between stages, whether or not an argument was given.
+`/ship` SHALL resolve nothing itself: the test is a question about which item of `/apply`'s existing resolve order applies, and `/ship` SHALL NOT implement a second intent resolver or override `/apply`'s ordering. `/apply` SHALL resolve the work under its existing rules, invoking `/plan` when no apply-ready change exists and implementing the tasks, and SHALL return to `/ship` on completion without a checkpoint. `/ship` SHALL then continue to its archive step in the same working tree. The `/ship` invocation SHALL authorize the whole chain — explore, plan, implement, archive, save, merge — with no re-prompt between stages, whether or not an argument was given.
 
 #### Scenario: Ship from the default branch with an intent
 
 - **WHEN** the user invokes `/ship <description>` on the default branch
 - **THEN** `/ship` invokes `/apply` with that description
-- **AND** after `/apply` completes and `/save` has pushed the branch, `/ship` runs its archive, checkpoint, verify, and merge steps on that branch
+- **AND** after `/apply` completes, `/ship` archives the change, runs one `/save` that creates the branch, and merges
 
 #### Scenario: Ship with an existing change name
 
@@ -40,8 +40,8 @@ When `/ship`'s preflight finds nothing to ship — the current branch is the def
 #### Scenario: Bare ship on the default branch after exploring
 
 - **WHEN** the user invokes `/ship` with no argument on the default branch, in a session that has established the line of work
-- **THEN** `/ship` invokes `/apply`, which reaches `/save` and cuts the branch
-- **AND** `/ship` re-runs its preflight on that branch and continues
+- **THEN** `/ship` invokes `/apply`, which returns on completion without a checkpoint
+- **AND** `/ship` archives the change, and its one `/save` cuts the branch
 
 #### Scenario: Bare ship with nothing in the conversation stops
 
@@ -77,30 +77,9 @@ When the pulled-in stage does not reach completion — `/plan` pauses on unclear
 - **THEN** `/ship` reports that work and stops
 - **AND** it does not invoke `/save` on the partial state
 
-### Requirement: The chain composes with the existing contracts
-
-The pulled-in stage SHALL change nothing in the `apply-plan-handoff`, `apply-completion-handoff`, and `delivery-gate` contracts. `/apply` SHALL still invoke `/save` exactly once on completion, and `/ship` SHALL still invoke ordinary `/save` exactly once after the archive, so a one-go run has two checkpoints. The ship-time `/verify` `FAILURE` pause SHALL still ask the user. The change loop page SHALL state the one rule every verb now follows: when its precondition is missing, invoke the verb before it to produce it.
-
-#### Scenario: Two checkpoints in a one-go run
-
-- **WHEN** `/ship <intent>` runs the full chain to merge
-- **THEN** `/apply`'s completion `/save` and `/ship`'s archive `/save` both run
-- **AND** `/ship` merges only on the archive checkpoint's `SUCCESS` or `NONE`
-
-#### Scenario: A red walk still pauses
-
-- **WHEN** the ship-time `/verify` returns `FAILURE` inside a one-go run
-- **THEN** `/ship` stops and asks the user whether to fix or merge anyway
-
-#### Scenario: A reader looks up the chain rule
-
-- **WHEN** a reader opens the change loop page
-- **THEN** it states that each verb invokes the verb before it when its precondition is missing
-- **AND** it shows the nesting `/ship` → `/apply` → `/plan` → `/explore`
-
 ### Requirement: Ship completes an unfinished change rather than archiving it
 
-Before archiving, `/ship` SHALL read the change's `tasks.md`. When it has unchecked tasks, `/ship` SHALL invoke `/apply` for that exact change to finish them, then re-check, and SHALL NOT archive an incomplete change. `/ship`'s standing authorization SHALL NOT extend to the archive step's incomplete-task confirmation: that confirmation SHALL reach the user, or the guard SHALL have already removed the condition that raises it. When `/apply` ends with tasks still pending, `/ship` SHALL report that work and stop before the archive.
+Before archiving, `/ship` SHALL read the change's `tasks.md`. When it has unchecked tasks, `/ship` SHALL invoke `/apply` for that exact change to finish them, `/apply` SHALL return without a checkpoint, and `/ship` SHALL re-check. `/ship` SHALL NOT archive an incomplete change. `/ship`'s standing authorization SHALL NOT extend to the archive step's incomplete-task confirmation: that confirmation SHALL reach the user, or the guard SHALL have already removed the condition that raises it. When `/apply` ends with tasks still pending, `/ship` SHALL report that work and stop before the archive.
 
 #### Scenario: A planned but unimplemented change is finished first
 
@@ -117,7 +96,7 @@ Before archiving, `/ship` SHALL read the change's `tasks.md`. When it has unchec
 #### Scenario: A complete change archives unchanged
 
 - **WHEN** `/ship` runs on a branch whose change has every task checked
-- **THEN** the guard adds no step and the existing archive, checkpoint, verify, and merge run as before
+- **THEN** the guard adds no step and the archive, the one checkpoint, the walk, and the merge run
 
 ### Requirement: Ship archives only the selected change
 
@@ -158,3 +137,45 @@ Before it archives a change, `/ship` SHALL read the live facts of every session 
 
 - **WHEN** `/ship` cannot read the memory store
 - **THEN** it records the skipped step in the Decision log and continues to merge
+
+### Requirement: A one-go ship checkpoints once
+
+When `/ship` pulls in `/apply`, `/apply` SHALL return to `/ship` on completion without invoking `/save`. `/ship` SHALL then archive the change in the working tree and invoke ordinary `/save` exactly once, which creates the feature branch when the work is still on the default branch. A one-go run SHALL therefore have one checkpoint and one CI run before its walk. The ship-time `/verify` SHALL still run once before the merge, and its `FAILURE` pause SHALL still ask the user. The pulled-in stage SHALL otherwise change nothing in the `apply-plan-handoff` and `delivery-gate` contracts. The change loop page SHALL state the one rule every verb follows: when its precondition is missing, invoke the verb before it to produce it.
+
+#### Scenario: One checkpoint in a one-go run
+
+- **WHEN** `/ship <intent>` runs the full chain to merge
+- **THEN** only the `/save` after the archive runs, and CI runs once
+- **AND** `/ship` merges only on that checkpoint's `SUCCESS` or `NONE`
+
+#### Scenario: A red walk still pauses
+
+- **WHEN** the ship-time `/verify` returns `FAILURE` inside a one-go run
+- **THEN** `/ship` stops and asks the user whether to fix or merge anyway
+
+#### Scenario: Standalone apply still saves
+
+- **WHEN** the person invokes `/apply` directly and every task completes
+- **THEN** `/apply` invokes `/save` as `apply-completion-handoff` defines
+
+#### Scenario: A reader looks up the chain rule
+
+- **WHEN** a reader opens the change loop page
+- **THEN** it states that each verb invokes the verb before it when its precondition is missing
+- **AND** it shows the nesting `/ship` → `/apply` → `/plan` → `/explore`
+
+### Requirement: A mini-app pull request ships without a change record
+
+When `/ship` runs on a branch whose pull request came from a mini-app save — the session says so, or the body is in the renderer's mini-app mode — and whose diff stays under `mini-apps/` and `schema/migrations/`, it SHALL NOT look for, write, or archive an OpenSpec change. It SHALL invoke `/save` once in its mini-app pull-request form, which updates the pull request and waits for CI, SHALL NOT invoke `/verify`, and SHALL merge on that result. On any other branch with no change record, `/ship` SHALL stop and report it as before.
+
+#### Scenario: Merge a mini-app pull request
+
+- **WHEN** the person asks to ship a mini-app pull request that added a migration
+- **THEN** `/ship` runs one `/save` and merges on its gate result
+- **AND** no OpenSpec change is created or archived, and no walk runs
+
+#### Scenario: An unknown branch without a record
+
+- **WHEN** `/ship` runs on a branch with commits, no change record, and no mini-app pull request
+- **THEN** `/ship` stops and reports that the branch has no change record
+

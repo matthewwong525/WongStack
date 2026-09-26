@@ -142,3 +142,23 @@ test('archive bodies omit unavailable links and rendering errors preserve output
   assert.throws(() => writePrBody(options, output), /Status/);
   assert.equal(readFileSync(output, 'utf8'), 'keep me');
 });
+
+test('mini-app bodies come from app.json and need no change record', t => {
+  const root = mkdtempSync(join(tmpdir(), 'wong-mini-body-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  file(root, 'mini-apps/apps/tips/app.json', JSON.stringify({ title: 'Tips', description: 'Split a bill and add a tip.' }));
+  file(root, 'summary.txt', 'Adds a tip calculator.\n');
+  const options = { repoRoot: root, changeRoot: 'mini-apps/apps/tips', mode: 'mini-app', repoUrl: 'https://github.com/example/repo', branch: 'mini/tips', summaryFile: join(root, 'summary.txt'), previewUrl: 'https://mini-tips.example.test' };
+  const body = renderPrBody(options);
+  assert(body.includes('**Mini app:** Tips — Split a bill and add a tip.'));
+  assert(body.includes('Adds a tip calculator.'));
+  assert(body.includes('## Preview'));
+  assert(body.includes('/blob/mini%2Ftips/mini-apps/apps/tips'));
+  assert(!body.includes('## Tasks') && !body.includes('/continue'));
+  const output = join(root, 'body.md');
+  writeFileSync(output, 'keep me');
+  file(root, 'mini-apps/apps/tips/app.json', JSON.stringify({ title: 'Tips' }));
+  assert.throws(() => writePrBody(options, output), /title and a description/);
+  assert.equal(readFileSync(output, 'utf8'), 'keep me');
+  assert.throws(() => writePrBody(options, join(root, 'mini-apps/apps/tips/app.json')), /input artifact/);
+});

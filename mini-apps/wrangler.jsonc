@@ -1,0 +1,56 @@
+/**
+ * The mini-app Worker: every app under `apps/` on one small Worker, apart from
+ * the main app in `app/`. `scripts/cf-mini.sh` uploads its previews and deploys
+ * it; nothing here builds or deploys the main app.
+ *
+ * Provisioning writes this file in each repo, like `app/wrangler.jsonc`: it
+ * carries live database ids, so it is never copied between repos.
+ */
+{
+	"name": "wongstack-mini",
+	"main": "worker.ts",
+	"compatibility_date": "2026-07-28",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	// Pages are static files under `apps/`, served with no build step. The
+	// Worker runs first on every request, so the preview expiry check and the
+	// `/<name>/api/*` routes come before any page. `apps/.assetsignore` keeps
+	// source (`*.ts`) out of the upload.
+	"assets": {
+		"directory": "apps",
+		"binding": "ASSETS",
+		"run_worker_first": true
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	// The main app's databases, shared on purpose: production here, staging in
+	// `env.staging`. `migrations_dir` is relative to THIS file; the migrations
+	// live once, in `schema/` at the repo root.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "wongstack-db",
+			"database_id": "322d78e8-19e1-4bf0-8489-faa13c66deb1",
+			"migrations_dir": "../schema/migrations"
+		}
+	],
+	// The staging twin gets every preview. It needs its own `name` (without one,
+	// a preview lands on production — cf-mini.sh refuses that) and its own
+	// staging database. An environment inherits no binding it does not redeclare.
+	"env": {
+		"staging": {
+			"name": "wongstack-mini-staging",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "wongstack-db-staging",
+					"database_id": "0e5a5be6-1eca-4b99-ab10-5decaa4c55f5",
+					"migrations_dir": "../schema/migrations"
+				}
+			]
+		}
+	}
+}

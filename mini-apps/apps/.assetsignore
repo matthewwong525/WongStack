@@ -1,0 +1,5 @@
+# Never upload source or tests as static files: the Worker bundles api.mjs and
+# routes.gen.ts, and the pages need neither.
+*.ts
+*.test.*
+api.mjs

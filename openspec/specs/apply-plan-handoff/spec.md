@@ -3,12 +3,12 @@
 ## Purpose
 
 Define how `/apply` resolves or creates the applicable OpenSpec plan before implementation while preserving the existing workflow ownership boundaries.
-
 ## Requirements
-
 ### Requirement: Apply ensures an applicable plan exists
 
-`/apply` SHALL resolve the line of work the user intends to implement before delegating to the OpenSpec apply step. An explicit change reference SHALL take precedence, followed by the change established in the current conversation, then a unique active change modified in the current worktree or branch diff, then a change whose recorded branch or legacy name matches the current branch. A sole active change MAY be selected only when the conversation does not establish different new work.
+`/apply` SHALL resolve the line of work the user intends to implement before it starts. An explicit change reference SHALL take precedence, followed by the change established in the current conversation, then a unique active change modified in the current worktree or branch diff, then a change whose recorded branch or legacy name matches the current branch. A sole active change MAY be selected only when the conversation does not establish different new work.
+
+The plan `/apply` needs SHALL depend on the kind of work. A change to the repo's existing code or process SHALL need an apply-ready OpenSpec change. A mini app SHALL need only its stated request, as `mini-apps` defines. Work that changes no repo file SHALL need the to-do in the conversation, as `work-verbs` defines.
 
 #### Scenario: Apply follows exploration without a plan
 
@@ -46,6 +46,16 @@ Define how `/apply` resolves or creates the applicable OpenSpec plan before impl
 - **THEN** it asks the user to identify the work or change
 - **AND** it does not plan or implement an inferred unrelated change
 
+#### Scenario: A mini-app request
+
+- **WHEN** the person asks for a new standalone page
+- **THEN** `/apply` builds it without invoking `/plan`
+
+#### Scenario: Non-code work
+
+- **WHEN** the conversation holds a to-do for work that changes no repo file
+- **THEN** `/apply` works that to-do and creates no OpenSpec change
+
 ### Requirement: Planning and implementation remain delegated
 
 The shortcut SHALL invoke the existing `/plan` workflow for artifact authoring and the existing OpenSpec apply workflow for implementation. It SHALL pass the planned change name explicitly into the apply workflow so another active change cannot be selected between the two stages.
@@ -76,3 +86,4 @@ Automatic planning SHALL NOT move artifact-authoring behavior into `/apply`, mov
 - **WHEN** `/apply` planned the work automatically and completes every task
 - **THEN** it invokes `/save` exactly once
 - **AND** `/save` remains the owner of branch, commit, push, pull-request, preview, and CI mechanics
+

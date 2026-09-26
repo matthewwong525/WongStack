@@ -1,12 +1,12 @@
 ---
 name: ship
-description: Ship a completed change through archive, /save checkpoint, CI or PR review, preview evidence, and squash merge. If the change is unfinished, invoke /apply first; /apply can invoke /plan and /explore. Use when you want work shipped, merged, and archived.
+description: Ship a completed change through archive, one /save checkpoint, CI or PR review, preview evidence, and squash merge, or merge a mini app's fallback pull request. If the change is unfinished, invoke /apply first; /apply can invoke /plan and /explore. Use when you want work shipped, merged, and archived.
 user-invocable: true
 ---
 
 # /ship
 
-Ship runbook. Invoking it authorizes, without a prompt, the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync. It also authorizes [the pull-in](#the-pull-in-nothing-to-ship-yet): explore, plan, implement, and their saves. It does **not** authorize archiving a change with unchecked tasks; [Step 2](#step-2--archive-the-change) finishes the tasks instead of asking. Confirm anything outside this runbook, such as a force push, `--no-verify`, `git reset --hard`, or `checkout .`, in [the shared ask format](../explore/references/asking-the-user.md).
+Ship runbook. Invoking it authorizes, without a prompt, the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync. It also authorizes [the pull-in](#the-pull-in-nothing-to-ship-yet): explore, plan, implement, and any save a task needs, and [a mini-app pull request](#merge-a-mini-app-pull-request). It does **not** authorize archiving a change with unchecked tasks; [Step 2](#step-2--archive-the-change) finishes the tasks instead of asking. Confirm anything outside this runbook, such as a force push, `--no-verify`, `git reset --hard`, or `checkout .`, in [the shared ask format](../explore/references/asking-the-user.md).
 
 `/ship` is the **archive + merge** step of [the change loop](../../../wiki/development/the-change-loop.md). **The archived change is the record of what shipped**; there is no GitHub summary issue. The merge rides [the gate](../../../wiki/development/the-change-loop.md#the-gate) and nothing else: merge only on `/save`'s `SUCCESS` or `NONE`. `/ship` is the merge, not the review: cleanliness, consolidation, and downstream breakage belong in PR review.
 
@@ -24,14 +24,14 @@ git log origin/main..HEAD --oneline
 gh api repos/:owner/:repo/commits/main/check-runs \
   --jq '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)'
 ```
-- On the default branch with uncommitted changes → invoke ordinary `/save`. It creates the feature branch and commits the work. Re-run this preflight on that branch.
+- On the default branch with uncommitted changes, before any pull-in → invoke ordinary `/save`. It creates the feature branch and commits the work. Re-run this preflight on that branch. After a pull-in, go straight to Step 2 in the same tree: Step 3's save cuts the branch.
 - On a clean default branch, or a clean tree with 0 commits ahead → nothing to ship yet; go to [the pull-in](#the-pull-in-nothing-to-ship-yet). A dirty feature branch with 0 commits is valid: the delegated `/save` below creates its first commit.
 - Default branch's CI is `failure` → **stop**; fix it first. Only `ok` proceeds: an empty answer or a failed `gh` call is `UNKNOWN`, so **stop** and report gh's message. An intent does **not** override this one.
 - Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`. Do not commit, push, open a PR, or wait on branch checks here; those are `/save`'s single checkpoint after the archive move.
 
 ### The pull-in: nothing to ship yet
 
-With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)**, then **re-run this preflight** on the branch `/save` created and continue to Step 2. [The change loop](../../../wiki/development/the-change-loop.md) owns why: a verb whose precondition is missing invokes the verb before it.
+With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)** and tell it that it runs inside `/ship`. It then returns on completion **without** `/save`, and you continue to Step 2 in the same working tree. [The change loop](../../../wiki/development/the-change-loop.md) owns why: a verb whose precondition is missing invokes the verb before it.
 
 - **An intent was given** (`/ship <intent>`) → invoke `/apply` with the argument **verbatim**.
 - **No argument** → invoke `/apply` with no argument when [`/apply`'s resolve order](../apply/SKILL.md#resolve-the-plan-first) lands on any rung before `sole-active`, or when the session states clear implementation intent with no change yet.
@@ -39,15 +39,21 @@ With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)**, the
 
 `/ship` resolves nothing itself and adds no planning, implementation, or git behavior; `/apply` does the work. A feature branch that already has work (commits ahead or a dirty tree) runs the ordinary runbook, with or without an intent.
 
-**Never merge as a way of stopping.** If `/plan` pauses, `/apply` ends with tasks pending, or a `/save` in the chain returns a failing or unverifiable result, report the blocker and stop before Step 2. Both checkpoints of a one-go run stand: `/apply`'s completion save and Step 3's archive save.
+**Never merge as a way of stopping.** If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` returns a failing or unverifiable result, report the blocker and stop before Step 2. A one-go run has **one** checkpoint: Step 3's save after the archive, so CI runs once before the walk.
+
+**Work that changes no repo file** — an errand, a message, research — finishes in `/apply`. Say so in one line and stop, with no git change.
+
+### Merge a mini-app pull request
+
+A mini app normally needs no `/ship`: [its save](../save/references/mini-app-save.md) pushes straight to the default branch. A save that fell back to a pull request — a migration, a change to the mini Worker, or a rejected push — ships here without an OpenSpec change. Recognize it by the session, or by a PR body in the renderer's mini-app mode, with a diff under `mini-apps/` and `schema/migrations/`. Skip Steps 2 to 4: no change selection, no archive, no walk. Invoke the `save` skill once, which updates the pull request and waits for CI. Merge on its `SUCCESS` or `NONE` through [Step 5](#step-5--merge-and-sync), and report the app's dashboard entry. [Mini apps](../../../wiki/stack/mini-apps.md) owns the layout.
 
 ## Step 2 — archive the change
 
-Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME` by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`. If none selects a change, stop and report that this branch has no identifiable change record; `/save` can author one. `sole-active` never authorizes a cold merge.
+Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME` by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`. If none selects a change and the branch is not [a mini-app pull request](#merge-a-mini-app-pull-request), stop and report that this branch has no identifiable change record; `/save` can author one. `sole-active` never authorizes a cold merge.
 
 If the branch diff or working tree contains **more than one active change folder**, stop before archive even when one was explicitly selected: the merge would carry the other too. Name the folders and ask the user, [as options](../explore/references/asking-the-user.md): ship the selected change alone by moving the other out of the branch *(Recommended)*, or ship both together on purpose. Require `openspec/changes/$CHANGE_NAME/` to exist, and keep `CHANGE_NAME` fixed through archive and checkpoint.
 
-**Read its `tasks.md` before you archive anything.** Unchecked tasks (`- [ ]`) mean the change is not finished: invoke the [`apply` skill](../apply/SKILL.md) for that exact change, let it hand completion to `/save`, then re-read the file. Archive only when every task is checked. Never let this runbook's authorization answer the archive step's incomplete-task confirmation. If `/apply` ends with tasks pending, report that work and stop.
+**Read its `tasks.md` before you archive anything.** Unchecked tasks (`- [ ]`) mean the change is not finished: invoke the [`apply` skill](../apply/SKILL.md) for that exact change, tell it that it runs inside `/ship` so it returns without `/save`, then re-read the file. Archive only when every task is checked. Never let this runbook's authorization answer the archive step's incomplete-task confirmation. If `/apply` ends with tasks pending, report that work and stop.
 
 Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$CHANGE_NAME" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$CHANGE_NAME" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$CHANGE_NAME" --json` for any applicable context. Run `openspec archive "$CHANGE_NAME" --yes` only after the task check, validation, and the distillation below. If `/save` already synced the deltas and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists. Do **not** commit the move here.
 
@@ -79,52 +85,21 @@ Count a fact that both commands print once. Keep only the facts that pass the te
 
 If the walk's fix loop advanced `HEAD`, its own delegated `/save` already gated the new commit. Confirm that result is `SUCCESS` or `NONE`, and merge that commit.
 
-## Step 5 — merge (worktree-safe)
+## Step 5 — merge and sync
 
-Merge the gated commit via the API, confirm the merge, then delete the **remote** branch explicitly. **Never `gh pr merge --delete-branch`**: it switches the local checkout to delete the local branch, which fails in a worktree where the default branch is checked out elsewhere.
-```bash
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-SHA=$(git rev-parse HEAD)   # the commit /save gated
-DEFAULT=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name) && [ -n "$DEFAULT" ] || exit 1
-gh pr merge --squash --match-head-commit "$SHA" || exit 1
-[ "$(gh pr view --json state --jq .state)" = MERGED ] || exit 1
-# Retarget anything stacked on this branch BEFORE deleting it (see below):
-for n in $(gh pr list --state open --base "$BRANCH" --json number --jq '.[].number'); do
-  gh api -X PATCH "repos/:owner/:repo/pulls/$n" -f base="$DEFAULT" --jq '.number' || exit 1
-done
-# GitHub may have deleted the branch at merge: exit 2 means already gone; any other failure stops.
-git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; rc=$?
-case $rc in
-  0) git push origin --delete "$BRANCH" || exit 1 ;;
-  2) echo "$BRANCH was already deleted at merge" ;;
-  *) exit 1 ;;
-esac
-```
-**Any failure stops here**, and the branch and the PR stay as they are: no default branch name, a refused merge, a state other than `MERGED`, a failed retarget, or a failed `ls-remote`. Report the exact `gh` error. A failed merge deletes nothing.
-
-**Retarget before you delete, always.** Deleting a branch that an open PR uses as its base **closes that PR**, and GitHub will not reopen it or retarget it. Do not rely on GitHub's auto-retarget: the delete races it, with no completion signal. Name every PR you retargeted in the report.
-
-On **conflict**: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke ordinary `/save` again so the merge commit gets the same gate. Retry the merge only on its `SUCCESS` or `NONE`. Other failure (branch protection, draft, a head that moved after the gate) → surface the exact `gh` error.
-
-## Step 6 — sync the durable checkout
-
-Bring the checkout that has `main` out up to the merged commit:
+Run the merge script once. It merges exactly the gated commit, retargets every open pull request based on the branch **before** it deletes the branch, deletes the remote branch unless GitHub already did at merge, and fast-forwards the checkout that has `main` out:
 
 ```bash
-git fetch origin --prune                  # refresh origin/main; drop the deleted branch's ref
-MAIN_WT=$(git worktree list --porcelain \
-  | awk '/^worktree /{p=$2} /^branch refs\/heads\/main$/{print p}')
-
-if [ -n "$MAIN_WT" ]; then
-  # some checkout has main out — fast-forward it there, but only if it is clean
-  [ -z "$(git -C "$MAIN_WT" status --porcelain)" ] && git -C "$MAIN_WT" merge --ff-only origin/main
-else
-  # nothing has main out — advance the ref in place, without switching branches
-  git fetch origin main:main
-fi
+bash "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/merge.sh"
 ```
 
-Ask **which checkout has `main` out**, not whether you are in a worktree. **Any obstacle skips, in one line**: a dirty target checkout, a diverged `main`, or a refused `merge --ff-only` leaves that checkout alone, with the reason in the report. The PR is already merged, so **nothing after Step 5 can fail the ship**. Never check out, switch, stash, reset, or force a branch to make the sync succeed, and never delete a local branch.
+It prints `key=value` lines for the report: `merged`, `pr`, `url`, `retargeted`, `branch`, and `synced`.
+
+- **Exit 0** → merged. A skipped sync is one line in the report, never a failure.
+- **Exit 1** → not merged, and nothing was deleted. Report the error line and stop.
+- **Exit 2** → merged, but a retarget or the branch delete failed, so the branch is kept. Report it; a kept branch keeps its stacked pull requests open.
+
+On a **merge conflict**, the script exits 1: `git fetch origin main` → `git merge origin/main` (merge, not rebase, unless asked); resolve each file as the **union of intent**, then invoke ordinary `/save` again so the merge commit gets the same gate. Run the script again only on its `SUCCESS` or `NONE`. Never check out, switch, stash, reset, or force a branch to make the sync succeed, and never delete a local branch.
 
 ### Promote the branch's secret edits
 
@@ -136,10 +111,10 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/worktree-secr
 
 It compares the worktree copy, the primary, and the baseline recorded at seed. It changes only the keys this branch changed, skips and names a key the primary also changed, and prints key names, never values. In the primary checkout it does nothing. The [secrets convention](../../../wiki/development/secrets.md) owns the lifecycle. The same skip rule applies: any error is one line in the report, and it cannot fail the ship.
 
-## Step 7 — report
+## Step 6 — report
 
 - PR number + URL, **merged (squash)** to the default branch.
-- **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result.
+- **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result. For a mini-app pull request: the app's folder and its dashboard entry instead.
 - **Checkpoint** — `/save` result and CI outcome, including auto-fix pushes.
 - **Walk** — the verdict, the evidence comment link, and, when a `FAILURE` was merged anyway, that the user chose to. Where the skill was absent, one line saying so.
 - **Retargeted** — any pull request moved to the default branch before the branch was deleted.

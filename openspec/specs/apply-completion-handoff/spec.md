@@ -3,14 +3,12 @@
 ## Purpose
 
 Define the automatic checkpoint boundary between completed `/apply` work and `/save`, while preserving intentional handling of partial work.
-
 ## Requirements
-
 ### Requirement: Completed apply automatically checkpoints
 
-When `/apply` completes every task in the selected change, it SHALL invoke the existing `/save` skill before reporting the workflow complete. The handoff SHALL delegate all sync, git, PR, preview, and CI behavior to `/save` rather than duplicating that behavior inside `/apply`.
+When `/apply` completes every task in the selected change, it SHALL invoke the existing `/save` skill before reporting the workflow complete, except in two cases. When `/ship` invoked `/apply`, `/apply` SHALL return to `/ship` without invoking `/save`, because `/ship`'s archive checkpoint is the one save of that run. When the work changes no repo file, `/apply` SHALL report the result and SHALL NOT invoke `/save`, as `work-verbs` defines. The handoff SHALL delegate all sync, git, PR, preview, and CI behavior to `/save` rather than duplicating that behavior inside `/apply`.
 
-This SHALL hold for **every payload surface that fronts the apply step**, including `.claude/skills/apply/SKILL.md`, `.claude/skills/openspec-apply-change/SKILL.md`, and `.claude/commands/opsx/apply.md`. No surface SHALL describe a completion path that ends in anything other than this handoff — in particular, none SHALL direct the user to archive instead. Surfaces SHALL satisfy this by pointing at the one that owns the behavior rather than by each restating it, per the `payload-single-source` capability.
+This SHALL hold for **every payload surface that fronts the apply step**, including `.claude/skills/apply/SKILL.md`, `.claude/skills/openspec-apply-change/SKILL.md`, and `.claude/commands/opsx/apply.md`. No surface SHALL describe a completion path that ends in anything other than these outcomes — in particular, none SHALL direct the user to archive instead. Surfaces SHALL satisfy this by pointing at the one that owns the behavior rather than by each restating it, per the `payload-single-source` capability.
 
 #### Scenario: Final pending task completes
 
@@ -33,6 +31,16 @@ This SHALL hold for **every payload surface that fronts the apply step**, includ
 
 - **WHEN** a payload surface directs the user to a command
 - **THEN** that command exists in the payload
+
+#### Scenario: Ship pulled apply in
+
+- **WHEN** `/ship` invoked `/apply` and the final task completes
+- **THEN** `/apply` returns to `/ship` without invoking `/save`
+
+#### Scenario: Non-code work completes
+
+- **WHEN** `/apply` finishes a to-do that changed no repo file
+- **THEN** it reports the result and does not invoke `/save`
 
 ### Requirement: Incomplete apply does not automatically checkpoint
 
@@ -101,3 +109,4 @@ The automatic completion handoff SHALL NOT remove or narrow `/save` as an indepe
 
 - **WHEN** the user invokes `/save` before `/apply` has completed every task
 - **THEN** `/save` performs its existing checkpoint workflow without requiring `/apply` completion
+

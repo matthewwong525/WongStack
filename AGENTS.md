@@ -29,7 +29,8 @@ Credentials already live in the repo's environment files — `.env.example` is t
 
 - **Write user-facing prose in ASD-STE100 Simplified Technical English**, best effort, in [our voice](wiki/voice.md); keep code, commands, identifiers, and quotations exact.
 - **Do a plain request directly.** Research, errands, reminders, and questions need no verb and no question round; ask only when you cannot act without an answer.
-- **Build or change code through the verbs** `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence, `/improve` for maintenance, `/routine` for schedules, and `/wong-sync` for updates. A verb whose precondition is missing invokes the verb before it: [the change loop](wiki/development/the-change-loop.md).
+- **Build or change code through the verbs** `/explore → /plan → /apply → /save → /continue → /ship`, with `/verify` for evidence, `/improve` for maintenance, `/routine` for schedules, and `/wong-sync` for updates. A verb whose precondition is missing invokes the verb before it: [the change loop](wiki/development/the-change-loop.md). A verb the person invokes also serves work that changes no repo file, with a to-do and a confirm before each outward action.
+- **Build a new standalone page or tool as a mini app**: its own folder beside the main app, a preview in seconds, and no question round. Saving it runs its tests here and pushes straight to the default branch, which puts it live: [mini apps](wiki/stack/mini-apps.md).
 - **The WongStack skills own all git; OpenSpec never runs git.** `/apply` reads branch changes but makes none: [the change loop](wiki/development/the-change-loop.md).
 - **CI is the gate when present, else PR review; nothing builds locally**: [the gate](wiki/development/the-change-loop.md#the-gate).
 - **Prose goes straight to `main`** when a save's whole diff sits in `wiki/**`: [the prose allowlist](wiki/development/the-change-loop.md#the-prose-allowlist).

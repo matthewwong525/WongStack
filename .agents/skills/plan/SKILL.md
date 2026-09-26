@@ -1,16 +1,18 @@
 ---
 name: plan
-description: Draft an OpenSpec change with a proposal, required artifacts, tasks, and a standalone interactive HTML review. Use before implementation when a change needs a plan or visual review.
+description: Draft an OpenSpec change with a proposal, required artifacts, tasks, and a standalone review page with text drawings, or write a short to-do for work that changes no repo file. Use before implementation when a change needs a plan or a review.
 user-invocable: true
 ---
 
 # /plan
 
-Create an apply-ready OpenSpec change and its required `review.html`. The page is the main human review surface: What Changes is its navigation, and each item can show a flow, diff, tree, or screen. It works offline, on a phone, and lets the reviewer annotate and copy feedback into `/continue`.
+Create an apply-ready OpenSpec change and its required `review.html`. The page is the main human review surface: one scrolling document with Why, the What Changes items with their text drawings, and the decisions labeled *asked* or *assumed*. It works offline, on a phone; the reviewer taps an item to add a note and copies the notes into `/continue`.
+
+**Work that changes no repo file** — research, an errand, a message — gets no OpenSpec change and no page. Run the bounded `/explore` pass below, then write a short numbered to-do in the conversation and mark each step that acts outside it `(outward)`. Write no file.
 
 ## Explore first
 
-Invoke [`/explore`](../explore/SKILL.md) in bounded mode. Read prior answers and investigate only gaps. The exit round may ask at most one final group for this transition; a completed exit round cannot be repeated. Once settled, fill cheap details with recorded assumptions and ask nothing more during this plan. Record every earlier answer and the exit round in the proposal Decision log as `asked X → chose Y`; mark inferred decisions as `assumed` with the reason.
+Invoke [`/explore`](../explore/SKILL.md) in bounded mode. Read prior answers and investigate only gaps. The exit round may ask at most one final group for this transition; a completed exit round cannot be repeated. Once settled, fill cheap details with recorded assumptions and ask nothing more during this plan. Record each decision as its own Decision-log bullet: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every earlier answer and the exit round, and `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one. The review page labels a bullet by its first word.
 
 ## Draft with the CLI
 
@@ -20,24 +22,30 @@ If `/apply` selected an incomplete change, complete that exact change rather tha
 
 Before tasks, decide whether a repeated process belongs in deterministic code. Use the judgment in [`agent-knowledge-center.md`](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai). A change to testable behavior gets a coverage task beside the related implementation; a prose-only change does not.
 
-## Build the review page for every change
+## Draw in the proposal, then build the page
 
-Right after the proposal draft, launch one design subagent in the background. Supply the proposal, [author guide](references/review-author.md), relevant [examples](references/review-examples.html), and, for screens, [`ux-principles.md`](../../../wiki/ux-principles.md) and closest existing screens. The author writes only `review-visuals.html` and returns a bullet-to-anchor map. Draft design and tasks while it runs; finish anchor citations when it returns.
+Draw while you write the bullet; there is no second agent and no browser check. By default, one What Changes bullet carries one drawing: the flow, diff, file tree, or screen that makes the change clear. Sketch each new or restructured user-facing screen. Add a further drawing only where a bullet can not be understood without one; the other bullets stay text.
 
-Default to one `flow`, `screen`, `diff`, or `tree` visual that carries the change. Draw each new or restructured user-facing screen. The author states why any further visual is needed. Other bullets stay text. Anchor each visual to one owning What Changes bullet, then run:
+A drawing is a fenced `text` block indented inside its bullet, in plain characters. Read it top to bottom, and keep it about 40 columns wide: the reviewer is often on a phone, and the page fits a drawing to the screen before they zoom in.
+
+    - **Save goes through one gate.** …
+      ```text
+      /apply ──▶ archive
+                   │
+                   ▼
+              one /save ──▶ CI
+      ```
+
+Build the page once the proposal is drafted, and again after any later edit to it:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current
 ```
 
-For screens, add a `## UX` design section with a brief, flow, hierarchy, components, and `### Review` link to screen and state anchors. Draw phone work phone-first. UI-less changes omit this section and screen visuals. Tasks that build visuals cite their anchors.
+The builder reads the proposal directly and writes a standalone page from the fixed kit; do not keep another copy of Why, What Changes, or the drawings. It stops on a missing section or an unclosed fence, and warns about a drawing line wider than 60 columns: shorten that line. A clean build proves the page is well formed, not that a drawing explains its bullet; the reviewer's notes do that.
 
-Run the deterministic [review checker](scripts/check-review.js) once in a browser on the generated file. The builder rejects forbidden markup; the checker reports structural defects. The reviewer annotates meaning and layout. Without a browser, report the rendered check as unverified; still build and validate.
-
-On plan updates, rerun the author only when an anchored bullet or its visual changes. Otherwise rebuild from the existing fragment.
-
-The template owns layout, navigation, annotations, and copy behavior. The visual author does not edit its CSS or script. The builder reads the proposal directly; do not keep another authored copy of Why or What Changes.
+For screens, add a `## UX` design section with a brief, flow, hierarchy, components, and a `### Review` subsection that links `review.html` and names the items that sketch each screen. Sketch phone work phone-first. UI-less changes omit this section.
 
 ## Finish
 
-Write tasks grouped by the surface they touch, following the CLI's checkbox template. A task needing CI or a deployed preview names `/save` as its means of completion. Validate with `openspec validate "<name>" --strict --no-interactive`. Confirm the review exists and all apply-required artifacts are complete. Standalone `/plan` presents the page and stops, ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) — implement it now *(Recommended)*, revise the plan first, or stop here. When invoked by `/apply`, return the exact change name and let `/apply` implement it.
+Write tasks grouped by the surface they touch, following the CLI's checkbox template. A task needing CI or a deployed preview names `/save` as its means of completion. Validate with `openspec validate "<name>" --strict --no-interactive`. Confirm the review page exists and all apply-required artifacts are complete. Standalone `/plan` presents the page and stops, ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) — implement it now *(Recommended)*, revise the plan first, or stop here. When invoked by `/apply`, return the exact change name and let `/apply` implement it.

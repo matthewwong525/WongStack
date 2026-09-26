@@ -11,6 +11,14 @@
 # requirement. A repo with no `test` script gets a real check that explains
 # itself and passes, never a permanently red one.
 #
+# A change that leaves the main app untouched runs no suite. The first step,
+# `.github/scripts/app-untouched.sh`, compares the whole branch (or, on the
+# default branch, the whole push) with its base: when every changed path is
+# docs or under `mini-apps/`, the main app's steps skip, and only the changed
+# mini apps' own tests run. The skip is inside the job, never a `paths-ignore`,
+# so the required `test` check still reports. When the comparison can not be
+# made, the suite runs. The last step writes one summary line either way.
+#
 # ---------------------------------------------------------------------------
 # Why one commit does not test twice
 #
@@ -54,13 +62,26 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Full history: the untouched check compares the whole branch with its base.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Check what the change touches
+        id: scope
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bash .github/scripts/app-untouched.sh | tee -a "$GITHUB_OUTPUT"
 
       # Resolve the app by its test script, never by a stack's config file: a
       # repo can have tests long before it is provisioned, or instead of ever
       # being provisioned. Repo root first, then each immediate subdirectory.
+      # Skipped when the main app is untouched. Every main-app step below is
+      # gated on this step's `found`, so they skip with it.
       - name: Locate the test suite
         id: suite
+        if: ${{ steps.scope.outputs.untouched != 'true' }}
         run: |
           has_test() {
             node -e "process.exit(require('$1/package.json').scripts?.test?0:1)" 2>/dev/null
@@ -131,6 +152,7 @@ jobs:
           restore-keys: ${{ steps.suite.outputs.stryker-key }}-
 
       - name: Test
+        id: test
         if: ${{ steps.suite.outputs.found == 'true' }}
         working-directory: ${{ steps.suite.outputs.dir }}
         run: npm test
@@ -142,3 +164,66 @@ jobs:
         with:
           path: ${{ steps.suite.outputs.rel }}reports/stryker-incremental.json
           key: ${{ steps.suite.outputs.stryker-key }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # Each changed mini app's own tests, with Node's built-in runner and no
+      # install. They run whenever the change touches a mini app, so a failing
+      # test turns this check red, on a direct push to main as on a pull request.
+      # Node needs setting up only when the main suite did not already do it.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: ${{ steps.scope.outputs.mini_apps != '' && steps.suite.outputs.found != 'true' }}
+        with:
+          node-version-file: .nvmrc
+
+      # Run from inside each folder: Node's default patterns find the tests
+      # there, and Node 22 reads a directory argument as a file.
+      - name: Test the changed mini apps
+        id: mini
+        if: ${{ steps.scope.outputs.mini_apps != '' }}
+        env:
+          MINI_APPS: ${{ steps.scope.outputs.mini_apps }}
+        run: |
+          STATUS=0
+          TESTED=""
+          SKIPPED=""
+          for NAME in $MINI_APPS; do
+            DIR="mini-apps/apps/$NAME"
+            if [ ! -d "$DIR" ]; then
+              echo "$NAME: the folder was removed — nothing to test"
+              continue
+            fi
+            if [ -z "$(find "$DIR" -name node_modules -prune -o -type f \( -name '*.test.*' -o -name '*-test.*' -o -name '*_test.*' -o -name 'test.*' -o -name 'test-*' \) -print -quit)" ]; then
+              echo "$NAME: no test files — skipped"
+              SKIPPED="$SKIPPED $NAME"
+              continue
+            fi
+            echo "::group::$NAME"
+            (cd "$DIR" && node --test) || STATUS=1
+            echo "::endgroup::"
+            TESTED="$TESTED $NAME"
+          done
+          echo "tested=${TESTED# }" >> "$GITHUB_OUTPUT"
+          echo "skipped=${SKIPPED# }" >> "$GITHUB_OUTPUT"
+          exit "$STATUS"
+
+      # One line on the run page: what ran, or why nothing did.
+      - name: Summary
+        if: ${{ !cancelled() }}
+        env:
+          UNTOUCHED: ${{ steps.scope.outputs.untouched }}
+          FOUND: ${{ steps.suite.outputs.found }}
+          SUITE: ${{ steps.test.outcome }}
+          MINI: ${{ steps.mini.outcome }}
+          TESTED: ${{ steps.mini.outputs.tested }}
+          SKIPPED: ${{ steps.mini.outputs.skipped }}
+        run: |
+          if [ "$UNTOUCHED" = true ]; then
+            LINE="The main app is untouched (only docs or mini apps changed), so its suite did not run."
+          elif [ "$FOUND" = true ]; then
+            LINE="The main app changed, so its suite ran: $SUITE."
+          else
+            LINE="The main app changed, but no test suite is declared."
+          fi
+          [ -n "$TESTED" ] && LINE="$LINE Mini-app tests ran for $TESTED: $MINI."
+          [ -n "$SKIPPED" ] && LINE="$LINE No test files in $SKIPPED."
+          echo "$LINE" >> "$GITHUB_STEP_SUMMARY"
+          echo "$LINE"
