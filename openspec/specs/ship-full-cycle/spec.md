@@ -2,8 +2,10 @@
 
 ## Purpose
 
-`/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, with one checkpoint before its walk, and can keep a mini app through one short merge, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
+`/ship` can carry a task from intent to merge in one invocation by pulling in `/apply` when the branch has nothing to ship, with one checkpoint before its walk, so every verb in the loop follows one rule: when its precondition is missing, invoke the verb before it.
+
 ## Requirements
+
 ### Requirement: Ship pulls in apply when there is nothing to ship
 
 When `/ship`'s preflight finds nothing to ship — the current branch is the default branch, or the branch has no commits ahead and a clean tree — `/ship` SHALL invoke `/apply` before its own runbook, in one of two forms:
@@ -156,26 +158,10 @@ When `/ship` pulls in `/apply`, `/apply` SHALL return to `/ship` on completion w
 #### Scenario: Standalone apply still saves
 
 - **WHEN** the person invokes `/apply` directly and every task completes
-- **THEN** `/apply` invokes `/save` as `apply-completion-handoff` defines
+- **THEN** `/apply` uploads a preview from the agent host and does not invoke `/save`, as `apply-completion-handoff` defines
 
 #### Scenario: A reader looks up the chain rule
 
 - **WHEN** a reader opens the change loop page
 - **THEN** it states that each verb invokes the verb before it when its precondition is missing
 - **AND** it shows the nesting `/ship` → `/apply` → `/plan` → `/explore`
-
-### Requirement: A mini-app pull request ships without a change record
-
-When `/ship` runs on a branch whose pull request came from a mini-app save — the session says so, or the body is in the renderer's mini-app mode — and whose diff stays under `mini-apps/` and `schema/migrations/`, it SHALL NOT look for, write, or archive an OpenSpec change. It SHALL invoke `/save` once in its mini-app pull-request form, which updates the pull request and waits for CI, SHALL NOT invoke `/verify`, and SHALL merge on that result. On any other branch with no change record, `/ship` SHALL stop and report it as before.
-
-#### Scenario: Merge a mini-app pull request
-
-- **WHEN** the person asks to ship a mini-app pull request that added a migration
-- **THEN** `/ship` runs one `/save` and merges on its gate result
-- **AND** no OpenSpec change is created or archived, and no walk runs
-
-#### Scenario: An unknown branch without a record
-
-- **WHEN** `/ship` runs on a branch with commits, no change record, and no mini-app pull request
-- **THEN** `/ship` stops and reports that the branch has no change record
-
