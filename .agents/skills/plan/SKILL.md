@@ -22,6 +22,8 @@ If `/apply` selected an incomplete change, complete that exact change rather tha
 
 Before tasks, decide whether a repeated process belongs in deterministic code. Use the judgment in [`agent-knowledge-center.md`](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai). A change to testable behavior gets a coverage task beside the related implementation; a prose-only change does not.
 
+Write the proposal's Why and What Changes for the person who asked, at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level). For a non-technical reader, say what they will see, get, or be able to do; put file names, code, and commands in the design, specs, and tasks, which the page does not show. Capabilities and Impact may stay technical.
+
 ## Draw in the proposal, then build the page
 
 Draw while you write the bullet; there is no second agent and no browser check. By default, one What Changes bullet carries one drawing: the flow, diff, file tree, or screen that makes the change clear. Sketch each new or restructured user-facing screen. Add a further drawing only where a bullet can not be understood without one; the other bullets stay text.
@@ -42,10 +44,10 @@ Build the page once the proposal is drafted, and again after any later edit to i
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current
 ```
 
-The builder reads the proposal directly and writes a standalone page from the fixed kit; do not keep another copy of Why, What Changes, or the drawings. It stops on a missing section or an unclosed fence, and warns about a drawing line wider than 60 columns: shorten that line. A clean build proves the page is well formed, not that a drawing explains its bullet; the reviewer's notes do that.
+The builder prints its status line, then the page's absolute path. The builder reads the proposal directly and writes a standalone page from the fixed kit; do not keep another copy of Why, What Changes, or the drawings. It stops on a missing section or an unclosed fence, and warns about a drawing line wider than 60 columns: shorten that line. A clean build proves the page is well formed, not that a drawing explains its bullet; the reviewer's notes do that.
 
 For screens, add a `## UX` design section with a brief, flow, hierarchy, components, and a `### Review` subsection that links `review.html` and names the items that sketch each screen. Sketch phone work phone-first. UI-less changes omit this section.
 
 ## Finish
 
-Write tasks grouped by the surface they touch, following the CLI's checkbox template. A task needing CI or a deployed preview names `/save` as its means of completion. Validate with `openspec validate "<name>" --strict --no-interactive`. Confirm the review page exists and all apply-required artifacts are complete. Standalone `/plan` presents the page and stops, ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) — implement it now *(Recommended)*, revise the plan first, or stop here. When invoked by `/apply`, return the exact change name and let `/apply` implement it.
+Write tasks grouped by the surface they touch, following the CLI's checkbox template. A task needing CI or a deployed preview names `/save` as its means of completion. Validate with `openspec validate "<name>" --strict --no-interactive`. Confirm the review page exists and all apply-required artifacts are complete. Standalone `/plan` presents the plan in a few plain lines and stops. Just above the last question, write *Click here to see the plan:* and a Markdown link to the path the builder printed. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) — build it now *(Recommended)*, change the plan first, or stop here. When invoked by `/apply`, return the exact change name and let `/apply` implement it.

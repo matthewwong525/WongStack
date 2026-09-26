@@ -41,3 +41,11 @@ main ol {
 main ol li + li {
   margin-top: 0.5rem;
 }
+
+main section {
+  margin-bottom: 2.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 0.5rem;
+  background: var(--accent-bg);
+}

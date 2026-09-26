@@ -1,24 +1,17 @@
-// A first tour of the loop. The last step removes it: delete this file and its
-// one line in App.tsx.
+// The first change a person makes: removing this message teaches the whole loop.
+// Removing it means deleting this file and its one line in App.tsx.
 export function Tutorial() {
   return (
-    <section aria-labelledby="get-started">
-      <h2 id="get-started">Get started</h2>
+    <section aria-labelledby="start-here">
+      <h2 id="start-here">Start here: remove this message</h2>
+      <p>Your first change is to remove this message. It shows you how every change works.</p>
       <ol>
         <li>
-          Ask the agent for a small tool: <code>make me a tip calculator</code>. It sends you a
-          preview link.
+          Tell the agent: <code>remove the tutorial message</code>.
         </li>
-        <li>
-          Say <code>/save</code>. The tool goes live and shows up in Your apps.
-        </li>
-        <li>
-          Change this app: <code>/ship add a sign-in page</code>. The agent plans, builds, and
-          merges it.
-        </li>
-        <li>
-          Done with this tour? Say <code>remove the tutorial</code>.
-        </li>
+        <li>It sends you a plan to read. Say yes to build it.</li>
+        <li>It sends you a preview link to try. Say yes to publish it.</li>
+        <li>Open this page again. The message is gone.</li>
       </ol>
     </section>
   )

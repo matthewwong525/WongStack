@@ -11,13 +11,30 @@
 - **The build copies the apps in.** After `build:app`, `cf-build.sh` runs `mini-dashboard.mjs --into <assets>`. It copies each app's pages, never `api.mjs`, tests, or TypeScript, to `/apps/<name>/`, and writes the list page `/apps/` and its data `/apps/apps.json`. The assets folder comes from the new `assets-dir` read in `lib-wrangler-config`.
 - **A preview builds the whole app.** `scripts/cf-preview.sh --alias mini-<name>` replaces `cf-mini.sh preview`. It installs `app/` when it has no `node_modules`, migrates staging, builds for staging, and uploads a preview version of the staging Worker. It is slower than before, and previews no longer expire.
 - **A mini-app save deploys your app.** The direct save to `main` does not change. CI still runs only the changed app's tests, but it now builds and deploys the main Worker. `app-untouched.sh` counts only `mini-apps/apps/*` as untouched, so a change to the router runs the main suite. The mini-app deploy block and its `staging-mini` preview are gone from `deploy.yml`.
-- **A new landing page.** The starter app's Vite template page becomes a list of your mini apps and a four-step tutorial. The last step is: say `remove the tutorial`.
+- **A new landing page.** The starter app's Vite template page becomes a tutorial message and a list of your mini apps. The tutorial's one task is to remove itself: say `remove the tutorial message`, and the agent walks you through the plan, the preview, and publishing.
 - **Removed:** `mini-apps/wrangler.jsonc` and its fragment, `mini-apps/worker.ts`, `mini-apps/tsconfig.json`, `mini-apps/.gitignore`, `mini-apps/apps/.assetsignore`, `scripts/cf-mini.sh`, and the seven-day preview expiry.
 
 **Updating.** `/wong-sync` plans the move through [setup's provisioning runbook](.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config):
 1. The sync change adds the `/apps/` route to `app/worker/index.ts` and the two `assets` keys to `app/wrangler.jsonc`, and deletes the mini Worker's files. Your landing page stays as it is; `/apps/` lists the apps.
 2. After it merges and production deploys, open `/apps/` and each saved app.
 3. Only then, delete the `<repo>-mini` and `<repo>-mini-staging` Workers.
+
+## 23.2.0 — The assistant comes first, in short plain messages
+
+- **Short, plain messages replace STE100.** The `WONG-STACK` block no longer asks for ASD-STE100 Simplified Technical English. One rule, *keep messages short and plain*, replaces it and "Answer in a few lines": the point first, a few lines, everyday words. The agent names git, OpenSpec, or CI only when the person asks or must act. Code, commands, identifiers, and quotations stay exact. [`wiki/voice.md`](wiki/voice.md) owns the rule and gains an everyday-words line. `asking-the-user.md` points to it.
+- **Plain requests come first.** "Do a plain request directly" is now the first rule in the block, before the change loop.
+- **The README and wiki welcome a newcomer.** The README opens with what the assistant does, example requests, three setup steps, and where to chat, with no developer terms. The commands, comparison, requirements, and layout sit under "For developers". [`wiki/README.md`](wiki/README.md) opens with the assistant and links [getting started](wiki/stack/getting-started.md), which now shows asking for anything before the change loop.
+
+**Updating.** `/wong-sync` brings the new rule, `voice.md`, and the reference line. Nothing else to do. Your own wiki pages keep their prose until you next edit them.
+
+## 23.1.0 — Plans a non-technical person can read
+
+- **Plans are written for the person who asked.** A person page in `wiki/people/` can hold one line, `**Technical level:** technical` or `non-technical`. With no line, the agent assumes non-technical. A plan's Why and What Changes then say what the person will see, get, or be able to do, and file names, code, and commands move into the design, specs, and tasks. [The ask convention](.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level) owns the rule, and `openspec/config.yaml` gives it to every draft. A technical reader's plan does not change.
+- **Questions and reports name outcomes.** Every ask, blocker report, and next-step question uses the reader's level. A skill tries the fixes its rules allow before it asks, and `/ship`'s failed-walk question becomes *fix it first, or publish anyway?* for a non-technical reader. `/apply` and `/ship` start their reports with the outcome.
+- **You just ask.** A code change asked for with no command stops twice: at the plan (*build it now?*) and after the preview (*publish it?*). `/ship` and `/apply` keep their reach when you type them. [The change loop](wiki/development/the-change-loop.md#just-ask) owns the rule, and the `WONG-STACK` block states it.
+- **Every plan ends with a link to its review page.** `build-review.mjs` prints the page's absolute path after its status line, and a standalone `/plan` ends with *Click here to see the plan:* and that link, just above the next-step question.
+
+**Updating.** `/wong-sync` takes the new text and script. Nothing to migrate: with no level line, plans become plain. An engineer says once that they are technical, and the agent records it on their page.
 
 ## 23.0.1 — A mini-app save retries once when main moved
 

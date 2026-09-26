@@ -70,6 +70,12 @@ Open it. If you took the starter site, the page loads and has a button that fetc
 
 You never need to run anything on your own computer.
 
+**Ask for anything.** Look something up, plan your week, draft a message, or remind you on a schedule. The agent does it and answers, with no commands. It asks before it sends or changes anything outside the chat. What it learns about you stays for next time, in [memory](../development/memory.md) and [the wiki](../README.md).
+
+**Ask for a small tool** — a tip splitter, a run log — and you get a link to try it. Say save, and it is live. [Mini apps](mini-apps.md) has the details.
+
+**Change the site itself** through a short, reviewable loop:
+
 ```
    ask for a change  →  agent builds it  →  /save  →  you get a link
                                                        ↓

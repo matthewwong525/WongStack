@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · 2026-09-26-serve-mini-apps-from-main-app</title>
+<title>Review · 2026-09-26-assistant-first-front-door</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -74,11 +74,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="2026-09-26-serve-mini-apps-from-main-app">
+<body data-change="2026-09-26-assistant-first-front-door">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>2026-09-26-serve-mini-apps-from-main-app</h1>
+  <h1>2026-09-26-assistant-first-front-door</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
@@ -86,68 +86,54 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">Mini apps run on a second Worker, <code>&lt;repo&gt;-mini</code>, at a second address. That Worker has its own config, deploy step, preview script, and expiry logic. Its only benefit is a preview that never builds <code>app/</code>, and that speed does not justify a second Worker. Memory already moved into the main Worker in 23.0.0. Mini apps can move there too, so each repo has one Worker and one address.</p>
+<p data-note="why-1" tabindex="0">WongStack already works like a personal assistant: it does plain requests directly, it remembers across sessions, and it builds small apps on request. But the front door reads like a developer tool. The README opens with coding agents, then shows six commands, a comparison with spec tools, and a list of tools to install. The always-loaded rules also ask for ASD-STE100 Simplified Technical English, which produces stiff, long text. A non-technical person who wants something like <a href="https://www.explainx.ai/blog/openmuse-open-source-personal-agent-2026">Meta's Muse</a>, where you sign in, chat, and it gets things done, leaves before they find out that WongStack can do this. The repo is already public, so this front door is the launch.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>One Worker serves the app and every mini app.</b> The main build copies each app's pages into its assets under <code>/apps/&lt;name&gt;/</code>. The main Worker sends <code>/apps/&lt;name&gt;/api/*</code> to that app's <code>api.mjs</code>, the same way it sends <code>/_memory/</code> to memory. A handler gets only the app database, <code>DB</code>, and never the memory bindings.</div><figure class="drawing"><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">wongstack.&lt;you&gt;.workers.dev</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0"> │</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0"> ├─ /            landing page (React)</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0"> ├─ /apps/       generated app list</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0"> ├─ /apps/tips/  mini app pages</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0"> ├─ /apps/tips/api/*  ─▶ tips/api.mjs</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0"> └─ /_memory/*        ─▶ memory route</span></pre></div></figure></div></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>A mini-app preview builds the whole app.</b> <code>/apply</code> runs <code>scripts/cf-preview.sh --alias mini-&lt;name&gt;</code>. The script installs <code>app/</code> when it has no <code>node_modules</code>, builds the app, and uploads a preview version of the staging main Worker under that alias. The preview uses staging data. It takes longer than today's upload, because it now builds the whole app.</div></div></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>A mini-app save deploys the main Worker.</b> The direct save to <code>main</code> does not change. CI on <code>main</code> still runs only the changed app's tests, and skips the main app's suite. It now builds and deploys the main Worker, so the app goes live at <code>/apps/&lt;name&gt;/</code>.</div></div></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>BREAKING: the mini Worker is gone.</b> <code>mini-apps/wrangler.jsonc</code>, <code>mini-apps/worker.ts</code>, <code>scripts/cf-mini.sh</code>, the mini deploy step, and the seven-day preview expiry are removed. The <code>&lt;repo&gt;-mini</code> and <code>&lt;repo&gt;-mini-staging</code> Workers are deleted, and the old <code>&lt;repo&gt;-mini.&lt;you&gt;.workers.dev</code> address stops answering. <code>/wong-sync</code> plans the same move for older installs.</div></div></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>The landing page lists the apps and teaches the loop.</b> The starter app's Vite template page becomes a tutorial message at the top and a list of the mini apps, read from a generated <code>/apps/apps.json</code>. The tutorial's one task is to remove itself, which walks the person through the loop.</div><figure class="drawing"><div class="frame"><pre class="art">
-<span class="ln" data-note="item-5-line-1" tabindex="0">┌──────────────────────────────┐</span>
-<span class="ln" data-note="item-5-line-2" tabindex="0">│ Start here: remove this      │</span>
-<span class="ln" data-note="item-5-line-3" tabindex="0">│ message                      │</span>
-<span class="ln" data-note="item-5-line-4" tabindex="0">│ 1 Tell the agent: &quot;remove    │</span>
-<span class="ln" data-note="item-5-line-5" tabindex="0">│   the tutorial message&quot;      │</span>
-<span class="ln" data-note="item-5-line-6" tabindex="0">│ 2 Read the plan, say yes     │</span>
-<span class="ln" data-note="item-5-line-7" tabindex="0">│ 3 Try the preview, say yes   │</span>
-<span class="ln" data-note="item-5-line-8" tabindex="0">│ 4 The message is gone        │</span>
-<span class="ln" data-note="item-5-line-9" tabindex="0">│                              │</span>
-<span class="ln" data-note="item-5-line-10" tabindex="0">│ Your apps                    │</span>
-<span class="ln" data-note="item-5-line-11" tabindex="0">│ ┌──────────────────────────┐ │</span>
-<span class="ln" data-note="item-5-line-12" tabindex="0">│ │ Tips                     │ │</span>
-<span class="ln" data-note="item-5-line-13" tabindex="0">│ │ Split a bill with a tip  │ │</span>
-<span class="ln" data-note="item-5-line-14" tabindex="0">│ ├──────────────────────────┤ │</span>
-<span class="ln" data-note="item-5-line-15" tabindex="0">│ │ Hello                    │ │</span>
-<span class="ln" data-note="item-5-line-16" tabindex="0">│ │ Say hello from the API   │ │</span>
-<span class="ln" data-note="item-5-line-17" tabindex="0">│ └──────────────────────────┘ │</span>
-<span class="ln" data-note="item-5-line-18" tabindex="0">└──────────────────────────────┘</span></pre></div></figure></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The README leads with the assistant.</b> The first screen says what you get: an assistant that remembers you and gets things done, with example requests. Next come three setup steps and where to chat. Everything for developers moves under one lower heading. It keeps the commands, the comparison, the requirements, the layout, and working from the source.</div><figure class="drawing"><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">BEFORE                AFTER</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">───────────────────   ───────────────────</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">Coding agents forget  Your own assistant</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">review.html picture   What you can ask</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">Start here (paste)    Start in 3 steps</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">What you get          Where you chat</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">The commands          What you get</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">How it compares       ── For developers ──</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">Repository layout     The commands</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">Requirements          How it compares</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">Work from source      Requirements</span>
+<span class="ln" data-note="item-1-line-12" tabindex="0">                      Repository layout</span>
+<span class="ln" data-note="item-1-line-13" tabindex="0">                      Work from the source</span></pre></div></figure></div></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Short, plain messages replace STE100.</b> One rule in the <code>WONG-STACK</code> block replaces two: the ASD-STE100 rule and &quot;Answer in a few lines&quot;. <a href="../../../wiki/voice.md"><code>wiki/voice.md</code></a> owns how the rule reads in practice. It gains a line on everyday words: say <i>saved</i> and <i>live</i>, not <i>pushed</i> and <i>merged</i>, unless the person asks. Code, commands, identifiers, and quotations stay exact. The line in <a href="../../../.agents/skills/explore/references/asking-the-user.md"><code>asking-the-user.md</code></a> that cites STE100 points to the voice page instead.</div><figure class="drawing"><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">- Write user-facing prose in ASD-STE100</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">  Simplified Technical English ...</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">- Answer in a few lines; ...</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">+ Keep messages short and plain: the</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">  point first, a few lines, everyday</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">  words. Name git, OpenSpec, or CI only</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0">  when asked. Keep code exact.</span></pre></div></figure></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The rules put the assistant first.</b> In the <code>WONG-STACK</code> block, &quot;Do a plain request directly&quot; moves to the top of the rules. The change loop comes after it, as the path for code. The meta intro of <code>AGENTS.md</code> (not shipped) now calls WongStack a personal assistant and knowledge center that lives in a repo.</div></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>The wiki's entry pages welcome a newcomer.</b> <a href="../../../wiki/README.md"><code>wiki/README.md</code></a> opens with what the assistant does, and links <a href="../../../wiki/stack/getting-started.md">getting started</a> for a first-time reader. In getting started, &quot;how you work&quot; shows asking for anything first, and the change loop second.</div></div></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> no change to the mini-app folder, <code>app.json</code>, or where the tests live. No change to the direct save route or its fallback to a pull request. No move of a mini app into the React app. No new landing page for older installs: they keep their own and get the generated <code>/apps/</code> page.</p>
+<p class="aside"><b>Non-goals:</b> No hosted service. It stays a separate repo, as decided on 2026-09-25. No Gmail, Calendar, or other connectors. No change to setup steps, skills behavior, scripts, or the version line beyond a minor bump. No mass rewrite of the skills or deeper wiki pages. No files removed, and no change to the archive or <code>CHANGELOG.md</code> history.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Found: memory thread #201 deferred serving mini apps at <code>/apps/*</code> through a service binding. 23.0.0 moved memory into the main Worker at <code>/_memory/</code>.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked how the main app should serve mini apps → the user chose <b>preview only the mini app, but ship it as part of the main app</b>, over a service binding or a dashboard page only.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked what happens to <code>&lt;repo&gt;-mini.&lt;you&gt;.workers.dev</code> → chose <b>turn it off</b>.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked whether the main app links to the apps → chose <b>the landing page shows the apps, with a tutorial whose last step removes the tutorial</b>.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked whether a preview can skip the mini Worker with a smaller build → the user said <b>build the whole app for a preview and keep it together</b>, rather than keep a second Worker for preview speed.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: a mini-app handler gets only <code>DB</code>, because a direct save reaches production with no review, and the production Worker also binds <code>MEMORY_DB</code> and <code>MEMORY_BUCKET</code>.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: mini-app previews no longer expire, because they are now ordinary preview versions of the staging main Worker, like every pull-request preview.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the generated <code>/apps/</code> page stays beside the React landing page, because older installs keep their own <code>app/src</code> and need a list too.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the host preview script is general (<code>cf-preview.sh</code>, not a mini script), because it uploads the whole main app under any alias.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: <code>app-untouched.sh</code> keeps its outputs, and <code>deploy.yml</code> also deploys when <code>mini_changed</code> is true, because the test job still skips the main suite for mini-app-only pushes.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: <code>/wong-sync</code> deletes the two mini Workers only after production serves <code>/apps/</code>, with a runbook step like 23.0.0's token cleanup, because an early delete takes saved apps offline.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: this also closes memory thread #200 (a commit that changes both apps publishes one preview), because there is only one Worker to preview.</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: release 24.0.0.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed during apply: the route table is a Vite <code>import.meta.glob</code> in <code>mini-apps/routes.mjs</code>, not a generated <code>routes.gen.mjs</code>, because the main app's test job imports the Worker before any build runs.</li>
-<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed during apply: the copy replaces <code>&lt;assets&gt;/apps/</code> rather than refusing an existing one, because <code>/apps/</code> belongs to the mini apps and a rebuild must not fail on its own earlier copy.</li>
-<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed during apply: <code>mini-apps/.gitignore</code> goes too, because nothing writes into <code>mini-apps/</code> any more.</li>
-<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the check of production <code>/apps/</code> and the delete of <code>wongstack-mini</code> and <code>wongstack-mini-staging</code> happen after the merge, outside the task list, because an archived change can not hold a post-merge task. The design's Migration Plan owns the steps, and each delete gets a confirm.</li>
-<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Apply evidence on the host: 258 script tests pass; the app's lint, <code>tsc -b</code>, Vitest (30 tests, 100% coverage), and Stryker on the changed files (34 mutants, 100%) pass. CI stays the gate.</li>
-<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distilled facts at ship: the store holds no live fact for this change or its branch, so no repeatable fact moved. The wiki edits ride in this change: <code>wiki/stack/mini-apps.md</code>, the change loop, the Access page, and the stack hub.</li>
-<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archive checkpoint: every task checked, the change archived with its deltas synced into <code>openspec/specs/</code> (mini-apps, stack-pack, ci-tests, delivery-gate), and three session facts stored.</li>
-<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked after the first walk (the user, mid-ship): &quot;Tutorial should be to remove the tutorial message&quot; → the tutorial moved to the top as one message whose only task is to remove itself, walking the plan, preview, and publish steps. The spec, design, sketch, docs, and tests follow.</li>
-<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Merged <code>origin/main</code> (23.1.0 #128 and 23.2.0 #129) into the branch: VERSION stays 24.0.0, the changelog keeps both entries, and the README and <code>WONG-STACK</code> block take main's new wording with the mini-app lines updated for <code>/apps/</code>.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked what &quot;work like Muse&quot; means for this repo → chose an assistant-first reframe of the existing engine, not a hosted service here and not new connectors.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked how far the repo cleanup goes → chose plain-language docs: the README, <code>AGENTS.md</code>, and the wiki entry pages. Removing maintainer-only files, pruning the archive, and resetting the version were not chosen.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked what replaces STE100 → chose concise, short messages.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the skills and deeper wiki pages keep their current prose, because a mass rewrite could change how skills behave and was not asked for.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the version goes to 23.1.0, because the rule and doc changes break no installed repo.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the <code>simplified-technical-english</code> capability keeps its path and gets a new Purpose, because moving a spec adds churn and breaks history links for no reader benefit.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the README names the Claude desktop app as the easiest place to chat, with any capable coding agent still supported, because a non-technical reader should not need a terminal and the front door must stay agent-agnostic.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the jargon rule lets the agent name git, OpenSpec, or CI when the person asks or must act on it, because some steps (a PR review, a CI failure) still need the person.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>The bounded explore exit round is complete. Remaining details use the assumptions above.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed the CI task is not a separate task, because <code>/ship</code> runs this change and merges only on its one checkpoint's <code>SUCCESS</code> or <code>NONE</code>.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Implementation checkpoint: version 23.1.0. <code>AGENTS.md</code> has the merged short-and-plain rule, after the plain-request rule; <code>voice.md</code> owns it and gained the everyday-words line; the README leads with the assistant and keeps the developer material under &quot;For developers&quot;; <code>wiki/README.md</code> and getting started welcome a newcomer. The payload link check, the OpenSpec config check, and the downstream-contract test pass. No STE100 text is left in <code>AGENTS.md</code>, <code>.agents/skills/</code>, the README, or the wiki.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distill: the store holds no facts for this change or its branch; no repeatable fact to move into the wiki.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archive checkpoint: archived as <code>openspec/changes/archive/2026-09-26-assistant-first-front-door/</code>; the CLI synced the three delta specs into <code>openspec/specs/</code>. <code>/ship</code>'s delegated <code>/save</code> commits the archive with the implementation.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Renumbered to 23.2.0: <code>main</code> shipped 23.1.0 (&quot;Plans a non-technical person can read&quot;, #128) during this change. The merge keeps both sides: this change's rule order and short-and-plain rule, plus #128's reader-level link and its &quot;just ask&quot; verbs rule.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

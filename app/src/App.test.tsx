@@ -65,16 +65,22 @@ it("links to the list page when the list does not load", async () => {
   expect(screen.queryByText(/No mini apps yet/)).toBeNull();
 });
 
-it("teaches the loop, ending with removing the tutorial", async () => {
+it("opens with the tutorial, whose one task is to remove itself", async () => {
   serve({ ok: true, json: async () => [] });
 
   await act(async () => {
     render(<App />);
   });
 
-  const tutorial = screen.getByRole("region", { name: "Get started" });
+  const tutorial = screen.getByRole("region", { name: "Start here: remove this message" });
+  expect(tutorial.compareDocumentPosition(screen.getByRole("heading", { name: "Your apps" }))).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
   const steps = within(tutorial).getAllByRole("listitem");
-  expect(steps).toHaveLength(4);
-  expect(steps[3].textContent).toBe("Done with this tour? Say remove the tutorial.");
-  await screen.findByText(/No mini apps yet/);
+  expect(steps.map((step) => step.textContent)).toEqual([
+    "Tell the agent: remove the tutorial message.",
+    "It sends you a plan to read. Say yes to build it.",
+    "It sends you a preview link to try. Say yes to publish it.",
+    "Open this page again. The message is gone.",
+  ]);
 });

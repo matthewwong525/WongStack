@@ -59,16 +59,16 @@ Rollback: revert the merge. The mini Workers are deleted only after step 2 passe
 
 ### Flow
 
-Open the app → the list is at the top → tap an app. Or read the tutorial → type the step into the agent.
+Open the app → read the tutorial message → ask the agent to remove it, which is the first change. Or scroll to the list → tap an app.
 
 ### Hierarchy
 
-The primary action is **open an app**, so the list comes first. The tutorial is secondary and sits below it. Each step is a sentence to type, set as code so the person can copy it.
+On a new install the primary action is **the first change**, so the tutorial message comes first; once it is removed, the list is the whole page. The one thing to type is set as code so the person can copy it.
 
 ### Components
 
 - `AppList`: loading, empty ("No mini apps yet. Ask the agent: make me a tip calculator"), error (a link to `/apps/`), and a list of rows with a title and a description.
-- `Tutorial`: a heading and four numbered steps. The last is "Say `remove the tutorial`".
+- `Tutorial`: a heading, "Start here: remove this message", and four steps: ask the agent to remove it, say yes to the plan, say yes to the preview, and see it gone.
 - The Vite template's hero, counter, and social links are removed.
 
 ### Review

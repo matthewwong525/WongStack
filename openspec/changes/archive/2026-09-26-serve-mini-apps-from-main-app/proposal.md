@@ -23,9 +23,17 @@ Mini apps run on a second Worker, `<repo>-mini`, at a second address. That Worke
 - **A mini-app preview builds the whole app.** `/apply` runs `scripts/cf-preview.sh --alias mini-<name>`. The script installs `app/` when it has no `node_modules`, builds the app, and uploads a preview version of the staging main Worker under that alias. The preview uses staging data. It takes longer than today's upload, because it now builds the whole app.
 - **A mini-app save deploys the main Worker.** The direct save to `main` does not change. CI on `main` still runs only the changed app's tests, and skips the main app's suite. It now builds and deploys the main Worker, so the app goes live at `/apps/<name>/`.
 - **BREAKING: the mini Worker is gone.** `mini-apps/wrangler.jsonc`, `mini-apps/worker.ts`, `scripts/cf-mini.sh`, the mini deploy step, and the seven-day preview expiry are removed. The `<repo>-mini` and `<repo>-mini-staging` Workers are deleted, and the old `<repo>-mini.<you>.workers.dev` address stops answering. `/wong-sync` plans the same move for older installs.
-- **The landing page lists the apps and teaches the loop.** The starter app's Vite template page becomes a list of the mini apps, read from a generated `/apps/apps.json`, and a short tutorial. The last tutorial step tells you to ask the agent to remove the tutorial.
+- **The landing page lists the apps and teaches the loop.** The starter app's Vite template page becomes a tutorial message at the top and a list of the mini apps, read from a generated `/apps/apps.json`. The tutorial's one task is to remove itself, which walks the person through the loop.
   ```text
   ┌──────────────────────────────┐
+  │ Start here: remove this      │
+  │ message                      │
+  │ 1 Tell the agent: "remove    │
+  │   the tutorial message"      │
+  │ 2 Read the plan, say yes     │
+  │ 3 Try the preview, say yes   │
+  │ 4 The message is gone        │
+  │                              │
   │ Your apps                    │
   │ ┌──────────────────────────┐ │
   │ │ Tips                     │ │
@@ -34,16 +42,6 @@ Mini apps run on a second Worker, `<repo>-mini`, at a second address. That Worke
   │ │ Hello                    │ │
   │ │ Say hello from the API   │ │
   │ └──────────────────────────┘ │
-  │                              │
-  │ Get started                  │
-  │ 1 Say "make me a tip         │
-  │   calculator"                │
-  │ 2 Say "/save": it shows up   │
-  │   in Your apps               │
-  │ 3 Say "/ship <a change>" to  │
-  │   change this app            │
-  │ 4 Done? Say "remove the      │
-  │   tutorial"                  │
   └──────────────────────────────┘
   ```
 
@@ -95,3 +93,5 @@ None.
 - **2026-09-26** — Apply evidence on the host: 258 script tests pass; the app's lint, `tsc -b`, Vitest (30 tests, 100% coverage), and Stryker on the changed files (34 mutants, 100%) pass. CI stays the gate.
 - **2026-09-26** — Distilled facts at ship: the store holds no live fact for this change or its branch, so no repeatable fact moved. The wiki edits ride in this change: `wiki/stack/mini-apps.md`, the change loop, the Access page, and the stack hub.
 - **2026-09-26** — Archive checkpoint: every task checked, the change archived with its deltas synced into `openspec/specs/` (mini-apps, stack-pack, ci-tests, delivery-gate), and three session facts stored.
+- **2026-09-26** — Asked after the first walk (the user, mid-ship): "Tutorial should be to remove the tutorial message" → the tutorial moved to the top as one message whose only task is to remove itself, walking the plan, preview, and publish steps. The spec, design, sketch, docs, and tests follow.
+- **2026-09-26** — Merged `origin/main` (23.1.0 #128 and 23.2.0 #129) into the branch: VERSION stays 24.0.0, the changelog keeps both entries, and the README and `WONG-STACK` block take main's new wording with the mini-app lines updated for `/apps/`.

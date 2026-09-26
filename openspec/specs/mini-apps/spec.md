@@ -130,12 +130,12 @@ A script SHALL build the mini-app list from the `app.json` of each folder under 
 
 ### Requirement: The starter landing page lists the mini apps and teaches the loop
 
-The starter app's landing page SHALL list the mini apps from `/apps/apps.json`, each with its title, description, and a link to it. With no mini apps, it SHALL say how to ask for one. Below the list, it SHALL show a short tutorial that teaches the loop: ask for a mini app, save it, and change the main app through the change loop. The tutorial's last step SHALL tell the person to ask the agent to remove the tutorial, and the tutorial SHALL be one part of the page that can be removed with no other change.
+The starter app's landing page SHALL open with a tutorial message whose one task is to remove itself: it SHALL tell the person to ask the agent to remove the tutorial message, and walk them through the steps that follow — read the plan, build it, try the preview, publish it. Removing it is the person's first change, so it teaches the loop by doing. The tutorial SHALL be one part of the page that can be removed with no other change. Below it, the page SHALL list the mini apps from `/apps/apps.json`, each with its title, description, and a link to it. With no mini apps, it SHALL say how to ask for one.
 
 #### Scenario: A fresh install
 
 - **WHEN** a person opens the production app of a new install
-- **THEN** the landing page lists the example app and shows the tutorial
+- **THEN** the landing page opens with the tutorial message, and lists the example app below it
 
 #### Scenario: The list can not load
 
@@ -144,6 +144,6 @@ The starter app's landing page SHALL list the mini apps from `/apps/apps.json`, 
 
 #### Scenario: The tutorial is done
 
-- **WHEN** the person asks the agent to remove the tutorial
+- **WHEN** the person asks the agent to remove the tutorial message and publishes the change
 - **THEN** the landing page shows only the app list, and nothing else on it changes
 

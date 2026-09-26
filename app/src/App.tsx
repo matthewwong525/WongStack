@@ -9,11 +9,11 @@ function App() {
 
   return (
     <main>
+      <Tutorial />
       <h1>Your apps</h1>
       <Suspense fallback={<p>Loading your apps…</p>}>
         <AppList apps={apps} />
       </Suspense>
-      <Tutorial />
     </main>
   )
 }
