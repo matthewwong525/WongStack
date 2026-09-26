@@ -2,27 +2,14 @@
 
 ## Purpose
 
-Define how WongStack agents apply ASD-STE100 Simplified Technical English without changing text that must remain exact.
-
+Define how WongStack agents keep messages short and plain, in everyday words, without changing text that must remain exact. The capability keeps its original path; ASD-STE100 was its first form.
 ## Requirements
-
-### Requirement: Best-effort Simplified Technical English
-The generic WongStack doctrine SHALL instruct agents to always use ASD-STE100 Simplified Technical English for user-facing prose and documentation. The doctrine SHALL state that best-effort compliance is sufficient when the full standard or its controlled vocabulary is not available.
-
-#### Scenario: Agent writes ordinary prose
-- **WHEN** an agent writes or edits user-facing prose or documentation under the WongStack doctrine
-- **THEN** the agent uses ASD-STE100 Simplified Technical English to the best of its ability
-
-#### Scenario: Formal verification is not available
-- **WHEN** the repository does not provide the full ASD-STE100 rules or an approved vocabulary
-- **THEN** the agent applies the instruction as a best-effort writing rule and does not claim verified conformance
-
 ### Requirement: Exact technical text stays exact
-The doctrine MUST exempt code, commands, identifiers, quotations, and prescribed text that must keep an exact form from Simplified Technical English rewriting.
+The doctrine MUST exempt code, commands, identifiers, quotations, and prescribed text that must keep an exact form from any rewording for brevity or plain language.
 
 #### Scenario: Prose contains exact text
 - **WHEN** user-facing prose includes code, a command, an identifier, a quotation, or prescribed wording
-- **THEN** the agent keeps that text exact while it applies Simplified Technical English to the surrounding prose
+- **THEN** the agent keeps that text exact while it shortens and simplifies the surrounding prose
 
 ### Requirement: Chat replies are short
 
@@ -32,3 +19,23 @@ The `WONG-STACK` block SHALL tell the agent to answer in chat in a few lines, an
 
 - **WHEN** the person asks which branch a change is on
 - **THEN** the reply is a few lines, with no extra background
+
+### Requirement: Messages are short and plain
+
+The `WONG-STACK` block SHALL tell the agent to keep user-facing messages and prose short and plain: the point first, a few lines in chat, and everyday words. The rule SHALL link `wiki/voice.md`, which owns how the rule reads in practice. The agent SHALL name git, OpenSpec, CI, or a verb only when the person asks or must act on it. The block SHALL NOT tell the agent to use ASD-STE100 Simplified Technical English.
+
+#### Scenario: A change is saved
+
+- **WHEN** the agent reports a save to a person who did not ask about git
+- **THEN** the reply says the work is saved and gives the preview link, in a few lines, without naming commits, pushes, or branches
+
+#### Scenario: The person asks for the detail
+
+- **WHEN** the person asks which branch or pull request holds the work
+- **THEN** the agent names it exactly
+
+#### Scenario: No STE100 rule remains
+
+- **WHEN** a reader searches the `WONG-STACK` block and the shipped skill references for "Simplified Technical English" or "STE100"
+- **THEN** there is no match
+

@@ -4,38 +4,59 @@
 [![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
+**Your own AI assistant that remembers you and gets things done.** Ask in plain words, the way you would ask a person. It does the task, keeps what it learns about you, and can build and publish small apps for you. Everything it knows lives in files you own, not in someone else's app.
+
+## What you can ask
+
+- *"Find three quiet cafés near the office that open before 8."*
+- *"Plan my week around the Thursday deadline."*
+- *"Every weekday at 9, list what is due today."* With the optional [Paseo](https://paseo.sh) app, it runs on a schedule.
+- *"Make me a page that splits a restaurant bill."* You get a link to try it in about a minute. Say save, and it is live.
+- *"Remember that I prefer short answers."* It still knows next week.
+
+It asks before it sends, buys, or deletes anything.
+
+## Start in three steps
+
+1. **Open a chat app for AI agents.** The easiest is the [Claude desktop app](https://claude.ai/download) (the Code tab), which needs no terminal. Any coding agent that can read and edit files and run commands works too.
+2. **Make an empty folder, open it there, and paste this:**
+
+   ```
+   Read and follow
+   https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
+   to install WongStack in this folder and walk me through the first workflow.
+   ```
+
+3. **Answer a few questions.** You sign in to GitHub, where your files are kept, and paste one key from a free [Cloudflare](https://cloudflare.com) account, where your apps run. The agent shows you the [exact clicks](wiki/stack/cloudflare-credentials.md#create-the-token).
+
+You end with a working assistant, a starter site online, and memory that carries over between chats. [Getting started](wiki/stack/getting-started.md) walks through each step and says what you do by hand. In a folder that already has files, setup stops and says so.
+
+## Where you chat
+
+- **On your computer:** the Claude desktop app, or [Codex](https://openai.com/codex). Both get full support, including memory.
+- **On your phone:** the [Paseo](https://paseo.sh) app connects to your agent, so you can ask from anywhere. It also runs requests on a schedule. It is optional.
+- **Other agents,** such as Cursor, can follow the same steps, because they are plain text files. They get no memory between chats.
+
+## What you get
+
+- **An assistant that remembers.** Each chat starts with what earlier chats learned about you and your work. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
+- **Small apps from one request.** A [mini app](wiki/stack/mini-apps.md) gets a link to try in under a minute, and goes live when you say save.
+- **Your own site, online for free.** Every change gets its own link to look at before it goes live.
+- **A notebook that grows.** What the assistant learns — how you like work done, who is who — goes into [a wiki](wiki/README.md) it reads next time.
+- **Your home base.** Your [home](wiki/development/home.md) folder carries who you are into every other project.
+- **No lock-in.** It is plain files in a folder you own. Switch agents, and the knowledge comes with you.
+
+## For developers
+
+### How it works
+
 **Coding agents forget your decisions between sessions, and your process lives in chat and in people's heads.** WongStack keeps the process, the plans, and the decisions in the repo, and gives agents a repeatable loop that writes down what each change teaches.
 
 ![A review page for a planned change: numbered changes in one scrolling page, each with its text drawing and zoom buttons, and a Copy notes bar at the bottom](wiki/assets/review-page.png)
 
 *Each plan gets a `review.html` page like this. You read each change and its text drawing, check each decision the agent asked or assumed, and tap an item to add a note before any code is written.*
 
-## Start here
-
-Make an **empty folder** and open it in your coding agent. Have a free [Cloudflare](https://cloudflare.com) account ready. Then paste this:
-
-```
-Read and follow
-https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
-to install WongStack in this folder and walk me through the first workflow.
-```
-
-The agent asks for one Cloudflare token first, with the [exact click path](wiki/stack/cloudflare-credentials.md#create-the-token). Then it asks how you work, plans the install, applies it, and saves the result. You end with the workflow, a starter app online, and session memory. In a folder that already has files, setup stops and says so.
-
-Claude Code and Codex get full support. Other agents, such as Cursor, can follow the workflow skills, because they are plain Markdown files. They get no hooks and no session memory.
-
-## What you get
-
-- **Process in the repo**, not in chats, docs, and people's heads.
-- **One command for each stage of the work**, from the first idea to the merge.
-- **A record written during the work.** Plans, decisions, and lessons are written down as part of each step, not afterward.
-- **A reviewable package** for each change, which your team inspects before it joins `main`.
-- **[Mini apps](wiki/stack/mini-apps.md) from one request.** Ask for a small tool and get a preview link in under a minute, however large your main app is. Save it, and it goes live.
-- **[Memory across sessions](wiki/development/memory.md).** Each session starts with the facts that earlier sessions learned. The store is in your Cloudflare account, not in git.
-- **An assistant as well as a builder.** Plain requests get done directly, what the agent learns grows the wiki, and your [home](wiki/development/home.md) repo carries who you are into every other repo.
-- **No lock-in to one agent.** The durable part is the files in the repo.
-
-## The commands
+### The commands
 
 ```text
 /explore -> /plan -> /apply -> /save -> /continue -> /ship
@@ -57,7 +78,7 @@ You do not have to type them. Ask for what you want, such as "add a sign-up page
 
 Setup puts the app online on [the Cloudflare stack](wiki/stack/README.md): each change gets a preview link, and a merge deploys it.
 
-## How it compares
+### How it compares
 
 | | Plain [`AGENTS.md`](https://agents.md) | [OpenSpec](https://github.com/Fission-AI/OpenSpec) alone | [GitHub Spec Kit](https://github.com/github/spec-kit) | WongStack |
 | --- | --- | --- | --- | --- |
@@ -71,7 +92,19 @@ Setup puts the app online on [the Cloudflare stack](wiki/stack/README.md): each 
 
 Checked against each project's README in September 2026.
 
-## Repository layout
+### Requirements
+
+- **A coding agent** that edits files, runs shell commands, and asks questions.
+- **[`gh`](https://cli.github.com/)**, signed in, and **`git`**. Setup creates the GitHub repo.
+- **[Node.js](https://nodejs.org/) 22**, the version in [`.nvmrc`](.nvmrc).
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: `npm install -g @fission-ai/openspec@1.8.0`.
+- **`curl`**, for Cloudflare provisioning.
+- **A [Cloudflare](https://cloudflare.com) account** (the free plan works) and one user token. Cloudflare is required, because session memory and hosting run there. The token stays in the git-ignored `.env` on your computer. [`SECURITY.md`](SECURITY.md) says what each token can do, and [the credentials page](wiki/stack/cloudflare-credentials.md) has the click path.
+- **On Windows**, run `git config --global core.symlinks true` and turn on Developer Mode before you clone. The skills folder links are symbolic links ([why](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).
+
+The setup prompt helps with missing pieces. [Required tools](wiki/development/required-tools.md) says why each is needed.
+
+### Repository layout
 
 | Path | What it holds |
 | --- | --- |
@@ -91,19 +124,7 @@ Checked against each project's README in September 2026.
 | [`.nvmrc`](.nvmrc) | The Node.js version. |
 | [`.gitattributes`](.gitattributes), [`.editorconfig`](.editorconfig), [`.gitignore`](.gitignore) | LF line endings, editor basics, and the files git ignores. |
 
-## Requirements
-
-- **A coding agent** that edits files, runs shell commands, and asks questions.
-- **[`gh`](https://cli.github.com/)**, signed in, and **`git`**. Setup creates the GitHub repo.
-- **[Node.js](https://nodejs.org/) 22**, the version in [`.nvmrc`](.nvmrc).
-- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: `npm install -g @fission-ai/openspec@1.8.0`.
-- **`curl`**, for Cloudflare provisioning.
-- **A [Cloudflare](https://cloudflare.com) account** (the free plan works) and one user token. Cloudflare is required, because session memory and hosting run there. The token stays in the git-ignored `.env` on your computer. [`SECURITY.md`](SECURITY.md) says what each token can do, and [the credentials page](wiki/stack/cloudflare-credentials.md) has the click path.
-- **On Windows**, run `git config --global core.symlinks true` and turn on Developer Mode before you clone. The skills folder links are symbolic links ([why](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).
-
-The setup prompt helps with missing pieces. [Required tools](wiki/development/required-tools.md) says why each is needed.
-
-## Work from the source
+### Work from the source
 
 Fork first, then clone your fork:
 

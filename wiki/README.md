@@ -1,6 +1,10 @@
 # WongStack wiki
 
-This wiki is WongStack's process memory: the reusable knowledge a human or agent should read before acting. Start with [AI knowledge centers](agent-knowledge-center.md) — the six principles behind WongStack and the mechanism that applies each one — then follow the inline links down into whatever you need. Each page stands on its own and breaks down into more detail. How to add without breaking that: [wiki style](wiki-style.md) for a page's shape, [voice](voice.md) for how its sentences read, [contributing](contributing.md) for sending a payload improvement upstream. Building UI? [UX principles](ux-principles.md) for what a screen should *be* before any component is picked.
+WongStack is an assistant that remembers you and gets things done. Ask it anything: research, a reminder, a plan for your week, or a small app. This wiki is what it has learned: how you work, who is who, and how the project runs. Each page stands on its own, so follow the links down to what you need.
+
+New here? Start with [getting started](stack/getting-started.md): from an empty folder to a working assistant and a live site, with three things you do by hand.
+
+The rest is for people who shape how WongStack works. [AI knowledge centers](agent-knowledge-center.md) gives the six principles behind it. [Wiki style](wiki-style.md) says how a page is shaped, [voice](voice.md) how its sentences read, and [contributing](contributing.md) how to send an improvement upstream. Building UI? [UX principles](ux-principles.md) says what a screen should *be* before any component is picked.
 
 ## Where to find things
 

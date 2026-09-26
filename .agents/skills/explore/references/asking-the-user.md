@@ -66,4 +66,4 @@ Before you finish, answer one question for yourself: **what does the user have t
 
 The exception is a chain that continues without the user: a handoff the invocation already authorized — `/apply` into [`/save`](../../save/SKILL.md), [`/ship`](../../ship/SKILL.md) through its stages — continues instead of asking.
 
-Written prose stays in [Simplified Technical English](../../../../wiki/voice.md). The skills that cite this page: [`/explore`](../SKILL.md), [`/plan`](../../plan/SKILL.md), [`/apply`](../../apply/SKILL.md), [`/save`](../../save/SKILL.md), [`/continue`](../../continue/SKILL.md), [`/ship`](../../ship/SKILL.md), [`/verify`](../../verify/SKILL.md), and [`/improve`](../../improve/SKILL.md).
+Written prose stays short and plain, in [our voice](../../../../wiki/voice.md). The skills that cite this page: [`/explore`](../SKILL.md), [`/plan`](../../plan/SKILL.md), [`/apply`](../../apply/SKILL.md), [`/save`](../../save/SKILL.md), [`/continue`](../../continue/SKILL.md), [`/ship`](../../ship/SKILL.md), [`/verify`](../../verify/SKILL.md), and [`/improve`](../../improve/SKILL.md).
