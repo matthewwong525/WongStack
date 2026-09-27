@@ -42,7 +42,7 @@ Build the page after drafting and after each later edit:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current
 ```
 
-It prints a status line, then the page's absolute path. Shorten any drawing line it warns is over 60 columns. Keep no other copy of the proposal's text. A clean build proves form, not that a drawing explains its bullet.
+It prints a status line, then the plan's link line, ready to copy as printed. Shorten any drawing line it warns is over 60 columns. Keep no other copy of the proposal's text. A clean build proves form, not that a drawing explains its bullet.
 
 For screens, add a `## UX` design section: brief, flow, hierarchy, components, and a `### Review` subsection linking `review.html` and naming the items sketching each screen. Sketch phone work phone-first. UI-less changes omit it.
 
@@ -52,4 +52,4 @@ A message beginning `Update the plan <name> with these notes from the review pag
 
 ## Finish
 
-Group tasks by surface, in the CLI's checkbox template; a task needing CI or a deployed preview names `/save` to complete it. Validate with `openspec validate "<name>" --strict --no-interactive`; confirm the review page exists and every apply-required artifact is complete. Print [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) however `/plan` was invoked. Standalone, give the plan in a few plain lines above it and stop, ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): build it now *(Recommended)*, change the plan first, or stop here. Invoked by `/apply`, return the exact change name and let `/apply` implement it.
+Group tasks by surface, in the CLI's checkbox template; a task needing CI or a deployed preview names `/save` to complete it. Validate with `openspec validate "<name>" --strict --no-interactive`; confirm the review page exists and every apply-required artifact is complete. Print [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) however `/plan` was invoked. Standalone, give the plan in a few plain lines above it and stop, ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): *Build it now (Recommended)*, *Review the plan*, or *Stop here*. Invoked by `/apply`, return the exact change name and let `/apply` implement it.

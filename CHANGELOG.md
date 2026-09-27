@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.1.0 — A "Review the plan" choice that prints the plan's link
+
+- **The plan's closing question offers *Review the plan*.** After a plan, the choices are *Build it now* (recommended), *Review the plan*, and *Stop here*. To change the plan, you still type or paste notes.
+- **Picking it prints the link and waits.** The next reply ends with *Click here to see the plan:* and the link, as plain text with no question after it. Nothing is built until you say so.
+- **Every closing question after a plan change offers it,** such as after a save or a preview, as a fourth choice when needed. Only this choice may make a fourth.
+- **No path inside the question.** 26.0.0 ended the question's text with the plan's path; it showed, but you could not tap it. The link line still goes above the question too.
+- **The page builder prints the finished link line.** `build-review.mjs`'s second line is now `Click here to see the plan: [review.html](<path>)`, ready to copy, with the path wrapped in `<…>` when it holds a space or parenthesis.
+
+**Updating.** `/wong-sync` brings the skill, script, and `WONG-STACK` block edits. Nothing to do by hand.
+
 ## 26.0.0 — Wiki saves go through review, like code
 
 - **One way to save.** A save that changes only the wiki no longer goes straight to `main`. Every save that changes a file gets a branch and a pull request, then goes live when you run `/ship`. A plan (an OpenSpec change) is still needed for code only; any other edit gets a pull request whose body says what changed.
