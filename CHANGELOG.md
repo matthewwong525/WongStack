@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The starter app is built to grow
+
+- **Pages go through a router.** The starter app uses [React Router](https://reactrouter.com/) with one route list, `app/src/router.tsx`. The home page is its only page, and `Layout.tsx` is the frame around every page. A new page is a folder in `app/src/pages/` and one line in the list.
+- **An unknown address says so.** Any address the list does not name shows *Page not found* with a *Go home* link, not the home page.
+- **Each page keeps its parts beside it.** `app/src/pages/home/` holds `Home.tsx`, the tutorial, and the app list, each with its CSS and tests. `apps.ts` moves to `app/src/lib/`. `App.tsx`, `App.css`, and `index.css` are gone.
+- **One shared look, in one file.** `app/public/style.css`, served at `/style.css`, holds the device's font, light or dark to match the device, and a narrow column. The home page and every mini app link it. It is the only file that styles whole elements; a part's own styles use class names named for it, so one page's styles never land on another. The look is unchanged.
+- **The API goes through a route list too.** `app/worker/api/router.ts` holds the routes, one handler file each, starting with `GET /api/health`, which answers `{ "ok": true }`. An unknown API route answers 404. The Vite template's `{ "name": "Cloudflare" }` placeholder is gone.
+- **The example mini app grows the same way.** `hello/api.mjs` dispatches through a route list, its page script moves to `app.js`, and its page links `/style.css`. A new test checks both.
+- **The code rule says where things go.** `.agents/rules/code.md` gains *Where things go* and now loads for `mini-apps/` too. [Mini apps](wiki/stack/mini-apps.md) and [UX principles](wiki/ux-principles.md) link it.
+
+**Updating.** `/wong-sync` plans the move. A repo whose starter app is still the one WongStack gave it takes the whole move together: the new files, `react-router` in `app/package.json`, the deleted flat files, and the removed API placeholder. A repo that rebuilt its app keeps its own layout; the plan offers only the code rule and the shared stylesheet. Existing mini apps keep working unchanged, and can adopt `/style.css` and an `app.js` page script when next touched.
+
 ## 26.9.0 — Pushes stay fast when mutation testing would start over
 
 - **Updates keep earlier mutation results.** The Test workflow's saved Stryker file no longer has a key that hashes `package-lock.json` and the Stryker and Vitest configs. The key is now `stryker-<os>-` plus the run, so a dependency update, a WongStack update, or a test-settings change reuses what mutation testing already knows. A push re-tests only what it changed, in minutes, not 15 to 20. Old saved files match the new key, so the first push after the update starts warm.

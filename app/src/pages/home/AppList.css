@@ -1,0 +1,29 @@
+/* The list of mini apps, as outlined cards. */
+.app-list {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+}
+
+.app-list li + li {
+  margin-top: 0.75rem;
+}
+
+.app-list a {
+  display: block;
+  padding: 0.875rem 1rem;
+  border: 1px solid GrayText;
+  border-radius: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-list a:hover,
+.app-list a:focus-visible {
+  border-color: currentColor;
+}
+
+.app-list strong {
+  display: block;
+  color: LinkText;
+}

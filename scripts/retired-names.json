@@ -35,5 +35,7 @@
   {"name": "dependency-currency", "replacement": "the `dependencies` spec"},
   {"name": "#the-prose-allowlist", "replacement": "`wiki/development/the-change-loop.md#the-gate`"},
   {"name": "prose-save.md", "replacement": "`save/references/facts-save.md`"},
-  {"name": "docsPath", "replacement": "WongStack's pages stay under `wiki/`"}
+  {"name": "docsPath", "replacement": "WongStack's pages stay under `wiki/`"},
+  {"name": "app/src/App.tsx", "replacement": "`app/src/router.tsx` and `app/src/pages/home/Home.tsx`", "allow": [".agents/skills/wong-sync/references/payload-manifest.md"], "why": "the tutorial rule checks a target still on the flat layout"},
+  {"name": "app/src/index.css", "replacement": "`app/public/style.css`, served at `/style.css`"}
 ]

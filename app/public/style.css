@@ -1,0 +1,23 @@
+/* The look every page shares: the main app's pages and every mini app link
+   /style.css. The device's font, light or dark to match the device, and a
+   narrow column. This is the only file that styles whole elements; a part's
+   own styles sit beside it, under class names named for the part. */
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  max-width: 32rem;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+}

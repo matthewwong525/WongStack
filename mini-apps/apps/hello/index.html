@@ -4,11 +4,8 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Hello</title>
-	<style>
-		:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
-		body { max-width: 32rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-		input, button { font: inherit; padding: 0.5rem 0.75rem; }
-	</style>
+	<link rel="stylesheet" href="/style.css">
+	<script type="module" src="app.js"></script>
 </head>
 <body>
 	<p><a href="/">Home</a></p>
@@ -18,17 +15,5 @@
 		<button>Say hello</button>
 	</form>
 	<p id="message" aria-live="polite"></p>
-
-	<script type="module">
-		// A relative URL, so the page works under any folder name.
-		const form = document.getElementById("form");
-		const message = document.getElementById("message");
-		form.addEventListener("submit", async (event) => {
-			event.preventDefault();
-			const name = document.getElementById("name").value;
-			const response = await fetch(`api/greeting?name=${encodeURIComponent(name)}`);
-			message.textContent = response.ok ? (await response.json()).message : "Something went wrong. Try again.";
-		});
-	</script>
 </body>
 </html>

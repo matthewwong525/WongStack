@@ -4,17 +4,9 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Tip calculator</title>
-	<style>
-		:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
-		body { max-width: 26rem; margin: 1.5rem auto; padding: 0 1rem; line-height: 1.5; }
-		label { display: block; margin: 1rem 0 0.25rem; font-weight: 600; }
-		input { font: inherit; font-size: 1.25rem; width: 100%; box-sizing: border-box; padding: 0.6rem 0.75rem; }
-		.tips { display: flex; gap: 0.5rem; }
-		.tips button { flex: 1; font: inherit; padding: 0.6rem 0; border: 1px solid; border-radius: 0.4rem; background: none; }
-		.tips button[aria-pressed="true"] { background: CanvasText; color: Canvas; }
-		output { display: block; margin-top: 1.5rem; padding: 1rem; border: 1px solid; border-radius: 0.5rem; }
-		.each { font-size: 2rem; font-weight: 700; }
-	</style>
+	<link rel="stylesheet" href="/style.css">
+	<link rel="stylesheet" href="style.css">
+	<script type="module" src="app.js"></script>
 </head>
 <body>
 	<p><a href="/">Home</a></p>
@@ -35,34 +27,5 @@
 	<input id="people" type="number" inputmode="numeric" min="1" step="1" value="1">
 
 	<output id="result" aria-live="polite">Enter the bill amount.</output>
-
-	<script type="module">
-		import { split } from "./tip.mjs";
-		const bill = document.getElementById("bill");
-		const people = document.getElementById("people");
-		const result = document.getElementById("result");
-		const buttons = [...document.querySelectorAll("[data-percent]")];
-		let percent = 15;
-		const money = (n) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
-
-		function show() {
-			const out = split({ bill: Number(bill.value), percent, people: Number(people.value) });
-			if (!bill.value || "error" in out) { result.textContent = out.error || "Enter the bill amount."; return; }
-			result.innerHTML = "";
-			const each = document.createElement("div");
-			each.className = "each";
-			each.textContent = `${money(out.each)} each`;
-			const detail = document.createElement("div");
-			detail.textContent = `Tip ${money(out.tip)} · Total ${money(out.total)}`;
-			result.append(each, detail);
-		}
-		for (const b of buttons) b.addEventListener("click", () => {
-			percent = Number(b.dataset.percent);
-			for (const other of buttons) other.setAttribute("aria-pressed", String(other === b));
-			show();
-		});
-		bill.addEventListener("input", show);
-		people.addEventListener("input", show);
-	</script>
 </body>
 </html>
