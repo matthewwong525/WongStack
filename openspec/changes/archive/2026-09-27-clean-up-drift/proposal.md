@@ -70,3 +70,4 @@ None.
 - **2026-09-27** — Merged `main` after #160 (26.2.0, releases numbered at publish) took the same number: the entry is now `## Next (minor)`, `VERSION` stays at main's, and `/ship` numbers it before merging. Main's payload check had failed on the flaky envKey test this change fixes; its job was re-run.
 - **2026-09-27** — Distilled: no repeatable fact. The live facts are this change's fix and two host or merge-order threads.
 - **2026-09-27** — Archive checkpoint: merged `main` again after #161 (26.3.0); the release is numbered 26.4.0 from main's 26.3.0. Archived with specs already reconciled.
+- **2026-09-27** — Archive checkpoint: `merge.sh` reported `stale_version=26.4.0` after #162 (publishing-flow fixes) took 26.4.0. Merged `main`; in `asking-the-user.md:28` kept #162's new sentence and this change's *the change on GitHub*. Renumbered 26.5.0.
