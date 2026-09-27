@@ -35,7 +35,7 @@ The same background run tidies the live facts once 24 hours and five captured se
 
 ## The memory key
 
-`CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**: it opens this repo's store and nothing else. **This page owns that name.** It lives in the ignored `.env` under [the secrets convention](secrets.md), and it is **never** a GitHub secret, so CI cannot read transcripts.
+`CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**: it opens this repo's store and nothing else. **This page owns that name.** It lives in the ignored `.env` under [the secrets convention](secrets.md). It is **never** a GitHub secret, so CI cannot read transcripts, and never committed: a repo can be public, and git history keeps a key forever.
 
 Every memory call goes through your app's **production Worker**, under `/_memory/`. It binds the memory database as `MEMORY_DB` and the bucket as `MEMORY_BUCKET`; the staging Worker and previews bind neither, and answer 404. CI deploys the route with the app on each merge to `main`, so no one deploys memory by hand. The route's code lives in [the memory skill](../../.agents/skills/memory/SKILL.md), so [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps it current; `app/worker/index.ts` only imports it. A `memory_keys` table in the memory database holds a hash of each key. The route refuses any statement that names that table, so no key can read or change it. No person holds a Cloudflare token for memory, because Cloudflare's D1 permissions reach every database in the account, the app's too.
 
@@ -44,20 +44,42 @@ Two costs come with one Worker. A failed production deploy stops memory too; fac
 A key has one of two roles:
 
 - **Admin:** the person who ran setup. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store) writes their key to `.env`. They read every transcript in the store.
-- **Member:** a teammate. They read and write facts like the admin, but they read only their own transcripts.
+- **Member:** a teammate. They read facts and add them under their own email, and they read only their own transcripts. The route runs only the memory script's own writes for them, so they cannot change or delete a fact, hide one by marking it superseded, or remove the store's guards.
 
 Who can read what, stated plainly:
 
 - Facts are shared. In a team, the digest and search show only your own `user` and `feedback` facts, matched on every email on your [people page](../wiki-style.md#people). `project` and `thread` facts come from everyone. `memory.mjs search --everyone` shows all.
 - Transcripts are filed under their author's email. A member reads only their own; the admin reads all, including ones filed before keys existed.
-- A member can still write a fact under another name or delete rows. Give keys only to people you trust with the store; D1 restores a database to any time in the last 30 days.
+- A fact's author is the key's email: the route refuses a member's write under any other name. The admin's key is not limited this way; D1 restores a database to any time in the last 30 days.
 - A secret that was never in `.env` stays in the raw transcript. Use `#private` for sessions that handle one.
 
 The script reads `CLOUDFLARE_MEMORY_TOKEN` from the process environment first, then from `.env`. A shell that loaded a `.env` sends that value to every repo it runs in, so unset it (`env -u CLOUDFLARE_MEMORY_TOKEN ...`) when you work with another repo's store.
 
+### Joining through GitHub
+
+A teammate gets a key without the admin. When a session starts with no key, the hook runs `memory.mjs join` in the background, and memory loads from the next session. `join` can also be run by hand.
+
+1. `join` reads the person's GitHub token from `gh auth token` and sends it to the route's `/_memory/join`, with the machine's name and `git config user.email`.
+2. The route asks GitHub about **its own repository**, which CI's production deploy sets as `GITHUB_REPOSITORY`. Nothing in the request can change the repository or the GitHub address. A private repo lets in anyone who can read it; a public one, anyone who can push to it.
+3. The key's email is one GitHub has verified: the `git config` email when it is verified, otherwise the primary one. So a typed email cannot claim someone else's transcripts.
+4. The route makes a member key for this machine (an admin key when the email already holds one), which expires after 30 days. `join` writes it to the primary `.env` and never prints it.
+
+The hook renews a joined key when 7 days or fewer are left. Someone removed from the GitHub repo keeps memory until their key expires; `member remove` stops it at once. Each machine has its own key, so a second laptop does not replace the first.
+
+The trade-off: the person's `gh` token has the `repo` scope, and it reaches a Worker the repo's admin deploys. The route uses it for two GitHub calls and never stores or logs it. The repo's own scripts already run on that machine with the same token. A narrower token would need a GitHub OAuth app per repo.
+
+When `join` is refused, it says what to do, and the hook repeats that each session until the person runs `join` again:
+
+| Refusal | Fix |
+|---|---|
+| `gh` is not signed in | `gh auth login` |
+| `gh` cannot read verified emails | `gh auth refresh -h github.com -s user:email`, once ([required tools](required-tools.md#gh-needs-the-useremail-scope-for-memory)) |
+| GitHub does not let this account in | ask the admin for access on GitHub, or for a key from `member add` |
+| production is not deployed, or the store is not migrated | wait for CI, or ask the admin to run `memory.mjs migrate` |
+
 ### Add or remove a teammate
 
-The admin runs these with `CLOUDFLARE_API_TOKEN`, the [user token](../stack/cloudflare-credentials.md):
+The admin runs these with `CLOUDFLARE_API_TOKEN`, the [user token](../stack/cloudflare-credentials.md). A teammate with GitHub access to the repo needs none of them: [joining through GitHub](#joining-through-github) gives them a key. `member add` is for someone without that access:
 
 ```bash
 node .claude/skills/memory/scripts/memory.mjs member add ana@example.com   # prints Ana's key once
@@ -65,7 +87,11 @@ node .claude/skills/memory/scripts/memory.mjs member remove ana@example.com
 node .claude/skills/memory/scripts/memory.mjs member list
 ```
 
-Send the key privately. The teammate puts it in the `.env` of their main checkout as `CLOUDFLARE_MEMORY_TOKEN`. The first member makes the repo a team: `member add` sets `components.memory.team` in `.claude/.wong-stack.json`, so save that change. Adding an email again replaces its key, and `member remove` stops a key at once.
+Send the key privately. The teammate puts it in the `.env` of their main checkout as `CLOUDFLARE_MEMORY_TOKEN`. Adding an email again replaces the key `member add` made for it, and leaves its joined machines' keys. `member remove` stops every key of the email at once. `member list` shows one line per key, with its machine and expiry.
+
+A store with keys for more than one email is a team: the route says so on every answer, and the script remembers it on this machine. `member add` also sets `components.memory.team` in `.claude/.wong-stack.json`, so save that change.
+
+After a WongStack update that adds a memory migration, the admin runs `memory.mjs migrate` once. Until then, old keys keep working and `join` is refused.
 
 The route's URL, `https://<worker>.<subdomain>.workers.dev/_memory`, is recorded as `components.memory.worker`; it is not a secret. Only a memory key goes there: `wongm_<the email, base64url>.<random>`. A value of any other shape counts as a Cloudflare token and goes to the Cloudflare API, so a test key must carry an email too. An older store whose `CLOUDFLARE_MEMORY_TOKEN` is still a Cloudflare token keeps using the Cloudflare API until [setup's runbook moves it](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store).
 

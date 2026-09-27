@@ -2,7 +2,9 @@
 
 ## Purpose
 Put what the repo remembers in front of the agent at the right time: a bounded digest at session start, and searches inside the verbs that make decisions, each fact shown with its age and source.
+
 ## Requirements
+
 ### Requirement: A bounded digest loads at session start
 
 The session-start hook SHALL add a digest of the memory store to the agent's context when a session starts or resumes, and SHALL NOT add it again after the context is cleared or compacted. Code SHALL build the digest with no model. The digest SHALL list the live `thread` facts of the change whose recorded branch is the current branch first, then other open threads, then the other live facts by type and recency. When `components.memory.team` is `true`, the digest SHALL include only the current person's `user` and `feedback` facts, matched as the memory script's search matches them, and `project` and `thread` facts from every author. A repo that is not a team SHALL NOT filter by person. It SHALL NOT exceed 40 lines or 6 KB. When facts are left out, its last line SHALL state how many and how to search them. Each line SHALL show the fact's type, body, slug, age in days, author, and id. When the store has no live facts and no run to report, the hook SHALL add nothing.
@@ -105,3 +107,22 @@ When the machine records a home, the session-start hook in every other repo SHAL
 
 - **WHEN** home's store does not answer within the budget
 - **THEN** the digest says in one line that home's facts were not loaded, and the hook still ends inside its timeout
+
+### Requirement: Session start joins and renews in the background
+
+When a session starts in a repo that records a memory Worker, and the machine has no `CLOUDFLARE_MEMORY_TOKEN`, the session-start hook SHALL start `memory.mjs join` as a detached process and SHALL NOT wait for it. It SHALL do the same when the machine's joined key expires within 7 days, or has expired. It SHALL print one line saying that memory is being set up, or renewed, through GitHub and loads next session. When the last join on this machine failed for a reason the person must fix, the hook SHALL print that reason and its fix once per session and SHALL NOT start another join until the person runs `join` themselves. A background run started by the hook SHALL NOT start a join.
+
+#### Scenario: A teammate's first session
+
+- **WHEN** a teammate starts their first session in a fresh clone, with `gh` signed in
+- **THEN** the hook prints that memory is being set up through GitHub, ends within its timeout, and the next session prints the digest
+
+#### Scenario: A key near expiry
+
+- **WHEN** a session starts and the machine's joined key expires in 5 days
+- **THEN** the digest prints as usual, and a renewal starts in the background
+
+#### Scenario: gh is not signed in
+
+- **WHEN** the last join failed because `gh` is not signed in
+- **THEN** each session prints that reason and the `gh auth login` fix, and starts no join until the person runs `memory.mjs join`

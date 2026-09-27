@@ -62,7 +62,7 @@ Writing is two calls, the **write gate**:
 
 ## Team access
 
-The admin runs `member add <email>`, `member remove <email>`, and `member list`: [add or remove a teammate](../../../wiki/development/memory.md#add-or-remove-a-teammate) owns the steps. Never write a member's key to a file or a fact: `member add` prints it once for the admin to send.
+A teammate gets a key with `join`, through their GitHub access to the repo; the session-start hook runs it when there is no key: [joining through GitHub](../../../wiki/development/memory.md#joining-through-github). The admin runs `member add <email>`, `member remove <email>`, and `member list`: [add or remove a teammate](../../../wiki/development/memory.md#add-or-remove-a-teammate) owns the steps. Never write a member's key to a file or a fact: `join` writes it only to `.env`, and `member add` prints it once for the admin to send.
 
 ## Background run
 

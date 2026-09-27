@@ -5,10 +5,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { CONSOLIDATION_STATE, consolidationDue, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter } from './lib/digest.mjs';
+import { JOIN_COMMANDS } from './lib/join.mjs';
 import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
 import { homeContext, isMain, loadConfig, loadEnv, openStore, readJson, repoContext, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, isPrivate, parseTranscriptText, pending, pruneRegistry, readRegistry, sessionFile, strip } from './lib/transcripts.mjs';
+import { supersedeSql, WRITES } from '../worker/statements.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TYPES = ['user', 'feedback', 'project', 'reference', 'thread'];
@@ -100,28 +102,22 @@ function sessionRecord(ctx, id) {
 
 function sessionUpsert(record, status, { reason, author, machine }) {
   const meta = record.meta || {};
-  return [`INSERT INTO sessions (id, agent, author, machine, branch, cwd, started_at, ended_at, status, reason, read_through, raw_key, raw_bytes, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT (id) DO UPDATE SET status = CASE WHEN sessions.status = 'private' THEN 'private' ELSE excluded.status END,
-      reason = excluded.reason, read_through = coalesce(excluded.read_through, sessions.read_through), ended_at = coalesce(excluded.ended_at, sessions.ended_at),
-      raw_key = coalesce(excluded.raw_key, sessions.raw_key), raw_bytes = coalesce(excluded.raw_bytes, sessions.raw_bytes), updated_at = excluded.updated_at`,
+  return [WRITES.session.sql,
   [record.id, record.agent, author || null, machine || null, meta.branch || null, meta.cwd || null, meta.startedAt || null, record.endedAt || null,
     status, reason || null, record.readThrough == null ? null : String(record.readThrough), record.rawKey || null, record.rawBytes || null, now()]];
 }
-
-const SUPERSEDE = 'UPDATE facts SET superseded_by = (SELECT max(id) FROM facts)';
 
 // Statements for one write: the session row, new tags, then each kept fact with its tags and supersedes.
 // Every fact insert returns its id, in order, so a caller can map its own keys to ids.
 function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine }) {
   const statements = record ? [sessionUpsert(record, status, { reason, author, machine })] : [];
-  for (const tag of newTags) statements.push(['INSERT OR IGNORE INTO tags (name, definition, alias_of, created_by, created_at) VALUES (?, ?, ?, ?, ?)', [tag.name, tag.definition, tag.aliasOf || null, author || null, now()]]);
+  for (const tag of newTags) statements.push([WRITES.tag.sql, [tag.name, tag.definition, tag.aliasOf || null, author || null, now()]]);
   for (const fact of facts) {
-    statements.push(['INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id',
+    statements.push([WRITES.fact.sql,
       [fact.slug, fact.type, fact.body.trim(), sessionId || null, source, fact.createdAt || createdAt, author || null]]);
-    for (const tag of fact.tags || []) statements.push(['INSERT OR IGNORE INTO fact_tags (fact_id, tag) VALUES ((SELECT max(id) FROM facts), ?)', [tag]]);
+    for (const tag of fact.tags || []) statements.push([WRITES.factTag.sql, [tag]]);
     const ids = (fact.supersedes || []).map(Number).filter(Boolean);
-    if (ids.length) statements.push([`${SUPERSEDE} WHERE superseded_by IS NULL AND id IN (${ids.map(() => '?').join(', ')}) RETURNING id`, ids]);
+    if (ids.length) statements.push([supersedeSql(ids.length), ids]);
   }
   return statements;
 }
@@ -152,12 +148,12 @@ export async function putFacts(ctx, input) {
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
   const plan = digestPlan(ctx, store);
-  const writes = writeStatements({ record, status, reason: input.reason, newTags: input.newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: ctx.author, machine: ctx.machine });
+  const writes = writeStatements({ record, status, reason: input.reason, newTags: input.newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine });
   const results = await store.batch([...writes, ...plan.statements]);
   markSeen(ctx, record);
   try { plan.finish(results); } catch { /* the cache is best effort */ }
   // Count what the store marked: a supersede whose update changed nothing stored its fact as an add.
-  const marked = writes.flatMap(([sql], index) => sql.startsWith(SUPERSEDE) ? [results[index].length] : []);
+  const marked = writes.flatMap(([sql], index) => sql.startsWith('UPDATE facts SET superseded_by') ? [results[index].length] : []);
   const superseded = marked.reduce((sum, count) => sum + count, 0);
   return { added: kept.length - marked.filter(Boolean).length, superseded, dropped: facts.length - kept.length, session: record?.id, status };
 }
@@ -303,7 +299,7 @@ async function stripCommand(ctx, { positionals: [id] }) {
   const store = openStore(ctx);
   const [ledger] = await store.query('SELECT status, read_through FROM sessions WHERE id = ?', [id]);
   const record = recordFor(id, file, parsed);
-  const who = { author: ctx.author, machine: ctx.machine };
+  const who = { author: store.author, machine: ctx.machine };
   if (ledger?.status === 'private' || isPrivate(parsed.messages)) {
     await store.batch([sessionUpsert(record, 'private', { ...who, reason: '#private' })]);
     markSeen(ctx, record);
@@ -378,7 +374,7 @@ async function finishRun(ctx, { values }) {
   const store = openStore(ctx);
   const plan = digestPlan(ctx, store);
   const results = await store.batch([
-    ['INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [WRITES.run.sql,
       [values.kind, ctx.machine, process.env.WONG_MEMORY_RUN_STARTED || now(), now(), status, values.reason ? values.reason.slice(0, 300) : null, JSON.stringify(values.counts ? JSON.parse(values.counts) : {})]],
     ...plan.statements,
   ]);
@@ -430,11 +426,12 @@ export const COMMANDS = {
   'put-facts': putFactsCommand,
   'finish-run': finishRun,
   ...MEMBER_COMMANDS,
+  ...JOIN_COMMANDS,
 };
 
 const OPTIONS = Object.fromEntries([
   ...['file', 'spooled', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'home', 'everyone', 'admin', 'env'].map(name => [name, { type: 'boolean' }]),
+  ...['all', 'json', 'help', 'home', 'everyone', 'admin', 'env', 'background'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
@@ -449,6 +446,7 @@ const USAGE = `usage: memory.mjs <command>
   pending [--limit n] [--exclude ids]   strip <session-id>   live   digest   stats   spool   due
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
   migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)
+  join [--background]          get or renew this machine's memory key through your GitHub access to the repo
   member add <email> [--admin] [--env] | member remove <email> | member list   memory keys for this repo (admin)`;
 
 if (isMain(import.meta.url)) {

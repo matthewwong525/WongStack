@@ -84,7 +84,18 @@ if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   # (production) config, which is what we want — verified by comparing the
   # printed bindings. `--env=""` silences it but is a newer wrangler
   # semantic, and the pack pins no wrangler version, so we don't rely on it.
-  (cd "$APP_DIR" && npx wrangler deploy)
+  # The memory route checks GitHub access against this repo when a teammate
+  # joins (wiki/development/memory.md), so production learns its own slug here,
+  # never from a request. Workers Builds sets no GITHUB_REPOSITORY; read origin.
+  REPO_SLUG=${GITHUB_REPOSITORY:-}
+  if [ -z "$REPO_SLUG" ]; then
+    REPO_SLUG=$(git -C "$ROOT" remote get-url origin 2>/dev/null | sed -nE 's#^.*github\.com[:/]([^/]+/[^/]+)$#\1#p' | sed -E 's#\.git$##' || true)
+  fi
+  REPO_VAR=()
+  if [ -n "$REPO_SLUG" ]; then
+    REPO_VAR=(--var "GITHUB_REPOSITORY:$REPO_SLUG")
+  fi
+  (cd "$APP_DIR" && npx wrangler deploy "${REPO_VAR[@]}")
   exit 0
 fi
 
