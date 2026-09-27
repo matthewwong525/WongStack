@@ -18,17 +18,15 @@ Where should the convention live?
 - **No filler.** Ask only what changes the result.
 - **Options would be artificial?** Ask a structured free-text question, such as for a credential; never invent alternatives.
 
-## Write at the reader's level
+## Write in plain words
 
-Write the question, each tradeoff, a blocker report, and the next-step question in words the reader can judge. Find the current person's page by `git config user.email` ([the People rules](../../../../wiki/wiki-style.md#people)) and read its `**Technical level:**` line; no page or no line means **non-technical**.
+Write every plan, question, and report in plain words, for everyone. Give more detail only when the person asks — for one reply, or from now on. A standing ask is a preference on their person page, by [the People rules](../../../../wiki/wiki-style.md#people); never guess it from one message.
 
-- **Non-technical:** name what the person will see, get, lose, or risk (*what happens to the accounts that exist today?*, not *how should the migration handle the schema?*), with no file path, identifier, command, or engineering term they did not use first.
-- **Technical:** name the mechanism when it helps the choice.
+- **Name what the person will see, get, lose, or risk** — *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* — with no file path, identifier, command, or engineering term they did not use first.
 - **Fix before you ask.** Never offer a choice needing judgment the reader lacks. Where the skill's rules allow, try the fix first, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
 - **Lead a report with the outcome** — what is done, what they can open, what does not work. A failed or unverified check is part of the outcome, in plain words.
-  - **Non-technical, and the person ran the verb:** at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts, unless the person asks.
+  - **The person ran the verb:** at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts; give them exactly when the person asks.
   - **Inside another verb:** still print every line the calling verb reads, such as `/save`'s gate line inside `/ship`, `/apply`, or `/verify`.
-  - **Technical:** those lines follow the outcome.
 
 `/explore`'s limits (the 80/20 test, small groups, one exit round, four questions) bound clarification before planning, not a runbook's fork.
 
@@ -65,6 +63,7 @@ Before you finish, put to the user **what they must decide for this work to cont
 - A blocked task: the supported ways to clear it, below the intact blocker report.
 - A report or audit: the one fix worth taking next.
 - A finished task that will clearly come back: add one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
+- More work the person asked for, left after a publish: open it in a new workspace *(Recommended)*, by [next work](../../plan/references/new-workspace.md#next-work).
 
 A handoff the invocation already authorized continues instead of asking: `/apply` into [`/save`](../../save/SKILL.md), [`/ship`](../../ship/SKILL.md) through its stages.
 

@@ -1,6 +1,6 @@
 # Writing facts
 
-A fact is the smallest thing a cold reader needs to act as this session would: one or two sentences, at most 400 characters, reason included. It carries only what the raw transcript and the change's Decision log do not make easy to find.
+A fact is the smallest thing a cold reader needs to act as this session would: one or two sentences, at most 400 characters, reason included. It carries only what the raw transcript (when R2 is on) and the change's Decision log do not make easy to find.
 
 ## Keep
 

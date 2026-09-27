@@ -34,7 +34,7 @@ A person does not need to know the verbs. When they ask for a change to the repo
 2. On yes, **`/apply`**. It builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent just does the task and reports.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 
-A verb the person types keeps its own reach: `/ship` still runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is written at [the reader's level](../../.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level), so a non-technical person reviews outcomes, not mechanisms.
+A verb the person types keeps its own reach: `/ship` still runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is written in [plain words](../../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words), so the person reviews outcomes, not mechanisms.
 
 ### Offer a routine or an app
 
@@ -48,6 +48,15 @@ When a task the agent did by hand will clearly come back, the agent offers to ma
 - **A yes starts the usual route.** A routine goes through `/routine`'s own confirmation. A mini app starts the change loop and stops at the plan's review.
 
 Make no offer after a code change you built, in an unattended run, or for a routine when `paseo` is not installed.
+
+### Several parts, several workspaces
+
+One workspace holds one change. When a request has parts that could each be published alone, the agent lists them and asks once: do the first here and open a new [Paseo](https://paseo.sh) workspace for each other part *(Recommended)*, do them here one at a time, or keep one change. Each new workspace plans its part and waits for you at its review link. A part that builds on another opens at once, told that the other part is being built or about to publish.
+
+- **The offer comes back as a choice**, when a part is published and more work is left, and when a new change or `/continue` would share a workspace with unpublished work.
+- **One at a time instead**, without Paseo or when nobody can answer: an unattended run never opens a workspace.
+
+[Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) is the runbook.
 
 ### Asking before drafting
 

@@ -67,7 +67,7 @@ Completion never saves; the work stays in this working tree until the person sav
    ```
 
    Fix each file marked *needs a reason* without asking: switch the check back on, or add [the `Check:` bullet](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason). Rerun until it exits 0.
-4. **Report and ask** at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview URL (plus `/apps/<name>/` for a mini app); under *Checks loosened*, each `Check:` bullet in one plain line (what is no longer checked, and why); and any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save it via [`/save`](../save/SKILL.md).
+4. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built and the preview URL (plus `/apps/<name>/` for a mini app); under *Checks loosened*, each `Check:` bullet in one plain line (what is no longer checked, and why); and any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save it via [`/save`](../save/SKILL.md), which opens the pull request.
 
 Each further change repeats these steps under the same alias. Make a small edit in this conversation; a change that adds tasks to `tasks.md` goes through a new helper.
 

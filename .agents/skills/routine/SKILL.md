@@ -28,11 +28,11 @@ The script fixes the rest: a new agent in its own Paseo worktree of the primary 
 ## List and manage
 
 - `/routine` alone → `node "$R" ls`. Show each routine's name, cadence, status, next run, and last result, for this repo only.
-- `/routine pause|resume|run|logs|delete <name or id>` → `node "$R" <action> '<name or id>'`. `run` runs once now. Confirm a `delete` first.
+- `/routine pause|resume|run|logs|delete <name or id>` → `node "$R" <action> '<name or id>'`. `run` runs once now. Confirm a `delete` first, in [the ask format](../explore/references/asking-the-user.md).
 - `/routine change <name or id> <new time or prompt>` → `node "$R" change '<name or id>' [--cron '<cron>'] [--timezone <iana>] [--prompt '<prompt>']`.
 
 An ambiguous name returns exit `2` with the matching ids; ask which.
 
-Use `paseo` directly for anything else; [required tools](../../../wiki/development/required-tools.md) lists it as optional.
+Use `paseo` directly for Paseo features `/routine` does not cover (heartbeats, `--max-runs`, remote daemons); [required tools](../../../wiki/development/required-tools.md) lists it as optional. This skill's [`workspace.mjs`](scripts/workspace.mjs) also opens a new workspace for one part of a request; [open a part in a new workspace](../plan/references/new-workspace.md) owns its use.
 
 End every reply with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), normally to list routines or run the new one now.

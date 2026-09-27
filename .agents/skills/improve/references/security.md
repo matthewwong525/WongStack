@@ -4,7 +4,7 @@ Use this with [`/improve`](../SKILL.md). A pattern is a lead; a confirmed findin
 
 ## Map the trust boundary
 
-Read the security guidance, then trace the mounted code from entrypoint to side effect: who controls each input, which identity and authorization apply, and where validation happens.
+Read the architecture and security guidance, then trace the mounted code from entrypoint to side effect: who controls each input, which identity and authorization apply, where validation happens, and which service or data store receives the action.
 
 Authentication is not authorization or ownership; a private hostname, opaque ID, internal package, or signed-in user still needs the operation checked. A development bypass flag is neither a vulnerability nor a safe control until its deployed configuration and reachability are known.
 
@@ -21,6 +21,6 @@ Authentication is not authorization or ownership; a private hostname, opaque ID,
 | Secret or error detail | Proof a value reaches a response, client bundle, telemetry, or log (a key's name is not the key). Never copy a value. |
 | Dependency advisory | Authoritative advisory, installed version, affected configuration, reachable use; the survey has no advisory database. |
 
-Centralize a copied check only when every legitimate path uses the central one. Never move a check across a trust boundary just to remove duplication.
+Find the source owner for each control. A check copied at several callers can drift; a central boundary is safer only when every legitimate path uses it. Never move a check across a trust boundary just to remove duplication.
 
 Test the rejected path and legitimate callers; make the smallest fix that closes the confirmed path. Access policy, feature availability, destructive data, credentials, and external accounts need separate user authority; a security label does not grant it. [`/ship`](../../ship/SKILL.md) owns every delivery gate.

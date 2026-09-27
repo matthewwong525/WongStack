@@ -17,6 +17,6 @@ Read every actual caller before selecting. Tests may call dead code; production 
 
 Search the exported symbol and its path: re-exports, dispatch tables, route mounts, build entries, package metadata, configuration, public URLs, and external integration contracts. History tells obsolete code from intended behavior never connected.
 
-Unused-code tools only support the case, run against the real leaf configuration; a missing dependency, unresolved module, or tool failure is a coverage gap, not zero references. A passing build does not prove a runtime-only or external caller survived.
+Unused-code tools only support the case; run them only against the real leaf configuration. a missing dependency, unresolved module, or tool failure is a coverage gap, not zero references. A passing build does not prove a runtime-only or external caller survived.
 
 Name the callers and behavior the verification probe protects. In one independently correct change, add the shared owner, migrate bounded callers, and remove obsolete copies, keeping meaningful differences. Defer unresolved ownership or external-use questions. [`/ship`](../../ship/SKILL.md) owns implementation and verification.

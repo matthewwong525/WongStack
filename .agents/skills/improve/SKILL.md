@@ -12,7 +12,7 @@ Find the most valuable improvement the evidence supports, and deliver **one cohe
 
 ## Establish the run
 
-`main` means [the default branch](../save/references/git-gate.md#the-default-branch). Before selection, a normal run needs:
+Read the repository instructions and owning documentation. `main` means [the default branch](../save/references/git-gate.md#the-default-branch). Before selection, a normal run needs:
 
 - A dedicated, clean checkout whose `HEAD` equals the available remote-tracking default branch. Never fetch, reset, switch, stash, commit, or repair it; its scheduler or git-owning workflow refreshes it.
 - Readable active work: `openspec context --json`, `openspec list --json`, relevant proposals and diffs, and open pull requests (`gh pr list --state open --json number,title,headRefName,baseRefName,url` with GitHub). A failed read is unknown, not empty.
@@ -62,7 +62,7 @@ No supported worthwhile candidate means **no change**: report coverage and defer
 
 ## Hand one intent to /ship
 
-Invoke [`/ship`](../ship/SKILL.md) with one explicit intent: the candidate's ranked evidence, impact, area, before/after behavior, and probe, plus relevant docs, why it won, prior work, chosen and assumed answers, deferred decisions, and these exact record lines:
+Invoke [`/ship`](../ship/SKILL.md) with one explicit intent: the problem and its ranked evidence, impact, bounded area, before/after behavior, and acceptance probe, plus relevant docs, why it won, prior work, chosen and assumed answers, deferred decisions, and these exact record lines:
 
 ```text
 Maintenance-Origin: /improve

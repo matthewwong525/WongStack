@@ -2,7 +2,7 @@
 
 [`/wong-setup`](../SKILL.md) runs this after the empty-folder check and before it clones the source. It readies four things, in order: the tools, the GitHub sign-in, the git name and email, and on Windows, folder links. Nothing is written in the target folder until all four pass. Every other skill installs a tool only when a step needs it; setup checks ahead, because nothing works until these exist. [Required tools](../../../../wiki/development/required-tools.md) says why each tool is needed.
 
-**The person types no command.** The agent runs every command below and asks in [the shared ask format](../../explore/references/asking-the-user.md), at the reader's level: *"I need two free tools, Node.js and GitHub's app, to set things up. Install them (Recommended), or stop here?"* One yes covers the tools that ask names. A decline or a failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up from this check. [The failure map](failure-map.md#getting-the-computer-ready) owns the plain fix for each stop.
+**The person types no command.** The agent runs every command below and asks in [the shared ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need two free tools, Node.js and GitHub's app, to set things up. Install them (Recommended), or stop here?"* One yes covers the tools that ask names. A decline or a failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up from this check. [The failure map](failure-map.md#getting-the-computer-ready) owns the plain fix for each stop.
 
 ## 1. The tools
 

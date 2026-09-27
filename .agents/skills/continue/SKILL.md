@@ -50,7 +50,7 @@ A change with no PR yet is fine: load it.
 
 ### 3. Check out the branch
 
-If there's a branch, the tree is clean, and it isn't already checked out:
+If there's a branch and it isn't already checked out:
 
 ```bash
 git rev-parse --abbrev-ref HEAD     # where am I now
@@ -58,9 +58,9 @@ git status --porcelain              # is the tree clean
 git fetch origin                    # a handed-off branch may exist only on the remote
 ```
 
-- Clean tree → `git checkout "$BRANCH"` (it tracks `origin/$BRANCH` when only remote), or `gh pr checkout <N>`. A Branch line naming a branch absent locally and remotely → never create it; ask for the correct branch or PR as a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask).
+- This workspace holds other unpublished work — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, checkpoint the current work with `/save` first, or resume read-only here.
+- Nothing else held here → `git checkout "$BRANCH"` (it tracks `origin/$BRANCH` when only remote), or `gh pr checkout <N>`. A Branch line naming a branch absent locally and remotely → never create it; ask for the correct branch or PR as a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask).
 - Checkout fails because another worktree has the branch → tell the user and proceed read-only; never force it.
-- Dirty tree → **don't** switch; say so and ask: checkpoint with `/save` first *(Recommended)*, or resume read-only here.
 - Never `/save`d (no branch anywhere) → stay on the current branch; `/save` will cut it.
 
 ### 4. Orient and continue
@@ -70,7 +70,7 @@ Recap so the user can confirm the loaded state:
 - **The change** — 2–4 lines on the work and task progress, plus its **`Status:`** line and any **open questions**.
 - **The journey** — the last 1–3 `## Decision log` entries, so the resumer inherits the *why*.
 - **The session context** — open threads first, then live facts the change doesn't carry, with ages. Skip the line with no facts; say so when [the store is unreachable](../memory/SKILL.md#read).
-- **State** — the checked-out branch and the PR as a markdown link; for a non-technical reader, only the link, as *the review page on GitHub* ([the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level)).
+- **State** — the checked-out branch and the PR as a markdown link; unless the person asks for more, only the link, as *the review page on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
 - **Drift check** — **counts only**; load no diffs or threads unless asked:
   ```bash
   git log origin/main..HEAD --oneline | wc -l   # commits on the branch (vs how tasks.md reads)
@@ -81,7 +81,7 @@ Recap so the user can confirm the loaded state:
       --jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved|not)]|length'
   fi
   ```
-  Fold it into one line, e.g. *"7 commits on the branch, 3/9 tasks unchecked, 2 unresolved review comments"*. Flag commits ahead of what `tasks.md` says, or unresolved review comments, so the user can decide whether to reconcile first. For a non-technical reader, say it as progress — *"3 of 9 steps left, 2 comments from reviewers"* — with no branch or commit count, and commits ahead of `tasks.md` as *"some work isn't in the plan's checklist yet"*.
+  Fold it into one line, e.g. *"7 commits on the branch, 3/9 tasks unchecked, 2 unresolved review comments"*. Flag commits ahead of what `tasks.md` says, or unresolved review comments, so the user can decide whether to reconcile first. Unless the person asks for the counts, say it as progress — *"3 of 9 steps left, 2 comments from reviewers"* — with no branch or commit count, and commits ahead of `tasks.md` as *"some work isn't in the plan's checklist yet"*.
 
 Then continue:
 

@@ -37,7 +37,7 @@ gh api repos/:owner/:repo/commits/main/check-runs \
 
 A feature branch with work runs the ordinary runbook, intent or not; `/ship` resolves nothing itself.
 
-If the pulled-in stage stops short, report the blocker and stop before Step 2: [no verb merges to stop](../../../wiki/development/the-change-loop.md). A one-go run has **one** checkpoint, Step 3's.
+If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` fails or is unverifiable, report the blocker and stop before Step 2: [no verb merges to stop](../../../wiki/development/the-change-loop.md). A one-go run has **one** checkpoint, Step 3's.
 
 **Work that changes no repo file** finishes in `/apply`: say so in one line and stop; no git change.
 
@@ -71,8 +71,8 @@ Deduplicate the two outputs. Place each repeatable one by [the wiki rules](../..
 
 **Invoke the `verify` skill once**, verbatim; never skip or re-run it for a better verdict. No `verify` skill → say so in one line and go on; never install it.
 
-- `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue.
-- `FAILURE` after `/verify`'s own fix attempts → **stop and ask the user** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or merge anyway and record that the walk failed. For a [non-technical reader](../explore/references/asking-the-user.md#write-at-the-readers-level), say what they would see on the preview, and *publish anyway*.
+- `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue to the merge.
+- `FAILURE` after `/verify`'s own fix attempts → **stop and ask the user** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or merge anyway and record that the walk failed. Say what does not work in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what they would see on the preview, and *publish anyway* for the merge.
 
 If the walk's fixes advanced `HEAD`, confirm their `/save` result is `SUCCESS` or `NONE` and merge that commit.
 
@@ -102,12 +102,12 @@ It prints key names, never values, and skips and names a key the primary also ch
 
 ## Step 6 — report
 
-Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): for a non-technical reader, *it is live*, what changed, and the live link; for that reader, the rest below except *Checks loosened* comes only when asked. Otherwise print `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`), plus:
+Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): *it is live*, what changed for the person, and the live link. The rest below except *Checks loosened* comes only when they ask; then print `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`), plus:
 
 - **Archived** — the archive path.
 - **Checkpoint** — `/save`'s result and CI outcome, auto-fix pushes included.
-- **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it.
-- **Secrets** — promoted, skipped, and unresolved key names, or why it was skipped.
+- **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it; an absent skill is one line.
+- **Secrets** — promoted, skipped, and unresolved key names, never a value, or why it was skipped.
 - **Checks loosened** — each `Check:` bullet in the archived Decision log, one plain line; omit when none ([the gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)).
 
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally the next change, walking the merged app, or stopping; after a stop, the ways to clear the blocker.
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally open the next piece of work the person asked for in a new workspace *(Recommended)*, by [next work](../plan/references/new-workspace.md#next-work), walk the merged app, or stop here; after a stop, the ways to clear the blocker.

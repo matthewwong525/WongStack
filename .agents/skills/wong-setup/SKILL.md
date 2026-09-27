@@ -42,4 +42,4 @@ Invoke `/explore` with this description, filled in, plus the user's intent:
 
 [The payload inventory and install record](../wong-sync/references/payload-manifest.md) own the install details. Make the [agent folder](../wong-sync/references/payload-manifest.md#the-agent-folder) a real `.agents/` with `ln -s .agents .claude` and `ln -s .agents .codex`; on Windows, prefix each with `MSYS=winsymlinks:nativestrict`, so a refused link fails instead of becoming a copy. Include `wiki/README.md`, `wiki/development/README.md`, and `.gitignore` rules for `.env*` and `.dev.vars*` with their `.example` exceptions. Install no generated OpenSpec skill or visibility patch.
 
-Evaluation stays in exploration; add no setup interview or approval sequence. Close with the runbook's [Step 5](references/cloudflare.md#step-5--the-closing-report) after `/save` reports the first deploy.
+Evaluation stays in exploration. A request to install continues through `/plan`, `/apply`, and `/save`; add no setup interview or approval sequence. Close with the runbook's [Step 5](references/cloudflare.md#step-5--the-closing-report) after `/save` reports the first deploy.

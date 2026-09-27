@@ -59,7 +59,7 @@ Confirm Git ignores the destination: `git -C "$PRIMARY_ROOT" check-ignore -q .en
 
 Absent `DURABLE_ENV` → create it with the blank `CLOUDFLARE_*` lines from the source's [`.env.example`](../../../../.env.example) and say: *"I made a private `.env` file. Git ignores it, so its values stay on this machine."* Present → leave it alone.
 
-If `ACTIVE_ROOT` differs from `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file, not a symlink, [leave it untouched](../../../../wiki/development/secrets.md#unseeded-linked-worktree-copies) and say: *"This linked worktree also has its own `.env`. I am using the durable primary-worktree copy and left the duplicate untouched."*
+If `ACTIVE_ROOT` differs from `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file, not a symlink, [leave it untouched](../../../../wiki/development/secrets.md#unseeded-linked-worktree-copies): never read its values to compare, print them, delete either file, or merge one into the other. Say: *"This linked worktree also has its own `.env`. I am using the durable primary-worktree copy and left the duplicate untouched."*
 
 Every later `.env` means `DURABLE_ENV`. To write a variable, replace only its exact `KEY=` line or append that one line; keep every other line.
 

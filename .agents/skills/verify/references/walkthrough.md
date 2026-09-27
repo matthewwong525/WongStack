@@ -80,7 +80,7 @@ npm run db:query:staging -- "SELECT count(*) FROM notes" \
 Evidence rules:
 
 - **Wait after every navigating action, before the screenshot**, or the screenshot captures the *previous* page. Use `["wait", "--load", "networkidle"]`, or `["wait", "--text", "..."]` when the page updates without navigating.
-- **Screenshot wherever a human would look**, to a numbered absolute path under `$RUN_DIR/evidence/<id>/`. `--full` for the whole page; `--annotate` for numbered element labels.
+- **Screenshot wherever a human would look**, to a numbered absolute path under `$RUN_DIR/evidence/<id>/`. `--full` for the whole page; `--annotate` when numbered element labels make the evidence clearer.
 - **Address elements semantically** (`find role`, `find text`, `find label`) or by `@eN` refs from a `snapshot` in the same batch. Re-`snapshot` after anything that navigates or re-renders, because refs go stale. Prefer semantic locators for anything a person could name.
 - **Write no assertions.** A journey produces evidence; it does not decide.
 - Write the preview URL preflight printed in full; a batch file has no implicit base URL. Only request-probe paths resolve against it.

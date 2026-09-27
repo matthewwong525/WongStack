@@ -14,13 +14,15 @@ Create an apply-ready OpenSpec change and its required `review.html`, the review
 
 Invoke [`/explore`](../explore/SKILL.md) in bounded mode; [its exit round](../explore/SKILL.md#the-exit-round) is this plan's only question round. Log each decision as a Decision-log bullet: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every earlier answer and the exit round, `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one.
 
+When the exit round chose new workspaces, open one for each other part by [open a part in a new workspace](references/new-workspace.md) before drafting, report them, then plan only the part this chat keeps.
+
 ## Draft with the CLI
 
 Follow the [CLI contract](references/openspec-cli.md#create-or-read-a-change) in the selected root or store: run `openspec new change "<name>"` only when needed; then, for each ready artifact in the transitive `applyRequires` set, apply `openspec instructions <id> --change "<name>" --json` and recheck status. Never mark a tasks file ready while its dependencies are absent. If `/apply` selected an incomplete change, complete that exact change; if planning blocks, report it to `/apply` without implementing.
 
 Before tasks, weigh deterministic code for a repeated process, by [the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai); raise it in the exit round if it changes scope. Testable behavior gets a coverage task; a prose-only change does not.
 
-Write Why and What Changes at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level); put file names, code, and commands in the design, specs, and tasks, which the page does not show. Capabilities and Impact may stay technical.
+Write Why and What Changes for the person who asked, in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what they will see, get, or be able to do. Put file names, code, and commands in the design, specs, and tasks, which the page does not show. Capabilities and Impact may stay technical.
 
 ## Draw in the proposal, then build the page
 
