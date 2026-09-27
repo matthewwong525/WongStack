@@ -58,13 +58,17 @@ This page decides how a question **looks**. It never decides which actions **nee
 
 ## End every reply with the next step
 
-Before you finish, answer one question for yourself: **what does the user have to decide for this work to continue?** Then put it to them in the same format — options, recommended first, consequence each.
+Before you finish, answer one question for yourself: **what does the user have to decide for this work to continue?** Then put it to them as an ask like any other: the same format — options, recommended first, consequence each — through the first callable tool in [which tool carries it](#which-tool-carries-it). Write the report, and any link, as chat text first; the tool carries only the question. A numbered list at the end of a reply is for a session with no such tool, never a habit.
 
-- A finished plan: one line, *Click here to see the plan:*, with a link to its `review.html`, then build it now *(Recommended)* / change the plan first / stop here.
+- A finished plan: [the plan's link](#print-the-plans-link) in chat text, then the question: build it now *(Recommended)* / change the plan first / stop here.
 - A blocked task: the supported ways to clear the blocker. Keep the report of the blocker intact above it.
 - A report or audit: the one fix worth taking next.
 - A finished task that will clearly come back: add one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 
 The exception is a chain that continues without the user: a handoff the invocation already authorized — `/apply` into [`/save`](../../save/SKILL.md), [`/ship`](../../ship/SKILL.md) through its stages — continues instead of asking.
+
+## Print the plan's link
+
+Whenever a reply makes or changes a plan, print one line of chat text: *Click here to see the plan:* and a Markdown link to the change's `review.html`, by the path the page builder printed. The line is the same whatever made the plan — [`/plan`](../../plan/SKILL.md), `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or notes pasted from the review page. Print it even when the work goes on to build; it adds no stop. Put it just above the closing question, outside the question tool: a tool's card may not make a link clickable. Leave it out and the person has no way to find the page.
 
 Written prose stays short and plain, in [our voice](../../../../wiki/voice.md). The skills that cite this page: [`/explore`](../SKILL.md), [`/plan`](../../plan/SKILL.md), [`/apply`](../../apply/SKILL.md), [`/save`](../../save/SKILL.md), [`/continue`](../../continue/SKILL.md), [`/ship`](../../ship/SKILL.md), [`/verify`](../../verify/SKILL.md), and [`/improve`](../../improve/SKILL.md).
