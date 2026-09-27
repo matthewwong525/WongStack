@@ -22,7 +22,7 @@ Follow [latest source](../wong-sync/references/latest-source.md). From a pasted 
 
 ## Get the Cloudflare token
 
-Before writing anything, ask whether the user has the Cloudflare user token, saying what it is for, with the route from [the credentials page](../../../wiki/stack/cloudflare-credentials.md#create-the-token). No token → stop, write nothing, and say that running setup again once it exists continues from here. Don't ask for the value yet: its file needs Git first.
+Before writing anything, ask whether the user has the Cloudflare user token, saying what it is for, with the filled-in token link from [the credentials page](../../../wiki/stack/cloudflare-credentials.md#create-the-token) first and its click path as the fallback. Take the link from that page; never copy it here. No token → stop, write nothing, and say that running setup again once it exists continues from here. Don't ask for the value yet: its file needs Git first.
 
 ## Install through the normal workflow
 

@@ -8,21 +8,31 @@ How a person gets WongStack: one pasted prompt runs `/wong-setup` in an empty fo
 
 ### Requirement: The README offers one prompt to paste
 
-The README SHALL give a short prompt that follows `.agents/skills/wong-setup/SKILL.md` by its real path, works in any capable coding agent, and names a place to paste it without a terminal; it SHALL say to start in an empty folder with a Cloudflare account and one token.
+The README SHALL give a one-line prompt that names the WongStack GitHub repository and asks the agent to install it in the open folder. Next to it, a line addressed to the agent SHALL give the raw address of `.agents/skills/wong-setup/SKILL.md` by its real path. The README SHALL send the person to Paseo, running Claude Code or Codex on their own computer, as the place to paste it, with no terminal inside the chat and no cloud-container session. It SHALL say to start in an empty folder, with a free GitHub account and a free Cloudflare account.
 
 #### Scenario: A newcomer reads the README
 
 - **WHEN** someone new to coding agents reads the install section
 - **THEN** they find one prompt, an app to paste it in, and what they need first
 
+#### Scenario: The agent finds the runbook
+
+- **WHEN** an agent is given only the one-line prompt and reads the repository's README
+- **THEN** it finds the setup runbook's raw address there and follows it
+
 ### Requirement: A plain walkthrough covers the whole path
 
-The payload SHALL carry a plain, numbered walkthrough for the person that names every manual step (GitHub approval, tool installs, Cloudflare signup, the token) and says setup may install free tools after asking, never implying a manual step is automated.
+The README SHALL carry the numbered install steps, and no other page SHALL repeat them. The payload's getting-started page SHALL link those steps and say what the README does not: what it costs, a numbered list of every manual step (the agent install, Paseo, GitHub approval, tool installs, Cloudflare signup, the token), and what to do when something goes wrong. It SHALL say setup may install free tools after asking, and SHALL NOT imply a manual step is automated.
 
 #### Scenario: Reading before starting
 
 - **WHEN** a newcomer reads the walkthrough
 - **THEN** they can tell what they must do themselves and which steps open a browser
+
+#### Scenario: One copy of the steps
+
+- **WHEN** the install steps change
+- **THEN** only the README's steps need editing
 
 ### Requirement: Setup installs only into an empty folder
 
@@ -54,12 +64,12 @@ Before it clones the source or writes in the folder, setup SHALL ready the tools
 
 ### Requirement: Setup waits for the Cloudflare token
 
-Setup SHALL ask whether the person has the Cloudflare user token before anything is written, and with no token SHALL stop, write nothing, and say where to create it and that running setup again continues. It SHALL NOT report memory or hosting working when none exists.
+Setup SHALL ask whether the person has the Cloudflare user token before anything is written, giving the pre-filled token link from the credentials page. With no token, it SHALL stop, write nothing, and say that running setup again continues. It SHALL NOT report memory or hosting working when none exists.
 
 #### Scenario: No token yet
 
 - **WHEN** a person starts setup without a token
-- **THEN** setup writes nothing and gives the route to create one
+- **THEN** setup writes nothing and gives the link that creates one
 
 ### Requirement: Setup installs through the normal workflow
 
@@ -162,3 +172,17 @@ The source SHALL ship a server installer that, run as the workspace user from a 
 
 - **WHEN** Cloudflare refuses a call and the install stops
 - **THEN** the second-last line names the method, the path without its query, the status, and the error codes, and the last line is the reason word
+
+### Requirement: Setup points the person to Paseo
+
+When getting the computer ready, setup SHALL check whether Paseo is installed. When it is missing, setup SHALL say in plain words what Paseo is for (chatting from the phone, schedules, a workspace per part) and where to get it, then continue; Paseo's absence SHALL NOT stop setup, and setup SHALL NOT install Paseo. When Paseo is present, the closing report SHALL say how to connect a phone.
+
+#### Scenario: Paseo is missing
+
+- **WHEN** setup runs on a computer without Paseo
+- **THEN** it names Paseo, what it is for, and where to get it, and finishes the install
+
+#### Scenario: Paseo is present
+
+- **WHEN** setup finishes on a computer with Paseo
+- **THEN** the closing report says how to pair a phone

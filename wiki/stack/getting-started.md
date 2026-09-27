@@ -1,8 +1,8 @@
 # Getting started
 
-From nothing to a website other people can open, in five steps. Three of them are answering questions.
+What installing WongStack costs, what you do by hand, and what to do when something goes wrong. The steps themselves live in [the README's three steps](https://github.com/matthewwong525/WongStack#start-in-three-steps); this page covers what they don't.
 
-This page is for the person doing it. It assumes you know nothing about Cloudflare, databases, or deployment — where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
+It assumes you know nothing about Cloudflare, databases, or deployment: where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 
 ## What you'll end up with
 
@@ -10,63 +10,11 @@ This page is for the person doing it. It assumes you know nothing about Cloudfla
 - A separate address for every version you're still working on, so you can look at a change before it's real
 - A place your data lives, and a practice copy of it that test versions use
 - Automatic publishing: when a change is approved, it goes live
-
-## You don't need to have built anything yet
-
-This works from an empty folder. Saying yes in step 1 also gets you a **starter site**: a working page that lists *Your apps* under a *Learn the development loop* box. It's yours from the moment it lands; change it, replace it, or delete it.
-
-Setup starts from an empty folder, so the starter site always comes with it; there's nothing to choose or configure.
-
-What lands with the starter site is the page itself and the code that serves it. The one thing it can't bring is the file that says *which* data storage to connect to, because those names and ids don't exist until your account does — so [step 5](#5-wait-about-a-minute) writes that file, wiring the site to the storage it just made. That's why there's nothing for you to fill in.
+- A **starter site**: a working page that lists *Your apps* under a *Learn the development loop* box. Press **Copy** in that box and paste the message into your chat; your first change removes the box, and the agent explains each step as it goes. The site is yours to change, replace, or delete.
 
 ## What it costs
 
 Cloudflare's free tier covers all of this. You need a free Cloudflare account and a free GitHub account. Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, and OpenSpec — and it asks before each one.
-
-## The five steps
-
-These are [the README's](https://github.com/matthewwong525/WongStack#readme) three steps in detail.
-
-### 1. Paste the prompt
-
-Make an empty folder, open it in your coding agent, and paste the setup prompt from [WongStack's README](https://github.com/matthewwong525/WongStack#readme). Setup starts from an empty folder; in a folder that already has files, it stops and says so. The agent first checks your computer for the free tools it needs and asks before it installs any. It signs you in to GitHub (step 2), asks for the Cloudflare key (steps 3 and 4), then asks a few questions about how you like to work, and sets up the shared knowledge, the workflows, a starter site, and its hosting.
-
-**You do:** answer a few questions, and say yes to any installs. An install may show your computer's own permission window.
-
-### 2. Sign in to GitHub
-
-GitHub is where your project lives and where changes get reviewed. You need a free [GitHub account](https://github.com/signup). If you're not already signed in, the agent shows you a short code and a link. One approval covers every permission setup needs, so you won't be asked again later.
-
-**You do:** open the link, enter the code, and approve.
-
-### 3. Make a Cloudflare account
-
-Go to [cloudflare.com](https://cloudflare.com) and sign up. Free tier is fine.
-
-**You do:** sign up.
-
-### 4. Create one key and paste it
-
-Cloudflare needs to give your agent permission to set things up on your behalf. That's a "token" — a long password-like string.
-
-**You do:** follow the [exact click path](cloudflare-credentials.md#create-the-token), then paste the token when the agent asks.
-
-Two things worth knowing before you click:
-
-- Cloudflare shows you the token **once**. Copy it before leaving that page.
-- There is a field called **Account Resources** near the bottom. Set it to include your account. It's the step people miss, and skipping it produces a token that looks fine and does nothing.
-
-If you get it wrong, the agent will tell you which specific field to change — and usually you can edit the token you already made rather than starting over.
-
-### 5. Wait about a minute
-
-The agent does the rest: gives itself the permissions it needs, sets up your data storage and its practice copy, connects the publishing pipeline, and puts your project online.
-
-**You do:** nothing. It'll hand you the address at the end.
-
-Open it. The page loads and lists your apps, the proof that your address and your code are live. If it shows up, you're online.
-
-At the top of the page is a box called *Learn the development loop*. Press **Copy** and paste the message into your chat. Your first change removes that box, and the agent explains each step as it goes.
 
 ## After that: how you work
 
@@ -92,24 +40,32 @@ Each change gets its own link, running against the practice data. Your real site
 
 ## Honest list of what you have to do yourself
 
-Nothing here can be automated — they all need a human with a browser:
+Nothing here can be automated. Each needs you, and the ones marked *browser* open a web page:
 
-1. Sign up for GitHub, and approve the sign-in code
-2. Say yes to any free tools setup needs to install
-3. Sign up for Cloudflare
-4. Create the token and paste it
+1. Install [Claude Code](https://code.claude.com/docs/en/setup) or [Codex](https://developers.openai.com/codex/cli). Its install page may ask you to run one command in a terminal.
+2. Get the free [Paseo](https://paseo.sh) app, where you chat. Setup points to it if it's missing, and never installs it for you.
+3. Sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*)
+4. Say yes to any free tools setup needs to install. An install may show your computer's own permission window.
+5. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
+6. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
 
-Four things, all in one sitting. There's no "connect your repository" step and no dashboard configuration — those are avoided by design.
+The first two happen before the chat exists; the rest happen in one sitting, while the agent waits. There's no "connect your repository" step and no dashboard configuration: those are avoided by design.
 
 ## If you want a login wall
 
 By default your site is **public** — anyone with the link can open it. Plenty of projects want that.
 
-If you'd rather people sign in first, say so and the agent sets it up. It needs no extra permissions from you up front, which is why it isn't part of the steps above. See [Cloudflare Access](cloudflare-access.md).
+If you'd rather people sign in first, say so and the agent sets it up. It needs no extra permissions from you up front, which is why it isn't part of setup. See [Cloudflare Access](cloudflare-access.md).
 
 ## When something goes wrong
 
-Almost every failure at setup traces to the token: it was made in the wrong place (use **My Profile**, not the account area), or the **Account Resources** field was left blank (edit the token you already made — no new one needed). Both are covered on [the credentials page](cloudflare-credentials.md). The agent translates Cloudflare's error codes into plain language, so if you see a raw code, ask it what that means.
+Almost every failure at setup traces to the token.
+
+- **The link opened a form with a row missing, or no form at all.** Make the token by hand with [the click path](cloudflare-credentials.md#if-the-link-doesnt-work).
+- **It was made in the wrong place.** Use **My Profile**, not the account area; the link always opens the right one.
+- **The Account Resources field was left blank** on a hand-made token. Edit the token you already made; no new one needed.
+
+[The credentials page](cloudflare-credentials.md) covers each. The agent translates Cloudflare's error codes into plain language, so if you see a raw code, ask it what that means.
 
 ## Teardown
 
@@ -122,6 +78,6 @@ Setup creates real resources on your Cloudflare account. To remove them, for exa
 
 ## Next
 
-- The runbook behind these steps: [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
+- The runbook behind setup: [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 - What happens each time you push a change: the [D1 pipeline](d1-pipeline.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.18.0 — Installing WongStack is easy
+
+- **The Cloudflare key is one link.** [The credentials page](wiki/stack/cloudflare-credentials.md#create-the-token) now leads with a link that opens Cloudflare's token form already filled in: the two permissions, all accounts, and the name `WongStack`. You check the two rows, press Create, and copy the key. The four-menu route stays below it, in case the link ever fails. Setup asks for the key with the link first.
+- **Paseo is where you chat.** The README's first step gets you Claude Code or Codex and the free [Paseo](https://paseo.sh) app, and no longer points to the Claude desktop app. Setup checks for Paseo: when it's missing, setup says what it's for and where to get it, then carries on. It never installs it. When Paseo is there, setup's closing report says how to connect your phone: *Settings → your host → Pair Device*.
+- **One short line to paste.** The README's prompt is now `Install WongStack in this folder from github.com/matthewwong525/WongStack`. A line under it gives the agent the setup steps' address.
+- **The steps live in one place.** The README keeps the three steps. [Getting started](wiki/stack/getting-started.md) stops repeating them and keeps what they don't cover: what it costs, what you do by hand, what to do when something goes wrong, and how to remove it all. Its *Teardown* heading is unchanged, so links to it keep working.
+- **Source repo only: a test holds the link to the table.** `scripts/tests/provision.test.mjs` decodes the link on the credentials page and fails unless it asks for exactly the two keys in [the permission table](.agents/skills/wong-setup/references/permission-groups.md#what-the-user-grants), which gains a *Key* column.
+
+**Updating.** Nothing to do by hand. `/wong-sync` brings the new wiki pages and setup text.
+
 ## 26.17.0 — Planning checks for other work first
 
 - **Planning looks around first.** When `/explore` or `/plan` starts on work that changes the repo, it lists this repo's other work: the other workspaces on this computer, the plans in them (saved or not), and open pull requests, which show teammates' work too. The new [`other-work.mjs`](.agents/skills/explore/scripts/other-work.mjs) gathers the list; the agent judges what overlaps. [Check for other work](.agents/skills/explore/SKILL.md#check-for-other-work) owns the step.

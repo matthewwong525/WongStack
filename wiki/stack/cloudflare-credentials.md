@@ -21,7 +21,19 @@ The symptom, if you get it wrong: `/user/tokens/verify` returns `Invalid API Tok
 
 ## Create the token
 
-Follow this literally. It's four menu steps, two permission rows, and one field people miss.
+**[Open the token form, filled in](https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22api_tokens%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_api_tokens%22%2C%22type%22%3A%22edit%22%7D%5D&accountId=*&zoneId=all&name=WongStack)**, signed in to Cloudflare. It opens under My Profile, named `WongStack`, for all accounts.
+
+1. Check the form shows exactly two rows: **User · API Tokens · Edit** and **Account · API Tokens · Edit**.
+2. **Continue to summary → Create Token.**
+3. Copy the token. Cloudflare shows it once.
+
+The link asks for all accounts, so the Account Resources field people miss in the steps below is already set. If you have two accounts, the agent asks which one to use.
+
+Two permission rows really are the whole ask. The agent adds only the groups a step needs, when it needs them: Workers, D1, and account settings for provisioning, and the Access groups only if you ask for a login wall. The [widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#a-normal-provision) lists each one.
+
+### If the link doesn't work
+
+If the form opens with a row missing, or doesn't open at all, make the token by hand. Follow this literally. It's four menu steps, two permission rows, and one field people miss.
 
 ```
    Cloudflare dashboard
@@ -44,8 +56,6 @@ Follow this literally. It's four menu steps, two permission rows, and one field 
 ```
 
 **Do not skip Account Resources.** Leaving it unset produces a token that verifies successfully and can see nothing — Cloudflare reports the out-of-scope account as *no accounts* rather than as an error, so it reads like an empty Cloudflare account. If that happens you can edit the existing token; you don't need a new one, and the value in the primary worktree's `.env` stays valid because the token id doesn't change.
-
-Two permission rows really are the whole ask. The agent adds only the groups a step needs, when it needs them: Workers, D1, and account settings for provisioning, and the Access groups only if you ask for a login wall. The [widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#a-normal-provision) lists each one.
 
 ## Store it
 

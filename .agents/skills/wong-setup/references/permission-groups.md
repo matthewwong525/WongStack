@@ -34,12 +34,12 @@ Read from the live API against a real account.
 
 ### What the user grants
 
-The whole ask on the token screen; the runbook grants itself every other group below.
+The whole ask on the token screen; the runbook grants itself every other group below. The *Key* is the group's name in a dashboard template link: [the token link](../../../../wiki/stack/cloudflare-credentials.md#create-the-token) asks for these two, with Edit. The keys were checked on a real Cloudflare dashboard on 2026-09-27.
 
-| Name | Scope | Id |
-|---|---|---|
-| `API Tokens Write` | `com.cloudflare.api.user` | `686d18d5ac6c441c867cbf6771e58a0a` |
-| `Account API Tokens Write` | `com.cloudflare.api.account` | `5bc3f8b21c554832afc660159ab75fa4` |
+| Name | Scope | Key | Id |
+|---|---|---|---|
+| `API Tokens Write` | `com.cloudflare.api.user` | `api_tokens` | `686d18d5ac6c441c867cbf6771e58a0a` |
+| `Account API Tokens Write` | `com.cloudflare.api.account` | `account_api_tokens` | `5bc3f8b21c554832afc660159ab75fa4` |
 
 **Both must survive every widen** (the wholesale-`PUT` rule above).
 

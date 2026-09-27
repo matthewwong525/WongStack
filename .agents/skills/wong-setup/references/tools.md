@@ -41,6 +41,10 @@ On macOS, Node's archive is `node-v…-darwin-<arch>.tar.gz` (unpack with `tar -
 
 After a user-folder install, run `export PATH="$HOME/.local/bin:$PATH"`, and add that line once to the profile of the shell `$SHELL` names (`~/.zshrc` or `~/.bashrc`). Then check every tool again; one still missing is a failed install.
 
+### Paseo: point to it, never install it
+
+After the tools pass, check `command -v paseo`. Missing → say one plain sentence, then continue: *"Paseo is a free app for chatting with me from your phone, running things on a schedule, and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it, and never stop setup without it: it is a desktop download with its own window ([required tools](../../../../wiki/development/required-tools.md) says more).
+
 ## 2. The GitHub sign-in
 
 Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to set the git email and let teammates [join memory](../../../../wiki/development/memory.md#joining-through-github) ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).

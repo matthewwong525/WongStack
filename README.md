@@ -11,7 +11,7 @@
 - *"Time each order we pack, and tell me what packing costs us."* Our warehouse team packs every order with the app it built.
 - *"Show our profit for each sales channel, after ads, shipping, and fees."* I check it on my phone every morning before I decide where to spend on ads.
 - *"Make a brief page for our designers."* You read a short plan, get a link to try it, and say publish to put it live.
-- *"Every weekday at 9, list the orders that haven't shipped."* With the optional [Paseo](https://paseo.sh) app, it runs on a schedule.
+- *"Every weekday at 9, list the orders that haven't shipped."* In the [Paseo](https://paseo.sh) app, it runs on a schedule.
 - *"Remember that the ops lead signs off on refunds."* The whole team's chats know it next week.
 - *"Plan my week around Thursday's supplier call."* The business and the rest of your life, in one chat.
 
@@ -19,23 +19,23 @@ It asks before it sends, buys, or deletes anything.
 
 ## Start in three steps
 
-1. **Open a chat app for AI agents.** The easiest is the [Claude desktop app](https://claude.ai/download) (the Code tab), which needs no terminal. Any coding agent that can read and edit files and run commands works too.
-2. **Make an empty folder, open it there, and paste this:**
+1. **Get Claude Code and Paseo.** [Claude Code](https://code.claude.com/docs/en/setup) is the AI agent; [Codex](https://developers.openai.com/codex/cli) works too. Its install page may open a terminal once, for one command. Then get the free [Paseo](https://paseo.sh) app, where you chat with it.
+2. **Make an empty folder, open it in Paseo, and paste this:**
 
    ```
-   Read and follow
-   https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
-   to install WongStack in this folder and walk me through the first workflow.
+   Install WongStack in this folder from github.com/matthewwong525/WongStack
    ```
 
-3. **Answer a few questions.** The agent installs any free tools it still needs, after asking. You approve a sign-in code for a free [GitHub](https://github.com/signup) account, where your files are kept. Then you paste one key from a free [Cloudflare](https://cloudflare.com) account, where your apps run. The agent shows you the [exact clicks](wiki/stack/cloudflare-credentials.md#create-the-token).
+   *For the agent: read and follow `https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md`.*
 
-You end with a working assistant, a starter site online, and memory that carries over between chats. [Getting started](wiki/stack/getting-started.md) walks through each step and says what you do by hand. In a folder that already has files, setup stops and says so.
+3. **Answer a few questions.** The agent installs any free tools it still needs, after asking. You approve a sign-in code for a free [GitHub](https://github.com/signup) account, where your files are kept. Then you open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a free [Cloudflare](https://cloudflare.com) account, where your apps run, press Create, and paste the key it shows you.
+
+You end with a working assistant, a starter site online, memory that carries over between chats, and the steps to connect your phone. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong. In a folder that already has files, setup stops and says so.
 
 ## Where you chat
 
-- **On your computer:** the Claude desktop app, or [Codex](https://openai.com/codex). Both get full support, including memory.
-- **On your phone:** the [Paseo](https://paseo.sh) app connects to your agent, so you can ask from anywhere. It also runs requests on a schedule, and gives each part of a bigger request its own workspace. It is optional.
+- **In [Paseo](https://paseo.sh), on your computer and your phone.** It runs Claude Code or Codex on your own computer, so memory, keys, and schedules stay there. Pair your phone once and ask from anywhere. It also runs requests on a schedule, and gives each part of a bigger request its own workspace.
+- **Claude Code or [Codex](https://openai.com/codex) on their own** work too, with full support, including memory.
 - **Other agents,** such as Cursor, can follow the same steps, because they are plain text files. They get no memory between chats.
 
 ## What you get

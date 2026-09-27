@@ -65,7 +65,7 @@ Every later `.env` means `DURABLE_ENV`. Write a variable by replacing only its e
 
 ### 1c. Ask for the token
 
-If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the click path from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token), calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
+If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the filled-in token link from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token), read from that page rather than copied here: open it, check the two rows, Create, copy. When the link fails, give the page's click path instead, calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
 
 They paste it into the durable file, or to you to write. Re-read `DURABLE_ENV` and export the value without printing it. **No token → setup stops here and writes nothing else**; pasting it later continues from this step.
 
@@ -225,5 +225,6 @@ State, in plain words:
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)
 - That CI publishes with its own small key, `<repo>-deploy`
 - That the app is **public**: anyone with the link can open it. A login wall is [the Access runbook](../../../../wiki/stack/cloudflare-access.md).
+- When `command -v paseo` answers: how to chat from a phone, *"In Paseo, open Settings → your host → Pair Device."*
 
 End on the URL and the one next step. With the starter app: open the URL and copy the message in the box at the top into this chat; it walks the person through their first change.

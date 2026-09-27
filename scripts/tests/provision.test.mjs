@@ -94,6 +94,19 @@ test('the group constants match the tables in permission-groups.md', () => {
   for (const row of [...USER_GRANTS, ...NORMAL_PROVISION]) assert.equal(groupId(row.name), row.id, row.name);
 });
 
+test('the token link on the credentials page asks for exactly the two groups the user grants', () => {
+  const page = readFileSync(join(repoRoot, 'wiki/stack/cloudflare-credentials.md'), 'utf8');
+  const links = [...page.matchAll(/\((https:\/\/dash\.cloudflare\.com\/profile\/api-tokens\?[^)\s]+)\)/g)].map((m) => new URL(m[1]));
+  assert.equal(links.length, 1, 'the credentials page needs one token link');
+  const [link] = links;
+  const keys = tableRows('What the user grants').map((row) => row.key);
+  assert.equal(keys.length, 2);
+  assert.deepEqual(JSON.parse(link.searchParams.get('permissionGroupKeys')), keys.map((key) => ({ key, type: 'edit' })));
+  assert.equal(link.searchParams.get('accountId'), '*');
+  assert.equal(link.searchParams.get('zoneId'), 'all');
+  assert.equal(link.searchParams.get('name'), 'WongStack');
+});
+
 // ── the widen ───────────────────────────────────────────────────────────────
 
 test('the widen grants a normal provision, keeps both token groups, its resources and condition, and waits out a 403', async (t) => {
