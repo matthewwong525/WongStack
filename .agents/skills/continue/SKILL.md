@@ -54,7 +54,7 @@ It's fine if only one side exists (a save with no PR yet) — load the change; t
 
 ### 3. Check out the branch
 
-If there's a branch, the tree is clean, and it isn't already checked out:
+If there's a branch and it isn't already checked out:
 
 ```bash
 git rev-parse --abbrev-ref HEAD     # where am I now
@@ -62,9 +62,9 @@ git status --porcelain              # is the tree clean
 git fetch origin                    # a handed-off branch may exist only on the remote
 ```
 
-- Clean tree, branch not checked out → `git checkout "$BRANCH"` (git creates a local branch tracking `origin/$BRANCH` when it only exists on the remote — the fresh-clone handoff case), or `gh pr checkout <N>` which fetches too. If the proposal's Branch line names a branch absent locally and remotely, ask for the correct branch or PR rather than creating it — a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask), because only the user knows the name.
+- This workspace holds other unpublished work — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch branches. Ask how to proceed: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, checkpoint the current work with `/save` first, or resume read-only on this branch.
+- Nothing else held here, branch not checked out → `git checkout "$BRANCH"` (git creates a local branch tracking `origin/$BRANCH` when it only exists on the remote — the fresh-clone handoff case), or `gh pr checkout <N>` which fetches too. If the proposal's Branch line names a branch absent locally and remotely, ask for the correct branch or PR rather than creating it — a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask), because only the user knows the name.
 - In a git worktree the branch may be checked out elsewhere — if checkout fails for that reason, tell the user and proceed read-only rather than forcing it.
-- Dirty tree → **don't** switch branches; surface the dirty state and ask how to proceed, offering the supported ways out — checkpoint the current work with `/save` first *(Recommended)*, or resume read-only on this branch.
 - Change planned but never `/save`d (no branch anywhere) → stay on the current branch; `/save` will cut it.
 
 ### 4. Orient and continue

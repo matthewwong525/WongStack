@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.14.0 — Each part of a request gets its own workspace
+
+- **Several parts, one question.** When a request holds parts that could each be published alone, the assistant lists them and asks once: do the first here and open a new [Paseo](https://paseo.sh) workspace for each other part *(Recommended)*, do them here one at a time, or keep one change. The question rides in `/explore`'s exit round. [Several parts, several workspaces](wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule; `.agents/skills/plan/references/new-workspace.md` is the runbook.
+- **Each new workspace plans its part and waits for you.** Its agent starts with `/plan` and a brief: the part in your words, the answers already settled, the other parts and where they are, and any part it builds on. A part that builds on another opens at once and is told the other part is being built or about to publish.
+- **The next work is one choice away.** `/ship`'s closing question offers the next part you asked for in a new workspace. `/continue` offers a new workspace instead of switching branches when this one still holds unpublished work.
+- **`workspace.mjs` opens the workspace.** The new script in `.agents/skills/routine/scripts/` fetches the default branch and starts the workspace from it. The new agent gets the calling chat's model, thinking, and permission mode, and no parent, so it lives on after the chat. It shares a new `lib/paseo.mjs` with `routine.mjs`, and uses the same exit codes.
+- **Without Paseo, or with nobody to answer, nothing changes.** The parts are done one at a time, and an unattended run never opens a workspace.
+
+**Updating.** `/wong-sync` brings the script, the runbook, and the skill and page edits. New workspaces need [Paseo](https://paseo.sh); without it, nothing else to do.
+
 ## 25.10.1 — Fixes from a repo check
 
 - **Teammates can't change or hide each other's memory.** The memory route now refuses three writes it let through. A fact tag or supersede without the member's own new fact before it in the same batch is refused, so a replacement is always visible and credited. So is a session upsert onto a row another author holds, or one written before keys. The read check now looks at the whole SQL text, so a quoted name like `[']` can't hide a `DELETE`. A malformed `%` in an object path is a 400, not a crash. The statements are unchanged, so member checkouts need no update.

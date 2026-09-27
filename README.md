@@ -34,7 +34,7 @@ You end with a working assistant, a starter site online, and memory that carries
 ## Where you chat
 
 - **On your computer:** the Claude desktop app, or [Codex](https://openai.com/codex). Both get full support, including memory.
-- **On your phone:** the [Paseo](https://paseo.sh) app connects to your agent, so you can ask from anywhere. It also runs requests on a schedule. It is optional.
+- **On your phone:** the [Paseo](https://paseo.sh) app connects to your agent, so you can ask from anywhere. It also runs requests on a schedule, and gives each part of a bigger request its own workspace. It is optional.
 - **Other agents,** such as Cursor, can follow the same steps, because they are plain text files. They get no memory between chats.
 
 ## What you get

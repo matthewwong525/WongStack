@@ -64,6 +64,7 @@ Before you finish, answer one question for yourself: **what does the user have t
 - A blocked task: the supported ways to clear the blocker. Keep the report of the blocker intact above it.
 - A report or audit: the one fix worth taking next.
 - A finished task that will clearly come back: add one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
+- More work the person asked for, left after a publish: open it in a new workspace *(Recommended)*, by [next work](../../plan/references/new-workspace.md#next-work).
 
 The exception is a chain that continues without the user: a handoff the invocation already authorized — `/apply` into [`/save`](../../save/SKILL.md), [`/ship`](../../ship/SKILL.md) through its stages — continues instead of asking.
 
