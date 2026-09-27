@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.0.0 — Wiki saves go through review, like code
+
+- **One way to save.** A save that changes only the wiki no longer goes straight to `main`. Every save that changes a file gets a branch and a pull request, then goes live when you run `/ship`. A plan (an OpenSpec change) is still needed for code only; any other edit gets a pull request whose body says what changed.
+- **`/ship` publishes work that needed no plan.** When no change is selected, it applies `/save`'s test: code, or a plan for code, still stops; anything else skips the archive and merges on the gate.
+- **Facts-only saves are unchanged.** They go to the memory store with no commit. `save/references/prose-save.md` is now `save/references/facts-save.md` and holds only that route.
+- **The change loop loses *The prose allowlist*.** *The gate* now says every file edit takes it. The `WONG-STACK` block drops its prose line, and `wiki/README.md` and `wiki/wiki-style.md` follow.
+- **`app-untouched.sh` prints a fifth line, `docs_only`,** true only when every changed path is under `wiki/` or `openspec/`. The source repo's Payload checks use it to skip lint, shell checks, and the script suite (the private-names test still runs).
+- **The plan's link shows after a save and a publish.** `/save` prints it whenever the save changed a plan, apart from its one link, and `/ship` prints the archived plan's. The closing question's own text also ends with the plan's path, because some hosts hide chat text above a question card.
+
+**Updating.** Major: installed repos lose the direct-to-`main` wiki route their agents used. `/wong-sync` removes the block's prose line and brings the skill, script, and page edits. If your default branch's ruleset lets the owner bypass it for wiki saves, you can drop that bypass.
+
 ## 25.17.0 — Shorter skill instructions
 
 - **The same rules in fewer words.** Every skill's `SKILL.md` and `references/*.md` is rewritten in [our voice](wiki/voice.md): 13,476 → 10,202 words across the `SKILL.md` files (−24%) and 18,286 → 15,693 across references (−14%). A rule another page owns is now a link to it, reasons the wiki gives are cut, and one example stands where there were several. No rule, command, flag, path, heading, or code block changed. The vendored `agent-browser` skill is untouched.

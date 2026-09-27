@@ -53,7 +53,7 @@ The README's first screen SHALL say what the assistant does, with example reques
 
 ### Requirement: GitHub settings enforce the gate
 
-The default branch SHALL require the test and payload checks, block force-push and deletion, and allow only squash merges, with an owner bypass for prose. Private vulnerability reporting, secret scanning, push protection, and Dependabot alerts SHALL be on.
+The default branch SHALL require the test and payload checks, block force-push and deletion, and allow only squash merges; no save route SHALL rely on bypassing these rules. Private vulnerability reporting, secret scanning, push protection, and Dependabot alerts SHALL be on.
 
 #### Scenario: A red pull request
 

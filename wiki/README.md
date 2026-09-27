@@ -35,5 +35,5 @@ You do not need these before you start. They explain what WongStack sets up.
 - **Preview link:** a separate copy of your site with the change in it, running on practice data. Anyone with the link can open it; your real site is untouched.
 - **Mini app:** a small page or tool, such as a bill splitter, that lives at `/apps/<name>/` on your site ([mini apps](stack/mini-apps.md)).
 - **Routine:** a request the assistant runs on a schedule, such as every weekday at 9. It needs the optional [Paseo](https://paseo.sh) app ([`/routine`](../.agents/skills/routine/SKILL.md)).
-- **Save:** keep the work so far without making it live. A save that only changes the wiki is live right away ([the prose allowlist](development/the-change-loop.md#the-prose-allowlist)).
+- **Save:** keep the work so far without making it live. Every save, a wiki page included, gets a review page you publish when ready ([the gate](development/the-change-loop.md#the-gate)).
 - **Publish:** make the change live on your real site, after its checks pass.

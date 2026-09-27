@@ -43,7 +43,7 @@ If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` fa
 
 ## Step 2 — archive the change
 
-Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → stop: no identifiable change record; `/save` can author one.
+Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → apply `/save`'s test for authoring one to the branch diff: code or a plan for code → stop: no identifiable change record; `/save` can author one. Anything else needed no change: skip the archive and the distillation below, and go to Step 3 with no `CHANGE_NAME`.
 
 **Several active change folders** in the branch diff or working tree → stop before archive, even with an explicit selection: the merge would carry them all. Ask [as options](../explore/references/asking-the-user.md), naming them: move the others off the branch *(Recommended)*, or ship all on purpose. Require `openspec/changes/$CHANGE_NAME/`; keep `CHANGE_NAME` fixed through archive and checkpoint.
 
@@ -65,7 +65,7 @@ Deduplicate the two outputs. Place each repeatable one by [the wiki rules](../..
 
 ## Step 3 — delegate the checkpoint to /save
 
-**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim**, with the exact `CHANGE_NAME` and archive path. Proceed only on `SUCCESS` or `NONE` (invoking `/ship` is the approval where no checks exist). On `UNKNOWN`, `TIMEOUT`, or `FAILURE`, stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
+**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim**, with the exact `CHANGE_NAME` and archive path when there is a change. Proceed only on `SUCCESS` or `NONE` (invoking `/ship` is the approval where no checks exist). On `UNKNOWN`, `TIMEOUT`, or `FAILURE`, stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
 
 ## Step 4 — verify the preview (evidence, not a gate)
 
@@ -102,9 +102,9 @@ It prints key names, never values, and skips and names a key the primary also ch
 
 ## Step 6 — report
 
-Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): *it is live*, what changed for the person, and the live link. The rest below except *Checks loosened* comes only when they ask; then print `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`), plus:
+Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): *it is live*, what changed for the person, and the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. The rest below except *Checks loosened* comes only when they ask; then print `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`), plus:
 
-- **Archived** — the archive path.
+- **Archived** — the archive path; a branch that needed no change says so in one line.
 - **Checkpoint** — `/save`'s result and CI outcome, auto-fix pushes included.
 - **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it; an absent skill is one line.
 - **Secrets** — promoted, skipped, and unresolved key names, never a value, or why it was skipped.

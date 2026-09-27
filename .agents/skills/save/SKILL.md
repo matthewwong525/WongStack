@@ -1,6 +1,6 @@
 ---
 name: save
-description: Checkpoint work: maintain the change and session context, commit, push, update the PR, wait for CI, and return the preview. Use to save or share work. Wiki-only saves go to the default branch; session facts go to the memory store. Accepts an optional status or checkpoint note. Does not implement tasks or merge.
+description: Checkpoint work: maintain the change and session context, commit, push, update the PR, wait for CI, and return the preview. Use to save or share work. Session facts go to the memory store. Accepts an optional status or checkpoint note. Does not implement tasks or merge.
 user-invocable: true
 ---
 
@@ -19,7 +19,7 @@ Load each matching procedure before its actions; conditions combine:
 | Condition | Required procedure |
 |---|---|
 | User supplied or rotated an explicitly named secret | [Named-secret persistence](references/named-secrets.md), before writing records |
-| Every changed path, rename sources included, is under `wiki/`, or the session only produced facts, including a to-do that changed no repo file | [Prose save](references/prose-save.md), before staging or publication |
+| The session only produced facts, including a to-do that changed no repo file | [Facts-only save](references/facts-save.md), before writing facts |
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md), before authoring |
 | Exact selected handoff is archived | [The archived handoff](#the-archived-handoff), before updating it |
 
@@ -34,11 +34,11 @@ bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candid
 
 Keep `BRANCH`, `NAME`, and `CHANGE_ROOT` separate; select by [the rungs](references/checkpoint-evidence.md#selection-rungs) `explicit` (including the exact archive `/ship` passes), `session`, `changed-active`, `changed-archive`, then `recorded-branch`; there is no `sole-active`. Resolve ambiguity before staging; never duplicate a change to match the branch.
 
-Never split a mixed diff or route by extension. Nothing learned, decided, or changed → report and stop.
+Every save that changes a repo file takes the normal route, whatever the paths. A pure conversation gets facts, not an empty plan, and no commit. Nothing learned, decided, or changed → report and stop.
 
 ## 2. Maintain the handoff and capture context
 
-Keep an existing feature branch. On the default branch or detached HEAD, `git checkout -b "$SLUG"`, named for the change or topic (worktree name if the session is unreadable), plus a short SHA on collision. Never rename an established `NAME` to match the branch. Create the plan and required artifacts before their checkpoint.
+Keep an existing feature branch. On the default branch or detached HEAD, `git checkout -b "$SLUG"`, named for the change or topic (worktree name if the session is unreadable), plus a short SHA on collision. Never rename an established `NAME` to match the branch. Create the plan and required artifacts before their checkpoint. A save with no change still takes this route: its PR body describes the edit in plain words and ends with a footer naming `/ship` to publish it; the change-body renderer does not apply.
 
 Maintain:
 
@@ -75,8 +75,8 @@ Discover the preview with [preview-url.sh](scripts/preview-url.sh); never constr
 
 ## 5. Report
 
-When the person ran `/save` themselves, report the outcome and one link in [plain words](../explore/references/asking-the-user.md#write-in-plain-words); give the lines below only when they ask. Inside another verb, or when asked, report branch and commit, PR link, the change or archive and its Status, facts added, superseded, and dropped (or skipped) and whether stored or spooled, CI result with fixes or uncertainty, and the preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, the actual value; inside another verb, always print it, because the caller reads it. Name the continue command only for an active change. Keep errors explicit.
+When the save changed a plan — its Status, tasks, or Decision log — [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) as well; it is not the one link below, and it goes in the closing question too. When the person ran `/save` themselves, report the outcome and one link in [plain words](../explore/references/asking-the-user.md#write-in-plain-words); give the lines below only when they ask. Inside another verb, or when asked, report branch and commit, PR link, the change or archive and its Status, facts added, superseded, and dropped (or skipped) and whether stored or spooled, CI result with fixes or uncertainty, and the preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, the actual value; inside another verb, always print it, because the caller reads it. Name the continue command only for an active change. Keep errors explicit.
 
-A successful direct prose save uses only the two-line report from its reference.
+Save never merges; ship owns archive and merge.
 
 Invoked directly, it ends with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) — normally continue the tasks, *publish it*, or stop here; on a failing or unverified gate, the supported ways to clear it. Inside an authorized chain, return without asking.

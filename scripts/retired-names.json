@@ -32,5 +32,7 @@
   {"name": "payload-single-source", "replacement": "the `payload-layout` spec"},
   {"name": "cf-secret-parity", "replacement": "the `cloudflare-provisioning` spec"},
   {"name": "toolchain-dependencies", "replacement": "the `dependencies` spec"},
-  {"name": "dependency-currency", "replacement": "the `dependencies` spec"}
+  {"name": "dependency-currency", "replacement": "the `dependencies` spec"},
+  {"name": "#the-prose-allowlist", "replacement": "`wiki/development/the-change-loop.md#the-gate`"},
+  {"name": "prose-save.md", "replacement": "`save/references/facts-save.md`"}
 ]

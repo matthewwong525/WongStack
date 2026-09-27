@@ -1,6 +1,6 @@
 # Create a missing plan at save
 
-Load only when code or a code plan exists and no change was selected. Conversation-only work takes the prose route; an archived handoff never enters this fallback.
+Load only when code or a code plan exists and no change was selected. Conversation-only work takes [the facts-only save](facts-save.md); any other file edit with no change keeps save's normal route, without a plan. An archived handoff never enters this fallback.
 
 Derive a concise plan from the session and relevant diff, holding the intent, constraints, rationale, and facts a cold reader needs, even those only in terminal or scratch state, with repo-relative paths. Ask only if the intent cannot be resolved.
 

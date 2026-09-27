@@ -1,5 +1,13 @@
 # Meta-only checks on WongStack's own payload. One run per commit:
 # see "Why one commit does not test twice" in .github/workflows/test.yml.
+#
+# When every changed path is under wiki/ or openspec/ (`docs_only` from
+# .github/scripts/app-untouched.sh), lint, shellcheck, and the script suite
+# skip, and only the private-names test runs from the suite: it scans every
+# tracked file, wiki pages included. Markdown anywhere else, skill text
+# included, runs everything, and so does a change with no base to compare. The
+# release checks always run. The skip happens inside the job, so the required
+# `payload` check still reports.
 
 name: Payload checks
 
@@ -23,6 +31,21 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Check what the change touches
+        id: scope
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          SCOPE=$(bash .github/scripts/app-untouched.sh)
+          echo "$SCOPE" | tee -a "$GITHUB_OUTPUT"
+          if grep -qx 'docs_only=true' <<< "$SCOPE"; then
+            echo "Only wiki/ or openspec/ changed: lint, shell checks, and the script suite skipped; the private-names test and release checks ran." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Code or skill text changed, or no base to compare: every check ran." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
@@ -34,14 +57,21 @@ jobs:
       - name: Install supported OpenSpec CLI
         run: npm install -g @fission-ai/openspec@1.13.2
       - name: Lint scripts
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
         run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts
       # shellcheck is preinstalled on ubuntu-latest.
       - name: Check shell scripts
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
         run: shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh server/*.sh
       # c8 follows the scripts the tests spawn; the floor in .c8rc.json only rises.
       # The review page's browser tests launch the runner's Google Chrome.
       - name: Script tests and coverage
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
         run: scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs
+      # The full suite above already includes it.
+      - name: Private-names test
+        if: ${{ steps.scope.outputs.docs_only == 'true' }}
+        run: node --test scripts/tests/private-names.test.mjs
       - name: Release checks
         run: |
           node scripts/check-payload-links.mjs

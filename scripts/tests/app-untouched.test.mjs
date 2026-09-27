@@ -67,20 +67,21 @@ function fixture(t) {
     });
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     const lines = result.stdout.split('\n').filter(Boolean);
-    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'mini_apps', 'mini_changed', 'base'],
-      `stdout must hold only the four output lines:\n${result.stdout}`);
+    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'mini_apps', 'mini_changed', 'base', 'docs_only'],
+      `stdout must hold only the five output lines:\n${result.stdout}`);
     return Object.fromEntries(lines.map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
   };
-  // The three answers about what changed; `base` has its own test.
+  // The three answers about what changed; `base` and `docs_only` have their own tests.
   const check = (vars, args) => {
-    const { base: _base, ...answers } = outputs(vars, args);
+    const { base: _base, docs_only: _docsOnly, ...answers } = outputs(vars, args);
     return answers;
   };
+  const docsOnly = (vars, args) => outputs(vars, args).docs_only;
   const branch = name => git('checkout', '-q', '-b', name);
   const push = () => git('push', '-q', '-u', 'origin', 'HEAD');
   const onBranch = name => ({ GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: name });
 
-  return { work, git, commit, outputs, check, branch, push, onBranch };
+  return { work, git, commit, outputs, check, docsOnly, branch, push, onBranch };
 }
 
 test('a docs-only branch leaves the main app untouched', t => {
@@ -256,6 +257,48 @@ test('base names the commit the change is compared with, or is empty', t => {
   assert.equal(f.outputs({ ...f.onBranch('main'), BEFORE_SHA: before }).base, before);
   assert.equal(f.outputs({ ...f.onBranch('main'), BEFORE_SHA: '0'.repeat(40) }).base, '');
   assert.equal(f.outputs({ GITHUB_EVENT_NAME: 'workflow_dispatch' }).base, '');
+});
+
+test('docs_only is true only when every path is under wiki/ or openspec/', t => {
+  const f = fixture(t);
+  f.branch('wiki');
+  f.commit({ 'wiki/new.md': '# New\n' }, 'wiki only');
+  assert.equal(f.docsOnly(f.onBranch('wiki')), 'true');
+
+  f.git('checkout', '-q', 'main');
+  f.branch('plans');
+  f.commit({ 'openspec/changes/x/tasks.md': '- [ ] 1\n' }, 'openspec only');
+  assert.equal(f.docsOnly(f.onBranch('plans')), 'true');
+  assert.equal(f.docsOnly({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'main' }), 'true');
+
+  f.git('checkout', '-q', 'main');
+  f.branch('skill-text');
+  f.commit({ 'wiki/new.md': '# New\n', '.agents/skills/save/SKILL.md': '# Save\n' }, 'wiki plus skill text');
+  assert.equal(f.docsOnly(f.onBranch('skill-text')), 'false');
+
+  f.git('checkout', '-q', 'main');
+  f.branch('root-md');
+  f.commit({ 'wiki/new.md': '# New\n', 'CHANGELOG.md': '# Changes\n' }, 'wiki plus a root md');
+  const root = f.outputs(f.onBranch('root-md'));
+  assert.equal(root.docs_only, 'false');
+  assert.equal(root.untouched, 'true');
+});
+
+test('docs_only fails safe to false', t => {
+  const f = fixture(t);
+  f.branch('docs');
+  f.commit({ 'wiki/new.md': '# New\n' }, 'docs');
+  // No base.
+  assert.equal(f.docsOnly({ ...f.onBranch('docs'), DEFAULT_BRANCH: 'trunk' }), 'false');
+  assert.equal(f.docsOnly({ GITHUB_EVENT_NAME: 'workflow_dispatch' }), 'false');
+  // An empty diff.
+  f.git('checkout', '-q', 'main');
+  f.branch('same-as-main');
+  assert.equal(f.docsOnly(f.onBranch('same-as-main')), 'false');
+  // The working tree answers too.
+  f.git('checkout', '-q', 'docs');
+  write(f, { 'wiki/more.md': '# More\n' });
+  assert.equal(f.docsOnly({}, ['--worktree']), 'true');
 });
 
 test('an unknown argument is a usage error', t => {

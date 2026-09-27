@@ -9,7 +9,7 @@
 # `paths-ignore` would leave a required check pending forever and block the
 # merge. See wiki/development/the-change-loop.md.
 #
-# Prints four lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
+# Prints five lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
 # to stderr:
 #
 #   untouched=true|false   true only when EVERY changed path is under wiki/,
@@ -21,6 +21,9 @@
 #   base=<sha>             the commit the change is compared with, or empty
 #                          when the comparison can not be made.
 #                          `loosened-checks.mjs` diffs from it.
+#   docs_only=true|false   true only when EVERY changed path is under wiki/
+#                          or openspec/. `payload.yml` skips its script tests
+#                          on it. Markdown anywhere else is false.
 #
 # The comparison covers the WHOLE change, never only the last commit, so a docs
 # commit on top of a code commit still runs the suite. The base is:
@@ -31,9 +34,9 @@
 #
 # When the comparison can not be made — an all-zero BEFORE_SHA (a new branch or
 # a first push), a ref that no fetch can find, no merge base, an unknown event —
-# every answer assumes a change: untouched=false, every mini app listed, and
-# mini_changed=true when mini-apps/apps/ exists. An empty diff is untouched=false
-# too. A skipped suite must be a proven skip; a guess runs the suite.
+# every answer assumes a change: untouched=false, docs_only=false, every mini
+# app listed, and mini_changed=true when mini-apps/apps/ exists. An empty diff
+# is untouched=false and docs_only=false too. A skipped suite must be a proven skip; a guess runs the suite.
 #
 # Input (environment):
 #   GITHUB_EVENT_NAME, GITHUB_BASE_REF, GITHUB_REF_NAME  set by GitHub Actions
@@ -80,11 +83,12 @@ all_mini_apps() {
     | sed 's#^mini-apps/apps/##' | grep -E '^[A-Za-z0-9][A-Za-z0-9._-]*$' | sort -u | tr '\n' ' ' | sed 's/ $//'
 }
 
-answer() { # answer <untouched> <mini_apps> <mini_changed> <base>
+answer() { # answer <untouched> <mini_apps> <mini_changed> <base> <docs_only>
   echo "untouched=$1"
   echo "mini_apps=$2"
   echo "mini_changed=$3"
   echo "base=$4"
+  echo "docs_only=$5"
   exit 0
 }
 
@@ -93,7 +97,7 @@ unknown() {
   note "$* — comparison not possible; assuming the main app changed"
   local changed=false
   git cat-file -e HEAD:mini-apps/apps 2>/dev/null && changed=true
-  answer false "$(all_mini_apps)" "$changed" ""
+  answer false "$(all_mini_apps)" "$changed" "" false
 }
 
 git rev-parse --verify --quiet HEAD >/dev/null 2>&1 || unknown "no commit checked out"
@@ -158,11 +162,16 @@ else
 fi
 
 UNTOUCHED=true
+DOCS_ONLY=true
 MINI_CHANGED=false
 COUNT=0
 NAMES=""
 while IFS= read -r -d '' path; do
   COUNT=$((COUNT + 1))
+  case "$path" in
+    wiki/*|openspec/*) ;;
+    *) DOCS_ONLY=false ;;
+  esac
   case "$path" in
     mini-apps/apps/*) MINI_CHANGED=true ;;
     wiki/*|openspec/*|*.md) ;;
@@ -183,9 +192,9 @@ done < "$CHANGED"
 
 if [ "$COUNT" -eq 0 ]; then
   note "the diff is empty — nothing to prove untouched"
-  answer false "" false "$BASE"
+  answer false "" false "$BASE" false
 fi
 
 MINI_APPS=$(printf '%s' "$NAMES" | sort -u | tr '\n' ' ' | sed 's/ $//')
-note "$COUNT changed path(s); main app untouched: $UNTOUCHED"
-answer "$UNTOUCHED" "$MINI_APPS" "$MINI_CHANGED" "$BASE"
+note "$COUNT changed path(s); main app untouched: $UNTOUCHED; docs only: $DOCS_ONLY"
+answer "$UNTOUCHED" "$MINI_APPS" "$MINI_CHANGED" "$BASE" "$DOCS_ONLY"
