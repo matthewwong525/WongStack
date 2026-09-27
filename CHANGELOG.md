@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Updates catch up old, heavily edited installs
+## 26.15.0 — Updates catch up old, heavily edited installs
 
 - **Old installs update in place.** A repo from before 19.0.0 no longer needs a fresh setup. Its update plan also makes the moves it missed: the shared agent folder, the rules file both agents read, wiki pages kept in another folder, leftover OpenSpec skills, and the CI deploy token. Every local edit stays. [Catching up an older install](.agents/skills/wong-sync/references/catch-up.md) owns the steps; the preflight's new `catchUp` field lists which apply, from the repo's layout and install record alone.
 - **The oldest installs can be checked.** A repo from before WongStack kept a file list got an error. It now compares against an empty list: every WongStack file it has counts as possibly edited, so nothing is overwritten.

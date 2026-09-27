@@ -1,6 +1,6 @@
 # Updates catch up old, heavily edited installs
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** aquatic-wolf
 **Open questions:** none
 
@@ -95,3 +95,4 @@ None.
 - **2026-09-27** — `merge-check.mjs` on the WongOS clone, with three edited files merged by hand (a `/save` reference, `wiki/voice.md`, the rules block): all three clean; with a section cut from two of them, it named each file, line range, and first line; clean again once restored.
 - **2026-09-27** — Assumed: task 5.1 is complete once its local checks pass, because its CI part is `/ship`'s own `/save` gate, which stops the merge on failure.
 - **2026-09-27** — Distilled: `.agents/rules/payload.md` now says a changelog **Updating.** note becomes a to-do in every sync plan, so hand steps are written plainly; the other change facts are open threads or already in the manifest.
+- **2026-09-27** — Archive checkpoint: built all tasks, merged 26.13.0 and the sibling's 26.14.0 (shorter wording kept, this change's lines added), numbered 26.15.0, and saved for `/ship`.
