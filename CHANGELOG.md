@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.12.0 — The plan's link says what to do next
+
+- **A waiting plan tells you how to build it.** When a plan stops for your review, the line right under its link says *When you're ready, type `/apply` to build it.* It shows after a plan made on its own, a bare `/wong-sync`, notes pasted from the plan's page, and the reply to *Review the plan*.
+- **It stays out when the build goes on.** When `/apply`, `/continue`, or `/ship` builds the plan in the same run, or the plan has shipped, the link shows alone.
+- **One wording everywhere.** `build-review.mjs` prints the line third, after the link line, from its exported `NEXT_STEP`; [print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link) says when to copy it, and the `WONG-STACK` block states it.
+
 ## 26.11.0 — Memory keys come only through GitHub
 
 - **Notes show who wrote them in full.** Each fact in the start-up digest, `search`, `show`, and `live` names its writer's whole email, so `ana@example.com` and `ana@example.org` never look like one person.

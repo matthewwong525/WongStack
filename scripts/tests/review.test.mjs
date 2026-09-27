@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { buildReview, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { buildReview, NEXT_STEP, planLink } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { needs } from './fixtures/needs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -161,7 +161,7 @@ test('a change without a page is reported and left untouched', () => fixture(roo
   assert.deepEqual(buildReview(root), { kind: 'no-page', changed: false, warnings: [] });
   assert.equal(existsSync(join(root, 'review.html')), false);
   const cli = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });
-  assert.equal(cli.stdout, 'review: no-page, unchanged\n', 'no path line when there is no page');
+  assert.equal(cli.stdout, 'review: no-page, unchanged\n', 'no link or next-step line when there is no page');
 }));
 
 test('an older page gets a proposal-only refresh and keeps its viewer', () => fixture(root => {
@@ -193,7 +193,7 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
     rmSync(join(root, 'review.html'), { force: true });
     const result = spawnSync(process.execPath, [resolve(here, `../../${alias}/skills/plan/scripts/build-review.mjs`), root, '--require-current'], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, `review: current, updated\nClick here to see the plan: [review.html](${join(resolve(root), 'review.html')})\n`);
+    assert.equal(result.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n${NEXT_STEP}\n`, 'the link line, then the next-step line, end the output');
   }
   writeFileSync(join(root, 'proposal.md'), proposal.replace('  c ─→ d', `  ${'y'.repeat(61)}`));
   const warned = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });
@@ -204,6 +204,10 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
   assert.equal(failure.status, 1);
   assert.match(failure.stderr, /missing/);
 }));
+
+test('the next-step line names /apply in one fixed wording', () => {
+  assert.equal(NEXT_STEP, "When you're ready, type `/apply` to build it.");
+});
 
 test('the link line wraps a path the Markdown link could not parse', () => {
   assert.equal(planLink('/w/a/review.html'), 'Click here to see the plan: [review.html](/w/a/review.html)');

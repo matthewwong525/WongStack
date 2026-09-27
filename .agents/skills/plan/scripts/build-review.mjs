@@ -162,6 +162,9 @@ function writeIfDifferent(path, next) {
   return true;
 }
 
+// The line under the link when the plan waits for the person; the rule, not the builder, decides when to copy it.
+export const NEXT_STEP = "When you're ready, type `/apply` to build it.";
+
 // The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the Markdown link still parses.
 export function planLink(page) {
   return `Click here to see the plan: [review.html](${/[\s()]/.test(page) ? `<${page}>` : page})`;
@@ -195,7 +198,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
       const result = buildReview(root, { requireCurrent: args.values['require-current'] === true });
       for (const warning of result.warnings) console.error(`review: warning: ${warning}`);
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
-      if (result.kind !== 'no-page') console.log(planLink(resolve(root, 'review.html')));
+      if (result.kind !== 'no-page') console.log(`${planLink(resolve(root, 'review.html'))}\n${NEXT_STEP}`);
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }
 }
