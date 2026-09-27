@@ -12,6 +12,14 @@
 
 **Updating.** Nothing to do by hand. `/wong-sync` brings the memory scripts and the `memory` and `ship` skills.
 
+## 26.10.0 — Codex reads the WongStack rules in every install
+
+- **One rules file serves both agents.** Codex reads only `AGENTS.md`, and chat setup wrote the rules to `CLAUDE.md`, so Codex in those repos never saw them. `/wong-setup` now writes the rules to a real `AGENTS.md` and makes `CLAUDE.md` a link to it (`ln -s AGENTS.md CLAUDE.md`, with `MSYS=winsymlinks:nativestrict` on Windows). One copy, so the two can not drift. It is the layout this repo and server installs already use.
+- **Updates read the rules through the link.** The update check still finds changes to the `WONG-STACK` block and still leaves your own text alone when `CLAUDE.md` is a link.
+- **Shipped pages link `AGENTS.md`.** The link check no longer lets a shipped page link `CLAUDE.md`; GitHub's web view can not follow the link.
+
+**Updating.** The next `/wong-sync` plans the move: a repo with only a real `CLAUDE.md` renames it to `AGENTS.md` and links `CLAUDE.md` to it, with every line kept. A repo that already has its own `AGENTS.md` gets a reviewed task that merges both into `AGENTS.md`, then links. A repo whose `CLAUDE.md` already links to `AGENTS.md` needs nothing. [The agent folder](.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder) owns the steps.
+
 ## 26.9.0 — Pushes stay fast when mutation testing would start over
 
 - **Updates keep earlier mutation results.** The Test workflow's saved Stryker file no longer has a key that hashes `package-lock.json` and the Stryker and Vitest configs. The key is now `stryker-<os>-` plus the run, so a dependency update, a WongStack update, or a test-settings change reuses what mutation testing already knows. A push re-tests only what it changed, in minutes, not 15 to 20. Old saved files match the new key, so the first push after the update starts warm.
