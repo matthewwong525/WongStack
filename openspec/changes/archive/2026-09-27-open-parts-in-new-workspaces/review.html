@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · open-parts-in-new-workspaces</title>
+<title>Review · 2026-09-27-open-parts-in-new-workspaces</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="open-parts-in-new-workspaces">
+<body data-change="2026-09-27-open-parts-in-new-workspaces">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>open-parts-in-new-workspaces</h1>
+  <h1>2026-09-27-open-parts-in-new-workspaces</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -173,6 +173,8 @@
 <li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: release 25.14.0, because main reached 25.13.0 (#150, #152, #153) during this build.</li>
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Saved: every task but the CI check is done; lint, link, retired-name, and config checks and 362 script tests pass locally. The branch predates main's 25.11.0 to 25.13.0, so <code>VERSION</code> and <code>CHANGELOG.md</code> will conflict and are merged at publish.</li>
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #154 (build, payload, and test checks), so every task is done.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Merged main (25.11.0 to 25.13.0) before archiving; <code>VERSION</code> stays 25.14.0 and the changelog keeps every entry. Distilled: no repeatable fact for the wiki beyond the change-loop section this change adds; the Paseo archive-leaves-a-branch fact stays in memory.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived: <code>openspec/specs/multi-part-workspaces/spec.md</code> created with 5 requirements; this checkpoint gates the archive and the merge of main.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
