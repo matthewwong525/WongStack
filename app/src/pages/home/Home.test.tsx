@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import App from "./App";
+import { Home } from "./Home";
 
 afterEach(() => {
   cleanup();
@@ -25,7 +25,7 @@ it("lists each mini app with its title, description, and link", async () => {
   const fetchMock = serve({ ok: true, json: () => new Promise((resolve) => (finish = resolve)) });
 
   await act(async () => {
-    render(<App />);
+    render(<Home />);
   });
 
   expect(screen.getByText("Loading your apps…")).toBeTruthy();
@@ -44,7 +44,7 @@ it("says how to ask for an app when there are none", async () => {
   serve({ ok: true, json: async () => [] });
 
   await act(async () => {
-    render(<App />);
+    render(<Home />);
   });
 
   expect((await screen.findByText(/No mini apps yet/)).textContent).toBe(
@@ -57,7 +57,7 @@ it("says to reload when the list does not load", async () => {
   serve({ ok: false, json: async () => [] });
 
   await act(async () => {
-    render(<App />);
+    render(<Home />);
   });
 
   expect((await screen.findByText(/did not load/)).textContent).toBe(
@@ -70,7 +70,7 @@ it("opens with the tutorial, above the app list", async () => {
   serve({ ok: true, json: async () => [] });
 
   await act(async () => {
-    render(<App />);
+    render(<Home />);
   });
 
   const tutorial = screen.getByRole("region", { name: "Learn the development loop" });

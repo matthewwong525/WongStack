@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import './Tutorial.css'
 
 // The first change a person makes: pasting this message walks them through the whole loop,
 // and the agent explains each step on the way. Removing the tutorial means deleting this file,
-// Tutorial.test.tsx, the tutorial styles in App.css, and its one line in App.tsx.
+// Tutorial.test.tsx, Tutorial.css, and its one line in Home.tsx.
 const message =
   'Remove the tutorial from my home page. Walk me through each step and explain what it does.'
 
@@ -21,7 +22,7 @@ export function Tutorial() {
       )
 
   return (
-    <section aria-labelledby="learn-the-loop">
+    <section className="tutorial" aria-labelledby="learn-the-loop">
       <h2 id="learn-the-loop">Learn the development loop</h2>
       <p>Your first change removes this box. Copy this message into your chat with the agent:</p>
       <blockquote>{message}</blockquote>

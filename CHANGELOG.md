@@ -12,6 +12,28 @@
 
 **Updating.** `/wong-sync` brings `paseo.json` and the preset script. Then run `node .claude/skills/routine/scripts/presets.mjs add` once on each computer that uses Paseo.
 
+## 26.14.0 — Shorter instructions, the same rules
+
+- **Every chat starts lighter.** What an agent reads before your first message — the `WONG-STACK` block and the rest of `AGENTS.md`, [the wiki style](wiki/wiki-style.md) and [voice](wiki/voice.md) pages, and every skill description — drops from 3,601 to 2,199 words (−39%). The style and voice pages still load in every chat. Rules every reply needs stay in the `WONG-STACK` block, which Codex reads too, and the voice page no longer repeats them.
+- **Each step reads less.** [The change loop](wiki/development/the-change-loop.md) drops from 3,447 to 2,537 words (−26%); its step list now says what each stage is for and links the skill that owns the procedure. Every skill's `SKILL.md` and `references/*.md` together drop from 27,385 to 24,844 words (−9%). Repeats are merged into the page that owns them, and the rest links there.
+- **No rule is dropped.** Only wording changes. Every command, flag, path, code block, and linked heading stays, so links from your own pages keep working. `stack-pack-fragments.md` lists six `wrangler.jsonc` rules, not seven: two overlapping staging rules became one.
+- **Source repo only: the saving is measured, and it stays.** `scripts/measure-context.mjs --write-baseline` records a change's own starting point, and `--check` now fails when the start-up load passes `startupCeiling` (2,200 words) in `scripts/fixtures/context-baseline.json`. The count covers every WongStack-authored skill, not just seven.
+- **Source repo only: the link check reads heading anchors in shipped pages.** `scripts/check-payload-links.mjs` fails when a shipped page links a `#anchor` its target page has no heading for, so a renamed heading fails here, not in your install.
+
+**Updating.** `/wong-sync` brings every skill file, `AGENTS.md`'s block, and the three wiki pages. A file you adapted locally shows as a conflict; keep your adaptation and take the new wording around it.
+
+## 26.13.0 — The starter app is built to grow
+
+- **Pages go through a router.** The starter app uses [React Router](https://reactrouter.com/) with one route list, `app/src/router.tsx`. The home page is its only page, and `Layout.tsx` is the frame around every page. A new page is a folder in `app/src/pages/` and one line in the list.
+- **An unknown address says so.** Any address the list does not name shows *Page not found* with a *Go home* link, not the home page.
+- **Each page keeps its parts beside it.** `app/src/pages/home/` holds `Home.tsx`, the tutorial, and the app list, each with its CSS and tests. `apps.ts` moves to `app/src/lib/`. `App.tsx`, `App.css`, and `index.css` are gone.
+- **One shared look, in one file.** `app/public/style.css`, served at `/style.css`, holds the device's font, light or dark to match the device, and a narrow column. The home page and every mini app link it. It is the only file that styles whole elements; a part's own styles use class names named for it, so one page's styles never land on another. The look is unchanged.
+- **The API goes through a route list too.** `app/worker/api/router.ts` holds the routes, one handler file each, starting with `GET /api/health`, which answers `{ "ok": true }`. An unknown API route answers 404. The Vite template's `{ "name": "Cloudflare" }` placeholder is gone.
+- **The example mini app grows the same way.** `hello/api.mjs` dispatches through a route list, its page script moves to `app.js`, and its page links `/style.css`. A new test checks both.
+- **The code rule says where things go.** `.agents/rules/code.md` gains *Where things go* and now loads for `mini-apps/` too. [Mini apps](wiki/stack/mini-apps.md) and [UX principles](wiki/ux-principles.md) link it.
+
+**Updating.** `/wong-sync` plans the move. A repo whose starter app is still the one WongStack gave it takes the whole move together: the new files, `react-router` in `app/package.json`, the deleted flat files, and the removed API placeholder. A repo that rebuilt its app keeps its own layout; the plan offers only the code rule and the shared stylesheet. Existing mini apps keep working unchanged, and can adopt `/style.css` and an `app.js` page script when next touched.
+
 ## 26.12.1 — The README leads with how Matt uses AI
 
 - **The README opens with whose way this is.** Its first screen says WongStack is Matt's opinionated way of using AI, for Matt's business, Claymoo, and for everything else. The example asks come mostly from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers, plus one for planning the week. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.
