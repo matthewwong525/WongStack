@@ -30,6 +30,7 @@ const scripts = {
   '.agents/skills/wong-setup/scripts/provision.mjs': [],
   '.agents/skills/routine/scripts/routine.mjs': ['ls'],
   '.agents/skills/routine/scripts/tidy.mjs': ['sweep'],
+  '.agents/skills/routine/scripts/presets.mjs': ['add'],
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
   '.agents/skills/memory/scripts/run.mjs': [],
   '.agents/skills/memory/scripts/session-start.mjs': [],

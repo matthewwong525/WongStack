@@ -6,7 +6,7 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the `/improve` spot check, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), path rules, process pages, the test workflow and its scripts, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the `/improve` spot check, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, the test workflow and its scripts, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
@@ -49,6 +49,10 @@ The JSON report gives each changed unit's path and class, with counts, never a f
 ## The memory store and its hooks
 
 **memory** ships as one folder on OpenSpec's Node.js: script, schema migrations, the Worker's route module, runbook, and [writing bar](../../memory/references/writing-facts.md). Merge its `SessionStart` hook into a target's own `.claude/settings.json` or `.claude/hooks.json`; never replace the file. Codex asks once to trust a new hook. Plan the store by [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that adds a file under `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+
+## The Paseo project file
+
+`paseo.json` readies each new Paseo workspace and tells Paseo how to name things. Its `worktree.setup` copies the primary worktree's secrets files, and its `metadataGeneration` instructions match what `/save` and `/ship` write. A target with its own `paseo.json` gets a merge, never a replacement, like the hooks above: `worktree.setup` becomes a list with the seed command appended when absent, and each missing `metadataGeneration` entry is added. The target's own keys win. The agent presets are machine settings, not payload; [required tools](../../../../wiki/development/required-tools.md) says how they get added.
 
 ## The stack pack
 
