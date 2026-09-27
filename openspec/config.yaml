@@ -54,3 +54,5 @@ rules:
   tasks:
     - Group tasks by the surface they touch (skill, script, docs, CLAUDE.md).
     - A payload change is not done until VERSION and CHANGELOG.md are updated.
+  specs:
+    - Write each requirement as a promise, not a procedure, by the spec bar in .claude/rules/openspec.md - one or two scenarios each, and the steps left to the skill.

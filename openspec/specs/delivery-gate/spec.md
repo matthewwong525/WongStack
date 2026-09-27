@@ -1,337 +1,173 @@
 # delivery-gate Specification
 
 ## Purpose
-Decide when saved work may merge: CI when the repo has checks, else PR review, with no local build fallback. Wiki-only prose goes straight to the default branch, and `/ship` archives, checkpoints once through `/save`, and merges only on a passing gate.
+
+Decide when saved work may merge and how it gets there: `/save` checkpoints and waits on CI when the repo has checks, else PR review; wiki-only prose goes straight to the default branch; and `/ship` finishes, archives, checkpoints once, and merges only on a passing gate, with nothing built locally as a condition.
 
 ## Requirements
 
-### Requirement: Ship delegates its checkpoint and branch gate to save
+### Requirement: The gate is CI when present, else PR review
 
-`/ship` SHALL retain its shipping-only responsibilities: verify the feature branch and default-branch state, archive the change with `openspec archive`, merge the pull request, and delete the remote branch worktree-safely. After archiving and before merging, `/ship` SHALL invoke ordinary `/save` exactly once. When no active change matches the current branch and exactly one matching archive exists, `/save` SHALL use that archive as the handoff record, SHALL NOT author a replacement active change, and SHALL own secret preservation/redaction, fact capture, commit, push, pull-request creation/update, and the CI wait/auto-fix path. `/ship` SHALL consume that result and SHALL NOT duplicate those checkpoint mechanics or require a special save flag.
+`/ship` SHALL merge only when `/save`'s gate result is `SUCCESS` (checks passed) or `NONE` (the repo has no checks, so PR review is the gate); `UNKNOWN`, `TIMEOUT`, or `FAILURE` SHALL stop the merge. `/ship` SHALL NOT bypass, repeat, or reinterpret that result, and SHALL NOT start while the default branch's own checks are failing or unreadable.
 
-Between the delegated `/save` and the merge, `/ship` SHALL invoke `/verify` once as an evidence step. On `NONE`, `UNKNOWN`, or `TIMEOUT`, `/ship` SHALL report the verdict and merge on the save-gate result exactly as before. On `FAILURE` — after `/verify`'s own bounded fix loop is exhausted — `/ship` SHALL stop, present the evidence, and ask the user whether to fix or merge anyway; the user's answer, not the verdict, decides, and a merge-anyway is recorded in the ship report. When the walk's fix loop advanced HEAD, the fix's own delegated `/save` re-gated it, and `/ship` SHALL confirm the latest save-gate result is `SUCCESS` or `NONE` before merging.
+#### Scenario: Checks fail on the branch
 
-The walk step SHALL check that the `verify` skill is present before invoking it. When the skill is absent, `/ship` SHALL report the walk as unavailable in one line and continue to the merge, consistent with the gate ladder's rule that a rung the repo lacks is skipped rather than failed. `/ship` SHALL NOT install, copy, or offer the skill to repair its absence.
+- **WHEN** a pushed commit's checks fail
+- **THEN** the skill reads the failure and pushes a fix, at most three times
+- **AND** `/ship` merges only once the checks pass
 
-Before deleting the merged branch from the remote, `/ship` SHALL find every open pull request that targets that branch as its base and retarget each to the default branch. Only then SHALL the branch be deleted, and the ship report SHALL name any pull request it retargeted. Deleting a base branch that an open pull request still targets closes that pull request, and the loss is unrecoverable: the forge will neither reopen a pull request whose base branch is gone nor retarget a closed one. `/ship` SHALL NOT rely on the forge retargeting dependents on its own, because that is a race with no completion signal. The merge, retarget, delete, and checkout sync SHALL run as one deterministic script.
+#### Scenario: The repo has no checks
 
-When the forge deletes the head branch itself at merge, `/ship` SHALL still retarget every open pull request that targets the branch. It SHALL then check whether the remote still has the branch, and delete it only when it does. A branch that is already gone SHALL NOT be reported as an error; the ship report SHALL say that the forge deleted it at merge. When `/ship` cannot tell whether the branch exists, because the remote query itself fails, it SHALL stop and report that failure as for any other delete failure.
+- **WHEN** the repo has no CI workflow
+- **THEN** `/save` reports `NONE` and `/ship` merges on PR review
 
-#### Scenario: Shipping checkpoints the archive through save
+### Requirement: The gate reads the pushed commit
 
-- **WHEN** `/ship` archives a completed change
-- **THEN** it invokes ordinary `/save` once so the archive move, implementation and any safe example declaration land in the pushed checkpoint
-- **AND** the commit tested by the resulting CI run is the commit `/ship` will merge
+The check wait SHALL report on the commit just pushed and no other. It SHALL report `NONE` only when the repo has no workflow files or no check appears within a grace period, and `UNKNOWN` when the check state cannot be read, so `/save` finishes unverified and `/ship` does not merge.
 
-#### Scenario: Save recognizes the archived branch change
-
-- **WHEN** `/save` runs for `/ship` after `openspec/changes/<name>/` moved into the archive
-- **THEN** it resolves and mirrors the single archived record matching the current branch
-- **AND** it does not invoke fallback planning or create a new active `openspec/changes/<name>/`
-
-#### Scenario: Save returns a mergeable gate result
-
-- **WHEN** the delegated save finishes with `SUCCESS` or `NONE`
-- **THEN** `/ship` proceeds through the walk evidence step and, absent a walk `FAILURE`, merges without reopening the PR or waiting on the same checks itself
-
-#### Scenario: Save returns an unmergeable result
-
-- **WHEN** the delegated ordinary save returns `UNKNOWN`, `TIMEOUT`, or a checkpoint failure
-- **THEN** `/ship` stops before merge and reports that result
-- **AND** it does not bypass, repeat, or reinterpret the gate
-
-#### Scenario: A failed ship-time walk pauses for the user
-
-- **WHEN** the ship-time walk returns `FAILURE` with its fix attempts exhausted
-- **THEN** `/ship` stops before merging, presents the evidence, and asks whether to fix or merge anyway
-- **AND** merging anyway remains available and is recorded in the report
-
-#### Scenario: An unrunnable ship-time walk never blocks
-
-- **WHEN** the ship-time walk returns `UNKNOWN` or `TIMEOUT`
-- **THEN** `/ship` reports the walk as unverified and merges on the save-gate result alone
-
-#### Scenario: The walk skill is not present
-
-- **WHEN** `/ship` reaches the walk step in a repo that does not have the `verify` skill
-- **THEN** it reports the walk as unavailable in one line and proceeds to the merge
-- **AND** it does not install, copy, or offer the skill
-
-#### Scenario: A dependent pull request is retargeted before deletion
-
-- **WHEN** `/ship` merges a branch that one open pull request uses as its base
-- **THEN** that pull request is retargeted to the default branch before the branch is deleted
-- **AND** the ship report names the retargeted pull request
-
-#### Scenario: No dependent pull request exists
-
-- **WHEN** `/ship` merges a branch that no open pull request targets
-- **THEN** the branch is deleted directly with no retargeting step
-
-#### Scenario: The forge already deleted the branch at merge
-
-- **WHEN** `/ship` merges a pull request in a repository that deletes head branches on merge
-- **THEN** it retargets any open pull request that still targets the branch, skips the delete, and prints no error
-- **AND** the ship report says the branch was deleted at merge
-
-#### Scenario: A mini-app pull request
-
-- **WHEN** `/ship` merges the pull request of a mini app
-- **THEN** it archives the app's change, runs one `/save` and the walk, and merges on the gate, like any change
-
-### Requirement: CI is optional, not required
-
-The WongStack doctrine SHALL treat GitHub Actions (and CI generally) as an optional accelerator that is honored when present and never required. The system's durable pillars SHALL be described as: pull requests, version control, OpenSpec, and everything-lives-in-the-repo.
-
-This doctrine SHALL have **one owning file** — `wiki/development/the-change-loop.md` — which states the gate ladder (CI when present → merge, a skipped rung never being a failure), the scope of the direct-to-default-branch carve-out, and the prose allowlist (`wiki/**`) with its rationale. Other payload surfaces SHALL link to that owner rather than restate it, per the `payload-single-source` capability.
-
-Two bounded exceptions, each because the reader must act without leaving the page:
-
-- `AGENTS.md`/`CLAUDE.md` MAY carry one summarizing line per doctrine, naming and linking the owner.
-- `.claude/skills/save/SKILL.md` SHALL state the allowlist's path prefix inline **once**, as the operational routing test the skill performs. Its other sections SHALL link to that single statement rather than repeat it.
-
-No payload surface SHALL assert CI as the sole or required gate, state `notes/**` as part of the carve-out, or say that wiki edits require a pull request. No payload surface SHALL describe the staging walkthrough as a rung of the gate ladder or as a condition on the merge. Where a surface links to the owner instead of restating it, that link SHALL satisfy this requirement.
-
-#### Scenario: Payload prose describes CI as optional
-
-- **WHEN** a reader reviews the delivery doctrine in `CLAUDE.md`, `README.md`, or the `save`/`ship` skills
-- **THEN** the text states CI is honored when present but not required, and names PR review as the gate when CI is absent
-- **AND** no remaining sentence asserts "CI is the only gate" or "GitHub Actions is the build gate"
-
-#### Scenario: No surface describes the walkthrough as a gate
-
-- **WHEN** a reader reviews `wiki/development/the-change-loop.md`, the `ship` skill, or the stack section
-- **THEN** no surface presents the staging walkthrough as a rung of the ladder or as a condition on the merge
-- **AND** the walkthrough is described as something `/verify` produces on request
-
-#### Scenario: The carve-out has one owner
-
-- **WHEN** a reader reviews `CLAUDE.md`, the memory wiki page, and the `save` skill
-- **THEN** each either links to `wiki/development/the-change-loop.md` or carries one summarizing line naming it
-- **AND** no surface other than `save/SKILL.md`'s single operational statement reproduces the allowlist's scope, exceptions, or rationale
-
-#### Scenario: The save skill can route without leaving its runbook
-
-- **WHEN** `/save` reaches the point of deciding a save's route
-- **THEN** the path prefix is stated inline at that point
-- **AND** the skill's later sections link back to that statement rather than restating the prefix
-
-#### Scenario: A surface contradicts the owner
-
-- **WHEN** any payload surface states the gate or the carve-out in terms the owning file does not
-- **THEN** that is a defect, resolved by correcting the surface to a link or to the owner's terms
-
-### Requirement: The gate is CI-when-present, else PR review
-
-`/save` and `/ship` SHALL determine the gate by whether the repo has checks configured. When checks exist, the skills wait for them and, on failure, read-fix-repush (capped); `/ship` merges only on green. When no checks exist, the gate SHALL be PR review only — the PR plus the OpenSpec change and the in-repo record is the system, and a human approves the PR before `/ship` merges.
-
-**Prose exception.** A `/save` whose entire diff falls inside the **prose allowlist** SHALL bypass the branch-and-PR gate and commit directly to the default branch. The allowlist is exactly one path prefix: `wiki/**`. The carve-out is decided by **path scope only** — never by file extension, and never by a judgment of how consequential the edit is. It is exact: if any path outside the allowlist appears in the diff, the normal branch + PR flow applies in full to the whole save.
-
-Routing SHALL NOT key on file extension. Markdown outside the allowlist — `.claude/**` (the shipped payload, whose edit is a release), `openspec/**` (the specs), `AGENTS.md`/`CLAUDE.md`, `README.md`, `CHANGELOG.md`, `VERSION`, `app/**`, and any config file — keeps the full gate.
-
-The gate is not weakened by this. A wiki page is prose reviewed in the diff that produced it, and nothing in it executes, deploys, or changes what the tooling does. Session facts are not in the repository, so they need no route.
-
-A prose-only save SHALL report the changed prose paths and that they landed on the default branch, and SHALL omit the PR, CI, and preview sections rather than report them as missing. If the direct push is rejected (protected default branch, required reviews, non-fast-forward), `/save` SHALL NOT force or retry; it SHALL fall back to the normal branch + PR flow and say why.
-
-#### Scenario: Repo has CI configured
-
-- **WHEN** `/save` or `/ship` runs and `wait-for-checks.sh` reports checks
-- **THEN** the skill waits for the checks, auto-fixes on red (cap 3 attempts), and `/ship` merges only once green
-
-#### Scenario: Repo has no CI configured
-
-- **WHEN** `/save` or `/ship` runs and `wait-for-checks.sh` returns `NONE`
-- **THEN** the skill proceeds without waiting for or requiring any CI run
-- **AND** `/ship` merges on the strength of PR review rather than a green CI run
-
-#### Scenario: Wiki-only save bypasses the gate
-
-- **WHEN** `/save` runs and every changed path is under `wiki/`
-- **THEN** it commits and pushes directly to the default branch, opening no PR and requiring no `/ship`
-
-#### Scenario: A single non-allowlisted path restores the gate
-
-- **WHEN** a save's diff contains `wiki/<page>.md` plus any path outside the allowlist
-- **THEN** the normal branch + PR flow applies and the prose rides along on that branch
-
-#### Scenario: Notes-only save bypasses the gate
-
-- **WHEN** `/save` runs and its only output is facts
-- **THEN** the facts go to the memory store, and no commit, PR, or `/ship` is involved
-
-#### Scenario: A leftover notes file keeps the gate
-
-- **WHEN** a save's diff contains a path under `notes/`
-- **THEN** the normal branch + PR flow applies, because `notes/**` is not in the allowlist
-
-#### Scenario: Markdown payload keeps the gate
-
-- **WHEN** a save's diff touches `.claude/skills/save/SKILL.md`, `CLAUDE.md`, or `openspec/changes/<name>/proposal.md` — markdown, but not in the allowlist
-- **THEN** the normal branch + PR flow applies in full
-
-#### Scenario: Prose-only save reports without a PR link
-
-- **WHEN** a prose-only save completes
-- **THEN** the report names the changed prose paths and states they landed on the default branch
-- **AND** it omits the PR, CI, and preview sections rather than reporting them as missing
-
-#### Scenario: Protected default branch falls back
-
-- **WHEN** a prose-only save's direct push to the default branch is rejected
-- **THEN** `/save` cuts a branch, opens a PR whose body is the prose change, and states that the default branch is protected
-- **AND** it never force-pushes
-
-### Requirement: No local build fallback
-
-The skills SHALL NOT build or test the project locally as a prerequisite for `/save` or `/ship`, whether or not CI is present. The absence of CI SHALL NOT trigger a local-verify gate. No skill SHALL run a compile, a unit-test suite, a linter, or a type-check as a condition of saving or shipping. A mini app's own tests run in CI like every other suite. Test suites run in CI (the `ci-tests` capability), where they are ordinary checks on the existing ladder.
-
-**The boundary is building versus exercising.** Driving a browser — or issuing HTTP requests and existing-command state queries — against an already-deployed staging environment is not a local build: nothing is compiled, nothing is installed, and the artifact under test is the one CI itself published. The opt-in staging walkthrough (`staging-walkthrough`) is therefore permitted, and is bounded by three properties that keep it from becoming a local-verify gate by another name — it SHALL run only against a deployment CI has already published, it SHALL never install a dependency, and it SHALL be absent entirely unless the repo adopted it. It is reached by invoking `/verify`, or by `/ship`'s single evidence step. Its verdict SHALL NOT function as a gate rung: an unrunnable or absent walk never blocks anything, and a walk `FAILURE` at ship time is surfaced as a user decision (fix or merge anyway) rather than consulted as a merge condition.
-
-**A host preview is not a gate.** A completed `/apply` builds the main app on the agent host and uploads a preview version of the staging Worker, as `apply-completion-handoff` defines. That build and upload SHALL NOT be a prerequisite or a condition of `/save` or `/ship`, SHALL NOT replace a CI check, and SHALL NOT deploy production.
-
-The gate ladder is: **CI when present → merge.** A rung is skipped when its condition does not hold, and a skipped rung SHALL NOT be reported as a failure. Where no rung applies, PR review is the gate.
-
-#### Scenario: No CI present does not trigger a local build
-
-- **WHEN** a repo has no CI and `/ship` is invoked
-- **THEN** the skill does not run a local build or test as a gate; it relies on PR review
-
-#### Scenario: The walkthrough is not a local build
-
-- **WHEN** an adopted repo runs `/verify`, whatever mix of browser journeys and non-browser probes its scenarios produce
-- **THEN** it compiles nothing, installs nothing, and runs no unit-test suite
-- **AND** it exercises the deployment CI already published rather than a locally produced artifact
-
-#### Scenario: The walk verdict is not a gate rung
-
-- **WHEN** an adopted repo ships and the ship-time walk is `UNKNOWN`, `TIMEOUT`, or `NONE`
-- **THEN** `/ship` merges on green CI (or PR review) alone
-- **AND** the walk is reported, never counted as a failed check
-
-#### Scenario: A skipped rung is not a failure
-
-- **WHEN** a repo has CI configured
-- **THEN** `/ship` merges on green CI alone, reporting no gap
-
-#### Scenario: A preview upload is not a gate
-
-- **WHEN** `/apply` uploaded a preview from the agent host and the person publishes the change
-- **THEN** `/ship` still saves, waits for CI, and merges only on the gate result
-- **AND** production deploys from CI on the default branch, not from the host
-
-### Requirement: Ship leaves the durable checkout in sync
-
-After the merge and the remote-branch delete, and before the report, `/ship` SHALL bring the default branch of the durable checkout up to the commit it just merged, and SHALL prune the remote-tracking refs the branch delete made stale.
-
-The durable checkout is the primary worktree. When `/ship` runs from a linked worktree, it SHALL resolve the primary worktree from Git's common directory — the same resolution the secrets convention already defines — and fast-forward the default branch there. When `/ship` runs from a plain checkout, where the default branch is checked out nowhere, it SHALL advance the local default-branch ref in place by fetching the remote branch into it.
-
-The sync SHALL be fast-forward only. `/ship` SHALL NOT check out, switch, stash, reset, or force any branch in any checkout, and SHALL NOT delete a local branch.
-
-The sync SHALL NOT be able to fail the ship. When the default branch cannot be fast-forwarded — the target checkout is dirty, it has another branch checked out, or its default branch has diverged — `/ship` SHALL leave that checkout untouched, report the reason in one line, and still report the ship as successful. The merge has already happened, so nothing after it is a gate.
-
-The ship report SHALL name the outcome of the sync: the checkout that advanced, or the reason it was skipped.
-
-#### Scenario: Shipping from a linked worktree
-
-- **WHEN** `/ship` merges from a linked worktree and the primary worktree is clean and on the default branch
-- **THEN** the primary worktree's default branch is fast-forwarded to the merged commit
-- **AND** the current worktree's branch is unchanged and no branch is checked out or switched anywhere
-
-#### Scenario: Shipping from a plain checkout
-
-- **WHEN** `/ship` merges from a checkout that has no linked worktree, with the feature branch still checked out
-- **THEN** the local default-branch ref is advanced to the merged commit without switching branches
-- **AND** the user is still standing on the same branch after the ship
-
-#### Scenario: The target checkout cannot fast-forward
-
-- **WHEN** the checkout that owns the default branch is dirty, has another branch checked out, or its default branch has diverged
-- **THEN** that checkout is left untouched, with no stash, reset, or force
-- **AND** `/ship` reports the skip and its reason in one line and still reports the ship as successful
-
-#### Scenario: Stale remote-tracking refs are pruned
-
-- **WHEN** `/ship` has deleted the merged branch from the remote
-- **THEN** the remote-tracking refs the delete made stale are pruned
-- **AND** no local branch is deleted
-
-### Requirement: The gate waits for the pushed commit's checks
-
-The check wait SHALL report a result only for the commit that was just pushed. It SHALL wait until the PR's head commit equals the local `HEAD`. It SHALL report `NONE` only when the repository has no CI workflow files, or when no check appears for that head within a grace period of 60 seconds. A repository with workflow files whose checks do not appear SHALL report `UNKNOWN`, never `NONE`. A failed or empty `gh` answer SHALL be `UNKNOWN`, and `UNKNOWN` SHALL stop a merge. It SHALL report `SUCCESS` only when two polls in a row return the same finished checks with none failed. While every check reported so far is skipped, it SHALL keep waiting until the grace period ends, because a skipped check finishes before the checks that do the work are registered.
-
-#### Scenario: Checks are not registered yet
-
-- **WHEN** `/save` pushes a commit and GitHub has not yet registered its check runs
-- **THEN** the wait continues until the checks appear, and does not report `NONE`
-
-#### Scenario: The old head is green
+#### Scenario: The previous commit was green
 
 - **WHEN** the previous commit's checks passed and the new commit's checks have not started
-- **THEN** the wait does not report `SUCCESS` for the new commit
+- **THEN** the wait does not report `SUCCESS`
 
-#### Scenario: A repository with no CI
+### Requirement: Nothing builds locally as a gate
 
-- **WHEN** the repository has no workflow files
-- **THEN** the wait reports `NONE`, and PR review is the gate
+No skill SHALL compile, run a test suite, lint, or type-check as a condition of `/save` or `/ship`; test suites run in CI (`ci-tests`). `/apply`'s preview from the agent host SHALL gate nothing and SHALL NOT deploy production.
 
-#### Scenario: gh is not authenticated
+#### Scenario: A host preview exists
 
-- **WHEN** `/ship`'s preflight gets an error or an empty answer from `gh`
-- **THEN** it reports `UNKNOWN` and does not merge
+- **WHEN** `/apply` uploaded a preview from the host and the person publishes the change
+- **THEN** `/ship` still saves, waits on the gate, and merges on its result
+- **AND** production deploys from CI on the default branch
 
-#### Scenario: Only skipped checks have appeared
+### Requirement: The walkthrough is evidence, not a gate
 
-- **WHEN** the pull-request copies of the checks show as skipped before the push-triggered test run is registered
-- **THEN** the wait does not report `SUCCESS`, and keeps polling until the test run finishes or the grace period ends
+`/ship` SHALL run `/verify` once before the merge and report its verdict (`staging-walkthrough`). A walk that cannot run, or a missing `verify` skill, SHALL NOT block the merge and SHALL NOT be installed; a walk `FAILURE` SHALL stop and ask the person to fix it or merge anyway, and a merge anyway SHALL be recorded in the report.
 
-#### Scenario: A check appears after the others finished
+#### Scenario: The walk fails
 
-- **WHEN** one poll shows every check passed and the next poll shows a new pending check
-- **THEN** the wait keeps polling and reports on the new check
+- **WHEN** the ship-time walk returns `FAILURE` after its own fix attempts
+- **THEN** `/ship` stops before merging and asks whether to fix first or merge anyway
 
-### Requirement: Ship deletes the branch only after a confirmed merge
+### Requirement: The gate doctrine has one owner
 
-`/ship` SHALL merge only the head commit it verified, and SHALL confirm that the PR state is `MERGED` before it retargets stacked PRs or deletes the remote branch. Stacked PRs SHALL be retargeted to the repository's default branch, not to a fixed name. When the merge fails, `/ship` SHALL leave the branch and the PR in place and report the failure. When the list of open pull requests based on the branch cannot be read, `/ship` SHALL keep the branch and report the failure, because a stacked pull request it could not see would close. When the branch delete fails, `/ship` SHALL ask the remote again; a branch that is now gone SHALL be reported as deleted at merge, not as an error.
+`wiki/development/the-change-loop.md` SHALL state the gate, the ladder (CI when present, then merge, a skipped rung never a failure), and the prose allowlist; other surfaces SHALL link to it, except one summary line in `CLAUDE.md` and one inline statement of the allowlist prefix in the `save` skill. No surface SHALL call CI required or present the walkthrough as a condition of the merge.
 
-#### Scenario: The merge is refused
+#### Scenario: A surface restates the gate differently
 
-- **WHEN** `gh pr merge` fails because of a conflict, a rule, or a new head commit
-- **THEN** the remote branch is not deleted and the PR stays open
+- **WHEN** a payload surface describes the gate or the carve-out in terms the owner does not
+- **THEN** that is a defect, fixed by a link or the owner's terms
 
-#### Scenario: The default branch is not main
+### Requirement: Wiki-only saves go straight to the default branch
 
-- **WHEN** the default branch is `trunk` and a PR is stacked on the merged branch
-- **THEN** that PR is retargeted to `trunk` before the branch is deleted
+A save whose every changed path is under `wiki/` SHALL commit directly to the default branch, with no branch, PR, or `/ship`. The route SHALL be decided by path prefix only, never file extension, and a rejected direct push SHALL fall back to a branch and PR, never a force push.
 
-#### Scenario: Stacked pull requests cannot be listed
+#### Scenario: A wiki-only save
 
-- **WHEN** the merge succeeds and `gh pr list --base <branch>` fails
-- **THEN** the branch is kept, the report says why, and the script exits 2
+- **WHEN** every changed path is under `wiki/`
+- **THEN** `/save` pushes to the default branch and reports the paths and commit, with no PR, CI, or preview lines
 
-#### Scenario: The forge deletes the branch mid-delete
+#### Scenario: A mixed save
 
-- **WHEN** the remote still lists the branch, then the delete fails because the forge removed it in the meantime
-- **THEN** the report says the branch was deleted at merge, and the script exits 0
+- **WHEN** the diff holds a wiki page plus `CLAUDE.md`, a skill, an `openspec/` file, or any other path
+- **THEN** the whole save takes the normal branch and PR
 
-### Requirement: Git verbs check shared preconditions first
+### Requirement: Save checkpoints and never merges
 
-`/save`, `/continue`, and `/ship` SHALL check, before any git or GitHub action, that `gh` is authenticated, that an `origin` remote exists, and that the `openspec` CLI runs. The checks SHALL be defined in one shared reference. A failed check SHALL stop the verb with the command that fixes it. An authentication failure SHALL NOT be read as "no PR".
+`/save` SHALL commit, push, open or update the pull request, and wait on the gate, and SHALL NOT merge, force-push, or bypass hooks. The pull request body SHALL show the change's current Status, its exact task checklist, and review and preview links when they exist, and no live credential value SHALL reach a commit, fact, pull request, or report.
+
+#### Scenario: A normal save
+
+- **WHEN** `/save` runs on a branch with an active change
+- **THEN** the pull request shows the current Status and checklist, and the report ends with one gate result
+
+### Requirement: Git verbs check their preconditions first
+
+`/save`, `/continue`, and `/ship` SHALL check that `gh` is signed in, an `origin` remote exists, and the `openspec` CLI runs, before any git or GitHub action. A failed check SHALL stop the verb with the command that fixes it, and a sign-in failure SHALL NOT be read as "no PR".
 
 #### Scenario: gh is signed out
 
-- **WHEN** `/save` runs and `gh auth status` fails
-- **THEN** it stops before the push and tells the user to run `gh auth login`
+- **WHEN** `/save` runs and `gh` is not signed in
+- **THEN** it stops before the push and says to run `gh auth login`
 
-#### Scenario: No remote
+### Requirement: The preview link is the real preview for this commit
 
-- **WHEN** `/save` runs in a repository with no `origin`
-- **THEN** it stops and gives the command that adds one
+Preview discovery SHALL report only a preview URL tied to the head commit, SHALL NOT report a bare provider apex such as `workers.dev` or `vercel.app`, and SHALL NOT construct a URL from a naming convention. When nothing qualifies, it SHALL report no preview.
 
-### Requirement: Ship on a dirty default branch saves first
+#### Scenario: A comment links the provider logo first
 
-When `/ship` runs on the default branch with uncommitted changes, it SHALL route the work to `/save`, which creates a feature branch, and then continue the cycle on that branch. It SHALL NOT report that it found nothing to ship.
+- **WHEN** a comment naming the head commit links `https://workers.dev` and then `https://feature-app.example.workers.dev`
+- **THEN** discovery reports `https://feature-app.example.workers.dev`
 
-#### Scenario: Uncommitted work on main
+#### Scenario: Only an earlier commit's preview exists
 
-- **WHEN** a user runs `/ship` on `main` with modified files
-- **THEN** `/save` moves the work to a new branch and `/ship` continues from there
+- **WHEN** every preview comment names an earlier commit and no other source has a URL
+- **THEN** discovery reports no preview
+
+### Requirement: Ship pulls in apply when there is nothing to ship
+
+When the branch has nothing to ship, `/ship` SHALL invoke `/apply` (with its argument verbatim, if given) and continue to merge with no re-prompt between stages. With no argument and no line of work in the session, `/ship` SHALL stop and say there is nothing to continue, rather than pick an active change.
+
+#### Scenario: Ship with an intent on the default branch
+
+- **WHEN** the person runs `/ship <description>` on a clean default branch
+- **THEN** `/apply` builds it, and `/ship` archives, saves once to a new branch, and merges
+
+#### Scenario: A cold bare ship
+
+- **WHEN** the person runs `/ship` with no argument in a session that established no work
+- **THEN** `/ship` stops and says so, without invoking `/apply`
+
+### Requirement: Ship never merges a partial change
+
+`/ship` SHALL NOT archive, checkpoint, or merge a change with unchecked tasks; it SHALL invoke `/apply` to finish them, and stop and report when planning pauses, tasks stay pending, or a save fails. Its authorization SHALL NOT answer the archive's incomplete-task confirmation for the person.
+
+#### Scenario: Apply stops with tasks pending
+
+- **WHEN** `/apply` ends with work remaining
+- **THEN** `/ship` reports it and stops with no archive or merge
+
+### Requirement: Ship archives only the selected change
+
+`/ship` SHALL keep the change name separate from the branch name and archive only the selected change. When the branch holds more than one active change, it SHALL stop before the archive and ask.
+
+#### Scenario: Two changes on one branch
+
+- **WHEN** the branch diff holds two active change folders
+- **THEN** `/ship` stops before archive or merge and names both
+
+### Requirement: Ship checkpoints once through save
+
+After archiving, `/ship` SHALL invoke ordinary `/save` exactly once, so the commit CI tests is the commit `/ship` merges; `/save` SHALL use the archive as the change record and SHALL NOT author a new active change. Uncommitted work on the default branch SHALL move to a new branch through `/save`, not be reported as nothing to ship.
+
+#### Scenario: A one-go ship
+
+- **WHEN** `/ship <intent>` runs from plan to merge
+- **THEN** only the save after the archive runs, and CI runs once before the walk
+
+### Requirement: Ship distills the change's facts into the wiki
+
+Before archiving, `/ship` SHALL read the facts recorded on the change and its branch, keep only repeatable knowledge, and write it into the owning wiki pages in the same pull request (`knowledge-center`), noting the pages or "no repeatable fact" in the Decision log. A private-life fact SHALL NOT move into the repo's wiki, and an unreachable store SHALL skip the step without blocking the ship.
+
+#### Scenario: A reusable convention
+
+- **WHEN** a change's facts record a convention for future work
+- **THEN** the ship pull request edits the wiki page that owns it
+
+### Requirement: Ship deletes the branch only after a confirmed merge
+
+`/ship` SHALL merge exactly the gated commit, confirm the merge, and retarget every open pull request based on the branch to the default branch before deleting it. When the merge fails, or the dependent pull requests cannot be listed, it SHALL keep the branch; a branch the forge already deleted SHALL be reported as deleted at merge, not as an error.
+
+#### Scenario: A stacked pull request
+
+- **WHEN** an open pull request uses the merged branch as its base
+- **THEN** it is retargeted to the default branch before the delete, and the report names it
+
+### Requirement: Ship leaves the checkout in sync
+
+After the merge, `/ship` SHALL fast-forward the default branch of the primary checkout and prune stale remote refs. It SHALL NOT check out, switch, stash, reset, force, or delete a local branch, and a sync that cannot fast-forward SHALL be one line in the report, never a failed ship.
+
+#### Scenario: The checkout cannot fast-forward
+
+- **WHEN** the checkout that owns the default branch is dirty, on another branch, or diverged
+- **THEN** it is left untouched and the ship still reports success with the reason

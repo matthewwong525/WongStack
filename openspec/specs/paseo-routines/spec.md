@@ -2,53 +2,42 @@
 
 ## Purpose
 
-Lets a user put any prompt or WongStack verb on a recurring Paseo schedule from chat, with isolation and permission defaults that keep scheduled runs off the user's own checkout.
+Let a person put any prompt or verb on a recurring Paseo schedule from chat, with runs kept off their own checkout.
 
 ## Requirements
 
-### Requirement: Create a routine from a plain-language request
-The `/routine` skill SHALL accept a cadence and a prompt in the user's own words, convert the cadence to a five-field cron expression, and create one Paseo schedule for the prompt. It SHALL accept any prompt or verb. Before it creates the schedule, it SHALL show the name, the cron expression, the timezone, and the prompt. After creation, it SHALL report the next run time that the Paseo daemon returns.
+### Requirement: Create a routine from a plain request
 
-#### Scenario: Weekday improve routine
-- **WHEN** the user runs `/routine every weekday at 9am: /improve` in a repo with a running Paseo daemon
-- **THEN** one schedule exists with cron `0 9 * * 1-5`, prompt `/improve`, and the stated or host timezone, and the reply states its next run time
+`/routine` SHALL turn a cadence in the person's words into a five-field cron schedule for any prompt, show the name, cron, timezone, and prompt before creating it, and report the next run time.
 
-#### Scenario: Invalid cron
-- **WHEN** the resolved cadence is not a valid five-field cron expression
-- **THEN** no schedule is created and the reply names the invalid field
+#### Scenario: A weekday routine
 
-### Requirement: Fixed run defaults
-Each routine SHALL start a new agent in a Paseo worktree of the repo's primary worktree. It SHALL use the full-permission mode of the agent that ran `/routine`: `bypassPermissions` for Claude or `full-access` for Codex. The prompt SHALL be stored exactly as the user wrote it, with no added unattended wording. The run's agent SHALL NOT be archived when the run ends, so a pending question stays answerable in Paseo. The model SHALL be Paseo's default unless the user names one.
+- **WHEN** the person runs `/routine every weekday at 9am: /improve`
+- **THEN** one schedule exists with cron `0 9 * * 1-5` and prompt `/improve`, and the reply gives its next run
 
-#### Scenario: Routine made from a feature worktree
-- **WHEN** the user runs `/routine` from a linked worktree of the repo
-- **THEN** the schedule's working directory is the primary worktree and its isolation is `worktree`
+### Requirement: Runs start in their own worktree
 
-#### Scenario: Run needs an answer
-- **WHEN** a scheduled run asks the user a question
-- **THEN** the run's agent stays open in Paseo with the question pending
+Each run SHALL start a new agent in its own Paseo worktree of the primary worktree, in the full-permission mode of the agent that made it, with the prompt exactly as written. The run's agent SHALL be kept, so a pending question stays answerable. A schedule whose runs would start in the primary checkout SHALL NOT be created.
 
-### Requirement: Never run in the primary checkout
-The skill SHALL NOT create a schedule whose runs start directly in the primary checkout. If worktree isolation cannot be set, it SHALL create nothing and SHALL give the steps to create the schedule in the Paseo app.
+#### Scenario: A run asks a question
 
-#### Scenario: Paseo client changed
-- **WHEN** the installed Paseo CLI no longer provides the daemon client that the skill uses to set isolation
-- **THEN** no schedule is created, and the reply gives the Paseo app steps with the same cadence, prompt, and defaults
+- **WHEN** a scheduled run asks the person something
+- **THEN** its agent stays open in Paseo with the question pending
 
 ### Requirement: Manage this repo's routines
-`/routine` with no argument SHALL list the Paseo schedules whose working directory is this repo's primary worktree, with name, cadence, status, next run, and the last run's result. The skill SHALL pause, resume, run once, show logs for, change the cadence or prompt of, and delete one routine, identified by name or id. Schedules for other directories SHALL NOT be listed or changed.
 
-#### Scenario: List hides other repos
-- **WHEN** the daemon has schedules for this repo and for another directory
-- **THEN** the list shows only this repo's schedules
+`/routine` with no argument SHALL list this repo's schedules with cadence, status, next run, and last result, and SHALL pause, resume, run, change, or delete one by name or id. Schedules for other directories SHALL NOT be listed or changed.
 
-#### Scenario: Ambiguous name
-- **WHEN** a name matches more than one of this repo's routines
+#### Scenario: An ambiguous name
+
+- **WHEN** a name matches more than one routine
 - **THEN** nothing changes and the reply lists the matching ids
 
 ### Requirement: No Paseo, no change
-When the `paseo` command is not installed or its daemon does not answer, the skill SHALL change nothing, SHALL say which of the two is the cause, and SHALL print the `/routine` script command that would create the routine once Paseo answers, with the Paseo app steps.
+
+When Paseo is not installed, its daemon does not answer, or its client can no longer set isolation, `/routine` SHALL change nothing, say which, and give the steps to create the routine later.
 
 #### Scenario: Paseo not installed
-- **WHEN** `/routine` runs on a host without `paseo` on PATH
-- **THEN** no schedule is created and the reply says Paseo is not installed and shows the command to run later
+
+- **WHEN** `/routine` runs where `paseo` is not on PATH
+- **THEN** nothing is created and the reply says so and how to create it later

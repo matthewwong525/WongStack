@@ -34,7 +34,7 @@ None. The rewrite keeps every behavior the specs describe, so the change sets `s
 ## Impact
 
 - Every `.agents/skills/*/SKILL.md` except `agent-browser` (vendored), and every `.agents/skills/*/references/*.md` (core and pack payload; `update-dependencies` is meta-only).
-- `VERSION` → 25.16.0 and a `CHANGELOG.md` entry. `/wong-sync` in an installed repo brings every skill; a skill someone adapted locally shows as a conflict to merge.
+- `VERSION` → 25.17.0 and a `CHANGELOG.md` entry. `/wong-sync` in an installed repo brings every skill; a skill someone adapted locally shows as a conflict to merge.
 - Lands after `update-dependencies` (25.9.0) and main's 25.10.0–25.15.0, on its own branch from `main`.
 
 ## Decision log
@@ -60,3 +60,4 @@ None. The rewrite keeps every behavior the specs describe, so the change sets `s
 - **2026-09-27** — Merged `main` again for 25.14.0 (plain words for everyone) and 25.15.0 (a workspace per part); conflicts in apply, continue, explore, asking-the-user, plan, routine, save, and ship resolved as main's rules in the shorter wording, with no link left to the retired `#write-at-the-readers-level`. Release is now 25.16.0. Counts against main 25.15.0: SKILL.md 13,476 → 10,202 (−24.3%); references 18,286 → 15,693 (−14.2%, including main's new unshortened `build-helper.md`, `tools.md`, and `new-workspace.md`). Release checks, `openspec validate --specs` (49/49), and all 363 payload tests pass.
 - **2026-09-27** — Task 3.3 ticked at ship after rerunning its checks (all pass). Distilled facts before the archive: no repeatable fact (the store holds none for this change or branch).
 - **2026-09-27** — Archive checkpoint on `shorten-skill-instructions`: all tasks done, `skip_specs` so no spec sync; CI passed on PR #151 before the archive.
+- **2026-09-27** — The merge was refused: `thinner-specs` shipped first as 25.16.0 (#157). Merged `main` again; only `CHANGELOG.md` conflicted. Release is now 25.17.0.

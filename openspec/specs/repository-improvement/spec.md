@@ -1,94 +1,70 @@
+# repository-improvement Specification
+
 ## Purpose
 
-Provide recurring, evidence-based repository spot checks that improve maintainability and catch supported defects through the existing delivery workflow.
+Recurring, evidence-based repository spot checks through `/improve`, fixing one supported problem at a time through normal delivery.
 
 ## Requirements
 
 ### Requirement: Bounded review with disclosed coverage
-The skill SHALL review recent changes and a rotating maintained area unless the user narrows scope. It SHALL use prior maintenance and active work records to avoid duplicate work and SHALL disclose exclusions, missing history, and incomplete reads.
 
-#### Scenario: Weekly run with unchanged area inventory
-- **WHEN** broad runs occur in successive weeks with multiple maintained areas
-- **THEN** the rotation start advances reproducibly through the area list, the run prefers an area outside recent changes when available, and each run also reviews recent changes
+`/improve` SHALL review recent changes plus one rotating area unless narrowed, and SHALL disclose exclusions and incomplete reads.
 
-#### Scenario: First run or unavailable baseline
-- **WHEN** no usable prior maintenance revision exists
-- **THEN** the run uses a stated bounded recent-history fallback and still selects a rotation area
+#### Scenario: A first run
 
-#### Scenario: No change was saved last week
-- **WHEN** the prior run found no eligible improvement
-- **THEN** the next week's rotation can advance without requiring a maintenance-state commit
+- **WHEN** no prior `/improve` run is recorded
+- **THEN** the run uses a stated recent-history fallback and still picks a rotation area
 
-### Requirement: Read-only survey with explicit limits
-The survey SHALL collect bounded current tracked-file leads without installing tools, contacting services, modifying repository files, or emitting secret values. It SHALL report its supported inputs, exclusions, and failures and SHALL NOT label a repository safe from an empty result. The documented survey command SHALL emit the report when its in-repository script path resolves through a safe alias.
+### Requirement: The survey is read-only
 
-#### Scenario: Unsupported source language or failed read
-- **WHEN** files cannot be analyzed by a survey check
-- **THEN** the report exposes the coverage gap and the agent investigates it or states it as unverified
+The survey SHALL NOT install tools, contact services, edit files, emit secret values, or read outside the repository. An empty result SHALL NOT be reported as the repository being safe.
 
-#### Scenario: Escaped scope
+#### Scenario: A path escapes the repository
+
 - **WHEN** a scope or symlink resolves outside the repository
-- **THEN** the survey refuses that read and does not scan the external target
+- **THEN** the survey refuses that read
 
-#### Scenario: Documented command uses an in-repository alias
-- **WHEN** the agent runs the documented survey command through a script-path alias that resolves to the helper
-- **THEN** the command emits the JSON report and uses the same exit-code contract as the canonical script path
+### Requirement: Selection rests on evidence
 
-### Requirement: Evidence-based maintenance selection
-The skill SHALL investigate and rank candidates with concrete evidence, impact, expected behavior, and a verification probe. Eligible work SHALL include documentation, consolidation, reliability, security, measured performance, and workflow maintenance. It SHALL permit no change when no worthwhile candidate is supported.
+Each candidate SHALL carry concrete evidence, impact, and a verification probe; a pattern match alone SHALL NOT justify a fix. With no supported candidate, the run SHALL report no change.
 
-#### Scenario: Security pattern with existing protection
-- **WHEN** a sensitive pattern is found but investigation shows an effective existing check
-- **THEN** the pattern alone does not justify a vulnerability finding or repair
+#### Scenario: Nothing worth fixing
 
-#### Scenario: No worthwhile candidate
-- **WHEN** investigation produces no supported eligible improvement
-- **THEN** the run reports no change and its coverage limits without manufacturing a cleanup
+- **WHEN** investigation supports no eligible improvement
+- **THEN** it reports no change and its coverage limits, with no invented cleanup
 
-### Requirement: Explicit execution context
-Interactive runs SHALL present investigated candidates and ask one group of material questions before selection is handed off, using the shared ask convention. Explicitly unattended runs SHALL use supported defaults, label them assumed, and defer decisions outside maintenance authority. An unanswered interactive question SHALL remain pending. An interactive run that returns control to the user SHALL end with the supported next steps as options, the recommended one first.
+### Requirement: Unattended only when said so
 
-#### Scenario: Interactive user has not answered
-- **WHEN** a material selection question remains unanswered
-- **THEN** the run does not reinterpret silence as unattended execution or permission
+An interactive run SHALL ask one round of material questions before selecting. A run SHALL be unattended only when its invocation says so explicitly; it then takes supported defaults, labelled assumed.
 
-#### Scenario: External unattended job
-- **WHEN** the invocation or trusted host context explicitly establishes unattended execution
-- **THEN** the run can choose an eligible candidate with recorded assumptions without waiting for interactive answers
+#### Scenario: No reply
 
-#### Scenario: An audit-only run reports back
-- **WHEN** an interactive run finishes with findings and returns control to the user
-- **THEN** its report ends with the supported ways to continue as options, the recommended one first
+- **WHEN** an interactive selection question goes unanswered
+- **THEN** the run waits and does not treat silence as permission
 
-### Requirement: One change through existing delivery
-A normal run SHALL pass one coherent selected intent to `/ship`, preserve all delivery gates, and report blockers. It SHALL require a clean dedicated current checkout and sufficient active-work context before delivery. It SHALL NOT take over unrelated work, perform its own git mutations, or select another fix after delivery starts.
+### Requirement: One change through /ship
 
-#### Scenario: Active work or freshness cannot be verified
-- **WHEN** required context is unavailable or the checkout contains unrelated unfinished work
-- **THEN** normal delivery stops with the condition reported
+A normal run SHALL hand one selected change to `/ship`, keep every delivery gate, and make no git change of its own. It SHALL stop before delivery on a checkout that is not clean, current, and dedicated.
 
-#### Scenario: Delivery fails a gate
-- **WHEN** the existing workflow blocks the selected change
-- **THEN** the run reports blocked and preserves the work without a weaker delivery path
+#### Scenario: Unrelated work in the checkout
 
-### Requirement: Audit-only and staged outcomes
-Audit-only runs SHALL report ranked findings without edits, fetches, delivery, or durable report creation. A larger improvement SHALL be split only into independently correct stages, with discoverable continuation and completion recorded in the normal change history.
+- **WHEN** the checkout holds unrelated unfinished work
+- **THEN** the run reports the condition and stops before `/ship`
 
-#### Scenario: Audit-only on a dirty checkout
-- **WHEN** the user invokes audit-only on local work
-- **THEN** the run reports the revision and dirty state with findings and leaves the checkout unchanged
+### Requirement: Audit-only changes nothing
 
-#### Scenario: Final stage completes
-- **WHEN** a staged improvement's last independently correct change ships
-- **THEN** its record identifies the terminal stage and contains no next-stage instruction
+`/improve --audit-only` SHALL report ranked findings with no edit, fetch, branch, pull request, or saved report. Larger work SHALL split only into independently correct stages recorded in the normal change history.
 
-### Requirement: Portable payload and external cadence
-The skill SHALL ship in the core payload and discover target repository conventions without requiring the paths of any one downstream repository or a particular stack. Scheduling SHALL remain external, with documented checkout, serialization, and unattended-context requirements.
+#### Scenario: A dirty checkout
 
-#### Scenario: Documentation-only target repository
-- **WHEN** the target has documentation and process files but no application source tree
-- **THEN** the skill can investigate relevant maintenance without requiring an app runtime
+- **WHEN** audit-only runs on local unsaved work
+- **THEN** it reports the revision and dirty state with findings, and changes nothing
 
-#### Scenario: Existing target-owned improve skill
-- **WHEN** setup or sync encounters a local skill with the same name
-- **THEN** normal collision/adaptation rules preserve local work rather than silently replacing it
+### Requirement: Portable, with scheduling outside
+
+`/improve` SHALL ship in the payload and work on any target's conventions, including one with no app. Scheduling SHALL stay outside the skill.
+
+#### Scenario: A documentation-only repo
+
+- **WHEN** the target has docs and process files but no app
+- **THEN** `/improve` still works, needing no app runtime
