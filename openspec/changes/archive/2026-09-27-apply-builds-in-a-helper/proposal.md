@@ -1,6 +1,6 @@
 # Build each change in a fresh helper
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/paseo-compact-before-apply
 **Open questions:** none
 
@@ -68,3 +68,6 @@ None.
 - **2026-09-27** — Assumed: a minor release, 25.10.0, because it changes how the payload's `/apply` works.
 - **2026-09-27** — Built: `/apply` gains *Build in a helper*, and the helper's brief is `apply/references/build-helper.md`; the change-loop `/apply` line links it. `measure-usage.mjs` prints main-thread context by skill; its first run put `/apply` at 119k start and 149k peak (median over 128 sessions), and `/save` at 200k start, so the saving also reaches the steps after a build. Main reached 25.10.1 meanwhile, so this release is 25.11.0, not 25.10.0. Payload link, config, and retired-name checks, strict validation, and 323 script tests passed.
 - **2026-09-27** — Assumed: release 25.12.0, because main shipped its own 25.11.0 (#152) during this build; the CHANGELOG entries are merged, newest first.
+- **2026-09-27** — CI passed on PR #153 (task 4.3), checked by a task-driven `/save`.
+- **2026-09-27** — Distilled: no repeatable fact. The Paseo compact finding stays in memory and this Decision log; the open thread is the after-measurement.
+- **2026-09-27** — Archived and checkpointed for merge by `/ship`.

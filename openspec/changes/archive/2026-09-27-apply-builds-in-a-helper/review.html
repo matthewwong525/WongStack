@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · apply-builds-in-a-helper</title>
+<title>Review · 2026-09-27-apply-builds-in-a-helper</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="apply-builds-in-a-helper">
+<body data-change="2026-09-27-apply-builds-in-a-helper">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>apply-builds-in-a-helper</h1>
+  <h1>2026-09-27-apply-builds-in-a-helper</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -146,6 +146,9 @@
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, 25.10.0, because it changes how the payload's <code>/apply</code> works.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: <code>/apply</code> gains <i>Build in a helper</i>, and the helper's brief is <code>apply/references/build-helper.md</code>; the change-loop <code>/apply</code> line links it. <code>measure-usage.mjs</code> prints main-thread context by skill; its first run put <code>/apply</code> at 119k start and 149k peak (median over 128 sessions), and <code>/save</code> at 200k start, so the saving also reaches the steps after a build. Main reached 25.10.1 meanwhile, so this release is 25.11.0, not 25.10.0. Payload link, config, and retired-name checks, strict validation, and 323 script tests passed.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: release 25.12.0, because main shipped its own 25.11.0 (#152) during this build; the CHANGELOG entries are merged, newest first.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #153 (task 4.3), checked by a task-driven <code>/save</code>.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled: no repeatable fact. The Paseo compact finding stays in memory and this Decision log; the open thread is the after-measurement.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived and checkpointed for merge by <code>/ship</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

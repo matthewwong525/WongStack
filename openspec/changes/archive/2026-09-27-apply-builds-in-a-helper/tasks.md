@@ -17,4 +17,4 @@
 
 - [x] 4.1 Bump `VERSION` 25.11.0 → 25.12.0 and add a newest-first `CHANGELOG.md` entry with an **Updating** line. Verify: the entry names the helper, the inline fallback, and the new brief.
 - [x] 4.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `openspec validate apply-builds-in-a-helper --strict --no-interactive`. Verify: all pass.
-- [ ] 4.3 CI passes on the pull request, checked by `/save`.
+- [x] 4.3 CI passes on the pull request, checked by `/save`.
