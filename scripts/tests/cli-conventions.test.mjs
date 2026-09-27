@@ -27,6 +27,7 @@ const scripts = {
   '.agents/skills/improve/scripts/survey.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
+  '.agents/skills/wong-setup/scripts/provision.mjs': [],
   '.agents/skills/routine/scripts/routine.mjs': ['ls'],
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
   '.agents/skills/memory/scripts/run.mjs': [],

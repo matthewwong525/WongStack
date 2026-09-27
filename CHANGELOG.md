@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Server installs come from WongStack
+
+- **The server installer lives here now.** `server/install-wongstack.mjs` sits beside `server/setup.sh`. A host clones WongStack, or your fork, at a pinned commit into `~/.cache/wong-stack/WongStack`, then runs the installer from there as the workspace user, with `{token, accountId, repo}` on stdin. It installs that clone's payload, `VERSION`, and commit into the person's empty repo, commits on `main`, and pushes. Fork WongStack, and your servers install your fork.
+- **A server install gets today's memory.** The app's production Worker serves the memory store, the admin memory key for the person's git email goes to `.env`, and a bucket keeps full transcripts when R2 is on. No memory Cloudflare token is minted. The repo's `.env.example` is the source's own, and `app/wrangler.jsonc` comes from the stack pack's fragment.
+- **Setup and servers share one provisioning script.** `.agents/skills/wong-setup/scripts/provision.mjs` runs `widen`, `accounts`, `names`, and `provision`; each prints one JSON report and never a token. `/wong-setup`'s runbook calls it in Steps 2–4 and still asks which account, asks once before anything billable, and offers a suffix for a taken name. The installer takes the first free suffix itself. The widen now always grants `Workers R2 Storage Write`, and a rerun that finds R2 on adds the bucket, its binding, and the deploy token's R2 row.
+- **[`server/README.md`](server/README.md) holds the installer's host contract:** how to run it, the job, what it needs, the one-word last line (`done`, `token`, `repo`, `cloudflare`, or `push`), and what it never does.
+- **Source repo only.** New tests install this checkout into a practice repo against a pretend Cloudflare, so a payload file the installer misses fails before release. Another holds the script's permission groups to `permission-groups.md`. Lint and coverage now reach `server/`.
+
+**Updating.** Installed repos get nothing new: `server/` and `wong-setup` never reach them. A host with its own installer moves to `server/install-wongstack.mjs`, run from its pinned WongStack commit.
+
 ## 26.5.0 — Clean up what recent releases left stale
 
 - **Pages tell the truth again.** The stack pages drop Tailwind, which left in v18, and say the agent hands you a preview link as soon as a build finishes. *Getting started* says setup needs an empty folder, and describes the starter page as it is: your apps under a *Learn the development loop* box. The contributing page stops saying an update wipes the cached copy; it never does.
