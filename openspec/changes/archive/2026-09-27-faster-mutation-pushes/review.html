@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · faster-mutation-pushes</title>
+<title>Review · 2026-09-27-faster-mutation-pushes</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="faster-mutation-pushes">
+<body data-change="2026-09-27-faster-mutation-pushes">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>faster-mutation-pushes</h1>
+  <h1>2026-09-27-faster-mutation-pushes</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -140,6 +140,10 @@
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-09-27</p>Check: <code>app/stryker.conf.json</code> drops <code>ignoreStatic</code>, because it saved no time in wongstack-cloud's full runs and left static mutants untested. This tightens the check.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-09-27</p>Check: <code>.github/workflows/test.yml</code> drops the lockfile and config hash from the Stryker cache key, adds a nightly full run, and raises the time limit, because pushes after an update were blocked 15-20 min; the nightly run re-tests every mutant from scratch.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>implemented tasks 1.1–4.3: <code>test.yml</code> gets the nightly <code>schedule</code> (<code>17 6 * * *</code>), a key of only <code>stryker-$RUNNER_OS</code>, no restore on <code>schedule</code>, and limits of 30 and 60 minutes; <code>ignoreStatic</code> is gone; <code>/ship</code>'s preflight stop names a red nightly run; the wiki's example <code>Check:</code> bullet now uses a coverage exclusion; a <code>## Next (minor)</code> CHANGELOG entry. Payload links, OpenSpec config, and loosened checks pass locally. Saved for task 5.1's CI evidence.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>evidence, task 5.1 (<a href="https://github.com/matthewwong525/WongStack/actions/runs/36342961675">36342961675</a>, push of <code>5a2bba2</code>): Test job 35 s. Restore matched the new prefix <code>stryker-Linux-</code> and restored the old hashed entry <code>stryker-Linux-f1a6352d6bdfef05-36342838283-1</code>. Stryker reused 179 of 188 results, tested the 9 formerly static mutants, scored 100, and finished in 9 s. The save stored <code>stryker-Linux-36342961675-1</code>, with no hash.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>ship distill: no repeatable fact. The live facts are this change's own threads and results; the cache and nightly design lives in <code>test.yml</code>'s header comment and the CHANGELOG.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>archived for shipping; the <code>ci-tests</code> delta was already synced to <code>openspec/specs/</code> at the 5.1 save, so the archive uses <code>--skip-specs</code> after an equality check.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>archive checkpoint: merged <code>origin/main</code> (26.8.0) with <code>CHANGELOG.md</code> as the union, this entry on top; numbered release 26.9.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

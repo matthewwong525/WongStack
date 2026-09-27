@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Pushes stay fast when mutation testing would start over
+## 26.9.0 — Pushes stay fast when mutation testing would start over
 
 - **Updates keep earlier mutation results.** The Test workflow's saved Stryker file no longer has a key that hashes `package-lock.json` and the Stryker and Vitest configs. The key is now `stryker-<os>-` plus the run, so a dependency update, a WongStack update, or a test-settings change reuses what mutation testing already knows. A push re-tests only what it changed, in minutes, not 15 to 20. Old saved files match the new key, so the first push after the update starts warm.
 - **A full check runs every night, and nobody waits on it.** `test.yml` gains a `schedule` trigger (`17 6 * * *`) on the default branch. That run skips the restore, so Stryker tests every mutant from scratch, then saves the fresh file for later pushes. Running daily also keeps GitHub from evicting the cache after 7 quiet days.

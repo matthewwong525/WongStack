@@ -1,6 +1,6 @@
 # Keep pushes fast when mutation testing starts over
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** tender-stingray
 **Open questions:** none.
 
@@ -43,6 +43,10 @@ Non-goals: moving Stryker out of `npm test` or into its own job, sharding mutant
 - **2026-09-27** — Check: `app/stryker.conf.json` drops `ignoreStatic`, because it saved no time in wongstack-cloud's full runs and left static mutants untested. This tightens the check.
 - **2026-09-27** — Check: `.github/workflows/test.yml` drops the lockfile and config hash from the Stryker cache key, adds a nightly full run, and raises the time limit, because pushes after an update were blocked 15-20 min; the nightly run re-tests every mutant from scratch.
 - **2026-09-27** — implemented tasks 1.1–4.3: `test.yml` gets the nightly `schedule` (`17 6 * * *`), a key of only `stryker-$RUNNER_OS`, no restore on `schedule`, and limits of 30 and 60 minutes; `ignoreStatic` is gone; `/ship`'s preflight stop names a red nightly run; the wiki's example `Check:` bullet now uses a coverage exclusion; a `## Next (minor)` CHANGELOG entry. Payload links, OpenSpec config, and loosened checks pass locally. Saved for task 5.1's CI evidence.
+- **2026-09-27** — evidence, task 5.1 ([36342961675](https://github.com/matthewwong525/WongStack/actions/runs/36342961675), push of `5a2bba2`): Test job 35 s. Restore matched the new prefix `stryker-Linux-` and restored the old hashed entry `stryker-Linux-f1a6352d6bdfef05-36342838283-1`. Stryker reused 179 of 188 results, tested the 9 formerly static mutants, scored 100, and finished in 9 s. The save stored `stryker-Linux-36342961675-1`, with no hash.
+- **2026-09-27** — ship distill: no repeatable fact. The live facts are this change's own threads and results; the cache and nightly design lives in `test.yml`'s header comment and the CHANGELOG.
+- **2026-09-27** — archived for shipping; the `ci-tests` delta was already synced to `openspec/specs/` at the 5.1 save, so the archive uses `--skip-specs` after an equality check.
+- **2026-09-27** — archive checkpoint: merged `origin/main` (26.8.0) with `CHANGELOG.md` as the union, this entry on top; numbered release 26.9.0.
 
 ## Capabilities
 

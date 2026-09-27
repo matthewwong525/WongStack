@@ -24,4 +24,4 @@
 
 ## 5. Evidence
 
-- [ ] 5.1 `/save` the change and record the Test run on the branch: that restore found an old `stryker-Linux-<hash>-` file by the new prefix, and Stryker's reused count (expected: everything but the formerly static mutants).
+- [x] 5.1 `/save` the change and record the Test run on the branch: that restore found an old `stryker-Linux-<hash>-` file by the new prefix, and Stryker's reused count (expected: everything but the formerly static mutants).
