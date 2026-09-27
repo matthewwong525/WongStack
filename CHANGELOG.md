@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The README leads with how Matt uses AI
+## 26.12.1 — The README leads with how Matt uses AI
 
 - **The README opens with whose way this is.** Its first screen says WongStack is Matt's opinionated way of using AI, for Matt's business, Claymoo, and for everything else. The example asks come mostly from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers, plus one for planning the week. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.
 - **A company name can appear in public files.** The private-name check in `scripts/tests/private-names.test.mjs` now blocks `ClaymooApp`, `WongOS`, and `wongstack-cloud`, not the bare word "Claymoo", so the README can name the company while private repositories stay out.

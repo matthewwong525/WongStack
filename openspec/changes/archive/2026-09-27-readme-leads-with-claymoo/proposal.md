@@ -67,3 +67,4 @@ None.
 - **2026-09-27** — Asked at the publish question → the user said the lead should be wider than running Claymoo: it is how Matt uses AI in general, an opinionated way of doing it. The lead line now says so with Claymoo as the proof, a sixth ask (planning the week) shows the non-business side, and the spec says whose way it is.
 - **2026-09-27** — CI passed on PR #170 with the wider lead; every task is done.
 - **2026-09-27** — Distilled: no new wiki page; the audience and the framing now live in the README itself, and the wiki pages that could hold them ship to every install, where they would be wrong.
+- **2026-09-27** — Archived and checkpointed for merge by `/ship` as release 26.12.1, after merging main's 26.12.0.
