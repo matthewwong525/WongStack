@@ -29,7 +29,7 @@ export function skillDescription(text) {
   const front = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!front) return '';
   const lines = front[1].split(/\r?\n/);
-  const start = lines.findIndex(line => /^description:/.test(line));
+  const start = lines.findIndex(line => line.startsWith('description:'));
   if (start < 0) return '';
   const parts = [lines[start].replace(/^description:\s*/, '').replace(/^[>|][-+]?\s*$/, '')];
   for (const line of lines.slice(start + 1)) {
