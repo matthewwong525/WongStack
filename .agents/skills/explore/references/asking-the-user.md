@@ -63,6 +63,7 @@ Before you finish, answer one question for yourself: **what does the user have t
 - A finished plan: one line, *Click here to see the plan:*, with a link to its `review.html`, then build it now *(Recommended)* / change the plan first / stop here.
 - A blocked task: the supported ways to clear the blocker. Keep the report of the blocker intact above it.
 - A report or audit: the one fix worth taking next.
+- A finished task that will clearly come back: add one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 
 The exception is a chain that continues without the user: a handoff the invocation already authorized — `/apply` into [`/save`](../../save/SKILL.md), [`/ship`](../../ship/SKILL.md) through its stages — continues instead of asking.
 

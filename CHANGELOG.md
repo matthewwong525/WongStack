@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.8.0 — Offers to make a task easier next time
+
+- **A task that will come back ends with one offer.** When the agent finishes a task it did by hand and there is a clear sign it recurs, its closing next-step question adds one option: run it on a schedule through `/routine`, or build a mini app for it. A clear sign is the person saying it recurs, or a memory fact showing they asked before; never a guess. Judgment on each run means a routine; fixed steps mean a mini app. [Offer a routine or an app](wiki/development/the-change-loop.md#offer-a-routine-or-an-app) owns the rule, the `WONG-STACK` block states it, and [the ask convention](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step) links it.
+- **A no is final.** The agent records a decline as a `feedback` memory fact and never offers again for that task. No offer comes after a code change, in an unattended run, or for a routine where `paseo` is not installed.
+
+**Updating.** `/wong-sync` brings the block rule and the two page edits. Nothing else to do.
+
 ## 25.7.0 — Labelled releases, and a plain guide to API keys
 
 - **Every version gets a GitHub Release.** `.github/workflows/release.yml` runs `scripts/tag-releases.mjs` on each push to `main`. It gives every `CHANGELOG.md` version with no Release a `v<version>` tag and a Release whose notes are its entry. The tag goes on the first commit that set `VERSION` to that version, not the one a commit title names. Its first run fills in 19.0.1 through 25.6.0. Both files are meta-only.

@@ -33,6 +33,19 @@ A person does not need to know the verbs. When they ask for a change to the repo
 
 A verb the person types keeps its own reach: `/ship` still runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is written at [the reader's level](../../.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level), so a non-technical person reviews outcomes, not mechanisms.
 
+### Offer a routine or an app
+
+When a task the agent did by hand will clearly come back, the agent offers to make next time easier. That task can be a plain request or non-code work under a verb. The offer is one option in [the next-step question](../../.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step) the reply already ends with, beside *stop here*. It never adds a question of its own, and most tasks get no offer.
+
+- **Offer only on a clear signal.** Either the person says the task recurs ("every Monday", "again"), or memory shows they asked for the same task before. Never on a hunch: an offer after every task teaches people to skip it.
+- **Search memory once.** When a finished task could come back, run `memory.mjs search` on its key terms. The search finds both a past request and a past decline.
+- **Pick the help by the work.** A task that recurs on a schedule and needs judgment on each run gets a routine, through [`/routine`](../../.agents/skills/routine/SKILL.md). Fixed steps get a [mini app](../stack/mini-apps.md), even on a schedule, because [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
+- **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
+- **A no is final.** Record the decline as a `feedback` fact through [the write gate](../../.agents/skills/memory/SKILL.md#write), naming the task in the person's words, and never offer again for that task.
+- **A yes starts the usual route.** A routine goes through `/routine`'s own confirmation. A mini app starts the change loop and stops at the plan's review.
+
+Make no offer after a code change you built, in an unattended run, or for a routine when `paseo` is not installed.
+
 ### Asking before drafting
 
 `/explore` owns clarification. Standalone, it asks small groups of questions for as long as the thinking needs. At the transition into `/plan`, however planning was invoked, it asks **at most one round**, and only the decisions where a wrong guess makes the artifacts *wrong*, not merely *different*. Later gaps become recorded assumptions. [The exit round](../../.agents/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` records the answers in the proposal's Decision log.
