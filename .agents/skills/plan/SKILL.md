@@ -6,7 +6,7 @@ user-invocable: true
 
 # /plan
 
-Create an apply-ready OpenSpec change and its required `review.html`. The page is the main human review surface: one scrolling document with Why, the What Changes items with their text drawings, and the decisions labeled *asked* or *assumed*. It works offline, on a phone; the reviewer taps an item to add a note and copies the notes into `/continue`.
+Create an apply-ready OpenSpec change and its required `review.html`. The page is the main human review surface: one scrolling document with Why, the What Changes items with their text drawings, and the decisions labeled *asked* or *assumed*. It works offline, on a phone; the reviewer taps + Note to comment and copies the notes into `/continue`.
 
 **Work that changes no repo file** — research, an errand, a message — gets no OpenSpec change and no page. Run the bounded `/explore` pass below, then write a short numbered to-do in the conversation and mark each step that acts outside it `(outward)`. Write no file.
 
@@ -28,7 +28,7 @@ Write the proposal's Why and What Changes for the person who asked, at [the read
 
 Draw while you write the bullet; there is no second agent and no browser check. By default, one What Changes bullet carries one drawing: the flow, diff, file tree, or screen that makes the change clear. Sketch each new or restructured user-facing screen. Add a further drawing only where a bullet can not be understood without one; the other bullets stay text.
 
-A drawing is a fenced `text` block indented inside its bullet, in plain characters. Read it top to bottom, and keep it about 40 columns wide: the reviewer is often on a phone, and the page fits a drawing to the screen before they zoom in.
+A drawing is a fenced `text` block indented inside its bullet, in plain characters. Read it top to bottom, and keep it about 40 columns wide: the reviewer is often on a phone, and the page fits a drawing to the screen before they open it full screen.
 
     - **Save goes through one gate.** …
       ```text

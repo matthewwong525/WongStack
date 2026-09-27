@@ -52,9 +52,9 @@ You end with a working assistant, a starter site online, and memory that carries
 
 **Coding agents forget your decisions between sessions, and your process lives in chat and in people's heads.** WongStack keeps the process, the plans, and the decisions in the repo, and gives agents a repeatable loop that writes down what each change teaches.
 
-![A review page for a planned change: numbered changes in one scrolling page, each with its text drawing and zoom buttons, and a Copy notes bar at the bottom](wiki/assets/review-page.png)
+![A review page for a planned change: numbered changes in one scrolling page, each with a Note button and a drawing you can fold or open full screen, and a Copy notes bar at the bottom](wiki/assets/review-page.png)
 
-*Each plan gets a `review.html` page like this. You read each change and its text drawing, check each decision the agent asked or assumed, and tap an item to add a note before any code is written.*
+*Each plan gets a `review.html` page like this. You read each change and its text drawing, check each decision the agent asked or assumed, and tap **+ Note** on anything to comment before any code is written.*
 
 ### The commands
 

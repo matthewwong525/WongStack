@@ -75,6 +75,6 @@ A drawing is a fenced `text` block inside the bullet it explains, in plain chara
 - **The phone layout first when the brief says phone** — see [context of use](#part-1--start-from-the-use-case) above. Keep a sketch about 40 columns wide, top to bottom.
 - **Low fidelity on purpose**: boxes and labels, no brand. It argues about the change; it is not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
 
-The page opens each drawing fitted to the screen; the reviewer pinches or presses + to zoom and drags to pan. **A reviewer taps an item to add a note** — there is no annotate mode, and a drag still scrolls. Unfinished text stays a draft on its target; Save makes it a note. Notes stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
+Each drawing starts folded under its item; opened, it spans the item's full width, fitted to the screen, and a drag still scrolls the page. A tap shows it full screen, where the reviewer pinches or presses + to zoom and drags to move it. **A reviewer taps + Note to comment** on a paragraph, item, or decision, or taps a line in the full-screen drawing — there is no annotate mode. Unfinished text stays a draft on its target; Save makes it a note. Notes stay in the browser, never in a repo file. **Copy notes** produces a `/continue <change>` command to paste back before work resumes.
 
 Part of [the WongStack wiki](README.md).

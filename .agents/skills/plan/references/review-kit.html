@@ -2,7 +2,7 @@
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
   review:content marker and puts the change name in place of its token. The one
-  script adds zoom, pan, notes, drafts, and copy. It loads nothing from the network.
+  script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network.
 -->
 <html lang="en">
 <head>
@@ -32,19 +32,33 @@
   .card { background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px; margin:0 0 10px; }
   .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
   .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
-  .item { display:flex; gap:10px; }
+  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
   .item, .decision { scroll-margin-top:8px; }
   .num { flex:0 0 26px; height:26px; border-radius:50%; background:#d6d6d6; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; }
   .body { flex:1; min-width:0; }
   [data-note] { border-radius:3px; }
   [data-note]:hover, .noting { background:#f1f1f1; }
-  .drawing { margin:10px 0 0; }
-  .zoom { display:flex; align-items:center; gap:6px; margin:0 0 4px; }
+  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px -12px 0; }
+  .item > .drawing:last-child { margin-bottom:-12px; }
+  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 12px; border-top:1px solid #ddd; color:var(--muted); font-size:14px; cursor:pointer; list-style:none; }
+  .drawing summary::-webkit-details-marker { display:none; }
+  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
+  .drawing[open] summary::before { transform:rotate(90deg); }
+  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
+  .drawing .count { color:var(--ink); font-weight:600; }
+  .frame { overflow:auto; border-top:1px solid var(--line); background:var(--fill); touch-action:pan-y; }
+  .js .frame { overflow:hidden; cursor:zoom-in; }
+  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .enlarge { position:absolute; top:6px; right:12px; min-height:32px; padding:2px 10px; font-size:13px; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-color:#aaa; border-radius:17px; color:var(--muted); font-size:13px; vertical-align:middle; }
+  .zoom { display:flex; align-items:center; gap:6px; }
   .zoom .level { margin-right:auto; color:var(--muted); font-size:13px; }
-  .frame { box-sizing:content-box; position:relative; overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:4px; background:var(--fill); touch-action:pan-y; }
-  .js .frame { overflow:hidden; }
-  .frame.zoomed { touch-action:none; cursor:grab; -webkit-user-select:none; user-select:none; }
-  .art { display:block; width:max-content; margin:0; padding:8px 10px; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; transform-origin:0 0; }
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:#fff; }
+  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--line); }
+  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--fill); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  body.viewing { overflow:hidden; }
   .meta { margin:0 0 4px !important; color:var(--muted); font-size:13px; }
   .tag { display:inline-block; margin-right:8px; padding:0 8px; border:1px solid #777; border-radius:10px; background:#fff; color:var(--ink); font-size:12px; font-weight:700; }
   .tag.assumed { border-style:dashed; }
@@ -57,16 +71,19 @@
   .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; }
   .entry .where { display:block; color:var(--muted); font-size:13px; }
   .entry .tag { margin:0 0 0 6px; }
-  #chip { position:absolute; z-index:5; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  #chip { position:absolute; z-index:9; box-shadow:0 2px 8px rgba(0,0,0,.3); }
   #editor { position:absolute; z-index:6; width:260px; padding:10px; background:#fff; border:2px solid #333; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.25); }
-  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; border-width:2px 0 0; border-radius:0; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:2px 0 0; border-radius:0; padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
   #editor .where { margin:0 0 6px; color:var(--muted); font-size:13px; }
   #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
   #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; border:1px solid #777; border-radius:4px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
   #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:flex; align-items:center; gap:10px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--line); }
   .bar .note-count { margin-right:auto; font-size:14px; }
-  body.docked .bar { display:none; }
+  body.docked .bar, body.viewing .bar { display:none; }
   .session { color:var(--muted); font-size:13px; }
   #toast { position:fixed; left:50%; bottom:72px; z-index:7; max-width:90vw; transform:translateX(-50%); padding:6px 12px; border-radius:4px; background:#222; color:#fff; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
   #toast.show { opacity:1; }
@@ -80,7 +97,7 @@
   <h1>CHANGE-NAME</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
-  <p class="hint">Tap any paragraph, item, drawing line, or decision to add a note.</p>
+  <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
 <!-- review:content -->
@@ -94,8 +111,13 @@
   <p class="where" id="editor-where"></p>
   <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
   <textarea aria-label="Note text" rows="3" placeholder="What should change here?"></textarea>
-  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard draft</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
   <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
+  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
+  <div class="vframe"></div>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line to note it</p>
 </div>
 <div class="bar"><span class="note-count" aria-live="polite">0 notes</span><span class="session" hidden>Session only</span><button type="button" class="primary" id="copy">Copy notes</button></div>
 <div id="toast" role="status"></div>
@@ -114,6 +136,7 @@
   const KEY = 'wong-review3:' + CHANGE;
   const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
   const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
   const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
   const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
 
@@ -140,7 +163,7 @@
   }
   function labelOf(el) {
     const c = el.cloneNode(true);
-    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta'), function (n) { n.parentNode.removeChild(n); });
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add'), function (n) { n.parentNode.removeChild(n); });
     const text = c.textContent.replace(/\s+/g, ' ').trim();
     return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
   }
@@ -150,9 +173,9 @@
   }
   function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
 
-  // ── render pins, counts, and the notes list ──
+  // ── render pins, Note buttons, counts, and the notes list ──
   function render() {
-    all('.pin', function (p) { p.parentNode.removeChild(p); });
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
     const n = data.notes.length, d = Object.keys(data.drafts).length;
     const count = n + (n === 1 ? ' note' : ' notes') + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
     all('.note-count', function (el) { el.textContent = count; });
@@ -175,10 +198,21 @@
         + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
       $('note-list').appendChild(li);
     });
-    drawings.forEach(measure);
+    all('[data-note]', function (el) {
+      if (el.closest('.art') || el.querySelector('.pin')) return;
+      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      el.appendChild(add);
+    });
+    drawings.forEach(function (d) {
+      const k = d.art.querySelectorAll('.pin').length;
+      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
+      fit(d);
+    });
   }
 
-  // ── tap to note: a still pointer on a data-note element shows the chip ──
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
   let chipFor = null, tap = null;
   const pointers = {};
   function showChip(el, x, y, keyboard) {
@@ -205,22 +239,24 @@
     const t = tap;
     delete pointers[e.pointerId]; tap = null;
     if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
-    if (t.target.closest('a, button, input, textarea, select, label, #editor')) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
     const el = t.target.closest('[data-note]');
-    if (el) showChip(el, e.clientX, e.clientY, false); else hideChip();
+    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
   });
   chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
   document.addEventListener('click', function (e) {
     const t = e.target.closest ? e.target.closest('[data-open]') : null;
     if (!t) return;
-    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : null;
-    if (el && t.classList.contains('entry')) el.scrollIntoView({ block: 'center' });
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
     openEditor(id, el);
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       if (open) closeEditor(true);
       else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (view) closeViewer(true);
     } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
       e.preventDefault();
       const r = e.target.getBoundingClientRect();
@@ -228,10 +264,11 @@
     }
   });
 
-  // ── the editor: beside its target on a desktop, docked at the bottom on a phone ──
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
   let open = null;
   function openEditor(id, el) {
-    closeEditor(false); hideChip();
+    closeViewer(false); closeEditor(false); hideChip();
+    if (el) reveal(el);
     const note = noteOf(id), draft = data.drafts[id];
     const label = draft ? draft.label : note ? note.label : labelOf(el);
     open = { id: id, label: label, el: el };
@@ -255,14 +292,11 @@
     const docked = phone.matches || !open.el;
     editor.classList.toggle('docked', docked);
     document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
     if (docked) {
-      editor.style.left = editor.style.top = '';
       dock();
       document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
-      if (open.el) {
-        const r = open.el.getBoundingClientRect(), limit = window.innerHeight - editor.offsetHeight - 8;
-        if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - 8, r.bottom - limit));
-      }
+      keepVisible();
       return;
     }
     const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
@@ -271,11 +305,32 @@
     editor.style.left = left + window.pageXOffset + 'px';
     editor.style.top = top + window.pageYOffset + 'px';
   }
-  function dock() {
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
     const vv = window.visualViewport;
-    editor.style.bottom = vv && open && editor.classList.contains('docked') ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) + 'px' : '';
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
   }
-  if (window.visualViewport) { window.visualViewport.addEventListener('resize', dock); window.visualViewport.addEventListener('scroll', dock); }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
   ta.addEventListener('input', function () {
     if (!open) return;
     const note = noteOf(open.id), text = ta.value;
@@ -296,68 +351,86 @@
     closeEditor(true); persist();
   });
 
-  // ── drawings: fit to the frame, then zoom by 1.25 up to 4, pinch, Ctrl or Cmd wheel, and pan ──
-  const drawings = [];
-  function measure(d) {
-    const atFit = d.s <= d.fit + 0.001, fw = d.frame.clientWidth;
-    d.w = d.art.offsetWidth; d.h = d.art.offsetHeight;
-    d.fit = fw > 0 && d.w > 0 ? Math.min(1, fw / d.w) : 1;
-    zoom(d, atFit ? d.fit : d.s, 0, 0);
+  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
+  const BASE = 13, drawings = [];
+  let view = null;
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  function size(art, f, max) {
+    art.style.fontSize = f + 'px';
+    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
+    return f;
   }
-  function zoom(d, s, cx, cy) {
-    s = Math.max(d.fit, Math.min(4, s));
-    d.x = cx - (cx - d.x) * s / d.s; d.y = cy - (cy - d.y) * s / d.s; d.s = s;
-    const zoomed = s > d.fit + 0.001, fh = Math.min(d.h * s, window.innerHeight * 0.7);
-    d.frame.style.height = Math.ceil(fh) + 'px';
-    d.x = Math.min(0, Math.max(d.frame.clientWidth - d.w * s, d.x));
-    d.y = Math.min(0, Math.max(fh - d.h * s, d.y));
-    d.art.style.transform = 'translate(' + d.x + 'px,' + d.y + 'px) scale(' + s + ')';
-    d.frame.classList.toggle('zoomed', zoomed);
-    d.level.textContent = (zoomed ? '' : 'Fit · ') + Math.round(s * 100) + '%' + (zoomed ? ' · drag to pan' : '');
-    d.out.disabled = !zoomed; d.in.disabled = s >= 4;
+  function fit(d) {
+    if (!d.fig.open || view === d) return;
+    d.art.style.fontSize = BASE + 'px';
+    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
+    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
   }
-  function gap(d) { const p = Object.keys(d.ptrs).map(function (k) { return d.ptrs[k]; }); return { a: p[0], b: p[1], dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1 }; }
+  function reveal(el) {
+    const fig = el.closest('details');
+    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  }
+  function scale(f, cx, cy) {
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
+    V.f = f; view.art.style.fontSize = f + 'px';
+    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  function openViewer(d) {
+    hideChip();
+    view = d; viewer.hidden = false; document.body.classList.add('viewing');
+    vframe.appendChild(d.art);
+    d.art.style.fontSize = BASE + 'px';
+    const fw = vframe.clientWidth - 1;
+    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
+    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    vframe.scrollLeft = vframe.scrollTop = 0;
+    scale(V.lo, 0, 0);
+    vb[3].focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const d = view;
+    view = null;
+    d.frame.insertBefore(d.art, d.frame.firstChild);
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    fit(d);
+    if (restore) d.enlarge.focus({ preventScroll: true });
+  }
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target);
+    if (i === 3) closeViewer(true);
+    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  });
+  vframe.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = vframe.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively; two fingers pinch around their midpoint.
+  let pinch = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
+  vframe.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = vframe.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
   all('.drawing', function (fig) {
-    const frame = fig.querySelector('.frame'), bar = document.createElement('div');
-    bar.className = 'zoom';
-    bar.innerHTML = '<span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button>';
-    fig.insertBefore(bar, frame);
-    const b = bar.querySelectorAll('button');
-    const d = { frame: frame, art: fig.querySelector('.art'), level: bar.firstChild, out: b[0], in: b[2], s: 1, fit: 1, x: 0, y: 0, w: 0, h: 0, ptrs: {}, pinch: null };
+    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
+    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
+    frame.appendChild(enlarge);
+    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
     drawings.push(d);
-    bar.addEventListener('click', function (e) {
-      const i = Array.prototype.indexOf.call(b, e.target);
-      if (i >= 0) zoom(d, [d.s / 1.25, d.fit, d.s * 1.25][i], frame.clientWidth / 2, frame.clientHeight / 2);
-    });
-    frame.addEventListener('wheel', function (e) {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const r = frame.getBoundingClientRect();
-      zoom(d, d.s * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
-    }, { passive: false });
-    frame.addEventListener('pointerdown', function (e) {
-      if (e.target.closest('button')) return;
-      d.ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
-      const two = Object.keys(d.ptrs).length === 2;
-      if (two) d.pinch = { s: d.s, dist: gap(d).dist };
-      if (two || d.s > d.fit + 0.001) {
-        Object.keys(d.ptrs).forEach(function (k) { try { frame.setPointerCapture(Number(k)); } catch (err) { /* capture is optional */ } });
-      }
-    });
-    frame.addEventListener('pointermove', function (e) {
-      const p = d.ptrs[e.pointerId];
-      if (!p) return;
-      if (e.pointerType === 'mouse' && !e.buttons) { delete d.ptrs[e.pointerId]; return; }
-      const dx = e.clientX - p.x, dy = e.clientY - p.y;
-      p.x = e.clientX; p.y = e.clientY;
-      if (d.pinch && Object.keys(d.ptrs).length === 2) {
-        const g = gap(d), r = frame.getBoundingClientRect();
-        zoom(d, d.pinch.s * g.dist / d.pinch.dist, (g.a.x + g.b.x) / 2 - r.left, (g.a.y + g.b.y) / 2 - r.top);
-      } else if (d.s > d.fit + 0.001) { d.x += dx; d.y += dy; zoom(d, d.s, 0, 0); }
-    });
-    ['pointerup', 'pointercancel'].forEach(function (type) {
-      frame.addEventListener(type, function (e) { delete d.ptrs[e.pointerId]; d.pinch = null; });
-    });
+    fig.addEventListener('toggle', function () { fit(d); });
+    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
   });
 
   // ── direct links: #/why, #/<n>, #/decisions/<n> ──
@@ -391,8 +464,11 @@
 
   let width = root.clientWidth;
   window.addEventListener('resize', function () {
-    if (root.clientWidth !== width) { width = root.clientWidth; hideChip(); }
-    drawings.forEach(measure);
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      if (view) { const d = view; closeViewer(false); openViewer(d); }
+    }
+    drawings.forEach(fit);
     if (open) place();
   });
   window.addEventListener('hashchange', jump);
