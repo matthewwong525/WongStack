@@ -105,7 +105,7 @@ function decisions(section) {
   return `<ol class="decisions">\n${items.map(block => {
     const dated = /^\*\*(\d{4}-\d{2}-\d{2})\*\*\s*[—–-]+\s*/.exec(block.text);
     const text = dated ? block.text.slice(dated[0].length) : block.text;
-    const label = /^Asked\b/.test(text) ? 'asked' : /^Assumed\b/.test(text) ? 'assumed' : 'log';
+    const label = /^Asked\b/.test(text) ? 'asked' : /^Assumed\b/.test(text) ? 'assumed' : text.startsWith('Check:') ? 'check' : 'log';
     return `<li class="decision card" id="decision-${block.n}" data-note="decision-${block.n}" tabindex="0">`
       + `<p class="meta"><span class="tag ${label}">${label}</span>${dated ? dated[1] : ''}</p>${inline(text)}</li>`;
   }).join('\n')}\n</ol>`;

@@ -54,7 +54,14 @@ Completion never saves. The work stays in this working tree until the person sav
    ```
 
    It builds the whole app on staging data, so the first run in a checkout also installs it. When the upload can not run — no stack pack, no credential — say why in one line.
-3. **Report and ask.** Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview URL, with `/apps/<name>/` added for a mini app. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)*, change it more, or save it to keep the progress. Publishing runs [`/ship`](../ship/SKILL.md). Saving runs [`/save`](../save/SKILL.md), which opens the pull request.
+3. **Catch loosened checks.** Run the check CI runs, on the working tree:
+
+   ```bash
+   DEFAULT_BRANCH=main node "$(git rev-parse --show-toplevel)/.github/scripts/loosened-checks.mjs" --worktree
+   ```
+
+   Fix each file it marks *needs a reason* without asking: switch the check back on, or add the `Check:` bullet [the gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) describes. Run it again until it exits 0.
+4. **Report and ask.** Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview URL, with `/apps/<name>/` added for a mini app. When the change has `Check:` bullets, list each one under *Checks loosened* in one plain line — what no longer gets checked, and why — and name any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)*, change it more, or save it to keep the progress. Publishing runs [`/ship`](../ship/SKILL.md). Saving runs [`/save`](../save/SKILL.md), which opens the pull request.
 
 Each further change the person asks for repeats these steps under the same alias.
 

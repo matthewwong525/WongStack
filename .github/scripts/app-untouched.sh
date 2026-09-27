@@ -9,7 +9,7 @@
 # `paths-ignore` would leave a required check pending forever and block the
 # merge. See wiki/development/the-change-loop.md.
 #
-# Prints three lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
+# Prints four lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
 # to stderr:
 #
 #   untouched=true|false   true only when EVERY changed path is under wiki/,
@@ -18,6 +18,9 @@
 #   mini_apps=<names>      the folders under mini-apps/apps/ the change
 #                          touches, sorted, space-separated
 #   mini_changed=true|false  whether any path under mini-apps/apps/ changed
+#   base=<sha>             the commit the change is compared with, or empty
+#                          when the comparison can not be made.
+#                          `loosened-checks.mjs` diffs from it.
 #
 # The comparison covers the WHOLE change, never only the last commit, so a docs
 # commit on top of a code commit still runs the suite. The base is:
@@ -77,10 +80,11 @@ all_mini_apps() {
     | sed 's#^mini-apps/apps/##' | grep -E '^[A-Za-z0-9][A-Za-z0-9._-]*$' | sort -u | tr '\n' ' ' | sed 's/ $//'
 }
 
-answer() { # answer <untouched> <mini_apps> <mini_changed>
+answer() { # answer <untouched> <mini_apps> <mini_changed> <base>
   echo "untouched=$1"
   echo "mini_apps=$2"
   echo "mini_changed=$3"
+  echo "base=$4"
   exit 0
 }
 
@@ -89,7 +93,7 @@ unknown() {
   note "$* — comparison not possible; assuming the main app changed"
   local changed=false
   git cat-file -e HEAD:mini-apps/apps 2>/dev/null && changed=true
-  answer false "$(all_mini_apps)" "$changed"
+  answer false "$(all_mini_apps)" "$changed" ""
 }
 
 git rev-parse --verify --quiet HEAD >/dev/null 2>&1 || unknown "no commit checked out"
@@ -179,9 +183,9 @@ done < "$CHANGED"
 
 if [ "$COUNT" -eq 0 ]; then
   note "the diff is empty — nothing to prove untouched"
-  answer false "" false
+  answer false "" false "$BASE"
 fi
 
 MINI_APPS=$(printf '%s' "$NAMES" | sort -u | tr '\n' ' ' | sed 's/ $//')
 note "$COUNT changed path(s); main app untouched: $UNTOUCHED"
-answer "$UNTOUCHED" "$MINI_APPS" "$MINI_CHANGED"
+answer "$UNTOUCHED" "$MINI_APPS" "$MINI_CHANGED" "$BASE"

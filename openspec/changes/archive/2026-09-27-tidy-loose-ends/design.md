@@ -81,7 +81,7 @@ It links `development/secrets.md` and `cloudflare-credentials.md` for the how, p
 
 ## Risks / Trade-offs
 
-- **First run makes 25 Releases at once (24 past versions and 25.6.0).** That is expected. Watchers get one notification each, and only the newest is marked Latest.
+- **First run makes 26 Releases at once (25 past versions and 25.7.0).** That is expected. Watchers get one notification each, and only the newest is marked Latest.
 - **`--target` on an old commit.** `gh` creates the tag there. If a tag exists on a different commit, the script leaves it alone and creates the Release on the existing tag, rather than moving a published tag.
 - **A write-scoped token on `main` pushes.** It is limited to `contents: write`, in a job with no third-party action beyond the pinned checkout and setup-node.
 - **Cross-skill import.** A target that renamed the memory skill breaks these callers. That is a loud failure, and the same assumption `verify-staging.sh` already makes.

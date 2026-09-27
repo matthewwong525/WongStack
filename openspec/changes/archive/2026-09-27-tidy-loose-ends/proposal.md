@@ -10,7 +10,7 @@ People who install WongStack can't see what changed between versions: the last l
 
 ## What Changes
 
-- **Every version gets a labelled release, automatically.** When a new version lands, GitHub labels it and posts its notes from the changelog. Nobody has to remember. The first run fills in the 24 versions that were never labelled, so the list is complete from 19.0.0 on.
+- **Every version gets a labelled release, automatically.** When a new version lands, GitHub labels it and posts its notes from the changelog. Nobody has to remember. The first run fills in the 25 versions that were never labelled, so the list is complete from 19.0.0 on.
   ```text
   new version lands
         │
@@ -56,7 +56,7 @@ None.
 - Callers moved to the shared resolver: `.agents/skills/memory/scripts/lib/store.mjs`, `.agents/skills/verify/scripts/verify-staging.sh`, `scripts/cf-secrets.mjs`, `.agents/skills/ship/scripts/worktree-secrets.mjs`, `.agents/skills/routine/scripts/routine.mjs`. Prose: `wiki/development/secrets.md`, `.agents/skills/wong-setup/references/cloudflare.md`, `.agents/skills/save/references/named-secrets.md`.
 - Tests: `scripts/tests/wait-for-checks.test.mjs`, and a new `scripts/tests/primary-root.test.mjs`.
 - Hubs: `wiki/stack/README.md`, `wiki/stack/getting-started.md`.
-- `VERSION` 25.5.0 → 25.6.0 and a `CHANGELOG.md` entry.
+- `VERSION` 25.6.0 → 25.7.0 and a `CHANGELOG.md` entry.
 
 ## Decision log
 
@@ -88,3 +88,4 @@ None.
 - **2026-09-27** — Distilled facts before the archive: no repeatable fact; the memory store had no facts for this change or its branch.
 - **2026-09-27** — Archived by `/ship` and saved as one checkpoint on `explore/repo-improvements`; the specs synced `open-source-release` (1 modified), `secrets-convention` (1 added), and `cloudflare-access-guide` (1 added).
 - **2026-09-27** — At the checkpoint, `main` had shipped its own 25.5.0 (`970ccee`, memory access from GitHub). Merged it in: `store.mjs` keeps both new imports. This change becomes 25.6.0, and the backfill covers 24 versions. Its new `join.mjs` saves a memory key through `writeEnvKey`, so the stop moved into `envKeyFile`. `join` and `members add --env` both call it before a key is made.
+- **2026-09-27** — The first merge attempt was refused: `main` had shipped 25.6.0 (`50ba365`, loosened checks caught). Merged it in, and this change becomes 25.7.0; the backfill covers 25 versions. `cli-conventions.test.mjs` keeps both sides' new entries. Removing `routine.test.mjs`'s porcelain case and raising one test's grace are edits inside test files, which the new loosened-checks script does not flag; the lookup's cases moved to `primary-root.test.mjs`.

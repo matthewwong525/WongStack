@@ -125,12 +125,12 @@ Each release SHALL be tagged `v<VERSION>` on its merge commit, and SHALL have a 
 
 #### Scenario: A new version lands on the default branch
 
-- **WHEN** a pull request that raises `VERSION` to 25.6.0 merges
-- **THEN** the workflow tags the merge commit `v25.6.0` and publishes a Release titled with the 25.6.0 changelog heading, whose body is that entry
+- **WHEN** a pull request that raises `VERSION` to 25.7.0 merges
+- **THEN** the workflow tags the merge commit `v25.7.0` and publishes a Release titled with the 25.7.0 changelog heading, whose body is that entry
 
 #### Scenario: Past versions have no Release
 
-- **WHEN** the workflow runs and versions 19.0.1 through 25.5.0 have changelog entries but no Release
+- **WHEN** the workflow runs and versions 19.0.1 through 25.6.0 have changelog entries but no Release
 - **THEN** each gets a tag on the commit that first set `VERSION` to it and a Release with its entry
 - **AND** `v19.0.0` and `v20.2.0`, which already have Releases, are not changed
 

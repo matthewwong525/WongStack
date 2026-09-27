@@ -3,14 +3,23 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 25.6.0 — Labelled releases, and a plain guide to API keys
+## 25.7.0 — Labelled releases, and a plain guide to API keys
 
-- **Every version gets a GitHub Release.** `.github/workflows/release.yml` runs `scripts/tag-releases.mjs` on each push to `main`. It gives every `CHANGELOG.md` version with no Release a `v<version>` tag and a Release whose notes are its entry. The tag goes on the first commit that set `VERSION` to that version, not the one a commit title names. Its first run fills in 19.0.1 through 25.5.0. Both files are meta-only.
+- **Every version gets a GitHub Release.** `.github/workflows/release.yml` runs `scripts/tag-releases.mjs` on each push to `main`. It gives every `CHANGELOG.md` version with no Release a `v<version>` tag and a Release whose notes are its entry. The tag goes on the first commit that set `VERSION` to that version, not the one a commit title names. Its first run fills in 19.0.1 through 25.6.0. Both files are meta-only.
 - **A plain guide to API keys.** [API keys](wiki/stack/api-keys.md) tells a non-developer how to get a key, paste it into the chat with what it's for, and replace one that leaked. It explains how keys differ from website logins. [Getting started](wiki/stack/getting-started.md), the [stack hub](wiki/stack/README.md), and [the secrets convention](wiki/development/secrets.md) link it.
 - **One lookup finds the primary worktree.** `.agents/skills/memory/scripts/lib/primary-root.mjs` replaces five separate lookups in `store.mjs`, `worktree-secrets.mjs`, `routine.mjs`, `cf-secrets.mjs`, and `verify-staging.sh`, and the copies in setup's runbook and `named-secrets.md`. Git must confirm the answer. In a bare repository's worktree it fails instead of guessing: saving a secret stops there, while reading one falls back to the current checkout as before. `routine.mjs` no longer reads `git worktree list`.
 - **A steadier test.** `wait-for-checks.test.mjs` gives its grace-period test 3 seconds instead of 1. The script's whole-second deadline could leave it less than a second on a busy machine.
 
 **Updating.** `/wong-sync` brings the new page and the shared lookup. `routine.mjs`, `worktree-secrets.mjs`, `verify-staging.sh`, and `cf-secrets.mjs` now load it from `.claude/skills/memory/`. If you renamed the memory skill, those scripts fail on load until the path matches.
+## 25.6.0 — Checks the AI loosens are caught
+
+- **A loosened check fails the Test check unless a reason is written.** `.github/scripts/loosened-checks.mjs` compares the branch with the base `app-untouched.sh` finds. It flags a file when the change adds a skip comment (Stryker, coverage, lint, or TypeScript), adds a skipped, focused, or to-do test, deletes a test file, or changes a check's settings: a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, `test.yml`, or a script under `.github/scripts/`. A flagged file passes when a proposal the branch adds or edits names it in a Decision-log bullet that starts with `Check:`. [A loosened check needs a reason](wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) owns the rule.
+- **The Test workflow runs it on every push**, after the suite and on docs-only branches too, so one run reports a red suite and a missing reason together. The job summary lists each flagged file as explained or not, and the failure says exactly which bullet to add.
+- **`app-untouched.sh` prints a fourth line, `base`**: the commit the change is compared with, or empty when there is none.
+- **You see each loosened check before publishing.** `/apply` runs the check on the working tree, fixes what it flags without asking, and lists every `Check:` bullet in plain words above *publish it?*. `/ship`'s report carries the same list, and the review page tags those decisions `check`.
+- **The code rule says it once.** `.claude/rules/code.md` links the new gate section.
+
+**Updating.** `/wong-sync` brings the script, the workflow step, and the skill edits. The sync itself changes `test.yml` and `.github/scripts/`, so its change needs `Check:` bullets for them; CI's failure names each file, and the agent adds them. After that, only a branch that loosens a check needs one.
 
 ## 25.5.0 — Memory access comes from GitHub
 
