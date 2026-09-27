@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 26.15.0 — Updates catch up old, heavily edited installs
+## Next (minor) — Updates catch up old, heavily edited installs
 
 - **Old installs update in place.** A repo from before 19.0.0 no longer needs a fresh setup. Its update plan also makes the moves it missed: the shared agent folder, the rules file both agents read, wiki pages kept in another folder, leftover OpenSpec skills, and the CI deploy token. Every local edit stays. [Catching up an older install](.agents/skills/wong-sync/references/catch-up.md) owns the steps; the preflight's new `catchUp` field lists which apply, from the repo's layout and install record alone.
 - **The oldest installs can be checked.** A repo from before WongStack kept a file list got an error. It now compares against an empty list: every WongStack file it has counts as possibly edited, so nothing is overwritten.
@@ -12,6 +12,15 @@
 - **Update plans read plainly.** A sync plan's summary says what you get, what changes in how you work, what of yours stays, what is left out and why, and what you do yourself. The review page builder warns when a plan's Why and What Changes name more than 12 files or commands.
 
 **Updating.** Nothing to do by hand. `/wong-sync` always runs the source's preflight, so the next sync of any install already uses the new fields and the catch-up page.
+
+## 26.15.0 — Paseo starts with your settings
+
+- **Every install's new workspaces open ready to work.** `paseo.json` joins the payload. Its worktree setup copies your secrets files into each new Paseo workspace, as only this repo did before. A repo with its own `paseo.json` gets WongStack's entries merged in, keeping its own steps; [the payload manifest](.agents/skills/wong-sync/references/payload-manifest.md#the-paseo-project-file) owns the rule.
+- **Paseo names things the way WongStack does.** `paseo.json` tells Paseo's generator how to write workspace titles (a few plain words), branch names (short topic names), commit messages, and pull requests (the form `/save` and `/ship` use, with no version and with the Claude sign-off).
+- **Setup adds your agent presets to Paseo.** The new [`presets.mjs`](.agents/skills/routine/scripts/presets.mjs) `add` gives this computer's Paseo four presets from `paseo-presets.json`: *Explore / Plan* and *Apply / Ship*, for Claude and for Codex. It adds only the missing ones, by id or name, never changes one you have, skips an agent that is not installed, and reloads Paseo. With no Paseo or no Paseo config, it changes nothing and says so. `/wong-setup` runs it after the payload lands, and so does `server/install-wongstack.mjs`, where a failure never changes the last line.
+- **The wiki says what WongStack sets in Paseo and what it leaves alone.** [Required tools](wiki/development/required-tools.md) now covers the project file, the presets, and the settings that stay yours: the starting branch, the new-worktree choice, closing after a merge, and the agent browser.
+
+**Updating.** `/wong-sync` brings `paseo.json` and the preset script. Then run `node .claude/skills/routine/scripts/presets.mjs add` once on each computer that uses Paseo.
 
 ## 26.14.0 — Shorter instructions, the same rules
 

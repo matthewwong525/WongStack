@@ -36,6 +36,7 @@
       ".claude/settings.json",
       ".claude/hooks.json",
       ".claude/config.toml",
+      "paseo.json",
       ".claude/rules/code.md",
       ".claude/rules/wiki.md",
       ".claude/rules/openspec.md",

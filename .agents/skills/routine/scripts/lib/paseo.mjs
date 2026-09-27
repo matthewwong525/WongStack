@@ -1,4 +1,4 @@
-// The Paseo CLI helpers routine.mjs and workspace.mjs share: find the binary,
+// The Paseo CLI helpers routine.mjs, workspace.mjs, and presets.mjs share: find the binary,
 // make one `--json` call, and name each failure with a fixed exit code.
 //
 // Exit codes: 0 ok, 2 bad input, 3 Paseo not installed, 4 daemon not

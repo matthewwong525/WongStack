@@ -33,6 +33,6 @@ The script sets the rest: a new agent in its own Paseo worktree of the primary w
 
 An ambiguous name returns exit `2` with the matching ids; ask which.
 
-For Paseo features `/routine` lacks (heartbeats, `--max-runs`, remote daemons), use `paseo` directly; [required tools](../../../wiki/development/required-tools.md) lists it as optional. [`workspace.mjs`](scripts/workspace.mjs) here also opens a new workspace for one part of a request; [open a part in a new workspace](../plan/references/new-workspace.md) owns its use.
+For Paseo features `/routine` lacks (heartbeats, `--max-runs`, remote daemons), use `paseo` directly; [required tools](../../../wiki/development/required-tools.md) lists it as optional. [`workspace.mjs`](scripts/workspace.mjs) here also opens a new workspace for one part of a request; [open a part in a new workspace](../plan/references/new-workspace.md) owns its use. [`presets.mjs`](scripts/presets.mjs) `add` gives this machine's Paseo WongStack's agent presets, keeping any a person already has; [required tools](../../../wiki/development/required-tools.md) owns when to run it.
 
 End every reply with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), normally to list routines or run the new one now.

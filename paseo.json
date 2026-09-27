@@ -1,5 +1,19 @@
 {
   "worktree": {
     "setup": "node .claude/skills/ship/scripts/worktree-secrets.mjs seed"
+  },
+  "metadataGeneration": {
+    "title": {
+      "instructions": "Name the workspace in 2 to 5 plain everyday words for what the person wants, such as `Paseo defaults for installs`. Use no workflow word (explore, plan, apply, save, ship), no ticket number, and no end punctuation."
+    },
+    "branchName": {
+      "instructions": "Write a lowercase kebab-case topic name of 2 to 5 words, such as `ship-paseo-defaults`. Use no type prefix (feat/, fix/), no slash, and no workflow word (explore, plan, apply). It may become an OpenSpec change name, so keep it short and about the topic."
+    },
+    "commitMessage": {
+      "instructions": "Write one subject line: `feat: `, `fix: `, `docs: `, or `chore: `, then what a person gets, in plain lowercase words, under 72 characters, such as `fix: the review page scrolls on a phone`. Never add a version number; the merge adds it. Then one blank line and `Co-Authored-By: Claude <noreply@anthropic.com>`."
+    },
+    "pullRequest": {
+      "instructions": "Title the pull request in the commit subject's form: `feat: `, `fix: `, `docs: `, or `chore: `, then what a person gets, in plain lowercase words, with no version number. Write the body as a few plain lines: what changed, why, and how to check it. End the body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`. When the branch has an OpenSpec change, /save rewrites the body from it."
+    }
   }
 }

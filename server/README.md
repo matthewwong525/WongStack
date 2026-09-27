@@ -37,7 +37,7 @@ Then sign in as the workspace user: `gh auth login`, `claude`, and pair a device
 
 ## Install WongStack into a repo
 
-`install-wongstack.mjs` installs WongStack into a person's empty GitHub repo with no question: the payload, the app's Cloudflare hosting, and memory, then one commit on `main`, pushed. It installs the clone it runs from, so the version is the commit you checked out, and a fork installs itself.
+`install-wongstack.mjs` installs WongStack into a person's empty GitHub repo with no question: the payload, the app's Cloudflare hosting, and memory, then one commit on `main`, pushed. Last, it adds WongStack's agent presets to the workspace user's Paseo with [`presets.mjs`](../.agents/skills/routine/scripts/presets.mjs), when Paseo is set up. A failure there goes to stderr and never changes the last line. It installs the clone it runs from, so the version is the commit you checked out, and a fork installs itself.
 
 ### Run it
 
