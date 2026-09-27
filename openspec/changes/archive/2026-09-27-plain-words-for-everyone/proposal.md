@@ -1,6 +1,6 @@
 # Plain words for everyone
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** plain-words-for-everyone
 **Open questions:** none
 
@@ -52,3 +52,5 @@ None.
 - **2026-09-27** — Assumed: a minor release, 25.14.0, because nothing an installed repo relies on is removed.
 - **2026-09-27** — Built: carried the edits over from the superseded `plain-words-and-verbs` branch onto main; also updated the proposal rule in `openspec/config.yaml` and the `reader-level` Purpose. Released as 25.14.0. Link, config, and retired-name checks and strict validation passed.
 - **2026-09-27** — Saved for task 3.3: first checkpoint, pull request opened; facts stored (one preference, one superseding the old technical-level note).
+- **2026-09-27** — Distilled facts: no repeatable fact beyond what this change writes into *Write in plain words* and the People rules.
+- **2026-09-27** — Archived for ship; specs synced into `reader-level` and `structured-asks`.

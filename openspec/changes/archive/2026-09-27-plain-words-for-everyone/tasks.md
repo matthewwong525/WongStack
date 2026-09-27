@@ -13,4 +13,4 @@
 
 - [x] 3.1 Bump `VERSION` 25.13.0 → 25.14.0 and add a `CHANGELOG.md` entry whose **Updating** line says an old `**Technical level:**` line can be deleted.
 - [x] 3.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `openspec validate plain-words-for-everyone --strict --no-interactive`. Verify: all pass.
-- [ ] 3.3 CI passes on the pull request, checked by `/save`.
+- [x] 3.3 CI passes on the pull request, checked by `/save`.
