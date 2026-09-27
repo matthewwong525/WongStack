@@ -2,12 +2,12 @@
 // The detached background run: one per clone at a time. It starts the calling agent's headless CLI
 // with a small model that may only run the memory script and write its JSON input into one temp folder.
 import { spawnSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeSync } from 'node:fs';
+import { closeSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { isMain, repoContext, SCRIPT, statePath } from './lib/store.mjs';
+import { isMain, repoContext, RUN_TALLY, SCRIPT, statePath } from './lib/store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STALE_MS = 2 * 60 * 60 * 1000;
@@ -77,7 +77,10 @@ function main(agent) {
   const ctx = repoContext();
   const lock = statePath(ctx, 'run.lock');
   if (!takeLock(lock)) return;
+  // The run's tally: memory.mjs adds what each write stored, and finish-run records it instead of the model's own report.
+  const tally = statePath(ctx, RUN_TALLY);
   try {
+    writeFileSync(tally, '{}\n');
     const [command, result] = withInputDir(dir => {
       const [cmd, args] = agentCommand(agent, runbook(process.env.WONG_MEMORY_EXCLUDE || '(none)', dir), ctx.stateDir, dir);
       return [cmd, spawnSync(cmd, args, { cwd: ctx.root, stdio: 'ignore', timeout: RUN_TIMEOUT_MS, env: { ...process.env, WONG_MEMORY_RUN: '1' } })];
@@ -87,6 +90,7 @@ function main(agent) {
       spawnSync(process.execPath, [join(HERE, 'memory.mjs'), 'finish-run', '--kind', 'capture', '--status', 'failed', '--reason', reason], { cwd: ctx.root, stdio: 'ignore' });
     }
   } finally {
+    rmSync(tally, { force: true });
     rmSync(lock, { force: true });
   }
 }

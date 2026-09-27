@@ -4,11 +4,11 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { CONSOLIDATION_STATE, consolidationDue, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter } from './lib/digest.mjs';
+import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter } from './lib/digest.mjs';
 import { JOIN_COMMANDS } from './lib/join.mjs';
 import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { homeContext, isMain, loadConfig, loadEnv, openStore, readJson, repoContext, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { homeContext, isMain, loadConfig, loadEnv, openStore, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, isPrivate, parseTranscriptText, pending, pruneRegistry, readRegistry, sessionFile, strip } from './lib/transcripts.mjs';
 import { supersedeSql, WRITES } from '../worker/statements.mjs';
 
@@ -56,6 +56,41 @@ export function nearTag(name, existing) {
 export function ftsQuery(text) {
   const words = [...new Set(text.toLowerCase().match(/[\p{L}\p{N}_]{3,}/gu) || [])].slice(0, 24);
   return words.length ? words.map(word => `"${word}"`).join(' OR ') : null;
+}
+
+// ---------- the background run's tally ----------
+
+// The counts a run records come from what the store took, never from the model. run.mjs makes the tally file
+// and removes it; a command adds to it only inside a run (WONG_MEMORY_RUN=1) and only while the file exists,
+// so a hand-run command never writes one.
+const CAPTURE_KEYS = ['captured', 'skipped', 'private', 'unrecognized', 'added', 'superseded', 'dropped'];
+const CONSOLIDATION_KEYS = { merged: 'merged', superseded: 'consolidationSuperseded' };
+
+function runTally(ctx) {
+  const file = join(ctx.stateDir, RUN_TALLY);
+  return process.env.WONG_MEMORY_RUN === '1' && existsSync(file) ? file : null;
+}
+
+function addToTally(file, counts) {
+  if (!file || !existsSync(file)) return;
+  const tally = readJson(file, {});
+  for (const [key, value] of Object.entries(counts)) if (value) tally[key] = (tally[key] || 0) + value;
+  writeJson(file, tally);
+}
+
+// What a stored put-facts adds: a consolidation write counts its merged facts, a home write only what it dropped.
+function putFactsCounts(input, result, home) {
+  if (home) return { dropped: result.dropped };
+  if (input.source === 'consolidation') return { merged: result.kept, consolidationSuperseded: result.superseded };
+  return { ...(result.session ? { [result.status]: 1 } : {}), added: result.added, superseded: result.superseded, dropped: result.dropped };
+}
+
+// The counts finish-run records: the tally's, with the keys where the model's own report differs.
+function runCounts(kind, tally, reported) {
+  const keys = kind === 'capture' ? Object.fromEntries(CAPTURE_KEYS.map(key => [key, key])) : CONSOLIDATION_KEYS;
+  const counts = Object.fromEntries(Object.entries(keys).map(([key, from]) => [key, Number(tally[from]) || 0]).filter(([, value]) => value));
+  const differ = reported ? Object.keys(keys).filter(key => (Number(reported[key]) || 0) !== (counts[key] || 0)) : [];
+  return { counts, differ };
 }
 
 // ---------- validation shared by gate, put-facts, and import ----------
@@ -156,7 +191,7 @@ export async function putFacts(ctx, input) {
   // Count what the store marked: a supersede whose update changed nothing stored its fact as an add.
   const supersedes = writes.flatMap(([sql, ids], index) => sql.startsWith('UPDATE facts SET superseded_by') ? [{ ids, marked: results[index].map(row => row.id) }] : []);
   const superseded = supersedes.reduce((sum, { marked }) => sum + marked.length, 0);
-  return { added: kept.length - supersedes.filter(({ marked }) => marked.length).length, superseded, dropped: facts.length - kept.length, session: record?.id, status, left: await leftLive(store, supersedes) };
+  return { kept: kept.length, added: kept.length - supersedes.filter(({ marked }) => marked.length).length, superseded, dropped: facts.length - kept.length, session: record?.id, status, left: await leftLive(store, supersedes) };
 }
 
 // The asked-for facts a supersede left live, with their authors: a member's supersede marks only its own facts.
@@ -176,13 +211,14 @@ function currentSession(ctx) {
   return entries[0].id;
 }
 
-async function putFactsCommand(ctx, { values }) {
+async function putFactsCommand(ctx, { values, tally }) {
   const input = readInput(values.file);
   // A session row lives in the store of the repo that ran it, so a fact sent to home carries none.
   if (ctx.isHome && !ctx.isCurrent) delete input.session;
   if (input.session === 'current') input.session = currentSession(ctx);
   try {
     const result = await putFacts(ctx, input);
+    addToTally(tally, putFactsCounts(input, result, values.home));
     if (values.spooled) spoolRemove(values.spooled);
     console.log(`stored: added ${result.added}, superseded ${result.superseded}, dropped ${result.dropped}${result.session ? ` (session ${result.session}, ${result.status})` : ''}`);
     for (const { id, author } of result.left) console.log(`left #${id} live: ${author ? `${author} wrote it, so only they or the admin` : 'it has no author, so only the admin'} can supersede it`);
@@ -202,7 +238,12 @@ async function search(ctx, { values, positionals }) {
   const params = [];
   const match = ftsQuery(positionals.join(' '));
   if (match) { joins.push('JOIN facts_fts ON facts_fts.rowid = f.id'); where.push('facts_fts MATCH ?'); params.push(match); }
-  if (values.branch) { joins.push('JOIN sessions s ON s.id = f.session_id'); where.push('s.branch = ?'); params.push(values.branch); }
+  // The sessions a search reads: those that started on --branch, and those that wrote a fact on --change, so a
+  // session whose branch was renamed still counts. Both together is one set, under one limit.
+  const sessions = [];
+  if (values.branch) { sessions.push('f.session_id IN (SELECT id FROM sessions WHERE branch = ?)'); params.push(values.branch); }
+  if (values.change) { sessions.push('f.session_id IN (SELECT DISTINCT session_id FROM facts WHERE slug = ? AND session_id IS NOT NULL)'); params.push(values.change); }
+  if (sessions.length) where.push(`(${sessions.join(' OR ')})`);
   if (!values.all) where.push('f.superseded_by IS NULL');
   const personal = values.everyone ? null : await personalFilter(ctx, store);
   if (personal) { where.push(personal.clause); params.push(...personal.params); }
@@ -305,7 +346,7 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
 // ---------- background-run commands ----------
 
 // Reduce a pending session for the model: private check, redaction, upload, and text after read_through.
-async function stripCommand(ctx, { positionals: [id] }) {
+async function stripCommand(ctx, { positionals: [id], tally }) {
   if (!id) throw new StoreError('usage: memory.mjs strip <session-id>');
   const file = sessionFile(ctx, id);
   if (!file) throw new StoreError(`no transcript found for ${id}`);
@@ -313,6 +354,7 @@ async function stripCommand(ctx, { positionals: [id] }) {
   let parsed;
   try { parsed = parseTranscriptText(raw); } catch (error) {
     if (!(error instanceof FormatError)) throw error;
+    addToTally(tally, { unrecognized: 1 });
     console.log(`not recognized: ${file}`);
     process.exitCode = 3;
     return;
@@ -324,6 +366,7 @@ async function stripCommand(ctx, { positionals: [id] }) {
   if (ledger?.status === 'private' || isPrivate(parsed.messages)) {
     await store.batch([sessionUpsert(record, 'private', { ...who, reason: '#private' })]);
     markSeen(ctx, record);
+    addToTally(tally, { private: 1 });
     console.log(`private: ${id} is recorded as private. Nothing was uploaded, and no fact may be written for it.`);
     return;
   }
@@ -392,14 +435,26 @@ async function stats(ctx) {
   ].join('\n'));
 }
 
-async function finishRun(ctx, { values }) {
+// Inside a run, the recorded counts are the tally's; the model's --counts only shows up as a note when it differs.
+// With no tally (a hand run, or a run an older run.mjs started), --counts is recorded as given.
+async function finishRun(ctx, { values, tally: tallyFile }) {
   if (!['capture', 'consolidation'].includes(values.kind)) throw new StoreError('usage: memory.mjs finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]');
   const status = values.status === 'failed' ? 'failed' : 'ok';
+  const reported = values.counts ? JSON.parse(values.counts) : null;
+  const tally = tallyFile ? readJson(tallyFile, null) : null;
+  let counts = reported || {};
+  let reason = values.reason || null;
+  if (tally) {
+    const run = runCounts(values.kind, tally, reported);
+    counts = run.counts;
+    const note = run.differ.length ? `${DIFFERED}: ${run.differ.join(', ')}` : null;
+    reason = (status === 'ok' ? [note, reason] : [reason, note]).filter(Boolean).join('; ') || null;
+  }
   const store = openStore(ctx);
   const plan = await digestPlan(ctx, store);
   const results = await store.batch([
     [WRITES.run.sql,
-      [values.kind, ctx.machine, process.env.WONG_MEMORY_RUN_STARTED || now(), now(), status, values.reason ? values.reason.slice(0, 300) : null, JSON.stringify(values.counts ? JSON.parse(values.counts) : {})]],
+      [values.kind, ctx.machine, process.env.WONG_MEMORY_RUN_STARTED || now(), now(), status, reason ? reason.slice(0, 300) : null, JSON.stringify(counts)]],
     ...plan.statements,
   ]);
   plan.finish(results);
@@ -454,13 +509,14 @@ export const COMMANDS = {
 };
 
 const OPTIONS = Object.fromEntries([
-  ...['file', 'spooled', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
+  ...['file', 'spooled', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
   ...['all', 'json', 'help', 'home', 'everyone', 'admin', 'env', 'background'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
   (search, show, gate, and put-facts take --home: the machine's home store, from ~/.wong-stack/machine.json)
-  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--state active|shipped|conversation] [--all] [--everyone] [--limit n]
+  search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n]
+                               (--change: facts from sessions that wrote a fact on the change; with --branch, either)
                                (in a team, user and feedback facts are only yours unless --everyone)
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
@@ -486,12 +542,19 @@ if (isMain(import.meta.url)) {
   if (args.values.help) { console.log(USAGE); process.exit(0); }
   try {
     let ctx = repoContext();
+    // The tally lives in this clone's state folder, even when the write goes to home.
+    const tally = runTally(ctx);
     if (args.values.home) {
       if (!HOME_COMMANDS.has(command)) throw new StoreError(`--home works with ${[...HOME_COMMANDS].join(', ')}`);
-      ctx = homeContext(ctx);
-      if (!ctx) throw new StoreError('no home recorded', { kind: 'unconfigured', help: HOME_PAGE });
+      const home = homeContext(ctx);
+      if (!home) {
+        // The runbook counts a private-life fact with no home to go to as dropped.
+        if (command === 'put-facts') addToTally(tally, { dropped: (readJson(args.values.file, {}).facts || []).length });
+        throw new StoreError('no home recorded', { kind: 'unconfigured', help: HOME_PAGE });
+      }
+      ctx = home;
     }
-    await run(ctx, args);
+    await run(ctx, { ...args, tally });
   } catch (error) {
     console.error(error instanceof StoreError ? error.message : `memory: ${error.message}`);
     process.exitCode = 1;

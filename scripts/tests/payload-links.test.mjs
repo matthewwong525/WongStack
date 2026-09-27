@@ -131,3 +131,35 @@ test('only the newest CHANGELOG entry is checked', t => {
   assert.equal(result.status, 1, result.stdout);
   assert.match(result.stderr, /CHANGELOG\.md:5 -> \.claude\/skills\/save\/SKILL\.md/);
 });
+
+// wong-setup is in no manifest category, so it is a source-only skill here.
+const steps = '# Steps\n\n## Step 5 — the closing report\n\n## Notes\n\nFirst.\n\n## Notes\n\nSecond.\n';
+
+test('a source-only skill passes with em-dash and repeated-heading anchors', t => {
+  const root = fixture(t, {
+    'wiki/steps.md': steps,
+    '.agents/skills/wong-setup/SKILL.md': '# setup\n\n[report](../../../wiki/steps.md#step-5--the-closing-report), [more](../../../wiki/steps.md#notes-1), [save](../save/SKILL.md), [self](#setup)\n',
+  });
+  const result = check(root);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /No broken links in source-only skills/);
+});
+
+test('a source-only skill fails on a missing path and a renamed heading, naming file, line, and anchor', t => {
+  const root = fixture(t, {
+    'wiki/steps.md': steps,
+    '.agents/skills/wong-setup/SKILL.md': '# setup\n\nRead [memory](../memory/SKILL.md).\n\nThen [save](../save/SKILL.md#background-run) and [notes](../../../wiki/steps.md#notes-2).\n',
+  });
+  const result = check(root);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /3 broken link\(s\) in source-only skills/);
+  assert.match(result.stderr, /\.agents\/skills\/wong-setup\/SKILL\.md:3 -> \.\.\/memory\/SKILL\.md\s+\(no such file\)/);
+  assert.match(result.stderr, /\.agents\/skills\/wong-setup\/SKILL\.md:5 -> \.\.\/save\/SKILL\.md#background-run\s+\(no heading #background-run\)/);
+  assert.match(result.stderr, /-> \.\.\/\.\.\/\.\.\/wiki\/steps\.md#notes-2\s+\(no heading #notes-2\)/);
+});
+
+test("a shipped skill's heading anchor stays unchecked", t => {
+  const root = fixture(t, { '.agents/skills/save/SKILL.md': '# save\n\n[shipped](../../../wiki/shipped.md#no-such-heading)\n' });
+  const result = check(root);
+  assert.equal(result.status, 0, result.stderr);
+});

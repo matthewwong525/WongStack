@@ -212,6 +212,9 @@ function recordTeam(ctx, header) {
 
 // ---------- local state, shared by every worktree of one clone ----------
 
+// The background run's tally of what it stored, in the state folder while run.mjs holds its lock.
+export const RUN_TALLY = 'run-tally.json';
+
 export function statePath(ctx, ...parts) {
   const path = join(ctx.stateDir, ...parts);
   mkdirSync(dirname(path), { recursive: true });

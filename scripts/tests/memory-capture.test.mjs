@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { buildDigest, consolidationDue, currentSlug, MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { buildDigest, consolidationDue, currentSlug, formatRun, MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
@@ -378,4 +378,84 @@ test('with no home recorded the hook adds no home part, and in home itself only 
   assert.match(part, /### Your page: wiki\/people\/ana\.md/);
   assert.doesNotMatch(part, /### Your facts/, "home's facts are already in its own digest");
   assert.match(inHome.stdout, /# Memory digest/);
+});
+
+// A fake headless agent: a shell script whose lines call the memory script as "$M", the way the model would.
+function fakeAgent(env, lines) {
+  const bin = join(env.repo.home, 'bin');
+  mkdirSync(bin, { recursive: true });
+  const script = join(import.meta.dirname, '../../.agents/skills/memory/scripts/memory.mjs');
+  writeFileSync(join(bin, 'claude'), `#!/bin/sh\nM="${process.execPath} ${script}"\n${lines.join('\n')}\n`);
+  chmodSync(join(bin, 'claude'), 0o755);
+  return bin;
+}
+
+test('a run keeps its tally only while it runs, and records what was stored, not what the model says', async t => {
+  const env = await setup(t);
+  const tally = join(env.repo.stateDir, 'run-tally.json');
+  const marker = join(env.repo.home, 'tally-seen');
+  const bin = fakeAgent(env, [
+    `test -f "${tally}" && echo yes > "${marker}"`,
+    `$M finish-run --kind capture --status ok --counts '{"private":4}'`,
+  ]);
+  const result = await node(env.repo, env.fake, 'run.mjs', ['--agent', 'claude'], { env: { PATH: `${bin}:${process.env.PATH}` } });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(readFileSync(marker, 'utf8'), 'yes\n', 'the tally exists while the agent runs');
+  assert.equal(existsSync(tally), false, 'the tally is gone after the run');
+  assert.deepEqual(rows(env, 'SELECT status, counts, reason FROM runs'), [{ status: 'ok', counts: '{}', reason: 'model reported other counts: private' }]);
+  const digest = await memory(env.repo, env.fake, ['digest']);
+  assert.match(digest.stdout, /Last background capture run \(.*\): nothing to do \(the run's own report differed\)/);
+});
+
+test('inside a run, put-facts and strip add what they stored to the tally, and finish-run records it', async t => {
+  const env = await setup(t);
+  const tally = join(env.repo.stateDir, 'run-tally.json');
+  mkdirSync(env.repo.stateDir, { recursive: true });
+  writeFileSync(tally, '{}\n');
+  const inRun = { env: { WONG_MEMORY_RUN: '1' } };
+  const kept = claudeSession(env, 1, [['user', 'Plan the search.'], ['assistant', 'Done.']]);
+  const empty = claudeSession(env, 2, [['user', 'Hello.']]);
+  const secret = claudeSession(env, 3, [['user', 'Keep this #private.']]);
+  const weird = join(env.repo.home, 'weird.jsonl');
+  writeFileSync(weird, '{"hello":"world"}\n');
+  register(env, { id: 'claude:weird', agent: 'claude', transcript: weird });
+  for (const id of [kept.id, empty.id, secret.id, 'claude:weird']) await memory(env.repo, env.fake, ['strip', id], inRun);
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'a.json', { session: kept.id, source: 'backfill', slug: 's', facts: [
+    { action: 'add', type: 'project', body: 'Search ranks by recency.' }, { action: 'drop', type: 'project', body: 'Already known.' }] })], inRun);
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'b.json', { session: empty.id, source: 'backfill', slug: 's', facts: [], reason: 'nothing new' })], inRun);
+  const failed = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'c.json', { session: empty.id, source: 'backfill', slug: 's', facts: [{ action: 'add', type: 'nope', body: 'x' }] })], inRun);
+  assert.equal(failed.code, 1, 'a refused write adds nothing');
+  const home = await memory(env.repo, env.fake, ['put-facts', '--home', '--file', writeJsonFile(env.repo.home, 'h.json', { source: 'backfill', slug: 'p', facts: [{ action: 'add', type: 'user', body: 'Private life.' }] })], inRun);
+  assert.match(home.stderr, /no home recorded/);
+  assert.deepEqual(JSON.parse(readFileSync(tally, 'utf8')), { private: 1, unrecognized: 1, captured: 1, added: 1, dropped: 2, skipped: 1 });
+  const merged = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'm.json', { source: 'consolidation', slug: 's', facts: [
+    { action: 'supersede', supersedes: [1], type: 'project', body: 'Search ranks by recency, newest first.' }] })], inRun);
+  assert.equal(merged.code, 0, merged.stderr);
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'ok', '--counts', '{"merged":1,"superseded":1}'], inRun);
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', JSON.stringify({ captured: 1, skipped: 1, private: 1, unrecognized: 1, added: 1, superseded: 0, dropped: 2 })], inRun);
+  assert.deepEqual(rows(env, 'SELECT kind, counts, reason FROM runs ORDER BY id').map(run => ({ ...run, counts: JSON.parse(run.counts) })), [
+    { kind: 'consolidation', counts: { merged: 1, superseded: 1 }, reason: null },
+    { kind: 'capture', counts: { captured: 1, skipped: 1, private: 1, unrecognized: 1, added: 1, dropped: 2 }, reason: null },
+  ]);
+});
+
+test('a hand run writes no tally, and finish-run with no tally records --counts as given', async t => {
+  const env = await setup(t);
+  const tally = join(env.repo.stateDir, 'run-tally.json');
+  const facts = name => ['put-facts', '--file', writeJsonFile(env.repo.home, name, { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: `Fact ${name}.` }] })];
+  await memory(env.repo, env.fake, facts('a.json'), { env: { WONG_MEMORY_RUN: '1' } });
+  assert.equal(existsSync(tally), false, 'no tally file, no tally');
+  writeFileSync(tally, '{}\n');
+  await memory(env.repo, env.fake, facts('b.json'));
+  assert.equal(readFileSync(tally, 'utf8'), '{}\n', 'outside a run, the tally is untouched');
+  rmSync(tally);
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', '{"private":4}'], { env: { WONG_MEMORY_RUN: '1' } });
+  assert.deepEqual(rows(env, 'SELECT counts, reason FROM runs'), [{ counts: '{"private":4}', reason: null }]);
+});
+
+test("the digest's run line says when the run's own report differed", () => {
+  const run = { kind: 'capture', host: 'box', finished_at: '2026-09-27T10:00:00Z', status: 'ok', counts: '{"captured":2}' };
+  assert.equal(formatRun(run), 'Last background capture run (2026-09-27 10:00 UTC on box): captured 2');
+  assert.equal(formatRun({ ...run, reason: 'model reported other counts: private' }), "Last background capture run (2026-09-27 10:00 UTC on box): captured 2 (the run's own report differed)");
+  assert.equal(formatRun({ ...run, status: 'failed', reason: 'claude exited with code 1; model reported other counts: private' }), 'Last background capture run failed (2026-09-27 10:00 UTC on box): claude exited with code 1; model reported other counts: private');
 });
