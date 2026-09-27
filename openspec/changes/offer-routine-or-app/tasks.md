@@ -13,4 +13,4 @@
 
 - [x] 3.1 Bump `VERSION` 25.7.0 → 25.8.0 and add a newest-first `CHANGELOG.md` entry with an **Updating** line. Verify: the entry names the rule and the two changed pages.
 - [x] 3.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/check-retired-names.mjs`, and `openspec validate offer-routine-or-app --strict --no-interactive`. Verify: all pass.
-- [ ] 3.3 CI passes on the pull request, checked by `/save`.
+- [x] 3.3 CI passes on the pull request, checked by `/save`.
