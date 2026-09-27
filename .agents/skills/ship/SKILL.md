@@ -53,15 +53,16 @@ By [the CLI contract](../plan/references/openspec-cli.md#validate-and-archive), 
 
 ### Distill the change's facts into the wiki
 
-Before the archive, catch the [repeatable knowledge](../../../wiki/wiki-style.md#repeatable-knowledge) sessions missed in the live facts of the change and branch:
+Before the archive, catch the [repeatable knowledge](../../../wiki/wiki-style.md#repeatable-knowledge) sessions missed in the live facts of the change, its branch, and every session that wrote a fact on the change, so a renamed branch loses none:
 
 ```bash
 M="$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"
 node "$M" show "$CHANGE_NAME"
-node "$M" search --branch "$BRANCH" --limit 200
+node "$M" search --branch "$BRANCH" --change "$CHANGE_NAME" --limit 200   # feature branch
+node "$M" search --change "$CHANGE_NAME" --limit 200                      # main
 ```
 
-On a feature branch, run both. When `BRANCH` is `main`, run only `show`: the branch search would return every fact saved on `main`. Deduplicate the outputs. Place each repeatable one by [the wiki rules](../../rules/wiki.md): extend its owning page, or add a page linked from its hub; never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. [Store unreachable](../memory/SKILL.md#read) → log the step skipped and continue. The edits ride in this PR's archive checkpoint.
+Run `show`, then the search for where you are. On `main`, leave out `--branch`: it would return every fact saved on `main`. Deduplicate the outputs. Place each repeatable one by [the wiki rules](../../rules/wiki.md): extend its owning page, or add a page linked from its hub; never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. [Store unreachable](../memory/SKILL.md#read) → log the step skipped and continue. The edits ride in this PR's archive checkpoint.
 
 ## Step 3 — delegate the checkpoint to /save
 

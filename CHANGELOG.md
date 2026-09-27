@@ -13,6 +13,23 @@
 
 **Updating.** After the update merges and production deploys, run `node .claude/skills/memory/scripts/memory.mjs migrate` once, with `gh` signed in: it links your GitHub account as admin and stops every key that had no end date. Without `gh`, it says to run `member admin`. Every machine rejoins through GitHub at its next session start, so fresh memory skips one session while the cached digest still shows. A teammate who got a key by hand needs access to the repo on GitHub, then joins on their own.
 
+## 26.10.1 — Memory reports what it really saved
+
+- **The background memory report counts what was stored.** While a background run works, the memory script tallies what each `put-facts` and `strip` stored, in `run-tally.json` in the clone's memory state folder. `finish-run` records that tally, not the model's own `--counts`. When the model's counts differ, the run's record says `model reported other counts: <keys>`, and the next digest adds *(the run's own report differed)*. A hand-run `finish-run`, or a run an older `run.mjs` started, records `--counts` as before.
+- **Publishing finds a chat's notes after a branch rename.** `memory.mjs search` takes `--change <slug>`: facts from every session that wrote a fact on that change. With `--branch` too, it returns facts from either set. `/ship`'s distill step runs `search --branch "$BRANCH" --change "$CHANGE_NAME"` on a feature branch and `search --change "$CHANGE_NAME"` on `main`, so a chat whose branch was renamed loses none.
+- **Source repo only: the link check covers source-only skills.** `scripts/check-payload-links.mjs` resolves every link in a skill no manifest category lists (today `wong-setup` and `update-dependencies`) against this repo, and checks a `#anchor` against the target page's headings as GitHub slugs them. A missing path or renamed heading fails with `file:line -> target`.
+- **Source repo only: the add-a-skill guide covers WongStack-only skills.** Such a skill does step 1 only: no manifest entry, no setup surface, and no changelog entry of its own.
+
+**Updating.** Nothing to do by hand. `/wong-sync` brings the memory scripts and the `memory` and `ship` skills.
+
+## 26.10.0 — Codex reads the WongStack rules in every install
+
+- **One rules file serves both agents.** Codex reads only `AGENTS.md`, and chat setup wrote the rules to `CLAUDE.md`, so Codex in those repos never saw them. `/wong-setup` now writes the rules to a real `AGENTS.md` and makes `CLAUDE.md` a link to it (`ln -s AGENTS.md CLAUDE.md`, with `MSYS=winsymlinks:nativestrict` on Windows). One copy, so the two can not drift. It is the layout this repo and server installs already use.
+- **Updates read the rules through the link.** The update check still finds changes to the `WONG-STACK` block and still leaves your own text alone when `CLAUDE.md` is a link.
+- **Shipped pages link `AGENTS.md`.** The link check no longer lets a shipped page link `CLAUDE.md`; GitHub's web view can not follow the link.
+
+**Updating.** The next `/wong-sync` plans the move: a repo with only a real `CLAUDE.md` renames it to `AGENTS.md` and links `CLAUDE.md` to it, with every line kept. A repo that already has its own `AGENTS.md` gets a reviewed task that merges both into `AGENTS.md`, then links. A repo whose `CLAUDE.md` already links to `AGENTS.md` needs nothing. [The agent folder](.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder) owns the steps.
+
 ## 26.9.0 — Pushes stay fast when mutation testing would start over
 
 - **Updates keep earlier mutation results.** The Test workflow's saved Stryker file no longer has a key that hashes `package-lock.json` and the Stryker and Vitest configs. The key is now `stryker-<os>-` plus the run, so a dependency update, a WongStack update, or a test-settings change reuses what mutation testing already knows. A push re-tests only what it changed, in minutes, not 15 to 20. Old saved files match the new key, so the first push after the update starts warm.

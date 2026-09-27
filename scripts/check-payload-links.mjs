@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// Two link checks, one run:
+// Three link checks, one run:
 //
 // 1. Resolve every internal link and import in the payload AS A TARGET REPO WOULD SEE IT.
 // 2. Reject every live Markdown link that passes through a symlink, because
 //    GitHub's web view and raw host do not follow a directory link.
+// 3. Resolve every link in a source-only skill (one no manifest category lists,
+//    like wong-setup) against this repo, heading anchors included.
 //
 // WHY CHECK 1 CANNOT BE A PLAIN LINK CHECK IN THIS REPO
 //
@@ -29,8 +31,15 @@
 // Run it as part of releasing a payload change, next to the VERSION bump and the
 // CHANGELOG entry:  node scripts/check-payload-links.mjs
 //
-// Exits 0 when every link passes, 1 with a list when any link dangles or passes
-// through a symlink.
+// WHY CHECK 3 EXISTS
+//
+// A source-only skill never reaches a target, so check 1 never reads it, yet it
+// links deep into this repo's pages by heading. A renamed heading breaks those
+// links silently. Its links resolve against the working tree, and a `#anchor` on
+// a Markdown target must match one of its headings as GitHub slugs them.
+//
+// Exits 0 when every link passes, 1 with a list when any link dangles, passes
+// through a symlink, or misses in a source-only skill.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, statSync } from "node:fs";
@@ -40,7 +49,7 @@ import { parseCli } from "./lib-cli.mjs";
 
 const { values } = parseCli({
   usage:
-    "usage: check-payload-links.mjs [--root <dir>]  (exits 1 when a payload link dangles or a link passes through a symlink)",
+    "usage: check-payload-links.mjs [--root <dir>]  (exits 1 when a payload link dangles, a link passes through a symlink, or a source-only skill links a missing path or heading)",
   options: { root: { type: "string" } },
 });
 
@@ -98,9 +107,13 @@ function walk(dir) {
 // a target's own `README.md` was pointing at the wrong file anyway.
 const TARGET_PROVIDED = MANIFEST.seededBySetup.files;
 
-/** The files a target receives, as logical paths: every install takes every category. */
+/**
+ * The files a target receives, as logical paths: every install takes every
+ * category. Every install also keeps its rules in a real `AGENTS.md`, with
+ * `CLAUDE.md` linking to it, like this repo.
+ */
 function payload() {
-  const files = new Set(["CLAUDE.md"]);
+  const files = new Set(["CLAUDE.md", "AGENTS.md"]);
   const addCategory = (cat) => {
     if (!cat) return;
     for (const f of cat.files ?? []) files.add(f);
@@ -163,7 +176,8 @@ function checkDead(files) {
   // contents are the target's business, not ours to lint.
   const targets = new Set([...files, ...TARGET_PROVIDED]);
   for (const file of files) {
-    if (!file.endsWith(".md")) continue;
+    // The rules file is scanned once, as the block `CLAUDE.md` reads through its link.
+    if (!file.endsWith(".md") || file === "AGENTS.md") continue;
     const abs = join(ROOT, file === "CLAUDE.md" ? realPath("CLAUDE.md") : physical(file));
     if (!existsSync(abs)) continue;
     let raw = readFileSync(abs, "utf8");
@@ -237,14 +251,6 @@ function realPath(path) {
   return path.endsWith("/") ? `${current}/` : current;
 }
 
-function isFile(path) {
-  try {
-    return statSync(join(ROOT, path)).isFile();
-  } catch {
-    return false;
-  }
-}
-
 /** Every live Markdown file: tracked or new, outside the archive, not itself a link. */
 function liveMarkdown() {
   const listed = git("ls-files", "-co", "--exclude-standard");
@@ -280,13 +286,12 @@ function repoNames() {
   return names;
 }
 
-function checkSymlinked(shipped, targets) {
+function checkSymlinked() {
   const found = [];
   const names = repoNames();
   for (const file of liveMarkdown()) {
     const { text, offset } = scanned(file);
     const body = maskCode(text);
-    const ships = shipped.has(logical(file));
     for (const { target, index } of references(body)) {
       const [path, anchor] = target.split(/#(.*)/s);
       if (!path) continue;
@@ -296,9 +301,6 @@ function checkSymlinked(shipped, targets) {
       if (resolved.startsWith("..")) continue;
       const hit = firstLink(resolved);
       if (!hit) continue;
-      // A page that ships may link a file its target receives as a real file:
-      // `CLAUDE.md` is a link here and the target's own file there.
-      if (ships && !hit.rest && isFile(realPath(resolved)) && targets.has(resolved)) continue;
       const real = realPath(resolved);
       const suggestion = (posix.relative(posix.dirname(file), real.replace(/\/$/, "")) || ".") +
         (real.endsWith("/") ? "/" : "") + (anchor != null ? `#${anchor}` : "");
@@ -321,9 +323,84 @@ function checkSymlinked(shipped, targets) {
   return found;
 }
 
+// --- Check 3: source-only skills, anchors included --------------------------
+
+/** Skill folders no manifest category lists: they stay in the source repo. */
+function sourceOnlySkills() {
+  const listed = new Set(Object.values(MANIFEST).flatMap((category) => category?.skillDirs ?? []));
+  const dir = join(ROOT, ".agents/skills");
+  return readdirSync(dir).filter((name) => statSync(join(dir, name)).isDirectory() && !listed.has(name));
+}
+
+/**
+ * A heading's anchor as GitHub makes it: the rendered text, lowercased, every
+ * character but letters, digits, spaces, hyphens, and underscores dropped, and
+ * each space a hyphen. `Step 5 — the closing report` -> `step-5--the-closing-report`.
+ */
+function slug(heading) {
+  const text = heading
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/[*`]/g, "");
+  return text.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, "").replace(/ /g, "-");
+}
+
+const anchorCache = new Map();
+
+/** Every anchor a Markdown file offers: its headings' slugs (repeats get `-1`, `-2`) and explicit ids. */
+function anchorsOf(path) {
+  if (anchorCache.has(path)) return anchorCache.get(path);
+  const text = readFileSync(join(ROOT, path), "utf8").replace(/(`{3,}|~{3,})[\s\S]*?\1/g, "");
+  const anchors = new Set();
+  const seen = new Map();
+  for (const [, heading] of text.matchAll(/^ {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/gm)) {
+    const base = slug(heading);
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    anchors.add(n ? `${base}-${n}` : base);
+  }
+  for (const [, id] of text.matchAll(/<a\s+(?:name|id)="([^"]+)"/g)) anchors.add(id);
+  anchorCache.set(path, anchors);
+  return anchors;
+}
+
+function exists(path) {
+  try {
+    return statSync(join(ROOT, path));
+  } catch {
+    return null;
+  }
+}
+
+function checkSourceOnly() {
+  const broken = [];
+  for (const skill of sourceOnlySkills()) {
+    for (const file of walk(join(ROOT, ".agents/skills", skill)).filter((f) => f.endsWith(".md"))) {
+      const body = maskCode(readFileSync(join(ROOT, file), "utf8"));
+      const links = [...body.matchAll(LINK), ...body.matchAll(REFERENCE)].map((m) => ({ target: m[1], index: m.index }));
+      for (const { target, index } of links) {
+        if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+        const [path, anchor] = target.split(/#(.*)/s);
+        const resolved = !path ? file : path.startsWith("/")
+          ? posix.normalize(path.slice(1))
+          : posix.normalize(posix.join(posix.dirname(file), safeDecode(path)));
+        const info = !resolved.startsWith("..") && exists(resolved);
+        const missing = !info
+          ? "no such file"
+          : anchor && info.isFile() && resolved.endsWith(".md") && !anchorsOf(resolved).has(safeDecode(anchor).toLowerCase())
+            ? `no heading #${anchor}`
+            : null;
+        if (missing) broken.push({ file, line: lineAt(body, index), target, missing });
+      }
+    }
+  }
+  return broken;
+}
+
 const shipped = payload();
 const dead = checkDead(shipped);
-const symlinked = checkSymlinked(shipped, new Set([...shipped, ...TARGET_PROVIDED]));
+const symlinked = checkSymlinked();
+const sourceOnly = checkSourceOnly();
 
 if (dead.length) {
   console.error(`${dead.length} dead link(s): they resolve in no install.`);
@@ -339,6 +416,13 @@ if (symlinked.length) {
   }
   console.error("Link the real path. Code spans and commands may keep `.claude/`.");
 }
-if (dead.length || symlinked.length) process.exit(1);
+if (sourceOnly.length) {
+  if (dead.length || symlinked.length) console.error("");
+  console.error(`${sourceOnly.length} broken link(s) in source-only skills: they resolve nowhere in this repo.`);
+  for (const b of sourceOnly) console.error(`  ${b.file}:${b.line} -> ${b.target}   (${b.missing})`);
+  console.error("Link a path that exists, and a heading as GitHub slugs it.");
+}
+if (dead.length || symlinked.length || sourceOnly.length) process.exit(1);
 console.log("No dead links: every internal link in the payload resolves in a target.");
 console.log("No symlinked links: every live Markdown link names a real path.");
+console.log("No broken links in source-only skills: every path and heading resolves here.");

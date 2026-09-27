@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -140,6 +141,49 @@ test('two authors who share the part before the @ never read as one person, and 
   const found = (await memory(env.repo, env.fake, ['search', 'release', '--limit', '60'])).stdout;
   const authors = new Set(found.match(/operations@[\w.]+(?=, #)/g));
   assert.deepEqual([...authors].sort(), ['operations@example.com', 'operations@example.org']);
+});
+
+// A session's facts, with the branch the session started on.
+async function sessionFacts(env, id, branch, facts) {
+  await put(env, { session: id, source: 'save', facts });
+  env.fake.db.prepare('UPDATE sessions SET branch = ? WHERE id = ?').run(branch, id);
+}
+
+const lines = result => result.stdout.trim().split('\n').map(line => line.replace(/ \(.*$/, '')).sort();
+
+test('search by change finds a session whose branch was renamed, alone or with the branch', async t => {
+  const env = await setup(t);
+  await sessionFacts(env, 'claude:renamed', 'magical-chicken', [
+    { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Home keeps private-life facts.' },
+    { action: 'add', type: 'reference', slug: 'paseo', body: 'Paseo renames branches from its sidebar.' },
+  ]);
+  await sessionFacts(env, 'claude:current', 'explore/home-mode', [{ action: 'add', type: 'project', slug: 'other', body: 'Started on the new name.' }]);
+  await sessionFacts(env, 'claude:unrelated', 'elsewhere', [{ action: 'add', type: 'project', slug: 'unrelated', body: 'Nothing to do with it.' }]);
+  const both = await memory(env.repo, env.fake, ['search', '--branch', 'explore/home-mode', '--change', 'add-home-repo']);
+  assert.equal(both.code, 0, both.stderr);
+  assert.deepEqual(lines(both), ['- [project] Home keeps private-life facts.', '- [project] Started on the new name.', '- [reference] Paseo renames branches from its sidebar.']);
+  const change = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
+  assert.deepEqual(lines(change), ['- [project] Home keeps private-life facts.', '- [reference] Paseo renames branches from its sidebar.']);
+  const branch = await memory(env.repo, env.fake, ['search', '--branch', 'explore/home-mode']);
+  assert.deepEqual(lines(branch), ['- [project] Started on the new name.'], 'the branch alone misses the renamed session');
+  const worded = await memory(env.repo, env.fake, ['search', 'paseo', '--change', 'add-home-repo']);
+  assert.deepEqual(lines(worded), ['- [reference] Paseo renames branches from its sidebar.']);
+});
+
+test("search by change keeps the team filter on a teammate's personal facts", async t => {
+  const env = await setup(t);
+  mkdirSync(env.repo.stateDir, { recursive: true });
+  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
+  execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
+  await sessionFacts(env, 'claude:bo', 'bo-branch', [
+    { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Bo shipped the home schema.' },
+    { action: 'add', type: 'feedback', slug: 'prefs', body: 'Bo wants short replies.' },
+  ]);
+  execFileSync('git', ['config', 'user.email', 'dev@example.com'], { cwd: env.repo.root });
+  const mine = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
+  assert.deepEqual(lines(mine), ['- [project] Bo shipped the home schema.']);
+  const everyone = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo', '--everyone']);
+  assert.deepEqual(lines(everyone), ['- [feedback] Bo wants short replies.', '- [project] Bo shipped the home schema.']);
 });
 
 test('--state filters before the limit, so an older match is still found', async t => {
