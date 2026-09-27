@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — WongStack cleans up after itself
+## 26.7.0 — WongStack cleans up after itself
 
 - **After you publish, you can close the workspace.** The closing question after a publish from a Paseo workspace offers *Close this workspace*, recommended when no more work is waiting. The chat finishes its reply, then the chat and workspace close, anything left running from them stops, and a branch that merged is deleted. The chat stays readable in Paseo's archived list. Unsaved work blocks the close, and the agent names the files.
 - **Each session tidies up in the background.** Session start never waits for it, and it runs at most every 6 hours. It closes this repo's workspaces idle 3+ days whose work is all saved, stops servers whose workspace is gone, and deletes WongStack's own temp folders (named `wong-…`) and main-checkout scratch files older than a day. It never touches another project's files, and never closes a chat with unsaved work.
