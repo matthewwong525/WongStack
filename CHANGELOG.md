@@ -10,6 +10,7 @@
 - **Facts-only saves are unchanged.** They go to the memory store with no commit. `save/references/prose-save.md` is now `save/references/facts-save.md` and holds only that route.
 - **The change loop loses *The prose allowlist*.** *The gate* now says every file edit takes it. The `WONG-STACK` block drops its prose line, and `wiki/README.md` and `wiki/wiki-style.md` follow.
 - **`app-untouched.sh` prints a fifth line, `docs_only`,** true only when every changed path is under `wiki/` or `openspec/`. The source repo's Payload checks use it to skip lint, shell checks, and the script suite (the private-names test still runs).
+- **The plan's link shows after a save and a publish.** `/save` prints it whenever the save changed a plan, apart from its one link, and `/ship` prints the archived plan's. The closing question's own text also ends with the plan's path, because some hosts hide chat text above a question card.
 
 **Updating.** Major: installed repos lose the direct-to-`main` wiki route their agents used. `/wong-sync` removes the block's prose line and brings the skill, script, and page edits. If your default branch's ruleset lets the owner bypass it for wiki saves, you can drop that bypass.
 

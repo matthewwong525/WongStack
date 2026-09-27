@@ -26,3 +26,7 @@
 
 - [x] 4.1 Run `node scripts/check-payload-links.mjs`, `node scripts/check-retired-names.mjs`, `openspec validate --specs --strict --no-interactive`, and `node scripts/measure-context.mjs --check`
 - [x] 4.2 `/save`, and confirm in CI that the payload and test checks pass on this branch
+
+## 5. The plan's link after a save
+
+- [x] 5.1 `/save`'s report prints the plan's link whenever the save changed a plan, apart from its one link; `/ship`'s report prints the archived plan's link; the closing question's own text ends with the plan's path, for hosts that hide chat text above a question card

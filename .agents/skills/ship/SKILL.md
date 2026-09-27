@@ -107,7 +107,7 @@ It compares the worktree copy, the primary, and the baseline recorded at seed. I
 
 ## Step 6 — report
 
-Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) — *it is live*, what changed for the person, and the live link. The rest below except *Checks loosened* comes only when they ask; then print `merge.sh`'s `key=value` lines, plus:
+Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) — *it is live*, what changed for the person, and the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. The rest below except *Checks loosened* comes only when they ask; then print `merge.sh`'s `key=value` lines, plus:
 
 - **Archived** — the archive path; `openspec/specs/` holds the synced result. A branch that needed no change says so in one line.
 - **Checkpoint** — `/save`'s result and CI outcome, including auto-fix pushes.
