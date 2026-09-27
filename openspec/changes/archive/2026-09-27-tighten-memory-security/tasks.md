@@ -27,5 +27,5 @@
 
 ## 5. Gate
 
-- [ ] 5.1 Run `/save` and confirm CI passes on the pull request.
+- [x] 5.1 Run `/save` and confirm CI passes on the pull request.
 - [x] 5.2 Record a memory thread for the post-deploy check: the admin runs `migrate` on this repo's store, rejoins as admin, and a second GitHub account with a shared email joins as member.

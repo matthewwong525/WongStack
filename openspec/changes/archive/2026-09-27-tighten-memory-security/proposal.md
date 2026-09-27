@@ -1,6 +1,6 @@
 # Tighten memory security
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** civil-walrus
 **Open questions:** none
 
@@ -66,3 +66,5 @@ None.
 - **2026-09-27** — Assumed: the 50 MB cap holds for every key, the admin's too, and the Worker enforces it, because a client check alone can be skipped.
 - **2026-09-27** — Assumed: a minor release, because nothing breaks for a teammate with GitHub access; hand-sent keys stopping is the intended change.
 - **2026-09-27** — Built inside `/ship`: migration 0005, admin by linked GitHub account, `member admin` in place of `member add` (now a retired name), every key expiring, 10 keys per account, the 50 MB transcript cap, and full author emails. Joins on a store before 0005 keep the old per-email replace with no cap and make no admin; `migrate` links the admin only when it applies 0005 with a Worker recorded; `member admin` no longer sets the team flag, which now comes from the Worker. Local suites pass (471), with lint, link, retired-name, and config checks; examples use `example.com` because the private-names check blocks the company name. CI (task 5.1) is next.
+- **2026-09-27** — CI passed on PR #169 (build, payload, test); every task is done.
+- **2026-09-27** — Distilled: no repeatable fact; `wiki/development/memory.md` already carries the new rules from task 4.1.
