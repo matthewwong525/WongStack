@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.17.0 — Planning checks for other work first
+
+- **Planning looks around first.** When `/explore` or `/plan` starts on work that changes the repo, it lists this repo's other work: the other workspaces on this computer, the plans in them (saved or not), and open pull requests, which show teammates' work too. The new [`other-work.mjs`](.agents/skills/explore/scripts/other-work.mjs) gathers the list; the agent judges what overlaps. [Check for other work](.agents/skills/explore/SKILL.md#check-for-other-work) owns the step.
+- **You hear about an overlap only when there is one.** It names the other work and why it overlaps, then asks: keep going here, work there instead, or narrow this one. When nothing overlaps, it says nothing.
+- **It stays in its lane.** It reads only this repo, never your other projects. It skips pull requests from bots, such as dependency updates, and workspaces with nothing left to publish. Without GitHub, it checks this computer and says so in one line; without Paseo, it works from git alone. It runs once per piece of work, so a plan right after an exploration doesn't repeat it.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.16.1 — The cloud can run WongStack's server installer
 
 - **A new token gets a minute to start working.** Right after the installer widens a Cloudflare token, Cloudflare can refuse it for a few seconds with `401` as well as `403`. [The provisioning script](.agents/skills/wong-setup/scripts/provision.mjs) now waits out either answer, so `/wong-setup` and `server/install-wongstack.mjs` both stop failing on a token that was about to work.

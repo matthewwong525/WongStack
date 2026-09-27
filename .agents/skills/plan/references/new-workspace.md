@@ -9,11 +9,12 @@ Each part of a request after the first gets its own [Paseo](https://paseo.sh) wo
 
 ## Ask once
 
-Ask at three points, in [the shared format](../../explore/references/asking-the-user.md):
+Ask at four points, in [the shared format](../../explore/references/asking-the-user.md):
 
 - **`/explore`'s [exit round](../../explore/SKILL.md#the-exit-round)**: the request holds several parts, or a new change is asked for in a workspace that holds another.
 - **[`/continue`](../../continue/SKILL.md#3-check-out-the-branch)**: checking out the change would leave other unpublished work here ([pick up saved work](#pick-up-saved-work)).
 - **[`/ship`](../../ship/SKILL.md)'s closing question**: more work is left ([next work](#next-work)).
+- **[`/explore`'s check for other work](../../explore/SKILL.md#check-for-other-work)**: other work in this repo overlaps the request.
 
 List the parts by short titles in the person's words, then ask:
 
@@ -37,7 +38,20 @@ A new change asked for where another is unpublished asks instead:
 
 On option 1, `/plan` opens the workspace, reports it, and stops, drafting nothing here.
 
-Check `command -v paseo` first. Without it, drop option 1 from either list and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
+When [the check for other work](../../explore/SKILL.md#check-for-other-work) finds an overlap, name the other work and the overlap, then ask:
+
+```text
+1. Keep going here (Recommended)
+   — plan this here; the other work stays as it is.
+2. Work there instead
+   — continue in "<workspace>" (or on pull request #<n>); nothing is planned here.
+3. Narrow this one
+   — plan only the part the other work doesn't cover.
+```
+
+On option 2, name the workspace to open in Paseo, or the pull request's link, and stop, drafting nothing here.
+
+Check `command -v paseo` first. Without it, drop option 1 from the first two lists and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
 
 ## Open each workspace
 

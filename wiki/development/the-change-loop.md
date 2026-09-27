@@ -53,6 +53,8 @@ No offer after a code change you built, in an unattended run, or for a routine w
 
 One workspace holds one change. When a request has parts that could each be published alone, the agent asks once whether to open a new [Paseo](https://paseo.sh) workspace for each part after the first *(Recommended)*, do them here one at a time, or keep one change; each new workspace plans its part and waits at its review link. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the one-at-a-time fallback when Paseo is missing or nobody can answer.
 
+Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's other workspaces, their plans, and open pull requests. It speaks only when one overlaps, and asks whether to keep going here, work there instead, or narrow this one.
+
 **Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/skills/routine/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes away with its workspace; in the main checkout, each session's tidy-up deletes scratch files older than a day.
 
 ### Asking before drafting
