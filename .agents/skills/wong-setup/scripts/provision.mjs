@@ -494,7 +494,7 @@ export async function provision({ token, api, fetch, account, repo, base, dir = 
   const admin = { cwd: dir, env: { ...env, CLOUDFLARE_API_TOKEN: token } };
   await step('cloudflare', () => retry(() => exec('node', [memory, 'migrate'], admin), sleep, () => true));
   if (needsKey) {
-    await step('cloudflare', () => exec('node', [memory, 'member', 'add', email, '--admin', '--env'], admin));
+    await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
     note('created', `admin memory key for ${email}, in .env`);
   } else note('reused', 'admin memory key in .env');
 

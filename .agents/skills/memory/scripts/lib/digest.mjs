@@ -59,7 +59,7 @@ const ageDays = (iso, now) => {
 
 // One line per fact. Search and show add the change state and supersession when the fact carries them.
 export function formatFact(fact, now = Date.now()) {
-  const where = [fact.slug, fact.state, ageDays(fact.created_at, now), (fact.author || 'unknown').split('@')[0], `#${fact.id}`].filter(Boolean).join(', ');
+  const where = [fact.slug, fact.state, ageDays(fact.created_at, now), fact.author || 'unknown', `#${fact.id}`].filter(Boolean).join(', ');
   return `- [${fact.type}] ${fact.body.replace(/\s+/g, ' ')} (${where})${fact.superseded_by ? ` superseded by #${fact.superseded_by}` : ''}`;
 }
 

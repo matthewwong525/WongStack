@@ -2,13 +2,17 @@
 // /_memory/. It answers the two Cloudflare REST requests memory.mjs sends — a D1 query batch and an R2
 // object PUT or GET — on the Worker's MEMORY_DB and MEMORY_BUCKET bindings, so the client keeps one
 // code path. Each Worker serves one store, so the ids in the path are ignored. Key hashes live in the
-// store's memory_keys table, which no request may name: the admin's Cloudflare token manages keys, and
-// the join route below makes a key for a person GitHub lets into this repo.
+// store's memory_keys table, and the admin's GitHub account in memory_admins; no request may name either. The
+// admin's Cloudflare token manages keys, and the join route below makes a key for a person GitHub lets into this repo.
 import { batchRefusal, memberStatements, sessionIds } from './statements.mjs';
 
 export const MEMORY_PREFIX = '/_memory/';
 export const TEAM_HEADER = 'Wong-Memory-Team';
 export const KEY_DAYS = 30;
+// The most live keys one GitHub account holds: a join past it stops the key of the machine that joined longest ago.
+export const KEY_LIMIT = 10;
+// The largest transcript the bucket keeps, from any key.
+export const MAX_TRANSCRIPT_BYTES = 50 * 1024 * 1024;
 const GITHUB_API = 'https://api.github.com';
 
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
@@ -28,7 +32,7 @@ export const newKey = email => `wongm_${base64url(new TextEncoder().encode(email
 export const mayTouch = (grant, key) => grant.role === 'admin' || key.startsWith(`sessions/${grant.email}/`);
 
 // SQLite has no dynamic SQL and no escapes in identifiers, so no statement reaches the keys without naming them.
-const KEYS_GUARD = /memory_keys|writable_schema/i;
+const KEYS_GUARD = /memory_keys|memory_admins|writable_schema/i;
 
 // The key's email, role, expiry, reader mark, and whether more than one email holds a key, in one query. A
 // store the admin has not migrated has fewer columns: before schema 4 no key is a reader, and before schema 3
@@ -78,7 +82,11 @@ async function query(db, grant, request) {
 async function object(bucket, grant, method, key, request) {
   if (!mayTouch(grant, key)) return fail(403, 'not_author', 'only the author and the admin can read this transcript');
   if (method === 'PUT') {
-    await bucket.put(key, await request.arrayBuffer());
+    const tooLarge = () => fail(413, 'too_large', `a transcript over ${MAX_TRANSCRIPT_BYTES / 1024 / 1024} MB is not kept`);
+    if (Number(request.headers.get('Content-Length')) > MAX_TRANSCRIPT_BYTES) return tooLarge();
+    const body = await request.arrayBuffer();
+    if (body.byteLength > MAX_TRANSCRIPT_BYTES) return tooLarge();
+    await bucket.put(key, body);
     return json(200, { success: true, errors: [], result: { key } });
   }
   if (method !== 'GET') return fail(405, 'method', `${method} is not supported`);
@@ -86,10 +94,34 @@ async function object(bucket, grant, method, key, request) {
   return found ? new Response(found.body) : fail(404, 10007, 'object not found');
 }
 
+// Whether the store links this GitHub account as its admin, or null on a store before schema 5: there no
+// join makes an admin, and a join replaces keys by email and machine only.
+async function linkedAdmin(db, githubId) {
+  try {
+    return Boolean(await db.prepare('SELECT 1 AS yes FROM memory_admins WHERE github_id = ?').bind(githubId).first());
+  } catch (error) {
+    if (/no such table/i.test(error.message)) return null;
+    throw error;
+  }
+}
+
+// What a join deletes before its insert. On schema 5: this machine's key, the account's expired keys, and its
+// keys on other machines beyond the KEY_LIMIT - 1 newest. A renewal rewrites created_at, so the oldest key
+// is the machine's that joined longest ago.
+const replacedKeys = (db, { email, machine, githubId, now }, linked) => linked === null
+  ? [db.prepare('DELETE FROM memory_keys WHERE email = ? AND machine = ?').bind(email, machine)]
+  : [
+    db.prepare('DELETE FROM memory_keys WHERE machine = ? AND (email = ? OR github_id = ?)').bind(machine, email, githubId),
+    db.prepare('DELETE FROM memory_keys WHERE github_id = ? AND expires_at <= ?').bind(githubId, now),
+    db.prepare('DELETE FROM memory_keys WHERE github_id = ? AND hash NOT IN (SELECT hash FROM memory_keys WHERE github_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)')
+      .bind(githubId, githubId, KEY_LIMIT - 1),
+  ];
+
 // Make a key for this machine when GitHub lets the token's user into this Worker's own repository. Push access
-// gives a member key. Read access alone gives a reader key, on a private repository only: GitHub can not tell
-// a public repository's read-only collaborator from a stranger. The repository and GitHub's address come from
-// the Worker's env, never the request. The token is used for two GitHub calls and never kept.
+// gives a member key, or an admin key to the GitHub account the admin linked. Read access alone gives a reader
+// key, on a private repository only: GitHub can not tell a public repository's read-only collaborator from a
+// stranger. The repository and GitHub's address come from the Worker's env, never the request. The token is
+// used for three GitHub calls and never kept.
 async function join(db, env, request) {
   const repo = env.GITHUB_REPOSITORY;
   if (!repo) return fail(503, 'no_repo', 'this Worker does not know its GitHub repository; CI\'s production deploy sets it');
@@ -115,22 +147,23 @@ async function join(db, env, request) {
   const wanted = String(input.email || '').toLowerCase();
   const chosen = verified.find(entry => entry.email.toLowerCase() === wanted) || verified.find(entry => entry.primary);
   if (!chosen) return fail(403, 'no_email', 'your GitHub account has no verified email');
+  const account = await github('/user');
+  const githubId = account.ok ? String((await account.json()).id || '') : '';
+  if (!githubId) return fail(502, 'github', `GitHub did not name the account (HTTP ${account.status})`);
 
   const email = chosen.email.toLowerCase();
   const key = newKey(email);
+  const now = iso(Date.now());
   const expiresAt = iso(Date.now() + KEY_DAYS * 86400000);
   try {
-    const admin = await db.prepare("SELECT 1 AS yes FROM memory_keys WHERE email = ? AND role = 'admin' LIMIT 1").bind(email).first();
-    const role = admin ? 'admin' : 'member';
-    // An admin is never a reader. Only a reader's key names the schema 4 column, so members join an older store.
-    const reader = !admin && !push;
-    const insert = reader
-      ? 'INSERT INTO memory_keys (hash, email, role, created_at, machine, expires_at, reader) VALUES (?, ?, ?, ?, ?, ?, 1)'
-      : 'INSERT INTO memory_keys (hash, email, role, created_at, machine, expires_at) VALUES (?, ?, ?, ?, ?, ?)';
-    await db.batch([
-      db.prepare('DELETE FROM memory_keys WHERE email = ? AND machine = ?').bind(email, machine),
-      db.prepare(insert).bind(await hashKey(key), email, role, iso(Date.now()), machine, expiresAt),
-    ]);
+    const linked = await linkedAdmin(db, githubId);
+    const role = linked ? 'admin' : 'member';
+    // An admin is never a reader. Only a reader's key names the schema 4 column, and only a schema 5 store
+    // gets the account id, so members join an older store.
+    const reader = !linked && !push;
+    const row = { hash: await hashKey(key), email, role, created_at: now, machine, expires_at: expiresAt, ...(linked === null ? {} : { github_id: githubId }), ...(reader ? { reader: 1 } : {}) };
+    const insert = `INSERT INTO memory_keys (${Object.keys(row).join(', ')}) VALUES (${Object.keys(row).map(() => '?').join(', ')})`;
+    await db.batch([...replacedKeys(db, { email, machine, githubId, now }, linked), db.prepare(insert).bind(...Object.values(row))]);
     return json(200, { success: true, errors: [], result: { key, email, role: reader ? 'reader' : role, machine, expiresAt } });
   } catch (error) {
     // SQLite names a missing column one way in a read and another in an insert.

@@ -7,6 +7,7 @@ import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scr
 import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
+import { MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { homeRows, memory, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
@@ -124,8 +125,22 @@ test('search filters by text, type, slug, date, author, and change state', async
   assert.doesNotMatch(typed.stdout, /reviews/);
   assert.match((await memory(env.repo, env.fake, ['search', '--slug', 'two'])).stdout, /reviews/);
   assert.match((await memory(env.repo, env.fake, ['search', '--since', '2999-01-01'])).stdout, /No matching facts/);
-  assert.match((await memory(env.repo, env.fake, ['search', '--author', 'dev@'])).stdout, /\(one, conversation, 0d, dev, #1\)/);
+  assert.match((await memory(env.repo, env.fake, ['search', '--author', 'dev@'])).stdout, /\(one, conversation, 0d, dev@example\.com, #1\)/);
   assert.match((await memory(env.repo, env.fake, ['search', '--state', 'active'])).stdout, /No matching facts/);
+});
+
+test('two authors who share the part before the @ never read as one person, and the digest keeps its limits', async t => {
+  const env = await setup(t);
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('ops', 'project', ?, 'save', '2026-09-01T00:00:00Z', ?)");
+  for (let i = 0; i < 60; i += 1) insert.run(`Release note ${i} ${'about the deploy window '.repeat(6)}`.trim(), i % 2 ? 'operations@example.org' : 'operations@example.com');
+  const digest = (await memory(env.repo, env.fake, ['digest'])).stdout.trimEnd();
+  assert.match(digest, /, operations@example\.com, #\d+\)/);
+  assert.match(digest, /, operations@example\.org, #\d+\)/);
+  assert.ok(digest.split('\n').length <= MAX_LINES, `${digest.split('\n').length} lines`);
+  assert.ok(Buffer.byteLength(digest) <= MAX_BYTES, `${Buffer.byteLength(digest)} bytes`);
+  const found = (await memory(env.repo, env.fake, ['search', 'release', '--limit', '60'])).stdout;
+  const authors = new Set(found.match(/operations@[\w.]+(?=, #)/g));
+  assert.deepEqual([...authors].sort(), ['operations@example.com', 'operations@example.org']);
 });
 
 // A session's facts, with the branch the session started on.

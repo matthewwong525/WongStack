@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.11.0 — Memory keys come only through GitHub
+
+- **Notes show who wrote them in full.** Each fact in the start-up digest, `search`, `show`, and `live` names its writer's whole email, so `ana@example.com` and `ana@example.org` never look like one person.
+- **Admin is a GitHub account, not an email.** The store links the admin's GitHub account, and a join gives an admin key only to that account. Another account with the admin's verified email joins as a member. Joining now asks GitHub three things: the repository, the verified emails, and the account's id.
+- **No key is made by hand, and every key ends.** `member add` is gone; it answers that teammates join through GitHub. The admin's own key comes from `member admin`, which links the GitHub account `gh` is signed in as and writes a 30-day key to `.env` that renews itself, never printed. Setup runs it. `member remove` also unlinks the admin, and `member list` shows each key's GitHub account and the linked admin.
+- **At most 10 keys per person.** A join from an 11th machine works at once, and the key of the machine that joined longest ago stops; that machine rejoins on its own at its next start.
+- **Saved chats cap at 50 MB.** A bigger session's facts are still captured, but its full transcript is not kept, and `source` says why. The memory route refuses a bigger upload from any key.
+
+**Updating.** After the update merges and production deploys, run `node .claude/skills/memory/scripts/memory.mjs migrate` once, with `gh` signed in: it links your GitHub account as admin and stops every key that had no end date. Without `gh`, it says to run `member admin`. Every machine rejoins through GitHub at its next session start, so fresh memory skips one session while the cached digest still shows. A teammate who got a key by hand needs access to the repo on GitHub, then joins on their own.
+
 ## 26.10.1 — Memory reports what it really saved
 
 - **The background memory report counts what was stored.** While a background run works, the memory script tallies what each `put-facts` and `strip` stored, in `run-tally.json` in the clone's memory state folder. `finish-run` records that tally, not the model's own `--counts`. When the model's counts differ, the run's record says `model reported other counts: <keys>`, and the next digest adds *(the run's own report differed)*. A hand-run `finish-run`, or a run an older `run.mjs` started, records `--counts` as before.

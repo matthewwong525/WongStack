@@ -9,6 +9,7 @@ import { buildDigest, consolidationDue, currentSlug, formatRun, MAX_BYTES, MAX_L
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
+import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
 import { memory, node, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -91,6 +92,25 @@ test('strip redacts and uploads the raw file, drops injected text, and a save ma
   assert.match(again.stdout, /Only messages after line 3 are shown/);
   assert.match(again.stdout, /A later question\./);
   assert.doesNotMatch(again.stdout, /Noted\./);
+});
+
+test('a session over 50 MB keeps its facts but not its transcript, and source says why', async t => {
+  const env = await setup(t);
+  const session = claudeSession(env, 1, [['user', 'Load the export.'], ['assistant', [{ type: 'tool_use', id: 't', name: 'Read', input: { data: 'x'.repeat(MAX_TRANSCRIPT_BYTES) } }]]]);
+  const stripped = await memory(env.repo, env.fake, ['strip', session.id]);
+  assert.equal(stripped.code, 0, stripped.stderr);
+  assert.match(stripped.stdout, /The full transcript is 51 MB, over the 50 MB limit, so it is not kept; capture its facts as usual\./);
+  assert.match(stripped.stdout, /\[user\] Load the export\./);
+  assert.equal(env.fake.objects.size, 0, 'nothing was uploaded');
+  const saved = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'd.json', { session: session.id, source: 'save', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'The export is loaded by hand.' }] })]);
+  assert.match(saved.stdout, /added 1.*captured/);
+  const [row] = rows(env, 'SELECT raw_key, raw_bytes, status FROM sessions');
+  assert.equal(row.raw_key, null);
+  assert.ok(row.raw_bytes > MAX_TRANSCRIPT_BYTES, `${row.raw_bytes} bytes recorded`);
+  assert.equal(row.status, 'captured');
+  const [fact] = rows(env, 'SELECT id FROM facts');
+  const source = await memory(env.repo, env.fake, ['source', String(fact.id)]);
+  assert.match(source.stdout, /the transcript was 51 MB, over the 50 MB limit, so it was not kept\./);
 });
 
 test('#private records the session and uploads and prints nothing', async t => {
@@ -291,9 +311,9 @@ test('the digest stays within its limits and states what it left out', () => {
   const text = buildDigest({ facts: [...threads, ...facts], live: 402, threads, slug: 'add-po-search', now });
   const lines = text.split('\n');
   assert.equal(lines.length, MAX_LINES);
-  assert.deepEqual(lines.slice(2, 5), ['## Open threads on `add-po-search`', '- [thread] Fact number 400 with some words (add-po-search, 10d, a, #401)', '- [thread] Fact number 401 with some words (add-po-search, 10d, a, #402)']);
+  assert.deepEqual(lines.slice(2, 5), ['## Open threads on `add-po-search`', '- [thread] Fact number 400 with some words (add-po-search, 10d, a@b, #401)', '- [thread] Fact number 401 with some words (add-po-search, 10d, a@b, #402)']);
   assert.equal(lines[5], '## Live facts');
-  assert.match(text, /- \[project\] Fact number 0 with some words \(s, 10d, a, #1\)/);
+  assert.match(text, /- \[project\] Fact number 0 with some words \(s, 10d, a@b, #1\)/);
   assert.equal(lines.at(-1), '367 more live facts are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search <terms>`.');
   const long = buildDigest({ facts: Array.from({ length: 400 }, (_, i) => fact(i, 'project', 's', 20)), now });
   assert.ok(Buffer.byteLength(long) <= MAX_BYTES && long.split('\n').length < MAX_LINES);
