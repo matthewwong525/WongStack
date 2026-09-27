@@ -27,7 +27,7 @@ It asks before it sends, buys, or deletes anything.
    to install WongStack in this folder and walk me through the first workflow.
    ```
 
-3. **Answer a few questions.** You sign in to GitHub, where your files are kept, and paste one key from a free [Cloudflare](https://cloudflare.com) account, where your apps run. The agent shows you the [exact clicks](wiki/stack/cloudflare-credentials.md#create-the-token).
+3. **Answer a few questions.** The agent installs any free tools it still needs, after asking. You approve a sign-in code for a free [GitHub](https://github.com/signup) account, where your files are kept. Then you paste one key from a free [Cloudflare](https://cloudflare.com) account, where your apps run. The agent shows you the [exact clicks](wiki/stack/cloudflare-credentials.md#create-the-token).
 
 You end with a working assistant, a starter site online, and memory that carries over between chats. [Getting started](wiki/stack/getting-started.md) walks through each step and says what you do by hand. In a folder that already has files, setup stops and says so.
 
@@ -95,12 +95,12 @@ Checked against each project's README in September 2026.
 ### Requirements
 
 - **A coding agent** that edits files, runs shell commands, and asks questions.
-- **`git`**, **[`gh`](https://cli.github.com/)** signed in (setup creates the GitHub repo), **`curl`**, and **[Node.js](https://nodejs.org/) 22** ([`.nvmrc`](.nvmrc)).
-- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: `npm install -g @fission-ai/openspec@1.13.2`.
+- **`curl`**, which macOS, Windows, and most Linux systems include.
+- **`git`**, **[`gh`](https://cli.github.com/)**, **[Node.js](https://nodejs.org/) 22** ([`.nvmrc`](.nvmrc)), and **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**. Setup installs any that are missing, after asking, and signs `gh` in to GitHub with the scopes it needs.
 - **A [Cloudflare](https://cloudflare.com) account** (the free plan works) and one user token, which stays on your computer. [`SECURITY.md`](SECURITY.md) says what each token can do.
-- **On Windows**, turn on symbolic links before you clone ([how](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).
+- **On Windows**, symbolic links. Setup checks and walks you through Developer Mode; a clone you make yourself needs it first ([how](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).
 
-The setup prompt helps with missing pieces. [Required tools](wiki/development/required-tools.md) says why each is needed.
+[Required tools](wiki/development/required-tools.md) says why each is needed.
 
 ### Repository layout
 

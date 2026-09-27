@@ -34,7 +34,7 @@ It is a **tool, not a toolchain**: nothing is added to your repository — no `p
 
 ## Symbolic links in the agent folder
 
-Every install keeps its agent files in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it ([the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder)). Git stores a link as a link, and macOS and Linux check it out as one. **On Windows, turn on `core.symlinks`** before you clone (`git config --global core.symlinks true`, with Developer Mode on). Without it, Git writes each link as a small text file that holds the path, and neither agent finds its skills.
+Every install keeps its agent files in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it ([the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder)). Git stores a link as a link, and macOS and Linux check it out as one. **On Windows, turn on `core.symlinks`** before you clone (`git config --global core.symlinks true`, with Developer Mode on). Without it, Git writes each link as a small text file that holds the path, and neither agent finds its skills. Setup tests this before it makes the links and walks you through Developer Mode ([Windows folder links](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#4-windows-folder-links)); a clone you make yourself still needs the setting first.
 
 To check that Codex reads the shared folder, run `codex features list` (the Default-mode question flag shows `true`) and `codex debug prompt-input "hi"` (each skill appears once). Neither calls a model. Run them in a trusted checkout: Codex ignores the project `config.toml` in an untrusted one, whatever the layout.
 
@@ -48,7 +48,7 @@ refusing to allow an OAuth App to create or update workflow
 
 The pack's deploy workflow is the file that trips this, so any repo taking (or on) the stack pack needs the scope. The plain-language reason, for when you're asking a user: *"GitHub wants your permission before a tool can add an automated deploy step. This is that permission."*
 
-- **Authenticating fresh:** request it up front — `gh auth login --web --git-protocol https --scopes workflow`. It costs nothing in the browser visit the login already requires.
+- **Authenticating fresh:** request it up front — `gh auth login --web --git-protocol https --scopes workflow,user:email`. It costs nothing in the browser visit the login already requires. Setup does this for you, in [one sign-in](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#2-the-github-sign-in).
 - **Already authenticated:** check `gh auth status` for `workflow` in the token scopes; missing → `gh auth refresh --scopes workflow`.
 
 [Setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4e-the-workflow) checks the scope before it relies on a push, and links here rather than re-explaining.
@@ -59,7 +59,9 @@ A teammate gets their memory key by [joining through GitHub](memory.md#joining-t
 
 ## Runtimes install at the point of need
 
-**Nothing is installed pre-emptively.** Installing a runtime changes the machine, not the repo. When a step needs Node and it is missing, the skill explains what and why, and asks. When the answer is yes, prefer a **user-local** install (the [official installer](https://nodejs.org/) or `nvm` into `$HOME`) over a `sudo` package manager, which fails on many managed laptops.
+**Nothing is installed without asking.** Installing a runtime changes the machine, not the repo. When a step needs a tool and it is missing, the skill explains what and why, and asks.
+
+**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh`, Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: `/verify` adds its browser the first time it needs one.
 
 ## The Cloudflare stack pack
 
@@ -71,7 +73,7 @@ One exception, and its tools stay in CI. Every new install takes the Cloudflare 
 
 > Use a tool where it is already required. A skill may install a **tool** it needs at the point of need and say so; never let a WongStack skill be the reason a **runtime** gets installed without asking.
 
-That's why provisioning is `curl`-first even though `npx wrangler` would be shorter: reaching for it would trigger an install during the one flow whose whole selling point is having no local setup.
+That's why provisioning is `curl`-first even though `npx wrangler` would be shorter: reaching for it would add an app dependency to the one flow that has to work on a fresh computer.
 
 So the core four-tool guarantee stays literally true for every repo: the pack adds tools to *its* repo's deploy pipeline, not to WongStack.
 

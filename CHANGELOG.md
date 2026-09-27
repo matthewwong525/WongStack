@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.10.0 — Setup gets your computer ready first
+
+- **Setup installs the tools it needs, after asking.** Before it writes anything, setup checks for `git`, `gh`, Node.js, and OpenSpec, and asks once to install the missing ones. It uses Homebrew (when already there), `winget`, or `apt` only when no password is needed; otherwise it installs into `~/.local`. A no, or a failed install, stops setup with nothing written. The new `wong-setup/references/tools.md` owns the steps.
+- **One GitHub sign-in, with every scope.** Setup shows a code and a link, and one approval grants `workflow` and `user:email`. Nobody types `gh auth login`, and the first push no longer fails for a missing scope.
+- **Git name and email come from GitHub** when they are unset, so memory's admin key no longer stops on a new computer.
+- **Windows folder links are tested.** Setup walks the person through Developer Mode when links are refused, and makes its links so a refusal fails out loud instead of becoming a copy.
+- **Memory is reported honestly.** The closing report says memory is on only when it answered; otherwise it starts once the site first goes live.
+- **The pages match.** `README.md`, `wiki/stack/getting-started.md`, `wiki/stack/cloudflare-credentials.md`, and `wiki/development/required-tools.md` say setup may install free tools, name the GitHub account, and describe the token as two permission rows.
+
+**Updating.** Nothing to do in an installed repo: `/wong-sync` brings the page edits, and the setup changes reach new installs.
+
 ## 25.9.0 — Newest building blocks, except Vitest 5
 
 - **The app's building blocks are current.** React and React DOM 19.3, Vite 8.3.1, the React plugin 6.1.1, jsdom 30.1.1, knip 6.38.0, oxlint 1.85.0, and jscpd 5.3.2, in `app/package.json` and its lockfile. `@types/node` stays on 22 to match `.nvmrc`. Nothing in the app changes.
