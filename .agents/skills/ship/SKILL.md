@@ -107,7 +107,7 @@ It compares the worktree copy, the primary, and the baseline recorded at seed. I
 
 ## Step 6 — report
 
-Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, and what changed for them. Then print `merge.sh`'s `key=value` lines, plus:
+Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, what changed for them, and the live link. For that reader, the rest below except *Checks loosened* comes only when they ask. Otherwise print `merge.sh`'s `key=value` lines, plus:
 
 - **Archived** — the archive path; `openspec/specs/` holds the synced result.
 - **Checkpoint** — `/save`'s result and CI outcome, including auto-fix pushes.

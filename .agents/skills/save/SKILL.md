@@ -79,7 +79,7 @@ A CI failure takes the gate's three-attempt fix loop. `UNKNOWN` is unverified, n
 
 ## 5. Report
 
-For a normal save, report branch and commit, PR link, maintained change or archive and Status, facts added, superseded, and dropped (or skipped) and whether they were stored or spooled, CI result (including fixes or uncertainty), and the discovered preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, using the actual single value. Name the active continue command only for an active change. Keep errors explicit and values excluded.
+For a non-technical reader who ran `/save` themselves, report the outcome and one link by [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level), and give the lines below only when asked. Otherwise, for a normal save, report branch and commit, PR link, maintained change or archive and Status, facts added, superseded, and dropped (or skipped) and whether they were stored or spooled, CI result (including fixes or uncertainty), and the discovered preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, using the actual single value. Inside another verb the line is always printed, whatever the reader, because the caller reads it. Name the active continue command only for an active change. Keep errors explicit and values excluded.
 
 A successful direct prose save uses only the two-line report from its reference. Save never merges any route; ship owns archive and merge.
 

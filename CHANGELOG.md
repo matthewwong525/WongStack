@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.11.0 — Plain reports, and continue drawn as the way back in
+
+- **Reports give the outcome and one link.** For a non-technical reader who ran the verb, `/save`, `/continue`, and `/ship` leave out branch names, commit ids, the `SAVE_GATE_RESULT` line, `merge.sh`'s lines, and fact counts unless asked. A verb running inside another still prints what its caller reads. The rule lives in *Write at the reader's level* in `explore/references/asking-the-user.md`.
+- **`/continue` recaps read as progress** — *3 of 9 steps left, 2 comments from reviewers* — for a non-technical reader.
+- **The loop is `/explore → /plan → /apply → /save → /ship`,** with `/continue` as the way back in, in the `WONG-STACK` block, the README, and the change-loop page.
+- **The source wiki's word list** gains review page, preview link, mini app, routine, save, and publish.
+
+**Updating.** `/wong-sync` brings the block line and the skill and page edits. Nothing else to do.
+
 ## 25.10.1 — Fixes from a repo check
 
 - **Teammates can't change or hide each other's memory.** The memory route now refuses three writes it let through. A fact tag or supersede without the member's own new fact before it in the same batch is refused, so a replacement is always visible and credited. So is a session upsert onto a row another author holds, or one written before keys. The read check now looks at the whole SQL text, so a quoted name like `[']` can't hide a `DELETE`. A malformed `%` in an object path is a 400, not a crash. The statements are unchanged, so member checkouts need no update.
