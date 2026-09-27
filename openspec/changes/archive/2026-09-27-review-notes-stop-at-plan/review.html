@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -8,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-09-27-review-notes-stop-at-plan</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -90,17 +91,67 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-09-27-review-notes-stop-at-plan">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-09-27-review-notes-stop-at-plan</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">When you copy notes from a review page and paste them into chat, the assistant sometimes updates the plan and then goes straight on to build it. You never get to see the updated plan first. The copied text starts with <code>/continue</code>, which is the command for &quot;pick this up and keep going&quot;, so building is what it was told to do.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Pasted notes change the plan, then stop.</b> The assistant updates the plan to match your notes and rebuilds the review page. Then it shows you the new page and asks <i>build it now?</i>, the same stop you get after any new plan.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">review page</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">    │ Copy notes</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">    ▼</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">paste in chat</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">    │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">    ▼</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">plan updated</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">review page rebuilt</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">    │</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">    ▼</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">&quot;Build it now?&quot; ◀── you decide</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The copied text is a plain request.</b> No command at the top. It asks, in plain words, to update the plan and not build yet. Each note is a bullet that starts with where it points: the Why, a change number, or a decision number, plus a few words of that text.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">before</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">/continue add-login</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">Review notes from review.html (2):</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">1. #/2 · item &quot;Save the…&quot; — Say why.</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">2. #/decisions/1 · decision &quot;…&quot; — …</span>
+
+<span class="ln" data-note="item-2-line-7" tabindex="0">after</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">Update the plan add-login with</span>
+<span class="ln" data-note="item-2-line-9" tabindex="0">these notes from the review page.</span>
+<span class="ln" data-note="item-2-line-10" tabindex="0">Don't build yet.</span>
+<span class="ln" data-note="item-2-line-11" tabindex="0">- Change #2 (&quot;Save the…&quot;): Say why.</span>
+<span class="ln" data-note="item-2-line-12" tabindex="0">- Decision #1 (&quot;…&quot;): …</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The page says where the notes go.</b> After you tap Copy notes, the message reads <i>Paste them into chat to update the plan.</i></div></div></li>
+</ol>
+<p class="aside"><b>Non-goals:</b> No change to how you add, edit, or save notes on the page. Notes copied from a page made before this update are not treated specially. Notes are pasted where the plan is open; loading a saved plan elsewhere first is out of scope.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the copied block starts with <code>/plan &lt;change-name&gt;</code> rather than plain words with no command, because an explicit command reliably loads the plan skill that owns the notes procedure, and you said the <code>/continue</code> start is probably not needed.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: after the notes are in, the assistant stops at the review link and asks <i>build it now?</i>, because that is the stop every new plan already makes, and building without a look is the bug.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the notes procedure stays in the plan skill's Review notes section rather than a new reference file, because it is one paragraph and the fix is its stop, not its size.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>/continue</code> still accepts pasted notes and now stops after them, because review pages built before this release keep copying <code>/continue</code>.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the marker line <code>Review notes from review.html (&lt;n&gt;)</code> keeps its wording, because both skills recognize a pasted block by it, and old and new pages then match one rule.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked whether the copied text needs a command at the top → chose plain words: &quot;Update the plan &lt;name&gt; with these notes from the review page. Don't build yet.&quot;, then one bullet per note by change number. This replaces the <code>/plan &lt;change-name&gt;</code> start above. The plan skill's description names these notes so it still loads.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: each bullet keeps a short quote of the text it points at, because a change number can shift when the plan is edited, and the quote lets the assistant find the right spot.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked, in a review note on change 4, whether older review pages need handling → chose no; the change is removed. Only the new copy format is recognized; <code>/continue</code> drops its review-block bullet, and the old marker is retired.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked, in a review note on change 5, whether notes need to work in a new session → chose no; the change is removed. Notes are handled where the plan is open, with no detour through <code>/continue</code>.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: no repeatable fact to distill, because the three session facts describe this change, and its one lasting rule (copied text is a plain request) now lives in the review kit, <code>/plan</code>, and <a href="../../../wiki/ux-principles.md">the UX principles</a>.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: archived and checkpointed for ship. Built as planned, plus a <code>payload-checks</code> delta and a direct <code>ux-wireframes</code> Purpose edit, both still naming <code>/continue</code>. The browser test waits for the copy toast, which is set after the clipboard write resolves. Released as 25.4.0, because 25.3.0 landed on main while this was planned.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>

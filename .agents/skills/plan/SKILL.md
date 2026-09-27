@@ -1,12 +1,12 @@
 ---
 name: plan
-description: Draft an OpenSpec change with a proposal, required artifacts, tasks, and a standalone review page with text drawings, or write a short to-do for work that changes no repo file. Use before implementation when a change needs a plan or a review.
+description: Draft an OpenSpec change with a proposal, required artifacts, tasks, and a standalone review page with text drawings, or write a short to-do for work that changes no repo file. Use before implementation when a change needs a plan or a review, and when someone pastes notes from a plan's review page.
 user-invocable: true
 ---
 
 # /plan
 
-Create an apply-ready OpenSpec change and its required `review.html`. The page is the main human review surface: one scrolling document with Why, the What Changes items with their text drawings, and the decisions labeled *asked* or *assumed*. It works offline, on a phone; the reviewer taps + Note to comment and copies the notes into `/continue`.
+Create an apply-ready OpenSpec change and its required `review.html`. The page is the main human review surface: one scrolling document with Why, the What Changes items with their text drawings, and the decisions labeled *asked* or *assumed*. It works offline, on a phone; the reviewer taps + Note to comment and pastes the copied notes into chat.
 
 **Work that changes no repo file** — research, an errand, a message — gets no OpenSpec change and no page. Run the bounded `/explore` pass below, then write a short numbered to-do in the conversation and mark each step that acts outside it `(outward)`. Write no file.
 
@@ -50,7 +50,7 @@ For screens, add a `## UX` design section with a brief, flow, hierarchy, compone
 
 ## Review notes
 
-A `/continue` instruction that begins `Review notes from review.html` is feedback on an existing change. Read its artifact paths from `openspec status --change "<name>" --json`, by the [CLI contract](references/openspec-cli.md). Apply each note where it belongs — the proposal and its drawings, design, delta specs, tasks — and keep them coherent. Append one Decision-log line naming what each note changed or why it was declined. For a substantial rewrite, use `openspec instructions <artifact-id> --change "<name>" --json`, then validate. Rebuild the page (above) before implementing. Create no artifact the notes did not ask for.
+A message that begins `Update the plan <name> with these notes from the review page` is feedback on an existing change, copied from its `review.html`. It needs no verb, and it asks for no build. Skip [the explore round](#explore-first): the notes are the reviewer's answers. Read the artifact paths from `openspec status --change "<name>" --json`, by the [CLI contract](references/openspec-cli.md); when this checkout has no such change, say so and stop. Each bullet names its spot (`Change #2`, `Decision #1`, `Why, paragraph 1`) and quotes its text; when the number no longer matches the quote, go by the quote. Apply each note where it belongs — the proposal and its drawings, design, delta specs, tasks — and keep them coherent. Append one Decision-log line naming what each note changed or why it was declined. For a substantial rewrite, use `openspec instructions <artifact-id> --change "<name>" --json`, then validate. Rebuild the page (above). Create no artifact the notes did not ask for. Then [finish](#finish) as a standalone `/plan`: the review link and *build it now?* Never start building from the notes.
 
 ## Finish
 

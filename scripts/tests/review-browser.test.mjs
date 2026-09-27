@@ -153,7 +153,7 @@ browserTest('on a touch screen, one tap on Note opens the editor and a tap on te
   await context.close();
 });
 
-browserTest('saving adds a pin and a list entry, and Copy notes writes the /continue block', async () => {
+browserTest('saving adds a pin and a list entry, and Copy notes writes a plain request to update the plan', async () => {
   const { page, context } = await open(fixture().url);
   await note(page, 'why-1', 'Say who reads it.');
   await note(page, 'item-2', 'Name the reason.');
@@ -164,13 +164,14 @@ browserTest('saving adds a pin and a list entry, and Copy notes writes the /cont
   assert.equal(await page.locator('#note-list .entry').count(), 4);
   assert.equal(await page.locator('.bar .note-count').innerText(), '4 notes');
   assert.equal(await copied(page), [
-    '/continue review-fixture',
-    'Review notes from review.html (4):',
-    '1. #/why · paragraph 1 "Reviewers read the plan on a phone." — Say who reads it.',
-    '2. #/2 · item "Item two links the reason and wraps onto a second line." — Name the reason.',
-    '3. #/1 · drawing line 3 "done" — Show the end state.',
-    '4. #/decisions/2 · decision "Assumed: forty columns, because phones are narrow." — Check this one.',
+    'Update the plan review-fixture with these notes from the review page. Don\'t build yet.',
+    '- Why, paragraph 1 ("Reviewers read the plan on a phone."): Say who reads it.',
+    '- Change #2 ("Item two links the reason and wraps onto a second line."): Name the reason.',
+    '- Change #1, drawing line 3 ("done"): Show the end state.',
+    '- Decision #2 ("Assumed: forty columns, because phones are narrow."): Check this one.',
   ].join('\n'));
+  await page.waitForFunction(() => document.getElementById('toast').textContent !== '');
+  assert.equal(await page.locator('#toast').textContent(), 'Copied 4 notes. Paste them into chat to update the plan.');
   await context.close();
 });
 
@@ -185,7 +186,7 @@ browserTest('drafts stay on their targets, survive a reload, and are never copie
   await at(page, 'why-1').locator('.pin').click();
   await page.locator('#editor textarea').fill('Edited');
   const text = await copied(page);
-  assert.match(text, /\(1\):\n1\. .* — Saved$/);
+  assert.match(text, /yet\.\n- .*\): Saved$/);
   assert.doesNotMatch(text, /Edited|Draft two|Draft four/);
   await page.locator('#editor [data-act="discard"]').click();
   await at(page, 'why-1').locator('.pin').click();
@@ -206,7 +207,7 @@ browserTest('refused storage keeps notes for the session and says so', async () 
   assert.equal(await page.locator('#editor .session').isVisible(), true);
   await page.locator('#editor [data-act="save"]').click();
   assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '1');
-  assert.match(await copied(page), /\(1\):\n1\. #\/2 .* — Session draft$/);
+  assert.match(await copied(page), /yet\.\n- Change #2 .*\): Session draft$/);
   assert.deepEqual(errors, []);
   await context.close();
 });

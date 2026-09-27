@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.4.0 — Review notes update the plan and stop
+
+- **Copy notes is a plain request.** `review.html` copies `Update the plan <name> with these notes from the review page. Don't build yet.`, then one bullet per note: `- Change #2 ("<quote>"): <note>`, with `Why, paragraph <n>`, `Change #<n>, drawing line <k>`, or `Decision #<n>` for the other spots. It no longer starts with `/continue`. The toast says *Paste them into chat to update the plan.* Saved notes and their labels are unchanged.
+- **Pasted notes stop at the plan.** [`/plan`'s review-notes step](.agents/skills/plan/SKILL.md#review-notes) recognizes the new header with no verb, skips the explore round, goes by the quote when a number moved, rebuilds the page, and ends with the review link and *build it now?* It never builds from the notes. The skill's description names pasted notes, so it loads without `/plan`. `/continue` drops its review-block bullet.
+- **The old marker is retired.** `Review notes from review.html` joins `scripts/retired-names.json`.
+
+**Updating.** An active change's page picks up the new copy on its next build. A page built before 25.4.0 still copies `/continue`; rebuild it (`/plan` rebuilds on any edit) before copying notes from it.
+
 ## 25.3.0 — Tests that guard AI-written code
 
 - **The app carries no browser.** The review page's browser test moves from `app/review/` to WongStack's own checks (`scripts/tests/review-browser.test.mjs`), on `playwright-core` and the CI runner's Google Chrome. The scaffold drops `playwright`, `review/*.test.mjs` leaves its `test` script and `knip.jsonc`, and `test.yml` no longer installs Chromium, about 19 seconds per run.
