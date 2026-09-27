@@ -1,7 +1,7 @@
 # reader-level Specification
 
 ## Purpose
-Let a plan, a question, and a report fit the person who reads them: plain outcomes for a non-technical person, full detail for an engineer, from one line on the person's wiki page.
+Write every plan, question, and report in plain words for everyone, with detail when the person asks.
 ## Requirements
 ### Requirement: The person page records a technical level
 

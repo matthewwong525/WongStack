@@ -74,7 +74,7 @@ Give the user a tight recap so they can confirm the loaded state:
 - **The change** — 2–4 lines summarizing it (what the work is + where the tasks stand), read from `openspec/changes/<name>/`, plus its **`Status:`** line and any **open questions** from the proposal header.
 - **The journey** — the last 1–3 entries of the proposal's `## Decision log`, so the resumer inherits the *why* (decisions made, dead ends ruled out, blockers) and not just the plan.
 - **The session context** — fold in the open threads first, then the live facts the change doesn't carry, with their ages: the constraints the user stated, options weighed and dropped. This is what closes the gap between resuming the *plan* and resuming the *understanding*. Skip the line when there are no facts; when [the store is unreachable](../memory/SKILL.md#read), say so here.
-- **State** — which branch is checked out and the PR link (as a markdown link so it stays clickable). For a non-technical reader, only the link, as *the review page on GitHub* ([the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level)).
+- **State** — which branch is checked out and the PR link (as a markdown link so it stays clickable). Unless the person asks for more, give only the link, as *the review page on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
 - **Drift check** — verify the change isn't stale. Report **counts only** (don't load diffs or threads unless asked):
   ```bash
   git log origin/main..HEAD --oneline | wc -l   # commits on the branch (vs how tasks.md reads)
@@ -85,7 +85,7 @@ Give the user a tight recap so they can confirm the loaded state:
       --jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved|not)]|length'
   fi
   ```
-  Fold the result into the recap as one line — e.g. *"7 commits on the branch, 3/9 tasks unchecked, 2 unresolved review comments"*. If the commit count looks ahead of what `tasks.md` says (work landed without a `/save`), or there are unresolved review comments, flag that so the user can decide whether to reconcile first. For a non-technical reader, say it as progress — *"3 of 9 steps left, 2 comments from reviewers"* — with no branch or commit count, and say a commit count ahead of `tasks.md` as *"some work isn't in the plan's checklist yet"*.
+  Fold the result into the recap as one line — e.g. *"7 commits on the branch, 3/9 tasks unchecked, 2 unresolved review comments"*. If the commit count looks ahead of what `tasks.md` says (work landed without a `/save`), or there are unresolved review comments, flag that so the user can decide whether to reconcile first. Unless the person asks for the counts, say it as progress — *"3 of 9 steps left, 2 comments from reviewers"* — with no branch or commit count, and say a commit count ahead of `tasks.md` as *"some work isn't in the plan's checklist yet"*.
 
 Then continue:
 
