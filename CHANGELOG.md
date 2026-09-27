@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Updates catch up old, heavily edited installs
+
+- **Old installs update in place.** A repo from before 19.0.0 no longer needs a fresh setup. Its update plan also makes the moves it missed: the shared agent folder, the rules file both agents read, wiki pages kept in another folder, leftover OpenSpec skills, and the CI deploy token. Every local edit stays. [Catching up an older install](.agents/skills/wong-sync/references/catch-up.md) owns the steps; the preflight's new `catchUp` field lists which apply, from the repo's layout and install record alone.
+- **The oldest installs can be checked.** A repo from before WongStack kept a file list got an error. It now compares against an empty list: every WongStack file it has counts as possibly edited, so nothing is overwritten.
+- **Hand steps from every skipped release reach the plan.** The preflight's new `updating` field carries each newer release's by-hand note, such as running the memory upgrade after publishing, and the plan turns each one that applies into a task.
+- **A merge never drops new text silently.** The new `wong-sync/scripts/merge-check.mjs` runs after the plan merges new WongStack text into files you edited. It lists any upstream section missing from the result, and the plan takes it or says why not before the install record advances.
+- **Update plans read plainly.** A sync plan's summary says what you get, what changes in how you work, what of yours stays, what is left out and why, and what you do yourself. The review page builder warns when a plan's Why and What Changes name more than 12 files or commands.
+
+**Updating.** Nothing to do by hand. `/wong-sync` always runs the source's preflight, so the next sync of any install already uses the new fields and the catch-up page.
+
 ## 26.11.0 — Memory keys come only through GitHub
 
 - **Notes show who wrote them in full.** Each fact in the start-up digest, `search`, `show`, and `live` names its writer's whole email, so `ana@example.com` and `ana@example.org` never look like one person.
@@ -512,4 +522,4 @@ Until you move, the store keeps working with the old token. Teammates who held t
 
 ## Before 19.0.0
 
-Entries for 18.1.0 and earlier are in git history: `git show 47385c9:CHANGELOG.md`. Installs from before 19.0.0 are not supported, so `/wong-sync` never reads them.
+Entries for 18.1.0 and earlier are in git history: `git show 47385c9:CHANGELOG.md`. Installs from before 19.0.0 now update in place through [catching up an older install](.agents/skills/wong-sync/references/catch-up.md), which carries the moves those entries asked for.

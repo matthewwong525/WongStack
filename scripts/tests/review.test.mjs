@@ -157,6 +157,26 @@ test('a wide drawing line warns with its item and line and still writes', () => 
   assert.ok(page(root).includes(wide));
 }));
 
+// The base proposal holds one code span (item 3); these add spans to What Changes.
+function withSpans(count, inDrawing = 0) {
+  const spans = Array.from({ length: count }, (_, i) => `\`file-${i}.md\``).join(' ');
+  const drawn = Array.from({ length: inDrawing }, (_, i) => `\`drawn-${i}\``).join(' ');
+  return proposal.replace('- **Third item**', `- **Many files** ${spans}\n- **Third item**`).replace('  c ─→ d', `  c ─→ d ${drawn}`);
+}
+
+test('more than 12 code spans in Why and What Changes warn with the count and still write', () => fixture(root => {
+  writeFileSync(join(root, 'proposal.md'), withSpans(12));
+  const result = buildReview(root, { requireCurrent: true });
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.warnings, ['Why and What Changes name 13 files or commands; move them to the design and tasks']);
+  assert.ok(page(root).includes('file-11.md'));
+}));
+
+test('12 code spans, or spans inside a drawing, do not warn', () => fixture(root => {
+  writeFileSync(join(root, 'proposal.md'), withSpans(11, 5));
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+}));
+
 test('a change without a page is reported and left untouched', () => fixture(root => {
   assert.deepEqual(buildReview(root), { kind: 'no-page', changed: false, warnings: [] });
   assert.equal(existsSync(join(root, 'review.html')), false);

@@ -8,7 +8,7 @@ Ship WongStack's own React-on-Workers app as a starter, so a new install has a r
 
 ### Requirement: Every install gets the scaffold
 
-The core payload SHALL carry WongStack's `app/` to every install, and no install-record flag SHALL gate it. After provisioning and the first deploy, the app's address SHALL serve the starter page.
+The core payload SHALL carry WongStack's `app/` to every new install, and no install-record flag SHALL gate it for a new install. After provisioning and the first deploy, the app's address SHALL serve the starter page. A sync SHALL treat an earlier release's opt-out flag as the person's choice: the plan names the starter app as left out until the person asks for it.
 
 #### Scenario: A new install
 
@@ -18,7 +18,7 @@ The core payload SHALL carry WongStack's `app/` to every install, and no install
 #### Scenario: A legacy opt-out flag
 
 - **WHEN** an install record carries `components.appScaffold: false` from an earlier release
-- **THEN** the flag is ignored, and the repo is not supported until it is set up again
+- **THEN** the sync plan lists the starter app as left out, with that reason, and the repo still updates in place
 
 ### Requirement: No source-repo value reaches a target
 

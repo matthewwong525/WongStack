@@ -23,6 +23,8 @@ The rules live the same way: a real `AGENTS.md` holds the `WONG-STACK` block, an
 
 On Windows, make the link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, as setup does for `.claude` and `.codex`.
 
+An install from before 19.0.0 may still have a real `.claude/` or `.codex/` folder, or `AGENTS.md` linking to a real `CLAUDE.md`. [Catching up an older install](catch-up.md) owns those moves, and the rest such an install missed.
+
 A skill installed under a recorded local name keeps that name: the target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The inventory limits copying, not exploration's expansion from the preflight's changed units to a named dependency or impact. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source. `wiki/people/` and other knowledge sections grow from use in the target; no install seeds them.
 
 ## Deterministic sync preflight
@@ -40,11 +42,29 @@ Ordinary files compare by Git blob identity first. The `CLAUDE.md` unit is only 
 - `latest-equivalent` — it already equals the refreshed source;
 - `locally-adapted` — it equals neither source value and must remain protected.
 
+An installed commit older than the inventory has no `payload-files.json`. The preflight then compares against an empty baseline: every current unit is `added`, and one the target already has is `latest-equivalent` or `locally-adapted`. A missing inventory at the source `HEAD` is still an error.
+
+The report adds two fields, still `schemaVersion: 1`, so an old install's own `/wong-sync` reads it:
+
+- `catchUp` — `{ needed, reasons }`. Each reason is a fixed code with the paths it saw, read from the target's layout and install record alone: `agent-folder`, `codex-folder`, `rules-file`, `rules-file-reversed`, `wiki-elsewhere`, `opted-out`, `generated-openspec`, `deploy-token`, and `no-baseline`. `needed` is true for any reason, or an installed version below 19.0.0. [Catching up an older install](catch-up.md) owns what each asks of the plan.
+- `updating` — one `{ version, title, note }` per source `CHANGELOG.md` entry above the installed version, newest first, with its `**Updating.**` or `**Moving an existing install.**` text, or `null`. `updatingComplete` is `false` when the changelog is missing or unparsable, or the installed version is unknown; that is never an error, because the file changes are still proven.
+
 The JSON report lists every changed unit's path and classification, with counts, but no file body or diff hunk. Invalid or non-ancestor commits, invalid inventory data, unsafe or escaping paths, missing source markers, read errors, Git errors, or a change set above the declared safety limit produce `status: error`. [`/wong-sync`](../SKILL.md) owns what each status does.
+
+[`merge-check.mjs`](../scripts/merge-check.mjs) runs after the plan merges new text into edited files, before the install record advances. With the same arguments plus `--from <installed commit>`, it takes each unit the preflight calls `modified` and `locally-adapted`, and lists every upstream hunk with an added line the target no longer has: the file, the source line range, the count, and the first missing line. Only the text between the markers counts for the `CLAUDE.md` block. It exits 0 when nothing is missing, 1 when something is, and 2 on a usage or read error; with no baseline it reports `skipped`. A moved or reworded line passes, so it catches dropped sections, and the plan's review catches rewording.
 
 The **improve** skill ships its dependency-free survey helper and investigation references as one directory. The helper reads supported tracked text and Git history through OpenSpec's Node.js runtime, adds no package, and contacts no service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduler requirements.
 
 The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), and the builder as one directory. Every new change gets a standalone `review.html` built from its `proposal.md` alone, with the viewer's runtime bundled in; `/save` refreshes it through the same builder. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure in a target.
+
+### Planning an update
+
+Every `/wong-sync`, however old, reads this page from the source, so the plan's use of the report lives here, not in the installed skill. Whether the installed skill hands the report to `/explore` or `/plan`, add these lines to that description, in order, word for word:
+
+- When `catchUp.needed`, plan each reported move by [catching up an older install](catch-up.md).
+- Carry each applicable `updating` note as a task; post-publish steps come after the gate.
+- Before the install-record task, run `node <source path>/.claude/skills/wong-sync/scripts/merge-check.mjs --target <target root> --source <source path> --from <installed commit>`; take or name every missing hunk.
+- Write Why and What Changes for the person, not an engineer, as five groups: what they get, what changes in how they work, what of theirs stays, what is left out and why, and what they do themselves. Name a file, skill, or command there only when they must type it, and keep to 12 code spans or fewer; counts, paths, and commands go in the design and tasks.
 
 ## The memory store and its hooks
 
@@ -68,7 +88,7 @@ Fresh setup initializes the OpenSpec planning home with `openspec init --tools n
 
 ## Not copied
 
-`wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this source repo's own install record, meta-only release checks, and the meta-only payload CI are outside the target inventory. `.claude/.wong-stack.json` is the target's install record, written after agreed implementation, never copied upstream. Legacy verdict files may inform exploration but are not generated again.
+`wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this source repo's own install record, meta-only release checks, and the meta-only payload CI are outside the target inventory. `.claude/.wong-stack.json` is the target's install record, written after agreed implementation, never copied upstream. Legacy verdict files may inform exploration but are not generated again. An older install's leftover layout and record fields are caught up in place by [catching up an older install](catch-up.md), never copied again.
 
 ## Install record
 

@@ -27,6 +27,7 @@ const scripts = {
   '.agents/skills/improve/scripts/survey.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
+  '.agents/skills/wong-sync/scripts/merge-check.mjs': [],
   '.agents/skills/wong-setup/scripts/provision.mjs': [],
   '.agents/skills/routine/scripts/routine.mjs': ['ls'],
   '.agents/skills/routine/scripts/tidy.mjs': ['sweep'],

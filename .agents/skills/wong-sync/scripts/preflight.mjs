@@ -4,7 +4,9 @@ import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   lstatSync,
+  readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
 } from 'node:fs';
 import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
@@ -139,13 +141,16 @@ function blob(source, revision, logicalPath, tree) {
   return { ...found, content: git(source, ['show', `${revision}:${found.gitPath}`], { buffer: true }) };
 }
 
-function inventoryAt(source, revision, tree) {
+// An installed commit from before the inventory existed has none: with `optional`,
+// that returns null and the caller compares against an empty baseline.
+function inventoryAt(source, revision, tree, { optional = false } = {}) {
   const logical = '.claude/skills/wong-sync/references/payload-files.json';
   const found = tree.get(logical);
   if (found) {
     const raw = git(source, ['show', `${revision}:${found.gitPath}`]);
     return { path: found.gitPath, value: parseJson(raw, `payload inventory at ${revision}`) };
   }
+  if (optional) return null;
   fail('missing-inventory', `payload inventory is absent at ${revision}`);
 }
 
@@ -304,7 +309,7 @@ function sourceValue(source, revision, tree, unit) {
   return extractBlock(found?.content ?? null, unit.markers, `${unit.sourcePath} at ${revision}`, { required: true });
 }
 
-function targetValue(target, unit) {
+export function targetValue(target, unit) {
   const path = inside(target, resolve(target, safeRelativePath(unit.targetPath, 'target payload path')), 'target payload path');
   if (existsSync(path)) inside(target, realpathSync(path), 'target payload path');
   else {
@@ -362,15 +367,9 @@ function parseArgs(argv) {
   return options;
 }
 
-export function preflight({ target: targetInput, source: sourceInput, record: recordInput, maxChanges = DEFAULT_MAX_CHANGES }) {
-  const started = performance.now();
-  const target = directory(targetInput, '--target');
-  const source = directory(sourceInput, '--source');
+function readRecord(target, recordInput) {
   const recordPath = inside(target, resolve(target, recordInput ?? '.claude/.wong-stack.json'), '--record');
   if (existsSync(recordPath)) inside(target, realpathSync(recordPath), '--record');
-  const limit = Number(maxChanges);
-  if (!Number.isSafeInteger(limit) || limit < 1) fail('invalid-argument', '--max-changes must be a positive integer');
-
   let record;
   try {
     record = parseJson(readFileSync(recordPath, 'utf8'), 'install record');
@@ -379,21 +378,36 @@ export function preflight({ target: targetInput, source: sourceInput, record: re
     fail('record-read-failed', `cannot read install record: ${error?.code ?? 'read error'}`);
   }
   if (!record || typeof record !== 'object' || Array.isArray(record)) fail('invalid-record', 'install record must be an object');
-  if (typeof record.commit !== 'string' || !record.commit) fail('missing-installed-commit', 'install record has no source commit');
+  return record;
+}
+
+// The shared selection behind preflight and merge-check: both commits' payload,
+// expanded for this target, and every unit whose source value changed between them.
+// `from` overrides the record's commit (merge-check checks against the commit a plan started from).
+export function compareSelection({ target: targetInput, source: sourceInput, record: recordInput, from, maxChanges = DEFAULT_MAX_CHANGES }) {
+  const target = directory(targetInput, '--target');
+  const source = directory(sourceInput, '--source');
+  const limit = Number(maxChanges);
+  if (!Number.isSafeInteger(limit) || limit < 1) fail('invalid-argument', '--max-changes must be a positive integer');
+  const record = readRecord(target, recordInput);
+  const installed = from ?? record.commit;
+  if (typeof installed !== 'string' || !installed) fail('missing-installed-commit', 'install record has no source commit');
 
   const sourceRoot = realpathSync(String(git(source, ['rev-parse', '--show-toplevel'])).trim());
   if (sourceRoot !== source) fail('invalid-source', '--source must be the source repository root');
   const currentCommit = String(git(source, ['rev-parse', 'HEAD'])).trim();
-  const installedCommit = String(git(source, ['rev-parse', '--verify', `${record.commit}^{commit}`])).trim();
+  const installedCommit = String(git(source, ['rev-parse', '--verify', `${installed}^{commit}`])).trim();
   if (spawnSync('git', ['-C', source, 'merge-base', '--is-ancestor', installedCommit, currentCommit]).status !== 0) {
-    fail('installed-commit-not-ancestor', `${record.commit} is not an ancestor of ${currentCommit}`);
+    fail('installed-commit-not-ancestor', `${installed} is not an ancestor of ${currentCommit}`);
   }
 
   const baseTree = treeAt(source, installedCommit);
   const currentTree = treeAt(source, currentCommit);
-  const baseInventory = inventoryAt(source, installedCommit, baseTree).value;
+  const baseInventory = inventoryAt(source, installedCommit, baseTree, { optional: true });
   const currentInventory = inventoryAt(source, currentCommit, currentTree).value;
-  const baseSelection = expandInventory(source, installedCommit, baseTree, baseInventory, record);
+  const baseSelection = baseInventory
+    ? expandInventory(source, installedCommit, baseTree, baseInventory.value, record)
+    : { categories: [], units: new Map() };
   const currentSelection = expandInventory(source, currentCommit, currentTree, currentInventory, record);
   const keys = [...new Set([...baseSelection.units.keys(), ...currentSelection.units.keys()])].sort();
   const changes = [];
@@ -410,20 +424,155 @@ export function preflight({ target: targetInput, source: sourceInput, record: re
     if (equal(baseValue, currentValue)) continue;
     const localValue = targetValue(target, unit);
     changes.push({
-      unit: unit.key,
-      kind: unit.kind,
-      sourcePath: unit.sourcePath,
-      targetPath: unit.targetPath,
-      categories: unit.categories,
+      unit,
+      baseEntry: baseUnit ? baseTree.get(baseUnit.sourcePath) ?? null : null,
+      currentEntry: currentUnit ? currentTree.get(currentUnit.sourcePath) ?? null : null,
       operation: operation(baseValue, currentValue),
       localState: classify(baseValue, currentValue, localValue),
     });
     if (changes.length > limit) fail('change-limit', `payload delta exceeds the ${limit} unit safety limit`);
   }
 
+  return {
+    target,
+    source,
+    record,
+    currentCommit,
+    installedCommit,
+    currentTree,
+    baseline: baseInventory ? 'inventory' : 'empty',
+    baseSelection,
+    currentSelection,
+    keys,
+    changes,
+  };
+}
+
+function parseVersion(value) {
+  const match = typeof value === 'string' && /^v?(\d+)\.(\d+)\.(\d+)/.exec(value.trim());
+  return match ? match.slice(1, 4).map(Number) : null;
+}
+
+function below(version, floor) {
+  const parsed = parseVersion(version);
+  if (!parsed) return false;
+  for (let index = 0; index < 3; index += 1) {
+    if (parsed[index] !== floor[index]) return parsed[index] < floor[index];
+  }
+  return false;
+}
+
+function kindAt(path) {
+  try {
+    const stat = lstatSync(path);
+    if (stat.isSymbolicLink()) return 'link';
+    return stat.isDirectory() ? 'dir' : 'file';
+  } catch {
+    return null;
+  }
+}
+
+// Skill folder names under the target's skills folders; names only, never bodies.
+function skillNames(target) {
+  const names = new Set();
+  for (const folder of ['.claude/skills', '.agents/skills']) {
+    const path = resolve(target, folder);
+    try {
+      const real = realpathSync(path);
+      inside(target, real, 'skills folder');
+      for (const entry of readdirSync(real, { withFileTypes: true })) {
+        if (entry.isDirectory() || entry.isSymbolicLink()) names.add(entry.name);
+      }
+    } catch (error) {
+      if (error instanceof PreflightError) continue;
+      if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') continue;
+      fail('target-read-failed', `cannot list ${folder}: ${error?.code ?? 'read error'}`);
+    }
+  }
+  return [...names].sort();
+}
+
+// The moves an install made before 19.0.0 may still need, from its layout (lstat
+// only) and its record. references/catch-up.md owns what each code asks of the plan.
+function catchUpNeeds(target, record, installedVersion, baseline) {
+  const reasons = [];
+  const at = path => kindAt(resolve(target, path));
+  const agents = at('.agents');
+  const claude = at('.claude');
+  if (agents !== 'dir' || claude === 'dir') {
+    reasons.push({ code: 'agent-folder', paths: ['.agents', '.claude'].filter(path => at(path) !== null) });
+  }
+  const codex = at('.codex');
+  if (codex === 'dir' || codex === null) reasons.push({ code: 'codex-folder', paths: codex ? ['.codex'] : [] });
+  const claudeFile = at('CLAUDE.md');
+  const agentsFile = at('AGENTS.md');
+  if (claudeFile === 'file' && (agentsFile === null || agentsFile === 'file')) {
+    reasons.push({ code: 'rules-file', paths: agentsFile ? ['CLAUDE.md', 'AGENTS.md'] : ['CLAUDE.md'] });
+  }
+  if (agentsFile === 'link' && posix.normalize(slash(readlinkSync(resolve(target, 'AGENTS.md')))) === 'CLAUDE.md') {
+    reasons.push({ code: 'rules-file-reversed', paths: ['AGENTS.md', 'CLAUDE.md'] });
+  }
+  const components = record.components && typeof record.components === 'object' ? record.components : {};
+  if (typeof components.docsPath === 'string' && slash(components.docsPath).replace(/^\.\//, '').replace(/\/$/, '') !== 'wiki') {
+    reasons.push({ code: 'wiki-elsewhere', paths: [components.docsPath] });
+  }
+  const declined = ['stackPack', 'appScaffold', 'ui'].filter(flag => components[flag] === false);
+  if (declined.length) reasons.push({ code: 'opted-out', paths: declined.map(flag => `components.${flag}`) });
+  const generated = skillNames(target).filter(name => name.startsWith('openspec-'));
+  if (generated.length) reasons.push({ code: 'generated-openspec', paths: generated.map(name => `.claude/skills/${name}`) });
+  if (below(installedVersion, [18, 0, 0]) && at('.github/workflows/deploy.yml') !== null) {
+    reasons.push({ code: 'deploy-token', paths: ['.github/workflows/deploy.yml'] });
+  }
+  if (baseline === 'empty') reasons.push({ code: 'no-baseline', paths: [] });
+  return { needed: reasons.length > 0 || below(installedVersion, [19, 0, 0]), reasons };
+}
+
+// Each CHANGELOG.md entry above the installed version, newest first, with its
+// by-hand paragraph. A `Next` entry is unreleased and above every version.
+function updatingNotes(source, revision, installedVersion) {
+  const shown = spawnSync('git', ['-C', source, 'show', `${revision}:CHANGELOG.md`], { encoding: 'utf8', maxBuffer: MAX_GIT_OUTPUT });
+  if (shown.status !== 0) return { updating: [], updatingComplete: false };
+  const installed = parseVersion(installedVersion);
+  const entries = [];
+  let entry = null;
+  for (const line of shown.stdout.replace(/\r\n?/g, '\n').split('\n')) {
+    if (line.startsWith('## ')) {
+      const heading = /^## +(.+?) +— +(.+?)\s*$/.exec(line);
+      entry = heading ? { version: heading[1], title: heading[2], lines: [] } : null;
+      if (entry) entries.push(entry);
+      continue;
+    }
+    if (entry) entry.lines.push(line);
+  }
+  const dated = entries.filter(row => /^Next\b/.test(row.version) || parseVersion(row.version));
+  if (!dated.length) return { updating: [], updatingComplete: false };
+  const newer = dated.filter(row => /^Next\b/.test(row.version) || !installed || below(installedVersion, parseVersion(row.version)));
+  const updating = newer.map(row => {
+    const start = row.lines.findIndex(line => /^\*\*(?:Updating|Moving an existing install)\.\*\*/.test(line));
+    return { version: row.version, title: row.title, note: start < 0 ? null : row.lines.slice(start).join('\n').trim() };
+  });
+  return { updating, updatingComplete: Boolean(installed) };
+}
+
+export function preflight(options) {
+  const started = performance.now();
+  const compared = compareSelection(options);
+  const { source, record, currentCommit, installedCommit, currentTree, currentSelection, baseSelection, keys } = compared;
+  const changes = compared.changes.map(({ unit, operation: op, localState }) => ({
+    unit: unit.key,
+    kind: unit.kind,
+    sourcePath: unit.sourcePath,
+    targetPath: unit.targetPath,
+    categories: unit.categories,
+    operation: op,
+    localState,
+  }));
+
   let currentVersion = null;
   const versionBlob = blob(source, currentCommit, 'VERSION', currentTree);
   if (versionBlob) currentVersion = versionBlob.content.toString('utf8').trim();
+  const installedVersion = typeof record.version === 'string' ? record.version : null;
+  const { updating, updatingComplete } = updatingNotes(source, currentCommit, installedVersion);
   return {
     schemaVersion: SCHEMA_VERSION,
     status: changes.length ? 'update' : 'current',
@@ -437,6 +586,9 @@ export function preflight({ target: targetInput, source: sourceInput, record: re
       changedUnits: changes.length,
     },
     changes,
+    catchUp: catchUpNeeds(compared.target, record, installedVersion, compared.baseline),
+    updating,
+    updatingComplete,
     diagnostics: [],
     timings: { preflightMs: Math.round((performance.now() - started) * 100) / 100 },
   };
@@ -450,6 +602,9 @@ function errorReport(error, started) {
     installed: null,
     selection: null,
     changes: [],
+    catchUp: null,
+    updating: [],
+    updatingComplete: false,
     diagnostics: [{ code: error?.code ?? 'unexpected-error', message: error?.message ?? 'unexpected preflight error' }],
     timings: { preflightMs: Math.round((performance.now() - started) * 100) / 100 },
   };
