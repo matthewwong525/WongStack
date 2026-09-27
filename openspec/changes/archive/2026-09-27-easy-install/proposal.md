@@ -1,6 +1,6 @@
 # Installing WongStack is easy
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** make-install-easier
 **Open questions:** none
 
@@ -84,3 +84,4 @@ None.
 - **2026-09-27** — Asked whether the key link's form showed both rows, all accounts, and the name WongStack on a real Cloudflare dashboard → chose yes, so the keys are `api_tokens` (user) and `account_api_tokens` (account).
 - **2026-09-27** — Assumed: the closing line says you get the steps to pair your phone, not a connected phone, because pairing is a step the person takes in Paseo.
 - **2026-09-27** — Distilled: no repeatable fact beyond this change's own pages (the template keys live in `permission-groups.md`, Paseo's place in `required-tools.md`).
+- **2026-09-27** — Archive checkpoint: built, archived, merged with main (26.16.1, 26.17.0), and numbered 26.18.0 by /ship.

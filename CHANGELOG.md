@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Installing WongStack is easy
+## 26.18.0 — Installing WongStack is easy
 
 - **The Cloudflare key is one link.** [The credentials page](wiki/stack/cloudflare-credentials.md#create-the-token) now leads with a link that opens Cloudflare's token form already filled in: the two permissions, all accounts, and the name `WongStack`. You check the two rows, press Create, and copy the key. The four-menu route stays below it, in case the link ever fails. Setup asks for the key with the link first.
 - **Paseo is where you chat.** The README's first step gets you Claude Code or Codex and the free [Paseo](https://paseo.sh) app, and no longer points to the Claude desktop app. Setup checks for Paseo: when it's missing, setup says what it's for and where to get it, then carries on. It never installs it. When Paseo is there, setup's closing report says how to connect your phone: *Settings → your host → Pair Device*.
