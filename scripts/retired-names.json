@@ -1,0 +1,19 @@
+[
+  {"name": "openspec-apply-change", "replacement": "`/apply`"},
+  {"name": "openspec-archive-change", "replacement": "`openspec archive`"},
+  {"name": "/opsx:", "replacement": "the WongStack verbs (`/plan`, `/apply`, `/ship`)", "allow": [".agents/skills/plan/references/openspec-cli.md", ".agents/skills/wong-sync/references/payload-manifest.md", "openspec/specs/openspec-cli-workflow/spec.md", "openspec/specs/payload-single-source/spec.md"], "why": "each says no `/opsx:*` command is generated or needed"},
+  {"name": "session-notes", "replacement": "`memory-capture`"},
+  {"name": "notes/README.md", "replacement": "the memory store", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
+  {"name": "`memory-worker`", "replacement": "`memory-store`"},
+  {"name": "wong-memory-keys", "replacement": "the `memory_keys` table in the memory database"},
+  {"name": "install-wong-stack", "replacement": "`/wong-setup`"},
+  {"name": ".wong-framework.json", "replacement": "`.claude/.wong-stack.json`", "allow": ["openspec/specs/wong-sync/spec.md"], "why": "a scenario says the old record is treated as missing"},
+  {"name": "cf-mini.sh", "replacement": "`scripts/cf-preview.sh`"},
+  {"name": "<repo>-mini", "replacement": "the app's Worker at `/apps/<name>/`", "allow": [".agents/skills/wong-setup/references/cloudflare.md", "openspec/specs/stack-pack/spec.md"], "why": "the move of older mini apps deletes those Workers"},
+  {"name": "the `walk` skill", "replacement": "the `verify` skill"},
+  {"name": "archived-save.md", "replacement": "`save/SKILL.md#the-archived-handoff`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
+  {"name": "spec-sync.md", "replacement": "`plan/references/openspec-cli.md#reconcile-deltas`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
+  {"name": "#the-memory-token", "replacement": "`wiki/development/memory.md#the-memory-key`"},
+  {"name": "mini-app-save.md", "replacement": "the normal `/save` route; see `wiki/stack/mini-apps.md`"},
+  {"name": "mini-app-push.sh", "replacement": "the normal `/save` route"}
+]

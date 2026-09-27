@@ -6,9 +6,7 @@ user-invocable: true
 
 # /apply
 
-`/apply` is the **implement stage** of the WongStack change loop — its name for OpenSpec's **apply** step. It ensures the current line of work has an apply-ready OpenSpec change, then works that change's `tasks.md`: reads the proposal + specs + design, implements each pending task, and checks off `- [x]` as it goes.
-
-`/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
+`/apply` is the **implement stage** of [the change loop](../../../wiki/development/the-change-loop.md) — its name for OpenSpec's **apply** step. It ensures the current line of work has an apply-ready OpenSpec change, then works that change's `tasks.md`: reads the proposal + specs + design, implements each pending task, and checks off `- [x]` as it goes.
 
 ## Pick the path by the work
 
@@ -71,10 +69,10 @@ When the steps are done, report the result. Do not invoke `/save`: there is noth
 
 ## Boundaries
 
-- **`/save` still owns git changes.** `/apply` may read branch evidence through the helper above, but does not implement commit, push, branch, PR, or CI mechanics itself. The preview upload is not git, and it gates nothing; `/apply` runs it.
-- **Never checkpoint as a way of stopping.** If implementation pauses, is blocked, is interrupted, fails, or simply ends with tasks still pending, do not invoke `/save`. Report the remaining work and remind the user that they can run `/save` explicitly if they want an in-progress checkpoint.
-- **But a task may need the gate, and then `/save` is how you implement it.** When a task's definition of done needs a passing CI run, a CI-published preview, or pushed browser evidence, invoke `/save`, read the result, mark the task, and continue. A failing or unverifiable result leaves the task unchecked: report and stop. [Exit versus implementation](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task) owns the rule.
-- **Live-session entry point.** Use it after `/plan` or `/explore`, or with a clear new implementation request. Resuming a known change cold (a fresh clone, another machine, no scrollback)? Run `/continue <name>` instead — it loads the change, checks out the branch, then hands off here.
-- **Pause on ambiguity or blockers** — surface them rather than guessing; the proposal is the intent. End that report with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): the supported ways to clear the blocker, recommended first.
+- **Git stays with `/save`.** `/apply` reads branch evidence but runs no commit, push, branch, PR, or CI step. The preview upload is not git, and it gates nothing; `/apply` runs it.
+- **Never save to stop.** Paused, blocked, failed, or ending with tasks pending → no `/save`; report the remaining work and that `/save` can checkpoint it.
+- **A task that needs the gate is done through `/save`** — a passing CI run, a CI-published preview, or pushed browser evidence: invoke it, read the result, mark the task, continue. A failing or unverifiable result leaves the task unchecked; report and stop. [Exit versus implementation](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task) owns the rule.
+- **Resuming cold** (a fresh clone, another machine) → [`/continue <name>`](../continue/SKILL.md), which hands off here.
+- **Pause on ambiguity or blockers**; the proposal is the intent. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): the ways to clear the blocker, recommended first.
 
 Completed tasks end with a preview from this host. **`/save`** commits, pushes, and opens the PR whenever the person wants a checkpoint. **`/ship`** saves, waits for CI, archives, and merges.

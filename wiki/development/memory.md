@@ -25,7 +25,7 @@ A fact is dated context, not an instruction. Check it against the repo, and the 
 
 Every write passes the **write gate**: the script shows the live facts on the same slug and the closest keyword matches, and the writer adds, supersedes, or drops each candidate. A fact that cannot reach the store waits in a local spool, and the next run sends it through the gate.
 
-A fact about your private life — health, family, money, personal plans — goes to your home's store with `--home`, never to this one. It waits in home's spool when home does not answer, and it is dropped when no home is recorded: [what every repo sends to home](home.md#what-every-repo-sends-to-home).
+A fact about your private life goes to your home's store, never this one: [private life goes home](../../.agents/skills/memory/references/writing-facts.md#private-life-goes-home), and [what every repo sends to home](home.md#what-every-repo-sends-to-home).
 
 Put `#private` in any message of a session, and the whole session is recorded as private: nothing is uploaded, and no model reads it.
 
@@ -33,7 +33,7 @@ Put `#private` in any message of a session, and the whole session is recorded as
 
 The same background run tidies the live facts once 24 hours and five captured sessions have passed since the last tidy. It merges facts that say the same thing and supersedes contradicted ones, newest first. No one runs it by hand: an earlier consolidation command was retired because no one did.
 
-## The memory token
+## The memory key
 
 `CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**: it opens this repo's store and nothing else. **This page owns that name.** It lives in the ignored `.env` under [the secrets convention](secrets.md), and it is **never** a GitHub secret, so CI cannot read transcripts.
 

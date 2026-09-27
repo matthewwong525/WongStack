@@ -16,4 +16,4 @@ The Cloudflare account ID in [`.agents/.wong-stack.json`](.agents/.wong-stack.js
 
 The CI deploy token's `Workers Scripts Write` and `D1 Write` cover the whole account, because Cloudflare cannot narrow them further. A leaked deploy token could replace the production Worker, which also serves memory, or read a memory database, so rotate it as soon as you suspect a leak. The app's own code can also read the memory bindings, so a bug in another route could expose transcripts.
 
-[The credentials page](wiki/stack/cloudflare-credentials.md) owns the details, including how to narrow the user token and how to rotate the deploy token. [The memory page](wiki/development/memory.md#the-memory-token) owns the memory key.
+[The credentials page](wiki/stack/cloudflare-credentials.md) owns the details, including how to narrow the user token and how to rotate the deploy token. [The memory page](wiki/development/memory.md#the-memory-key) owns the memory key.

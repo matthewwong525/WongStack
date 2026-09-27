@@ -50,25 +50,7 @@ Loop back any time: invoke `/save` as often as you like while building — each 
 
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` never invokes `/save` as a way of **stopping**, and never on completion either: finished
-work ends with a preview from the agent host. Work that is paused, blocked, interrupted, or failed —
-or that simply ends with tasks still pending — is reported to you, and you checkpoint it
-deliberately. That is the property worth keeping: a `/apply` that gives up leaves nothing pushed.
-
-But when a task's own definition of done needs the gate — CI green, a live preview, browser evidence
-— invoking `/save` **is** how that task gets implemented, because `/apply` owns no git and
-[nothing builds locally](#the-gate). `/apply` runs it, reads the result, marks the task, and carries
-on down the list.
-
-So the boundary is **exit versus implementation**, not complete versus incomplete. A task-driven
-save is unbounded — `tasks.md` bounds it. When the final task is itself gate-requiring, its save
-already published a CI preview, and `/apply` reports that instead of uploading another. A task-driven save that comes back failing or unverifiable is the ordinary
-blocked path: the task stays unchecked, `/apply` reports and stops, and adds no exit checkpoint on
-top. [`/verify`](#verifying-the-app) has always worked this way — it invokes `/save` mid-change and
-gates nothing — and this is the same rule, stated for the whole loop.
-
-`/plan` writes such a task so it says so, naming `/save` as how the verification happens. Most
-changes have none: the host preview and `/ship`'s checkpoint cover them.
+`/apply` never invokes `/save` to **stop**, and never on completion either: finished work ends with a preview from the agent host. Paused, blocked, or unfinished work is reported, and you checkpoint it yourself, so a `/apply` that gives up leaves nothing pushed. The exception is a task whose done needs [the gate](#the-gate) — CI green, a CI-published preview, browser evidence: `/apply` runs `/save` to implement it, marks it on a pass, and stops with it unchecked on a failing or unverifiable result, as [`/verify`](#verifying-the-app) does. When the final task is such a task, its save already published a CI preview, and `/apply` reports that instead of uploading another. `/plan` names `/save` in such a task; most changes have none.
 
 ### Verbs for any work
 
@@ -137,7 +119,7 @@ all: its facts go to the [memory store](memory.md), and the save makes no commit
 The gate isn't weakened — it applies where behavior does. A wiki page carries none: it is prose
 you reviewed in the diff that produced it. The
 carve-out is scoped by path and exact; one changed path outside the allowlist and the
-normal flow applies to the whole save. It never keys on file extension — markdown under `.claude/`
+normal flow applies to the whole save. It never keys on file extension — markdown under `.agents/`
 is the payload and markdown under `openspec/` is the spec, and `AGENTS.md`/`CLAUDE.md`,
 `README.md`, `CHANGELOG.md`, `VERSION`, `app/**` and every config file keep the full gate. The
 allowlist is closed: a surface that isn't named here gets the gate until someone deliberately adds
@@ -156,7 +138,7 @@ release, so it takes a branch, a PR, and a `VERSION` and `CHANGELOG.md` bump.
 
 The plan is the change folder, saved on the feature branch with the work. `/continue <name>` can find that folder on a fetched remote branch from a fresh clone. The record of what shipped is the **archived change** on the default branch plus the synced `openspec/specs/`. There are no GitHub planning or summary issues; the change *is* the plan and its archive *is* the record.
 
-**The branch and change can have different names.** The OpenSpec folder and the session's facts use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. Each verb selects a change by [named rungs](../../.agents/skills/save/references/checkpoint-evidence.md#selection-rungs): the change you named or this session used, then a unique changed folder on the branch, then a Branch-line match. A branch name alone never selects a change, and `/ship` will not merge a branch that carries another active change folder.
+**The branch and change can have different names.** The OpenSpec folder and the session's facts use the change name. `/save` records the actual feature branch in the proposal's `**Branch:**` line. Each verb selects a change by [the selection rungs](../../.agents/skills/save/references/checkpoint-evidence.md#selection-rungs), and `/ship` will not merge a branch that carries another active change folder.
 
 ## Spec deltas are optional
 
@@ -166,6 +148,6 @@ Most changes are `proposal.md` + `tasks.md` only. A change writes delta specs un
 
 Both end up working the change's `tasks.md`, but they enter from different places. **`/apply`** is the live-session implement stage: use it after `/plan`, directly after `/explore`, or with a clear new implementation request. It reuses an applicable ready change or invokes `/plan` first, and finishing every task ends with a preview from the agent host. **`/continue`** is the *resume* on-ramp: it takes a handle (change name, PR, or the menu), checks out the branch, orients you (Status + Decision-log tail + drift check), then hands off to `/apply` and therefore gets the same completion behavior. Cold on another machine → `/continue`; already here → `/apply`.
 
-Adding a verb of your own is a matter of writing a `SKILL.md` under `.claude/skills/<name>/` and pointing at it from this page — the loop above is a convention, not a hardcoded list.
+Adding a verb of your own is a matter of writing a `SKILL.md` under `.agents/skills/<name>/` and pointing at it from this page — the loop above is a convention, not a hardcoded list.
 
 Part of [working on WongStack](README.md).

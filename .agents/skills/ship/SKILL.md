@@ -8,9 +8,7 @@ user-invocable: true
 
 Ship runbook. Invoking it authorizes, without a prompt, the archive of a **complete** change, the delegated `/save` checkpoint, the walk, the merge, the remote-branch deletion, and the post-merge sync. It also authorizes [the pull-in](#the-pull-in-nothing-to-ship-yet): explore, plan, implement, and any save a task needs. It does **not** authorize archiving a change with unchecked tasks; [Step 2](#step-2--archive-the-change) finishes the tasks instead of asking. Confirm anything outside this runbook, such as a force push, `--no-verify`, `git reset --hard`, or `checkout .`, in [the shared ask format](../explore/references/asking-the-user.md).
 
-`/ship` is the **archive + merge** step of [the change loop](../../../wiki/development/the-change-loop.md). **The archived change is the record of what shipped**; there is no GitHub summary issue. The merge rides [the gate](../../../wiki/development/the-change-loop.md#the-gate) and nothing else: merge only on `/save`'s `SUCCESS` or `NONE`. `/ship` is the merge, not the review: cleanliness, consolidation, and downstream breakage belong in PR review.
-
-`main` is the default branch, per [the default-branch rule](../save/references/git-gate.md#the-default-branch).
+`/ship` is the archive-and-merge step of [the change loop](../../../wiki/development/the-change-loop.md), which owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate). Merge only on `/save`'s `SUCCESS` or `NONE`. Cleanliness, consolidation, and downstream breakage belong in PR review, not here. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
 ## Step 1 — preflight
 
@@ -31,15 +29,15 @@ gh api repos/:owner/:repo/commits/main/check-runs \
 
 ### The pull-in: nothing to ship yet
 
-With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)** and tell it that it runs inside `/ship`. It then returns on completion with **no** preview upload and **no** `/save`, and you continue to Step 2 in the same working tree. [The change loop](../../../wiki/development/the-change-loop.md) owns why: a verb whose precondition is missing invokes the verb before it.
+With nothing to ship yet, **invoke the [`apply` skill](../apply/SKILL.md)** and tell it that it runs inside `/ship`. It then returns on completion with **no** preview upload and **no** `/save`, and you continue to Step 2 in the same working tree.
 
 - **An intent was given** (`/ship <intent>`) → invoke `/apply` with the argument **verbatim**.
 - **No argument** → invoke `/apply` with no argument when [`/apply`'s resolve order](../apply/SKILL.md#resolve-the-plan-first) lands on any rung before `sole-active`, or when the session states clear implementation intent with no change yet.
 - **The cold stop.** When that order would land on `sole-active` or on nothing, **stop and say so**: report that there is nothing to continue and that `/ship <intent>` starts a new change. Never stop silently.
 
-`/ship` resolves nothing itself and adds no planning, implementation, or git behavior; `/apply` does the work. A feature branch that already has work (commits ahead or a dirty tree) runs the ordinary runbook, with or without an intent.
+`/apply` does the work; `/ship` resolves and adds nothing. A feature branch that already has work (commits ahead or a dirty tree) runs the ordinary runbook, with or without an intent.
 
-**Never merge as a way of stopping.** If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` returns a failing or unverifiable result, report the blocker and stop before Step 2. A one-go run has **one** checkpoint: Step 3's save after the archive, so CI runs once before the walk.
+If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` fails or is unverifiable, report the blocker and stop before Step 2: [no verb merges to stop](../../../wiki/development/the-change-loop.md). A one-go run has **one** checkpoint, Step 3's.
 
 **Work that changes no repo file** — an errand, a message, research — finishes in `/apply`. Say so in one line and stop, with no git change.
 
@@ -51,7 +49,7 @@ If the branch diff or working tree contains **more than one active change folder
 
 **Read its `tasks.md` before you archive anything.** Unchecked tasks (`- [ ]`) mean the change is not finished: invoke the [`apply` skill](../apply/SKILL.md) for that exact change, tell it that it runs inside `/ship` so it returns with no upload and no `/save`, then re-read the file. Archive only when every task is checked. Never let this runbook's authorization answer the archive step's incomplete-task confirmation. If `/apply` ends with tasks pending, report that work and stop.
 
-Follow the shared [CLI contract](../plan/references/openspec-cli.md). Read `openspec status --change "$CHANGE_NAME" --json` and require its schema-defined artifacts to be complete or deliberately skipped. Run `openspec validate "$CHANGE_NAME" --strict --no-interactive`; stop on failure. Read `openspec instructions archive --change "$CHANGE_NAME" --json` for any applicable context. Run `openspec archive "$CHANGE_NAME" --yes` only after the task check, validation, and the distillation below. If `/save` already synced the deltas and equality is confirmed, `--skip-specs` avoids a second main-spec edit; otherwise the CLI archives and syncs them. Capture the archive path and verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists. Do **not** commit the move here.
+Validate and archive by [the CLI contract](../plan/references/openspec-cli.md#validate-and-archive), which owns `--skip-specs`. `openspec status --change "$CHANGE_NAME" --json` must show every schema artifact complete or deliberately skipped, and `openspec validate "$CHANGE_NAME" --strict --no-interactive` must pass, or stop. Run `openspec archive "$CHANGE_NAME" --yes` only after the task check, validation, and the distillation below. Verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists and keep its path. Do **not** commit the move here.
 
 ### Distill the change's facts into the wiki
 
@@ -63,7 +61,7 @@ node "$M" show "$CHANGE_NAME"
 node "$M" search --branch "$BRANCH" --limit 200
 ```
 
-Count a fact that both commands print once. Keep only the facts that pass the test — *will this help with a future task that is not this one?* — and place each one by [the wiki rules](../../rules/wiki.md): a fact about one person on their `people/` page, a fact about everyone on the topic page that owns it, a new page linked from its hub only when no page owns it. Never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. When the store does not answer, log that the step was skipped and continue. The edits ride in the archive checkpoint, so a person reviews them in this PR.
+Count a fact that both commands print once. Keep only the facts that pass the test — *will this help with a future task that is not this one?* — and place each one by [the wiki rules](../../rules/wiki.md): a fact about one person on their `people/` page, a fact about everyone on the topic page that owns it, a new page linked from its hub only when no page owns it. Never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. When [the store is unreachable](../memory/SKILL.md#read), log the step as skipped and continue. The edits ride in the archive checkpoint, so a person reviews them in this PR.
 
 ## Step 3 — delegate the checkpoint to /save
 
@@ -109,15 +107,11 @@ It compares the worktree copy, the primary, and the baseline recorded at seed. I
 
 ## Step 6 — report
 
-Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, and what changed for them — then the lines below.
+Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, and what changed for them. Then print `merge.sh`'s `key=value` lines, plus:
 
-- PR number + URL, **merged (squash)** to the default branch.
-- **Archived** — the change is now at `openspec/changes/archive/YYYY-MM-DD-<name>/` on the default branch, and `openspec/specs/` holds the synced result.
-- **Checkpoint** — `/save` result and CI outcome, including auto-fix pushes.
-- **Walk** — the verdict, the evidence comment link, and, when a `FAILURE` was merged anyway, that the user chose to. Where the skill was absent, one line saying so.
-- **Retargeted** — any pull request moved to the default branch before the branch was deleted.
-- **Branch** — deleted, or already deleted at merge by GitHub.
-- **Synced** — the checkout whose `main` advanced to the merged commit, or the one-line reason the sync was skipped.
-- **Secrets** — the promoted, skipped, and unresolved key names from the promote, never a value, or the one-line reason it was skipped.
+- **Archived** — the archive path; `openspec/specs/` holds the synced result.
+- **Checkpoint** — `/save`'s result and CI outcome, including auto-fix pushes.
+- **Walk** — the verdict and evidence link; a `FAILURE` merged anyway says the user chose it; an absent skill is one line.
+- **Secrets** — the promoted, skipped, and unresolved key names, never a value, or why it was skipped.
 
 Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally start the next change, walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.

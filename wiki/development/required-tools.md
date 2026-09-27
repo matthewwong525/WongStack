@@ -27,7 +27,7 @@ It is a **tool, not a toolchain**: nothing is added to your repository — no `p
 |---|---|
 | A Cloudflare account | Holds the memory database and hosts the app. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) creates both from one user token. |
 | The user token, `CLOUDFLARE_API_TOKEN` in `.env` | Provisions everything, manages memory keys, and mints the CI deploy token. It stays on your computer. The [credentials page](../stack/cloudflare-credentials.md) owns how to make it. |
-| The memory key, `CLOUDFLARE_MEMORY_TOKEN` | Opens this repo's store through the production Worker's memory route. [The memory page](memory.md#the-memory-token) owns its name and what it reaches. |
+| The memory key, `CLOUDFLARE_MEMORY_TOKEN` | Opens this repo's store through the production Worker's memory route. [The memory page](memory.md#the-memory-key) owns its name and what it reaches. |
 | R2, optional | Keeps raw transcripts. It needs a payment method on file; without it, memory works and keeps no transcripts. |
 
 `curl` drives the rest of provisioning.

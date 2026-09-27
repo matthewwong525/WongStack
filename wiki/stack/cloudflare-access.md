@@ -119,7 +119,7 @@ Not everything should require login. Inbound webhooks, open APIs, and any public
 
 Carve those out with a **Bypass** policy scoped to the public path prefix (e.g. `/public/*`). A bypass policy lets matching requests through with no authentication.
 
-**Session memory is public surface too.** The memory script calls `/_memory/*` on the production Worker with a memory key, not a login: [the memory convention](../development/memory.md#the-memory-token). It uses the `workers.dev` address, which Access does not gate, so keep `workers.dev` on for the production Worker. If you turn it off and point memory at your custom domain, add `/_memory/*` to the Bypass.
+**Session memory is public surface too.** The memory script calls `/_memory/*` on the production Worker with a memory key, not a login: [the memory convention](../development/memory.md#the-memory-key). It uses the `workers.dev` address, which Access does not gate, so keep `workers.dev` on for the production Worker. If you turn it off and point memory at your custom domain, add `/_memory/*` to the Bypass.
 
 **Ordering matters.** Access evaluates an application's policies in order and takes the first match, so the `/public/*` **Bypass must sit above the catch-all Allow** — otherwise the Allow matches first and challenges your webhooks. Put the narrow bypass first, the broad gate last.
 
@@ -136,9 +136,16 @@ Carve those out with a **Bypass** policy scoped to the public path prefix (e.g. 
 
 A **service token** is a machine credential — an ID/secret pair a non-interactive caller (like CI) sends as `CF-Access-Client-Id` / `CF-Access-Client-Secret` headers to pass Access without a browser login. You don't need it yet, but adding it later means re-opening the policy, so create it now while you're here.
 
-Create it under **Zero Trust → Access → Service Auth**, then add a policy (or extend an existing one) that accepts that specific service token. The mechanics of storing its two values live on the [credentials page](cloudflare-credentials.md#access-service-token) — this step is just "make it exist and let it through the policy."
+Create it under **Zero Trust → Access → Service Auth**, then add a policy (or extend an existing one) that accepts that specific service token. Store its two values in the primary worktree's durable `.env`, per [the secrets convention](../development/secrets.md):
 
-If you skip this step, [`/verify`](../development/staging-walkthrough.md#when-the-walk-cant-get-in) mints one the first time it meets the wall and stores it for you. Doing it here is still worth the minute: you pick the name and see the policy rule, rather than meeting both later in a walk report.
+```bash
+# Cloudflare Access service token — lets CI reach Access-gated preview URLs.
+# Created under Zero Trust → Access → Service Auth; the policy must accept it.
+CF_ACCESS_CLIENT_ID=
+CF_ACCESS_CLIENT_SECRET=
+```
+
+If you skip this step, [`/verify`](../development/staging-walkthrough.md#when-the-walk-cant-get-in) mints one the first time it meets the wall: named for the repo, checked against the policy, written to `.env`, then the walk retries. It works under the [standing authorization](cloudflare-credentials.md#the-widen-is-pre-authorized) and widens into the Access permission groups first if it must. It reports what it minted, and never replaces a pair you set by hand. Doing it here is still worth the minute: you pick the name and see the policy rule, rather than meeting both later in a walk report.
 
 ## Verify it works — in a browser
 
@@ -169,7 +176,7 @@ On a Worker with no Access proxy in front, `Cf-Access-Authenticated-User-Email` 
 
 The Worker verifies the signed `Cf-Access-Jwt-Assertion` against your Access application. Two independent reasons, either sufficient:
 
-- **The header pattern locks out every machine caller — including WongStack's own [`/verify`](../development/staging-walkthrough.md).** Access sets **no email header for a service token.** Such a request arrives carrying only `cf-access-jwt-assertion` and the ordinary `cf-*` headers (`cf-connecting-ip`, `cf-ipcountry`, `cf-ray`, `cf-visitor`), and the `CF-Access-Client-Id`/`Secret` it sent are stripped. So a Worker reading the email header `401`s CI and every automated caller. The JWT is the only signal that covers humans and machines both.
+- **The header pattern locks out every machine caller — including WongStack's own [`/verify`](../development/staging-walkthrough.md).** Access sets **no email header for a service token.** Such a request arrives carrying only `cf-access-jwt-assertion` and the ordinary `cf-*` headers (`cf-connecting-ip`, `cf-ipcountry`, `cf-ray`, `cf-visitor`), and the `CF-Access-Client-Id`/`Secret` it sent are stripped. So a Worker reading the email header `401`s CI and every automated caller, while working fine in your browser. The symptom is distinctive: a walk gets *past* Access, then every journey fails on an app-rendered `401`. The JWT is the only signal that covers humans and machines both.
 - **Header trust rests on a precondition you cannot confirm.** It is safe *only* if the proxy provably covers every hostname reaching the Worker — and as the `workers.dev` case shows, a policy can silently fail to cover one. Verifying the signature checks the claim against *this application*, so it doesn't depend on a fact you can be wrong about.
 
 **One path serves both callers,** because the verified claims differ by exactly one field:

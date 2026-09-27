@@ -16,10 +16,10 @@ Update machine tools through their normal package source. A machine-level change
 
 ## Check the OpenSpec contract
 
-WongStack uses the CLI directly through [the shared contract](../plan/references/openspec-cli.md). After a CLI update, verify `init --tools none`, `context`, `status --json`, artifact/apply/archive instructions, validation, and archive flags against a disposable fixture. Read any release notes that change these commands. Do not run `openspec update`, regenerate `openspec-*` agent skills, or patch their visibility. Report a changed CLI field and adapt the owning WongStack skill before saving; do not silently accept a missing contract.
+WongStack uses the CLI directly through [the shared contract](../plan/references/openspec-cli.md). After a CLI update, verify `init --tools none`, `context`, `status --json`, artifact/apply/archive instructions, validation, and archive flags against a disposable fixture. Read any release notes that change these commands. [No generated layer](../plan/references/openspec-cli.md) is needed: never run `openspec update` or regenerate or patch `openspec-*` agent skills. Report a changed CLI field and adapt the owning WongStack skill before saving; do not silently accept a missing contract.
 
 Check payload link and config release checks if payload files changed. Bump `VERSION` and add a newest-first `CHANGELOG.md` entry for such a change. If only this meta-only skill or machine tools changed, say why no payload version bump is due.
 
 ## Hand off
 
-Pass a nonempty diff to `/save`, which owns git and the CI gate. Do not define a separate local build gate or claim a green CI run proves every major update safe. Report each stage, including current surfaces, actual migrations, CLI contract evidence, and the checks CI ran. This skill does not update installed target repos or run on a schedule.
+Pass a nonempty diff to `/save`; [the change loop](../../../wiki/development/the-change-loop.md#the-gate) owns git and the gate. Do not claim a green CI run proves every major update safe. Report each stage, including current surfaces, actual migrations, CLI contract evidence, and the checks CI ran. This skill does not update installed target repos or run on a schedule.

@@ -65,10 +65,7 @@ fi
 
 wong_resolve_wrangler_config "$ROOT"
 
-# The branch in CI. `CF_BRANCH` is the CI-neutral name the pack's GitHub Actions
-# workflow sets; `WORKERS_CI_BRANCH` is what Cloudflare Workers Builds sets on
-# its own. Either backend works, and a repo can run both while it migrates.
-CI_BRANCH="${CF_BRANCH:-${WORKERS_CI_BRANCH:-}}"
+wong_ci_branch
 
 # Build the app, then copy the mini apps into its static assets under /apps/.
 # The copy reads the assets folder from the config the build just wrote, so it
@@ -84,14 +81,12 @@ build() {
 }
 
 # Local (non-CI) runs: skip the migrate, just build.
-if [ -z "$CI_BRANCH" ]; then
+if [ -z "$BRANCH" ]; then
   echo "cf-build: not in CI — running plain build only"
   build
   exit 0
 fi
 
-BRANCH="$CI_BRANCH"
-PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-main}"
 echo "cf-build: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
 if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then

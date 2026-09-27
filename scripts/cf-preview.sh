@@ -47,16 +47,6 @@ say() { echo "cf-preview: $*"; }
 fail() { echo "cf-preview: ERROR — $*" >&2; exit 1; }
 not_here() { echo "cf-preview: $* — no preview uploaded" >&2; exit 3; }
 
-# The preview alias rule, the same as cf-deploy.sh's — keep the two in step.
-# An alias must be lowercase alphanumeric-and-hyphen and at most 63 characters.
-alias_for() {
-  printf '%s' "$1" \
-    | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
-    | cut -c1-63 \
-    | sed -E 's/-+$//'
-}
-
 # ── Arguments ─────────────────────────────────────────────────────────────────
 HAVE_ALIAS=false
 ALIAS_ARG=""
@@ -70,7 +60,7 @@ while [ $# -gt 0 ]; do
 done
 
 if $HAVE_ALIAS; then
-  ALIAS=$(alias_for "$ALIAS_ARG")
+  ALIAS=$(wong_preview_alias "$ALIAS_ARG")
   [ -n "$ALIAS" ] || { echo "cf-preview: --alias '$ALIAS_ARG' has no usable preview alias" >&2; usage; }
 else
   BRANCH=$(git -C "$ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null) \
@@ -81,7 +71,7 @@ else
   if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
     fail "'$BRANCH' is the default branch — preview from a branch, or pass --alias <name>; nothing uploaded"
   fi
-  ALIAS=$(alias_for "$BRANCH")
+  ALIAS=$(wong_preview_alias "$BRANCH")
   [ -n "$ALIAS" ] || fail "branch '$BRANCH' has no usable preview alias"
 fi
 
@@ -163,16 +153,8 @@ if ! upload; then
   upload || fail "the preview upload failed"
 fi
 
-# ── The preview URL: harvested, never constructed ────────────────────────────
-# The same extraction as cf-deploy.sh, for the same reason: a URL built from the
-# documented shape answers 200 even when it points at another version. When
-# wrangler prints none, report none. Every grep is `|| true`-guarded: finding
-# no URL must not abort an upload that already succeeded.
-ALL_URLS=$(grep -oE 'https://[a-z0-9._-]+\.workers\.dev[^[:space:]]*' "$UPLOAD_LOG" || true)
-PREVIEW_URL=$(printf '%s\n' "$ALL_URLS" | grep -F "$ALIAS" | head -1 || true)
-if [ -z "$PREVIEW_URL" ]; then
-  PREVIEW_URL=$(printf '%s\n' "$ALL_URLS" | head -1 || true)
-fi
+# ── The preview URL: harvested, never constructed (wong_preview_url) ─────────
+PREVIEW_URL=$(wong_preview_url "$UPLOAD_LOG" "$ALIAS")
 
 if [ -n "$PREVIEW_URL" ]; then
   say "preview URL $PREVIEW_URL"

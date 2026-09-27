@@ -215,8 +215,7 @@
         ".agents/skills/save/references/git-gate.md",
         ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md",
-        ".agents/skills/save/references/checkpoint-evidence.md",
-        ".agents/skills/save/references/archived-save.md"
+        ".agents/skills/save/references/checkpoint-evidence.md"
       ]
     },
     "cold-resume": {

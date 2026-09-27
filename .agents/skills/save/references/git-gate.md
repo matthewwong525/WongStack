@@ -27,7 +27,7 @@ Exit 1 with `no pull requests found` is the **none** row. Any other failure is n
 
 The change file is the source of truth, so overwriting the body is safe by construction — reviewers comment on the PR, they don't edit the body. It is **generated, not curated**: never try to preserve manual body edits.
 
-Write a short summary from the maintained proposal to an ephemeral file. The agent owns its meaning and credential exclusion; keep no second summary in the repo. Generate the other sections with [the body renderer](../scripts/render-pr-body.mjs):
+Write a short summary from the maintained proposal to an ephemeral file, under [credential exclusion](../SKILL.md#1-protect-credentials-and-select-the-route); keep no second summary in the repo. Generate the other sections with [the body renderer](../scripts/render-pr-body.mjs):
 
 ```bash
 node "$ROOT/.claude/skills/save/scripts/render-pr-body.mjs" \
@@ -36,7 +36,7 @@ node "$ROOT/.claude/skills/save/scripts/render-pr-body.mjs" \
   --summary-file "$SUMMARY_FILE" --output "$BODY_FILE"
 ```
 
-Set `HANDOFF_MODE` to `active` or `archive`. Pass `--preview-url "$PREVIEW_URL"` only when discovery returned a URL. Set `ROOT` from the repo and `REPO_URL` from `gh repo view --json url`. The renderer reads Status and the exact task checklist; review/preview sections are conditional. Archive mode links the archived path and offers no continue command. Rendering errors preserve the previous body and stop publication; inspect the output file for correctness and credential exclusion before you publish it. A new PR uses `gh pr create --body-file "$BODY_FILE"`. An open PR takes the body through the REST endpoint:
+Set `HANDOFF_MODE` to `active` or `archive`. Pass `--preview-url "$PREVIEW_URL"` only when discovery returned a URL. Set `ROOT` from the repo and `REPO_URL` from `gh repo view --json url`. The renderer reads Status and the exact task checklist; review/preview sections are conditional. Archive mode links the archived path and offers no continue command. Rendering errors preserve the previous body and stop publication; inspect the output file for correctness and excluded values before you publish it. A new PR uses `gh pr create --body-file "$BODY_FILE"`. An open PR takes the body through the REST endpoint:
 
 ```bash
 PR_NUMBER=$(gh pr view --json number --jq .number)
@@ -77,12 +77,8 @@ gh run view "$RUN_ID" --log-failed | tail -120
 
 **Cap: 3 attempts.** Still red → stop with the error and the checks link. A CI failure is not a stop condition until the cap is reached — fixing and re-pushing *is* the runbook. Never bypass with `--no-verify` or `--force`.
 
-This cap covers the CI fix-and-repush loop only, and it is per `/save` invocation. The one caller with a budget of its own is [`/verify`](../../verify/SKILL.md), which may fix an in-scope failure and re-walk **twice**; each of those attempts invokes `/save`, so each gets its own fresh cap of 3. The budgets nest rather than share — a walk cannot spend `/save`'s attempts, and `/save` never re-walks.
+The cap is per `/save` invocation. [`/verify`](../../verify/SKILL.md) may re-walk twice, and each walk's `/save` gets a fresh cap; the budgets nest, never share.
 
 ## What each caller keeps
 
-This runbook does **not** own, and each skill states for itself:
-
-- **`/save`** — the preview-URL discovery, staging by path (never `git add .`), the prose fast path, the session facts, and the OpenSpec sync.
-- **`/ship`** — the default-branch-CI preflight, OpenSpec archive invocation, strict interpretation of `SAVE_GATE_RESULT`, worktree-safe merge, and remote-branch deletion. The archive checkpoint belongs to its delegated ordinary `/save` call.
-- **`/verify`** — the staging walkthrough, which it runs after invoking `/save`; it gates nothing here.
+This runbook leaves to each skill: `/save` — preview discovery, staging by path, the prose route, facts, and spec sync; `/ship` — default-branch CI preflight, archive, strict gate reading, merge, and branch deletion; `/verify` — the walkthrough after `/save`.

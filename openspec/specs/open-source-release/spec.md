@@ -3,7 +3,9 @@
 ## Purpose
 
 Make the public WongStack repository safe and legal to reuse: a license, a way to report security problems, no committed secrets, and a setup prompt whose URL works for a first-time reader.
+
 ## Requirements
+
 ### Requirement: The repository carries an open-source license and a security policy
 
 The repository root SHALL contain an MIT `LICENSE` with the copyright holder and year, and a `SECURITY.md`. `SECURITY.md` SHALL say how to report a vulnerability privately, and SHALL name each Cloudflare credential WongStack uses, where it is stored, and what it can do. The README SHALL link both files.
@@ -17,7 +19,7 @@ The repository root SHALL contain an MIT `LICENSE` with the copyright holder and
 #### Scenario: A reader finds the credential powers
 
 - **WHEN** a reader opens `SECURITY.md`
-- **THEN** it names the user token, the deploy token, and the memory token, where each is stored, and which one can mint other tokens
+- **THEN** it names the user token, the deploy token, and the memory key, where each is stored, and which one can mint other tokens
 
 ### Requirement: The setup URL resolves for a first-time reader
 
@@ -120,4 +122,3 @@ Each release SHALL be tagged `v<VERSION>` on its merge commit, and SHALL have a 
 
 - **WHEN** a user looks for release 19.0.0
 - **THEN** the tag `v19.0.0` and its GitHub Release exist, and the release body is the 19.0.0 changelog entry
-

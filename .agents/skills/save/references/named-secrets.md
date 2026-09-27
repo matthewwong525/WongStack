@@ -10,6 +10,6 @@ For each explicitly named secret:
 4. In a linked worktree, check for a seeded branch copy: `worktree-secrets.mjs status` (in the [`ship` skill's scripts](../../ship/scripts/worktree-secrets.mjs)) lists the file under `seeded`. A seeded copy gets the same one-line edit, because an add or a rotation reaches both copies now. Any other regular live file in the linked worktree is unseeded: preserve it and report only that reconciliation is needed. Do not print or compare values, delete a file, or bulk-merge. An ignored symlink to the durable file is an option only after explicit reconciliation.
 5. If the variable contract is new, add a blank `KEY=` declaration to the active branch's example with what-it-is and where-to-get-it guidance. A value-only rotation makes no example diff.
 
-Keep the handled variable names and values only in ephemeral working memory for the leak check below. **Every real credential value supplied, rotated, read, or written in the session is forbidden from** the OpenSpec change or archive, Status, Decision log, tasks, session facts, commit message, PR body, staged tracked files, and final report. Those surfaces may say that `SERVICE_TOKEN` rotated and retain its non-secret sourcing guidance; they never carry the value.
+Keep handled names and values only in working memory for the leak check; no value reaches a durable surface, per [credential exclusion](../SKILL.md#1-protect-credentials-and-select-the-route).
 
 Return to the main save procedure after persistence; its exclusion check still runs before commit and publication.

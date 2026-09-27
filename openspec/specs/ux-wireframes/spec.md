@@ -6,7 +6,7 @@ The review stage of `/plan` gives every change one self-contained HTML review pa
 
 ## Requirements
 
-### Requirement: A UI-bearing change carries one wireframe file
+### Requirement: Every change carries one review page
 
 Every change `/plan` drafts SHALL carry `openspec/changes/<name>/review.html`. The file SHALL be self-contained: it SHALL load no script, style, font, or image from a network address, so it renders when opened from disk with no server. A change that adds or restructures a user-facing screen SHALL sketch that screen as a low-fidelity text drawing in the bullet that owns it, and SHALL keep a `## UX` section in `design.md`. A UI-less change SHALL have no `## UX` section and SHALL still have the file.
 
@@ -162,25 +162,6 @@ Jump links, Note buttons, drawing folds, the full-screen view and its zoom contr
 
 - **WHEN** a reviewer opens a drawing full screen and presses Escape
 - **THEN** the view closes and focus returns to the control that opened it
-
-### Requirement: The revised kit applies to newly created pages
-
-Newly assembled pages SHALL use the current kit. A page of an older format SHALL keep its embedded viewer and receive a proposal-only refresh, and any visual input file beside it SHALL be left in place and unused. Archived pages SHALL NOT be rebuilt.
-
-#### Scenario: A new review is generated
-
-- **WHEN** a plan builds a review from the current kit
-- **THEN** the page is one scrolling document with text visuals, decisions, and tap-to-note
-
-#### Scenario: An older page is refreshed
-
-- **WHEN** save refreshes an active change whose page uses an older format
-- **THEN** only the proposal block changes, and the page's embedded controls and styles stay
-
-#### Scenario: Archived pages remain historical
-
-- **WHEN** the shared kit changes
-- **THEN** archived pages are not rebuilt
 
 ### Requirement: Review assembly is deterministic and preserves authored input
 
@@ -519,3 +500,17 @@ On a successful build, the page builder SHALL print the absolute path of `review
 
 - **WHEN** `/ship` runs `/apply`, which runs `/plan`
 - **THEN** the chain continues without the stop line
+
+### Requirement: Every page uses the current kit
+
+Every assembled page SHALL use the current kit. Archived pages SHALL NOT be rebuilt.
+
+#### Scenario: A new review is generated
+
+- **WHEN** a plan builds a review from the current kit
+- **THEN** the page is one scrolling document with text visuals, decisions, and tap-to-note
+
+#### Scenario: Archived pages remain historical
+
+- **WHEN** the shared kit changes
+- **THEN** archived pages are not rebuilt

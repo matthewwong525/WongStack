@@ -35,5 +35,6 @@ jobs:
         run: |
           node scripts/check-payload-links.mjs
           node scripts/check-openspec-config.mjs
+          node scripts/check-retired-names.mjs
           openspec validate --specs --strict --no-interactive
           node scripts/measure-context.mjs --check

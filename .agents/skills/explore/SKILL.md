@@ -6,17 +6,17 @@ user-invocable: true
 
 # /explore
 
-`/explore` is WongStack's front door to OpenSpec's **explore** step — the first stop in the loop, and the one place that asks you questions:
+`/explore` is WongStack's front door to OpenSpec's **explore** step — the first stop in [the change loop](../../../wiki/development/the-change-loop.md), and the one place that asks you questions.
 
-`/explore → /plan → /apply → /save → /continue → /ship` — the [change loop](../../../wiki/development/the-change-loop.md), which owns what each verb does and where the git boundary falls.
+It's a thinking partner, not a builder: pull apart a problem, compare real options, and firm up scope *before* `/plan` writes a proposal. Find related work with `openspec list --json` and `openspec context --json`, by [the CLI contract](../plan/references/openspec-cli.md#select-one-root), and read the artifacts and repo files it points to.
 
-It's a thinking partner, not a builder: use it to pull apart a problem, weigh options, and firm up scope *before* `/plan` writes a proposal. Nothing is committed and no specs are drafted.
+`/explore` **writes nothing** — not the answers, not a file, not an artifact. Answers and assumptions stay in the conversation until [`/plan`](../plan/SKILL.md) records them in the proposal's Decision log.
 
 **It always runs before `/plan`** — you invoke it, or `/plan` invokes it for you in [bounded mode](#when-plan-invokes-explore). It puts the highest-impact unresolved decisions to you before any artifact is drafted.
 
 ## Questions during standalone exploration
 
-Ask material clarification questions in the shape [every WongStack ask takes](references/asking-the-user.md) — two or three options, the recommended one first, a tradeoff on each, the custom answer open. That page also owns which host tool carries the question. Keep findings and explanations in chat.
+Ask material clarification questions [the shared way](references/asking-the-user.md), which owns the format and the tool. Keep findings and explanations in chat.
 
 - **Ask small groups of related questions.** Normally ask two or three together, within the active tool's capacity. Ask one when only one matters; add no filler.
 - **Wait before dependent follow-ups.** Questions in a group must be answerable together. Use the answers to shape the next group while the user remains in standalone `/explore`.
@@ -39,17 +39,11 @@ Before the first question, run one search on the intent's key terms and the path
 node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search <terms>
 ```
 
-Do not ask what a live fact already answers. State the fact, with its age and author, as a recorded assumption the user can correct. An unreachable store gets one line, and exploration continues. `/plan` gets this through bounded mode and does not search again.
-
-## Question mechanism
-
-[Asking the user](references/asking-the-user.md) owns the format, the host tool order, and the fallbacks. A pending question stays pending. `/explore` adds one allowance of its own: the exit round below permits assumptions for questions outside the final group.
-
-`/explore` **writes nothing** — not the answers, not a file, not an artifact. Answers and assumptions stay in the conversation until [`/plan`](../plan/SKILL.md) records them in the proposal's Decision log.
+Do not ask what a live fact already answers. State the fact, with its age and author, as a recorded assumption the user can correct. When [the store is unreachable](../memory/SKILL.md#read), say so and continue. `/plan` gets this through bounded mode and does not search again.
 
 ## The exit round
 
-At the explore-to-plan transition, collect the unresolved material decisions in **at most one final group**, in the [same shape as every other ask](references/asking-the-user.md). With a structured tool, use one call; with chat only, use one numbered group.
+When the shape of the work is clear, hand off to [`/plan`](../plan/SKILL.md). At that transition, collect the unresolved material decisions in **at most one final group**, in the [same shape as every other ask](references/asking-the-user.md). With a structured tool, use one call; with chat only, use one numbered group.
 
 - **At most four questions, and no more than the tool supports.** Ask the decisions that most affect the artifacts. Mark remaining recommended answers as assumptions.
 - **Ask nothing already answered.** If the conversation settled every material decision, make no call and proceed to the summary.
@@ -67,12 +61,4 @@ This limit governs clarification only; action authorization and delivery gates k
 3. **Run the [exit round](#the-exit-round) only if needed and not already completed.** Resolve pending answers before dependent planning. Use the [nobody-can-answer fallback](references/asking-the-user.md#which-tool-carries-it) when nobody can answer.
 4. **Summarize** the answers and assumptions, then **return to `/plan`**. Fill remaining and later gaps with supported assumptions; do not start another clarification round.
 
-Write no file and create no OpenSpec artifact. The summary is the return signal.
-
-## Ask whether it should be code
-
-When the work is a process that will run more than once, weigh a deterministic script against a step that calls a model every run. Code is fast, costs nothing to run again, and gives the same answer twice; keep AI for the parts that need judgment. Raise the fork here, while the scope is still open — [the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai) own the rule.
-
-Use `openspec list --json` and `openspec context --json` for relevant existing work, following the shared [CLI contract](../plan/references/openspec-cli.md) when a registered store is selected. Read relevant artifacts and repo files, compare real options, and write nothing. This skill owns exploration; no generated workflow skill is invoked.
-
-When the shape of the work is clear, run the exit round, then move on to [`/plan`](../plan/SKILL.md) to review the artifacts first, or straight to [`/apply`](../apply/SKILL.md), which invokes `/plan` for you. One invocation of [`/ship`](../ship/SKILL.md) with an intent runs the whole chain from here to the merge.
+The summary is the return signal.

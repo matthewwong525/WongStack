@@ -34,7 +34,7 @@ Ordinary files are compared by Git blob identity first. The `CLAUDE.md` unit is 
 - `latest-equivalent` — it already equals the refreshed source;
 - `locally-adapted` — it equals neither source value and must remain protected.
 
-The JSON report contains the complete changed-unit list, counts, paths, and classifications, but no file body or diff hunk. It writes no cache, install record, payload file, worktree, or index. Invalid or non-ancestor commits, invalid inventory data, unsafe or escaping paths, missing source markers, read errors, Git errors, or a change set above the declared safety limit produce `status: error`. An error is never truncated into `current` or widened into an unclassified full scan.
+The JSON report lists every changed unit's path and classification, with counts, but no file body or diff hunk. Invalid or non-ancestor commits, invalid inventory data, unsafe or escaping paths, missing source markers, read errors, Git errors, or a change set above the declared safety limit produce `status: error`. [`/wong-sync`](../SKILL.md) owns what each status does.
 
 The **improve** skill ships its dependency-free survey helper and investigation references as one directory. The helper reads supported tracked text and Git history through the Node.js runtime that OpenSpec already needs. It does not add a package or contact a service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduler requirements.
 

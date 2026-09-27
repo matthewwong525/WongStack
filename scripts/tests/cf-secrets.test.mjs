@@ -1,32 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { logger, pack } from './fixtures/pack.mjs';
 
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-
-// A repo root with the secrets script, its library, and `app/wrangler.jsonc`.
-function scaffold(root, config) {
-  mkdirSync(join(root, 'scripts'), { recursive: true });
-  mkdirSync(join(root, 'app'));
-  for (const name of ['cf-secrets.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs']) {
-    copyFileSync(join(repo, 'scripts', name), join(root, 'scripts', name));
-  }
-  writeFileSync(join(root, 'app/wrangler.jsonc'), JSON.stringify({ name: 'app', ...config }, null, 2));
-}
+// A throwaway repo with the secrets script, its library, and `app/wrangler.jsonc`.
+const scaffold = (t, config, options) => pack(t, {
+  scripts: ['cf-secrets.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs'],
+  config: JSON.stringify({ name: 'app', ...config }, null, 2),
+  ...options,
+});
 
 // Runs `check` in a throwaway repo root with only a wrangler config. Without
 // CLOUDFLARE_API_TOKEN the secret half skips, so only the binding half runs.
 function check(t, config) {
-  const root = mkdtempSync('/tmp/cf-secrets-');
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  scaffold(root, config);
-  const env = { ...process.env };
-  delete env.CLOUDFLARE_API_TOKEN;
-  const result = spawnSync(process.execPath, [join(root, 'scripts/cf-secrets.mjs'), 'check'], { cwd: root, encoding: 'utf8', env });
-  return { status: result.status, output: `${result.stdout}${result.stderr}` };
+  const result = scaffold(t, config, { prefix: 'cf-secrets-' }).run('cf-secrets.mjs', ['check']);
+  return { status: result.status, output: result.out };
 }
 
 const queues = (producer, consumers) => ({
@@ -79,30 +69,18 @@ test('a consumer copied into staging but not repointed warns without failing', t
 // Push: a primary checkout and one linked worktree, with a fake `npx` that logs
 // each call so a test can see which file `wrangler secret bulk` received.
 function pushFixture(t) {
-  const dir = mkdtempSync('/tmp/cf-secrets-push-');
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const primary = join(dir, 'primary');
-  scaffold(primary, { env: { staging: {} } });
+  const fixture = scaffold(t, { env: { staging: {} } }, { subdir: 'primary', tools: { npx: logger() }, prefix: 'cf-secrets-push-' });
+  const primary = fixture.root;
   writeFileSync(join(primary, '.gitignore'), '.env*\n.dev.vars*\n');
   const git = (...args) => execFileSync('git', ['-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args], { cwd: primary, stdio: 'ignore' });
   git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-qm', 'init');
-  const worktree = join(dir, 'wt');
+  const worktree = join(fixture.dir, 'wt');
   git('worktree', 'add', '-q', '-b', 'feature', worktree);
-  const bin = join(dir, 'bin');
-  mkdirSync(bin);
-  writeFileSync(join(bin, 'npx'), '#!/usr/bin/env bash\necho "$*" >> "$FAKE_NPX_LOG"\n');
-  chmodSync(join(bin, 'npx'), 0o755);
-  const log = join(dir, 'npx.log');
   const push = () => {
-    const result = spawnSync(process.execPath, [join(worktree, 'scripts/cf-secrets.mjs'), 'push'], {
-      cwd: worktree,
-      encoding: 'utf8',
-      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_NPX_LOG: log },
-    });
-    const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : [];
-    return { status: result.status, output: `${result.stdout}${result.stderr}`, calls };
+    const result = fixture.run('cf-secrets.mjs', ['push'], { cwd: worktree });
+    return { status: result.status, output: result.out, calls: result.calls };
   };
   return { primary, worktree, push };
 }
