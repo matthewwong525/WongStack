@@ -1,6 +1,6 @@
 # Shorter instructions for the assistant
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** shorten-skill-instructions
 **Open questions:** none
 
@@ -58,3 +58,5 @@ None. The rewrite keeps every behavior the specs describe, so the change sets `s
 - **2026-09-27** — Assumed: release 25.14.0, the next minor after main's 25.13.0. Assumed: main's new `apply/references/build-helper.md` and `wong-setup/references/tools.md` stay as written, because they postdate this plan's pass. Counts against main 25.13.0: SKILL.md 13,395 → 9,960 (−25.6%); references 17,526 → 14,865 (−15.2%). Release checks, `measure-context --check`, `openspec validate`, and all 347 payload tests pass.
 - **2026-09-27** — Asked to make sure the skill update breaks nothing, OpenSpec included, then publish → a mechanical pass (no code block lost; every frontmatter `name`, `user-invocable`, and flag unchanged; each removed inline command traced) and two independent rule-by-rule reviews against `main`. No OpenSpec command, flag, rung, gate result, or git boundary was lost. Restored what they found: `wong-setup`'s "a request to install continues through `/plan`, `/apply`, and `/save`" (install-onboarding spec), `ship`'s three named pull-in stops, `save`'s `skip_specs` note, prose-save two-line report and failing-gate next step, the `wrangler.jsonc` entry-point and compatibility settings, the unseeded `.env` handling list, `latest-source`'s fetch and timing wording, `update-dependencies`' "more than the user expects" and "adapt the owning skill", `improve`'s instructions read, intent fields, source-owner and architecture guidance, consolidation's "only", routine's delete ask format, the R2 condition, and the `--annotate` condition.
 - **2026-09-27** — Merged `main` again for 25.14.0 (plain words for everyone) and 25.15.0 (a workspace per part); conflicts in apply, continue, explore, asking-the-user, plan, routine, save, and ship resolved as main's rules in the shorter wording, with no link left to the retired `#write-at-the-readers-level`. Release is now 25.16.0. Counts against main 25.15.0: SKILL.md 13,476 → 10,202 (−24.3%); references 18,286 → 15,693 (−14.2%, including main's new unshortened `build-helper.md`, `tools.md`, and `new-workspace.md`). Release checks, `openspec validate --specs` (49/49), and all 363 payload tests pass.
+- **2026-09-27** — Task 3.3 ticked at ship after rerunning its checks (all pass). Distilled facts before the archive: no repeatable fact (the store holds none for this change or branch).
+- **2026-09-27** — Archive checkpoint on `shorten-skill-instructions`: all tasks done, `skip_specs` so no spec sync; CI passed on PR #151 before the archive.

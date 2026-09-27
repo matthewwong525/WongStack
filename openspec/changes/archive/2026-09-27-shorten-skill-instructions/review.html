@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · shorten-skill-instructions</title>
+<title>Review · 2026-09-27-shorten-skill-instructions</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="shorten-skill-instructions">
+<body data-change="2026-09-27-shorten-skill-instructions">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>shorten-skill-instructions</h1>
+  <h1>2026-09-27-shorten-skill-instructions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -139,6 +139,8 @@
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: release 25.14.0, the next minor after main's 25.13.0. Assumed: main's new <code>apply/references/build-helper.md</code> and <code>wong-setup/references/tools.md</code> stay as written, because they postdate this plan's pass. Counts against main 25.13.0: SKILL.md 13,395 → 9,960 (−25.6%); references 17,526 → 14,865 (−15.2%). Release checks, <code>measure-context --check</code>, <code>openspec validate</code>, and all 347 payload tests pass.</li>
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked to make sure the skill update breaks nothing, OpenSpec included, then publish → a mechanical pass (no code block lost; every frontmatter <code>name</code>, <code>user-invocable</code>, and flag unchanged; each removed inline command traced) and two independent rule-by-rule reviews against <code>main</code>. No OpenSpec command, flag, rung, gate result, or git boundary was lost. Restored what they found: <code>wong-setup</code>'s &quot;a request to install continues through <code>/plan</code>, <code>/apply</code>, and <code>/save</code>&quot; (install-onboarding spec), <code>ship</code>'s three named pull-in stops, <code>save</code>'s <code>skip_specs</code> note, prose-save two-line report and failing-gate next step, the <code>wrangler.jsonc</code> entry-point and compatibility settings, the unseeded <code>.env</code> handling list, <code>latest-source</code>'s fetch and timing wording, <code>update-dependencies</code>' &quot;more than the user expects&quot; and &quot;adapt the owning skill&quot;, <code>improve</code>'s instructions read, intent fields, source-owner and architecture guidance, consolidation's &quot;only&quot;, routine's delete ask format, the R2 condition, and the <code>--annotate</code> condition.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Merged <code>main</code> again for 25.14.0 (plain words for everyone) and 25.15.0 (a workspace per part); conflicts in apply, continue, explore, asking-the-user, plan, routine, save, and ship resolved as main's rules in the shorter wording, with no link left to the retired <code>#write-at-the-readers-level</code>. Release is now 25.16.0. Counts against main 25.15.0: SKILL.md 13,476 → 10,202 (−24.3%); references 18,286 → 15,693 (−14.2%, including main's new unshortened <code>build-helper.md</code>, <code>tools.md</code>, and <code>new-workspace.md</code>). Release checks, <code>openspec validate --specs</code> (49/49), and all 363 payload tests pass.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Task 3.3 ticked at ship after rerunning its checks (all pass). Distilled facts before the archive: no repeatable fact (the store holds none for this change or branch).</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archive checkpoint on <code>shorten-skill-instructions</code>: all tasks done, <code>skip_specs</code> so no spec sync; CI passed on PR #151 before the archive.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
