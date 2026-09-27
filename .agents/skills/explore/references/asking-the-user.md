@@ -25,7 +25,10 @@ Ask in words the reader can judge. Find the current person's page by `git config
 - **Non-technical:** name what the person will see, get, lose, or risk — *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* Use no file path, identifier, command, or engineering term the person did not use first.
 - **Technical:** name the mechanism when it helps the choice.
 - **Fix before you ask.** Never offer a choice that needs judgment the reader does not have. Where the skill's own rules let it fix a failure, try the fix first, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
-- **Lead a report with the outcome** — what is done, what they can open, what does not work. Lines a skill must print, such as a gate result or a commit, follow it.
+- **Lead a report with the outcome** — what is done, what they can open, what does not work. A failed or unverified check is part of the outcome, said in plain words.
+  - **Non-technical, and the person ran the verb:** give at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts. Give them exactly when the person asks.
+  - **Inside another verb:** still print every line the calling verb reads, such as `/save`'s gate line inside `/ship`, `/apply`, or `/verify`.
+  - **Technical:** those lines follow the outcome.
 
 The same rule covers the question, each option's tradeoff, a blocker report, and the next-step question.
 
@@ -58,14 +61,18 @@ This page decides how a question **looks**. It never decides which actions **nee
 
 ## End every reply with the next step
 
-Before you finish, answer one question for yourself: **what does the user have to decide for this work to continue?** Then put it to them in the same format — options, recommended first, consequence each.
+Before you finish, answer one question for yourself: **what does the user have to decide for this work to continue?** Then put it to them as an ask like any other: the same format — options, recommended first, consequence each — through the first callable tool in [which tool carries it](#which-tool-carries-it). Write the report, and any link, as chat text first; the tool carries only the question. A numbered list at the end of a reply is for a session with no such tool, never a habit.
 
-- A finished plan: one line, *Click here to see the plan:*, with a link to its `review.html`, then build it now *(Recommended)* / change the plan first / stop here.
+- A finished plan: [the plan's link](#print-the-plans-link) in chat text, then the question: build it now *(Recommended)* / change the plan first / stop here.
 - A blocked task: the supported ways to clear the blocker. Keep the report of the blocker intact above it.
 - A report or audit: the one fix worth taking next.
 - A finished task that will clearly come back: add one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 - More work the person asked for, left after a publish: open it in a new workspace *(Recommended)*, by [next work](../../plan/references/new-workspace.md#next-work).
 
 The exception is a chain that continues without the user: a handoff the invocation already authorized — `/apply` into [`/save`](../../save/SKILL.md), [`/ship`](../../ship/SKILL.md) through its stages — continues instead of asking.
+
+## Print the plan's link
+
+Whenever a reply makes or changes a plan, print one line of chat text: *Click here to see the plan:* and a Markdown link to the change's `review.html`, by the path the page builder printed. The line is the same whatever made the plan — [`/plan`](../../plan/SKILL.md), `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or notes pasted from the review page. Print it even when the work goes on to build; it adds no stop. Put it just above the closing question, outside the question tool: a tool's card may not make a link clickable. Leave it out and the person has no way to find the page.
 
 Written prose stays short and plain, in [our voice](../../../../wiki/voice.md). The skills that cite this page: [`/explore`](../SKILL.md), [`/plan`](../../plan/SKILL.md), [`/apply`](../../apply/SKILL.md), [`/save`](../../save/SKILL.md), [`/continue`](../../continue/SKILL.md), [`/ship`](../../ship/SKILL.md), [`/verify`](../../verify/SKILL.md), and [`/improve`](../../improve/SKILL.md).
