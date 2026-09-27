@@ -9,13 +9,13 @@ Every rule in the old text of each edited file (as of `1f41711`), and where it l
 | Rule (old text, short quote) | Now |
 |---|---|
 | "This repo is WongStack — a personal AI assistant and knowledge center … a template you clone and work from" | kept in place, shortened |
-| "You ask for anything and it gets done" | kept in place: "What it learns, and how code changes, stay in repo files"; the product promise lives in [`README.md`](../../../README.md) |
+| "You ask for anything and it gets done" | merged → the `WONG-STACK` block's "The repo is the shared memory" (cut from the meta half at the main merge); the product promise lives in [`README.md`](../../../README.md) |
 | "The payload is the repo root: `.claude/skills/`, the OpenSpec CLI and planning records, `.claude/rules/`, `wiki/`, `VERSION`, `CHANGELOG.md`, and the `WONG-STACK` block" | kept in place as plain names (skills, rules, the wiki, OpenSpec records, `VERSION`, `CHANGELOG.md`, the block); the linked list stays in `.agents/skills/wong-sync/references/payload-manifest.md`, linked |
 | "`wong-setup` installs WongStack into an empty folder once, and provisions Cloudflare there" | merged → each skill's `description:` (always loaded) and `.agents/skills/wong-setup/SKILL.md`; the meta half links `/wong-setup` |
 | "`wong-sync` — with the canonical payload manifest inside it — plans each update through the normal workflow" | merged → `wong-sync`'s `description:` and `.agents/skills/wong-sync/SKILL.md`; the manifest link stays in place |
 | "See the README for the user story" | kept in place |
 | "a meta-repo that ships WongStack and dogfoods it — the block below applies here too" | kept in place |
-| "Don't run `/wong-setup` or `/wong-sync` here … both stop when the clone is the current repo" | kept in place, shortened ("both stop here") |
+| "Don't run `/wong-setup` or `/wong-sync` here … both stop when the clone is the current repo" | kept in place, shortened ("both stop") |
 | "Working on WongStack itself — the release ritual, the link checker, what counts as code — loads from `.claude/rules/payload.md` the moment you touch a payload file. The full process lives in wiki/development/" | kept in place, shortened ("A payload edit loads the release rules"); the list of what the rule holds → `.agents/rules/payload.md` itself |
 
 ### `AGENTS.md` (the `WONG-STACK` block)

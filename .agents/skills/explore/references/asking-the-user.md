@@ -67,6 +67,8 @@ An [authorized handoff](#form-never-whether-to-ask) continues without asking, as
 
 Whenever a reply makes a plan, or changes what it says or its checklist, print *Click here to see the plan:* and the link to the change's `review.html` as one line of chat text. Copy the line the page builder prints, never a shortened path. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change. The line is the same whatever made the plan: any verb, or review-page notes. Print it even when the work goes on to build; it adds no stop. Put it just above the closing question, never inside it: a tool's card may not make a link clickable.
 
-Some hosts hide chat text written before a question card, so **any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line in plain text and no question, and the person's next message decides: build, notes, or stop.
+The builder also prints *When you're ready, type `/apply` to build it.* Copy it under the link when the plan waits for the person: after a standalone `/plan`, a bare `/wong-sync`, review notes, or the *Review the plan* reply. Leave it out when the build goes on in the same run (`/apply` planning first, `/continue`, `/ship`) or the plan has shipped.
+
+Some hosts hide chat text written before a question card, so **any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line and its next-step line in plain text and no question, and the person's next message decides: build, notes, or stop.
 
 Write prose short and plain, in [our voice](../../../../wiki/voice.md).

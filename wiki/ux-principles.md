@@ -1,6 +1,6 @@
 # UX principles
 
-How to decide what a screen should *be* — who it serves, what job it accomplishes, and how the layout earns its shape — before any component gets picked. This is the judgment layer beside your stack's UI/component conventions (which own the mechanics: which component, which token, which library). Every UI-bearing change applies these principles in a `## UX` section of its design.md (see [the change loop](development/the-change-loop.md)); the section template is at the [bottom of this page](#the--ux-section-in-designmd). The screen itself is sketched in text on [the change's review page](#the-review-file), which every change carries, so the layout is argued from a picture rather than a paragraph. When the real thing is cheap to build, build it: a [mini app](stack/mini-apps.md) preview shows the actual screen.
+How to decide what a screen should *be* — who it serves, what job it accomplishes, and how the layout earns its shape — before any component gets picked. This is the judgment layer beside your stack's UI/component conventions, which own the mechanics — which component, which token, which library — and live in [the code rule](../.agents/rules/code.md#where-things-go). Every UI-bearing change applies these principles in a `## UX` section of its design.md (see [the change loop](development/the-change-loop.md)); the section template is at the [bottom of this page](#the--ux-section-in-designmd). The screen itself is sketched in text on [the change's review page](#the-review-file), which every change carries, so the layout is argued from a picture rather than a paragraph. When the real thing is cheap to build, build it: a [mini app](stack/mini-apps.md) preview shows the actual screen.
 
 **This page is conditional.** It applies only to changes that add or restructure a user-facing screen. A repo with no UI — a CLI, a library, a backend service — can ignore it entirely.
 
@@ -31,7 +31,7 @@ Distilled from [Refactoring UI](https://www.refactoringui.com/). A mature design
 - **Unambiguous spacing.** More space *between* groups than *within* them, always — ambiguous gaps make readers guess what belongs together.
 - **Design the empty state.** First-run and zero-results screens start the job (the primary action inline), never just announce absence.
 - **Fewer borders.** Separate with spacing and a background shift, not boxes inside boxes. Borders are the last tool, not the first.
-- **Never rely on color alone.** Pair color with an icon, label, or weight change — accessible contrast and dark-mode legibility are part of the mechanics your UI conventions own.
+- **Never rely on color alone.** Pair color with an icon, label, or weight change — accessible contrast and dark-mode legibility are part of the mechanics [your UI conventions](../.agents/rules/code.md#where-things-go) own.
 - **One deliberate touch per screen.** An accent border, a designed detail — polish is a spice, not a base.
 
 ## The `## UX` section in design.md
