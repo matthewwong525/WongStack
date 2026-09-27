@@ -115,4 +115,4 @@ Lead with the outcome in [plain words](../explore/references/asking-the-user.md#
 - **Secrets** — the promoted, skipped, and unresolved key names, never a value, or why it was skipped.
 - **Checks loosened** — each `Check:` bullet in the archived proposal's Decision log, in one plain line; omit the line when there is none. [The gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) owns the rule.
 
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally start the next change, walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally open the next piece of work the person asked for in a new workspace *(Recommended)*, by [next work](../plan/references/new-workspace.md#next-work), walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.

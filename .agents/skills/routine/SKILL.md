@@ -38,6 +38,6 @@ The defaults are fixed, and the script applies them:
 
 A name that matches more than one routine returns exit `2` with the matching ids. Show them, and ask which one.
 
-For Paseo features that `/routine` does not cover (heartbeats, `--max-runs`, remote daemons), use `paseo` directly. [Required tools](../../../wiki/development/required-tools.md) lists Paseo as optional: only this skill uses it.
+For Paseo features that `/routine` does not cover (heartbeats, `--max-runs`, remote daemons), use `paseo` directly. [Required tools](../../../wiki/development/required-tools.md) lists Paseo as optional. This skill's [`workspace.mjs`](scripts/workspace.mjs) also opens a new workspace for one part of a request; [open a part in a new workspace](../plan/references/new-workspace.md) owns its use.
 
 End every reply with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), which is normally to list the routines or run the new one once now.

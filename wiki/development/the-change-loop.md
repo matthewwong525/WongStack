@@ -49,6 +49,15 @@ When a task the agent did by hand will clearly come back, the agent offers to ma
 
 Make no offer after a code change you built, in an unattended run, or for a routine when `paseo` is not installed.
 
+### Several parts, several workspaces
+
+One workspace holds one change. When a request has parts that could each be published alone, the agent lists them and asks once: do the first here and open a new [Paseo](https://paseo.sh) workspace for each other part *(Recommended)*, do them here one at a time, or keep one change. Each new workspace plans its part and waits for you at its review link. A part that builds on another opens at once, told that the other part is being built or about to publish.
+
+- **The offer comes back as a choice**, when a part is published and more work is left, and when a new change or `/continue` would share a workspace with unpublished work.
+- **One at a time instead**, without Paseo or when nobody can answer: an unattended run never opens a workspace.
+
+[Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) is the runbook.
+
 ### Asking before drafting
 
 `/explore` owns clarification. Standalone, it asks small groups of questions for as long as the thinking needs. At the transition into `/plan`, however planning was invoked, it asks **at most one round**, and only the decisions where a wrong guess makes the artifacts *wrong*, not merely *different*. Later gaps become recorded assumptions. [The exit round](../../.agents/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` records the answers in the proposal's Decision log.
