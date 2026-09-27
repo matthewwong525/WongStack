@@ -1,6 +1,6 @@
 # Thinner specs: keep the promises, cut the how
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/thinner-specs
 **Open questions:** none
 
@@ -72,3 +72,5 @@ None as deltas. This change sets `skip_specs: true` and rewrites `openspec/specs
 - **2026-09-27** — Assumed: the rewrite meets the bar as built — 25 capabilities, 25,487 words, 265 requirements, 344 scenarios, and no requirement with more than two scenarios — so no merged spec was split back out.
 - **2026-09-27** — Assumed: the planning-config check requirement moves from `ux-wireframes` to `payload-checks`, because it guards the payload rather than the review page.
 - **2026-09-27** — Saved at CI gate task 5.4. `main` had shipped 25.14.0 (`79ac32f`, plain words for everyone) and 25.15.0 (`bd555b6`, multi-part workspaces). Merged it in: main's new `reader-level` and `structured-asks` wording (no technical level; plain words for all, detail when asked, kept as a preference on the person page) is folded into `asking-the-user`, and both source folders stay deleted. `multi-part-workspaces` already meets the bar and stays as is, so there are 26 capabilities, 26,276 words, and no requirement with more than two scenarios. This change becomes 25.16.0. Strict spec validation (26), the config, retired-names, payload-link, and context checks pass after the merge.
+- **2026-09-27** — Distilled facts before the archive: no repeatable fact. The spec bar already lives in `.agents/rules/openspec.md`; the open threads (the plan-link follow-up, the queue) stay in memory.
+- **2026-09-27** — Archived by `/ship` and saved as one checkpoint on `explore/thinner-specs`; no deltas to sync (`skip_specs`), so `openspec/specs/` already holds the result.

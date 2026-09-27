@@ -41,4 +41,4 @@ Each rewrite task follows the bar in design.md: one promise per requirement in o
 - [x] 5.1 Confirm the totals: 26 capabilities (25 plus `multi-part-workspaces` from main), under 28,000 words, no requirement with more than two scenarios; record the counts in the Decision log
 - [x] 5.2 `VERSION` 25.15.0 → 25.16.0 and a `CHANGELOG.md` entry, with an **Updating** note: `/wong-sync` brings the rule; nothing to do by hand, and your own specs are not rewritten
 - [x] 5.3 Run `openspec validate --specs --strict --no-interactive`, `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `node scripts/measure-context.mjs --check`
-- [ ] 5.4 CI passes on the pushed branch, through `/save`
+- [x] 5.4 CI passes on the pushed branch, through `/save`

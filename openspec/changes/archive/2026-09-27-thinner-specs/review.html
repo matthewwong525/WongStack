@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · thinner-specs</title>
+<title>Review · 2026-09-27-thinner-specs</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="thinner-specs">
+<body data-change="2026-09-27-thinner-specs">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>thinner-specs</h1>
+  <h1>2026-09-27-thinner-specs</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -150,6 +150,8 @@
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the rewrite meets the bar as built — 25 capabilities, 25,487 words, 265 requirements, 344 scenarios, and no requirement with more than two scenarios — so no merged spec was split back out.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the planning-config check requirement moves from <code>ux-wireframes</code> to <code>payload-checks</code>, because it guards the payload rather than the review page.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Saved at CI gate task 5.4. <code>main</code> had shipped 25.14.0 (<code>79ac32f</code>, plain words for everyone) and 25.15.0 (<code>bd555b6</code>, multi-part workspaces). Merged it in: main's new <code>reader-level</code> and <code>structured-asks</code> wording (no technical level; plain words for all, detail when asked, kept as a preference on the person page) is folded into <code>asking-the-user</code>, and both source folders stay deleted. <code>multi-part-workspaces</code> already meets the bar and stays as is, so there are 26 capabilities, 26,276 words, and no requirement with more than two scenarios. This change becomes 25.16.0. Strict spec validation (26), the config, retired-names, payload-link, and context checks pass after the merge.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled facts before the archive: no repeatable fact. The spec bar already lives in <code>.agents/rules/openspec.md</code>; the open threads (the plan-link follow-up, the queue) stay in memory.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived by <code>/ship</code> and saved as one checkpoint on <code>explore/thinner-specs</code>; no deltas to sync (<code>skip_specs</code>), so <code>openspec/specs/</code> already holds the result.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
