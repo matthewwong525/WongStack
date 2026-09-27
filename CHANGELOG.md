@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.17.0 — Shorter skill instructions
+
+- **The same rules in fewer words.** Every skill's `SKILL.md` and `references/*.md` is rewritten in [our voice](wiki/voice.md): 13,476 → 10,202 words across the `SKILL.md` files (−24%) and 18,286 → 15,693 across references (−14%). A rule another page owns is now a link to it, reasons the wiki gives are cut, and one example stands where there were several. No rule, command, flag, path, heading, or code block changed. The vendored `agent-browser` skill is untouched.
+- **`stack-pack-fragments.md` lists seven `wrangler.jsonc` rules, not eight.** The eighth repeated the first (`migrations_dir`); its one extra point now sits in the first.
+
+**Updating.** `/wong-sync` brings every skill file. A skill you adapted locally shows as a conflict; keep your adaptation and take the new wording around it.
+
 ## 25.16.0 — Thinner specs: keep the promises, cut the how
 
 - **A spec states a promise, not a procedure.** `.claude/rules/openspec.md` gains the spec bar. A requirement stays when a person or an installed repo relies on it: what they see or get, what must never happen, and what an update delivers or keeps. The steps, script and file names, and exact wording stay in the skill. Each requirement gets one or two scenarios. The rule loads whenever anyone edits `openspec/`, so new specs stay short in every installed repo.
