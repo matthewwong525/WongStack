@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · 2026-09-27-fix-found-bugs</title>
+<title>Review · 2026-09-27-update-dependencies</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="2026-09-27-fix-found-bugs">
+<body data-change="2026-09-27-update-dependencies">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>2026-09-27-fix-found-bugs</h1>
+  <h1>2026-09-27-update-dependencies</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -104,70 +104,36 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">A check of the repo on 2026-09-27 found about 20 real bugs. The worst: a teammate can quietly change or hide other people's shared memory, a saved key can leak into an uploaded session record, and <code>/ship</code> can merge before the tests have run. The rest are smaller slips that give wrong answers or fail in odd cases. None of them is caught by a test today.</p>
+<p data-note="why-1" tabindex="0">Ten automatic update requests from Dependabot were waiting, one per outside building block. Reviewing them one by one means ten reviews, and some depend on each other: the test runner and its coverage tool must move together. You queued them on 2026-09-27 as one change.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Teammates can add to shared memory, but never change or hide someone else's.</b> Today three gaps let a teammate get round that rule: marking another person's note as out of date with no new note to replace it, overwriting another person's session record, and hiding a delete command inside quote marks. After this change, each of those is refused, and a teammate's normal saves work as before.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">teammate sends a memory write</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">      │</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">      ▼</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">one of the memory script's own</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">writes, under their own name? ─ no ─▶ refused</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">      │ yes</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">      ▼</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0">&quot;out of date&quot; mark with their</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0">own new note just before it? ─ no ─▶ refused</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0">      │ yes</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0">      ▼</span>
-<span class="ln" data-note="item-1-line-12" tabindex="0">session record someone</span>
-<span class="ln" data-note="item-1-line-13" tabindex="0">else's? ─────────────────── yes ──▶ refused</span>
-<span class="ln" data-note="item-1-line-14" tabindex="0">      │ no</span>
-<span class="ln" data-note="item-1-line-15" tabindex="0">      ▼</span>
-<span class="ln" data-note="item-1-line-16" tabindex="0">    saved</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Saved keys are read correctly, so they work and stay hidden.</b> A key written with quote marks and then a space or a comment after it is read without the quotes. The memory key then works, and the step that blanks secrets out of uploaded session records finds the real value.</div></div></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b><code>/ship</code> waits for the real tests before it merges.</b> Today the wait can say &quot;all passed&quot; when only the instant, skipped checks have shown up. After this change it needs the same answer twice in a row, and a list of only skipped checks isn't a pass until the usual one-minute grace has run out.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-3-line-1" tabindex="0">checks so far: all skipped</span>
-<span class="ln" data-note="item-3-line-2" tabindex="0">      │</span>
-<span class="ln" data-note="item-3-line-3" tabindex="0">      ▼</span>
-<span class="ln" data-note="item-3-line-4" tabindex="0">keep waiting (up to 1 min)</span>
-<span class="ln" data-note="item-3-line-5" tabindex="0">      │</span>
-<span class="ln" data-note="item-3-line-6" tabindex="0">      ▼</span>
-<span class="ln" data-note="item-3-line-7" tabindex="0">tests appear ──▶ wait for them</span>
-<span class="ln" data-note="item-3-line-8" tabindex="0">      │</span>
-<span class="ln" data-note="item-3-line-9" tabindex="0">      ▼</span>
-<span class="ln" data-note="item-3-line-10" tabindex="0">same result twice ──▶ pass</span></pre></div></details></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Shipping never closes other pull requests by accident.</b> If GitHub won't list the pull requests stacked on a branch, <code>/ship</code> keeps the branch instead of deleting it. If GitHub deletes the branch itself a moment before <code>/ship</code> does, that counts as done, not as an error.</div></div></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Smaller fixes:</b> - Memory search finds open threads even when newer ones belong to other work. - The preview link always matches the latest save. - A release label doesn't redeploy old code to the test site. - Long branch names still get a preview link. - Deploying by hand from a laptop can't reach the live site. - A slow page can't stall <code>/verify</code>. - A malformed memory address gets a clear error. - Mini app tests still run when the main tests fail. - A new server installs the same planning tool version as CI. - The background memory run gets one clear instruction for its counts. - The maintenance scan skips the changelog. - The two memory helper scripts answer <code>--help</code>.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Everything moves to its newest version in one go.</b> The app's screen library (React), the test and check tools, and the steps the automatic checks run on GitHub all update together. Nothing you see in the app changes.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">before                after</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">10 update requests    1 change</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">10 reviews     ──▶    1 review</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>GitHub's setup steps jump from version 4 to 7.</b> The checks run on every save, so a break shows up before anything is published.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The test runner stays on version 4 for now.</b> On version 5, the tool that breaks code on purpose to prove the tests catch it stops running any tests, so every break slipped through. That is a known bug in that tool, not yet fixed. The move waits for the fix.</div></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Eight of the ten waiting requests close</b> once this is live, since this change already includes them. The two for the test runner stay open until it can move.</div></div></li>
 </ol>
-<p class="aside"><b>Non-goals:</b></p>
-<ol class="items">
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0">The 11 waiting dependency updates. They're their own change, through <code>/update-dependencies</code>.</div></div></li>
-<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0">Three unlikely edge cases: nested worktrees, the session list race, and the unused login-key cache.</div></div></li>
-<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0">Working out background-run counts from the saved notes, rather than trusting the model.</div></div></li>
-</ol>
+<p class="aside"><b>Non-goals:</b> No new features. No Vitest 5 until Stryker's runner supports it. The Node type definitions stay on version 22 to match the Node version the app runs on.</p>
+
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked which of the found bugs the first fix should cover → chose all four groups: memory access, keys and secrets, ship safety, and the smaller bugs.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: one change and one pull request for all four groups, because the user has twice preferred one end-to-end-tested pull request over follow-ups.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the 11 open dependency-update pull requests stay out, because they're already queued as their own <code>/update-dependencies</code> change.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: three low-likelihood findings stay out (a nested worktree's session picked as current, the session-registry rewrite race, and <code>access.ts</code>'s uncached unknown <code>kid</code>), because each needs an unusual setup and <code>access.ts</code> isn't used yet.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a member may still supersede another author's fact, as long as the same batch first inserts the member's own replacing fact, because background consolidation on a teammate's machine merges facts across authors. The replacement is then always visible and credited, which is what &quot;cannot hide a fact&quot; protects. The wiki's member line is reworded to say so.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the Worker, not the client, blocks a member's session upsert on another author's row, by looking up the row's author before the batch runs, because the write statements stay byte-identical and an older member checkout keeps working.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a member's read is checked for write words and <code>;</code> on its raw SQL text, with nothing stripped, because stripping quotes is what let <code>[']</code> hide a <code>DELETE</code>, and no read the memory script sends puts those words in literals or comments.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>npm run deploy</code> in <code>app/</code> runs <code>scripts/cf-deploy.sh</code> instead of <code>wrangler deploy</code>, rather than being deleted, because that script already refuses to deploy outside CI and says why.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: CI workflows keep firing on every branch push and filter out only tags (<code>branches: ['**']</code>), because that's the smallest change that stops a release label from deploying.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the PR-comment preview method accepts only a comment that names the head commit's short SHA, newest first, because the other three methods already key on the commit, and deploy bots print it.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a patch release, 25.8.1, because every item fixes behavior that was already meant to work.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-09-27</p>Check: <code>.github/workflows/test.yml</code> changes its trigger to branch pushes only, and adds <code>!cancelled()</code> to the mini-app step so it runs after a red suite. Neither loosens a check: tag pushes test code already tested on its branch, and the mini-app step now runs in more cases, not fewer.</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>memberRefusal</code> stays a per-statement check, and a new <code>batchRefusal</code> adds the own-fact-first rule on top, because the per-statement shape test and the Worker share it and only ordering is batch-level. The session-owner lookup lives in the Worker, since it needs the database.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the existing test that let a member read <code>LIKE '%delete%'</code> now expects a refusal, and its allowed-read example passes the pattern as a parameter, because the read check now looks at the whole text by design. This tightens a check, not loosens one.</li>
-<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the preview alias is fitted after the staging-name guards in <code>cf-deploy.sh</code> and <code>cf-preview.sh</code>, by running the already-normalized alias through <code>wong_preview_alias</code> again with the Worker name, because normalizing is idempotent and the early branch-name check keeps its own message.</li>
-<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: &quot;CI is green through <code>/save</code>&quot; is <code>/ship</code>'s single checkpoint, not a task, because a task must be done before the archive, and <code>/ship</code> makes one save after it. Task 5.3 was removed for that reason.</li>
-<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Local checks: 355 script tests, 0 fail (9-11 skip by host); the c8 coverage floor holds; oxlint passes; the payload link, OpenSpec config, and retired-names checks pass; <code>loosened-checks.mjs --worktree</code> lists <code>.github/workflows/test.yml</code> as explained; <code>openspec validate fix-found-bugs --strict</code> passes. shellcheck isn't installed on this host, so CI runs it.</li>
-<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled facts before the archive: no repeatable fact; the memory store had no facts for this change or its branch. The member rule's wiki wording changed with the code.</li>
-<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived by <code>/ship</code> and saved as one checkpoint on <code>explore-bugs</code>. The specs synced <code>memory-store</code> (1 modified), <code>delivery-gate</code> (2 modified), <code>preview-discovery</code> (1 modified), and <code>ci-tests</code> (1 added). At the checkpoint, <code>main</code> had shipped 25.9.0 (<code>eecf5a2</code>, dependency updates, checkout and setup-node 7), so I merged it in and this release became 25.9.1. The workflow edits merged cleanly beside the new action pins; only <code>VERSION</code> and <code>CHANGELOG.md</code> conflicted.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked to work the queue now, starting with the Dependabot PRs → chose one change for all ten, per the queue set on 2026-09-27.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: act on Latest, including majors (checkout and setup-node 7), because <code>/update-dependencies</code> says so and CI runs the full suite on every save.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>@types/node</code> stays on 22, because <code>.github/dependabot.yml</code> ties its major to <code>.nvmrc</code>, which is 22.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the <code>qs</code> override stays, because <code>@stryker-mutator/core</code> 10.0.0 is still the latest and still pins <code>typed-rest-client</code> 2.3.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release (25.9.0), because two action majors reach installed repos through <code>/wong-sync</code>.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-09-27</p>Check: <code>.github/workflows/test.yml</code> moves <code>actions/checkout</code> to v7.0.1 and <code>actions/setup-node</code> to v7.0.0; no check is loosened, and every step and setting stays the same.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>First checkpoint on <code>update-dependencies</code>: tasks 1.1–2.2 done; release checks, <code>openspec validate</code>, and the loosened-check scan pass locally. CI decides task 2.3.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI run 36297096801 failed Stryker at 12.85%: every <code>worker/</code> mutant survived with Vitest 5.0.2. Reproduced locally (<code>worker/index.ts</code> 0/17 killed). Cause: <a href="https://github.com/stryker-mutator/stryker-js/issues/6210">stryker-js #6210</a>, open and unreleased — Vitest 5 matches <code>testNamePattern</code> against the chain joined with <code> &gt; </code>, and <code>@stryker-mutator/vitest-runner</code> 10.0.0 joins with a space, so each per-test run matches no test.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: hold <code>vitest</code> and <code>@vitest/coverage-v8</code> at 4.1.11 and leave Dependabot #110 and #112 open, because the alternatives weaken or bend the gate: <code>coverageAnalysis: &quot;off&quot;</code> changes a check setting and slows every run, and patching the runner in <code>node_modules</code> is not reproducible. With Vitest 4, <code>worker/index.ts</code> is back to 17/17 killed.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #147 with Vitest held at 4 (auto-fix attempt 1 of 3). Task 2.3 done; 2.4 waits for the merge.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: task 2.4 (confirm Dependabot closed its eight PRs) moves out of the checklist into <code>/ship</code>'s report, because it can only run after the merge and an unchecked task blocks the archive.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled facts before the archive: no repeatable fact for the wiki. The Vitest hold is temporary; <code>CHANGELOG.md</code> 25.9.0 and a memory thread carry it until stryker-js #6210 ships.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archive checkpoint on <code>update-dependencies</code>: all tasks done, <code>skip_specs</code> so no spec sync; CI passed on PR #147 before the archive.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

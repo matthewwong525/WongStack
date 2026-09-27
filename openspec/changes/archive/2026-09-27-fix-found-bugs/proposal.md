@@ -83,7 +83,7 @@ None.
 - Delivery scripts: `.agents/skills/save/scripts/wait-for-checks.sh`, `.agents/skills/save/scripts/preview-url.sh`, `.agents/skills/ship/scripts/merge.sh`, `.agents/skills/verify/scripts/verify-runner.sh`, `.agents/skills/improve/scripts/survey.mjs`.
 - CI and pack: `.github/workflows/test.yml`, `deploy.yml`, `payload.yml`; `scripts/lib-wrangler-config.sh` and its callers `scripts/cf-deploy.sh`, `scripts/cf-preview.sh`; `app/package.json` (`deploy`); `server/setup.sh`.
 - Tests under `scripts/tests/`: the memory Worker, `.env` parsing, member key writing, search, the check wait, merge, preview discovery, the alias helper, the survey, and the CLI conventions.
-- `VERSION` 25.8.0 → 25.8.1 and a `CHANGELOG.md` entry.
+- `VERSION` 25.9.0 → 25.9.1 and a `CHANGELOG.md` entry.
 
 ## Decision log
 
@@ -106,3 +106,4 @@ None.
 - **2026-09-27** — Local checks: 355 script tests, 0 fail (9-11 skip by host); the c8 coverage floor holds; oxlint passes; the payload link, OpenSpec config, and retired-names checks pass; `loosened-checks.mjs --worktree` lists `.github/workflows/test.yml` as explained; `openspec validate fix-found-bugs --strict` passes. shellcheck isn't installed on this host, so CI runs it.
 
 - **2026-09-27** — Distilled facts before the archive: no repeatable fact; the memory store had no facts for this change or its branch. The member rule's wiki wording changed with the code.
+- **2026-09-27** — Archived by `/ship` and saved as one checkpoint on `explore-bugs`. The specs synced `memory-store` (1 modified), `delivery-gate` (2 modified), `preview-discovery` (1 modified), and `ci-tests` (1 added). At the checkpoint, `main` had shipped 25.9.0 (`eecf5a2`, dependency updates, checkout and setup-node 7), so I merged it in and this release became 25.9.1. The workflow edits merged cleanly beside the new action pins; only `VERSION` and `CHANGELOG.md` conflicted.

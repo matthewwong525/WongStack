@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 25.8.1 — Fixes from a repo check
+## 25.9.1 — Fixes from a repo check
 
 - **Teammates can't change or hide each other's memory.** The memory route now refuses three writes it let through. A fact tag or supersede without the member's own new fact before it in the same batch is refused, so a replacement is always visible and credited. So is a session upsert onto a row another author holds, or one written before keys. The read check now looks at the whole SQL text, so a quoted name like `[']` can't hide a `DELETE`. A malformed `%` in an object path is a 400, not a crash. The statements are unchanged, so member checkouts need no update.
 - **`.env` values are read correctly.** `parseEnv` drops the quotes from a quoted value followed by spaces or a `# comment`. Before, it kept them, so a memory key failed and the transcript redactor looked for the wrong text. `writeEnvKey` replaces every `CLOUDFLARE_MEMORY_TOKEN=` line, so a stale duplicate can't win.
@@ -22,6 +22,15 @@
   - The memory scripts `run.mjs` and `session-start.mjs` answer `--help`.
 
 **Updating.** `/wong-sync` brings the fixes. The memory route's fix takes effect on the next production deploy from `main`.
+
+## 25.9.0 — Newest building blocks, except Vitest 5
+
+- **The app's building blocks are current.** React and React DOM 19.3, Vite 8.3.1, the React plugin 6.1.1, jsdom 30.1.1, knip 6.38.0, oxlint 1.85.0, and jscpd 5.3.2, in `app/package.json` and its lockfile. `@types/node` stays on 22 to match `.nvmrc`. Nothing in the app changes.
+- **Vitest stays on 4.** Stryker's Vitest runner does not work with Vitest 5 yet ([stryker-js #6210](https://github.com/stryker-mutator/stryker-js/issues/6210)): each mutant runs no tests, so the mutation score falls to near zero and the Test check fails. Move `vitest` and `@vitest/coverage-v8` together once Stryker ships the fix.
+- **The workflows run on the newest GitHub setup steps.** `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0, pinned by SHA, in `test.yml` and `deploy.yml` (and the meta-only `payload.yml` and `release.yml`). No setting changes: every step already sets `cache: npm`.
+- **One change instead of eight.** This replaces eight separate Dependabot pull requests.
+
+**Updating.** `/wong-sync` brings the new versions and pins. If Dependabot offers Vitest 5 in your repo, leave it until Stryker fixes #6210. The sync changes `test.yml`, so its change needs a `Check:` bullet for it; CI names the file.
 
 ## 25.8.0 — Offers to make a task easier next time
 
