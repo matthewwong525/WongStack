@@ -36,8 +36,9 @@ const run = (db, sql, params = []) => (params.length === 0 && /;\s*\S/.test(sql.
 
 /**
  * The fake. `state` is live: tests read and change it between runs. `refuse` holds `METHOD /path`
- * prefixes that answer 500; `forbiddenPolls` 403s the widen's probe that many times; `d1Failures`
- * fails that many D1 queries.
+ * prefixes that answer 500; `refusedPolls` refuses the widen's probe that many times with `refusedStatus`
+ * (`403` or `401`, code `10000`), as Cloudflare does while a widen takes effect; `d1Failures` fails that
+ * many D1 queries.
  */
 export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }] } = {}) {
   const state = {
@@ -51,7 +52,8 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     buckets: [],
     accountTokens: [],
     refuse: [],
-    forbiddenPolls: 0,
+    refusedPolls: 0,
+    refusedStatus: 403,
     d1Failures: 0,
     minted: [],
     puts: [],
@@ -78,9 +80,9 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     }
     if (route === 'GET /accounts') return ok(state.accounts);
     if (route === `GET ${account}/d1/database`) {
-      if (query.get('per_page') === '1' && state.forbiddenPolls > 0) {
-        state.forbiddenPolls--;
-        return no(403, 10000, 'Authentication error');
+      if (query.get('per_page') === '1' && state.refusedPolls > 0) {
+        state.refusedPolls--;
+        return no(state.refusedStatus, 10000, 'Authentication error');
       }
       const name = query.get('name');
       return ok(state.databases.filter((d) => !name || d.name.includes(name)));

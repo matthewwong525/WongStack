@@ -112,7 +112,7 @@ test('the token link on the credentials page asks for exactly the two groups the
 test('the widen grants a normal provision, keeps both token groups, its resources and condition, and waits out a 403', async (t) => {
   const env = await setup(t);
   env.fake.state.condition = { request_ip: { in: ['192.0.2.1/32'] } };
-  env.fake.state.forbiddenPolls = 2;
+  env.fake.state.refusedPolls = 2;
   const report = await env.widen({ account: ACCOUNT });
   assert.deepEqual(report.granted, NORMAL_PROVISION.map((row) => row.name));
   assert.deepEqual(report.held, USER_GRANTS.map((row) => row.name));
@@ -123,6 +123,15 @@ test('the widen grants a normal provision, keeps both token groups, its resource
   for (const row of [...USER_GRANTS, ...NORMAL_PROVISION]) assert.ok(granted.includes(row.id), row.name);
   assert.ok(!granted.includes(GROUPS.find((g) => g.scopes[0].endsWith('zone') && g.name === 'D1 Write').id), 'never the zone-scoped copy');
   assert.deepEqual(env.sleeps, [2000, 4000]);
+});
+
+test('the widen waits out a 401 as well, as Cloudflare answers while new groups take effect', async (t) => {
+  const env = await setup(t);
+  env.fake.state.refusedStatus = 401;
+  env.fake.state.refusedPolls = 1;
+  const report = await env.widen({ account: ACCOUNT });
+  assert.deepEqual(report.probed, [ACCOUNT]);
+  assert.deepEqual(env.sleeps, [2000]);
 });
 
 test('a token that holds every group is not widened again, and with no account every account is probed', async (t) => {
@@ -151,14 +160,14 @@ test('a refused or wrong-kind token stops with token; a failed or untaken widen 
   env.fake.state.refuse = ['PUT /user/tokens/tok1'];
   await assert.rejects(env.widen({ account: ACCOUNT }), { reason: 'cloudflare' });
   env.fake.state.refuse = [];
-  env.fake.state.forbiddenPolls = 99;
+  env.fake.state.refusedPolls = 99;
   await assert.rejects(env.widen({ account: ACCOUNT }), { reason: 'cloudflare', message: /HTTP 403 10000/ });
   assert.deepEqual(env.sleeps, [2000, 4000, 8000, 15000, 30000]);
-  env.fake.state.forbiddenPolls = 0;
+  env.fake.state.refusedPolls = 0;
   env.fake.state.refuse = [`GET /accounts/${ACCOUNT}/d1`];
   const before = env.fake.count(`GET /accounts/${ACCOUNT}/d1`);
   await assert.rejects(env.widen({ account: ACCOUNT }), { reason: 'cloudflare' });
-  assert.equal(env.fake.count(`GET /accounts/${ACCOUNT}/d1`) - before, 1, 'an error that is not a 403 is not retried');
+  assert.equal(env.fake.count(`GET /accounts/${ACCOUNT}/d1`) - before, 1, 'an error that is neither 401 nor 403 is not retried');
 });
 
 test('a permission group Cloudflare does not list stops with token', async (t) => {
