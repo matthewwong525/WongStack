@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.9.0 — Newest building blocks, except Vitest 5
+
+- **The app's building blocks are current.** React and React DOM 19.3, Vite 8.3.1, the React plugin 6.1.1, jsdom 30.1.1, knip 6.38.0, oxlint 1.85.0, and jscpd 5.3.2, in `app/package.json` and its lockfile. `@types/node` stays on 22 to match `.nvmrc`. Nothing in the app changes.
+- **Vitest stays on 4.** Stryker's Vitest runner does not work with Vitest 5 yet ([stryker-js #6210](https://github.com/stryker-mutator/stryker-js/issues/6210)): each mutant runs no tests, so the mutation score falls to near zero and the Test check fails. Move `vitest` and `@vitest/coverage-v8` together once Stryker ships the fix.
+- **The workflows run on the newest GitHub setup steps.** `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0, pinned by SHA, in `test.yml` and `deploy.yml` (and the meta-only `payload.yml` and `release.yml`). No setting changes: every step already sets `cache: npm`.
+- **One change instead of eight.** This replaces eight separate Dependabot pull requests.
+
+**Updating.** `/wong-sync` brings the new versions and pins. If Dependabot offers Vitest 5 in your repo, leave it until Stryker fixes #6210. The sync changes `test.yml`, so its change needs a `Check:` bullet for it; CI names the file.
+
 ## 25.8.0 — Offers to make a task easier next time
 
 - **A task that will come back ends with one offer.** When the agent finishes a task it did by hand and there is a clear sign it recurs, its closing next-step question adds one option: run it on a schedule through `/routine`, or build a mini app for it. A clear sign is the person saying it recurs, or a memory fact showing they asked before; never a guess. Judgment on each run means a routine; fixed steps mean a mini app. [Offer a routine or an app](wiki/development/the-change-loop.md#offer-a-routine-or-an-app) owns the rule, the `WONG-STACK` block states it, and [the ask convention](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step) links it.
