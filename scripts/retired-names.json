@@ -17,5 +17,7 @@
   {"name": "mini-app-save.md", "replacement": "the normal `/save` route; see `wiki/stack/mini-apps.md`"},
   {"name": "mini-app-push.sh", "replacement": "the normal `/save` route"},
   {"name": "app/review/", "replacement": "`scripts/tests/review-browser.test.mjs`"},
-  {"name": "Review notes from review.html", "replacement": "the copied header `Update the plan <name> with these notes from the review page`"}
+  {"name": "Review notes from review.html", "replacement": "the copied header `Update the plan <name> with these notes from the review page`"},
+  {"name": "#the-prose-allowlist", "replacement": "`wiki/development/the-change-loop.md#the-gate`"},
+  {"name": "prose-save.md", "replacement": "`save/references/facts-save.md`"}
 ]

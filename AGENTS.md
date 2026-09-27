@@ -35,7 +35,6 @@ Credentials already live in the repo's environment files — `.env.example` is t
 - **Build a new standalone page or tool as a mini app**: its own folder, served by the main app at `/apps/<name>/`, through the same loop as any change: [mini apps](wiki/stack/mini-apps.md).
 - **The WongStack skills own all git; OpenSpec never runs git.** `/apply` reads branch changes but makes none: [the change loop](wiki/development/the-change-loop.md).
 - **CI is the gate when present, else PR review; nothing builds locally**: [the gate](wiki/development/the-change-loop.md#the-gate).
-- **Prose goes straight to `main`** when a save's whole diff sits in `wiki/**`: [the prose allowlist](wiki/development/the-change-loop.md#the-prose-allowlist).
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge to the wiki when you learn it** — the test: will it help with a future task that is not this one? Place it by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge); a change's specifics stay in its proposal and archive.

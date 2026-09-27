@@ -90,13 +90,15 @@ The work decides the form; no mode or setting does.
 ## The gate
 
 This page is where the delivery doctrine is **stated**; every other surface links here rather than
-restating it. Two rules, and one carve-out.
+restating it. Two rules.
 
 **The gate is CI when present, else PR review.** The durable system is pull requests, version
 control, OpenSpec, and everything-lives-in-the-repo; GitHub Actions is an optional accelerator,
 honored when configured. Where checks exist, push and let CI run — the skills wait and fix failures.
 Where they don't, the PR (plus the OpenSpec change and its archive) is the record a human reviews.
 Either way, **nothing builds locally as a prerequisite.** `/apply`'s preview builds the app on the agent host, but it is no exception: it gates nothing and never reaches production.
+
+**Every file edit takes the gate**, whatever its path: a branch, a pull request, then `/ship`. A change record is needed for code only; [`/save`](../../.agents/skills/save/SKILL.md) decides, and anything else gets a pull request that says what changed.
 
 **The ladder is CI-when-present → merge**, and a skipped rung is never a failure. Nothing else gates
 a merge. The app's own test suite is not a separate rung — it runs *inside* CI as an ordinary check,
@@ -112,7 +114,8 @@ a required check still reports green. The comparison covers the whole branch, ne
 commit. A mini-app branch runs the changed apps' own tests instead, and Deploy still deploys the main
 app, because its Worker serves the mini apps. A shared file under `mini-apps/` outside
 `mini-apps/apps/`, such as `router.mjs`, is main-app code and runs the suite. In the WongStack source repo, the
-Payload checks run on every push, because its skill Markdown is the payload.
+Payload checks run on every push, because its skill Markdown is the payload; only a branch whose
+every path is under `wiki/` or `openspec/` skips their script tests.
 
 **The staging walkthrough is not a rung either.** `/ship` runs [`/verify`](#verifying-the-app) once for
 evidence, and merges on the gate result whatever the walk says. A walk that cannot run — no
@@ -139,24 +142,6 @@ A reason is a bullet in the change's Decision log that starts with `Check:` and 
 ```
 
 Only a proposal the branch adds or edits counts, archived ones included, so an old reason never excuses a new loosening. The agent fixes a flagged file itself — it switches the check back on, or writes the reason — and lists every `Check:` bullet in plain words before *publish it?* and in the final report. The script is `.github/scripts/loosened-checks.mjs`; the Test workflow runs it on every push.
-
-### The prose allowlist
-
-**A prose-only save is a valid save.** Not every session produces a diff that needs reviewing. When
-a save's entire diff sits inside the **prose allowlist** — the path prefix `wiki/**` — `/save`
-commits it **directly to the default branch**: no change folder, no branch, no PR, no `/ship`.
-Explicit wiki-only work takes it, and so does [repeatable knowledge](../wiki-style.md#repeatable-knowledge) written when it is learned. A conversation that produced only understanding needs no route at
-all: its facts go to the [memory store](memory.md), and the save makes no commit.
-
-The gate isn't weakened — it applies where behavior does. A wiki page carries none: it is prose
-you reviewed in the diff that produced it. The
-carve-out is scoped by path and exact; one changed path outside the allowlist and the
-normal flow applies to the whole save. It never keys on file extension — markdown under `.agents/`
-is the payload and markdown under `openspec/` is the spec, and `AGENTS.md`/`CLAUDE.md`,
-`README.md`, `CHANGELOG.md`, `VERSION`, `app/**` and every config file keep the full gate. The
-allowlist is closed: a surface that isn't named here gets the gate until someone deliberately adds
-it. One exception, in the WongStack source repo only: a `wiki/` page that ships as payload is a
-release, so it takes a branch, a PR, and a `VERSION` and `CHANGELOG.md` bump.
 
 ## The change is a living handoff, not just a plan
 

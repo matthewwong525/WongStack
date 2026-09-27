@@ -84,7 +84,7 @@ The README's first screen SHALL be written for a non-technical reader. It SHALL 
 
 ### Requirement: GitHub settings enforce the documented gate
 
-The default branch SHALL be protected by a ruleset that requires the test and payload checks to pass and blocks force-push and deletion. The repository owner SHALL be able to bypass it for prose saved straight to the default branch. Private vulnerability reporting, secret scanning, push protection, and Dependabot alerts SHALL be on. Only squash merges SHALL be allowed, and head branches SHALL be deleted after a merge. The agent SHALL show each setting to the user before it applies it.
+The default branch SHALL be protected by a ruleset that requires the test and payload checks to pass and blocks force-push and deletion. No save route SHALL rely on bypassing it: every file edit reaches the default branch through a pull request. Private vulnerability reporting, secret scanning, push protection, and Dependabot alerts SHALL be on. Only squash merges SHALL be allowed, and head branches SHALL be deleted after a merge. The agent SHALL show each setting to the user before it applies it.
 
 #### Scenario: A red PR cannot merge
 

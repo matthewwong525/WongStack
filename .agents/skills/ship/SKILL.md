@@ -43,7 +43,7 @@ If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` fa
 
 ## Step 2 — archive the change
 
-Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME` by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`. If none selects a change, stop and report that this branch has no identifiable change record; `/save` can author one. `sole-active` never authorizes a cold merge.
+Keep `BRANCH` from Step 1 and resolve a separate `CHANGE_NAME` by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`. If none selects a change, apply `/save`'s test for authoring one to the branch diff: code or a plan for code → stop and report that this branch has no identifiable change record; `/save` can author one. Anything else needed no change: skip the archive and the distillation below, and go to Step 3 with no `CHANGE_NAME`. `sole-active` never authorizes a cold merge.
 
 If the branch diff or working tree contains **more than one active change folder**, stop before archive even when one was explicitly selected: the merge would carry the other too. Name the folders and ask the user, [as options](../explore/references/asking-the-user.md): ship the selected change alone by moving the other out of the branch *(Recommended)*, or ship both together on purpose. Require `openspec/changes/$CHANGE_NAME/` to exist, and keep `CHANGE_NAME` fixed through archive and checkpoint.
 
@@ -65,7 +65,7 @@ Count a fact that both commands print once. Keep only the facts that pass the te
 
 ## Step 3 — delegate the checkpoint to /save
 
-**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim.** Hand it the exact `CHANGE_NAME` and archive path. `/save` owns the commit, push, PR body, and CI wait; `/ship` implements none of it. Consume its final result:
+**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim.** Hand it the exact `CHANGE_NAME` and archive path, when there is a change. `/save` owns the commit, push, PR body, and CI wait; `/ship` implements none of it. Consume its final result:
 
 - `SUCCESS` → proceed. `NONE` → proceed; invoking `/ship` is the PR-review approval where no checks exist.
 - `UNKNOWN`, `TIMEOUT`, or `FAILURE` → stop before merge and report `/save`'s reason. Do not repeat, bypass, or reinterpret the gate.
@@ -109,7 +109,7 @@ It compares the worktree copy, the primary, and the baseline recorded at seed. I
 
 Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, what changed for them, and the live link. For that reader, the rest below except *Checks loosened* comes only when they ask. Otherwise print `merge.sh`'s `key=value` lines, plus:
 
-- **Archived** — the archive path; `openspec/specs/` holds the synced result.
+- **Archived** — the archive path; `openspec/specs/` holds the synced result. A branch that needed no change says so in one line.
 - **Checkpoint** — `/save`'s result and CI outcome, including auto-fix pushes.
 - **Walk** — the verdict and evidence link; a `FAILURE` merged anyway says the user chose it; an absent skill is one line.
 - **Secrets** — the promoted, skipped, and unresolved key names, never a value, or why it was skipped.

@@ -62,7 +62,7 @@ The vendored `agent-browser` skill SHALL remain exempt from the description budg
 
 The completed change SHALL report before-and-after word and byte counts for a fixed inventory of core workflow skill descriptions, bodies, and linked procedure references, including removed generated instructions and new references. The inventory SHALL show a net reduction and SHALL identify shared owner documents separately. Counts of source text SHALL NOT be presented as measured runtime token savings. Generated review code, executable helpers, and historical records SHALL be accounted for separately.
 
-The report SHALL also name required-reading inventories for ordinary active save, named-secret save, prose save, new-plan fallback, archived save, and cold resume. Ordinary save SHALL require less source reading than the recorded baseline. Every special-route increase SHALL be reported with its reason. Completion SHALL include behavior regression evidence and an audit that required checks remain reachable.
+The report SHALL also name required-reading inventories for ordinary active save, named-secret save, facts-only save, new-plan fallback, archived save, and cold resume. Ordinary save SHALL require less source reading than the recorded baseline. Every special-route increase SHALL be reported with its reason. Completion SHALL include behavior regression evidence and an audit that required checks remain reachable.
 
 #### Scenario: The implementation is reviewed
 
@@ -84,11 +84,11 @@ The report SHALL also name required-reading inventories for ordinary active save
 
 ### Requirement: Save loads conditional procedures only when applicable
 
-The save skill SHALL expose a complete main procedure and explicit entry conditions for named-secret persistence, prose-only handling, new-plan fallback, and archived handoffs. Each applicable procedure SHALL be loaded before its actions. Unconditional credential exclusion, workflow ownership, and gate-result handling SHALL remain visible in the main procedure. Extracted procedures SHALL retain all required checks.
+The save skill SHALL expose a complete main procedure and explicit entry conditions for named-secret persistence, facts-only saves, new-plan fallback, and archived handoffs. Each applicable procedure SHALL be loaded before its actions. Unconditional credential exclusion, workflow ownership, and gate-result handling SHALL remain visible in the main procedure. Extracted procedures SHALL retain all required checks.
 
 #### Scenario: Ordinary active change checkpoint
 
-- **WHEN** save handles an existing active change without newly named secrets or prose-only routing
+- **WHEN** save handles an existing active change without newly named secrets
 - **THEN** it can complete the checkpoint without loading the unrelated conditional procedures
 - **AND** it retains record maintenance, credential exclusion, PR handling, and CI result reporting
 

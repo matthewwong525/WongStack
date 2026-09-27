@@ -74,7 +74,7 @@ The skill SHALL be free to reference payload doctrine that other files own — t
 
 - **WHEN** a change edits only files under `.claude/skills/update-dependencies/`
 - **THEN** no `VERSION` bump and no `CHANGELOG.md` entry are required for that edit
-- **AND** the change still takes the full gate, because the files sit under `.claude/` and outside the prose allowlist
+- **AND** the change still takes the full gate, like every save
 
 #### Scenario: A reader wonders why the manifest omits it
 

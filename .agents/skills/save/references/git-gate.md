@@ -43,7 +43,7 @@ PR_NUMBER=$(gh pr view --json number --jq .number)
 gh api -X PATCH "repos/{owner}/{repo}/pulls/$PR_NUMBER" -F "body=@$BODY_FILE" --silent
 ```
 
-Not `gh pr edit`: older `gh` releases (2.46, for one) query the retired Projects (classic) API there, fail with a GraphQL error, and leave the old body. Remove temporary files after use. A prose-only PR fallback has no change and supplies its own body file.
+Not `gh pr edit`: older `gh` releases (2.46, for one) query the retired Projects (classic) API there, fail with a GraphQL error, and leave the old body. Remove temporary files after use. A save with no change supplies its own plain body file instead, per [save's normal route](../SKILL.md#2-maintain-the-handoff-and-capture-context).
 
 ## 2 — wait for checks, auto-fix on failure
 
@@ -81,4 +81,4 @@ The cap is per `/save` invocation. [`/verify`](../../verify/SKILL.md) may re-wal
 
 ## What each caller keeps
 
-This runbook leaves to each skill: `/save` — preview discovery, staging by path, the prose route, facts, and spec sync; `/ship` — default-branch CI preflight, archive, strict gate reading, merge, and branch deletion; `/verify` — the walkthrough after `/save`.
+This runbook leaves to each skill: `/save` — preview discovery, staging by path, facts, and spec sync; `/ship` — default-branch CI preflight, archive, strict gate reading, merge, and branch deletion; `/verify` — the walkthrough after `/save`.
