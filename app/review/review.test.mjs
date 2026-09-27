@@ -53,8 +53,8 @@ function fixture(source = proposal) {
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-async function open(url, { width = 1200, height = 800, init } = {}) {
-  const context = await browser.newContext({ viewport: { width, height } });
+async function open(url, { width = 1200, height = 800, init, touch = false } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch });
   if (init) await context.addInitScript(init);
   const page = await context.newPage();
   const errors = [];
@@ -65,9 +65,17 @@ async function open(url, { width = 1200, height = 800, init } = {}) {
 
 const at = (page, id) => page.locator(`[data-note="${id}"]`);
 async function tap(page, id) { await at(page, id).click({ position: { x: 4, y: 4 } }); }
-async function draft(page, id, text) {
-  await tap(page, id);
+// A drawing line is noted from the full-screen view: open the fold, go full screen, click the line, choose Add note.
+async function noteLine(page, id) {
+  const fold = page.locator(`#item-${/^item-(\d+)/.exec(id)[1]} details.drawing`).first();
+  if (!(await fold.evaluate(el => el.open))) await fold.locator('summary').click();
+  await fold.locator('.enlarge').click();
+  await page.locator(`#viewer [data-note="${id}"]`).click({ position: { x: 2, y: 2 } });
   await page.locator('#chip').click();
+}
+async function draft(page, id, text) {
+  if (/-line-/.test(id)) await noteLine(page, id);
+  else await page.locator(`.add[data-open="${id}"]`).click();
   await page.locator('#editor textarea').fill(text);
 }
 async function note(page, id, text) {
@@ -82,7 +90,7 @@ async function copied(page) {
 before(async () => { browser = await chromium.launch({ headless: true }); });
 after(async () => { if (browser) await browser.close(); temps.forEach(path => rmSync(path, { recursive: true, force: true })); });
 
-test('a still tap offers a note; a drag, a zoom button, and a link do not', async () => {
+test('a mouse click offers a note; a drag, a drawing control, and a link do not', async () => {
   const { page, context, errors } = await open(fixture().url);
   const chip = page.locator('#chip');
   await tap(page, 'item-2');
@@ -96,14 +104,38 @@ test('a still tap offers a note; a drag, a zoom button, and a link do not', asyn
   await page.mouse.move(box.x + 20, box.y + 60, { steps: 5 });
   await page.mouse.up();
   assert.equal(await chip.isVisible(), false);
-  await page.locator('#item-3 button[aria-label="Zoom in"]').click();
+  await page.locator('#item-3 summary').click();
   assert.equal(await chip.isVisible(), false);
+  await page.locator('#item-3 .enlarge').click();
+  await page.locator('#viewer button[aria-label="Zoom in"]').click();
+  assert.equal(await chip.isVisible(), false);
+  await page.locator('#viewer button', { hasText: 'Close' }).click();
   await page.locator('#item-2 a').click();
   assert.equal(await chip.isVisible(), false);
   assert.match(page.url(), /#why$/);
   await tap(page, 'item-2');
   await chip.click();
   assert.equal(await page.locator('#editor-where').innerText(), '#/2 · item "Item two links the reason and wraps onto a second line."');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('on a touch screen, one tap on Note opens the editor and a tap on text does nothing', async () => {
+  const { page, context, errors } = await open(fixture().url, { width: 390, touch: true });
+  await at(page, 'item-2').tap({ position: { x: 4, y: 4 } });
+  assert.equal(await page.locator('#chip').isVisible(), false);
+  assert.equal(await page.locator('#editor').isVisible(), false);
+  const add = page.locator('.add[data-open="item-2"]');
+  assert.equal(await add.innerText(), '+ Note');
+  const size = await add.boundingBox();
+  assert.ok(size.height >= 34, `Note button is ${size.height}px tall`);
+  await add.tap();
+  assert.equal(await page.locator('#editor').isVisible(), true);
+  assert.equal(await page.locator('#editor-where').innerText(), '#/2 · item "Item two links the reason and wraps onto a second line."');
+  await page.locator('#editor textarea').fill('One tap');
+  await page.locator('#editor [data-act="save"]').tap();
+  assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '1');
+  assert.equal(await page.locator('.add[data-open="item-2"]').count(), 0, 'the pin takes the Note button\'s place');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -115,6 +147,7 @@ test('saving adds a pin and a list entry, and Copy notes writes the /continue bl
   await note(page, 'item-1-line-3', 'Show the end state.');
   await note(page, 'decision-2', 'Check this one.');
   assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '2');
+  assert.equal(await page.locator('#item-1 summary .count').innerText(), '· 1 note');
   assert.equal(await page.locator('#note-list .entry').count(), 4);
   assert.equal(await page.locator('.bar .note-count').innerText(), '4 notes');
   assert.equal(await copied(page), [
@@ -185,38 +218,51 @@ test('a refresh keeps notes attached, and a note whose text changed shows as pos
   await context.close();
 });
 
-test('a wide drawing fits, zooms past fit to pan, and returns to fit', async () => {
-  const { page, context } = await open(fixture().url, { width: 390 });
-  const frame = page.locator('#item-3 .frame');
-  const fit = () => page.evaluate(() => {
-    const frameBox = document.querySelector('#item-3 .frame').getBoundingClientRect();
-    const art = document.querySelector('#item-3 .art');
-    const box = art.getBoundingClientRect();
-    return { scale: new DOMMatrix(getComputedStyle(art).transform).a, inside: box.left >= frameBox.left - 1 && box.right <= frameBox.right + 1 && box.bottom <= frameBox.bottom + 1 };
+test('a drawing folds, fits the item\'s full width, and zooms and scrolls full screen', async () => {
+  const { page, context, errors } = await open(fixture().url, { width: 390 });
+  const fold = page.locator('#item-3 details.drawing');
+  assert.equal(await fold.evaluate(el => el.open), false);
+  assert.equal(await page.locator('#item-3 .frame').isVisible(), false);
+  await fold.locator('summary').click();
+  // Opening a fold fires its toggle event a moment later, and that event fits the drawing.
+  await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-3 .art')).fontSize) < 13);
+  const inline = () => page.evaluate(() => {
+    const frame = document.querySelector('#item-3 .frame').getBoundingClientRect(), card = document.querySelector('#item-3').getBoundingClientRect();
+    const art = document.querySelector('#item-3 .art'), box = art.getBoundingClientRect();
+    return { font: parseFloat(getComputedStyle(art).fontSize), inside: box.left >= frame.left - 1 && box.right <= frame.right + 1, full: frame.width >= card.width - 2 };
   });
-  const start = await fit();
-  assert.ok(start.scale < 1 && start.inside, JSON.stringify(start));
-  assert.equal(await frame.evaluate(el => getComputedStyle(el).touchAction), 'pan-y');
-  for (let i = 0; i < 3; i += 1) await page.locator('#item-3 button[aria-label="Zoom in"]').click();
-  assert.equal(await frame.evaluate(el => getComputedStyle(el).touchAction), 'none');
-  const transform = () => page.locator('#item-3 .art').evaluate(el => el.style.transform);
-  const zoomed = await transform();
+  const start = await inline();
+  assert.ok(start.font < 13 && start.inside && start.full, JSON.stringify(start));
+  assert.equal(await page.locator('#item-3 .frame').evaluate(el => getComputedStyle(el).touchAction), 'pan-y');
+  assert.equal(await page.locator('#item-3 .zoom').count(), 0, 'no zoom controls on the page');
+  await page.locator('#item-3 .enlarge').click();
+  assert.equal(await page.locator('#viewer').isVisible(), true);
+  assert.equal(await page.locator('#item-3 .art').count(), 0, 'the view borrows the drawing, never a copy');
+  const vframe = page.locator('#viewer .vframe');
+  const view = () => vframe.evaluate(el => ({ font: parseFloat(getComputedStyle(el.querySelector('.art')).fontSize), wide: el.scrollWidth > el.clientWidth + 1, x: el.scrollLeft }));
+  const fitted = await view();
+  assert.ok(!fitted.wide && fitted.font >= start.font, JSON.stringify(fitted));
+  assert.equal(await vframe.evaluate(el => getComputedStyle(el).touchAction), 'pan-x pan-y');
+  for (let i = 0; i < 3; i += 1) await page.locator('#viewer button[aria-label="Zoom in"]').click();
+  const zoomed = await view();
+  assert.ok(zoomed.font > fitted.font && zoomed.wide, JSON.stringify(zoomed));
   const scrollY = await page.evaluate(() => window.scrollY);
-  const box = await frame.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 - 20, { steps: 6 });
-  await page.mouse.up();
-  assert.notEqual(await transform(), zoomed);
+  await vframe.evaluate(el => { el.scrollLeft = 80; });
+  assert.ok((await view()).x > 0, 'the view scrolls natively');
   assert.equal(await page.evaluate(() => window.scrollY), scrollY);
-  assert.equal(await page.locator('#chip').isVisible(), false);
-  await page.locator('#item-3 .zoom button', { hasText: 'Fit' }).click();
-  assert.deepEqual(await fit(), start);
-  await frame.evaluate(el => {
+  await vframe.evaluate(el => {
     const r = el.getBoundingClientRect();
     el.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, clientX: r.left + 10, clientY: r.top + 10, bubbles: true, cancelable: true }));
   });
-  assert.ok((await fit()).scale > start.scale);
+  assert.ok((await view()).font > zoomed.font);
+  await page.locator('#viewer button', { hasText: 'Fit' }).click();
+  assert.equal((await view()).font, fitted.font);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#viewer').isVisible(), false);
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'enlarge');
+  assert.deepEqual(await inline(), start);
+  assert.equal(await page.locator('#chip').isVisible(), false);
+  assert.deepEqual(errors, []);
   await context.close();
 });
 
@@ -224,7 +270,7 @@ test('no width from 320px scrolls sideways, and the phone editor docks', async (
   const f = fixture();
   for (const width of [320, 390, 1200]) {
     const { page, context } = await open(f.url, { width });
-    await page.locator('#item-3 button[aria-label="Zoom in"]').click();
+    for (const n of [1, 3]) await page.locator(`#item-${n} summary`).click();
     const size = await page.evaluate(() => ({ view: innerWidth, page: document.documentElement.scrollWidth }));
     assert.ok(size.page <= size.view, `horizontal overflow at ${width}px`);
     await context.close();
@@ -239,6 +285,13 @@ test('no width from 320px scrolls sideways, and the phone editor docks', async (
     assert.ok(box.y >= 0 && box.y + box.height <= 500, `${act} is reachable`);
   }
   await context.close();
+  const low = await open(f.url, { width: 320, height: 260 });
+  await draft(low.page, 'item-6', 'Little room');
+  const docked = await low.page.locator('#editor').boundingBox();
+  assert.ok(docked.y >= 0 && docked.y + docked.height <= 261, `editor spans ${docked.y}..${docked.y + docked.height}px`);
+  const whereLine = await low.page.locator('#editor-where').boundingBox();
+  assert.ok(whereLine.y >= 0 && whereLine.height < 24, 'the location line is one visible line');
+  await low.context.close();
   const desk = await open(f.url, { width: 1200 });
   await draft(desk.page, 'item-2', 'Beside it');
   const editor = await desk.page.locator('#editor').boundingBox(), target = await at(desk.page, 'item-2').boundingBox();

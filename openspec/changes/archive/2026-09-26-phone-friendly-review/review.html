@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -8,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-09-26-phone-friendly-review</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -90,17 +91,66 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-09-26-phone-friendly-review">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-09-26-phone-friendly-review</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">The review page is hard to use on an iPhone. Adding a note takes two taps, and the second one is easy to miss. Drawings are squeezed into a narrow column. Dragging a zoomed drawing opens the Paseo sidebar instead of moving the drawing. When the keyboard opens, the top of the note box is cut off.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>A Note button on everything you can comment on.</b> Every paragraph, item, and decision shows a small &quot;Note&quot; button. One tap opens the note box. Once a note exists, its number takes the button's place. On a computer, clicking the text still offers &quot;Add note&quot; as before.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">│ 2  The wiki says each thing      │</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">│    once. About 3,000 words go.   │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">│                         [+ Note] │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">├──────────────────────────────────┤</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">│ ▸ Show drawing                   │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Drawings fold away and use the full width.</b> Each drawing starts folded under its item as a &quot;Show drawing&quot; row. Opened, it spans the whole card and scrolls with the page, with no zoom buttons in the way. The row says how many notes sit on the drawing, so a folded note is never lost.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Tap a drawing to see it full screen.</b> The drawing fills the screen, bigger than on the page. Pinch or use + and − to zoom, and move it with your finger, the way you scroll any page. Tap a line to note it. Close takes you back where you were.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">│ Fit · 120%    [−] [Fit] [+] Close│</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">├──────────────────────────────────┤</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">│ before            after          │</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0">│ ship ── rule      ship ─┐        │</span>
+<span class="ln" data-note="item-3-line-6" tabindex="0">│ save ── rule      save ─┼▶ one   │</span>
+<span class="ln" data-note="item-3-line-7" tabindex="0">│ apply ─ rule      apply ┘  rule  │</span>
+<span class="ln" data-note="item-3-line-8" tabindex="0">│                                  │</span>
+<span class="ln" data-note="item-3-line-9" tabindex="0">│   drag to move · pinch to zoom   │</span>
+<span class="ln" data-note="item-3-line-10" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Moving a drawing no longer opens the sidebar.</b> The full-screen view moves the drawing with the phone's own scrolling, so the app should no longer mistake your drag for a swipe. This needs a check on a real iPhone.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>The note box always fits above the keyboard.</b> It is shorter: the &quot;where&quot; line is one line, and the buttons sit in one row. It never rises past the top of the visible screen, however little room the keyboard leaves.</div></div></li>
+</ol>
+<p class="aside"><b>Non-goals:</b> No change to what gets copied, how notes are saved, or the page's order. Already-shipped review pages stay as they are. No change to the Paseo app itself.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked how a phone tap should start a note → chose a visible Note button on each item, paragraph, and decision.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-26</p>Asked how drawings should show → chose folded by default, full width when opened, and a tap for full screen with zoom.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: zoom and drag happen only in the full-screen view, using the phone's native scrolling, because a JavaScript-driven drag lets the host app read the gesture as a sidebar swipe.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: notes on single drawing lines stay, made by tapping a line in the full-screen view, and existing note locations are unchanged, because saved notes must stay attached after a rebuild.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: clicking text with a mouse still shows &quot;Add note&quot;, and a touch tap on text does nothing extra, because the Note button now covers touch and a stray tap while scrolling should do nothing.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the docked note box is placed from the top of the visible screen and capped at its height, because placing it from the bottom pushed its top under the host's header when the keyboard was open.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: the Discard draft button is renamed Discard to keep the buttons on one row at 320px, because the requirement names the action, not the label.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-26</p>Assumed: this ships as a minor release (planned as 24.1.0), a new feature with no breaking change.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Changed during apply: the Full screen button sits on the drawing's fold row, not over the drawing, because over the drawing it hid the top-right characters. The README screenshot is retaken with the new kit from the <code>lighten-the-loop</code> proposal.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Tested locally with a borrowed Playwright 1.61 and Chromium: <code>node --test scripts/tests/*.test.mjs</code> 259 pass, <code>app/review/review.test.mjs</code> 9 pass. A 260px-tall screen keeps the whole note box visible. Not tested: a real iPhone inside the Paseo app, so whether a drag in the full-screen view still opens Paseo's sidebar is for the user to check on their next review page.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Distilled facts before the archive: the store holds no facts for this change or branch yet, so no repeatable fact.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Archive checkpoint: saved the archived change with the kit, builder, tests, docs, and 24.1.0 release for CI.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Merged main (25.0.0, 24.0.2) into the branch before the merge; CHANGELOG and VERSION conflicted, so this release is renumbered 25.1.0.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-26</p>Merged main again (another 25.1.0 landed first), so this release is renumbered 25.2.0.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>
