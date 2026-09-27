@@ -41,6 +41,7 @@ function writeEnvKey(ctx, key) {
 
 async function add(ctx, email, { admin, env }) {
   const config = loadConfig(ctx);
+  if (env && !ctx.primaryRoot) throw new StoreError('Git cannot confirm the primary checkout, so there is no safe .env to save the key in; run this from the main checkout', { kind: 'unconfigured' });
   if (!config.worker) throw new StoreError('no memory Worker URL is recorded as components.memory.worker; follow the provisioning runbook\'s memory step first', { kind: 'unconfigured' });
   const key = `${KEY_PREFIX}${Buffer.from(email).toString('base64url')}.${randomBytes(32).toString('base64url')}`;
   const role = admin ? 'admin' : 'member';

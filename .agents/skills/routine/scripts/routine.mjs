@@ -14,11 +14,12 @@
 //
 // Node built-ins only. ROUTINE_PASEO_BIN overrides the `paseo` found on PATH.
 
-import { execFile, spawnSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { accessSync, constants, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
 
 const EXIT = { ok: 0, input: 2, noPaseo: 3, noDaemon: 4, client: 5 };
 const USAGE = `usage: routine.mjs create --cron <expr> --prompt <text> --agent claude|codex
@@ -76,13 +77,6 @@ function cronPartOk(part, min, max) {
   const a = Number(lo);
   const b = hi === undefined ? a : Number(hi);
   return a >= min && b <= max && a <= b;
-}
-
-/** The primary worktree is the first `worktree` entry of `git worktree list --porcelain`. */
-export function primaryFromPorcelain(porcelain) {
-  const line = String(porcelain).split('\n').find(l => l.startsWith('worktree '));
-  if (!line) throw new RoutineError(EXIT.input, 'Not inside a git repository with a worktree.');
-  return line.slice('worktree '.length).trim();
 }
 
 export function modeFor(agent) {
@@ -194,9 +188,12 @@ function summarize(schedule) {
 // Environment
 
 function primaryWorktree() {
-  const r = spawnSync('git', ['worktree', 'list', '--porcelain'], { encoding: 'utf8' });
-  if (r.status !== 0) throw new RoutineError(EXIT.input, 'Not inside a git repository.');
-  return primaryFromPorcelain(r.stdout);
+  try {
+    return primaryRoot().primary;
+  } catch (error) {
+    if (error instanceof PrimaryRootError) throw new RoutineError(EXIT.input, error.message);
+    throw error;
+  }
 }
 
 function sameDir(a, b) {

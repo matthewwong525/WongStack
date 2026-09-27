@@ -22,14 +22,12 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { primaryRoot } from "../../memory/scripts/lib/primary-root.mjs";
 
 const LIVE_FILE = /^(\.env|\.dev\.vars)(\..+)?$/;
 const ENTRY = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
 const BASE_FILE = "wongstack-secrets-base.json";
 const KINDS = ["add", "remove", "change", "conflict", "unresolved"];
-
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 
 function isIgnored(root, rel) {
   try {
@@ -40,17 +38,7 @@ function isIgnored(root, rel) {
   }
 }
 
-function context() {
-  const [root, gitDir, commonDir] = git(
-    process.cwd(), "rev-parse", "--path-format=absolute", "--show-toplevel", "--absolute-git-dir", "--git-common-dir",
-  ).split("\n");
-  const primary = dirname(commonDir);
-  const linked = gitDir !== commonDir;
-  if (linked && git(primary, "rev-parse", "--show-toplevel") !== primary) {
-    throw new Error(`the parent of ${commonDir} is not the primary checkout`);
-  }
-  return { root, gitDir, primary, linked };
-}
+const context = () => primaryRoot();
 
 /** Repo-relative live secrets files at the root and in each immediate subfolder. */
 function liveFiles(root) {

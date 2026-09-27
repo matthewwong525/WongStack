@@ -54,6 +54,7 @@ import {
   repoRoot,
   WranglerConfigError,
 } from "./lib-wrangler-config.mjs";
+import { primaryRoot } from "../.claude/skills/memory/scripts/lib/primary-root.mjs";
 import { parseCli, usageError } from "./lib-cli.mjs";
 
 const STAGING_ENV = "staging";
@@ -228,18 +229,13 @@ function guardSourceFile(file) {
  */
 function secretsDir(appDir) {
   if (existsSync(resolve(appDir, SOURCE))) return appDir;
-  let primaryRoot;
+  let primary;
   try {
-    const commonDir = execFileSync(
-      "git",
-      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
-      { cwd: appDir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    ).trim();
-    primaryRoot = dirname(commonDir);
+    ({ primary } = primaryRoot(appDir));
   } catch {
     return appDir;
   }
-  const primaryDir = resolve(primaryRoot, relative(repoRoot, appDir));
+  const primaryDir = resolve(primary, relative(repoRoot, appDir));
   if (primaryDir === appDir || !existsSync(resolve(primaryDir, SOURCE))) return appDir;
   console.log(
     `cf-secrets: no ${SOURCE} in this worktree — reading the primary checkout's ${resolve(primaryDir, SOURCE)}`,

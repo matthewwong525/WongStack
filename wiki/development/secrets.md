@@ -1,18 +1,19 @@
 # Secrets and environment variables
 
-Real secrets never go in git; a committed **`.env.example`** does. That one file is the source-of-truth list of every environment variable the project reads — each one documented, none of them filled in — so a new contributor can see what the app needs and bootstrap a working local setup without leaking a credential into history.
+Real secrets never go in git; a committed **`.env.example`** does. That one file is the source-of-truth list of every environment variable the project reads — each one documented, none of them filled in — so a new contributor can see what the app needs and bootstrap a working local setup without leaking a credential into history. Not a developer? [API keys](../stack/api-keys.md) is the plain version: paste the key into the chat.
 
 This is a **convention with worktree-aware consumers**, not a required dotenv implementation. WongStack ships the pattern and an example file; its credential-aware skills follow the locations below, but the toolkit does not require a particular platform or make the application read `.env`. Adopt the names as-is, or use whatever your stack already expects (a framework's own dotenv file, a platform's `.dev.vars`, etc.) and keep the same discipline. A stack can have more than one live file, one per role: the Cloudflare pack keeps tool credentials in the root `.env` and the Worker's runtime secrets in `app/.dev.vars` — [which file holds what](../stack/d1-pipeline.md#env-and-devvars-are-not-interchangeable), and [how both Workers get the same secrets](../stack/d1-pipeline.md#one-declared-list-of-secrets-two-workers). Every rule on this page applies to each live file at its own path.
 
 ## The two files
 
 - **`.env.example` — committed in the active branch.** Every variable the code reads appears here, blank, with a comment saying *what it is* and *where to get it*. It's a checklist, not a config: no real values ever land in it. Because it's versioned, a diff to this file is how the team sees that a new secret is now required.
-- **`.env` — git-ignored in the primary worktree.** The real values, filled in per machine. A normal single checkout is already the primary worktree. From a linked worktree, resolve the durable checkout from Git's common directory rather than saving a second copy in the disposable checkout:
+- **`.env` — git-ignored in the primary worktree.** The real values, filled in per machine. A normal single checkout is already the primary worktree. From a linked worktree, resolve the durable checkout from Git metadata rather than saving a second copy in the disposable checkout. Every WongStack script uses one shared lookup:
 
   ```bash
-  COMMON_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
-  PRIMARY_ROOT=$(dirname "$COMMON_DIR")
+  PRIMARY_ROOT=$(node .claude/skills/memory/scripts/lib/primary-root.mjs)
   ```
+
+  Equal git and common directories mean the current checkout is the primary. Otherwise the primary is the parent of the common directory, and Git must confirm it is a checkout. When it is not (a bare repository's worktree), the lookup exits 1 instead of guessing: a save stops, and a read may fall back to the current checkout.
 
   Setup writes the protection into [`.gitignore`](../../.gitignore) before this page can be acted on — `.env*` with a `!.env.example` negation, and the same pair for `.dev.vars` — so a per-environment variant full of live values can't be committed by accident either. Before writing a value, verify the destination from the primary worktree with `git -C "$PRIMARY_ROOT" check-ignore -q .env`. If it is not ignored, stop before accepting the secret and fix the protection first.
 

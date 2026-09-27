@@ -9,7 +9,6 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   buildCreateRequest, defaultName, invalidCronField, matchRoutine, modeFor,
-  primaryFromPorcelain,
 } from '../../.agents/skills/routine/scripts/routine.mjs';
 
 const cli = new URL('../../.agents/skills/routine/scripts/routine.mjs', import.meta.url).pathname;
@@ -115,12 +114,6 @@ test('checks each cron field and names the first bad one', () => {
   assert.equal(invalidCronField('*/0 * * * *'), 'minute');
   assert.match(invalidCronField('0 9 * *'), /field count/);
   assert.match(invalidCronField('@daily'), /field count/);
-});
-
-test('reads the primary worktree from porcelain output', () => {
-  const porcelain = 'worktree /srv/app\nHEAD abc\nbranch refs/heads/main\n\nworktree /srv/wt/x\nHEAD abc\n';
-  assert.equal(primaryFromPorcelain(porcelain), '/srv/app');
-  assert.throws(() => primaryFromPorcelain(''), /git repository/);
 });
 
 test('maps each agent to its full-permission mode and refuses a guess', () => {

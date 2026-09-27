@@ -18,7 +18,7 @@ function fixture(t) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const work = join(root, 'work');
   mkdirSync(join(work, '.claude/skills/memory/scripts/lib'), { recursive: true });
-  symlinkSync(join(repo, '.agents/skills/memory/scripts/lib/store.mjs'), join(work, '.claude/skills/memory/scripts/lib/store.mjs'));
+  for (const lib of ['store.mjs', 'primary-root.mjs']) symlinkSync(join(repo, '.agents/skills/memory/scripts/lib', lib), join(work, '.claude/skills/memory/scripts/lib', lib));
   execFileSync('git', ['init', '-q'], { cwd: work });
   writeFileSync(join(work, '.env'), ['# Access', 'export CF_ACCESS_CLIENT_ID="client-id.access"', `CF_ACCESS_CLIENT_SECRET='${SECRET}'`, 'CLOUDFLARE_API_TOKEN=tok=en== # api', ''].join('\r\n'));
   const bin = join(root, 'bin');
@@ -53,6 +53,25 @@ test('the walk reads .env through the memory parser and escapes the Access heade
   assert.equal(seen[0]['cf-access-client-secret'], SECRET);
   assert.deepEqual(JSON.parse(readFileSync(join(root, 'headers.json'), 'utf8')), { 'CF-Access-Client-Id': 'client-id.access', 'CF-Access-Client-Secret': SECRET });
   assert.equal(readFileSync(join(root, 'token'), 'utf8'), 'tok=en==');
+});
+
+test('a linked worktree reads the primary checkout\'s .env', async t => {
+  const { root, work, bin, run } = fixture(t);
+  const git = (...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: work });
+  git('add', '.claude');
+  git('commit', '-q', '-m', 'init');
+  const linked = join(root, 'linked');
+  git('worktree', 'add', '-q', linked, '-b', 'walk');
+  const seen = [];
+  const server = createServer((req, res) => { seen.push(req.headers); res.end('ok'); });
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => server.close());
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN']) delete env[key];
+  const stdout = await new Promise((done, fail) => execFile('bash', [script, 'run', run, `http://127.0.0.1:${server.address().port}`], { cwd: linked, env, encoding: 'utf8' },
+    (error, out, err) => (error ? fail(new Error(err || out)) : done(out))));
+  assert.match(stdout, /RESULT: WALKED/);
+  assert.equal(seen[0]['cf-access-client-id'], 'client-id.access');
 });
 
 test('each browser journey runs in a throwaway profile, removed when the walk ends', async t => {

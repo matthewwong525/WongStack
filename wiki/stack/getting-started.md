@@ -74,6 +74,8 @@ You never need to run anything on your own computer.
 
 **Ask for anything.** Look something up, plan your week, draft a message, or remind you on a schedule. The agent does it and answers, with no commands. It asks before it sends or changes anything outside the chat. What it learns about you stays for next time, in [memory](../development/memory.md) and [the wiki](../README.md).
 
+**Give it a key** when your app should use another service, such as maps or payments. Paste the key into the chat and say what it's for; [API keys](api-keys.md) says what happens next.
+
 **Ask for a small tool** — a tip splitter, a run log — and it goes through the same steps as any change below: a plan, a link to try it, then publish. [Mini apps](mini-apps.md) has the details.
 
 **Change the site itself** through a short, reviewable loop:

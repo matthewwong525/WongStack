@@ -80,7 +80,8 @@ test('the wait resumes once the PR head reaches local HEAD', t => {
 });
 
 test('no checks with workflow files is UNKNOWN after the grace period', t => {
-  const { out, calls } = run(t, { env: { CHECKS_ERR: 'no checks reported on the branch' } });
+  // The deadline counts whole seconds, so a grace of 1 can leave under a second: time for one poll under load.
+  const { out, calls } = run(t, { env: { CHECKS_ERR: 'no checks reported on the branch', WAIT_FOR_CHECKS_GRACE: '3' } });
   assert.match(out, /RESULT: UNKNOWN/);
   assert.match(out, /workflow files/);
   assert.ok(calls.split('\n').filter(line => line.startsWith('pr checks --json')).length > 1, 'polls during the grace period');

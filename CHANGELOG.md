@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.5.0 — Labelled releases, and a plain guide to API keys
+
+- **Every version gets a GitHub Release.** `.github/workflows/release.yml` runs `scripts/tag-releases.mjs` on each push to `main`. It gives every `CHANGELOG.md` version with no Release a `v<version>` tag and a Release whose notes are its entry. The tag goes on the first commit that set `VERSION` to that version, not the one a commit title names. Its first run fills in 19.0.1 through 25.4.1. Both files are meta-only.
+- **A plain guide to API keys.** [API keys](wiki/stack/api-keys.md) tells a non-developer how to get a key, paste it into the chat with what it's for, and replace one that leaked. It explains how keys differ from website logins. [Getting started](wiki/stack/getting-started.md), the [stack hub](wiki/stack/README.md), and [the secrets convention](wiki/development/secrets.md) link it.
+- **One lookup finds the primary worktree.** `.agents/skills/memory/scripts/lib/primary-root.mjs` replaces five separate lookups in `store.mjs`, `worktree-secrets.mjs`, `routine.mjs`, `cf-secrets.mjs`, and `verify-staging.sh`, and the copies in setup's runbook and `named-secrets.md`. Git must confirm the answer. In a bare repository's worktree it fails instead of guessing: saving a secret stops there, while reading one falls back to the current checkout as before. `routine.mjs` no longer reads `git worktree list`.
+- **A steadier test.** `wait-for-checks.test.mjs` gives its grace-period test 3 seconds instead of 1. The script's whole-second deadline could leave it less than a second on a busy machine.
+
+**Updating.** `/wong-sync` brings the new page and the shared lookup. `routine.mjs`, `worktree-secrets.mjs`, `verify-staging.sh`, and `cf-secrets.mjs` now load it from `.claude/skills/memory/`. If you renamed the memory skill, those scripts fail on load until the path matches.
+
 ## 25.4.1 — Installs skip npm's audit
 
 - **No install waits on npm's audit.** `test.yml`'s and `deploy.yml`'s `Install` step and `scripts/cf-preview.sh`'s first-run install now run `npm ci --no-audit --no-fund`. npm is retiring the audit endpoint `npm ci` calls, and on one CI run it held the install for 5 minutes instead of the usual 8 seconds. Nothing read the audit summary or the funding notice.

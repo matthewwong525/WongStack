@@ -44,25 +44,16 @@ git remote get-url origin || gh repo create "$(basename "$PWD")" --private --sou
 
 ### 1b. Make the file, not the user
 
-Resolve the durable credential file before asking for or accepting a value. Do not infer worktrees from a hosting tool's directory names; ask Git:
+Resolve the durable credential file before asking for or accepting a value. Do not infer worktrees from a hosting tool's directory names; ask Git through the [shared lookup](../../memory/scripts/lib/primary-root.mjs) in the WongStack source checkout, since the target has no skills yet ([the secrets convention](../../../../wiki/development/secrets.md#the-two-files) owns its rules):
 
 ```bash
 ACTIVE_ROOT=$(git rev-parse --show-toplevel)
-GIT_DIR=$(git rev-parse --path-format=absolute --git-dir)
-COMMON_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
-
-if [ "$GIT_DIR" = "$COMMON_DIR" ]; then
-  PRIMARY_ROOT="$ACTIVE_ROOT"
-else
-  PRIMARY_ROOT=$(dirname "$COMMON_DIR")
-fi
-
-git -C "$PRIMARY_ROOT" rev-parse --show-toplevel
+PRIMARY_ROOT=$(node "<source checkout>/.agents/skills/memory/scripts/lib/primary-root.mjs")
 DURABLE_ENV="$PRIMARY_ROOT/.env"
 ACTIVE_ENV="$ACTIVE_ROOT/.env"
 ```
 
-The last command must resolve back to `PRIMARY_ROOT`. If any command fails or the paths disagree, stop **before** asking for the token: say the primary worktree could not be resolved safely. Never fall back to the linked checkout.
+If the lookup exits non-zero, stop **before** asking for the token: say the primary worktree could not be resolved safely. Never fall back to the linked checkout.
 
 Confirm Git ignores the destination: `git -C "$PRIMARY_ROOT" check-ignore -q .env`. In a fresh folder the committed `.gitignore` does not exist yet, so add the `.env*` / `!.env.example` and `.dev.vars*` / `!.dev.vars.example` pairs to the file returned by `git rev-parse --path-format=absolute --git-path info/exclude`, then re-run the check. This is immediate local protection; the install still commits the `.gitignore` fragment. If the re-check fails, stop before accepting a secret.
 
