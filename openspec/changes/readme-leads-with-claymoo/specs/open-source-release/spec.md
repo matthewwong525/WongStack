@@ -12,7 +12,7 @@ The full history SHALL be scanned for credentials before a public release; a rea
 #### Scenario: The README names the maintainer's company
 
 - **WHEN** a live file names Claymoo, the company, but not a private repository
-- **THEN** the private-name check passes, and it still fails on `ClaymooApp`, `WongOS`, or `wongstack-cloud`
+- **THEN** the private-name check passes, and it still fails on the name of a private repository or service
 
 ## REMOVED Requirements
 
