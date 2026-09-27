@@ -3,7 +3,7 @@
 // from the installer's own reading, so a payload file the installer misses fails and is named.
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,7 +63,7 @@ async function setup(t, { email = 'ada@example.com' } = {}) {
   t.after(fake.close);
   const gh = fakeGh(join(root, 'gh'));
   const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: join(root, 'config'), GIT_CONFIG_NOSYSTEM: '1', PATH: `${gh.bin}:${process.env.PATH}`, WONG_CLOUDFLARE_API: fake.api, CLOUDFLARE_MEMORY_TOKEN: '', NODE_NO_WARNINGS: '1' };
-  for (const name of ['WONG_MEMORY_API', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'WONG_MEMORY_STATE_DIR']) delete env[name];
+  for (const name of ['WONG_MEMORY_API', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'WONG_MEMORY_STATE_DIR', 'PASEO_HOME', 'PRESETS_PASEO_BIN']) delete env[name];
   const calls = [];
   const exec = (file, args, options) => {
     calls.push([file, ...args].join(' '));
@@ -96,7 +96,7 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
   const missing = expectedPayload().filter((path) => !tree.has(path));
   assert.deepEqual(missing, [], `the installer missed payload files: ${missing.join(', ')}`);
   for (const path of manifest.seededBySetup.files) assert.ok(tree.has(path), `setup seeds ${path}`);
-  for (const path of ['AGENTS.md', 'CLAUDE.md', '.claude', '.codex', '.nvmrc', '.env.example', 'openspec/config.yaml', 'app/wrangler.jsonc', '.agents/.wong-stack.json']) assert.ok(tree.has(path), path);
+  for (const path of ['AGENTS.md', 'CLAUDE.md', '.claude', '.codex', '.nvmrc', '.env.example', 'paseo.json', 'openspec/config.yaml', 'app/wrangler.jsonc', '.agents/.wong-stack.json']) assert.ok(tree.has(path), path);
   for (const path of ['.env', 'VERSION', 'CHANGELOG.md', 'server/setup.sh', '.agents/skills/wong-setup/SKILL.md', '.agents/rules/payload.md']) assert.ok(!tree.has(path), `${path} is not payload`);
   assert.equal(readlinkSync(join(s.dir, '.claude')), '.agents');
   assert.equal(readlinkSync(join(s.dir, '.codex')), '.agents');
@@ -211,6 +211,31 @@ test('a name another project holds moves every name to the next free suffix', as
   assert.equal(workerName(config), 'recipe-box-2');
   assert.equal(JSON.parse(readFileSync(join(s.dir, '.claude/.wong-stack.json'), 'utf8')).components.memory.database, 'recipe-box-2-memory');
   assert.deepEqual(s.fake.state.workers, ['recipe-box']);
+});
+
+test('no Paseo never stops the install; once Paseo is set up, a rerun adds the presets', async (t) => {
+  const s = await setup(t);
+  s.env.PRESETS_PASEO_BIN = join(s.root, 'no-paseo');
+  const without = await s.install();
+  assert.equal(without.last, 'done', without.err.join('\n'));
+  assert.match(without.err.at(-1), /^install-wongstack: Paseo presets skipped: Paseo is not installed/);
+
+  const home = join(s.root, 'paseo-home');
+  const bin = join(s.root, 'agents');
+  mkdirSync(home);
+  mkdirSync(bin);
+  writeFileSync(join(home, 'config.json'), '{\n  "version": 1\n}\n');
+  for (const name of ['paseo', 'claude']) {
+    writeFileSync(join(bin, name), '#!/bin/sh\nexit 0\n');
+    chmodSync(join(bin, name), 0o755);
+  }
+  Object.assign(s.env, { PASEO_HOME: home, PRESETS_PASEO_BIN: join(bin, 'paseo'), PATH: `${bin}:${s.env.PATH}` });
+  const withPaseo = await s.install();
+  assert.equal(withPaseo.last, 'done', withPaseo.err.join('\n'));
+  assert.match(withPaseo.err.at(-1), /^install-wongstack: Paseo presets added: .*\[CLAUDE\] Explore \/ Plan, \[CLAUDE\] Apply \/ Ship/);
+  const names = JSON.parse(readFileSync(join(home, 'config.json'), 'utf8')).daemon.agentProfiles.map((profile) => profile.name);
+  assert.ok(names.includes('[CLAUDE] Explore / Plan') && names.includes('[CLAUDE] Apply / Ship'), names.join(', '));
+  assert.equal(git('-C', s.dir, 'status', '--porcelain'), '');
 });
 
 // ── the reasons ─────────────────────────────────────────────────────────────

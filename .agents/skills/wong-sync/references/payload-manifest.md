@@ -6,7 +6,7 @@
 
 Every install starts from an empty folder and takes **every** category below.
 
-- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `/routine` Paseo scheduler with its scripts (one also opens a new workspace per part), the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), the Codex project settings (`.claude/config.toml`), path rules, process pages, the test workflow and its scripts, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `/routine` Paseo scheduler with its scripts (one also opens a new workspace per part), the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), the Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, the test workflow and its scripts, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
 - **Scaffold** adds `app/`. It excludes `app/wrangler.jsonc`, which contains source-repo database IDs.
@@ -49,6 +49,10 @@ The **plan** skill ships the [fixed review kit](../../plan/references/review-kit
 ## The memory store and its hooks
 
 The **memory** skill ships its script, schema migrations, the memory route module the app scaffold's Worker imports, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on OpenSpec's Node.js. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.claude/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that brings a new file under the skill's `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+
+## The Paseo project file
+
+`paseo.json` readies each new Paseo workspace and tells Paseo how to name things. Its `worktree.setup` copies the primary worktree's secrets files, and its `metadataGeneration` instructions match what `/save` and `/ship` write. A target with its own `paseo.json` gets a merge, never a replacement, like the hooks above: `worktree.setup` becomes a list with the seed command appended when absent, and each missing `metadataGeneration` entry is added. The target's own keys win. The agent presets are machine settings, not payload; [required tools](../../../../wiki/development/required-tools.md) says how they get added.
 
 ## The stack pack
 

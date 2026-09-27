@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Paseo starts with your settings
+
+- **Every install's new workspaces open ready to work.** `paseo.json` joins the payload. Its worktree setup copies your secrets files into each new Paseo workspace, as only this repo did before. A repo with its own `paseo.json` gets WongStack's entries merged in, keeping its own steps; [the payload manifest](.agents/skills/wong-sync/references/payload-manifest.md#the-paseo-project-file) owns the rule.
+- **Paseo names things the way WongStack does.** `paseo.json` tells Paseo's generator how to write workspace titles (a few plain words), branch names (short topic names), commit messages, and pull requests (the form `/save` and `/ship` use, with no version and with the Claude sign-off).
+- **Setup adds your agent presets to Paseo.** The new [`presets.mjs`](.agents/skills/routine/scripts/presets.mjs) `add` gives this computer's Paseo four presets from `paseo-presets.json`: *Explore / Plan* and *Apply / Ship*, for Claude and for Codex. It adds only the missing ones, by id or name, never changes one you have, skips an agent that is not installed, and reloads Paseo. With no Paseo or no Paseo config, it changes nothing and says so. `/wong-setup` runs it after the payload lands, and so does `server/install-wongstack.mjs`, where a failure never changes the last line.
+- **The wiki says what WongStack sets in Paseo and what it leaves alone.** [Required tools](wiki/development/required-tools.md) now covers the project file, the presets, and the settings that stay yours: the starting branch, the new-worktree choice, closing after a merge, and the agent browser.
+
+**Updating.** `/wong-sync` brings `paseo.json` and the preset script. Then run `node .claude/skills/routine/scripts/presets.mjs add` once on each computer that uses Paseo.
+
 ## 26.12.1 — The README leads with how Matt uses AI
 
 - **The README opens with whose way this is.** Its first screen says WongStack is Matt's opinionated way of using AI, for Matt's business, Claymoo, and for everything else. The example asks come mostly from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers, plus one for planning the week. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.

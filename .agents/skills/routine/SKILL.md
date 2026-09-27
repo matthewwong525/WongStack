@@ -34,5 +34,6 @@ The script fixes the rest: a new agent in its own Paseo worktree of the primary 
 An ambiguous name returns exit `2` with the matching ids; ask which.
 
 Use `paseo` directly for Paseo features `/routine` does not cover (heartbeats, `--max-runs`, remote daemons); [required tools](../../../wiki/development/required-tools.md) lists it as optional. This skill's [`workspace.mjs`](scripts/workspace.mjs) also opens a new workspace for one part of a request; [open a part in a new workspace](../plan/references/new-workspace.md) owns its use.
+Its [`presets.mjs`](scripts/presets.mjs) `add` gives this machine's Paseo WongStack's agent presets, keeping any a person already has; [required tools](../../../wiki/development/required-tools.md) owns when to run it.
 
 End every reply with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), normally to list routines or run the new one now.

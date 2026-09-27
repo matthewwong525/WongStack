@@ -184,10 +184,24 @@ async function installRecord(manifest, exec, today) {
   };
 }
 
+/** Adds WongStack's agent presets to this server's Paseo. Logs what happened; a failure never stops the install. */
+async function addPresets(dir, exec, log) {
+  const script = join(dir, '.agents', 'skills', 'routine', 'scripts', 'presets.mjs');
+  if (!existsSync(script)) return;
+  const ran = await exec(process.execPath, [script, 'add'], { cwd: dir }).catch((error) => error);
+  let result = {};
+  try {
+    result = JSON.parse(ran.stdout);
+  } catch {
+    // Reported below with the run's own message.
+  }
+  log(result.ok ? `install-wongstack: Paseo presets added: ${result.added.join(', ') || 'none'}` : `install-wongstack: Paseo presets skipped: ${result.error ?? ran.message}`);
+}
+
 // ── the whole install ───────────────────────────────────────────────────────
 
-/** Installs, provisions, commits, and pushes. Throws a ProvisionError with the reason. */
-export async function install({ token, accountId, repo }, { dir, env = process.env, fetch, sleep, today, exec = run }) {
+/** Installs, provisions, commits, pushes, then adds the Paseo presets. Throws a ProvisionError with the reason. */
+export async function install({ token, accountId, repo }, { dir, env = process.env, fetch, sleep, today, exec = run, log = () => {} }) {
   const quiet = (file, args, options = {}) => exec(file, args, { env, ...options });
   const git = (args) => quiet('git', ['-C', dir, ...args]);
   const mode = await step('repo', () => checkRepo(dir, git));
@@ -215,6 +229,7 @@ export async function install({ token, accountId, repo }, { dir, env = process.e
     }
     await git(['push', '-q', '-u', 'origin', 'main']);
   });
+  await addPresets(dir, quiet, log);
 }
 
 /** Reads the job from stdin and prints `done` or the reason. Returns the exit code. */
@@ -232,7 +247,7 @@ export async function main({ stdin, env = process.env, fetch, sleep, now = () =>
     return 1;
   }
   try {
-    await install(job, { dir: join(env.HOME, folder), env, fetch, sleep, exec, today: now().toISOString().slice(0, 10) });
+    await install(job, { dir: join(env.HOME, folder), env, fetch, sleep, exec, log: err, today: now().toISOString().slice(0, 10) });
     out('done');
     return 0;
   } catch (error) {

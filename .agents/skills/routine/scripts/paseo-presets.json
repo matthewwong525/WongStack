@@ -1,0 +1,50 @@
+{
+  "$comment": [
+    "The agent presets presets.mjs adds to a machine's Paseo (daemon.agentProfiles",
+    "in ~/.paseo/config.json). Each id is stable, so a second run finds its own",
+    "preset; a preset with the same name counts as present too. Edit a model here",
+    "when it ages: an unknown model shows in Paseo as unavailable, not a crash."
+  ],
+  "presets": [
+    {
+      "id": "wongstack-claude-explore-plan",
+      "name": "[CLAUDE] Explore / Plan",
+      "icon": "flask",
+      "provider": "claude",
+      "model": "claude-fable-5-1",
+      "modeId": "bypassPermissions",
+      "thinkingOptionId": "high",
+      "notes": "For Planning / Exploring in new chats"
+    },
+    {
+      "id": "wongstack-claude-apply-ship",
+      "name": "[CLAUDE] Apply / Ship",
+      "icon": "hammer",
+      "provider": "claude",
+      "model": "claude-opus-5-5",
+      "modeId": "bypassPermissions",
+      "thinkingOptionId": "high",
+      "notes": "Use for executing on a plan"
+    },
+    {
+      "id": "wongstack-codex-explore-plan",
+      "name": "[CODEX] Explore / Plan",
+      "icon": "flask",
+      "provider": "codex",
+      "model": "gpt-6-astra",
+      "modeId": "full-access",
+      "thinkingOptionId": "high",
+      "notes": "For Planning / Exploring in new chats"
+    },
+    {
+      "id": "wongstack-codex-apply-ship",
+      "name": "[CODEX] Apply / Ship",
+      "icon": "hammer",
+      "provider": "codex",
+      "model": "gpt-6-sol",
+      "modeId": "full-access",
+      "thinkingOptionId": "high",
+      "notes": "Use for executing on a plan"
+    }
+  ]
+}

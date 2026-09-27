@@ -18,6 +18,7 @@ paths:
   - "mini-apps/routes*"
   - "mini-apps/apps/hello/**"
   - "schema/**"
+  - "paseo.json"
   - "AGENTS.md"
   - "CLAUDE.md"
 ---
