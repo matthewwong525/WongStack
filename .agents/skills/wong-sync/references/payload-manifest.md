@@ -1,77 +1,79 @@
 # The payload manifest
 
-[`payload-files.json`](payload-files.json) is the file inventory for installation, sync, and the payload link check; this page owns the rules behind it. Copy only selected manifest entries. A present target file is adapted through the normal plan and apply workflow, never overwritten without review.
+[`payload-files.json`](payload-files.json) lists the files install, sync, and the payload link check use; this page owns its rules. Copy only selected entries. Adapt a file the target already has through plan and apply; never overwrite it unreviewed.
 
 ## Categories
 
-Every install starts from an empty folder and takes **every** category below.
+Every install starts empty and takes **every** category.
 
-- **Core** always ships: WongStack workflow skills, their whole `references/` and `scripts/` directories, the browser discovery skill, the recurring `/improve` spot check, the `/routine` Paseo scheduler with its scripts (one also opens a new workspace per part), the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), the Codex project settings (`.claude/config.toml`), path rules, process pages, the test workflow and its scripts, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the `/improve` spot check, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), path rules, process pages, the test workflow and its scripts, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
-- **Scaffold** adds `app/`. It excludes `app/wrangler.jsonc`, which contains source-repo database IDs.
+- **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
 
 ## The agent folder
 
-A target keeps the payload in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it, like this source. The inventory uses logical `.claude/` paths; the install writes each under `.agents/`. So `.claude/hooks.json` is also `.codex/hooks.json`, which Codex reads, and `.claude/config.toml` is `.codex/config.toml`, which enables Codex's Default-mode questions. Codex loads `.agents/skills` natively, so each skill loads once in each agent.
+A target keeps the payload in one real `.agents/` folder, linked as `.claude` and `.codex`, as here. The inventory's logical `.claude/` paths install under `.agents/`: `.claude/hooks.json` is Codex's `.codex/hooks.json`, and `.claude/config.toml` its `.codex/config.toml`, which turns on Default-mode questions. Codex loads `.agents/skills` natively, so each agent loads a skill once.
 
-The rules live the same way: a real `AGENTS.md` holds the `WONG-STACK` block, and `CLAUDE.md` is a symbolic link to it. Codex reads only `AGENTS.md` and Claude Code reads `CLAUDE.md`, so one file serves both, and two copies can never drift. The inventory's block unit stays `CLAUDE.md`; the preflight reads it through the link. A sync plans the move, keeping every line of the target's own text:
+Likewise a real `AGENTS.md` holds the `WONG-STACK` block and `CLAUDE.md` links to it: Codex reads only `AGENTS.md` and Claude Code reads `CLAUDE.md`, so one file serves both and no copy drifts. The inventory's block unit stays `CLAUDE.md`, read through the link. A sync plans the move, keeping every line of the target's own text:
 
 - a real `CLAUDE.md` and no `AGENTS.md` — `git mv CLAUDE.md AGENTS.md`, then `ln -s AGENTS.md CLAUDE.md`;
 - a real `CLAUDE.md` and a real `AGENTS.md` — a reviewed task merges both into `AGENTS.md` with one `WONG-STACK` block, then links `CLAUDE.md`; never overwrite either file;
 - `CLAUDE.md` already links to `AGENTS.md` — nothing.
 
-On Windows, make the link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, as setup does for `.claude` and `.codex`.
+On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, as setup does for `.claude` and `.codex`.
 
-A skill installed under a recorded local name keeps that name: the target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The inventory limits copying, not exploration's expansion from the preflight's changed units to a named dependency or impact. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source. `wiki/people/` and other knowledge sections grow from use in the target; no install seeds them.
+A skill installed under a local name keeps it: the record's `components.skills` mapping beats defaults. The inventory limits copying, not how far exploration follows a named dependency or impact. Never copy target-owned notes, app code, business docs, or OpenSpec records. No install seeds `wiki/people/` or other knowledge sections; they grow from use.
 
 ## Deterministic sync preflight
 
-[`preflight.mjs`](../scripts/preflight.mjs) compares the payload selected for one target at the install record's `commit` and at the refreshed source `HEAD`. It reads `payload-files.json` from both commits and expands the union, so additions, removals, whole-directory entries, exclusions, and manifest changes stay visible. It always selects `core`, `ui`, `pack`, and `scaffold`, and ignores any other `components` flag. `seededBySetup` is not payload.
+[`preflight.mjs`](../scripts/preflight.mjs) compares one target's selected payload at the record's `commit` and at the refreshed source `HEAD`. It expands the union of both commits' `payload-files.json`, so every addition, removal, folder entry, exclusion, and manifest edit shows. It always selects `core`, `ui`, `pack`, and `scaffold`, ignoring other `components` flags; `seededBySetup` is not payload.
 
-The install record's skill names map upstream `.claude/skills/<name>/` paths to their local directories. String arrays are identity mappings; object mappings, or array entries with source and local names, preserve renames. New upstream core skills use their upstream name until implementation records another. A source may store the logical `.claude/` payload under its in-repo `.agents/` alias; the report always uses logical `.claude/` source and target paths.
+The record's skill names map upstream `.claude/skills/<name>/` to local folders: a string array maps each to itself; an object, or array entries with source and local names, keeps renames. A new upstream core skill keeps its name until implementation records another. The report uses logical `.claude/` paths, even for a source stored under `.agents/`.
 
-A source file stored as a symlink is read through its link, because a Git tree holds only the link text; this source stores `CLAUDE.md` as a link to `AGENTS.md`. Resolution is one hop, by Git path. A link to a folder, to another link, or to no file is not a payload unit, and a real file wins over a link to the same logical path.
+A source symlink is read through its link, one hop by Git path, since a Git tree holds only the link text (this source's `CLAUDE.md` links to `AGENTS.md`). A link to a folder, another link, or nothing is no payload unit; a real file beats a link at the same logical path.
 
-Ordinary files compare by Git blob identity first. The `CLAUDE.md` unit is only the text from the line containing `WONG-STACK:BEGIN` through the line containing `WONG-STACK:END`; prose outside the markers is never payload drift. Each upstream-changed unit is `added`, `modified`, or `removed`, and its target state is one of:
+Files compare by Git blob first. The `CLAUDE.md` unit is only the lines from `WONG-STACK:BEGIN` through `WONG-STACK:END`; prose outside is never drift. Each upstream-changed unit is `added`, `modified`, or `removed`, with one target state:
 
 - `missing` — the mapped target unit is absent;
 - `installed-equivalent` — it still equals the recorded source revision;
 - `latest-equivalent` — it already equals the refreshed source;
-- `locally-adapted` — it equals neither source value and must remain protected.
+- `locally-adapted` — it equals neither and stays protected.
 
-The JSON report lists every changed unit's path and classification, with counts, but no file body or diff hunk. Invalid or non-ancestor commits, invalid inventory data, unsafe or escaping paths, missing source markers, read errors, Git errors, or a change set above the declared safety limit produce `status: error`. [`/wong-sync`](../SKILL.md) owns what each status does.
+The JSON report gives each changed unit's path and class, with counts, never a file body or diff. It returns `status: error` on a bad or non-ancestor commit, invalid inventory, an unsafe or escaping path, missing markers, a read or Git error, or a change set over the safety limit. [`/wong-sync`](../SKILL.md) owns what each status does.
 
-The **improve** skill ships its dependency-free survey helper and investigation references as one directory. The helper reads supported tracked text and Git history through OpenSpec's Node.js runtime, adds no package, and contacts no service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduler requirements.
+**improve** ships its survey helper and references as one folder; the helper reads tracked text and Git history on OpenSpec's Node.js, adds no package, and calls no service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduling.
 
-The **plan** skill ships the [fixed review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), and the builder as one directory. Every new change gets a standalone `review.html` built from its `proposal.md` alone, with the viewer's runtime bundled in; `/save` refreshes it through the same builder. A cited owner page must also ship; `scripts/check-payload-links.mjs` enforces link closure in a target.
+**plan** ships the [review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), and the builder as one folder. Each change's standalone `review.html` is built from its `proposal.md` alone, viewer bundled; `/save` rebuilds it the same way. A cited owner page ships too: `scripts/check-payload-links.mjs` enforces link closure in a target.
 
 ## The memory store and its hooks
 
-The **memory** skill ships its script, schema migrations, the memory route module the app scaffold's Worker imports, runbook, and [writing bar](../../memory/references/writing-facts.md) as one directory, on OpenSpec's Node.js. The hooks live in two target-owned files: a target with its own `.claude/settings.json` or `.claude/hooks.json` gets the `SessionStart` entry merged in, never the file replaced. Codex asks the user to trust a new hook once. Setup and sync plan the store through [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that brings a new file under the skill's `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+**memory** ships as one folder on OpenSpec's Node.js: script, schema migrations, the Worker's route module, runbook, and [writing bar](../../memory/references/writing-facts.md). Merge its `SessionStart` hook into a target's own `.claude/settings.json` or `.claude/hooks.json`; never replace the file. Codex asks once to trust a new hook. Plan the store by [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that adds a file under `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
 
 ## The stack pack
 
-Every install takes the pack. Its drop-in files follow the ordinary copy-or-adapt rule; configuration fragments merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md). Live database IDs and secrets are created in the target, never copied. The whole [`wiki/stack/`](../../../../wiki/stack/README.md) section ships with the pack. The [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core because `/verify` works on other hosts too.
+Every install takes the pack. Drop-in files follow copy-or-adapt; config fragments merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md). All of [`wiki/stack/`](../../../../wiki/stack/README.md) ships with it; the [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core, because `/verify` works on other hosts too.
 
-No copied file may carry a live `database_id` or a source-repo database name. The source's `app/wrangler.jsonc` is excluded; [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) creates the target's config from a fragment.
+Create live database IDs and secrets in the target; never copy them. No copied file may carry a live `database_id` or source-repo database name, so the source's `app/wrangler.jsonc` stays out and [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) builds the target's from a fragment.
 
 ## The app scaffold
 
-The scaffold is a starter React/Vite Worker app. Its Worker also serves session memory: `app/worker/index.ts` sends `/_memory/` to the memory skill's route module, so `/wong-sync` updates the route with the skill, and only that one import and branch live in `app/`. The landing page opens with a tutorial, `app/src/Tutorial.tsx`: a message to copy into the chat, asking the agent to remove the tutorial and explain each step. The mini apps are listed below it. Add or update `Tutorial.tsx` and `Tutorial.test.tsx` only when the target's `app/src/App.tsx` still renders `<Tutorial />`; otherwise the person finished it, so the plan leaves it out and says so in one line. The build writes no list page, and `/apps/` redirects to `/`; a target whose own landing page does not read `/apps/apps.json` gets a plan task to list the apps there. The scaffold has its own test suite and package manifest. The core test workflow finds `npm test` at the root or in an immediate subdirectory; with none, it reports that and succeeds. No root `package.json` is copied for a target.
+A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module, so the route updates with the skill; only that import and branch sit in `app/`.
 
-The scaffold also carries the [mini apps](../../../../wiki/stack/mini-apps.md) route, listed file by file: `router.mjs` and `routes.mjs` with their type declarations, and the example app `mini-apps/apps/hello/`. `app/worker/index.ts` sends `/apps/` to the route as it sends `/_memory/` to memory. Nothing else under `mini-apps/` ships, so an app made in this repo stays here; add a new scaffold file to the list by hand. Each app's tests run on Node's built-in runner, so the folder has no package manifest.
+Add or update the landing page's [tutorial](../../../../wiki/stack/mini-apps.md), `app/src/Tutorial.tsx` and `Tutorial.test.tsx`, only while the target's `app/src/App.tsx` renders `<Tutorial />`; otherwise the person finished it; the plan skips them and says so in one line. The build writes no list page and `/apps/` redirects to `/`; a target whose landing page doesn't read `/apps/apps.json` gets a plan task to list the apps there.
+
+The core test workflow runs `npm test` at the root or one folder down; with none, it says so and passes. No root `package.json` is copied.
+
+The [mini apps](../../../../wiki/stack/mini-apps.md) route ships file by file: `router.mjs` and `routes.mjs` with their type declarations, and the example `mini-apps/apps/hello/`; `app/worker/index.ts` sends `/apps/` to it. Nothing else under `mini-apps/` ships, so apps made here stay here; list a new scaffold file by hand. App tests use Node's built-in runner, so the folder has no package manifest.
 
 ## OpenSpec integration and migration
 
-Fresh setup initializes the OpenSpec planning home with `openspec init --tools none`. The WongStack verbs use the CLI directly and keep existing change folders, main specs, archives, and schemas. No generated `openspec-*` skills, raw `/opsx:*` commands, visibility patch, or global profile setting is part of the payload.
+Fresh setup runs `openspec init --tools none`. The verbs call the CLI directly and keep existing changes, specs, archives, and schemas. No generated `openspec-*` skills, raw `/opsx:*` commands, visibility patch, or global profile setting ships.
 
 ## Not copied
 
-`wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this source repo's own install record, meta-only release checks, and the meta-only payload CI are outside the target inventory. `.claude/.wong-stack.json` is the target's install record, written after agreed implementation, never copied upstream. Legacy verdict files may inform exploration but are not generated again.
+Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's `.claude/.wong-stack.json` is written after agreed implementation and never copied upstream. Old verdict files may inform exploration; nothing writes new ones.
 
 ## Install record
 
-`.claude/.wong-stack.json` records the installed source version and commit, the memory store ids, actual local skill names, upstream location, and install/update dates. Setup or sync advances it only after its agreed changes and the applicable generated-layer migration are complete; a proposal alone does not.
-
-The record holds no mode: every install follows the same rules. The machine's [home](../../../../wiki/development/home.md) lives outside every repo, in `~/.wong-stack/machine.json`, and setup or sync never copies it.
+`.claude/.wong-stack.json` records the source version and commit, memory store ids, actual local skill names, upstream, and install and update dates. Setup or sync advances it only after its agreed changes and any generated-layer migration, never on a proposal alone. It holds no mode: every install follows the same rules. The machine's [home](../../../../wiki/development/home.md) lives outside every repo, in `~/.wong-stack/machine.json`; setup and sync never copy it.

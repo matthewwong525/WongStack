@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 // Fixed source-load accounting, not a runtime token estimator.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli } from './lib-cli.mjs';
 
-const verbs = ['explore', 'plan', 'apply', 'save', 'continue', 'ship', 'verify'];
+// The vendored browser skill is upstream text; every other skill folder is WongStack-authored.
+const vendored = new Set(['agent-browser']);
+// Every skill's `description:`, joined: what each session reads before the first message.
+export const DESCRIPTIONS = 'skill-descriptions';
 const canonical = path => path.replace(/^\.claude\//, '.agents/');
 export const countText = text => ({ words: text.trim() ? text.trim().split(/\s+/u).length : 0, bytes: Buffer.byteLength(text) });
 const total = records => records.reduce((sum, value) => ({ words: sum.words + value.words, bytes: sum.bytes + value.bytes }), { words: 0, bytes: 0 });
@@ -13,6 +17,26 @@ const total = records => records.reduce((sum, value) => ({ words: sum.words + va
 function walk(path) {
   if (!existsSync(path)) return [];
   return readdirSync(path, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(path, entry.name)) : [join(path, entry.name)]);
+}
+
+const skillDirs = root => {
+  const skills = join(root, '.agents/skills');
+  return existsSync(skills) ? readdirSync(skills, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort() : [];
+};
+
+/** The `description:` value of a SKILL.md frontmatter, folded continuation lines included. */
+export function skillDescription(text) {
+  const front = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!front) return '';
+  const lines = front[1].split(/\r?\n/);
+  const start = lines.findIndex(line => /^description:/.test(line));
+  if (start < 0) return '';
+  const parts = [lines[start].replace(/^description:\s*/, '').replace(/^[>|][-+]?\s*$/, '')];
+  for (const line of lines.slice(start + 1)) {
+    if (!/^\s+\S/.test(line)) break;
+    parts.push(line.trim());
+  }
+  return parts.join(' ').trim().replace(/^(['"])([\s\S]*)\1$/, '$2');
 }
 
 export function measureContext(root, baseline) {
@@ -25,8 +49,11 @@ export function measureContext(root, baseline) {
   }
   const owners = new Set(baseline.owners.map(canonical));
   const paths = new Set(owners);
-  for (const verb of verbs) {
-    const dir = `.agents/skills/${verb}`;
+  const descriptions = [];
+  for (const skill of skillDirs(root)) {
+    const dir = `.agents/skills/${skill}`;
+    if (existsSync(join(root, dir, 'SKILL.md'))) descriptions.push(skillDescription(readFileSync(join(root, dir, 'SKILL.md'), 'utf8')));
+    if (vendored.has(skill)) continue;
     paths.add(`${dir}/SKILL.md`);
     for (const folder of ['references', 'scripts']) {
       for (const path of walk(join(root, dir, folder))) {
@@ -35,9 +62,10 @@ export function measureContext(root, baseline) {
     }
   }
   const after = Object.fromEntries([...paths].sort().map(path => [path, countText(readFileSync(join(root, path), 'utf8'))]));
-  const kind = path => owners.has(path) ? 'owners' : path.endsWith('.md') ? 'instructions' : path.endsWith('.html') ? 'html' : 'helpers';
+  after[DESCRIPTIONS] = countText(descriptions.filter(Boolean).join('\n'));
+  const kind = path => path === DESCRIPTIONS ? 'descriptions' : owners.has(path) ? 'owners' : path.endsWith('.md') ? 'instructions' : path.endsWith('.html') ? 'html' : 'helpers';
   const inventory = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort().map(path => ({ path, kind: kind(path), before: before[path] ?? { words: 0, bytes: 0 }, after: after[path] ?? { words: 0, bytes: 0 } }));
-  const categories = Object.fromEntries(['instructions', 'owners', 'html', 'helpers'].map(category => {
+  const categories = Object.fromEntries(['instructions', 'owners', 'descriptions', 'html', 'helpers'].map(category => {
     const files = inventory.filter(row => row.kind === category);
     return [category, { before: total(files.map(row => row.before)), after: total(files.map(row => row.after)) }];
   }));
@@ -58,19 +86,46 @@ export function measureContext(root, baseline) {
     if (route.requireReduction && (b.words >= a.words || b.bytes >= a.bytes)) issues.push(`${name}: required reduction absent`);
     if ((b.words > a.words || b.bytes > a.bytes) && !route.increaseReason) issues.push(`${name}: unexplained increase`);
   }
-  return { baseline: baseline.revision, metric: 'Source words and UTF-8 bytes; not measured runtime tokens', assumptions: baseline.notes, categories, routes, inventory, issues };
+  const ceiling = baseline.startupCeiling;
+  if (ceiling !== undefined) {
+    if (!routes.startup) throw new Error('startupCeiling needs a startup route');
+    if (routes.startup.after.words > ceiling) issues.push(`startup: ${routes.startup.after.words} words is over the ceiling of ${ceiling}`);
+  }
+  return { baseline: baseline.revision, metric: 'Source words and UTF-8 bytes; not measured runtime tokens', assumptions: baseline.notes, startupCeiling: ceiling ?? null, categories, routes, inventory, issues };
+}
+
+/** A new baseline at `revision`: today's counts, each route's before set to its after, the rest kept. */
+export function rebaseline(root, baseline, revision) {
+  // The old before lists may name files that no longer exist; only today's counts matter here.
+  const report = measureContext(root, { ...baseline, routes: {}, startupCeiling: undefined });
+  const files = Object.fromEntries(report.inventory.filter(row => row.after.words || row.after.bytes || row.path === DESCRIPTIONS).map(row => [row.path, row.after]));
+  const routes = Object.fromEntries(Object.entries(baseline.routes).map(([name, route]) => {
+    const next = { ...route, before: [...route.after] };
+    delete next.increaseReason;
+    return [name, next];
+  }));
+  return { ...baseline, revision, files, routes };
 }
 
 if (isMain(import.meta.url)) {
-  const { values } = parseCli({ usage: 'usage: measure-context.mjs [--json] [--check]', options: { json: { type: 'boolean' }, check: { type: 'boolean' } } });
+  const { values } = parseCli({ usage: 'usage: measure-context.mjs [--json] [--check] [--write-baseline]', options: { json: { type: 'boolean' }, check: { type: 'boolean' }, 'write-baseline': { type: 'boolean' } } });
   try {
     const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-    const report = measureContext(root, JSON.parse(readFileSync(join(root, 'scripts/fixtures/context-baseline.json'), 'utf8')));
+    const fixture = join(root, 'scripts/fixtures/context-baseline.json');
+    let baseline = JSON.parse(readFileSync(fixture, 'utf8'));
+    if (values['write-baseline']) {
+      const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+      baseline = rebaseline(root, baseline, revision);
+      writeFileSync(fixture, `${JSON.stringify(baseline, null, 2)}\n`);
+      console.log(`Baseline recorded at ${revision}`);
+    }
+    const report = measureContext(root, baseline);
     if (values.json) console.log(JSON.stringify(report, null, 2));
     else {
       console.log(report.metric);
       for (const [name, counts] of Object.entries(report.categories)) console.log(`${name}: ${counts.before.words} -> ${counts.after.words} words; ${counts.before.bytes} -> ${counts.after.bytes} bytes`);
       for (const [name, counts] of Object.entries(report.routes)) console.log(`${name}: ${counts.before.words} -> ${counts.after.words} words; ${counts.before.bytes} -> ${counts.after.bytes} bytes${counts.increaseReason ? ` (${counts.increaseReason})` : ''}`);
+      if (report.startupCeiling !== null) console.log(`startup ceiling: ${report.startupCeiling} words`);
       for (const issue of report.issues) console.log(`ISSUE: ${issue}`);
     }
     if (values.check && report.issues.length) process.exitCode = 1;

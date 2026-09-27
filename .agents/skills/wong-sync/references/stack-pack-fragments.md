@@ -1,14 +1,12 @@
 # Stack-pack config fragments
 
-The [Cloudflare stack pack](payload-manifest.md#the-stack-pack) delivers two kinds of file. Its **drop-in files** (the `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, the `wiki/stack/` pipeline docs) ride [the manifest](payload-manifest.md): copied if absent, adapted if present, never overwritten. The four **config fragments** below must *merge* into files the target already owns, so they are **not** manifest pull-files. Apply them like the `CLAUDE.md` `WONG-STACK` block: **show the fragment, apply it with the user's confirmation, never blind-write over the target's file.**
+The [Cloudflare stack pack's](payload-manifest.md#the-stack-pack) **drop-in files** (the `scripts/`, `schema/seed.sql`, `schema/migrations/.gitkeep`, the `wiki/stack/` pipeline docs) ride [the manifest](payload-manifest.md): copied if absent, adapted if present, never overwritten. Its four **config fragments**, below, merge into files the target owns, so they are **not** manifest pull-files. Treat each like the `CLAUDE.md` `WONG-STACK` block: read the target's file, **show what you'd add, merge on the user's yes**, and keep everything already there; never blind-write. No file yet → create it from the fragment.
 
-**[Setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) is the applier**: the id-free fragments (`package.json`, `.env.example`, `.gitignore`) before it creates resources, and the `wrangler.jsonc` block at its config step, filled with the real ids. When upstream changes a fragment, `/wong-sync` *re-offers* it through its plan as a guided edit, never auto-merged.
-
-For each fragment: read the target's file, show what you'd add, and merge on a yes, keeping everything already there. No file yet → create it from the fragment.
+**[Setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) applies them**: the id-free `package.json`, `.env.example`, and `.gitignore` fragments before it creates resources, and the `wrangler.jsonc` block at its config step, with the real ids. When upstream changes a fragment, `/wong-sync` re-offers it in its plan as a guided edit, never auto-merged.
 
 ## `package.json` → `scripts`
 
-`build` becomes the CI wrapper; the repo's real build moves to `build:app`, which `cf-build.sh` calls. Merge these keys into the existing `scripts` object, keeping every other script:
+`build` becomes the CI wrapper; the real build moves to `build:app`, which `cf-build.sh` calls. Merge these keys into `scripts`, keeping every other script:
 
 ```jsonc
 {
@@ -26,15 +24,13 @@ For each fragment: read the target's file, show what you'd add, and merge on a y
 
 If the repo already has a `build`, rename it to `build:app` (confirm first).
 
-**Paths here are relative to the `package.json` you merge into.** In the `app/` layout the SPA pack and the [app scaffold](payload-manifest.md#the-app-scaffold) ship, that is `app/package.json`, so the paths become `bash ../scripts/cf-build.sh`, `node ../scripts/reset-staging-d1.mjs`, and `node ../scripts/cf-secrets.mjs`. The two `db:migrate:*` scripts invoke `wrangler` directly and stay the same in both layouts, but run them from the directory holding the wrangler config. The scripts under `scripts/` find the repo root themselves.
+**Paths are relative to the `package.json` you merge into.** In the [app scaffold's](payload-manifest.md#the-app-scaffold) `app/package.json` they become `bash ../scripts/cf-build.sh`, `node ../scripts/reset-staging-d1.mjs`, and `node ../scripts/cf-secrets.mjs`. The `db:migrate:*` scripts call `wrangler` directly, so they stay as they are; run them from the wrangler config's folder. The `scripts/` files find the repo root themselves.
 
-Write the **literal** `database_name` into each `db:migrate:*` script — the production name for `db:migrate:prod`, the staging twin's for `db:migrate:staging`. Never use `$npm_package_config_db`: it expands to an empty string without a `config.db` key. These two are only a convenience alias; the scripts under `scripts/` read the name from the wrangler config.
-
-**Those two scripts live here and nowhere else**, because a hardcoded database name cannot travel between repos; the [app scaffold's](payload-manifest.md#the-app-scaffold) `app/package.json` ships without them. Provisioning fills them from the databases it derives.
+Write the **literal** `database_name` into each `db:migrate:*` script: production's for `db:migrate:prod`, the staging twin's for `db:migrate:staging`. Never use `$npm_package_config_db`: without a `config.db` key it expands to nothing. **These two live only here**, so the [scaffold's](payload-manifest.md#the-app-scaffold) `app/package.json` ships without them, and provisioning fills them from the databases it derives ([why](../../../../wiki/stack/d1-pipeline.md#the-scripts)).
 
 ## `wrangler.jsonc` → the Worker entry, bindings, and `env.staging`
 
-This fragment is the **only thing in the payload that creates a wrangler config**, so it describes a deployable Worker, not bindings alone. The top level declares the entry point, the static assets, and production's bindings. A `staging` environment declares its own Worker name and a **twin** of every stateful binding. Merge every part, filling the ids from the resources you created:
+The **only thing in the payload that creates a wrangler config**, so a deployable Worker: the top level declares the entry point, static assets, and production's bindings; `staging` its own Worker name and a **twin** of every stateful binding. Merge every part, filling ids from the resources you created:
 
 ```jsonc
 {
@@ -89,18 +85,16 @@ This fragment is the **only thing in the payload that creates a wrangler config*
 }
 ```
 
-Seven rules the scripts depend on:
+Six rules the scripts depend on:
 
-- **`migrations_dir` is written per layout, and the block above shows the `app/` one.** Wrangler resolves it relative to the **config file**, like `main`, but `schema/` sits at the **repo root**, so the layouts need *different* text: `../schema/migrations` in the `app/` layout the app scaffold ships, and `schema/migrations` when the Worker and its config sit at the repo root. Repeat it inside the environment.
-  A config in `app/` saying `schema/migrations` points at `app/schema/migrations`, which never exists, and `cf-build.sh` stops with `No migrations present at …` on the first change that carries one: CI goes red on a path the user never chose.
-- **The fragment must describe a deployable Worker, not just bindings.** `app/wrangler.jsonc` is [deliberately not copied](payload-manifest.md#the-app-scaffold), and a config without an entry point deploys nothing while provisioning reports success. Hence `main`, `assets`, `compatibility_date`, and `compatibility_flags` above. `main` is resolved relative to the config file, so `worker/index.ts` is right for both layouts. Set `compatibility_date` to the day you create the config.
-- **`env.staging` needs its own `name`.** Without it the environment inherits production's, and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses that deploy, but declare the name so the check never fires.
-- **`env.staging` needs its own `d1_databases` entry**, with the staging database's own `database_name`. `cf-build.sh` and `reset-staging-d1.mjs` read the name from *inside* the environment block and stop with an error rather than touch production.
-- **An environment inherits nothing it doesn't redeclare — among `vars` and bindings.** Repeat every stateful binding inside `env.staging`, pointing at its twin. A forgotten binding is absent in staging; a *service* binding copied without repointing quietly calls production. `npm run secrets:check` fails the build on the first and warns on the second.
-- **Cron triggers are the exception: `triggers` is inheritable.** Leave it out of `env.staging` and the staging Worker fires production's schedule against the staging database, with no error. To keep staging manual-only, declare `"triggers": { "crons": [] }` as above. Omit the key only when staging *should* run production's schedule.
-- **The memory bindings are the one exception to twinning.** `MEMORY_DB` and `MEMORY_BUCKET` sit at the top level only, because session memory lives on the production Worker alone: [the memory convention](../../../../wiki/development/memory.md#the-memory-key). Never add them to `env.staging`. `secrets:check` skips every `MEMORY_*` binding, and the pipeline scripts never read `MEMORY_DB` as the app's database. Wrangler's build warning that `MEMORY_DB` is not on `env.staging` is expected; leave it.
+- **Write `migrations_dir` per layout; the block shows `app/`'s.** Wrangler resolves it from the **config file**, but `schema/` sits at the **repo root**: `../schema/migrations` in `app/`, `schema/migrations` with the config at the root. Repeat it inside the environment. A wrong path stops `cf-build.sh` with `No migrations present at …` on the first migration, and CI goes red.
+- **Describe a deployable Worker, not just bindings.** `app/wrangler.jsonc` is [not copied](payload-manifest.md#the-app-scaffold), and a config with no entry point deploys nothing while provisioning reports success; hence `main`, `assets`, `compatibility_date`, and `compatibility_flags`. `main` also resolves from the config file, so `worker/index.ts` fits both layouts. Set `compatibility_date` to the day you create the config.
+- **Give `env.staging` its own `name`,** or it inherits production's and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses that deploy; declare the name so the check never fires.
+- **Redeclare every stateful binding in `env.staging`, pointing at its twin** ([the twin table](../../../../wiki/stack/d1-pipeline.md#twin-every-stateful-binding)): an environment inherits no `vars` or bindings. Its `d1_databases` entry needs the staging database's own `database_name`; `cf-build.sh` and `reset-staging-d1.mjs` read it from *inside* the block and stop rather than touch production. A forgotten binding is absent in staging, and `npm run secrets:check` fails the build; a *service* binding copied without repointing quietly calls production, and it warns.
+- **Cron `triggers` do inherit** ([why](../../../../wiki/stack/d1-pipeline.md#cron-triggers-inherit-omitting-them-does-not-disable-them)): omitted, production's schedule fires silently on staging. Keep the empty `crons` list unless staging *should* run production's schedule.
+- **Never twin the memory bindings.** `MEMORY_DB` and `MEMORY_BUCKET` sit at the top level only: session memory lives on the production Worker alone ([the memory convention](../../../../wiki/development/memory.md#the-memory-key)). `secrets:check` skips `MEMORY_*` bindings, and the pipeline scripts never read `MEMORY_DB` as the app's database. Leave Wrangler's warning that `MEMORY_DB` is not on `env.staging`; it is expected.
 
-Twin every other stateful binding the same way ([the twin table](../../../../wiki/stack/d1-pipeline.md#twin-every-stateful-binding)). A queue needs both halves inside the environment, or staging messages land on the production consumer:
+A queue twin needs both halves inside the environment, or staging messages land on the production consumer:
 
 ```jsonc
 "queues": {
@@ -109,17 +103,15 @@ Twin every other stateful binding the same way ([the twin table](../../../../wik
 }
 ```
 
-**If the app builds through `@cloudflare/vite-plugin`, the environment is chosen at BUILD time**, and `--env` on `wrangler deploy` "will have no effect" ([Cloudflare's docs](https://developers.cloudflare.com/workers/vite-plugin/reference/cloudflare-environments/)). `cf-build.sh` exports `CLOUDFLARE_ENV=staging` on non-production branches, and `cf-deploy.sh` drops `--env staging` when it sees the redirect. [How the environment gets selected](../../../../wiki/stack/d1-pipeline.md#how-the-environment-actually-gets-selected) explains why a mistake here deploys branch code to production **without any error at all**.
-
-There is no `preview_database_id` and no swap script: the Worker a branch deploys to decides its database ([`d1-pipeline.md`](../../../../wiki/stack/d1-pipeline.md)).
+**With `@cloudflare/vite-plugin`, the build picks the environment**, not `wrangler deploy --env`: `cf-build.sh` exports `CLOUDFLARE_ENV=staging` off production branches, and `cf-deploy.sh` drops `--env staging`. A mistake here deploys branch code to production **with no error** ([how the environment gets selected](../../../../wiki/stack/d1-pipeline.md#how-the-environment-actually-gets-selected)). No `preview_database_id` or swap script: the Worker a branch deploys to picks its database.
 
 ## Workers Builds fallback only: the deploy command
 
-Not a fragment, and **not part of the default install**: the pack's CI is [GitHub Actions](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions), which needs no dashboard step. Only a repo on the [Workers Builds fallback](../../../../wiki/stack/d1-pipeline.md#why-not-cloudflares-own-workers-builds) points the dashboard deploy command at `bash scripts/cf-deploy.sh`, and that page owns it. Mention it only for such a repo.
+Not a fragment, and **not in the default install**, whose CI is [GitHub Actions](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions). Mention it only to a repo on the [Workers Builds fallback](../../../../wiki/stack/d1-pipeline.md#why-not-cloudflares-own-workers-builds): its dashboard deploy command runs `bash scripts/cf-deploy.sh`, and that page owns it.
 
 ## `.env.example` → Cloudflare variables
 
-Add these documented, blank lines. The pack's [credentials page](../../../../wiki/stack/cloudflare-credentials.md) explains each and **owns the token variable's name** — never rename it here. Real values go in the primary worktree's git-ignored `.env` per the [secrets convention](../../../../wiki/development/secrets.md); linked-worktree branches still get these blank declarations in their active `.env.example`. A value rotation changes no example line unless the variable contract or guidance changed:
+Add these blank, commented lines. The [credentials page](../../../../wiki/stack/cloudflare-credentials.md) explains each and **owns the token variable's name**; never rename it. Real values go in the primary worktree's git-ignored `.env` ([the secrets convention](../../../../wiki/development/secrets.md)); a linked worktree's `.env.example` still gets the blank lines. A rotated value changes no line unless the variable contract or guidance did:
 
 ```bash
 # Cloudflare — user-scoped API token from My Profile → API Tokens
@@ -135,7 +127,7 @@ CF_ACCESS_CLIENT_SECRET=
 
 ## `.gitignore` → the two secrets files, and scratch
 
-Two files hold real credentials and are never committed: `.env` (the account-level Cloudflare token the credentials page calls *"effectively account-root, treat it like a root password"*) and `app/.dev.vars` (the Worker's runtime secrets, beside the wrangler config). Each has per-environment variants and a committed, values-blank `.example` twin. Add these four lines if they aren't there:
+Never commit the two credential files: `.env`, whose Cloudflare token is *"effectively account-root"*, and `app/.dev.vars`, the Worker's runtime secrets ([the secrets convention](../../../../wiki/development/secrets.md)). Each has per-environment variants and a committed, values-blank `.example` twin. Add these four lines if missing:
 
 ```gitignore
 .env*
@@ -144,15 +136,11 @@ Two files hold real credentials and are never committed: `.env` (the account-lev
 !.dev.vars.example
 ```
 
-**Each pair needs both lines.** The wildcard keeps a `.env.staging` or `.dev.vars.staging` full of live values uncommittable; the negation keeps the `.example` file — the committed name list that `secrets:check` reads — from being swallowed by it. Either mistake is silent.
+**Each pair needs both lines**: the wildcard keeps a `.env.staging` or `.dev.vars.staging` of live values uncommittable, and the negation keeps the `.example` name list `secrets:check` reads out of the wildcard. Either mistake is silent.
 
-Apply this fragment **before** asking for the token, since that is when a repo first gets a `.env` full of credentials.
+Apply it **before** asking for the token, when the repo first gets a `.env` of credentials. Widening `.gitignore` doesn't untrack a file, so check `git ls-files .env .dev.vars` first. If either is tracked, say so plainly and give the two steps: `git rm --cached .env`, and **rotate the credential**, since every clone's history has it. A repo with the bare `.dev.vars` line keeps working; widening it is the upgrade.
 
-**Widening `.gitignore` does not untrack a file already committed.** Check with `git ls-files .env .dev.vars` before applying. If either is tracked, say so plainly and give the two steps: `git rm --cached .env` to stop tracking it, and **rotate the credential**, because it is in the history of every clone.
-
-A repo that already has the bare `.dev.vars` line keeps working; widening it is the upgrade.
-
-Add one more line, for the folder agents keep throwaway files in. Ignored, a scratch file never shows as unsaved work, never blocks closing a workspace, and never gets committed:
+Add one more line, so agents' throwaway files in `.scratch/` never show as unsaved work, block closing a workspace, or get committed:
 
 ```gitignore
 .scratch/
