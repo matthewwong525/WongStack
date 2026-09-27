@@ -21,23 +21,23 @@ What lands with the starter site is the page itself and the code that serves it.
 
 ## What it costs
 
-Cloudflare's free tier covers all of this. You need a free Cloudflare account and a free GitHub account. Nothing installs on your computer beyond the coding agent you're already using.
+Cloudflare's free tier covers all of this. You need a free Cloudflare account and a free GitHub account. Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, and OpenSpec — and it asks before each one.
 
 ## The five steps
 
+These are [the README's](https://github.com/matthewwong525/WongStack#readme) three steps in detail.
+
 ### 1. Paste the prompt
 
-Make an empty folder, open it in your coding agent, and paste the setup prompt from [WongStack's README](https://github.com/matthewwong525/WongStack#readme). Setup starts from an empty folder; in a folder that already has files, it stops and says so. The agent asks for the Cloudflare key first (steps 3 and 4), then asks a few questions about how you like to work, and sets up the shared knowledge, the workflows, a starter site, and its hosting.
+Make an empty folder, open it in your coding agent, and paste the setup prompt from [WongStack's README](https://github.com/matthewwong525/WongStack#readme). Setup starts from an empty folder; in a folder that already has files, it stops and says so. The agent first checks your computer for the free tools it needs and asks before it installs any. It signs you in to GitHub (step 2), asks for the Cloudflare key (steps 3 and 4), then asks a few questions about how you like to work, and sets up the shared knowledge, the workflows, a starter site, and its hosting.
 
-**You do:** answer a few questions.
+**You do:** answer a few questions, and say yes to any installs. An install may show your computer's own permission window.
 
 ### 2. Sign in to GitHub
 
-GitHub is where your project lives and where changes get reviewed. If you're not already signed in, the agent opens a browser page and asks you to approve.
+GitHub is where your project lives and where changes get reviewed. You need a free [GitHub account](https://github.com/signup). If you're not already signed in, the agent shows you a short code and a link. One approval covers every permission setup needs, so you won't be asked again later.
 
-**You do:** click approve in the browser.
-
-> Approve everything it asks for on that screen, including permission to add automated steps. Skipping that one causes a confusing error much later.
+**You do:** open the link, enter the code, and approve.
 
 ### 3. Make a Cloudflare account
 
@@ -94,11 +94,12 @@ Each change gets its own link, running against the practice data. Your real site
 
 Nothing here can be automated — they all need a human with a browser:
 
-1. Sign up for GitHub, and approve the permissions screen
-2. Sign up for Cloudflare
-3. Create the token and paste it
+1. Sign up for GitHub, and approve the sign-in code
+2. Say yes to any free tools setup needs to install
+3. Sign up for Cloudflare
+4. Create the token and paste it
 
-Three things, all in one sitting. There's no "connect your repository" step and no dashboard configuration — those are avoided by design.
+Four things, all in one sitting. There's no "connect your repository" step and no dashboard configuration — those are avoided by design.
 
 ## If you want a login wall
 

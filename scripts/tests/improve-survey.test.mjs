@@ -208,6 +208,8 @@ test('does not include secret values or historical records in survey candidates'
     '.env': 'PRIVATE_TOKEN=fixture-only\n',
     'notes/old.md': '[old](missing.md)\n',
     'openspec/changes/archive/old/proposal.md': '[old](missing.md)\n',
+    'CHANGELOG.md': '## 1.0.0\n[old](missing.md)\n',
+    'packages/web/CHANGELOG.md': '[old](missing.md)\n',
     'src/main.ts': 'export const current = true;\n',
   });
   const output = JSON.stringify(survey(root, '.', { now: '2026-09-21' }));

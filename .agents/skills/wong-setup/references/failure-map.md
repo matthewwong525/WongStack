@@ -17,6 +17,20 @@ This page maps what the Cloudflare API returns to **the one thing the user shoul
 
 ## The map
 
+### Getting the computer ready
+
+[Get the computer ready](tools.md) stops on each of these with nothing written. Running setup again starts from the check.
+
+| Symptom | Cause | What to say |
+|---|---|---|
+| The person says no to an install | They'd rather not add the tool | Name what it is for — *"Node.js runs the planning and memory tools; without it, setup can't continue"* — and that saying yes later picks up here. |
+| An install asks for a password, or `sudo -n true` fails | The system installer needs admin rights the agent can't type | Use the user-folder route instead. Stop only when that fails too, and say which download failed. |
+| `git` is missing on Linux with no passwordless `sudo` | `git` has no user-folder route | Ask them to install Git from their system's software app, then run setup again. |
+| No `one-time code` line in `gh`'s output | `gh` failed before the browser step, or changed its wording | Show the output's last line, and offer to try once more. Never guess a code. |
+| `gh auth status` still fails after they said done | The approval wasn't finished, or ran in another GitHub account | Start the sign-in again for a fresh code: *"The approval didn't reach me. Here's a new code."* |
+| The email lookup returns nothing | The GitHub account has no verified primary email, or `user:email` is missing | Ask them to verify an email at [GitHub's email settings](https://github.com/settings/emails), then check again. |
+| The link test still fails with Developer Mode on | The setting needs a new session, or the machine's policy blocks links | Ask them to close and reopen the agent app, then test again. On a work computer, their IT team may have to allow Developer Mode. |
+
 ### Token creation
 
 | Symptom | Cause | What to say |

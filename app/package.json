@@ -16,7 +16,7 @@
     "lint": "oxlint",
     "test": "npm run lint && vitest run --coverage && knip && jscpd && stryker run",
     "preview": "npm run build && vite preview",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "bash ../scripts/cf-deploy.sh",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {

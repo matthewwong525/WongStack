@@ -102,7 +102,7 @@ It prints key names, never values, and skips and names a key the primary also ch
 
 ## Step 6 — report
 
-Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): for a non-technical reader, *it is live* and what changed. Then print `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`), plus:
+Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): for a non-technical reader, *it is live*, what changed, and the live link; for that reader, the rest below except *Checks loosened* comes only when asked. Otherwise print `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`), plus:
 
 - **Archived** — the archive path.
 - **Checkpoint** — `/save`'s result and CI outcome, auto-fix pushes included.

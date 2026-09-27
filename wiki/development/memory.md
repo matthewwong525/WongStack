@@ -44,7 +44,7 @@ Two costs come with one Worker. A failed production deploy stops memory too; fac
 A key has one of two roles:
 
 - **Admin:** the person who ran setup. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store) writes their key to `.env`. They read every transcript in the store.
-- **Member:** a teammate. They read facts and add them under their own email, and they read only their own transcripts. The route runs only the memory script's own writes for them, so they cannot change or delete a fact, hide one by marking it superseded, or remove the store's guards.
+- **Member:** a teammate. They read facts and add them under their own email, and they read only their own transcripts. The route runs only the memory script's own writes for them, so they cannot change or delete a fact, rewrite another person's session, or remove the store's guards. They supersede a fact only by writing their own replacement in the same save, so the replacement is always visible and credited.
 
 Who can read what, stated plainly:
 

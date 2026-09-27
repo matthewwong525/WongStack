@@ -211,10 +211,13 @@ async function search(ctx, { values, positionals }) {
     params.push(values.tag, values.tag, values.tag, values.tag);
   }
   const columns = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
+  const limit = Number(values.limit) || 30;
   const sql = `SELECT ${columns} FROM facts f ${joins.join(' ')} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY ${match ? 'bm25(facts_fts),' : ''} f.created_at DESC LIMIT ${Number(values.limit) || 30}`;
+    ORDER BY ${match ? 'bm25(facts_fts),' : ''} f.created_at DESC${values.state ? '' : ` LIMIT ${limit}`}`;
   const state = stateOf(ctx.root);
-  const facts = (await store.query(sql, params)).map(fact => ({ ...fact, state: state(fact.slug) })).filter(fact => !values.state || fact.state === values.state);
+  // The state comes from this checkout's change folders, not the store, so it filters before the limit here.
+  const facts = (await store.query(sql, params)).map(fact => ({ ...fact, state: state(fact.slug) }))
+    .filter(fact => !values.state || fact.state === values.state).slice(0, limit);
   console.log(facts.length ? facts.map(fact => formatFact(fact)).join('\n') : 'No matching facts.');
 }
 

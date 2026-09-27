@@ -94,6 +94,10 @@ if [ "$STAGING_NAME" = "$PROD_NAME" ]; then
   exit 1
 fi
 
+# The alias shares one URL label with the staging Worker's name; cut it to fit.
+ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
+[ -n "$ALIAS" ] || fail "the staging Worker name '$STAGING_NAME' leaves no room for a preview alias"
+
 HAS_D1=$(wong_config has-d1 staging)
 PROD_HAS_D1=$(wong_config has-d1)
 if [ "$HAS_D1" = false ] && [ "$PROD_HAS_D1" = true ]; then

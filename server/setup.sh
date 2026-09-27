@@ -36,7 +36,7 @@ apt-get update
 apt-get install -y gh
 
 step "OpenSpec, Paseo, Codex, OpenCode, agent-browser"
-npm install -g @fission-ai/openspec @getpaseo/cli @openai/codex opencode-ai agent-browser
+npm install -g @fission-ai/openspec@1.13.2 @getpaseo/cli @openai/codex opencode-ai agent-browser
 
 step "Claude Code"
 as_user bash -c 'curl -fsSL https://claude.ai/install.sh | bash'

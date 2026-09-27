@@ -26,9 +26,22 @@ Check `applyRequires` in `openspec status --change "<name>" --json`:
 
 `/apply` authorizes plan-then-implement. After `/plan` returns, verify the `applyRequires` closure is complete; if planning paused or is blocked, report and stop. Otherwise announce the change's **exact name** and keep it; no other change may replace it.
 
-Run `openspec instructions apply --change "<name>" --json` (the [CLI contract](../plan/references/openspec-cli.md) covers a store or non-default schema), read every `contextFiles` path, and work pending `tasks.md` tasks in order, checking off `- [x]` each and refreshing progress from the same change. `blocked` stops; `all_done` goes to the handoff. Returned context is guidance, not proof a task is done.
+Then [build in a helper](#build-in-a-helper); report incomplete work or actual blockers.
 
 At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview), unless a task-driven `/save` completed the final task: then report its result and CI preview, with no upload. **When `/ship` invoked you, return instead**: report completion with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
+
+## Build in a helper
+
+Work the tasks in a fresh helper agent, so the build does not carry this conversation's planning talk. In Claude Code, start it with the Agent tool (`general-purpose`); in Codex, spawn a sub-agent. Keep the parent's model. The prompt is two lines: the exact change name, and *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. [The brief](references/build-helper.md) owns what the helper does and what it returns.
+
+Read each report and act on its stop:
+
+- **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), then start a new helper for the tasks left.
+- **A gate task** → run `/save` for it, as [the boundaries](#boundaries) say, mark it on success, then start a new helper.
+- **A blocker** → report it and stop.
+- **All done** → check that `tasks.md` has no unticked box, then handle the **all-tasks-complete** state above.
+
+When no helper can start, or this `/apply` already runs inside one, work the tasks inline: follow the brief's *Build* steps, and handle each stop here. The parent owns the preview, the loosened checks, and the report.
 
 ## Finish with a preview
 
@@ -56,7 +69,7 @@ Completion never saves; the work stays in this working tree until the person sav
    Fix each file marked *needs a reason* without asking: switch the check back on, or add [the `Check:` bullet](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason). Rerun until it exits 0.
 4. **Report and ask** at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview URL (plus `/apps/<name>/` for a mini app); under *Checks loosened*, each `Check:` bullet in one plain line (what is no longer checked, and why); and any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save it via [`/save`](../save/SKILL.md).
 
-Each further change repeats these steps under the same alias.
+Each further change repeats these steps under the same alias. Make a small edit in this conversation; a change that adds tasks to `tasks.md` goes through a new helper.
 
 ## Work that changes no repo file
 

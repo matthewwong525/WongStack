@@ -13,8 +13,8 @@ The assistant reads its instructions for a task before it does the task. They ha
 - **The same rules, in fewer words.** Every instruction page is rewritten in the plain, short style the wiki already uses. Nothing the assistant does changes: every rule, command, and check stays.
   ```text
   before                 after
-  13,064 words (main)    9,565  (−27%)
-  15,674 (linked pages)  13,013 (−17%)
+  13,395 words (main)    9,960  (−26%)
+  17,526 (linked pages)  14,865 (−15%)
   ```
 - **A rule lives in one place.** A rule repeated across several skills is written once, and the others point to it. The reasons behind a rule stay in the wiki, not in the instructions.
 - **You can check the result.** The plan records the word counts before and after, and every automatic check still has to pass.
@@ -34,8 +34,8 @@ None. The rewrite keeps every behavior the specs describe, so the change sets `s
 ## Impact
 
 - Every `.agents/skills/*/SKILL.md` except `agent-browser` (vendored), and every `.agents/skills/*/references/*.md` (core and pack payload; `update-dependencies` is meta-only).
-- `VERSION` → 25.10.0 and a `CHANGELOG.md` entry. `/wong-sync` in an installed repo brings every skill; a skill someone adapted locally shows as a conflict to merge.
-- Lands after `update-dependencies` (25.9.0), on its own branch from `main`.
+- `VERSION` → 25.14.0 and a `CHANGELOG.md` entry. `/wong-sync` in an installed repo brings every skill; a skill someone adapted locally shows as a conflict to merge.
+- Lands after `update-dependencies` (25.9.0) and main's 25.10.0–25.13.0, on its own branch from `main`.
 
 ## Decision log
 
@@ -54,3 +54,5 @@ None. The rewrite keeps every behavior the specs describe, so the change sets `s
 - **2026-09-27** — Found, not fixed (out of scope; would change behavior): `asking-the-user.md` names "`/apply` into `/save`" as a chain that continues without asking, while the apply-plan-handoff spec says `/apply` does not invoke `/save`; the code-first-planning spec expects `/explore` to carry "prefer code over AI" guidance that it never had; `failure-map.md`'s missing-secrets row says values live in `.env`, which may be out of date for the minted deploy token.
 - **2026-09-27** — Checkpoint on `shorten-skill-instructions`: tasks 1.1–3.3 done; release checks, `measure-context --check`, and all 324 payload tests pass locally. CI decides task 3.4.
 - **2026-09-27** — CI passed on PR #151. All tasks done.
+- **2026-09-27** — Asked to merge `main` and check the change still holds → merged 25.10.0–25.13.0 (#148, #149, #150, #152, #153). Ten files conflicted; each resolved as the union of intent, main's new rules in the shorter wording: `/apply` builds in a helper (the inline `openspec instructions apply` paragraph moved to `build-helper.md`, so the shortened copy is dropped), plain reports for a non-technical reader in `save`, `ship`, `continue`, and `asking-the-user.md`, the plan's link and "What next?" through the question tool in `plan` and `asking-the-user.md`, and setup's computer-ready step, GitHub re-sign-in, and Windows link prefix in `wong-setup`. Every line main added is present verbatim or in those resolutions.
+- **2026-09-27** — Assumed: release 25.14.0, the next minor after main's 25.13.0. Assumed: main's new `apply/references/build-helper.md` and `wong-setup/references/tools.md` stay as written, because they postdate this plan's pass. Counts against main 25.13.0: SKILL.md 13,395 → 9,960 (−25.6%); references 17,526 → 14,865 (−15.2%). Release checks, `measure-context --check`, `openspec validate`, and all 347 payload tests pass.

@@ -25,7 +25,10 @@ Write the question, each tradeoff, a blocker report, and the next-step question 
 - **Non-technical:** name what the person will see, get, lose, or risk (*what happens to the accounts that exist today?*, not *how should the migration handle the schema?*), with no file path, identifier, command, or engineering term they did not use first.
 - **Technical:** name the mechanism when it helps the choice.
 - **Fix before you ask.** Never offer a choice needing judgment the reader lacks. Where the skill's rules allow, try the fix first, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
-- **Lead a report with the outcome** (what is done, what they can open, what does not work), then any lines a skill must print.
+- **Lead a report with the outcome** — what is done, what they can open, what does not work. A failed or unverified check is part of the outcome, in plain words.
+  - **Non-technical, and the person ran the verb:** at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts, unless the person asks.
+  - **Inside another verb:** still print every line the calling verb reads, such as `/save`'s gate line inside `/ship`, `/apply`, or `/verify`.
+  - **Technical:** those lines follow the outcome.
 
 `/explore`'s limits (the 80/20 test, small groups, one exit round, four questions) bound clarification before planning, not a runbook's fork.
 
@@ -56,13 +59,17 @@ This page decides how a question **looks**, never which actions **need** one. An
 
 ## End every reply with the next step
 
-Before you finish, put to the user **what they must decide for this work to continue**, in the same format.
+Before you finish, put to the user **what they must decide for this work to continue**, as an ask like any other: the same format, through the first callable tool in [which tool carries it](#which-tool-carries-it). Write the report, and any link, as chat text first; the tool carries only the question. A numbered list at the end of a reply is for a session with no such tool, never a habit.
 
-- A finished plan: one line, *Click here to see the plan:*, with a link to its `review.html`, then build it now *(Recommended)* / change the plan first / stop here.
+- A finished plan: [the plan's link](#print-the-plans-link) in chat text, then the question: build it now *(Recommended)* / change the plan first / stop here.
 - A blocked task: the supported ways to clear it, below the intact blocker report.
 - A report or audit: the one fix worth taking next.
 - A finished task that will clearly come back: add one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 
 A handoff the invocation already authorized continues instead of asking: `/apply` into [`/save`](../../save/SKILL.md), [`/ship`](../../ship/SKILL.md) through its stages.
+
+## Print the plan's link
+
+Whenever a reply makes or changes a plan, print one line of chat text: *Click here to see the plan:* and a Markdown link to the change's `review.html`, by the path the page builder printed. The line is the same whatever made the plan — [`/plan`](../../plan/SKILL.md), `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or notes pasted from the review page. Print it even when the work goes on to build; it adds no stop. Put it just above the closing question, outside the question tool: a tool's card may not make a link clickable. Leave it out and the person has no way to find the page.
 
 Written prose stays short and plain, in [our voice](../../../../wiki/voice.md). The skills that cite this page: [`/explore`](../SKILL.md), [`/plan`](../../plan/SKILL.md), [`/apply`](../../apply/SKILL.md), [`/save`](../../save/SKILL.md), [`/continue`](../../continue/SKILL.md), [`/ship`](../../ship/SKILL.md), [`/verify`](../../verify/SKILL.md), and [`/improve`](../../improve/SKILL.md).

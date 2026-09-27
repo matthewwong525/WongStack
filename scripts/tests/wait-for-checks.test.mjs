@@ -25,6 +25,12 @@ case "$1 $2" in
     [ "$3" = "--help" ] && { [ -n "\${NO_JSON:-}" ] || echo "  --json fields"; exit 0; }
     [ -n "\${NO_JSON:-}" ] && [ "$3" = "--json" ] && { echo "unknown flag: --json" >&2; exit 1; }
     [ -n "\${CHECKS_ERR:-}" ] && echo "$CHECKS_ERR" >&2
+    if [ -n "\${CHECKS_SEQ:-}" ]; then
+      n=$(grep -c '^pr checks --json' "$FAKE_DIR/calls")
+      IFS='|' read -ra seq <<< "$CHECKS_SEQ"
+      i=$(( n <= \${#seq[@]} ? n - 1 : \${#seq[@]} - 1 ))
+      printf '%b\\n' "\${seq[$i]}"
+    fi
     [ -n "\${CHECKS:-}" ] && printf '%b\\n' "$CHECKS"
     exit 0 ;;
 esac
@@ -127,4 +133,31 @@ test('a gh without --json falls back to plain text', t => {
   assert.match(out, /RESULT: FAILURE/);
   assert.match(out, /- e2e {2}https:\/\/ci\/2/);
   assert.doesNotMatch(calls, /pr checks --json/);
+});
+
+const SKIPPED = 'skipping\\tunit (pull_request)\\thttps://ci/0';
+const polls = calls => calls.split('\n').filter(line => line.startsWith('pr checks --json')).length;
+
+test('a pass is reported only when two polls agree', t => {
+  const { out, calls } = run(t, { env: { CHECKS: PASS } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.equal(polls(calls), 2);
+});
+
+test('only skipped checks are not a pass while the real run may still register', t => {
+  const { out, calls } = run(t, { env: { WAIT_FOR_CHECKS_GRACE: '30', CHECKS_SEQ: [SKIPPED, SKIPPED, `${SKIPPED}\\npending\\tunit\\thttps://ci/1`, `${SKIPPED}\\nfail\\tunit\\thttps://ci/1`].join('|') } });
+  assert.match(out, /RESULT: FAILURE/);
+  assert.match(out, /unit {2}https:\/\/ci\/1/);
+  assert.equal(polls(calls), 4);
+});
+
+test('a check that appears after the others finished is waited for', t => {
+  const { out, calls } = run(t, { env: { CHECKS_SEQ: [PASS, `${PASS}\\npending\\tdeploy\\thttps://ci/2`, `${PASS}\\npass\\tdeploy\\thttps://ci/2`].join('|') } });
+  assert.match(out, /RESULT: SUCCESS/);
+  assert.equal(polls(calls), 4);
+});
+
+test('a repo whose checks all skip passes once the grace period ends', t => {
+  const { out } = run(t, { env: { CHECKS: SKIPPED } });
+  assert.match(out, /RESULT: SUCCESS/);
 });

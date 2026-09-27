@@ -75,6 +75,6 @@ Discover the preview with [preview-url.sh](scripts/preview-url.sh); never constr
 
 ## 5. Report
 
-A normal save reports branch and commit, PR link, the change or archive and its Status, facts added, superseded, and dropped (or skipped) and whether stored or spooled, CI result with fixes or uncertainty, and the preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, the actual value. Name the continue command only for an active change. Keep errors explicit.
+For a non-technical reader who ran `/save` themselves, report the outcome and one link by [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level); give the lines below only when asked. Otherwise a normal save reports branch and commit, PR link, the change or archive and its Status, facts added, superseded, and dropped (or skipped) and whether stored or spooled, CI result with fixes or uncertainty, and the preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, the actual value; inside another verb, always print it, whatever the reader, because the caller reads it. Name the continue command only for an active change. Keep errors explicit.
 
 Invoked directly, it ends with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) after the gate line — normally continue the tasks, ship it (*publish it*, for a non-technical reader), or stop. Inside an authorized chain, return without asking.
