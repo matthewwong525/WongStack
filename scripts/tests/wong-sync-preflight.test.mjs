@@ -193,6 +193,23 @@ test('the marked root block ignores unrelated target prose', t => {
   assert.equal(report.changes[0].localState, 'installed-equivalent');
 });
 
+test('a target CLAUDE.md that links to AGENTS.md reads its block through the link', t => {
+  const manifest = inventory({
+    core: { blocks: [{ file: 'CLAUDE.md', markers: ['WONG-STACK:BEGIN', 'WONG-STACK:END'] }] },
+  });
+  const f = fixture(t, { manifest });
+  const local = readFileSync(join(f.target, 'CLAUDE.md'));
+  rmSync(join(f.target, 'CLAUDE.md'));
+  writeFileSync(join(f.target, 'AGENTS.md'), local);
+  symlinkSync('AGENTS.md', join(f.target, 'CLAUDE.md'));
+  write(f.source, 'CLAUDE.md', 'source header\n<!-- WONG-STACK:BEGIN -->\nblock latest\n<!-- WONG-STACK:END -->\nsource footer\n');
+  f.commit('change block');
+  const block = () => f.inspect().changes.find(change => change.kind === 'block');
+  assert.equal(block().localState, 'installed-equivalent');
+  write(f.target, 'AGENTS.md', 'target header\n<!-- WONG-STACK:BEGIN -->\nblock edited locally\n<!-- WONG-STACK:END -->\n');
+  assert.equal(block().localState, 'locally-adapted');
+});
+
 test('manifest evolution reports newly selected and retired logical units', t => {
   const f = fixture(t, { manifest: inventory({ core: { files: ['old.txt'] } }), targetFiles: { 'old.txt': 'old\n' } });
   write(f.source, 'old.txt', 'old\n');

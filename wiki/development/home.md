@@ -1,6 +1,6 @@
 # Home
 
-Home is the WongStack repo for one person's own life: an ordinary full install, recorded once per machine so that every other repo can reach it. It has no mode. It follows the [same rules](../../CLAUDE.md#rules) as every repo — plain requests done directly, code through [the change loop](the-change-loop.md), [repeatable knowledge](../wiki-style.md#repeatable-knowledge) written when learned. Home differs only in what other repos read from it and send to it.
+Home is the WongStack repo for one person's own life: an ordinary full install, recorded once per machine so that every other repo can reach it. It has no mode. It follows the [same rules](../../AGENTS.md#rules) as every repo — plain requests done directly, code through [the change loop](the-change-loop.md), [repeatable knowledge](../wiki-style.md#repeatable-knowledge) written when learned. Home differs only in what other repos read from it and send to it.
 
 ## The machine record
 
