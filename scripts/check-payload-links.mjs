@@ -98,9 +98,13 @@ function walk(dir) {
 // a target's own `README.md` was pointing at the wrong file anyway.
 const TARGET_PROVIDED = MANIFEST.seededBySetup.files;
 
-/** The files a target receives, as logical paths: every install takes every category. */
+/**
+ * The files a target receives, as logical paths: every install takes every
+ * category. Every install also keeps its rules in a real `AGENTS.md`, with
+ * `CLAUDE.md` linking to it, like this repo.
+ */
 function payload() {
-  const files = new Set(["CLAUDE.md"]);
+  const files = new Set(["CLAUDE.md", "AGENTS.md"]);
   const addCategory = (cat) => {
     if (!cat) return;
     for (const f of cat.files ?? []) files.add(f);
@@ -163,7 +167,8 @@ function checkDead(files) {
   // contents are the target's business, not ours to lint.
   const targets = new Set([...files, ...TARGET_PROVIDED]);
   for (const file of files) {
-    if (!file.endsWith(".md")) continue;
+    // The rules file is scanned once, as the block `CLAUDE.md` reads through its link.
+    if (!file.endsWith(".md") || file === "AGENTS.md") continue;
     const abs = join(ROOT, file === "CLAUDE.md" ? realPath("CLAUDE.md") : physical(file));
     if (!existsSync(abs)) continue;
     let raw = readFileSync(abs, "utf8");
@@ -237,14 +242,6 @@ function realPath(path) {
   return path.endsWith("/") ? `${current}/` : current;
 }
 
-function isFile(path) {
-  try {
-    return statSync(join(ROOT, path)).isFile();
-  } catch {
-    return false;
-  }
-}
-
 /** Every live Markdown file: tracked or new, outside the archive, not itself a link. */
 function liveMarkdown() {
   const listed = git("ls-files", "-co", "--exclude-standard");
@@ -280,13 +277,12 @@ function repoNames() {
   return names;
 }
 
-function checkSymlinked(shipped, targets) {
+function checkSymlinked() {
   const found = [];
   const names = repoNames();
   for (const file of liveMarkdown()) {
     const { text, offset } = scanned(file);
     const body = maskCode(text);
-    const ships = shipped.has(logical(file));
     for (const { target, index } of references(body)) {
       const [path, anchor] = target.split(/#(.*)/s);
       if (!path) continue;
@@ -296,9 +292,6 @@ function checkSymlinked(shipped, targets) {
       if (resolved.startsWith("..")) continue;
       const hit = firstLink(resolved);
       if (!hit) continue;
-      // A page that ships may link a file its target receives as a real file:
-      // `CLAUDE.md` is a link here and the target's own file there.
-      if (ships && !hit.rest && isFile(realPath(resolved)) && targets.has(resolved)) continue;
       const real = realPath(resolved);
       const suggestion = (posix.relative(posix.dirname(file), real.replace(/\/$/, "")) || ".") +
         (real.endsWith("/") ? "/" : "") + (anchor != null ? `#${anchor}` : "");
@@ -323,7 +316,7 @@ function checkSymlinked(shipped, targets) {
 
 const shipped = payload();
 const dead = checkDead(shipped);
-const symlinked = checkSymlinked(shipped, new Set([...shipped, ...TARGET_PROVIDED]));
+const symlinked = checkSymlinked();
 
 if (dead.length) {
   console.error(`${dead.length} dead link(s): they resolve in no install.`);

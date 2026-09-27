@@ -93,15 +93,22 @@ test('an .agents/ link from a shipped page to a file no target receives is dead'
   assert.match(result.stderr, /dead link.*\n\s+wiki\/shipped\.md -> \.\.\/\.agents\/skills\/other\/SKILL\.md/);
 });
 
-test('CLAUDE.md: a shipped page may link it, a repo page must link AGENTS.md', t => {
+test('CLAUDE.md: shipped and repo pages alike must link AGENTS.md', t => {
   const root = fixture(t, {
     'wiki/shipped.md': '# Shipped\n\n[rules](../CLAUDE.md#rules)\n',
     'wiki/local.md': '# Local\n\n[rules](../CLAUDE.md#rules)\n',
   });
   const result = check(root);
   assert.equal(result.status, 1, result.stdout);
-  assert.match(result.stderr, /wiki\/local\.md:3 -> \.\.\/CLAUDE\.md#rules\n\s+real path: AGENTS\.md\s+link: \.\.\/AGENTS\.md#rules/);
-  assert.doesNotMatch(result.stderr, /wiki\/shipped\.md/);
+  for (const page of ['shipped', 'local']) {
+    assert.match(result.stderr, new RegExp(`wiki/${page}\\.md:3 -> \\.\\./CLAUDE\\.md#rules\\n\\s+real path: AGENTS\\.md\\s+link: \\.\\./AGENTS\\.md#rules`));
+  }
+});
+
+test('a shipped page may link AGENTS.md, which every target keeps', t => {
+  const root = fixture(t, { 'wiki/shipped.md': '# Shipped\n\n[rules](../AGENTS.md#rules)\n' });
+  const result = check(root);
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test('the git tree names the link when the working tree holds it as a text file', t => {
