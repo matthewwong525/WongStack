@@ -32,5 +32,5 @@
 
 ## 5. Release
 
-- [x] 5.1 `VERSION` 25.4.1 → 25.5.0 and a `CHANGELOG.md` entry, with an **Updating** note: nothing to do by hand; a renamed memory skill now breaks the worktree lookup
+- [x] 5.1 `VERSION` 25.5.0 → 25.6.0 and a `CHANGELOG.md` entry, with an **Updating** note: nothing to do by hand; a renamed memory skill now breaks the worktree lookup
 - [x] 5.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, `openspec validate --specs --strict --no-interactive`, and `node scripts/measure-context.mjs --check`

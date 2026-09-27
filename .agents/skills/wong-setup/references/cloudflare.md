@@ -128,7 +128,7 @@ Apply the id-free config fragments now — `package.json` scripts, `.env.example
 3. **The bucket, only when R2 is on.** Reuse or `POST /accounts/{account_id}/r2/buckets` with `{"name":"<repo>-memory"}`. Buckets are private by default; never turn on public access.
 4. **Record** the ids under `components.memory` in `.claude/.wong-stack.json` — `accountId`, `databaseId`, `database`, and `bucket` (or `null`) — and the memory URL as `worker`: `https://<worker>.<subdomain>.workers.dev/_memory`, with `<subdomain>` from `GET /accounts/{account_id}/workers/subdomain`. None of them is a secret.
 5. **Apply the schema.** With `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`, run `$M migrate`. With a Worker recorded, it runs with `CLOUDFLARE_API_TOKEN`.
-6. **The admin key.** Run `$M member add "$(git config user.email)" --admin --env`. It writes the key to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env` and never prints it. It needs `D1 Write`; widen if it names it. Mint no Cloudflare token for memory. **Never** set the key as a GitHub secret: CI must not read transcripts.
+6. **The admin key.** Run `$M member add "$(git config user.email)" --admin --env`. It writes the key to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env` and never prints it. It needs `D1 Write`; widen if it names it. Mint no Cloudflare token for memory. Teammates need no key from you: they [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once CI has deployed production. **Never** set the key as a GitHub secret: CI must not read transcripts.
 
 [4c](#4c-the-two-app-databases-and-the-config) binds the store in the production Worker's config. Memory answers once CI deploys production; until then, facts wait in the local spool. [4g](#4g-smoke-test-what-you-built) checks it.
 
@@ -139,7 +139,7 @@ Apply the id-free config fragments now — `package.json` scripts, `.env.example
 2. After that change merges and production deploys, run step 6, then check `$M digest` through the Worker.
 3. Only when that passes, delete the old token: find `<repo>-memory` in `GET /user/tokens`, then `DELETE /user/tokens/{id}`.
 
-If the check fails, put the old token back in `.env` and stop. Teammates who held the old token need a member key: [add a teammate](../../../../wiki/development/memory.md#add-or-remove-a-teammate).
+If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key on their next session, through [joining through GitHub](../../../../wiki/development/memory.md#joining-through-github); `member add` is the fallback for someone without GitHub access.
 
 ### 4c. The two app databases and the config
 
