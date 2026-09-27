@@ -1,14 +1,14 @@
 ---
 name: ship
-description: Ship a completed change through archive, one /save checkpoint, CI or PR review, preview evidence, and squash merge. If the change is unfinished, invoke /apply first; /apply can invoke /plan and /explore. Use when you want work shipped, merged, and archived.
+description: Ship a finished change: archive, save, pass CI or review, check the preview, squash-merge; runs /apply first if unfinished.
 user-invocable: true
 ---
 
 # /ship
 
-Invoking `/ship` authorizes, without a prompt, archiving a **complete** change, the `/save` checkpoint, the walk, the merge, remote-branch deletion, the post-merge sync, and [the pull-in](#the-pull-in-nothing-to-ship-yet) with any save a task needs — **not** archiving unchecked tasks, which [Step 2](#step-2--archive-the-change) finishes instead of asking. Confirm anything else (a force push, `--no-verify`, `git reset --hard`, `checkout .`) in [the shared ask format](../explore/references/asking-the-user.md).
+Invoking `/ship` authorizes every step below without a prompt: archive, checkpoint, walk, merge, remote-branch deletion, sync, and [the pull-in](#the-pull-in-nothing-to-ship-yet) with any save a task needs. It never authorizes archiving unchecked tasks; [Step 2](#step-2--archive-the-change) finishes them. Confirm anything else (a force push, `--no-verify`, `git reset --hard`, `checkout .`) in [the shared ask format](../explore/references/asking-the-user.md).
 
-[The change loop](../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate). Leave cleanliness, consolidation, and downstream breakage to PR review. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
+[The change loop](../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate); PR review owns cleanliness, consolidation, and downstream breakage. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
 ## Step 1 — preflight
 
@@ -22,38 +22,38 @@ git log origin/main..HEAD --oneline
 gh api repos/:owner/:repo/commits/main/check-runs \
   --jq '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)'
 ```
-- Default branch with uncommitted changes → go on to [Step 2](#step-2--archive-the-change) in the same tree; Step 3's save cuts the feature branch, as after a pull-in.
-- Clean default branch, or clean tree with 0 commits ahead → [the pull-in](#the-pull-in-nothing-to-ship-yet). A dirty feature branch with 0 commits is valid.
-- Only `ok` default-branch CI proceeds, even with an intent. **Stop** on `failure` (fix it first) or `UNKNOWN` (an empty answer or failed `gh` call; report gh's message). When the failing check is the Test workflow's nightly run (its run's event is `schedule`), say in plain words that the nightly full check found a weak test, and that fixing it — a test that catches the change it missed — comes first.
-- Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`; commit, push, PR, and checks wait for `/save` after the archive.
+- Default branch with uncommitted changes → [Step 2](#step-2--archive-the-change) in the same tree; Step 3's save cuts the feature branch.
+- Clean default branch, or a clean tree 0 commits ahead → [the pull-in](#the-pull-in-nothing-to-ship-yet). A dirty feature branch with 0 commits is valid.
+- Proceed only on `ok` default-branch CI, even with an intent. **Stop** on `failure` (fix it first) or `UNKNOWN` (an empty answer or failed `gh` call; report gh's message). A failing nightly Test run (event `schedule`) means the full check found a weak test: say so plainly, and that a test catching the change it missed comes first.
+- Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`; commit, push, PR, and checks wait for `/save`.
 
 ### The pull-in: nothing to ship yet
 
-**Invoke the [`apply` skill](../apply/SKILL.md)** and say it runs inside `/ship`: it returns with **no** preview upload or `/save`, and you continue to Step 2 in the same tree.
+**Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`: it returns with **no** preview upload or `/save`, and you go on to Step 2 in the same tree.
 
-- **Intent given** (`/ship <intent>`) → pass it **verbatim**.
-- **No argument** → invoke `/apply` bare when [its resolve order](../apply/SKILL.md#resolve-the-plan-first) lands before `sole-active`, or the session states clear implementation intent with no change yet.
-- **The cold stop.** Landing on `sole-active` or nothing → **stop and say** there is nothing to continue and `/ship <intent>` starts a new change; never silently.
+- **`/ship <intent>`** → pass the intent **verbatim**.
+- **No argument** → invoke `/apply` bare when [its resolve order](../apply/SKILL.md#resolve-the-plan-first) lands before `sole-active`, or the session states clear intent with no change yet.
+- **The cold stop.** Landing on `sole-active` or nothing → **say** there is nothing to continue and `/ship <intent>` starts a new change, then stop.
 
 A feature branch with work runs the ordinary runbook, intent or not; `/ship` resolves nothing itself.
 
-If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` fails or is unverifiable, report the blocker and stop before Step 2: [no verb merges to stop](../../../wiki/development/the-change-loop.md). A one-go run has **one** checkpoint, Step 3's.
+`/plan` pauses, tasks stay pending, or a task-driven `/save` fails or is unverifiable → report the blocker and stop before Step 2 ([no verb merges to stop](../../../wiki/development/the-change-loop.md)). A one-go run has **one** checkpoint: Step 3's.
 
-**Work that changes no repo file** finishes in `/apply`: say so in one line and stop; no git change.
+**Work that changes no repo file** finishes in `/apply`: say so in one line and stop, with no git change.
 
 ## Step 2 — archive the change
 
-Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → apply `/save`'s test for authoring one to the branch diff: code or a plan for code → author the change from the session and the diff by [the new-plan fallback](../save/references/new-plan.md), select it as `explicit`, and continue below. Anything else needed no change: skip the archive and the distillation below, and go to Step 3 with no `CHANGE_NAME`.
+Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → apply `/save`'s authoring test to the branch diff. Code or a plan for code → author the change from the session and diff by [the new-plan fallback](../save/references/new-plan.md) and select it as `explicit`. Anything else needs no change: skip to Step 3 with no `CHANGE_NAME`.
 
-**Several active change folders** in the branch diff or working tree → stop before archive, even with an explicit selection: the merge would carry them all. Ask [as options](../explore/references/asking-the-user.md), naming them: move the others off the branch *(Recommended)*, or ship all on purpose. Require `openspec/changes/$CHANGE_NAME/`; keep `CHANGE_NAME` fixed through archive and checkpoint.
+**Several active change folders** in the branch diff or tree → stop before archive, even with an explicit selection: the merge would carry them all. Ask [as options](../explore/references/asking-the-user.md), naming them: move the others off the branch *(Recommended)*, or ship all on purpose. Require `openspec/changes/$CHANGE_NAME/`; keep `CHANGE_NAME` fixed through archive and checkpoint.
 
-**Read `tasks.md` before archiving.** Unchecked tasks (`- [ ]`) → invoke [`apply`](../apply/SKILL.md) for that exact change, inside `/ship`, then re-read; archive only when every task is checked. Never let this runbook's authorization answer the archive step's incomplete-task confirmation. Still pending → report that work and stop.
+**Read `tasks.md` first.** Unchecked tasks (`- [ ]`) → invoke [`apply`](../apply/SKILL.md) for that change inside `/ship`, then re-read; still pending → report and stop. Never let this runbook's authorization answer the archive's incomplete-task confirmation.
 
-By [the CLI contract](../plan/references/openspec-cli.md#validate-and-archive), which owns `--skip-specs`, stop unless `openspec status --change "$CHANGE_NAME" --json` shows every schema artifact complete or deliberately skipped and `openspec validate "$CHANGE_NAME" --strict --no-interactive` passes. After the task check, validation, and the distillation below, run `openspec archive "$CHANGE_NAME" --yes`, verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists, and keep its path.
+[The CLI contract](../plan/references/openspec-cli.md#validate-and-archive) owns `--skip-specs`. Stop unless `openspec status --change "$CHANGE_NAME" --json` shows every schema artifact complete or deliberately skipped and `openspec validate "$CHANGE_NAME" --strict --no-interactive` passes. Then, after the distillation, run `openspec archive "$CHANGE_NAME" --yes`, verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists, and keep its path.
 
 ### Distill the change's facts into the wiki
 
-Before the archive, catch the [repeatable knowledge](../../../wiki/wiki-style.md#repeatable-knowledge) sessions missed in the live facts of the change, its branch, and every session that wrote a fact on the change, so a renamed branch loses none:
+Before the archive, catch the [repeatable knowledge](../../../wiki/wiki-style.md#repeatable-knowledge) sessions missed, from the live facts of the change, its branch, and every session that wrote a fact on it, so a renamed branch loses none:
 
 ```bash
 M="$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"
@@ -62,66 +62,67 @@ node "$M" search --branch "$BRANCH" --change "$CHANGE_NAME" --limit 200   # feat
 node "$M" search --change "$CHANGE_NAME" --limit 200                      # main
 ```
 
-Run `show`, then the search for where you are. On `main`, leave out `--branch`: it would return every fact saved on `main`. Deduplicate the outputs. Place each repeatable one by [the wiki rules](../../rules/wiki.md): extend its owning page, or add a page linked from its hub; never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. [Store unreachable](../memory/SKILL.md#read) → log the step skipped and continue. The edits ride in this PR's archive checkpoint.
+Run `show`, then the search for where you are; on `main`, omit `--branch`: it would return every fact saved there. Deduplicate, then place each repeatable fact by [the wiki rules](../../rules/wiki.md), never a private-life one. Append one Decision-log line naming the pages changed, or `no repeatable fact`. [Store unreachable](../memory/SKILL.md#read) → log the step skipped and go on. The edits ride in the archive checkpoint.
 
 ## Step 3 — delegate the checkpoint to /save
 
-First, number the release. A change that writes a `## Next (patch|minor|major) — <Title>` entry in `CHANGELOG.md` gets its number here, from `main`'s version, so two changes in flight never take the same one:
+First, number the release: a `## Next (patch|minor|major) — <Title>` entry in `CHANGELOG.md` gets its number from `main`'s version here, so two changes in flight never share one:
 
 ```bash
 git fetch origin main
 node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/number-release.mjs"
 ```
 
-- `release=none` → nothing to number; go on. A repo with no `CHANGELOG.md` always lands here.
-- `release=X.Y.Z from=A.B.C` → `VERSION` and the entry's heading are written; they ride in this checkpoint.
-- `behind=yes` → `git merge origin/main`, resolve `CHANGELOG.md` as the union of intent with this branch's entry on top, and run the script again.
+- `release=none` → nothing to number (always, with no `CHANGELOG.md`).
+- `release=X.Y.Z from=A.B.C` → `VERSION` and the heading are written; they ride in this checkpoint.
+- `behind=yes` → `git merge origin/main`, resolve `CHANGELOG.md` as the union of intent with this branch's entry on top, and rerun the script.
 - Exit 1 → report its message and stop before `/save`.
 
-**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim**, with the exact `CHANGE_NAME` and archive path when there is a change. Proceed only on `SUCCESS` or `NONE` (invoking `/ship` is the approval where no checks exist). On `UNKNOWN`, `TIMEOUT`, or `FAILURE`, stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
+**Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim**, with the exact `CHANGE_NAME` and archive path if any. Proceed only on `SUCCESS` or `NONE` (with no checks, invoking `/ship` is the approval). On `UNKNOWN`, `TIMEOUT`, or `FAILURE`, stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
 
 ## Step 4 — verify the preview (evidence, not a gate)
 
-**Invoke the `verify` skill once**, verbatim; never skip or re-run it for a better verdict. No `verify` skill → say so in one line and go on; never install it.
+**Invoke the `verify` skill once**, verbatim; never skip it or rerun it for a better verdict. No `verify` skill → say so in one line and go on; never install it.
 
-- `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue to the merge.
-- `FAILURE` after `/verify`'s own fix attempts → **stop and ask the user** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or merge anyway and record that the walk failed. Say what does not work in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what they would see on the preview, and *publish anyway* for the merge.
+- `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and merge.
+- `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) what they would see not working on the preview.
 
 If the walk's fixes advanced `HEAD`, confirm their `/save` result is `SUCCESS` or `NONE` and merge that commit.
 
 ## Step 5 — merge and sync
 
-Run the merge script once. It merges exactly the gated commit, retargets stacked PRs **before** deleting the branch, and fast-forwards the checkout that has `main` out:
+Run the merge script once. It merges exactly the gated commit, retargets stacked PRs **before** deleting the branch, and fast-forwards the `main` checkout:
 
 ```bash
 bash "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/merge.sh"
 ```
 
 - **Exit 0** → merged; a skipped sync is one report line, never a failure.
-- **Exit 1** → not merged, nothing deleted: report the error and stop.
+- **Exit 1** → not merged, nothing deleted: report the error and stop, except the two cases below.
 - **Exit 2** → merged, but a retarget or delete failed; the branch and its stacked PRs stay. Report it.
-- **`stale_version=<version>`** (with exit 1) → another release took this one's number while it waited. `git fetch origin main` → `git merge origin/main`, run the numbering script from [Step 3](#step-3--delegate-the-checkpoint-to-save) again, and invoke ordinary `/save`; re-run the merge script only on `SUCCESS` or `NONE`.
 
-A **merge conflict** exits 1: `git fetch origin main` → `git merge origin/main` (not rebase, unless asked), resolve each file as the **union of intent**, run the numbering script again, and invoke ordinary `/save` again; re-run the script only on `SUCCESS` or `NONE`. Never check out, switch, stash, reset, or force a branch to make the sync succeed, or delete a local branch.
+Both cases exit 1 and recover the same way: `git fetch origin main` → `git merge origin/main`, rerun the numbering script from [Step 3](#step-3--delegate-the-checkpoint-to-save), invoke ordinary `/save`, and rerun the merge script only on `SUCCESS` or `NONE`.
+
+- **`stale_version=<version>`**: another release took this number meanwhile.
+- **A merge conflict**: merge, not rebase, unless asked; resolve each file as the **union of intent**. Never check out, switch, stash, reset, or force a branch to make the sync succeed, or delete a local branch.
 
 ### Promote the branch's secret edits
 
-From the shipped worktree, promote its deferred secret edits (deletions, branch-only values) to the primary:
+From the shipped worktree, promote deferred secret edits (deletions, branch-only values) to the primary:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/worktree-secrets.mjs" promote
 ```
 
-It prints key names, never values, and skips and names a key the primary also changed; [the secrets convention](../../../wiki/development/secrets.md) owns the rest. Any error is one report line and cannot fail the ship.
+It prints key names, never values, and skips and names a key the primary also changed; [the secrets convention](../../../wiki/development/secrets.md) owns the rest. An error is one report line, never a failed ship.
 
 ## Step 6 — report
 
-Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): *it is live*, what changed for the person, and the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. The rest below except *Checks loosened* comes only when they ask; then print `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`), plus:
+Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. Always add **Checks loosened**: each `Check:` bullet in the archived Decision log, one plain line; omit when none ([why](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)). Only when asked, add `merge.sh`'s `key=value` lines (`merged`, `pr`, `url`, `retargeted`, `branch`, `synced`) and:
 
-- **Archived** — the archive path; a branch that needed no change says so in one line.
+- **Archived** — the path, or one line that no change was needed.
 - **Checkpoint** — `/save`'s result and CI outcome, auto-fix pushes included.
 - **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it; an absent skill is one line.
-- **Secrets** — promoted, skipped, and unresolved key names, never a value, or why it was skipped.
-- **Checks loosened** — each `Check:` bullet in the archived Decision log, one plain line; omit when none ([the gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)).
+- **Secrets** — promoted, skipped, and unresolved key names (never values), or why it was skipped.
 
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally open the next piece of work the person asked for in a new workspace *(Recommended)*, by [next work](../plan/references/new-workspace.md#next-work), walk the merged app, or stop here; after a stop, the ways to clear the blocker. From a Paseo worktree, also offer *Close this workspace*, recommended when no next work is waiting; [next work](../plan/references/new-workspace.md#next-work) owns how it runs.
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): open the next work the person asked for in a new workspace *(Recommended)*, walk the merged app, or stop here; after a stop, the ways to clear the blocker. From a Paseo worktree, also offer *Close this workspace*, recommended when no next work waits. [Next work](../plan/references/new-workspace.md#next-work) owns how both run.

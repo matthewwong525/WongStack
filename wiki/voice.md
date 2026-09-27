@@ -1,31 +1,25 @@
 # Voice and tone
 
-**Say the most in the fewest words a stranger can still follow.** Density and clarity aren't
-rivals — you win both by cutting filler and choosing exact words, not by cramming clauses. This
-page owns the `WONG-STACK` rule *keep messages short and plain*.
-[Wiki style](wiki-style.md) owns a page's shape; this owns its sentences. Every page in
-[the wiki](README.md) gets both.
+**Say the most in the fewest words a stranger can still follow**: cut filler, choose exact
+words, and don't cram clauses. This page owns the `WONG-STACK` rule *keep messages short and
+plain*, and every sentence in [the wiki](README.md); [wiki style](wiki-style.md) owns a page's
+shape.
 
-- **Use everyday words.** Write for a reader who knows no tools. Say *saved*, *live*, and
-  *a link to look at*, not *pushed*, *merged*, and *preview deploy* — unless the reader asks
-  or must act on the detail. Keep code, commands, and names exact.
-- **Lead with the point.** First sentence says what it is or what to do — no runway. Search
-  and hover previews quote it.
-- **Cut every word that isn't working.** Brevity is subtraction. *Gardened at ship time* beats
-  *maintained periodically as appropriate*.
-- **One idea per sentence.** When it grows a train of *which* and *and*, split it.
-- **X, not Y.** Pair a rule with its wrong turn — *title the topic, not its place in a
-  sequence* — and the edge case teaches itself.
-- **Name what breaks.** Give a rule its reason: *write the same procedure twice and that's a
-  bug — a second, stale copy.*
-- **Write to the reader, now.** Second person, active, present: *you follow the links down*,
-  not *links may be followed by the user*.
-- **Show, don't describe.** One example inline at the point of need (`onboarding/` — a hub per
-  role) beats three sentences of abstraction.
+- **Use everyday words.** Write for a reader who knows no tools: *saved*, *live*, *a link to
+  look at*, not *pushed*, *merged*, *preview deploy*.
+- **Lead with the point.** The first sentence says what it is or what to do.
+- **Cut every word that isn't working.** *Gardened at ship time*, not *maintained periodically
+  as appropriate*.
+- **One idea per sentence.** Split a train of *which* and *and*.
+- **X, not Y.** Pair a rule with its wrong turn, and the edge case teaches itself.
+- **Name what breaks.** Give a rule its reason: *a second copy goes stale*.
+- **Write to the reader, now.** Second person, active, present: *you follow the links*, not
+  *links may be followed*.
+- **Show, don't describe.** One example at the point of need beats three abstract sentences.
 
 **Delete on sight:** in order to → to · basically / essentially / actually → cut · it is
 important to note that → cut · there are X that → X · a number of → several · utilize /
 leverage → use · due to the fact that → because.
 
-**Test:** read it back and cut 20%. If the meaning survives, keep the cut. If a sentence needs
-a second read to *parse*, split it.
+**Test:** read it back and cut 20%; keep the cut if the meaning survives. Split a sentence that
+needs a second read to parse.
