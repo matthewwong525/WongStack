@@ -141,11 +141,24 @@ function transcriptFiles(dir) {
   return tasks;
 }
 
+// Main-thread context per skill: tokens sent on the skill's first turn and on its largest turn.
+export function skillContexts(requests) {
+  const out = {};
+  for (const request of requests) {
+    if (!request.skill) continue;
+    const context = request.input + request.cacheWrite5m + request.cacheWrite1h + request.cacheRead;
+    const entry = out[request.skill] ??= { start: context, peak: 0 };
+    entry.peak = Math.max(entry.peak, context);
+  }
+  return out;
+}
+
 const percentile = (values, p) => values.length ? [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(p * values.length))] : 0;
 
 // One task = one main session plus every subagent it spawned.
 export function measureUsage({ dir, cwd, since }) {
   const report = { total: zero(), byModel: {}, bySkill: {}, tree: { main: zero(), subagents: zero() }, misses: {}, sources: {}, unpriced: new Set(), tasks: [] };
+  const contexts = {};
   for (const files of transcriptFiles(dir)) {
     const main = parseTranscript(readFileSync(files.main, 'utf8'));
     if (!main.requests.length || (cwd && !main.cwd?.includes(cwd)) || (since && main.requests[0].time < Date.parse(since))) continue;
@@ -158,7 +171,10 @@ export function measureUsage({ dir, cwd, since }) {
         task.requests++; task.dollars += cost.dollars;
       }
       for (const miss of cacheMisses(transcript.requests)) report.misses[miss.cause] = (report.misses[miss.cause] ?? 0) + miss.dollars;
-      if (role === 'main') add(report.sources, sourceCosts(transcript.requests, transcript.chunks));
+      if (role === 'main') {
+        add(report.sources, sourceCosts(transcript.requests, transcript.chunks));
+        for (const [skill, context] of Object.entries(skillContexts(transcript.requests))) (contexts[skill] ??= []).push(context);
+      }
     }
     report.tasks.push(task);
   }
@@ -168,6 +184,10 @@ export function measureUsage({ dir, cwd, since }) {
     medianRequests: percentile(report.tasks.map(task => task.requests), 0.5), p90Requests: percentile(report.tasks.map(task => task.requests), 0.9),
     top10PercentShare: top.reduce((a, b) => a + b, 0) / Math.max(1e-9, report.total.dollars),
   };
+  report.contextBySkill = Object.fromEntries(Object.entries(contexts).map(([skill, list]) => [skill, {
+    tasks: list.length, startMedian: percentile(list.map(c => c.start), 0.5), startP90: percentile(list.map(c => c.start), 0.9),
+    peakMedian: percentile(list.map(c => c.peak), 0.5), peakP90: percentile(list.map(c => c.peak), 0.9),
+  }]));
   report.unpriced = [...report.unpriced];
   return report;
 }
@@ -189,6 +209,11 @@ function print(report) {
   rows('By active skill (turns while the skill ran, subagents included)', report.bySkill, t.dollars);
   rows('Cache-miss rewrites by cause (share of all billed cost)', report.misses, t.dollars);
   rows('Context sources, main threads (estimate: written once, read by each later request)', report.sources, t.dollars, 20);
+  const k = n => `${Math.round(n / 1000)}k`;
+  console.log('\nMain-thread context by active skill (tokens at first turn, at peak; median / p90)');
+  for (const [skill, c] of Object.entries(report.contextBySkill).sort((a, b) => b[1].tasks - a[1].tasks).slice(0, 12)) {
+    console.log(`  ${skill.padEnd(32)} ${String(c.tasks).padStart(4)} tasks  start ${k(c.startMedian)} / ${k(c.startP90)}  peak ${k(c.peakMedian)} / ${k(c.peakP90)}`);
+  }
   if (report.unpriced.length) console.log(`\nUnpriced models (excluded from $): ${report.unpriced.join(', ')}`);
 }
 

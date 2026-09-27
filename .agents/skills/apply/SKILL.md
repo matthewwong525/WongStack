@@ -30,11 +30,24 @@ For a resolved existing change, run `openspec status --change "<name>" --json` a
 
 The user's `/apply` invocation authorizes the plan-then-implement shortcut. After `/plan` returns, verify that its `applyRequires` dependency closure is complete. If planning paused or remains blocked, report that and stop. Otherwise announce and keep the selected change's **exact name**; another active change must not replace it.
 
-Run `openspec instructions apply --change "<name>" --json` for that selected change, applying the [CLI contract](../plan/references/openspec-cli.md) for a store or non-default schema. Read every `contextFiles` path it reports. Work the pending tasks in order, make the edits, mark each completed checkbox, and refresh progress from the same change. A `blocked` state stops implementation; an `all_done` state goes to the completion handoff. Treat returned context as project constraints and operation guidance as advice, not evidence that a task is done. Report incomplete work or actual blockers.
+Then [build in a helper](#build-in-a-helper). Report incomplete work or actual blockers.
 
 When it reaches an **all-tasks-complete** state — including when the selected change was already complete at invocation — [finish with a preview](#finish-with-a-preview). When a task-driven `/save` completed the final task, report from its result and its CI preview instead, with no upload.
 
 **Inside `/ship`, return instead.** When `/ship` invoked you, report completion and return with no upload and no `/save`: `/ship` archives and makes the run's one checkpoint.
+
+## Build in a helper
+
+Work the tasks in a fresh helper agent, so the build does not carry this conversation's planning talk. In Claude Code, start it with the Agent tool (`general-purpose`); in Codex, spawn a sub-agent. Keep the parent's model. The prompt is two lines: the exact change name, and *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. [The brief](references/build-helper.md) owns what the helper does and what it returns.
+
+Read each report and act on its stop:
+
+- **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), then start a new helper for the tasks left.
+- **A gate task** → run `/save` for it, as [the boundaries](#boundaries) say, mark it on success, then start a new helper.
+- **A blocker** → report it and stop.
+- **All done** → check that `tasks.md` has no unticked box, then handle the **all-tasks-complete** state above.
+
+When no helper can start, or this `/apply` already runs inside one, work the tasks inline: follow the brief's *Build* steps, and handle each stop here. The parent owns the preview, the loosened checks, and the report.
 
 ## Finish with a preview
 
@@ -63,7 +76,7 @@ Completion never saves. The work stays in this working tree until the person sav
    Fix each file it marks *needs a reason* without asking: switch the check back on, or add the `Check:` bullet [the gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) describes. Run it again until it exits 0.
 4. **Report and ask.** Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview URL, with `/apps/<name>/` added for a mini app. When the change has `Check:` bullets, list each one under *Checks loosened* in one plain line — what no longer gets checked, and why — and name any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)*, change it more, or save it to keep the progress. Publishing runs [`/ship`](../ship/SKILL.md). Saving runs [`/save`](../save/SKILL.md), which opens the pull request.
 
-Each further change the person asks for repeats these steps under the same alias.
+Each further change the person asks for repeats these steps under the same alias. Make a small edit in this conversation; a change that adds tasks to `tasks.md` goes through a new helper.
 
 ## Work that changes no repo file
 
