@@ -1,11 +1,11 @@
 # Create a missing plan at save
 
-Load only when code or a plan for code exists and no applicable change was selected. Conversation-only work uses [the facts-only save](facts-save.md); any other file edit with no change keeps save's normal route, without a plan. An archived handoff never enters this fallback.
+Load only when code or a code plan exists and no change was selected. Conversation-only work takes [the facts-only save](facts-save.md); any other file edit with no change keeps save's normal route, without a plan. An archived handoff never enters this fallback.
 
-Derive a concise plan from the session and relevant diff. It must preserve the current intent, constraints, rationale, and facts a cold reader needs. Use repo-relative paths; keep any needed fact from terminal or scratch state in the change. Ask only when the intended work cannot be resolved.
+Derive a concise plan from the session and relevant diff, holding the intent, constraints, rationale, and facts a cold reader needs, even those only in terminal or scratch state, with repo-relative paths. Ask only if the intent cannot be resolved.
 
-Follow the [CLI contract](../../plan/references/openspec-cli.md). Create the change with `openspec new change "$NAME"`, read status, then obtain each ready artifact's instructions before writing. Honor the selected root, schema, dependency closure, conditional skips, and permitted `skip_specs`; a tasks file alone is not readiness.
+Follow the [CLI contract](../../plan/references/openspec-cli.md): `openspec new change "$NAME"`, read status, then get each ready artifact's instructions before writing. A tasks file alone is not readiness.
 
-Maintain proposal Status, actual Branch, Open questions, and an initial dated Decision log. Write tasks with their true completion state. Write design and spec artifacts when required by the schema and change. Produce the required review through [plan](../../plan/SKILL.md): its drawings and review-page build still apply. Do not reproduce these procedures here or bypass review because implementation happened first.
+Maintain proposal Status, actual Branch, Open questions, and an initial dated Decision log. Write tasks with their true state, and design and spec artifacts when the schema and change require them. Produce the review, drawings and page included, through [plan](../../plan/SKILL.md), even after implementation.
 
-Return the exact selected change name and CLI-reported root to save. The handoff and code belong in the same checkpoint.
+Return the exact change name and CLI-reported root to save; the handoff and code go in the same checkpoint.

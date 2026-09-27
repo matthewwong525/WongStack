@@ -44,12 +44,11 @@ None.
 
 ### Modified Capabilities
 
-- `delivery-gate`: the prose exception is removed; every save that changes a file takes a branch, a pull request, and the gate, and needs an OpenSpec change only for code. `/ship` merges a branch that needed no change without an archive. No surface may describe a path-specific save route.
-- `people-wiki`: *The agent writes what it learns* — a wiki edit is saved like any other file, through a pull request, not straight to `main`.
-- `dependency-currency`: a scenario's reason drops its mention of the prose allowlist.
-- `open-source-release`: the ruleset no longer names an owner bypass for prose saved straight to the default branch.
-- `context-economy`: the prose save route is named the facts-only save.
-- `payload-checks`: the payload workflow skips lint, shell checks, and the script suite (except the private-names scan) when every changed path is under `wiki/` or `openspec/`.
+- `delivery-gate`: *Wiki-only saves go straight to the default branch* is removed; every file edit takes a branch, a pull request, and the gate, needing an OpenSpec change only for code; `/ship` merges work that needed no change; the doctrine owner names no path-specific route.
+- `knowledge-center`: *The agent writes what it learns when it learns it* — the wiki edit goes through a pull request.
+- `context-economy`: save's conditional procedures name facts-only, not prose-only.
+- `open-source-release`: the ruleset keeps no owner bypass for prose.
+- `payload-checks`: the payload workflow skips lint, shell checks, and the script suite when every changed path is under `wiki/` or `openspec/`.
 
 ## Impact
 
@@ -86,3 +85,4 @@ None.
 - **2026-09-27** — CI passed on PR #156 (task 4.2); every task is done.
 - **2026-09-27** — Asked, after the save report left out the plan's link twice, what next → chose add the fix to this change, then publish, and make sure the link shows next time.
 - **2026-09-27** — Assumed: the save and publish reports missed the link because their "one link" rule never named the plan-link rule, and the second miss came from the host hiding chat text written above a question card; so the reports now name the rule, and the question's own text carries the plan's path.
+- **2026-09-27** — Merged main's 25.15.0–25.17.0 (thinner specs #157, shorter skills #151) at ship time. The spec deltas were rewritten against the merged capabilities (`people-wiki` → `knowledge-center`, `dependency-currency` → `dependencies`, which no longer mentions the allowlist) in the promise-not-procedure style, and the skill conflicts were resolved on main's shorter text with this change's rules kept. Release stays 26.0.0, above main's 25.17.0.

@@ -14,6 +14,30 @@
 
 **Updating.** Major: installed repos lose the direct-to-`main` wiki route their agents used. `/wong-sync` removes the block's prose line and brings the skill, script, and page edits. If your default branch's ruleset lets the owner bypass it for wiki saves, you can drop that bypass.
 
+## 25.17.0 — Shorter skill instructions
+
+- **The same rules in fewer words.** Every skill's `SKILL.md` and `references/*.md` is rewritten in [our voice](wiki/voice.md): 13,476 → 10,202 words across the `SKILL.md` files (−24%) and 18,286 → 15,693 across references (−14%). A rule another page owns is now a link to it, reasons the wiki gives are cut, and one example stands where there were several. No rule, command, flag, path, heading, or code block changed. The vendored `agent-browser` skill is untouched.
+- **`stack-pack-fragments.md` lists seven `wrangler.jsonc` rules, not eight.** The eighth repeated the first (`migrations_dir`); its one extra point now sits in the first.
+
+**Updating.** `/wong-sync` brings every skill file. A skill you adapted locally shows as a conflict; keep your adaptation and take the new wording around it.
+
+## 25.16.0 — Thinner specs: keep the promises, cut the how
+
+- **A spec states a promise, not a procedure.** `.claude/rules/openspec.md` gains the spec bar. A requirement stays when a person or an installed repo relies on it: what they see or get, what must never happen, and what an update delivers or keeps. The steps, script and file names, and exact wording stay in the skill. Each requirement gets one or two scenarios. The rule loads whenever anyone edits `openspec/`, so new specs stay short in every installed repo.
+- **WongStack's own specs follow it** (meta-only). `openspec/specs/` drops from 49 capabilities and about 84,000 words to 26 and about 26,500. Overlapping specs merge — the three about updates become `wong-sync`, the three about memory become `memory`, and so on. `/verify` walks fewer, sharper scenarios. The old wording stays in the archive.
+
+**Updating.** `/wong-sync` brings the rule. Nothing to do by hand, and your own specs are not rewritten.
+
+## 25.15.0 — Each part of a request gets its own workspace
+
+- **Several parts, one question.** When a request holds parts that could each be published alone, the assistant lists them and asks once: do the first here and open a new [Paseo](https://paseo.sh) workspace for each other part *(Recommended)*, do them here one at a time, or keep one change. The question rides in `/explore`'s exit round. [Several parts, several workspaces](wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule; `.agents/skills/plan/references/new-workspace.md` is the runbook.
+- **Each new workspace plans its part and waits for you.** Its agent starts with `/plan` and a brief: the part in your words, the answers already settled, the other parts and where they are, and any part it builds on. A part that builds on another opens at once and is told the other part is being built or about to publish.
+- **The next work is one choice away.** `/ship`'s closing question offers the next part you asked for in a new workspace. `/continue` offers a new workspace instead of switching branches when this one still holds unpublished work.
+- **`workspace.mjs` opens the workspace.** The new script in `.agents/skills/routine/scripts/` fetches the default branch and starts the workspace from it. The new agent gets the calling chat's model, thinking, and permission mode, and no parent, so it lives on after the chat. It shares a new `lib/paseo.mjs` with `routine.mjs`, and uses the same exit codes.
+- **Without Paseo, or with nobody to answer, nothing changes.** The parts are done one at a time, and an unattended run never opens a workspace.
+
+**Updating.** `/wong-sync` brings the script, the runbook, and the skill and page edits. New workspaces need [Paseo](https://paseo.sh); without it, nothing else to do.
+
 ## 25.14.0 — Plain words for everyone
 
 - **Plain words for everyone; details when asked.** Plans, questions, and reports no longer depend on a `**Technical level:**` line on the person's page. Everyone gets plain words — the outcome and one link in a report — and anyone can ask for more, for one reply or from now on, kept as a preference on their page. A verb running inside another still prints what its caller reads. *Write at the reader's level* in `explore/references/asking-the-user.md` is now [*Write in plain words*](.agents/skills/explore/references/asking-the-user.md#write-in-plain-words); `/plan`, `/apply`, `/save`, `/continue`, `/ship`, setup, and the People rules link it with no technical branch.

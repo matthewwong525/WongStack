@@ -2,221 +2,130 @@
 
 ## Purpose
 
-Adopt WongStack through the normal workflow skills, using current source skills when a new target has no installed workflow yet.
+How a person gets WongStack: one pasted prompt runs `/wong-setup` in an empty folder and installs everything through the normal workflow; the source also ships a script that makes a fresh server an agent workspace.
 
 ## Requirements
 
-### Requirement: Warm one-paste front door
+### Requirement: The README offers one prompt to paste
 
-The README SHALL present a short, beginner-friendly paste-able setup prompt that keeps the URL-read mechanism pointed at `wong-setup/SKILL.md` so the README does not drift from the runbook. The URL SHALL name the file's real path in the git tree, `.agents/skills/wong-setup/SKILL.md`, not a path through the `.claude` link. The prompt and surrounding copy SHALL frame WongStack first as a personal AI assistant that remembers the person and gets things done, built on a repo that keeps its knowledge. The README SHALL tell the user to start in an empty folder, and SHALL name a Cloudflare account and one user token as requirements. The README SHALL name a place to run the prompt that needs no terminal, such as the Claude desktop app, while making clear that any coding agent with file, edit, and shell access can follow it.
+The README SHALL give a short prompt that follows `.agents/skills/wong-setup/SKILL.md` by its real path, works in any capable coding agent, and names a place to paste it without a terminal; it SHALL say to start in an empty folder with a Cloudflare account and one token.
 
-#### Scenario: Newcomer reads the README
+#### Scenario: A newcomer reads the README
 
 - **WHEN** someone new to coding agents reads the install section
-- **THEN** they find one short prompt to paste that reads and follows the `wong-setup` runbook URL
-- **AND** they understand the setup gives them an assistant, starts in an empty folder, and needs a Cloudflare account
+- **THEN** they find one prompt, an app to paste it in, and what they need first
 
-#### Scenario: A reader without a terminal
+### Requirement: A plain walkthrough covers the whole path
 
-- **WHEN** a non-technical reader looks for where to paste the prompt
-- **THEN** the README names an app they can use without a terminal
+The payload SHALL carry a plain, numbered walkthrough for the person that names every manual step (GitHub approval, tool installs, Cloudflare signup, the token) and says setup may install free tools after asking, never implying a manual step is automated.
 
-#### Scenario: Agent-agnostic prompt
+#### Scenario: Reading before starting
 
-- **WHEN** a user runs the prompt in Claude Code, Codex, Cursor, or another capable coding agent
-- **THEN** the prompt wording does not depend on Claude-only behavior
-- **AND** the README explains the agent needs to read files, edit files, run shell commands, and ask questions
+- **WHEN** a newcomer reads the walkthrough
+- **THEN** they can tell what they must do themselves and which steps open a browser
 
-### Requirement: The paste-to-running-app path is documented for the person walking it
+### Requirement: Setup installs only into an empty folder
 
-The payload SHALL carry a short, human-facing account of the whole path — what the user does, in order, and what they get at each stage — distinct from the agent-facing provisioning runbook. It SHALL be written for someone non-technical: numbered actions, plain language, no assumed vocabulary. It SHALL state honestly which steps are irreducibly manual (a GitHub account, the GitHub browser approval, approving any tool installs, Cloudflare signup, and creating the first token) and SHALL NOT imply that steps requiring a human are automated. It SHALL say that setup may install free tools on the computer after asking, and SHALL NOT claim that nothing is installed.
-
-This document SHALL be the reference the end-to-end fresh-repo test is run against, so that a step which reads clearly but plays badly is caught.
-
-#### Scenario: A newcomer reads before starting
-
-- **WHEN** someone who has never used the toolkit reads the walkthrough
-- **THEN** they can tell how many things they personally have to do, what each one is, and roughly how long it takes
-- **AND** every step that requires leaving the agent for a browser is called out as such
-
-#### Scenario: The walkthrough matches the tested reality
-
-- **WHEN** the end-to-end fresh-repo test runs
-- **THEN** it follows this walkthrough as written
-- **AND** any divergence found is corrected in the walkthrough rather than left as tribal knowledge
-
-#### Scenario: Tool installs are disclosed
-
-- **WHEN** a newcomer reads the walkthrough or the README before starting
-- **THEN** they learn that setup may install free tools after asking
-- **AND** no page says that nothing is installed on their computer
-
-### Requirement: The default branch is main unless the repo says otherwise
-
-The skills SHALL treat `main` as the default branch, and SHALL determine it another
-way only where `main` does not exist.
-
-`/save` and `/ship` currently instruct the agent to substitute *"whatever
-`git symbolic-ref refs/remotes/origin/HEAD` resolves to"*. That command fails with
-`not a symbolic ref` on a freshly created repo — `gh repo create --push` does not
-record the head — so the documented setup path produces a repo where the documented
-first command errors.
-
-Detection also solves a problem this toolkit doesn't have: setup runs
-`git init -b main`, and `gh repo create` adopts the local branch, so every repo it
-creates is on `main`. The fallback exists for a pre-existing repo on `master` or
-another name, which is the only case where the question is real.
-
-#### Scenario: Repo created by the setup
-
-- **WHEN** any verb needs the default branch in a repo setup created
-- **THEN** it uses `main` without running a detection command
-
-#### Scenario: Pre-existing repo on another default
-
-- **WHEN** `main` does not exist in the repo
-- **THEN** the actual default is resolved and used, and the resolution is not assumed to succeed silently
-
-### Requirement: Setup enters the normal workflow
-
-`/wong-setup` SHALL obtain current WongStack source and invoke `/explore` with the intent to adopt WongStack in the target repo. It SHALL use local workflow skills where present and source skills where absent, resolving source references in the source checkout while keeping all planned work scoped to the target. It SHALL delegate later stages to the normal skills according to user intent.
-
-#### Scenario: New repo without installed skills
-- **WHEN** the user asks to evaluate WongStack in a target without workflow skills
-- **THEN** setup invokes the source `/explore` skill against the target
-- **AND** no payload or seed record is written during exploration
-
-#### Scenario: User requests installation
-- **WHEN** the user has asked to install WongStack
-- **THEN** setup carries that intent through `/explore`, `/plan`, `/apply`, and `/save`
-- **AND** required planning tools are prepared at the point of need before the target plan is drafted
-
-#### Scenario: Existing installation
-- **WHEN** a real install record exists
-- **THEN** setup invokes `/wong-sync` with the existing context
-
-### Requirement: Installation preserves the target and records the result
-
-The normal installation plan SHALL use the payload inventory, preserve existing repo content, include required wiki hubs and environment ignore rules, and record the completed install version and commit. Commits and pushes SHALL remain with `/save`, `/continue`, or `/ship`; setup readies git identity and creates the repository and `origin`. Cloudflare work SHALL run as setup's provisioning step. Setup itself SHALL remain source-only.
+`/wong-setup` SHALL install only into an empty folder, or one holding only a `.git` with no commits, and SHALL write nothing for any other folder; a folder with an install record SHALL go to `/wong-sync`. The install SHALL always take everything, with no component question.
 
 #### Scenario: Empty folder
-- **WHEN** the target has no repo or planning layer
-- **THEN** setup prepares planning prerequisites and git identity when needed, and includes target initialization in the workflow
-- **AND** `/save` owns commits and pushes
 
-#### Scenario: Existing project
-- **WHEN** the target already has instructions, docs, or skills
-- **THEN** the plan adapts the payload to those files and preserves local content outside the agreed change
-- **AND** optional hosting or scaffold components stay disabled unless selected
+- **WHEN** a person runs setup in an empty folder with a Cloudflare token
+- **THEN** setup installs everything without asking which parts to take
 
-#### Scenario: Completed install
-- **WHEN** `/apply` completes the installation tasks
-- **THEN** the target has its required wiki hubs, environment ignore rules, and an install record for the implemented source
-- **AND** the normal `/save` checkpoint follows
+#### Scenario: A folder with files
 
-### Requirement: Setup supports the active coding agent
-
-Setup SHALL work with any coding agent that can read skills, edit files, and run shell commands. Missing host skill invocation tools SHALL fall back to reading and following the relevant SKILL.md. The target planning home SHALL be initialized for the active agent.
-
-#### Scenario: Non-Claude setup
-- **WHEN** the user runs setup in another capable coding agent
-- **THEN** source skill files provide a usable workflow and planning is configured for that agent
-
-### Requirement: Setup provisions the memory store
-
-The installation plan SHALL include setup's provisioning step, and SHALL install the session-start hooks and the `memory` skill. Setup SHALL ask for the Cloudflare user token before the install is planned. When no token is available, setup SHALL stop before it writes any file, and SHALL say what the token is for and where to create it. It SHALL NOT report the install as complete with memory or hosting working when no store or Worker exists.
-
-#### Scenario: A token is available
-
-- **WHEN** the installation tasks run with a Cloudflare user token in `.env`
-- **THEN** the memory store and the app are provisioned, and the install record lists the store under `components.memory`
-
-#### Scenario: No token yet
-
-- **WHEN** a user starts setup without a Cloudflare token
-- **THEN** setup writes nothing, and it gives the click path for the token and says that pasting it continues setup
-
-### Requirement: Setup starts from an empty folder
-
-`/wong-setup` SHALL install WongStack only into an empty folder, or a folder whose only entries are `.git` with no commits. For any other folder it SHALL stop before planning, write nothing, and say that setup starts from an empty folder. A folder that already has an install record SHALL still go to `/wong-sync`. The install SHALL always include the core payload, the Cloudflare pipeline, the starter app, and the UI pages, with no component question.
-
-#### Scenario: An empty folder installs
-
-- **WHEN** a user runs setup in an empty folder with a Cloudflare token
-- **THEN** setup plans and applies the full install without asking which components to take
-
-#### Scenario: A folder with files stops
-
-- **WHEN** a user runs setup in a folder that has files and no install record
-- **THEN** setup writes nothing and says that it starts from an empty folder
-
-#### Scenario: An installed repo syncs
-
-- **WHEN** a user runs setup in a repo with `.claude/.wong-stack.json`
-- **THEN** setup goes to `/wong-sync`
-
-### Requirement: Setup creates the GitHub repository
-
-Before setup sets a GitHub secret or pushes, it SHALL confirm that `gh` is authenticated with the `workflow` and `user:email` scopes, initialize git in the empty folder, and create a private GitHub repository with `origin` pointing at it. When `origin` already exists, setup SHALL use it and create nothing.
-
-When `gh` is not authenticated, setup SHALL sign the person in itself, through GitHub's browser code flow, requesting both scopes in the one approval. It SHALL show the person the code and the link, and SHALL NOT ask them to type a command. When `gh` is authenticated but lacks a scope, setup SHALL add every missing scope in one refresh. When sign-in is not completed, setup SHALL stop before it creates any Cloudflare resource.
-
-#### Scenario: A new folder gets its repository
-
-- **WHEN** setup runs in an empty folder and `gh` is authenticated
-- **THEN** the folder is a git repository with an `origin` on GitHub before the CI secret is set
-
-#### Scenario: gh is signed out
-
-- **WHEN** setup runs and `gh auth status` fails
-- **THEN** setup starts the browser sign-in, shows the code and the link, and requests `workflow` and `user:email` together
-- **AND** when the sign-in is not completed, setup stops and has created no Cloudflare resource
-
-#### Scenario: gh is signed in without a scope
-
-- **WHEN** `gh` is authenticated but lacks `workflow`, `user:email`, or both
-- **THEN** setup adds every missing scope in one browser approval
-
-### Requirement: Setup records the person's home
-
-Setup's exploration SHALL ask whether the new repo is the person's home. When it is, setup SHALL write `~/.wong-stack/machine.json` with the repo's absolute path, and SHALL suggest `~/home` as the folder. The install itself SHALL be the same full install with Cloudflare as any other, and the install record SHALL NOT change. When the machine already records a different home, setup SHALL ask before it replaces the record.
-
-#### Scenario: Creating home
-
-- **WHEN** the person runs setup in an empty `~/home` and says it is their home
-- **THEN** the machine record names `~/home` by absolute path, and the install is the same as any install
-
-#### Scenario: A second home
-
-- **WHEN** setup creates a home on a machine that already records another home
-- **THEN** setup asks before it changes the machine record
+- **WHEN** setup runs in a folder with files and no install record
+- **THEN** it writes nothing and says setup starts from an empty folder
 
 ### Requirement: Setup readies the computer before it writes anything
 
-After the empty-folder check and before it clones the source, `/wong-setup` SHALL make the computer ready, in this order: the tools `toolchain-dependencies` names, the GitHub sign-in, the git name and email, and on Windows, symbolic links. It SHALL write nothing in the target folder until all four are ready. A folder that setup will refuse SHALL trigger no install.
+Before it clones the source or writes in the folder, setup SHALL ready the tools it needs, one GitHub sign-in with the `workflow` and `user:email` scopes, the git name and email, and on Windows real symbolic links, asking before each install; the person SHALL type no command. A decline or failure SHALL stop setup with nothing written, and an existing git identity SHALL stay unchanged.
 
-**Git identity.** When `git config user.name` or `git config user.email` is unset, setup SHALL set the missing values in the global git config, from the person's GitHub name (or login) and their primary verified GitHub email. It SHALL NOT change an identity that is already set.
+#### Scenario: A new computer
 
-**Windows links.** On Windows, setup SHALL test whether it can create a real symbolic link. When it cannot, it SHALL walk the person through turning on Developer Mode, set git's `core.symlinks` to `true`, and test again. It SHALL NOT create the agent folder's links until the test passes. When the person stops, setup SHALL write nothing.
+- **WHEN** setup runs where tools, sign-in, and git identity are missing
+- **THEN** it installs tools after asking, signs in through GitHub in the browser, and sets git identity from that account
 
-#### Scenario: A folder with files installs nothing
+#### Scenario: Sign-in not completed
 
-- **WHEN** setup runs in a folder that has files and no install record
-- **THEN** it stops at the empty-folder check and installs no tool
+- **WHEN** the person does not finish the GitHub approval
+- **THEN** setup stops and has created no Cloudflare resource
 
-#### Scenario: A new computer has no git identity
+### Requirement: Setup waits for the Cloudflare token
 
-- **WHEN** setup runs where git has no user name or email
-- **THEN** setup sets them from the person's GitHub account before the memory admin key is made
-- **AND** the key is made for that email
+Setup SHALL ask whether the person has the Cloudflare user token before anything is written, and with no token SHALL stop, write nothing, and say where to create it and that running setup again continues. It SHALL NOT report memory or hosting working when none exists.
 
-#### Scenario: An existing git identity is kept
+#### Scenario: No token yet
 
-- **WHEN** git already has a user name and email
-- **THEN** setup leaves both unchanged
+- **WHEN** a person starts setup without a token
+- **THEN** setup writes nothing and gives the route to create one
 
-#### Scenario: Windows without symbolic links
+### Requirement: Setup installs through the normal workflow
 
-- **WHEN** setup runs on Windows where a real symbolic link cannot be made
-- **THEN** it shows the person how to turn on Developer Mode, sets `core.symlinks`, and tests again
-- **AND** it creates the `.claude` and `.codex` links only after the test passes
+Setup SHALL carry the person's intent through `/explore`, `/plan`, `/apply`, and `/save`, with no setup-only interview or approval. `/save` SHALL own commits and pushes; setup SHALL create the private GitHub repository and `origin`, or use an existing `origin`.
+
+#### Scenario: Evaluate only
+
+- **WHEN** a person asks only to evaluate WongStack
+- **THEN** the work stays in `/explore` and writes no payload
+
+#### Scenario: Install requested
+
+- **WHEN** a person asks to install
+- **THEN** setup continues through the plan, build, and save, whose push starts the first deploy
+
+### Requirement: A finished install is complete and recorded
+
+A completed install SHALL leave the payload in a real `.agents/` folder with `.claude` and `.codex` links, the required wiki hubs, ignore rules for `.env*` and `.dev.vars*`, the memory skill and its session-start hooks, a provisioned memory store, and an install record `.claude/.wong-stack.json` naming the source version and commit.
+
+#### Scenario: Install completes
+
+- **WHEN** `/apply` finishes the install tasks with a token in `.env`
+- **THEN** the repo has its install record, including the memory store, and the `/save` checkpoint follows
+
+### Requirement: Setup records the person's home once per machine
+
+When the person says the new repo is their home, setup SHALL record its absolute path in `~/.wong-stack/machine.json`, asking before it replaces a different recorded home; the install itself SHALL be the same as any other.
+
+#### Scenario: A second home
+
+- **WHEN** the machine already records another home
+- **THEN** setup asks before it changes the record
+
+### Requirement: The default branch is main
+
+The workflow SHALL assume `main` as the default branch, resolving another name only when `main` does not exist.
+
+#### Scenario: A repo setup created
+
+- **WHEN** any verb needs the default branch in a repo setup created
+- **THEN** it uses `main` without detection
+
+#### Scenario: A repo on another default
+
+- **WHEN** `main` does not exist
+- **THEN** the real default is resolved and used
+
+### Requirement: The server script builds an agent workspace
+
+The source SHALL ship `server/setup.sh`, which, run as root with no prompt on a fresh Ubuntu 24.04 server, SHALL create the `WORKSPACE_USER` (default `wong`), install Node.js 24, git, `gh`, OpenSpec, Paseo, the coding agents, and agent-browser, and run Paseo as a service for that user. It SHALL be safe to run again and SHALL end by checking each promised tool, exiting non-zero and naming what is missing.
+
+#### Scenario: A fresh server
+
+- **WHEN** a person runs `sudo bash server/setup.sh` on a fresh server
+- **THEN** it exits 0 with every promised tool installed and Paseo running
+
+#### Scenario: A tool is missing
+
+- **WHEN** a promised tool is absent at the end
+- **THEN** the script exits non-zero and names it
+
+### Requirement: The server script keeps the host contract
+
+The script SHALL NOT open an inbound port, touch a host's secret, or write under `/etc/wongstack` or `/opt/wongstack`, and SHALL stay at most 12 KiB, with a test that fails past the budget. `server/README.md` SHALL state the command, the input, the end state, and these limits. `server/` SHALL stay source-only, never installed or synced.
+
+#### Scenario: The script grows too large
+
+- **WHEN** a change makes `server/setup.sh` larger than 12 KiB
+- **THEN** the source's tests fail and name the size and the budget

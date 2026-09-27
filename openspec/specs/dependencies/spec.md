@@ -1,0 +1,94 @@
+# dependencies Specification
+
+## Purpose
+
+What WongStack needs on a person's machine, and how the source repo keeps its own tools and app dependencies current. The toolchain stays small because WongStack installs into repos of every stack, and each added dependency is a repo it cannot serve.
+
+## Requirements
+
+### Requirement: The core needs only git, gh, node, and openspec
+
+Every core verb SHALL run on `git`, `gh`, Node.js, and the OpenSpec CLI alone, and no core script or skill SHALL call `jq`, `python`, or another runtime, or add a package manifest or lockfile to the repo. Core scripts MAY use Node's built-in modules, because the OpenSpec CLI already requires Node.
+
+#### Scenario: A reader checks what WongStack needs
+
+- **WHEN** a reader opens the required-tools page
+- **THEN** it lists the four tools with why each is needed, and the Cloudflare account setup requires
+
+#### Scenario: A script filters GitHub output
+
+- **WHEN** a payload script needs fields from a `gh` response
+- **THEN** it filters with `gh`'s built-in `--jq`, and no `| jq` pipeline appears in the payload
+
+### Requirement: `/verify` adds one tool, not a toolchain
+
+`/verify` SHALL be the one core verb that adds a tool: the browser CLI, installed on the machine the first time a browser journey needs it. It SHALL add nothing to the repository, and a repo that never runs `/verify` SHALL never get it.
+
+#### Scenario: A Go repo walks its app
+
+- **WHEN** `/verify` runs a browser journey in a repo that is not JavaScript
+- **THEN** the browser tool is installed on the machine and no package manifest, dependency entry, or runtime is added to the repo
+
+### Requirement: Stack-pack tools stay in the repo's build and CI
+
+The Cloudflare stack pack's `node`, `npm`, and `wrangler` use SHALL run only in that repo's own build and CI, and provisioning SHALL use `curl` against the Cloudflare API so the person's machine needs no app dependency.
+
+#### Scenario: Setup provisions Cloudflare
+
+- **WHEN** setup provisions the app on a fresh computer
+- **THEN** it reaches Cloudflare with `curl` and installs no app dependency
+
+### Requirement: Nothing is installed without consent
+
+No skill SHALL install a runtime or tool without the person's consent, and a skill other than `/wong-setup` SHALL install one only when a step needs it. WongStack SHALL NOT install Paseo on a person's machine; only the server setup script installs it, for a server.
+
+#### Scenario: A verb finds its tool missing
+
+- **WHEN** `/verify` needs its browser CLI and it is absent
+- **THEN** it installs the tool at that step and says so
+
+### Requirement: Setup checks its tools before it writes anything
+
+Before it writes a file or clones anything, `/wong-setup` SHALL check for `git`, `gh`, Node.js at the required major, and the OpenSpec CLI, name each missing one plainly, and install it only after the person agrees. It SHALL use a system package manager only when that needs no password, otherwise install into the person's home folder, and SHALL never install a package manager.
+
+#### Scenario: Setup on a machine without Node
+
+- **WHEN** `/wong-setup` runs where Node.js is missing
+- **THEN** it says it needs Node.js and why, and installs it only after the person agrees
+
+#### Scenario: The person declines a tool
+
+- **WHEN** the person declines a tool setup needs
+- **THEN** setup writes nothing, creates nothing on GitHub or Cloudflare, and says running it again continues from the check
+
+### Requirement: An on-demand verb updates this repo to latest
+
+The source repo SHALL have an `/update-dependencies` verb that, only when asked, surveys and updates the OpenSpec CLI, the browser CLI, `gh`, `git`, `node`, and the app's dependencies to their latest versions, including majors with their migration notes applied, and hands a nonempty diff to `/save`. It SHALL NOT run on a schedule, run a local test suite as the gate, or claim a green CI run proves every major safe.
+
+#### Scenario: Nothing is out of date
+
+- **WHEN** every surveyed tool and dependency is current
+- **THEN** the verb reports them current, changes no file, and does not call `/save`
+
+#### Scenario: A dependency has a new major
+
+- **WHEN** a dependency's latest version is a major ahead
+- **THEN** the verb bumps to it, applies the migration notes, and leaves verification to CI
+
+### Requirement: CLI updates check the OpenSpec contract
+
+After an OpenSpec CLI update, the verb SHALL check that the commands and output fields WongStack uses still hold, adapt the owning skill before saving when one changed, and report whether a payload release is due. It SHALL NOT regenerate or patch generated OpenSpec agent skills.
+
+#### Scenario: The CLI stays compatible
+
+- **WHEN** the CLI changes but its contract holds and no payload file changes
+- **THEN** the verb reports that no payload version bump is due
+
+### Requirement: The update verb never reaches an install
+
+`/update-dependencies` SHALL be left out of the payload, so no installed repo receives it, and editing only that skill SHALL NOT be a payload release.
+
+#### Scenario: A target repo updates
+
+- **WHEN** `/wong-sync` runs in an installed repo
+- **THEN** the repo gains no `/update-dependencies` verb
