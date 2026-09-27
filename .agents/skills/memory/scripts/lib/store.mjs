@@ -1,6 +1,7 @@
 // Memory store client: repo context, config, credentials, local state, the D1 and R2 calls, and the spool.
 // A memory key's calls go to the app's production Worker (components.memory.worker); any other token's go to
-// the Cloudflare REST API. The requests are the same.
+// the Cloudflare REST API. The requests are the same. The Worker's address comes from the main checkout, like
+// .env, so a branch that changes it can not send the key or a GitHub token anywhere else.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, hostname } from 'node:os';
@@ -111,7 +112,12 @@ export function loadConfig(ctx) {
   if (!memory?.accountId || !memory?.databaseId) throw new StoreError('no memory store is recorded in .claude/.wong-stack.json; run /wong-sync to plan it', { kind: 'unconfigured' });
   // A repo is a team when the install record says so, or when the memory Worker last said so (see openStore).
   const team = memory.team === true || readJson(join(ctx.stateDir, 'team.json'), {}).team === true;
-  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null, worker: memory.worker || null, team };
+  // In a linked worktree, only the primary checkout's address counts; the branch's is never a fallback.
+  // With no confirmed primary, this checkout's record is the only one.
+  const linked = Boolean(ctx.primaryRoot) && ctx.primaryRoot !== ctx.root;
+  const worker = (linked ? readJson(configFile({ root: ctx.primaryRoot }), null)?.components?.memory?.worker : memory.worker) || null;
+  const branchWorker = linked && memory.worker && memory.worker !== worker ? memory.worker : null;
+  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null, worker, branchWorker, team };
 }
 
 // The admin's Cloudflare API: the provisioning token, straight to Cloudflare (the tests point it at a fake).

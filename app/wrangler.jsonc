@@ -20,8 +20,11 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	// disallow_importable_env: code reaches a binding only through the env a
+	// route hands it, so a mini app can not import MEMORY_DB. wiki/stack/mini-apps.md
 	"compatibility_flags": [
-		"nodejs_compat"
+		"nodejs_compat",
+		"disallow_importable_env"
 	],
 	// Production's bindings. `migrations_dir` is relative to THIS file, not the
 	// repo root — `schema/` stays at the root, so from `app/` it's `../`.
