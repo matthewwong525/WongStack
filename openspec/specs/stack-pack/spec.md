@@ -2,548 +2,213 @@
 
 ## Purpose
 
-The opt-in Cloudflare stack pack in the WongStack payload: the zero-config pipeline scripts, a seed template, guided config fragments, and the `wiki/stack/` pipeline docs — installed and refreshed only for a repo that opted in (`components.stackPack: true`), leaving WongStack byte-for-byte stack-agnostic for every repo that declines. The scripts auto-apply migrations on deploy (production on the default branch, staging elsewhere), deploy each branch to the Worker that belongs to it, and rebuild staging from a checked-in seed without ever touching production.
+The Cloudflare stack pack every install takes: the deploy and data pipeline scripts, the CI workflow, a seed template, config fragments, and the `wiki/stack/` docs. Each branch deploys to the Worker that belongs to it, migrations apply on deploy, and staging is rebuilt from a seed without ever touching production.
+
 ## Requirements
-### Requirement: Staging is a separate Worker declared as a Wrangler environment
 
-The pack SHALL isolate staging at the Worker level, not the binding level. `wrangler.jsonc` SHALL declare a `staging` environment with its own Worker `name` and its own bindings, and a non-production branch SHALL be **deployed** to that Worker rather than uploaded as a version of the production Worker. No pack script SHALL rewrite `wrangler.jsonc` to redirect a binding.
+### Requirement: Every install takes the pack
 
-The pack SHALL ship `scripts/cf-deploy.sh`, wired to the Workers Builds deploy command. On the production branch it SHALL run `wrangler deploy`. On any other branch it SHALL run `wrangler deploy --env staging` followed by `wrangler versions upload --env staging --preview-alias <branch>`, so the deployed staging Worker runs branch code *and* the per-commit preview URL is preserved. The deploy SHALL come first: a version cannot be uploaded against a Worker that does not yet exist, which is the state on a repo's first branch push. Both non-production commands SHALL carry `--env staging`; omitting it on the version upload binds the production Worker's resources.
+The pack SHALL ship in the core payload to every install and every sync, and no install-record flag SHALL gate it.
 
-#### Scenario: A queue message on a branch is handled by staging
-
-- **WHEN** a non-production branch is pushed and a message is enqueued to the staging queue
-- **THEN** the deployed staging Worker handles it, running that branch's code against the staging database
-- **AND** neither the production Worker nor the production database is involved
-
-#### Scenario: A branch push still yields a per-commit preview URL
-
-- **WHEN** the deploy script runs on a non-production branch
-- **THEN** a version alias URL for that commit is created against the staging environment
-- **AND** the deployed staging Worker is updated in the same run
-
-#### Scenario: The production branch deploys production
-
-- **WHEN** the deploy script runs on the production branch
-- **THEN** it runs `wrangler deploy` with no environment flag
-- **AND** the staging Worker is not touched
-
-#### Scenario: No script mutates the wrangler config
-
-- **WHEN** any pack script runs, on any branch
-- **THEN** `wrangler.jsonc` is left byte-for-byte unchanged
-
-### Requirement: Every stateful binding gets a staging twin, not a namespace prefix
-
-The pack SHALL state, and its docs SHALL follow, a twin-by-default rule: each stateful binding in `env.staging` SHALL point at a second resource of the same kind rather than share the production resource behind a namespace prefix. A twin requires no application code; a prefix requires every call site to cooperate and lets one omission write into production data. A prefix SHALL be used only where a twin is genuinely unavailable.
-
-The rule SHALL be documented as a table covering at least D1, Queues, R2, KV, Durable Objects, cron triggers, secrets, and service bindings, and SHALL call out that secrets are per-environment (`wrangler secret put --env staging`) and that a service binding left pointing at production is a silent cross-environment call.
-
-The docs SHALL distinguish **non-inheritable** configuration — `vars` and the bindings, where an environment starts empty and drift means a binding is simply *absent* in staging — from **inheritable** configuration, where an environment starts from production's value and drift means staging silently *acquires* production's behaviour. The twin rule's "an environment inherits nothing it doesn't redeclare" SHALL be scoped to the non-inheritable set rather than stated of the config as a whole.
-
-Cron triggers SHALL be documented as inheritable, and the guidance for keeping staging free of scheduled runs SHALL be the explicit override `"triggers": { "crons": [] }` inside `env.staging`. The docs SHALL NOT advise omitting the key, which leaves staging inheriting production's schedule and firing against the staging database — the opposite of the stated intent, with no error.
-
-#### Scenario: R2 in staging is a second bucket
-
-- **WHEN** a repo adds an R2 binding to a Worker that took the pack
-- **THEN** the docs direct it to a second bucket inside `env.staging`
-- **AND** a staging key prefix on the production bucket is explicitly rejected
-
-#### Scenario: A newly added binding has a documented answer
-
-- **WHEN** a repo adds a stateful binding the pack does not itself ship
-- **THEN** the twin-by-default rule and its table answer what staging binds to without a new decision
-
-#### Scenario: Keeping staging off a schedule
-
-- **WHEN** a repo declares a cron trigger for production and wants staging exercised only by manual trigger
-- **THEN** the docs direct it to declare an explicit empty `triggers.crons` inside `env.staging`
-- **AND** omitting the key is documented as inheriting production's schedule rather than disabling it
-
-### Requirement: The pack scripts are zero-config and byte-identical across repos
-
-Every pack script SHALL be identical in every repo that installs it — no per-repo value SHALL be baked into a pack file. A script that needs the database name, an environment name, or the branch SHALL read it from the target-owned `wrangler.jsonc` or the CI environment. `scripts/cf-deploy.sh` SHALL hardcode no Worker name, environment id, or database id: it SHALL take the branch from `WORKERS_CI_BRANCH`, the production branch from `CF_PRODUCTION_BRANCH` (default `main`), and locate the wrangler config by the same root-then-subdirectory rule the other pack scripts share. `scripts/cf-secrets.mjs` SHALL follow the same rule, resolving the wrangler config and its environments through the shared config library and naming no secret key of its own.
-
-The two credential files SHALL be kept distinct by role, and pack scripts SHALL read the one matching their purpose: `.env` holds the credentials **CI and the scripts themselves** use, chiefly `CLOUDFLARE_API_TOKEN`; `.dev.vars` holds the secrets **the Worker** reads at runtime. No pack script SHALL move a value from the former into a Worker's secret store.
-
-#### Scenario: Two repos install the identical script
-
-- **WHEN** two different repos both take the pack
-- **THEN** their copies of each pack script are byte-for-byte identical
-- **AND** each script resolves repo-specific values from `wrangler.jsonc`, the CI environment, `.env`, or `.dev.vars`, not from a constant in the script
-
-#### Scenario: The deploy script picks the environment from the branch
-
-- **WHEN** `cf-deploy.sh` runs in CI
-- **THEN** it compares `WORKERS_CI_BRANCH` against `CF_PRODUCTION_BRANCH` to choose between a production deploy and a staging deploy
-- **AND** it contains no hardcoded Worker name or database id
-
-#### Scenario: The two credential files do not mix
-
-- **WHEN** a pack script needs a credential
-- **THEN** a script authenticating to Cloudflare reads `.env` and a script populating a Worker's secret store reads `.dev.vars`
-- **AND** no script writes a `.env` value into a Worker
-
-### Requirement: Migrations auto-apply on deploy, forward-only, by timestamp prefix
-
-The pack SHALL apply D1 migrations automatically as part of the deploy build: on the default branch to the production database, on any other branch to the staging database bound by `env.staging`. Migrations SHALL be forward-only (no down scripts), and their filenames SHALL use a timestamp prefix (`YYYYMMDDHHMMSS_name.sql`) so that filename order matches author order and two branches cannot collide on a prefix. The pack SHALL NOT carry a duplicate-prefix guard — the timestamp scheme makes collisions structurally impossible. The build script SHALL NOT swap or otherwise rewrite any binding.
-
-#### Scenario: Preview branch migrates staging
-
-- **WHEN** the build runs on a non-default branch in CI
-- **THEN** pending migrations apply to the staging database via the `staging` environment
-- **AND** the production database is not touched and `wrangler.jsonc` is not modified
-
-#### Scenario: Default branch migrates production
-
-- **WHEN** the build runs on the default branch in CI
-- **THEN** pending migrations apply to the production database as part of the same deploy
-
-#### Scenario: Two branches add migrations without colliding
-
-- **WHEN** two branches each add a new migration file
-- **THEN** each filename carries a distinct timestamp prefix and both apply in timestamp order with no prefix collision
-
-### Requirement: Staging is a seeded fixture database, never a prod mirror
-
-The staging reset script SHALL rebuild staging from a checked-in seed, not from production data: it SHALL drop every object, apply the migrations, then apply `schema/seed.sql` (data-only INSERTs). It SHALL target staging through the `staging` environment, SHALL NOT read, export, or copy production data, and SHALL NOT touch the production database. `schema/seed.sql` SHALL ship as a commented, empty template. A change that alters a seeded table SHALL update `schema/seed.sql` in the same change.
-
-#### Scenario: Reset rebuilds staging from the seed
-
-- **WHEN** the staging reset script runs
-- **THEN** it drops all objects, applies migrations, and applies `schema/seed.sql` against the `staging` environment's database
-- **AND** it issues no read or export against the production database
-
-#### Scenario: The seed ships empty
-
-- **WHEN** a repo first takes the pack
-- **THEN** `schema/seed.sql` is present as a commented, data-only template with no rows assumed
-
-### Requirement: Config fragments are applied as guided merges, never blind writes
-
-Pack files that must merge into a file the target already owns — `package.json` scripts, the `wrangler.jsonc` bindings and `env.staging` block, `.env.example` variables, and the `.gitignore` entries covering the local secrets files — SHALL be applied as guided edits following the `CLAUDE.md` WONG-STACK-block precedent: the fragment is shown and applied with confirmation, never written over the target's file wholesale. **`/wong-cloudflare` SHALL be the applier**: the id-free fragments at the start of a run where they are missing, and the `wrangler.jsonc` block at the binding step with real resource ids. `wong-setup` SHALL NOT apply fragments; when upstream changes a fragment in a repo that already applied it, the change SHALL be surfaced through the sync's capability analysis rather than re-merged automatically.
-
-The `wrangler.jsonc` fragment is the **only thing in the payload that creates a wrangler config**, so it SHALL declare a deployable Worker and not bindings alone: `main` (the Worker entry point), `assets` (with single-page-application not-found handling for an SPA), `compatibility_date`, and `compatibility_flags`, alongside the existing `name`, `d1_databases`, and `env.staging` block. A fragment that declares bindings without an entry point produces a config wrangler cannot deploy, which is indistinguishable to the user from a broken install.
-
-The token variable SHALL be `CLOUDFLARE_API_TOKEN` everywhere it appears — the shipped `.env.example`, the fragment, the skill, the pack scripts, the Actions workflow, and the wiki — because that is the name wrangler reads. **Exactly one payload file SHALL own this name**; every other surface that needs it SHALL link to that owner rather than restate it. The name has drifted in both directions across releases while each individual edit looked like a harmless documentation change, so a single owner is what makes a future rename a visible, reviewable act rather than a template typo.
-
-The `.gitignore` fragment SHALL cover **both** local credential files, each as a wildcard plus a negation for its committed example: `.dev.vars*` with `!.dev.vars.example`, and `.env*` with `!.env.example`. The wildcards stop a per-environment variant full of live values from being committable; the negations keep the committed, values-blank example files from being swallowed by them. `.env` holds `CLOUDFLARE_API_TOKEN`, which the pack's own docs describe as effectively account-root, and `/wong-cloudflare` writes it there — so a target repo that arrives without a `.gitignore` entry for it is handed a committable account-root credential at the moment the skill asks for one. Covering only `.dev.vars` leaves the more dangerous of the two files exposed.
-
-The `package.json` fragment SHALL include the secrets push and check scripts alongside the existing build and database scripts, and SHALL include the `db:migrate:staging` and `db:migrate:prod` scripts, whose database names are filled from the resources `/wong-cloudflare` derives. Those two scripts SHALL live in the fragment rather than in any copied file, because a hardcoded database name cannot travel between repos. The pack's Workers Builds **deploy command** (`bash scripts/cf-deploy.sh`, set by a human in the dashboard) SHALL be documented as belonging **only to the Workers Builds fallback**: a repo on the pack's GitHub Actions workflow has no dashboard step, and the pack SHALL NOT describe the setting as required in general.
-
-#### Scenario: Merging into an existing package.json
-
-- **WHEN** the pack adds its `build`, `db:*`, and `secrets:*` scripts to a repo that already has a `package.json`
-- **THEN** the fragment is presented and merged into the existing file, preserving the repo's other scripts and fields
-- **AND** the file is not overwritten wholesale
-
-#### Scenario: Fragments are applied by the provisioning skill
-
-- **WHEN** a repo adopts the pack — at setup or later
-- **THEN** the config fragments are applied by `/wong-cloudflare`, the id-free ones up front and the wrangler block with real ids at the binding step
-- **AND** `wong-setup` applies none of them
-
-#### Scenario: The shipped template names the variable the code reads
-
-- **WHEN** a user fills in the token in `.env` by following `.env.example`
-- **THEN** the variable they filled is the one the scripts, the workflow, the skill, and wrangler read
-- **AND** no step silently behaves as though no token were present
-
-#### Scenario: The variable name has one owner
-
-- **WHEN** any payload file needs the reader to know the token's variable name
-- **THEN** exactly one file states it and the others link to that file
-- **AND** renaming it requires editing the owner, not a template
-
-#### Scenario: The credential file cannot be committed
-
-- **WHEN** `/wong-cloudflare` writes the API token into a target repo's `.env`
-- **THEN** the repo's `.gitignore` already covers `.env` and its per-environment variants
-- **AND** `.env.example` remains committable despite the wildcard
-
-#### Scenario: A per-environment secrets file cannot be committed
-
-- **WHEN** a repo creates `.dev.vars.staging` to give staging a divergent secret value
-- **THEN** the pack's `.gitignore` entry already covers it
-- **AND** no step is required to prevent the file being committed
-- **AND** `.dev.vars.example` remains committable despite the wildcard
-
-#### Scenario: A created wrangler config is deployable
-
-- **WHEN** `/wong-cloudflare` creates a wrangler config from the fragment in a repo that had none
-- **THEN** the result declares `main`, `assets`, `compatibility_date`, and `compatibility_flags` as well as the bindings and `env.staging`
-- **AND** `wrangler deploy` has an entry point to build
-
-#### Scenario: Migration scripts name the target's own databases
-
-- **WHEN** the `package.json` fragment is applied
-- **THEN** `db:migrate:staging` and `db:migrate:prod` reference the databases provisioned for this repo
-- **AND** no copied payload file contains a migration script naming another repo's database
-
-#### Scenario: The deploy command is fallback-only documentation
-
-- **WHEN** a repo runs the pack's GitHub Actions workflow
-- **THEN** no dashboard deploy-command step is presented as required
-- **AND** the setting is documented only for a repo that chose Cloudflare Workers Builds instead
-
-### Requirement: The pack ships the D1 pipeline and prod-recovery docs
-
-The `wiki/stack/` section SHALL gain a core-stack page and pipeline documentation covering the two-**environment** model, auto-migrate-on-deploy, timestamp migrations, the seeded-staging model and reset, and the production-recovery runbooks — recovery via `wrangler d1 time-travel`, the rule never to hand-apply schema to production, and how to reconcile `d1_migrations` when production drifts.
-
-The pipeline page SHALL open with the diagnostic that motivates the model — a preview branch produces a **version**, and a version serves only HTTP, so queue consumers, cron triggers, and other non-request handlers run on the deployed version — and SHALL also cover the twin-by-default table, the capability difference between the version-alias URL and the staging Worker URL, that staging is shared across branches, and why per-PR environments are declined. These pages SHALL follow the progressive-disclosure rulebook and link from the existing `wiki/stack/` hub. They SHALL install only with the pack.
-
-#### Scenario: Pipeline docs are reachable from the hub
-
-- **WHEN** a reader opens the `wiki/stack/` hub in a repo that took the pack
-- **THEN** it links the core-stack page and the pipeline pages
-- **AND** the pipeline page covers the two-environment model, timestamp migrations, seeded staging, and both prod-recovery runbooks
-
-#### Scenario: The version-vs-deployment distinction is stated up front
-
-- **WHEN** a reader opens the pipeline page
-- **THEN** it explains before the mechanics that a branch preview is a version and that a version serves only HTTP
-- **AND** it states which of the two preview URLs processes queue messages
-
-#### Scenario: Per-PR environments are documented as declined
-
-- **WHEN** a reader asks why each PR does not get its own Worker
-- **THEN** the page records the decision and its cost, so it is not re-litigated
-
-#### Scenario: Docs are absent without the pack
-
-- **WHEN** a repo did not take the pack
-- **THEN** the pack's pipeline docs are not installed
-
-### Requirement: The pack ships a GitHub Actions workflow as its CI
-
-The pack SHALL include a GitHub Actions workflow file that runs the pack's build and deploy scripts on push, supplying the branch name they need and reading the Cloudflare credentials from GitHub repository secrets. It SHALL be a drop-in payload file subject to the same copy-if-absent, never-overwrite rule as every other pack file, and SHALL surface as a pull-request check so the existing delivery gate has something to wait on.
-
-The workflow SHALL NOT reimplement any branch logic. Deciding which database to migrate and which Worker to deploy to belongs to `scripts/cf-build.sh` and `scripts/cf-deploy.sh`, so that both CI backends run identical code and the deploy model is independent of the CI choice.
-
-Where the Cloudflare credentials are absent, the workflow SHALL build without deploying, so a repo that took the pack but has not yet been provisioned gets a useful check rather than a permanently failing one. That path SHALL NOT route through the build wrapper, which requires a staging environment an unprovisioned repo does not yet have.
-
-**No step that runs before the credential guard SHALL fail on a repo the pack has been installed into but not yet configured.** The pack ships its CI before a wrangler config exists, so "installed, not yet provisioned" is the default state and every step reachable in it SHALL either succeed or skip. Where the workflow can find neither a wrangler config nor an app to build, it SHALL report that the repo is not yet configured, name the provisioning skill, and **exit green**. A step that aborts in this state produces exactly the permanently red check this requirement exists to prevent, and does so on the first push a new adopter makes.
-
-#### Scenario: A pack repo gains a PR check
-
-- **WHEN** a repo that took the pack pushes a branch and opens a pull request
-- **THEN** the workflow runs and reports as a check on that pull request
-- **AND** `/save` and `/ship` wait on it through the existing check-waiting path
-
-#### Scenario: An unprovisioned repo still gets a green check
-
-- **WHEN** the workflow runs in a repo with no `CLOUDFLARE_API_TOKEN` secret
-- **THEN** it builds the app and deploys nothing
-- **AND** it reports why, naming the provisioning skill as the next step
-
-#### Scenario: A repo with no wrangler config is not failed for it
-
-- **WHEN** the workflow runs in a repo that has the pack but no wrangler config — the state the pack ships in
-- **THEN** no step aborts, the job reports that the repo is not yet configured, and the check is green
-- **AND** the message names `/wong-cloudflare` as what turns deploying on
-
-#### Scenario: The workflow is never overwritten
-
-- **WHEN** `/wong-sync` runs in a repo that already has the workflow file
-- **THEN** the existing file is left untouched
-- **AND** any upstream change to it surfaces through the adapt step as a proposal
-
-### Requirement: The branch variable is CI-neutral
-
-The pack's build and deploy scripts SHALL read the CI branch from `CF_BRANCH`, falling back to `WORKERS_CI_BRANCH` when it is unset. A repo running Cloudflare Workers Builds SHALL therefore continue to work with no change, and a repo may run both backends while migrating between them.
-
-#### Scenario: A Workers Builds repo is unaffected
-
-- **WHEN** the scripts run under Cloudflare Workers Builds, which sets only `WORKERS_CI_BRANCH`
-- **THEN** they resolve the branch and behave exactly as before
-
-#### Scenario: Neither variable is set
-
-- **WHEN** the scripts run on a developer's machine with neither variable set
-- **THEN** they take their local path: no remote database is migrated and nothing is deployed
-
-### Requirement: A non-production branch can never deploy to the production Worker
-
-The pack SHALL select the staging environment by the mechanism the app's build actually uses: `--env staging` at deploy time for a plain wrangler build, and `CLOUDFLARE_ENV=staging` at **build** time where the build goes through `@cloudflare/vite-plugin`, which flattens the selected environment into a generated config and redirects wrangler at it. Where that redirect exists the deploy SHALL NOT pass `--env`, which has no effect once the environment is baked in.
-
-Independently of which mechanism applied, `cf-deploy.sh` SHALL read the Worker name the deploy will actually use and **refuse to deploy** when a non-production branch resolves to the production Worker's name. The error SHALL name the branch, the Worker, and the two things that fix it.
-
-This exists because the failure is silent: the build is green, a preview URL is printed, and it is production's.
-
-#### Scenario: A plugin-built branch deploys to staging
-
-- **WHEN** a non-production branch is built through `@cloudflare/vite-plugin` and deployed
-- **THEN** the generated config describes the staging environment
-- **AND** the staging Worker is deployed, bound to the staging database
-- **AND** the production Worker and production database are untouched
-
-#### Scenario: The environment failed to apply
-
-- **WHEN** a non-production branch's resolved Worker name equals the production Worker's name
-- **THEN** the deploy is refused before anything is uploaded
-- **AND** the message names the branch, the production Worker, and both possible fixes
-
-#### Scenario: A plain wrangler build is unaffected
-
-- **WHEN** the build produces no redirect config
-- **THEN** the deploy passes `--env staging` as before
-
-### Requirement: The pack's CI publishes the preview URL it produced
-
-The pack's deploy script SHALL surface the per-commit preview URL that `wrangler versions upload` produced, and the pack's GitHub Actions workflow SHALL publish it to GitHub as a Deployment carrying an `environment_url`.
-
-The URL SHALL be **harvested from wrangler's own output, never constructed** from the documented `<alias>-<worker>-staging.<subdomain>.workers.dev` shape. A constructed URL is a guess that can answer `200` while pointing at a different commit, or at a Worker this deploy never touched — which defeats the purpose of a per-commit URL. When wrangler prints no URL, the scripts SHALL publish nothing and callers SHALL report that no preview URL exists, rather than emitting an unverified one.
-
-Publication SHALL be a no-op outside GitHub Actions: under Cloudflare Workers Builds, Cloudflare's own GitHub integration already attaches the URL to the commit, and the deploy script SHALL NOT duplicate it.
-
-Failure to publish SHALL NOT fail the deploy. The deploy has already succeeded by that point, and a missing URL degrades the tooling that reads it rather than the release.
-
-#### Scenario: Actions publishes the URL wrangler printed
-
-- **WHEN** the workflow deploys a non-production branch and `wrangler versions upload` prints a preview URL
-- **THEN** the workflow creates a GitHub Deployment for the head SHA whose status carries that URL as `environment_url`
-- **AND** `.claude/skills/save/scripts/preview-url.sh` resolves that same URL for the commit
-
-#### Scenario: No URL printed is reported, not invented
-
-- **WHEN** `wrangler versions upload` prints no `workers.dev` URL
-- **THEN** the deploy script warns and publishes nothing
-- **AND** the deploy itself still succeeds
-
-#### Scenario: Workers Builds is left alone
-
-- **WHEN** the deploy script runs under Cloudflare Workers Builds rather than GitHub Actions
-- **THEN** it emits the URL for the log but publishes no GitHub Deployment, because Cloudflare's integration already did
-
-### Requirement: One commit deploys once
-
-A commit on a branch SHALL produce exactly one deploy. The pack's workflow triggers on both `push` and `pull_request`, and those two events SHALL NOT both deploy the same commit: two concurrent `wrangler versions upload` calls race to bind the same per-commit preview alias, and while the race settles the alias intermittently serves Cloudflare's placeholder page — indistinguishable, to the person looking at it, from a failed deploy.
-
-Three constraints hold together, and satisfying only some of them reintroduces the problem in a different form:
-
-- **The concurrency group SHALL distinguish the event as well as the branch.** Keying on the branch alone makes the two triggers share a group, and GitHub **cancels** the loser. `gh pr checks` reports a cancelled run as `fail`, so a shared group converts a double deploy into a blocked `/ship`.
-- **A job-level condition SHALL prevent the redundant run from starting** — `push`, plus pull requests whose head repository differs from the base (forks, which produce no push event in this repo). A same-repo pull request is already covered by its own push.
-- **`push` SHALL remain the deploying event.** Its `github.sha` is the branch head, which is what the preview-URL resolver looks up; a `pull_request` SHA is the merge commit, which no deploy ever published.
-
-The condition alone SHALL NOT be relied on, because **GitHub evaluates concurrency before a job's `if`** — a run that will be skipped can still cancel the run doing the work.
-
-#### Scenario: A branch with an open PR deploys once
-
-- **WHEN** a commit is pushed to a branch that has an open pull request in the same repository
-- **THEN** exactly one job deploys it
-- **AND** no second job uploads a version bound to the same preview alias
-
-#### Scenario: A skipped run cancels nothing
-
-- **WHEN** the redundant `pull_request` run is skipped by its condition
-- **THEN** the `push` run that is deploying is not cancelled
-- **AND** the check reports success rather than cancellation
-
-#### Scenario: The preview URL still resolves
-
-- **WHEN** the deploy publishes a preview URL for a branch commit
-- **THEN** the URL is attached to the branch head SHA
-- **AND** `.claude/skills/save/scripts/preview-url.sh` resolves it for that commit
-
-#### Scenario: A fork pull request still gets a check
-
-- **WHEN** a pull request arrives from a fork, which produces no push event in this repository
-- **THEN** the `pull_request` run executes so the contribution is still checked
-
-### Requirement: Every config-relative path in a fragment is stated per layout
-
-The `wrangler.jsonc` fragment SHALL state, for each path it carries that Wrangler
-resolves relative to the config file, what that path is in **both** supported
-layouts — the repo-root layout and the `app/` subdirectory layout the app scaffold
-ships — and `migrations_dir` SHALL join `main` as a rule the scripts depend on.
-
-The fragment is the only thing in the payload that ever creates a target's Wrangler
-config, so a path it states wrongly is wrong in every repo that has one. It already
-does this correctly for `main` (*"resolved relative to the config file, so
-`worker/index.ts` is right for both layouts"*) and the `package.json` fragment does
-it for its `../scripts/` paths — `migrations_dir` is the omission. The pack ships
-`schema/` at the repo root, so in the `app/` layout the correct value is
-`../schema/migrations`; the fragment's literal `schema/migrations` resolves to
-`app/schema/migrations`, which never exists.
-
-This is the flagship path, not a corner: an appless repo takes the scaffold, so the
-`app/` layout is what every non-technical first install receives. WongStack's own
-`app/wrangler.jsonc` carries the correct value with a comment explaining it, which
-is why the defect is invisible here.
-
-#### Scenario: Fragment applied in the app/ layout
-
-- **WHEN** `/wong-cloudflare` creates `app/wrangler.jsonc` from the fragment
-- **THEN** `migrations_dir` is `../schema/migrations`, and `wrangler d1 migrations apply` finds the pack's migrations directory
-
-#### Scenario: Fragment applied at the repo root
-
-- **WHEN** the Worker and its config sit at the repo root
-- **THEN** `migrations_dir` is `schema/migrations`
-
-#### Scenario: Wrong path is caught at first migration
-
-- **WHEN** a repo's config points `migrations_dir` at a directory that does not exist
-- **THEN** the build wrapper exits non-zero rather than deploying a Worker against an unmigrated database
-
-### Requirement: The build wrapper's stop names its remedy
-
-Where `cf-build.sh` stops because no Wrangler config is present, its message SHALL
-name what to run — `/wong-cloudflare` — rather than reporting only the missing file.
-
-An unprovisioned repo is the *expected* state after setup, because the pack is
-adopted before it is configured and the token is documented as arriving later. The
-message that state produces — `wong: ERROR — no wrangler config found under <root>`
-— names a file the reader has never heard of and gives no next step.
-
-This is a message fix and nothing more. The audience is whoever reads the CI log,
-since running the app is done at the deployed preview URL rather than locally; the
-exit status SHALL NOT change, so CI behaviour stays exactly as it is.
-
-#### Scenario: Build runs before provisioning
-
-- **WHEN** the build wrapper runs in a repo that has taken the pack but not yet run `/wong-cloudflare`
-- **THEN** the message states that the repo is not configured for Cloudflare yet and that `/wong-cloudflare` configures it
-- **AND** the exit status is unchanged
-
-### Requirement: The Cloudflare stack pack ships in the core payload
-
-The payload SHALL include a Cloudflare stack pack — the D1 pipeline and deploy scripts, a seed template, guided config fragments, and pipeline docs — as part of the core payload. Every install SHALL receive the pack and the app scaffold. Setup SHALL NOT ask the user whether to take either, and the install record SHALL carry no flag that gates them.
-
-#### Scenario: A new install receives the pack
+#### Scenario: A new install
 
 - **WHEN** setup installs WongStack into an empty folder
-- **THEN** the target receives the pack scripts, the seed template, the workflow, and the pipeline docs
-- **AND** its install record has no `components.stackPack` or `components.appScaffold` flag
+- **THEN** the target receives the pack scripts, the workflow, the seed template, and the pipeline docs
 
-#### Scenario: Sync always selects the pack
-
-- **WHEN** `/wong-sync` runs in an installed repo
-- **THEN** its preflight selects the pack and scaffold files with the rest of the core payload
-
-#### Scenario: A legacy repo that declined the pack is unaffected
+#### Scenario: A legacy opt-out flag
 
 - **WHEN** an install record carries `components.stackPack: false` from an earlier release
 - **THEN** the flag is ignored, and the repo is not supported until it is set up again
 
-#### Scenario: A legacy repo keeps its own app
+### Requirement: Staging is its own Worker
 
-- **WHEN** an install record carries `components.appScaffold: false` from an earlier release
-- **THEN** the flag is ignored, and the repo is not supported until it is set up again
+A non-production branch SHALL deploy to a separate staging Worker with its own bindings, declared as the `staging` environment, and SHALL also get a per-commit preview URL; the production branch SHALL deploy production. No pack script SHALL rewrite the wrangler config.
 
-### Requirement: The pack reads the wrangler config with a real parser
+#### Scenario: A branch's queue message
 
-Every pack script SHALL read the wrangler config through one shared JSONC parser. The parser SHALL ignore comments and SHALL read a key only at its real position in the structure. The Worker name of an environment SHALL come from that environment's `name` key, never from a key that contains `name`, such as `database_name`. A TOML config SHALL be refused with a message that names the supported formats.
+- **WHEN** a branch is pushed and a message is enqueued to the staging queue
+- **THEN** the staging Worker handles it with that branch's code against the staging database
+- **AND** neither the production Worker nor the production database is involved
 
-#### Scenario: A database key sits before the Worker name
+### Requirement: A branch never deploys to production
 
-- **WHEN** `env.staging` lists `d1_databases` before its `name`
-- **THEN** the staging Worker name is the value of `env.staging.name`
-- **AND** the production guard refuses a deploy whose staging name equals production's
+The deploy SHALL refuse, before uploading anything, when a non-production branch resolves to the production Worker's name, whichever build path selected the environment. It SHALL read that name from the config's real structure, never from a comment or a key such as `database_name`.
 
-#### Scenario: A comment mentions staging
+#### Scenario: The environment failed to apply
 
-- **WHEN** a comment in the config contains `"staging":`
-- **THEN** the scripts read the staging block from the config, not from the comment
+- **WHEN** a non-production branch's resolved Worker name equals production's
+- **THEN** the deploy stops before any upload and names the branch, the Worker, and the fixes
 
-#### Scenario: A TOML config
+### Requirement: Every stateful binding gets a staging twin
 
-- **WHEN** the app's config is `wrangler.toml`
-- **THEN** the pack script stops and says that it reads `wrangler.jsonc` or `wrangler.json`
+The pipeline docs SHALL direct each stateful binding in staging at a second resource of the same kind, not a prefix on the production resource, and SHALL keep staging off production's schedule with an explicit empty cron list, because an omitted list inherits production's.
 
-### Requirement: A Worker without D1 builds and deploys
+#### Scenario: An R2 binding
 
-When the config binds no D1 database, the build wrapper SHALL skip the migration step and build the Worker. It SHALL stop with its remedy only when production binds D1 and the staging environment does not.
+- **WHEN** a repo adds an R2 binding
+- **THEN** the docs direct staging to a second bucket and reject a key prefix on the production bucket
 
-#### Scenario: A Worker with no database
+#### Scenario: A cron trigger
 
-- **WHEN** CI builds a branch for a Worker whose config has no `d1_databases`
-- **THEN** the build succeeds without running a migration
+- **WHEN** a repo declares a production cron and wants none in staging
+- **THEN** the docs direct it to declare `"triggers": { "crons": [] }` inside `env.staging`
 
-### Requirement: The staging reset refuses the production database
+### Requirement: Pack scripts are identical in every repo
 
-The staging database reset SHALL stop, and drop nothing, when the database it would reset has the production database's name. It SHALL drop the staging tables in one batched command.
+Every pack script SHALL be byte-identical across repos and SHALL read repo values from the target's own wrangler config, the CI environment, or the local credential files, under GitHub Actions and Cloudflare Workers Builds alike. Outside CI, a pack script SHALL touch no remote database and deploy nothing.
+
+#### Scenario: A developer's machine
+
+- **WHEN** the build runs with no CI branch set
+- **THEN** it builds without migrating any remote database or deploying
+
+### Requirement: Migrations apply on deploy
+
+Each deploy SHALL apply pending D1 migrations to its own database: production on the production branch, staging elsewhere. Migrations SHALL be forward-only with a timestamp prefix, so two branches never collide, and a Worker that binds no D1 SHALL build without migrating.
+
+#### Scenario: A branch migrates staging
+
+- **WHEN** CI builds a non-production branch
+- **THEN** pending migrations apply to the staging database and production is untouched
+
+#### Scenario: Two branches add migrations
+
+- **WHEN** two branches each add a migration
+- **THEN** both apply in timestamp order with no name collision
+
+### Requirement: Staging is seeded, never a production copy
+
+The staging reset SHALL rebuild staging from the migrations and the checked-in `schema/seed.sql`, which ships as an empty template. It SHALL never read or copy production data, and SHALL drop nothing when the staging database has production's name.
+
+#### Scenario: A reset
+
+- **WHEN** the staging reset runs
+- **THEN** staging holds the migrated schema and the seed rows, and no production read happened
 
 #### Scenario: Staging points at production
 
-- **WHEN** the staging environment's `database_name` equals production's
-- **THEN** the reset stops with an error and no table is dropped
+- **WHEN** the staging `database_name` equals production's
+- **THEN** the reset stops with an error and drops nothing
 
-### Requirement: The main app is not deployed when it is untouched
+### Requirement: Config fragments merge, never overwrite
 
-The pack's deploy job SHALL use the core check that `ci-tests` defines. When the branch leaves the main app untouched and changes no mini app, the job SHALL skip the main app's migration, build, and deploy and say so. When the branch changes mini apps, the job SHALL build and deploy the main app, because its Worker serves them. A merge to the default branch that leaves the main app untouched and changes no mini app SHALL NOT redeploy the production main app.
+The pack's fragments for `package.json`, the wrangler config, `.env.example`, and `.gitignore` SHALL merge into the target's files with its other content kept. Setup's provisioning SHALL apply them, with the target's own resource names and ids, and an upstream change to a fragment SHALL reach an installed repo only through a `/wong-sync` plan.
+
+#### Scenario: An existing package.json
+
+- **WHEN** the fragment merges into a repo's `package.json`
+- **THEN** the repo's other scripts and fields stay, and the migration scripts name this repo's databases
+
+### Requirement: A created wrangler config deploys
+
+A wrangler config made from the fragment SHALL declare a deployable Worker, with entry point, assets, and compatibility settings beside the bindings, and every config-relative path SHALL be right for both the repo-root and `app/` layouts.
+
+#### Scenario: The app layout
+
+- **WHEN** provisioning creates `app/wrangler.jsonc`
+- **THEN** `wrangler deploy` has an entry point, and migrations are found at `../schema/migrations`
+
+### Requirement: Local credentials cannot be committed
+
+The `.gitignore` fragment SHALL cover `.env*` and `.dev.vars*` while keeping `.env.example` and `.dev.vars.example` committable. The token variable SHALL be `CLOUDFLARE_API_TOKEN` everywhere, stated by one payload file, and no pack script SHALL move a `.env` value into a Worker's secrets.
+
+#### Scenario: A per-environment secrets file
+
+- **WHEN** a repo creates `.dev.vars.staging`
+- **THEN** git already ignores it, and `.dev.vars.example` stays committable
+
+### Requirement: The pipeline docs ship with the pack
+
+The `wiki/stack/` section SHALL cover the two-environment model, that a branch preview is a version serving only HTTP, the twin rule, timestamp migrations, seeded staging, why a Worker per pull request is declined, and runbooks for production recovery: time travel, never hand-applying schema, and reconciling drifted migrations.
+
+#### Scenario: Which preview runs queues
+
+- **WHEN** a reader opens the pipeline page
+- **THEN** it says up front which of the two preview URLs processes queue messages
+
+### Requirement: The pack's CI is a GitHub Actions check
+
+The pack SHALL ship a GitHub Actions workflow that runs the pack scripts on push and reports as a pull-request check that `/save` and `/ship` wait on. The workflow SHALL hold no branch logic of its own. A repo not yet provisioned SHALL get a green check that says so and names `/wong-sync` as the next step.
+
+#### Scenario: An unprovisioned repo
+
+- **WHEN** the workflow runs with no wrangler config or no Cloudflare secret
+- **THEN** it deploys nothing, fails no step, and names `/wong-sync`
+
+### Requirement: CI publishes the preview URL wrangler printed
+
+The pack's CI SHALL publish each branch commit's preview URL as a GitHub Deployment, taken from wrangler's output and never built from the URL pattern. When wrangler prints no URL, nothing SHALL be published, and a failed publish SHALL NOT fail the deploy.
+
+#### Scenario: A branch deploy
+
+- **WHEN** a branch deploy prints a preview URL
+- **THEN** the branch head commit carries that URL, and `/save` reports the same one
+
+#### Scenario: No URL printed
+
+- **WHEN** wrangler prints no preview URL
+- **THEN** CI warns, publishes nothing, and the deploy still succeeds
+
+### Requirement: One commit deploys once
+
+A branch commit SHALL deploy exactly once, even with an open pull request, and the skipped duplicate run SHALL NOT cancel the deploying run. A pull request from a fork SHALL still get a check.
+
+#### Scenario: A branch with an open pull request
+
+- **WHEN** a commit is pushed to a branch with an open same-repo pull request
+- **THEN** one job deploys it, and the check reports success rather than cancellation
+
+### Requirement: An untouched main app is not redeployed
+
+When a branch leaves the main app and every mini app untouched, CI SHALL skip the main app's migration, build, and deploy and say so. A change to any mini app SHALL deploy the main app, because its Worker serves them.
 
 #### Scenario: A docs-only branch
 
-- **WHEN** a branch changes only `wiki/` and `openspec/` files
-- **THEN** the deploy check is green and no main-app staging deploy or preview upload runs
+- **WHEN** a branch changes only `wiki/` and `openspec/`
+- **THEN** the check is green and no main-app deploy ran
 
-#### Scenario: A mini-app push
+#### Scenario: A mini-app change
 
-- **WHEN** a push to the default branch changes only files under `mini-apps/apps/`
-- **THEN** CI builds and deploys the production main app, with the mini apps in it
+- **WHEN** a push to the default branch changes only `mini-apps/apps/`
+- **THEN** CI deploys the production main app with the mini apps in it
 
-### Requirement: The main Worker serves the mini apps
+### Requirement: The main Worker answers its own routes
 
-The pack's app scaffold SHALL serve every mini app from the main app's Worker. Its build SHALL copy each app's pages into the Worker's static assets under `/apps/<name>/`, and SHALL copy no handler, test, or TypeScript file. Its Worker SHALL run first for every path it serves — `/api/`, `/_memory/`, and `/apps/` — so no Worker route falls to the single-page fallback. It SHALL send `/apps/<name>/api/*` to that app's handler when it has one, and serve the static assets for every other path. The pack SHALL ship this routing as a module the scaffold's Worker imports, so `/wong-sync` keeps it current.
+The main Worker SHALL handle `/api/`, `/_memory/`, and `/apps/<name>/api/` itself, never the single-page fallback, and SHALL never serve a mini app's handler, test, or TypeScript source. The routing SHALL ship as a pack module, so `/wong-sync` keeps it current.
 
-#### Scenario: Source stays private
+#### Scenario: An API path in a browser tab
 
-- **WHEN** a client requests a mini app's `api.mjs` or a test file by path
-- **THEN** the Worker does not return the file's contents
+- **WHEN** a person opens `/apps/hello/api/greeting`
+- **THEN** the hello app's handler answers
 
-#### Scenario: An API path opened in a browser
+#### Scenario: A source file by path
 
-- **WHEN** a person opens `/apps/hello/api/greeting` in a browser tab
-- **THEN** the hello app's handler answers, not the main app's single-page fallback
+- **WHEN** a client requests a mini app's `api.mjs` or test file
+- **THEN** the Worker does not return its contents
 
-#### Scenario: A memory write
+### Requirement: A preview can upload from the agent host
 
-- **WHEN** a client POSTs to a path under `/_memory/` or `/api/` on the production Worker
-- **THEN** the Worker handles it, and the static assets never answer it with the single-page page or 405
-
-### Requirement: The pack ships a host preview script for the main app
-
-The pack SHALL ship one script, byte-identical across repos, that uploads a preview of the main app from the agent host. Run outside CI with a Cloudflare credential and an alias, it SHALL install the main app's dependencies when they are missing, apply pending staging migrations, build the app for staging, create the staging Worker when it does not exist, upload a preview version of the staging Worker under the alias, and print the preview URL that wrangler reports. It SHALL fail closed when the resolved staging name equals the production name. It SHALL never deploy production. The caller MAY name the alias; without a named alias, it SHALL derive the alias from the current branch and SHALL refuse the default branch.
-
-#### Scenario: Upload from the agent host
-
-- **WHEN** the agent runs the script with the alias `mini-tips` and a credential
-- **THEN** a preview version of the staging Worker is uploaded under the `mini-tips` alias and its URL is printed
-- **AND** the production Worker is unchanged
+The pack SHALL ship a script that uploads a staging preview of the main app from the agent host and prints the URL wrangler reports. It SHALL never deploy production, SHALL refuse the default branch without a named alias, and SHALL stop when staging resolves to production's name.
 
 #### Scenario: On the default branch
 
 - **WHEN** the script runs on the default branch with no named alias
 - **THEN** it refuses and uploads nothing
 
-#### Scenario: A staging config named like production
+### Requirement: A sync ships only the example mini app
 
-- **WHEN** the staging environment resolves to the production name
-- **THEN** the script stops before any upload
+The payload SHALL carry the mini-app router and the example app `mini-apps/apps/hello/`, and no other app folder, so an app made in the source repo never reaches a target.
 
-### Requirement: The scaffold ships only the mini-app router and its example app
+#### Scenario: An app in the source repo
 
-The payload manifest SHALL list the mini-app scaffold file by file: the router and route-table modules with their type declarations, and the example app folder `mini-apps/apps/hello/`. It SHALL NOT list `mini-apps/` or `mini-apps/apps/` as a whole folder. An app folder added to the source repo SHALL therefore never reach a target through setup or sync.
-
-#### Scenario: An app made in the source repo stays there
-
-- **WHEN** the source repo gains `mini-apps/apps/tips/` and a target syncs
-- **THEN** the sync selects no path under `mini-apps/apps/tips/`
-- **AND** it still selects the example app and the router module
+- **WHEN** the source gains `mini-apps/apps/tips/` and a target syncs
+- **THEN** no path under `mini-apps/apps/tips/` is selected
 
 ### Requirement: Older installs retire the mini Workers
 
-A `/wong-sync` plan for an install that has `mini-apps/wrangler.jsonc` SHALL add the `/apps/` route and its config to the main app, and SHALL delete `mini-apps/wrangler.jsonc`, `mini-apps/worker.ts`, `mini-apps/tsconfig.json`, `mini-apps/.gitignore`, and `mini-apps/apps/.assetsignore`. Only after the production main Worker serves `/apps/` SHALL the plan's runbook delete the `<repo>-mini` and `<repo>-mini-staging` Workers.
-
-#### Scenario: The sync merges
-
-- **WHEN** the sync's pull request merges and production deploys
-- **THEN** each saved mini app answers at `/apps/<name>/` on the main address
-- **AND** only then are the two mini Workers deleted
+A `/wong-sync` plan for an install with its own mini-app Worker SHALL move the mini apps onto the main Worker and delete the old mini-app config. It SHALL delete the `<repo>-mini` and `<repo>-mini-staging` Workers only after production serves every saved app at `/apps/<name>/`.
 
 #### Scenario: Production has not deployed yet
 
 - **WHEN** the production main Worker does not answer `/apps/` yet
-- **THEN** the runbook deletes no Worker
-
+- **THEN** no Worker is deleted

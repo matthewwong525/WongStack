@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.16.0 — Thinner specs: keep the promises, cut the how
+
+- **A spec states a promise, not a procedure.** `.claude/rules/openspec.md` gains the spec bar. A requirement stays when a person or an installed repo relies on it: what they see or get, what must never happen, and what an update delivers or keeps. The steps, script and file names, and exact wording stay in the skill. Each requirement gets one or two scenarios. The rule loads whenever anyone edits `openspec/`, so new specs stay short in every installed repo.
+- **WongStack's own specs follow it** (meta-only). `openspec/specs/` drops from 49 capabilities and about 84,000 words to 26 and about 26,500. Overlapping specs merge — the three about updates become `wong-sync`, the three about memory become `memory`, and so on. `/verify` walks fewer, sharper scenarios. The old wording stays in the archive.
+
+**Updating.** `/wong-sync` brings the rule. Nothing to do by hand, and your own specs are not rewritten.
+
 ## 25.15.0 — Each part of a request gets its own workspace
 
 - **Several parts, one question.** When a request holds parts that could each be published alone, the assistant lists them and asks once: do the first here and open a new [Paseo](https://paseo.sh) workspace for each other part *(Recommended)*, do them here one at a time, or keep one change. The question rides in `/explore`'s exit round. [Several parts, several workspaces](wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule; `.agents/skills/plan/references/new-workspace.md` is the runbook.
