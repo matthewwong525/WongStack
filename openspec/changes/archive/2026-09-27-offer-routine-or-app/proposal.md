@@ -1,6 +1,6 @@
 # Offer a routine or an app when a task will come back
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/proactive-routine-apps
 **Open questions:** none
 
@@ -72,3 +72,5 @@ None.
 - **2026-09-27** — Assumed: the change-loop page owns the rule and `asking-the-user.md` only links it, because one topic lives on one page and that page already routes plain requests.
 - **2026-09-27** — Assumed: a minor release, because it adds agent behavior to the payload.
 - **2026-09-27** — Built: the rule's owner is a new *Offer a routine or an app* section in the change-loop page; the `WONG-STACK` block states it in one line, and the ask page links it from its next-step list. Released as 25.8.0. The payload link, config, and retired-name checks and strict validation passed; the host preview shows an unchanged app, since the change is prose only.
+- **2026-09-27** — Distilled: no repeatable fact; the one live fact is an open thread to watch the offer in real use.
+- **2026-09-27** — Archived and checkpointed for merge by `/ship`; CI passed on the build commit.
