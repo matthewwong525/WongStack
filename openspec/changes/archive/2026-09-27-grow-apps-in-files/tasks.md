@@ -5,7 +5,7 @@
 - [x] 1.1 Add `react-router` to `app/package.json` and update the lockfile; verify `npm ls react-router` resolves one version
 - [x] 1.2 Move the page into folders per design.md: `pages/home/` (`Home.tsx`, `Tutorial.tsx`/`.css`/`.test.tsx`, `AppList.tsx`/`.css`), `lib/apps.ts`; delete `App.tsx`; update `Tutorial.tsx`'s removal comment to name its CSS file and its line in `Home.tsx`
 - [x] 1.3 Add `router.tsx` (exported `routes`), `Layout.tsx`, and `pages/not-found/NotFound.tsx`; make `main.tsx` create the browser router and render `RouterProvider`
-- [ ] 1.4 Split `App.test.tsx` into `pages/home/Home.test.tsx` (loading, empty, failed, loaded) and `router.test.tsx` (`/` shows Home, `/nothing` shows Not found and links home); verify 100% coverage and a 100% mutation score in CI via `/save`
+- [x] 1.4 Split `App.test.tsx` into `pages/home/Home.test.tsx` (loading, empty, failed, loaded) and `router.test.tsx` (`/` shows Home, `/nothing` shows Not found and links home); verify 100% coverage and a 100% mutation score in CI via `/save`
 
 ## 2. Shared look
 
@@ -32,5 +32,5 @@
 ## 6. Verify
 
 - [x] 6.1 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `openspec validate grow-apps-in-files --strict --no-interactive`
-- [ ] 6.2 `/save`, and confirm the test and payload checks pass in CI
-- [ ] 6.3 On the preview, at phone width in light and dark mode: `/`, `/apps/hello/`, and `/apps/tips/` look as before and load `/style.css`; `/nothing-here` shows Not found and *Go home* returns to `/`; `/api/health` answers `{ "ok": true }`
+- [x] 6.2 `/save`, and confirm the test and payload checks pass in CI
+- [x] 6.3 On the preview, at phone width in light and dark mode: `/`, `/apps/hello/`, and `/apps/tips/` look as before and load `/style.css`; `/nothing-here` shows Not found and *Go home* returns to `/`; `/api/health` answers `{ "ok": true }`

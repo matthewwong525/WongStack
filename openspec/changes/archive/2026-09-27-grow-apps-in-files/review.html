@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · grow-apps-in-files</title>
+<title>Review · 2026-09-27-grow-apps-in-files</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="grow-apps-in-files">
+<body data-change="2026-09-27-grow-apps-in-files">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>grow-apps-in-files</h1>
+  <h1>2026-09-27-grow-apps-in-files</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -171,6 +171,9 @@
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, because it adds structure and removes only the unused API placeholder.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the design's UX section covers only the not-found page, because it is the one new screen; the home page looks the same.</li>
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built all non-gate tasks: <code>react-router</code> 8.4, the route list, not-found page, page folders, <code>/style.css</code>, the API route list with <code>GET /api/health</code>, <code>hello</code> and <code>tips</code> split, and the code rule's <i>Where things go</i>. Every local check passed (100% coverage and mutation score, knip, jscpd, payload links, retired names). Beyond the tasks: <code>scripts/tests/mini-apps.test.mjs</code> expects <code>hello/app.js</code> in the build output; <code>style.test.ts</code> loads Node's types itself, since Vitest's <code>?raw</code> returns an empty string for CSS; the third &quot;UI conventions&quot; mention in <code>ux-principles.md</code> sits in a code-block template and stays unlinked; <code>tips/style.css</code> keeps its own 26rem column, so the page looks as before.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Gate tasks done: CI passed on PR #172 (coverage, mutation, payload checks). On the staging preview, <code>/</code>, <code>/apps/hello/</code>, <code>/apps/tips/</code>, and <code>/nothing-here</code> look as before at 390px in light and dark; each loads <code>/style.css</code>; the hello form answers &quot;Hello, Ada!&quot;; <i>Go home</i> returns to <code>/</code>; <code>GET /api/health</code> answers <code>{&quot;ok&quot;:true}</code>, and <code>/api/nothing</code> and <code>POST /api/health</code> answer 404.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distill: no repeatable fact; the two session facts (no UI library, conventions shown in code) are already carried by the code rule's <i>Where things go</i> and the <code>mini-apps</code> spec.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archive checkpoint: archived by <code>/ship</code>, released as 26.13.0; the <code>app-scaffold</code> and <code>mini-apps</code> specs gained their four requirements.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

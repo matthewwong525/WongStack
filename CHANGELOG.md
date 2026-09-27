@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The starter app is built to grow
+## 26.13.0 — The starter app is built to grow
 
 - **Pages go through a router.** The starter app uses [React Router](https://reactrouter.com/) with one route list, `app/src/router.tsx`. The home page is its only page, and `Layout.tsx` is the frame around every page. A new page is a folder in `app/src/pages/` and one line in the list.
 - **An unknown address says so.** Any address the list does not name shows *Page not found* with a *Go home* link, not the home page.
@@ -14,6 +14,7 @@
 - **The code rule says where things go.** `.agents/rules/code.md` gains *Where things go* and now loads for `mini-apps/` too. [Mini apps](wiki/stack/mini-apps.md) and [UX principles](wiki/ux-principles.md) link it.
 
 **Updating.** `/wong-sync` plans the move. A repo whose starter app is still the one WongStack gave it takes the whole move together: the new files, `react-router` in `app/package.json`, the deleted flat files, and the removed API placeholder. A repo that rebuilt its app keeps its own layout; the plan offers only the code rule and the shared stylesheet. Existing mini apps keep working unchanged, and can adopt `/style.css` and an `app.js` page script when next touched.
+
 ## 26.12.1 — The README leads with how Matt uses AI
 
 - **The README opens with whose way this is.** Its first screen says WongStack is Matt's opinionated way of using AI, for Matt's business, Claymoo, and for everything else. The example asks come mostly from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers, plus one for planning the week. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.

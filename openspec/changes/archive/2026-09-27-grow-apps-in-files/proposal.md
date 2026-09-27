@@ -1,6 +1,6 @@
 # The starter app is built to grow
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/wongstack-style-guide
 **Open questions:** none
 
@@ -103,3 +103,6 @@ None.
 - **2026-09-27** — Assumed: a minor release, because it adds structure and removes only the unused API placeholder.
 - **2026-09-27** — Assumed: the design's UX section covers only the not-found page, because it is the one new screen; the home page looks the same.
 - **2026-09-27** — Built all non-gate tasks: `react-router` 8.4, the route list, not-found page, page folders, `/style.css`, the API route list with `GET /api/health`, `hello` and `tips` split, and the code rule's *Where things go*. Every local check passed (100% coverage and mutation score, knip, jscpd, payload links, retired names). Beyond the tasks: `scripts/tests/mini-apps.test.mjs` expects `hello/app.js` in the build output; `style.test.ts` loads Node's types itself, since Vitest's `?raw` returns an empty string for CSS; the third "UI conventions" mention in `ux-principles.md` sits in a code-block template and stays unlinked; `tips/style.css` keeps its own 26rem column, so the page looks as before.
+- **2026-09-27** — Gate tasks done: CI passed on PR #172 (coverage, mutation, payload checks). On the staging preview, `/`, `/apps/hello/`, `/apps/tips/`, and `/nothing-here` look as before at 390px in light and dark; each loads `/style.css`; the hello form answers "Hello, Ada!"; *Go home* returns to `/`; `GET /api/health` answers `{"ok":true}`, and `/api/nothing` and `POST /api/health` answer 404.
+- **2026-09-27** — Distill: no repeatable fact; the two session facts (no UI library, conventions shown in code) are already carried by the code rule's *Where things go* and the `mini-apps` spec.
+- **2026-09-27** — Archive checkpoint: archived by `/ship`, released as 26.13.0; the `app-scaffold` and `mini-apps` specs gained their four requirements.
