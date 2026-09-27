@@ -25,4 +25,4 @@
 ## 4. Verify
 
 - [x] 4.1 Run `node scripts/check-payload-links.mjs`, `node scripts/check-retired-names.mjs`, `openspec validate --specs --strict --no-interactive`, and `node scripts/measure-context.mjs --check`
-- [ ] 4.2 `/save`, and confirm in CI that the payload and test checks pass on this branch
+- [x] 4.2 `/save`, and confirm in CI that the payload and test checks pass on this branch

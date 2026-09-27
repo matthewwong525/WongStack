@@ -1,6 +1,6 @@
 # Wiki saves go through review, like code
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/wiki-saves-through-review
 **Open questions:** none
 
@@ -83,3 +83,4 @@ None.
 - **2026-09-27** — Check: `.github/workflows/payload.yml` skips lint, shellcheck, and the script suite when `docs_only` is true, because those only test code and skill text, which such a change does not touch; the private-names test and release checks still run.
 - **2026-09-27** — Assumed: `open-source-release` and `context-economy` get small deltas too, because the search in task 3.5 found an owner bypass for prose and a "prose save" route named in those live specs.
 - **2026-09-27** — Built: one save route for every file edit (the `wiki/` route and *The prose allowlist* deleted; `prose-save.md` is now `facts-save.md`, facts only); `/ship` merges work that needed no change by `/save`'s own test; `app-untouched.sh` gains `docs_only`, and Payload checks skip lint, shellcheck, and the script suite on it, keeping the private-names test and release checks. Spec deltas reconciled into six live specs. Local link, retired-name, config, and context checks and strict validation pass; CI (task 4.2) is next.
+- **2026-09-27** — CI passed on PR #156 (task 4.2); every task is done.
