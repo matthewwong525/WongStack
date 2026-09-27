@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.14.0 — Plain words for everyone
+
+- **Plain words for everyone; details when asked.** Plans, questions, and reports no longer depend on a `**Technical level:**` line on the person's page. Everyone gets plain words — the outcome and one link in a report — and anyone can ask for more, for one reply or from now on, kept as a preference on their page. A verb running inside another still prints what its caller reads. *Write at the reader's level* in `explore/references/asking-the-user.md` is now [*Write in plain words*](.agents/skills/explore/references/asking-the-user.md#write-in-plain-words); `/plan`, `/apply`, `/save`, `/continue`, `/ship`, setup, and the People rules link it with no technical branch.
+
+**Updating.** `/wong-sync` brings the skill and page edits. A `**Technical level:**` line on a person page is now ignored; delete it, or replace it with a stated preference such as *show me branch and commit details*.
+
 ## 25.13.0 — Plain reports, and continue drawn as the way back in
 
 - **Reports give the outcome and one link.** For a non-technical reader who ran the verb, `/save`, `/continue`, and `/ship` leave out branch names, commit ids, the `SAVE_GATE_RESULT` line, `merge.sh`'s lines, and fact counts unless asked. A verb running inside another still prints what its caller reads. The rule lives in *Write at the reader's level* in `explore/references/asking-the-user.md`.

@@ -75,7 +75,7 @@ Count a fact that both commands print once. Keep only the facts that pass the te
 **Invoke the `verify` skill once** and follow it verbatim. Never skip it, and never re-run it for a better verdict. If the repo has no `verify` skill, say so in one line and go to Step 5; never install it.
 
 - `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and continue to the merge.
-- `FAILURE`, after `/verify`'s own fix attempts → **stop and ask the user** as [a two-option question](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix the failure first *(Recommended)*, or merge anyway and record that the walk failed. Say what does not work at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): for a non-technical reader, what they would see on the preview, and *publish anyway* for the merge.
+- `FAILURE`, after `/verify`'s own fix attempts → **stop and ask the user** as [a two-option question](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix the failure first *(Recommended)*, or merge anyway and record that the walk failed. Say what does not work in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what they would see on the preview, and *publish anyway* for the merge.
 
 If the walk's fix loop advanced `HEAD`, its own delegated `/save` already gated the new commit. Confirm that result is `SUCCESS` or `NONE`, and merge that commit.
 
@@ -107,12 +107,12 @@ It compares the worktree copy, the primary, and the baseline recorded at seed. I
 
 ## Step 6 — report
 
-Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level) — for a non-technical reader, *it is live*, what changed for them, and the live link. For that reader, the rest below except *Checks loosened* comes only when they ask. Otherwise print `merge.sh`'s `key=value` lines, plus:
+Lead with the outcome in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) — *it is live*, what changed for the person, and the live link. The rest below except *Checks loosened* comes only when they ask; then print `merge.sh`'s `key=value` lines, plus:
 
 - **Archived** — the archive path; `openspec/specs/` holds the synced result.
 - **Checkpoint** — `/save`'s result and CI outcome, including auto-fix pushes.
 - **Walk** — the verdict and evidence link; a `FAILURE` merged anyway says the user chose it; an absent skill is one line.
 - **Secrets** — the promoted, skipped, and unresolved key names, never a value, or why it was skipped.
-- **Checks loosened** — each `Check:` bullet in the archived proposal's Decision log, in one plain line at the reader's level; omit the line when there is none. [The gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) owns the rule.
+- **Checks loosened** — each `Check:` bullet in the archived proposal's Decision log, in one plain line; omit the line when there is none. [The gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) owns the rule.
 
 Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally start the next change, walk the merged app, or stop here. A ship that stopped before the merge closes with the supported ways to clear the blocker instead.

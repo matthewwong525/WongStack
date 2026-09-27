@@ -18,17 +18,15 @@ Where should the convention live?
 - **No filler.** Ask what changes the result. A question whose answer changes nothing is noise.
 - **Options would be artificial?** Ask a structured free-text question — a credential, a name, an address only the user knows. Do not invent alternatives to fill the format.
 
-## Write at the reader's level
+## Write in plain words
 
-Ask in words the reader can judge. Find the current person's page by `git config user.email`, as [the People rules](../../../../wiki/wiki-style.md#people) say, and read its `**Technical level:**` line. No page, or no line, means **non-technical**.
+Write every plan, question, and report in plain words, for everyone. Give more detail only when the person asks — for one reply, or from now on. A standing ask is a preference on their person page, by [the People rules](../../../../wiki/wiki-style.md#people); never guess it from one message.
 
-- **Non-technical:** name what the person will see, get, lose, or risk — *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* Use no file path, identifier, command, or engineering term the person did not use first.
-- **Technical:** name the mechanism when it helps the choice.
+- **Name what the person will see, get, lose, or risk** — *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* Use no file path, identifier, command, or engineering term the person did not use first.
 - **Fix before you ask.** Never offer a choice that needs judgment the reader does not have. Where the skill's own rules let it fix a failure, try the fix first, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
 - **Lead a report with the outcome** — what is done, what they can open, what does not work. A failed or unverified check is part of the outcome, said in plain words.
-  - **Non-technical, and the person ran the verb:** give at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts. Give them exactly when the person asks.
+  - **The person ran the verb:** give at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts. Give them exactly when the person asks.
   - **Inside another verb:** still print every line the calling verb reads, such as `/save`'s gate line inside `/ship`, `/apply`, or `/verify`.
-  - **Technical:** those lines follow the outcome.
 
 The same rule covers the question, each option's tradeoff, a blocker report, and the next-step question.
 
