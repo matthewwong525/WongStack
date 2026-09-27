@@ -1,0 +1,31 @@
+# Meta-only: tag and publish each WongStack release. scripts/tag-releases.mjs
+# creates the tag and GitHub Release for every CHANGELOG.md version that has
+# none, so this run labels the new version and fills in any a failed run missed.
+
+name: Releases
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: releases
+  cancel-in-progress: false
+
+jobs:
+  releases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Tag and publish missing releases
+        run: node scripts/tag-releases.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}

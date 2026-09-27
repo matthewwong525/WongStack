@@ -65,21 +65,9 @@ emit() { echo "RESULT: $1"; }
 note() { echo "  $*"; }
 
 # Resolve the durable credential root from Git, never from a worktree host's
-# directory convention. In a normal checkout git-dir == common-dir and the
-# active root is already primary. A linked worktree's common dir is the primary
-# checkout's .git directory.
+# directory convention, through the memory skill's shared lookup.
 resolve_primary_root() {
-  local active_root="$1" git_dir common_dir primary_root resolved
-  git_dir=$(git -C "$active_root" rev-parse --path-format=absolute --git-dir 2>/dev/null) || return 1
-  common_dir=$(git -C "$active_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
-  if [ "$git_dir" = "$common_dir" ]; then
-    primary_root="$active_root"
-  else
-    primary_root=$(dirname "$common_dir")
-  fi
-  resolved=$(git -C "$primary_root" rev-parse --show-toplevel 2>/dev/null) || return 1
-  [ "$resolved" = "$primary_root" ] || return 1
-  printf '%s' "$primary_root"
+  node "$1/.claude/skills/memory/scripts/lib/primary-root.mjs" "$1" 2>/dev/null
 }
 
 # Exported values win. Missing values come from the primary worktree's ignored

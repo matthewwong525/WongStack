@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { closeSync, openSync, rmSync, statSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join as joinPath } from 'node:path';
-import { writeEnvKey } from './members.mjs';
+import { envKeyFile, writeEnvKey } from './members.mjs';
 import { loadConfig, readJson, SCRIPT, statePath, StoreError, writeJson } from './store.mjs';
 
 export const RENEW_DAYS = 7;
@@ -55,6 +55,7 @@ export async function joinStore(ctx) {
   const token = githubToken();
   if (!token) throw new JoinError('gh_login', 'GitHub is not signed in on this machine');
   const machine = machineName(ctx);
+  envKeyFile(ctx);
   let response;
   try {
     response = await fetch(`${config.worker.replace(/\/$/, '')}/join`, {

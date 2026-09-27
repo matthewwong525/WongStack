@@ -27,9 +27,15 @@ function recordMemory(ctx, patch) {
   writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
 }
 
+// The primary checkout's .env, or a stop when Git cannot confirm that checkout: a key is never saved in a guess.
+export function envKeyFile(ctx) {
+  if (!ctx.primaryRoot) throw new StoreError('Git cannot confirm the primary checkout, so there is no safe .env to save the key in; run this from the main checkout', { kind: 'unconfigured' });
+  return join(ctx.primaryRoot, '.env');
+}
+
 // Set CLOUDFLARE_MEMORY_TOKEN in the primary checkout's .env, replacing an earlier value.
 export function writeEnvKey(ctx, key) {
-  const file = join(ctx.primaryRoot, '.env');
+  const file = envKeyFile(ctx);
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const line = `CLOUDFLARE_MEMORY_TOKEN=${key}`;
   const next = /^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=.*$/m.test(text)
@@ -41,6 +47,7 @@ export function writeEnvKey(ctx, key) {
 
 async function add(ctx, email, { admin, env }) {
   const config = loadConfig(ctx);
+  if (env) envKeyFile(ctx);
   if (!config.worker) throw new StoreError('no memory Worker URL is recorded as components.memory.worker; follow the provisioning runbook\'s memory step first', { kind: 'unconfigured' });
   const key = newKey(email);
   const role = admin ? 'admin' : 'member';

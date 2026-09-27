@@ -7,6 +7,7 @@ import { homedir, hostname } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAM_HEADER } from '../../worker/memory-worker.mjs';
+import { primaryRoot } from './primary-root.mjs';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
 const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
@@ -39,13 +40,15 @@ export const isMain = url => Boolean(process.argv[1]) && realpathSync(process.ar
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const tryGit = (cwd, ...args) => { try { return git(cwd, ...args); } catch { return ''; } };
 
+// primaryRoot is null when Git cannot confirm the primary worktree: reads fall back to this checkout, and a write stops.
 export function repoContext(cwd = process.cwd()) {
   const [root, commonDir] = git(cwd, 'rev-parse', '--show-toplevel', '--path-format=absolute', '--git-common-dir').split('\n');
-  let author;
+  let author, primary = null;
+  try { primary = primaryRoot(cwd).primary; } catch { /* reported by the write that needs it */ }
   return {
     root,
     commonDir,
-    primaryRoot: dirname(commonDir),
+    primaryRoot: primary,
     branch: tryGit(cwd, 'rev-parse', '--abbrev-ref', 'HEAD'),
     get author() { author ??= tryGit(cwd, 'config', 'user.email'); return author; },
     machine: hostname(),
@@ -91,7 +94,8 @@ export function parseEnv(text) {
 // The primary worktree's .env wins; a linked worktree's own copy fills gaps (secrets convention).
 export function loadEnv(ctx) {
   const env = {};
-  for (const file of [join(ctx.root, '.env'), join(ctx.primaryRoot, '.env')]) {
+  for (const file of [join(ctx.root, '.env'), ctx.primaryRoot && join(ctx.primaryRoot, '.env')]) {
+    if (!file) continue;
     if (existsSync(file)) Object.assign(env, parseEnv(readFileSync(file, 'utf8')));
   }
   return env;

@@ -18,6 +18,8 @@ const scripts = {
   'scripts/cf-secrets.mjs': [],
   'scripts/mini-dashboard.mjs': [],
   'scripts/lib-wrangler-config.mjs': [],
+  'scripts/tag-releases.mjs': [],
+  '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],
   '.agents/skills/plan/scripts/build-review.mjs': [],
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
