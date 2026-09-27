@@ -1,10 +1,9 @@
 // The admin's memory-key commands. Keys live in the store's memory_keys table, which the app Worker's
 // memory route refuses to every key; these commands reach it with CLOUDFLARE_API_TOKEN, straight to Cloudflare.
-import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { hashKey } from '../../worker/memory-worker.mjs';
-import { configFile, KEY_PREFIX, loadConfig, openStore, StoreError } from './store.mjs';
+import { hashKey, newKey } from '../../worker/memory-worker.mjs';
+import { configFile, loadConfig, openStore, StoreError } from './store.mjs';
 
 const WIDEN = '.claude/skills/wong-setup/references/permission-groups.md';
 const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -15,6 +14,7 @@ async function keys(ctx, statements) {
     return await openStore(ctx, { admin: true }).batch(statements);
   } catch (error) {
     if (error.kind === 'auth') throw new StoreError('CLOUDFLARE_API_TOKEN lacks D1 Write on the memory database; widen it and run again', { kind: 'auth', help: WIDEN });
+    if (/no such column/.test(error.message)) throw new StoreError('the memory store predates per-machine keys; run `memory.mjs migrate` first', { kind: 'unconfigured' });
     throw error;
   }
 }
@@ -28,7 +28,7 @@ function recordMemory(ctx, patch) {
 }
 
 // Set CLOUDFLARE_MEMORY_TOKEN in the primary checkout's .env, replacing an earlier value.
-function writeEnvKey(ctx, key) {
+export function writeEnvKey(ctx, key) {
   const file = join(ctx.primaryRoot, '.env');
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const line = `CLOUDFLARE_MEMORY_TOKEN=${key}`;
@@ -42,17 +42,18 @@ function writeEnvKey(ctx, key) {
 async function add(ctx, email, { admin, env }) {
   const config = loadConfig(ctx);
   if (!config.worker) throw new StoreError('no memory Worker URL is recorded as components.memory.worker; follow the provisioning runbook\'s memory step first', { kind: 'unconfigured' });
-  const key = `${KEY_PREFIX}${Buffer.from(email).toString('base64url')}.${randomBytes(32).toString('base64url')}`;
+  const key = newKey(email);
   const role = admin ? 'admin' : 'member';
+  // Replace only the key member add made before; the keys this email's machines got through join stay.
   await keys(ctx, [
-    ['DELETE FROM memory_keys WHERE email = ?', [email]],
+    ['DELETE FROM memory_keys WHERE email = ? AND machine IS NULL', [email]],
     ['INSERT INTO memory_keys (hash, email, role, created_at) VALUES (?, ?, ?, ?)', [await hashKey(key), email, role, now()]],
   ]);
   if (role === 'member' && !config.team) recordMemory(ctx, { team: true });
   const note = role === 'member' && !config.team ? '\nThis repo is now a team: save .claude/.wong-stack.json.' : '';
-  if (env) { console.log(`added ${email} as ${role}; the key is in ${writeEnvKey(ctx, key)} as CLOUDFLARE_MEMORY_TOKEN. Any earlier key for ${email} no longer works.${note}`); return; }
+  if (env) { console.log(`added ${email} as ${role}; the key is in ${writeEnvKey(ctx, key)} as CLOUDFLARE_MEMORY_TOKEN. Any earlier key member add made for ${email} no longer works.${note}`); return; }
   console.log([
-    `added ${email} as ${role}. Any earlier key for ${email} no longer works. This key is shown once; send it privately.`,
+    `added ${email} as ${role}. Any earlier key member add made for ${email} no longer works. This key is shown once; send it privately.`,
     `The person puts this line in the .env of their main checkout:`,
     `CLOUDFLARE_MEMORY_TOKEN=${key}`,
   ].join('\n') + note);
@@ -60,12 +61,13 @@ async function add(ctx, email, { admin, env }) {
 
 async function remove(ctx, email) {
   const [removed] = await keys(ctx, [['DELETE FROM memory_keys WHERE email = ? RETURNING role', [email]]]);
-  console.log(removed.length ? `removed ${email}: their key no longer opens this store` : `${email} has no key for this store`);
+  console.log(removed.length ? `removed ${email}: their ${removed.length === 1 ? 'key no longer opens' : `${removed.length} keys no longer open`} this store` : `${email} has no key for this store`);
 }
 
 async function list(ctx) {
-  const [rows] = await keys(ctx, [['SELECT email, role, created_at FROM memory_keys ORDER BY role, email']]);
-  console.log(rows.length ? rows.map(row => `- ${row.email} (${row.role}, since ${row.created_at.slice(0, 10)})`).join('\n') : 'No keys open this store.');
+  const [rows] = await keys(ctx, [['SELECT email, role, created_at, machine, expires_at FROM memory_keys ORDER BY role, email, machine']]);
+  const line = row => `- ${row.email} (${row.role}, since ${row.created_at.slice(0, 10)}, ${row.machine ? `machine ${row.machine}` : 'made by member add'}, ${row.expires_at ? `expires ${row.expires_at.slice(0, 10)}` : 'no expiry'})`;
+  console.log(rows.length ? rows.map(line).join('\n') : 'No keys open this store.');
 }
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

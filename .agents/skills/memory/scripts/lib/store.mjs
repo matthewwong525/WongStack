@@ -6,13 +6,14 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { homedir, hostname } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TEAM_HEADER } from '../../worker/memory-worker.mjs';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
 const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
 const TOKEN_PAGE = 'wiki/development/memory.md#the-memory-key';
 const SPOOLABLE = new Set(['unconfigured', 'auth', 'network', 'server']);
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
-export const KEY_PREFIX = 'wongm_';
+const KEY_PREFIX = 'wongm_';
 
 // The email a memory key was made for (wongm_<base64url(email)>.<random>), or null for any other token.
 export function keyEmail(token) {
@@ -29,6 +30,8 @@ export class StoreError extends Error {
     this.reason = reason;
   }
   get spoolable() { return SPOOLABLE.has(this.kind); }
+  // A memory key past its expiry: `memory.mjs join` renews it.
+  get expired() { return this.code === 'key_expired'; }
 }
 
 export const isMain = url => Boolean(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(url);
@@ -100,7 +103,9 @@ export function loadConfig(ctx) {
   const file = configFile(ctx);
   const memory = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).components?.memory : null;
   if (!memory?.accountId || !memory?.databaseId) throw new StoreError('no memory store is recorded in .claude/.wong-stack.json; run /wong-sync to plan it', { kind: 'unconfigured' });
-  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null, worker: memory.worker || null, team: memory.team === true };
+  // A repo is a team when the install record says so, or when the memory Worker last said so (see openStore).
+  const team = memory.team === true || readJson(join(ctx.stateDir, 'team.json'), {}).team === true;
+  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null, worker: memory.worker || null, team };
 }
 
 // The admin's Cloudflare API: the provisioning token, straight to Cloudflare (the tests point it at a fake).
@@ -122,7 +127,7 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   const env = loadEnv(ctx);
   // Another repo's store (home) uses its own .env token first, never this process's.
   const token = admin ? adminToken(ctx) : ctx.isHome && !ctx.isCurrent ? env[TOKEN_VAR] || process.env[TOKEN_VAR] : process.env[TOKEN_VAR] || env[TOKEN_VAR];
-  if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env`, { kind: 'unconfigured', help: TOKEN_PAGE });
+  if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env; \`${SCRIPT} join\` gets one through your GitHub access to this repo`, { kind: 'unconfigured', help: TOKEN_PAGE });
   if (!admin && keyEmail(token) && !config.worker && !process.env.WONG_MEMORY_API) {
     throw new StoreError(`${TOKEN_VAR} holds a memory key, but .claude/.wong-stack.json records no components.memory.worker; pull the latest main or ask the admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
   }
@@ -137,6 +142,10 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
       response = await fetch(`${base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: AbortSignal.timeout(budget) });
     } catch (error) {
       throw new StoreError(`memory store unreachable (${error.name === 'TimeoutError' ? 'timeout' : 'network'})`, { kind: 'network' });
+    }
+    if (viaWorker) recordTeam(ctx, response.headers.get(TEAM_HEADER));
+    if (response.status === 401 && (await response.clone().json().catch(() => ({}))).errors?.[0]?.code === 'key_expired') {
+      throw Object.assign(new StoreError(`the memory key in ${TOKEN_VAR} expired; \`${SCRIPT} join\` renews it`, { kind: 'auth', help: TOKEN_PAGE }), { code: 'key_expired' });
     }
     if (response.status === 403) {
       const code = (await response.clone().json().catch(() => ({}))).errors?.[0]?.code;
@@ -174,7 +183,19 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
 
   // Transcripts are filed under this email: the memory key's, or the git email for a direct token.
   const email = keyEmail(token) || (ctx.author || '').toLowerCase() || 'unknown';
-  return { config, env, email, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
+  // Facts are written under the key's email: the Worker refuses a member's write under any other name.
+  const author = keyEmail(token) || ctx.author || null;
+  return { config, env, email, author, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
+}
+
+// The memory Worker says on every answer whether more than one email holds a key; remember it for the
+// next session's digest and search. An unchanged answer writes nothing.
+function recordTeam(ctx, header) {
+  if (header !== '0' && header !== '1') return;
+  const file = join(ctx.stateDir, 'team.json');
+  const team = header === '1';
+  if (readJson(file, {}).team === team) return;
+  try { writeJson(statePath(ctx, 'team.json'), { team }); } catch { /* best effort */ }
 }
 
 // ---------- local state, shared by every worktree of one clone ----------

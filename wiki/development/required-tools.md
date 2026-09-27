@@ -53,6 +53,10 @@ The pack's deploy workflow is the file that trips this, so any repo taking (or o
 
 [Setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4e-the-workflow) checks the scope before it relies on a push, and links here rather than re-explaining.
 
+## `gh` needs the `user:email` scope for memory
+
+A teammate gets their memory key by [joining through GitHub](memory.md#joining-through-github), which reads their verified emails. `gh`'s default scopes cannot. Add the scope once: `gh auth refresh -h github.com -s user:email`, or `--scopes workflow,user:email` on a fresh `gh auth login`. Without it, `join` names this command and makes no key.
+
 ## Runtimes install at the point of need
 
 **Nothing is installed pre-emptively.** Installing a runtime changes the machine, not the repo. When a step needs Node and it is missing, the skill explains what and why, and asks. When the answer is yes, prefer a **user-local** install (the [official installer](https://nodejs.org/) or `nvm` into `$HOME`) over a `sudo` package manager, which fails on many managed laptops.

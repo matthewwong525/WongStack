@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.5.0 — Memory access comes from GitHub
+
+- **A teammate joins memory on their own.** `memory.mjs join` sends the person's `gh` token to the production Worker's new `/_memory/join` route. The route asks GitHub about the repository CI deployed it from, never one the request names. A private repo lets in anyone who can read it, a public one anyone who can push, and the key's email is one GitHub has verified. The session-start hook runs `join` in the background when there is no key, and memory loads from the next session: [joining through GitHub](wiki/development/memory.md#joining-through-github). No key goes in the repo.
+- **One key per machine, expiring.** A joined key lasts 30 days, and the hook renews it when 7 or fewer are left. A second laptop no longer replaces the first. `member list` shows each machine and expiry; `member remove` revokes every key of an email; `member add` replaces only the key it made. The admin's key from setup, and every key made before this release, never expire.
+- **A member key adds facts under its own name.** The route runs only the memory script's own writes for a member, with the key's email as the author, plus plain reads. A member can no longer change, delete, or hide a fact, or drop the store's guards. The script writes facts under the key's email.
+- **Team mode comes from the store.** The route says on every answer whether more than one email holds a key, and the script remembers it, so the owner's digest filters personal facts once a teammate joins.
+- **Production knows its repository.** `cf-deploy.sh` passes `--var GITHUB_REPOSITORY:<owner/repo>` on the production deploy, from `GITHUB_REPOSITORY` or the `origin` remote.
+- **Teammates need one more `gh` scope.** `user:email`, to read verified emails: [required tools](wiki/development/required-tools.md#gh-needs-the-useremail-scope-for-memory).
+
+**Updating.** `/wong-sync` brings the route, the script, the deploy change, and migration `0003_key_machines.sql`. After the update merges and production deploys, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once. Until then, old keys keep working and `join` is refused.
 ## 25.4.1 — Installs skip npm's audit
 
 - **No install waits on npm's audit.** `test.yml`'s and `deploy.yml`'s `Install` step and `scripts/cf-preview.sh`'s first-run install now run `npm ci --no-audit --no-fund`. npm is retiring the audit endpoint `npm ci` calls, and on one CI run it held the install for 5 minutes instead of the usual 8 seconds. Nothing read the audit summary or the funding notice.
