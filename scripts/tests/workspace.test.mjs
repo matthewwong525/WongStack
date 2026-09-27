@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  agentSettings, childEnv, parseCreated, runArgs,
+  agentSettings, childEnv, parseCreated, renameArgs, runArgs,
 } from '../../.agents/skills/routine/scripts/workspace.mjs';
 
 const cli = new URL('../../.agents/skills/routine/scripts/workspace.mjs', import.meta.url).pathname;
@@ -55,7 +55,8 @@ function repo(t) {
 }
 
 // A fake `paseo`: `inspect` answers FAKE_INSPECT, `run` prints FAKE_RUN_STDOUT and
-// FAKE_RUN_STDERR. Every call is appended to log.jsonl with the parent-agent variable it saw.
+// FAKE_RUN_STDERR, and `workspace rename` prints { workspaceId, title } or fails with
+// FAKE_RENAME_FAIL. Every call is appended to log.jsonl with the parent-agent variables it saw.
 function fakePaseo(t) {
   const dir = tmp(t, 'workspace-paseo-');
   const log = path.join(dir, 'log.jsonl');
@@ -67,6 +68,11 @@ fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, parent: process
   workspace: process.env.PASEO_WORKSPACE_ID ?? null }) + '\\n');
 if (process.env.FAKE_PASEO_DOWN) { console.error('Cannot connect to daemon at home /x: ECONNREFUSED'); process.exit(1); }
 if (args[0] === 'inspect') { console.log(process.env.FAKE_INSPECT); process.exit(0); }
+if (args[0] === 'workspace' && args[1] === 'rename') {
+  if (process.env.FAKE_RENAME_FAIL) { console.error(process.env.FAKE_RENAME_FAIL); process.exit(1); }
+  console.log(JSON.stringify({ workspaceId: args[2], title: args[3] }));
+  process.exit(0);
+}
 if (process.env.FAKE_RUN_FAIL) { console.error(process.env.FAKE_RUN_FAIL); process.exit(1); }
 process.stderr.write(process.env.FAKE_RUN_STDERR ?? '');
 console.log(process.env.FAKE_RUN_STDOUT ?? JSON.stringify({ agentId: 'agent-1', status: 'running', provider: 'claude',
@@ -79,6 +85,7 @@ console.log(process.env.FAKE_RUN_STDOUT ?? JSON.stringify({ agentId: 'agent-1', 
   return {
     calls,
     runs: () => calls().filter(c => c.args[0] === 'run'),
+    renames: () => calls().filter(c => c.args[0] === 'workspace' && c.args[1] === 'rename'),
     env: {
       WORKSPACE_PASEO_BIN: bin, PASEO_AGENT_ID: 'caller-1', PASEO_WORKSPACE_ID: 'ws-caller',
       FAKE_INSPECT: JSON.stringify(CALLER), FAKE_RUN_STDERR: CREATED,
@@ -119,6 +126,11 @@ test('builds branch-off and checkout arguments with the brief last', () => {
   assert.ok(!co.includes('--base'));
 });
 
+test('builds the rename arguments with the title as one element', () => {
+  assert.deepEqual(renameArgs('ws-1', 'Docs, specs, and checks cleanup'),
+    ['workspace', 'rename', 'ws-1', 'Docs, specs, and checks cleanup']);
+});
+
 test('strips only the variables that make a sub-agent', () => {
   assert.deepEqual(childEnv({ PATH: '/bin', PASEO_AGENT_ID: 'a', PASEO_WORKSPACE_ID: 'w', HOME: '/h' }), { PATH: '/bin', HOME: '/h' });
 });
@@ -151,8 +163,14 @@ test('opens from a linked worktree: fresh origin/main of the primary, caller set
   assert.equal(run.parent, null);
   assert.equal(run.workspace, null);
   assert.deepEqual(paseo.calls()[0].args, ['inspect', 'caller-1', '--json']);
+  assert.deepEqual(paseo.calls().map(c => c.args.slice(0, 2).join(' ')), ['inspect caller-1', 'run -d', 'workspace rename']);
+  const [rename] = paseo.renames();
+  assert.deepEqual(rename.args, ['workspace', 'rename', 'ws-42', 'Thinner specs', '--json']);
+  assert.equal(rename.parent, null);
+  assert.equal(rename.workspace, null);
   assert.equal(r.json.agentId, 'agent-1');
   assert.equal(r.json.workspaceId, 'ws-42');
+  assert.equal(r.json.workspaceName, 'Thinner specs');
   assert.equal(r.json.branch, 'clever-otter');
   assert.equal(r.json.base, 'origin/main');
   assert.equal(r.json.setupSkippedReason, 'setup needs approval');
@@ -170,6 +188,12 @@ test('checkout mode opens the named branch and fetches nothing', t => {
   assert.equal(flag(run.args, '--branch'), 'feat/auth');
   assert.equal(r.json.checkout, 'feat/auth');
   assert.equal(git(root, 'rev-parse', 'refs/remotes/origin/main'), before);
+  const [rename] = paseo.renames();
+  assert.deepEqual(rename.args, ['workspace', 'rename', 'ws-42', 'add-auth', '--json']);
+  assert.equal(rename.parent, null);
+  assert.equal(rename.workspace, null);
+  assert.equal(r.json.workspaceName, 'add-auth');
+  assert.equal(r.json.warning, undefined);
 });
 
 test('outside a Paseo agent it needs --agent and uses Paseo\'s default model', t => {
@@ -193,7 +217,32 @@ test('a missing workspace line still reports the opened agent, with a warning', 
   assert.equal(r.status, 0);
   assert.equal(r.json.agentId, 'agent-1');
   assert.equal(r.json.workspaceId, null);
+  assert.equal(r.json.workspaceName, null);
   assert.match(r.json.warning, /workspace line/);
+  assert.match(r.json.warning, /kept Paseo's name/);
+  assert.equal(paseo.renames().length, 0);
+});
+
+test('a refused rename still reports the opened workspace, with Paseo\'s name and a warning', t => {
+  const { root } = repo(t);
+  const refusals = {
+    'Title cannot be empty': /paseo workspace rename failed: Title cannot be empty/,
+    'Cannot connect to daemon at home /x: ECONNREFUSED': /daemon does not answer/,
+  };
+  for (const [refusal, reason] of Object.entries(refusals)) {
+    const paseo = fakePaseo(t);
+    const r = runCli(root, ['open', '--title', 'Release collisions', '--brief', brief(t)], { ...paseo.env, FAKE_RENAME_FAIL: refusal });
+    assert.equal(r.status, 0, JSON.stringify(r.json));
+    assert.equal(paseo.renames().length, 1);
+    assert.equal(r.json.agentId, 'agent-1');
+    assert.equal(r.json.title, 'Release collisions');
+    assert.equal(r.json.workspaceId, 'ws-42');
+    assert.equal(r.json.workspaceName, 'clever-otter');
+    assert.equal(r.json.branch, 'clever-otter');
+    assert.equal(r.json.setupSkippedReason, 'setup needs approval');
+    assert.match(r.json.warning, /kept Paseo's name, "clever-otter"/);
+    assert.match(r.json.warning, reason);
+  }
 });
 
 test('a failed fetch still opens, from the last fetched copy', t => {
@@ -204,6 +253,10 @@ test('a failed fetch still opens, from the last fetched copy', t => {
   assert.equal(r.status, 0, JSON.stringify(r.json));
   assert.equal(r.json.base, 'origin/main');
   assert.match(r.json.warning, /Could not fetch origin\/main/);
+  const both = runCli(root, ['open', '--title', 'B', '--brief', brief(t)], { ...paseo.env, FAKE_RENAME_FAIL: 'no such workspace' });
+  assert.equal(both.status, 0, JSON.stringify(both.json));
+  assert.equal(typeof both.json.warning, 'string');
+  assert.match(both.json.warning, /Could not fetch origin\/main[^]*kept Paseo's name/);
 });
 
 test('dry run prints the command and runs nothing', t => {
@@ -215,8 +268,10 @@ test('dry run prints the command and runs nothing', t => {
   assert.equal(r.status, 0);
   assert.equal(r.json.dryRun, true);
   assert.equal(r.json.command.at(-1), '--json');
+  assert.deepEqual(r.json.rename, ['paseo', 'workspace', 'rename', '<workspaceId>', 'B', '--json']);
   assert.deepEqual(r.json.removedEnv, ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID']);
   assert.equal(paseo.runs().length, 0);
+  assert.equal(paseo.renames().length, 0);
   assert.equal(git(root, 'rev-parse', 'refs/remotes/origin/main'), before);
 });
 
