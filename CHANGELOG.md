@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.2.0 — Smoother publishing, with no dead ends
+
+- **Publishing from `main` saves once.** `/ship` on a default branch with uncommitted work goes straight to the archive; Step 3's one save cuts the branch. Before, it saved and ran CI, then did both again.
+- **`/ship` writes a missing plan for code.** Where no change selects and the work is code, it authors one by `/save`'s new-plan fallback and carries on, instead of stopping.
+- **Every edit asks *publish it?*.** A plain request that edited a repo file, such as a wiki note, and a change that leaves the app untouched both end with that question. The `WONG-STACK` block's plain-request rule says so.
+- **A typed `/explore` ends with a question.** When the thinking is done, it asks *Plan it* (recommended), *Keep thinking*, or *Stop*. Bounded mode still returns to `/plan`. Notes pasted from a review page skip exploring.
+- **`/continue` never builds on the wrong branch.** When it can't check out the change here, it recaps and asks what next, with nothing built.
+- **One plan link, only when the plan changed.** `/save` prints it when it changed the plan's sections or `tasks.md`, not for Status, Branch, Open questions, or Decision-log lines. The plan's link no longer counts against a report's one link.
+- **New work in a busy workspace gets its own choice:** open it in a new workspace (recommended), or publish the work here first.
+- **Smaller fixes.** The build helper carries a `store <id>` line and passes `--store`. `/ship`'s distillation skips its branch search on `main`. `asking-the-user.md` allows the *Review the plan* reply with no question, and says `/apply` saves only for a task that needs the gate.
+
+**Updating.** `/wong-sync` brings the skill, wiki, and `WONG-STACK` block edits. Nothing to do by hand.
+
 ## 26.1.0 — A "Review the plan" choice that prints the plan's link
 
 - **The plan's closing question offers *Review the plan*.** After a plan, the choices are *Build it now* (recommended), *Review the plan*, and *Stop here*. To change the plan, you still type or paste notes.

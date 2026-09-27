@@ -1,10 +1,4 @@
-# asking-the-user Specification
-
-## Purpose
-
-How WongStack asks and writes to a person: one choice format through the best question tool, clarification bounded before planning, a next step ending every reply, all in plain words, with detail when the person asks.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Every ask offers structured choices
 
@@ -19,47 +13,6 @@ Every question a skill puts to the person SHALL offer two or three real options,
 
 - **WHEN** the person answers in their own words instead of picking an option
 - **THEN** the skill uses that answer as given, not the nearest option
-
-### Requirement: Confirmations, offers, and menus are asks
-
-A confirmation, an offer, a selection menu, and a blocked-state fork SHALL use the same choice format; a confirmation SHALL name what happens on each side, and a menu SHALL show the detail needed to choose. A skill SHALL NOT resolve several candidates by a guess.
-
-#### Scenario: Several candidates remain
-
-- **WHEN** a skill cannot tell which change, account, or branch the person means
-- **THEN** it lists the candidates with their identifying detail and waits
-
-### Requirement: The format never adds a question
-
-The ask format SHALL decide how a question looks, not whether one is needed. An action the person's invocation already authorized SHALL be taken and reported without a prompt.
-
-#### Scenario: An authorized action
-
-- **WHEN** an action falls inside the run the person invoked, such as `/ship`'s merge
-- **THEN** the skill takes it and reports it without asking
-
-### Requirement: The best available question tool carries the ask
-
-A skill SHALL ask through the first callable structured question tool (Codex `request_user_input`, Claude `AskUserQuestion`, or a host equivalent) within its capacity, else as numbered chat, and SHALL wait for the answer; elapsed time and a preselected option SHALL NOT count as one. Only where nobody can answer SHALL it take the recommended options, labelled assumed, and continue.
-
-#### Scenario: Only chat is available
-
-- **WHEN** no structured question tool is usable and the person can answer in chat
-- **THEN** the skill writes the numbered questions with options and waits
-
-#### Scenario: Nobody can answer
-
-- **WHEN** the session is unattended
-- **THEN** the skill uses the recommended options without waiting and labels them assumed
-
-### Requirement: Codex can ask in Default mode
-
-An installed repo SHALL let Codex ask structured questions in its Default mode through project configuration, without changing the person's global Codex settings.
-
-#### Scenario: A trusted checkout
-
-- **WHEN** Codex starts a Default-mode session in a trusted WongStack checkout
-- **THEN** `request_user_input` is callable and the global Codex configuration is unchanged
 
 ### Requirement: Every reply that returns control ends with the next step
 
@@ -94,20 +47,6 @@ A reply that creates a plan, or changes what it says or its checklist, SHALL pri
 - **WHEN** `/save` updates only the plan's status and decision log
 - **THEN** its report prints no plan link and its question offers no *Review the plan*
 
-### Requirement: Plans, asks, and reports use plain words
-
-For every reader, a plan's Why and What Changes, every ask, and every report SHALL name what the person will see, get, lose, or risk, with no file path, identifier, command, or engineering term unless the person used it first or asked for that detail. A skill SHALL try a fix within its own rules before asking, and SHALL NOT offer a choice that needs judgment the person lacks.
-
-#### Scenario: A migration question
-
-- **WHEN** `/explore` must ask about changing stored data
-- **THEN** it asks what should happen to the accounts that exist today, not how to migrate the schema
-
-#### Scenario: The person names the mechanism
-
-- **WHEN** a person asks to move the app's data into a new `accounts` table
-- **THEN** the plan may name the `accounts` table, because the person used the term first
-
 ### Requirement: Reports give the outcome and one link
 
 A reply that returns control SHALL open with the outcome in plain words and, when the person invoked the verb, give at most one link and leave out branch names, commit ids, gate lines, and fact counts unless the person asks, for that reply or as a standing preference on their person page. The plan's link line SHALL NOT count toward that one link. The agent SHALL NOT infer a wish for detail from one message. A verb running inside another SHALL still print the lines its caller reads.
@@ -136,20 +75,6 @@ A reply that returns control SHALL open with the outcome in plain words and, whe
 - **WHEN** the person pastes notes copied from a plan's review page
 - **THEN** `/plan` updates that plan without an explore pass or a question round
 
-### Requirement: One question round before planning
-
-At the move into planning, `/explore` SHALL ask at most one round, holding only the choices a wrong guess would make the plan wrong, not merely different, and no more questions than the tool holds. A choice already settled SHALL NOT be asked again, and every gap left or found later, nested calls included, SHALL become a recorded assumption with its reason.
-
-#### Scenario: Everything is settled
-
-- **WHEN** the conversation already answered every material choice
-- **THEN** `/explore` asks nothing and moves to its summary
-
-#### Scenario: A gap after the round
-
-- **WHEN** the round's answers reveal another open choice
-- **THEN** the workflow records a supported assumption instead of asking again
-
 ### Requirement: Standalone explore asks in small groups
 
 Standalone `/explore` SHALL ask material questions in small groups of related questions that can be answered together, SHALL wait for answers before asking what depends on them, and MAY ask several groups as the thinking develops. It SHALL write no file. When the thinking is done, it SHALL end with a next-step question whose recommended option is to plan it, and SHALL NOT start `/plan` without that answer.
@@ -163,12 +88,3 @@ Standalone `/explore` SHALL ask material questions in small groups of related qu
 
 - **WHEN** a person who typed `/explore` has answered its last round
 - **THEN** it summarizes and asks whether to plan it, keep thinking, or stop, and drafts nothing until they choose
-
-### Requirement: Explore checks memory before asking
-
-Before its first question, `/explore` SHALL search the memory store once for the work, and SHALL NOT ask what a live fact already answers; it SHALL state that fact with its age and author as an assumption the person can correct. An unreachable store SHALL be reported in one line.
-
-#### Scenario: A known preference
-
-- **WHEN** memory holds a live fact that the person wants one pull request for refactors
-- **THEN** `/explore` does not ask how to split the work, and names that fact as the reason
