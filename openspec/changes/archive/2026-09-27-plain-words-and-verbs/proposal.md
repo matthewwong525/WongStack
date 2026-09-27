@@ -1,6 +1,6 @@
 # Plain reports, and a loop picture that tells the truth
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** plain-words-and-verbs
 **Open questions:** none
 
@@ -68,3 +68,6 @@ None.
 - **2026-09-27** — Assumed: the loop becomes `/explore → /plan → /apply → /save → /ship`, with `/continue` named after it as the way back in, because `/continue` hands off to `/apply` and is not a stage.
 - **2026-09-27** — Assumed: a minor release, because nothing an installed repo relies on is removed.
 - **2026-09-27** — Built: the report rule in *Write at the reader's level* (outcome plus at most one link for a non-technical reader who ran the verb; caller-read lines kept inside another verb); `/save` §5, `/continue` §4, and `/ship` Step 6 link it; the loop reads `/explore → /plan → /apply → /save → /ship` with `/continue` as the way back in, in the block, README, change-loop diagram, and development hub; six terms added to the source wiki's list. Moved to a fresh branch, `plain-words-and-verbs`, cut from `main`, because the workspace's branch merged as PR #148. Released as 25.11.0 above main's 25.10.1. Link, config, and retired-name checks and strict validation passed.
+- **2026-09-27** — Merged main's 25.11.0 (PR #152, the plan-link rule) into the branch; kept both `WONG-STACK` lines and renumbered this release to 25.12.0.
+- **2026-09-27** — Distilled: no repeatable fact.
+- **2026-09-27** — Archived and checkpointed for merge by `/ship`.
