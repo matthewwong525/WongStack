@@ -18,4 +18,4 @@
 
 - [x] 3.1 Bump `VERSION` 25.9.0 → 25.10.0 and add a newest-first `CHANGELOG.md` entry with an **Updating** line: nothing to do in an installed repo; new installs get the tool check.
 - [x] 3.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `openspec validate setup-installs-its-tools --strict --no-interactive`. Check links from `wong-setup/` into other skills by hand, since the link checker skips it. Verify: all pass.
-- [ ] 3.3 CI passes on the pull request, checked by `/save`.
+- [x] 3.3 CI passes on the pull request, checked by `/save`.

@@ -1,6 +1,6 @@
 # Setup installs the tools it needs
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore/setup-usage-ux
 **Open questions:** none
 
@@ -86,3 +86,6 @@ None.
 - **2026-09-27** — Assumed: links from `wong-setup` are checked by hand, because `check-payload-links.mjs` skips that source-only skill (a known gap).
 - **2026-09-27** — Assumed: a minor release, because no installed repo needs a migration step and setup only gains behavior.
 - **2026-09-27** — Built: `wong-setup/references/tools.md` owns the check, the no-password install routes with the `~/.local` fallback, the GitHub code-flow sign-in, identity, and the Windows link test; `SKILL.md` runs it after the empty-folder check and before the clone, reading it from the raw URL. The failure map gains *Getting the computer ready*; the runbook's Step 1a and Step 5 changed; `required-tools.md`, `getting-started.md`, `cloudflare-credentials.md`, the stack hub, and the README match. `gh auth login --web` and `gh auth refresh` were run with no terminal and printed the one-time code and device link. One consent names every missing tool, rather than one ask per tool; Node counts as ready at or above `.nvmrc`'s major. Released as 25.10.0, because 25.9.0 (dependency update, #147) merged first. Link, config, and retired-name checks and strict validation passed; `wong-setup` links were checked by script by hand.
+- **2026-09-27** — CI passed on the build commit (PR #148), which completes task 3.3.
+- **2026-09-27** — Distilled: no repeatable fact; the change's three live facts are open threads (the queued plain-words change, the rest of the audit, and a flaky memory test).
+- **2026-09-27** — Archived and checkpointed for merge by `/ship`.

@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · setup-installs-its-tools</title>
+<title>Review · 2026-09-27-setup-installs-its-tools</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="setup-installs-its-tools">
+<body data-change="2026-09-27-setup-installs-its-tools">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>setup-installs-its-tools</h1>
+  <h1>2026-09-27-setup-installs-its-tools</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -158,6 +158,9 @@
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: links from <code>wong-setup</code> are checked by hand, because <code>check-payload-links.mjs</code> skips that source-only skill (a known gap).</li>
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, because no installed repo needs a migration step and setup only gains behavior.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: <code>wong-setup/references/tools.md</code> owns the check, the no-password install routes with the <code>~/.local</code> fallback, the GitHub code-flow sign-in, identity, and the Windows link test; <code>SKILL.md</code> runs it after the empty-folder check and before the clone, reading it from the raw URL. The failure map gains <i>Getting the computer ready</i>; the runbook's Step 1a and Step 5 changed; <code>required-tools.md</code>, <code>getting-started.md</code>, <code>cloudflare-credentials.md</code>, the stack hub, and the README match. <code>gh auth login --web</code> and <code>gh auth refresh</code> were run with no terminal and printed the one-time code and device link. One consent names every missing tool, rather than one ask per tool; Node counts as ready at or above <code>.nvmrc</code>'s major. Released as 25.10.0, because 25.9.0 (dependency update, #147) merged first. Link, config, and retired-name checks and strict validation passed; <code>wong-setup</code> links were checked by script by hand.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on the build commit (PR #148), which completes task 3.3.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled: no repeatable fact; the change's three live facts are open threads (the queued plain-words change, the rest of the audit, and a flaky memory test).</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived and checkpointed for merge by <code>/ship</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
