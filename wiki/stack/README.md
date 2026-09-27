@@ -15,7 +15,7 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 - [Cloudflare Access](cloudflare-access.md) — **opt-in**: a login wall in front of an otherwise-public app, and why the header-trust code change adopts with it, never before it.
 - [Staging walkthrough](../development/staging-walkthrough.md) — `/verify` exercises the change's own scenarios against the deployed preview — a real browser for UI journeys, direct requests and existing commands for the rest — and grades them against what those scenarios promised. It is not stack-specific and lives with the development docs; this entry points at it because the pack's pipeline is what publishes the preview it walks.
 - [API keys](api-keys.md) — for anyone: get a key from a service, paste it into the chat, and what to do if one leaks.
-- [Cloudflare credentials](cloudflare-credentials.md) — the token screen in detail: the user-scoped two-checkbox token, how it widens itself, the narrow CI deploy token, per-environment Worker secrets, and the account-root trade-off.
+- [Cloudflare credentials](cloudflare-credentials.md) — the token screen in detail: the user-scoped token with two permission rows, how it widens itself, the narrow CI deploy token, per-environment Worker secrets, and the account-root trade-off.
 
 Every install takes the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack in an empty folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown).
 

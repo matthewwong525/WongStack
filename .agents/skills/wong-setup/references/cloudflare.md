@@ -6,7 +6,7 @@ This runbook turns a fresh WongStack install into a running app with session mem
    the user's whole job                     everything below is this runbook
    ─────────────────────────                ──────────────────────────────
    1. sign up at Cloudflare                 widen the user token
-   2. create a token (two checkboxes)       resolve the account
+   2. create a token (two permission rows)  resolve the account
    3. paste it when asked                   create the memory store
                                             create prod + staging D1
                                             write the wrangler config
@@ -39,7 +39,7 @@ gh auth status
 git remote get-url origin || gh repo create "$(basename "$PWD")" --private --source . --remote origin
 ```
 
-- **`gh auth status` fails** → **stop before any Cloudflare call**, and tell the user to run `gh auth login`. Nothing is created.
+- **`gh auth status` fails** → **stop before any Cloudflare call**, and run [the GitHub sign-in](tools.md#2-the-github-sign-in) again. Nothing is created. Setup signed the person in before it cloned the source, so this is a sign-out since then.
 - **`origin` exists** → use it, and create nothing.
 
 ### 1b. Make the file, not the user
@@ -219,7 +219,7 @@ Once production has deployed, check memory with `$M digest`: it reads through th
 
 State, in plain language:
 
-- Session memory: on, with or without transcripts
+- Session memory: on, with or without transcripts, only when 4g's digest answered. Otherwise: *"Memory starts once your site first goes live; until then, what I learn waits on this computer."*
 - The production URL, and the preview URL pattern with one branch filled in as an example
 - What was created, and what was reused from a previous run
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)
