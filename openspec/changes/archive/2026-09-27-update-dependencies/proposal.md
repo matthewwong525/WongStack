@@ -1,6 +1,6 @@
 # Bring the building blocks up to date
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** update-dependencies
 **Open questions:** none
 
@@ -52,3 +52,6 @@ None. Dependency versions change no spec-level behavior, so the change sets `ski
 - **2026-09-27** — CI run 36297096801 failed Stryker at 12.85%: every `worker/` mutant survived with Vitest 5.0.2. Reproduced locally (`worker/index.ts` 0/17 killed). Cause: [stryker-js #6210](https://github.com/stryker-mutator/stryker-js/issues/6210), open and unreleased — Vitest 5 matches `testNamePattern` against the chain joined with ` > `, and `@stryker-mutator/vitest-runner` 10.0.0 joins with a space, so each per-test run matches no test.
 - **2026-09-27** — Assumed: hold `vitest` and `@vitest/coverage-v8` at 4.1.11 and leave Dependabot #110 and #112 open, because the alternatives weaken or bend the gate: `coverageAnalysis: "off"` changes a check setting and slows every run, and patching the runner in `node_modules` is not reproducible. With Vitest 4, `worker/index.ts` is back to 17/17 killed.
 - **2026-09-27** — CI passed on PR #147 with Vitest held at 4 (auto-fix attempt 1 of 3). Task 2.3 done; 2.4 waits for the merge.
+- **2026-09-27** — Assumed: task 2.4 (confirm Dependabot closed its eight PRs) moves out of the checklist into `/ship`'s report, because it can only run after the merge and an unchecked task blocks the archive.
+- **2026-09-27** — Distilled facts before the archive: no repeatable fact for the wiki. The Vitest hold is temporary; `CHANGELOG.md` 25.9.0 and a memory thread carry it until stryker-js #6210 ships.
+- **2026-09-27** — Archive checkpoint on `update-dependencies`: all tasks done, `skip_specs` so no spec sync; CI passed on PR #147 before the archive.

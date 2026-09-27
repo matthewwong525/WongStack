@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · update-dependencies</title>
+<title>Review · 2026-09-27-update-dependencies</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="update-dependencies">
+<body data-change="2026-09-27-update-dependencies">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>update-dependencies</h1>
+  <h1>2026-09-27-update-dependencies</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -131,6 +131,9 @@
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI run 36297096801 failed Stryker at 12.85%: every <code>worker/</code> mutant survived with Vitest 5.0.2. Reproduced locally (<code>worker/index.ts</code> 0/17 killed). Cause: <a href="https://github.com/stryker-mutator/stryker-js/issues/6210">stryker-js #6210</a>, open and unreleased — Vitest 5 matches <code>testNamePattern</code> against the chain joined with <code> &gt; </code>, and <code>@stryker-mutator/vitest-runner</code> 10.0.0 joins with a space, so each per-test run matches no test.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: hold <code>vitest</code> and <code>@vitest/coverage-v8</code> at 4.1.11 and leave Dependabot #110 and #112 open, because the alternatives weaken or bend the gate: <code>coverageAnalysis: &quot;off&quot;</code> changes a check setting and slows every run, and patching the runner in <code>node_modules</code> is not reproducible. With Vitest 4, <code>worker/index.ts</code> is back to 17/17 killed.</li>
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #147 with Vitest held at 4 (auto-fix attempt 1 of 3). Task 2.3 done; 2.4 waits for the merge.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: task 2.4 (confirm Dependabot closed its eight PRs) moves out of the checklist into <code>/ship</code>'s report, because it can only run after the merge and an unchecked task blocks the archive.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled facts before the archive: no repeatable fact for the wiki. The Vitest hold is temporary; <code>CHANGELOG.md</code> 25.9.0 and a memory thread carry it until stryker-js #6210 ships.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archive checkpoint on <code>update-dependencies</code>: all tasks done, <code>skip_specs</code> so no spec sync; CI passed on PR #147 before the archive.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
