@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Memory reports what it really saved
+
+- **The background memory report counts what was stored.** While a background run works, the memory script tallies what each `put-facts` and `strip` stored, in `run-tally.json` in the clone's memory state folder. `finish-run` records that tally, not the model's own `--counts`. When the model's counts differ, the run's record says `model reported other counts: <keys>`, and the next digest adds *(the run's own report differed)*. A hand-run `finish-run`, or a run an older `run.mjs` started, records `--counts` as before.
+- **Publishing finds a chat's notes after a branch rename.** `memory.mjs search` takes `--change <slug>`: facts from every session that wrote a fact on that change. With `--branch` too, it returns facts from either set. `/ship`'s distill step runs `search --branch "$BRANCH" --change "$CHANGE_NAME"` on a feature branch and `search --change "$CHANGE_NAME"` on `main`, so a chat whose branch was renamed loses none.
+- **Source repo only: the link check covers source-only skills.** `scripts/check-payload-links.mjs` resolves every link in a skill no manifest category lists (today `wong-setup` and `update-dependencies`) against this repo, and checks a `#anchor` against the target page's headings as GitHub slugs them. A missing path or renamed heading fails with `file:line -> target`.
+- **Source repo only: the add-a-skill guide covers WongStack-only skills.** Such a skill does step 1 only: no manifest entry, no setup surface, and no changelog entry of its own.
+
+**Updating.** Nothing to do by hand. `/wong-sync` brings the memory scripts and the `memory` and `ship` skills.
+
 ## 26.9.0 — Pushes stay fast when mutation testing would start over
 
 - **Updates keep earlier mutation results.** The Test workflow's saved Stryker file no longer has a key that hashes `package-lock.json` and the Stryker and Vitest configs. The key is now `stryker-<os>-` plus the run, so a dependency update, a WongStack update, or a test-settings change reuses what mutation testing already knows. A push re-tests only what it changed, in minutes, not 15 to 20. Old saved files match the new key, so the first push after the update starts warm.
