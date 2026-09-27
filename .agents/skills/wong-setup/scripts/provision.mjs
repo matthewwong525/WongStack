@@ -89,7 +89,8 @@ async function retry(fn, sleep, again) {
   return fn();
 }
 
-const forbidden = (error) => error instanceof CloudflareError && error.status === 403;
+// Right after a widen, Cloudflare can refuse the new groups for a few seconds with 401 (code 10000) or 403.
+const pending = (error) => error instanceof CloudflareError && (error.status === 401 || error.status === 403);
 const wait = (ms) => new Promise((done) => setTimeout(done, ms));
 const isoDate = () => new Date().toISOString().slice(0, 10);
 
@@ -232,7 +233,7 @@ export async function widen({ token, api, fetch, account, sleep = wait }) {
   }
   const probed = account ? [account] : (await step('cloudflare', () => cf('GET', '/accounts?per_page=50'))).map((each) => each.id);
   for (const id of probed) {
-    await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/d1/database?per_page=1`), sleep, forbidden));
+    await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/d1/database?per_page=1`), sleep, pending));
   }
   return { granted: missing.map(({ name }) => name), held: wanted.filter(({ group }) => held.has(group.id)).map(({ name }) => name), probed };
 }

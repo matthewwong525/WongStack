@@ -80,6 +80,26 @@ Its last line of output is one word, and it exits 0 only on `done`. The cause go
 | `cloudflare` | A Cloudflare call, the memory store, or a GitHub secret failed. |
 | `push` | The commit or the push failed. The commit stays. |
 
+When a refused Cloudflare call stopped it, the line before the last names that call, its status, and Cloudflare's error codes, never a query or a token:
+
+```text
+Cloudflare PUT /user/tokens/abc: HTTP 403 9109
+cloudflare
+```
+
+It prints that line only when it matches the exported `CLOUDFLARE_CALL` pattern, so a host can test it the same way before it shows it. An unreachable Cloudflare, or any other stop, prints the reason alone.
+
+### What a host may import
+
+A host that runs the installer may import these names from it, and nothing else:
+
+| Name | What it is |
+| --- | --- |
+| `run` | Runs a command with no shell; `input` goes to stdin, and `timeout` ends it. A non-zero exit rejects with the output on `stdout`. |
+| `jobFolder` | The folder a job works in, or `null` when the job is not a valid one. |
+| `repoFolder` | The folder name of an `owner/name` repo, or `null` when it is not safe. |
+| `CLOUDFLARE_CALL` | The pattern the refused-call line matches. |
+
 Run it again after any stop. It finishes what the last run began and makes no second copy of anything. On a repo it already pushed, it restores `.env` and the secrets and commits nothing.
 
 ### What the installer never does
