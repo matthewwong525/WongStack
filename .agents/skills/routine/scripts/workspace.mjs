@@ -13,6 +13,11 @@
 // `paseo run` makes a sub-agent whenever PASEO_AGENT_ID is set, so the child
 // process runs without it.
 //
+// `paseo run --title` names only the agent, so the script then renames the
+// workspace to the same title with `paseo workspace rename`, and Paseo's list
+// shows the part, not a generated slug. The workspace is already open by
+// then, so a refused rename is a `warning` with exit 0, never a failure.
+//
 // Node built-ins only. WORKSPACE_PASEO_BIN overrides the `paseo` found on PATH.
 
 import { execFile } from 'node:child_process';
@@ -61,6 +66,11 @@ export function runArgs({ primary, title, brief, settings, base, checkout }) {
   if (settings.thinking) args.push('--thinking', settings.thinking);
   args.push('--mode', settings.mode, brief);
   return args;
+}
+
+/** The `paseo workspace rename` arguments, without the trailing --json. The title is one element. */
+export function renameArgs(workspaceId, title) {
+  return ['workspace', 'rename', workspaceId, title];
 }
 
 /** The environment for `paseo run`: this one, minus the variables that make a sub-agent. */
@@ -144,6 +154,19 @@ async function freshBase(cwd, branch, { fetch }) {
   return { base: branch, warning };
 }
 
+/** Names the opened workspace after its part; any refusal keeps Paseo's name, with a warning. */
+async function nameWorkspace(bin, created, title, env) {
+  if (!created) {
+    return { name: null, warning: "Paseo did not print the workspace line, so the workspace kept Paseo's name; find it by its agent's title." };
+  }
+  try {
+    const { data } = await runPaseo(bin, renameArgs(created.workspaceId, title), { env: childEnv(env) });
+    return { name: data?.title || title, warning: null };
+  } catch (error) {
+    return { name: created.workspaceName, warning: `The workspace kept Paseo's name, "${created.workspaceName}": ${error.message}` };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Command
 
@@ -190,26 +213,33 @@ async function open(flags, env) {
       ({ base: ctx.base, warning } = await freshBase(primary, await defaultBranch(primary), { fetch: !flags.dryRun }));
     }
     const args = runArgs({ ...ctx, brief });
-    if (flags.dryRun) return { ok: true, dryRun: true, command: ['paseo', ...args, '--json'], removedEnv: PARENT_VARS };
+    if (flags.dryRun) {
+      return {
+        ok: true, dryRun: true, command: ['paseo', ...args, '--json'],
+        rename: ['paseo', ...renameArgs('<workspaceId>', title), '--json'], removedEnv: PARENT_VARS,
+      };
+    }
     const { data, stderr } = await runPaseo(bin, args, { env: childEnv(env) });
     if (!data?.agentId) {
       throw new PaseoError(EXIT.client, `Paseo's run output has changed: no agentId in ${JSON.stringify(data)}.`);
     }
     const created = parseCreated(stderr);
+    const named = await nameWorkspace(bin, created, title, env);
+    const warnings = [warning, named.warning].filter(Boolean);
     return {
       ok: true,
       agentId: data.agentId,
       title: data.title ?? title,
       cwd: data.cwd ?? null,
       workspaceId: created?.workspaceId ?? null,
-      workspaceName: created?.workspaceName ?? null,
+      workspaceName: named.name,
       branch: created?.branch ?? ctx.checkout ?? null,
       ...(ctx.checkout ? { checkout: ctx.checkout } : { base: ctx.base }),
       provider: ctx.settings.provider,
       model: ctx.settings.model,
       mode: ctx.settings.mode,
       ...(created?.setupSkippedReason ? { setupSkippedReason: created.setupSkippedReason } : {}),
-      ...(warning || !created ? { warning: warning ?? 'Paseo did not print the workspace line; find it by its title.' } : {}),
+      ...(warnings.length ? { warning: warnings.join('\n') } : {}),
     };
   } catch (error) {
     if (error instanceof PaseoError && error.code !== EXIT.input) error.extra.fallback = { app: appSteps(ctx) };
