@@ -59,7 +59,7 @@ function fixture(t) {
   git('push', '-q', '-u', 'origin', 'main');
 
   // Runs the check in the clone as a workflow would, and parses its key=value lines.
-  const check = (vars, args = []) => {
+  const outputs = (vars, args = []) => {
     const result = spawnSync('bash', [script, ...args], {
       cwd: work,
       encoding: 'utf8',
@@ -67,15 +67,20 @@ function fixture(t) {
     });
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     const lines = result.stdout.split('\n').filter(Boolean);
-    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'mini_apps', 'mini_changed'],
-      `stdout must hold only the three output lines:\n${result.stdout}`);
+    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'mini_apps', 'mini_changed', 'base'],
+      `stdout must hold only the four output lines:\n${result.stdout}`);
     return Object.fromEntries(lines.map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
+  };
+  // The three answers about what changed; `base` has its own test.
+  const check = (vars, args) => {
+    const { base: _base, ...answers } = outputs(vars, args);
+    return answers;
   };
   const branch = name => git('checkout', '-q', '-b', name);
   const push = () => git('push', '-q', '-u', 'origin', 'HEAD');
   const onBranch = name => ({ GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: name });
 
-  return { work, git, commit, check, branch, push, onBranch };
+  return { work, git, commit, outputs, check, branch, push, onBranch };
 }
 
 test('a docs-only branch leaves the main app untouched', t => {
@@ -236,6 +241,21 @@ test('--worktree: no base fails safe to touched', t => {
 test('--worktree: a clean tree is not proof', t => {
   const f = fixture(t);
   assert.deepEqual(worktree(f), { untouched: 'false', mini_apps: '', mini_changed: 'false' });
+});
+
+test('base names the commit the change is compared with, or is empty', t => {
+  const f = fixture(t);
+  const main = f.git('rev-parse', 'HEAD');
+  f.branch('feature');
+  f.commit({ 'app/src/index.ts': 'export const x = 2;\n' }, 'code');
+  assert.equal(f.outputs(f.onBranch('feature')).base, main);
+  assert.equal(f.outputs({}, ['--worktree']).base, main);
+  f.git('checkout', '-q', 'main');
+  const before = f.git('rev-parse', 'HEAD');
+  f.commit({ 'wiki/new.md': '# New\n' }, 'docs');
+  assert.equal(f.outputs({ ...f.onBranch('main'), BEFORE_SHA: before }).base, before);
+  assert.equal(f.outputs({ ...f.onBranch('main'), BEFORE_SHA: '0'.repeat(40) }).base, '');
+  assert.equal(f.outputs({ GITHUB_EVENT_NAME: 'workflow_dispatch' }).base, '');
 });
 
 test('an unknown argument is a usage error', t => {

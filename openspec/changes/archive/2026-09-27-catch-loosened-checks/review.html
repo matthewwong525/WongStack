@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -8,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-09-27-catch-loosened-checks</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -91,17 +92,75 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-09-27-catch-loosened-checks">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-09-27-catch-loosened-checks</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">The automatic checks only protect you if they stay switched on. Today the AI can quietly turn one off, skip a test, or lower a limit, and everything still passes. You would have to read the code to notice, and a non-technical person can't. So a loosened check should never pass silently: it needs a written reason, and you should see every one before you publish.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Loosening a check stops the save until a reason is written down.</b> Every save compares the work with the live version. If a check got weaker and no reason is recorded, the checks fail.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">save ──▶ compare with live</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">            │</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">      check loosened?</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">       │          │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">       no         yes</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">       │          │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">       ▼       reason written?</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">     pass       │        │</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">                yes      no</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">                │        │</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">                ▼        ▼</span>
+<span class="ln" data-note="item-1-line-12" tabindex="0">              pass     fail ──▶ agent</span>
+<span class="ln" data-note="item-1-line-13" tabindex="0">                                fixes</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>What counts as loosening.</b> Turning a check off on one line of code. Skipping or deleting a test. Any change to a check's settings: its limits, what it leaves out, the test command, or the checks themselves. A setting that gets stricter needs a one-line reason too, because a script can't reliably tell stricter from looser.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The agent fixes it without asking you.</b> It either switches the check back on, or writes a plain reason into the plan's list of decisions. It only tells you what it could not fix.</div></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>You see each one before you publish.</b> The <i>publish it?</i> question and the final &quot;it is live&quot; report list every loosened check in one plain line. The plan's review page tags them <code>check</code>, beside <code>asked</code> and <code>assumed</code>.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-4-line-1" tabindex="0">Built the tip calculator.</span>
+<span class="ln" data-note="item-4-line-2" tabindex="0">Preview: https://…/apps/tips/</span>
+
+<span class="ln" data-note="item-4-line-4" tabindex="0">Checks loosened (1):</span>
+<span class="ln" data-note="item-4-line-5" tabindex="0">• Skipped one test for the</span>
+<span class="ln" data-note="item-4-line-6" tabindex="0">  rounding code, because the</span>
+<span class="ln" data-note="item-4-line-7" tabindex="0">  test needs a live bank feed.</span>
+
+<span class="ln" data-note="item-4-line-9" tabindex="0">Publish it?</span></pre></div></details></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>It works in every WongStack repo, across all its code.</b> Mini apps included: a skipped or deleted test counts wherever it is.</div></div></li>
+</ol>
+<p class="aside">Non-goals: stronger checks for mini apps, an automatic second review, and scanning for pasted keys or unsafe packages. Those stay open for later.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked which guardrail gaps to plan now → chose catching loosened checks only; stronger mini-app checks, a second review, and secret and package scanning stay open.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked what a non-technical person sees when a check catches a problem → chose the agent fixes it itself and reports only what it could not fix.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: any change to a check's settings counts, not only a lowered number, because the loose direction differs per setting (a higher copy-paste limit is looser, a lower coverage limit is looser) and a list of known keys misses new ones. A reason for a stricter setting costs one line.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the reason lives in the change's Decision log as a <code>Check:</code> bullet that names the file, not in a code comment beside it, because JSON settings files can't hold comments and the Decision log already reaches the review page and the archive. This replaces the &quot;reason beside it&quot; idea from exploring.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a reason counts when a <code>proposal.md</code> this branch adds or changes, active or archived, names the file in a <code>Check:</code> bullet, because <code>/ship</code> archives the change before its last CI run.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the step runs inside the existing Test check, before the suite and on docs-only branches too, so no new required check is needed.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>app-untouched.sh</code> supplies the comparison point as a fourth output, <code>base</code>, so one script decides what the branch changed.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: when there is nothing to compare with, the step says so and passes, because that happens only on a push to <code>main</code> whose pull request already passed.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the check covers the whole repo, mini apps included, and skips its own script so its list of markers doesn't flag itself.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: release 25.5.0, a minor bump: new behavior, no setup step, and the failure message tells an installed repo how to pass.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: release 25.6.0 instead of 25.5.0, because <code>main</code> shipped 25.5.0 (memory access from GitHub) while this was planned.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the step runs after the suite rather than before it, even when the suite fails, because one push then reports every problem and the auto-fix needs one round, not two.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the check reads its own script for settings changes but not for skip markers, because it names every marker, and an edit that weakens it must still need a reason.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-09-27</p>Check: <code>.github/workflows/test.yml</code> adds the loosened-checks step and a summary line; nothing is skipped or lowered.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-09-27</p>Check: <code>.github/scripts/app-untouched.sh</code> prints a fourth line, <code>base</code>, for the new step; its three answers are unchanged.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-09-27</p>Check: <code>.github/scripts/loosened-checks.mjs</code> is the new check itself.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distill: no repeatable fact in memory for this change; the rule it teaches lives in <code>wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason</code>.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archive checkpoint: built and archived as 25.6.0. The check, its CI step, the <code>base</code> output, the publish-list and review tag, the gate section, and the code rule landed; 318 script tests pass locally, and the check reports this branch's three <code>Check:</code> files as explained.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>

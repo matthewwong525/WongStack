@@ -108,6 +108,22 @@ An **unverifiable** gate is not an absent one. When the check state can't be rea
 it as unverified and carries on — it's a checkpoint — while `/ship` consumes that same result as
 unmergeable and stops rather than reinterpret or repeat it.
 
+### A loosened check needs a reason
+
+Every check has an escape hatch, and a person who does not read code can not see one used. So the Test check fails when a change loosens a check and does not say why. It flags a file when the change:
+
+- adds a line that turns a check off — a skip comment for mutation testing, coverage, lint, or types, or a skipped, focused, or to-do test;
+- deletes a test file, other than by moving it to another test file;
+- changes a check's settings — a test, coverage, mutation, lint, type, duplicate-code, or unused-code config file, a `package.json` `test` script or a script it runs, the Test workflow, or a script under `.github/scripts/`. Any change counts, stricter ones too: a script can not tell stricter from looser.
+
+A reason is a bullet in the change's Decision log that starts with `Check:` and names the file:
+
+```text
+- **2026-09-27** — Check: `app/stryker.conf.json` skips static mutants, because each one reruns every test.
+```
+
+Only a proposal the branch adds or edits counts, archived ones included, so an old reason never excuses a new loosening. The agent fixes a flagged file itself — it switches the check back on, or writes the reason — and lists every `Check:` bullet in plain words before *publish it?* and in the final report. The script is `.github/scripts/loosened-checks.mjs`; the Test workflow runs it on every push.
+
 ### The prose allowlist
 
 **A prose-only save is a valid save.** Not every session produces a diff that needs reviewing. When

@@ -33,6 +33,16 @@
 # `gh pr checks` reports as `fail`, blocking /ship.
 #
 # ---------------------------------------------------------------------------
+# Why loosened checks need a reason
+#
+# Every limit below has an escape hatch: a skip comment, a skipped or deleted
+# test, a lowered number in a config. Agents write most of the code, and a
+# person who does not read code can not see one being used. The loosened-checks
+# step, just before the summary, fails the job when the change uses one and
+# its Decision log gives no reason, so a reason is always written where the
+# person reads it. wiki/development/the-change-loop.md#the-gate owns the rule.
+#
+# ---------------------------------------------------------------------------
 # Why Stryker's result file is cached
 #
 # Mutation testing is the slow gate, and it grows with the app: a full run
@@ -198,12 +208,26 @@ jobs:
           echo "skipped=${SKIPPED# }" >> "$GITHUB_OUTPUT"
           exit "$STATUS"
 
+      # Every run that is not cancelled — docs-only ones, and after a red suite,
+      # so one push reports everything. A skip comment, a skipped or deleted
+      # test, or a changed check setting fails here unless the change's
+      # Decision log names the file in a `Check:` bullet. See "Why loosened
+      # checks need a reason" above.
+      - name: Check for loosened checks
+        id: loosened
+        if: ${{ !cancelled() }}
+        shell: bash
+        env:
+          BASE: ${{ steps.scope.outputs.base }}
+        run: node .github/scripts/loosened-checks.mjs --base "$BASE" | tee -a "$GITHUB_STEP_SUMMARY"
+
       # One line on the run page: what ran, or why nothing did.
       - name: Summary
         if: ${{ !cancelled() }}
         env:
           UNTOUCHED: ${{ steps.scope.outputs.untouched }}
           FOUND: ${{ steps.suite.outputs.found }}
+          LOOSENED: ${{ steps.loosened.outcome }}
           SUITE: ${{ steps.test.outcome }}
           MINI: ${{ steps.mini.outcome }}
           TESTED: ${{ steps.mini.outputs.tested }}
@@ -218,5 +242,6 @@ jobs:
           fi
           [ -n "$TESTED" ] && LINE="$LINE Mini-app tests ran for $TESTED: $MINI."
           [ -n "$SKIPPED" ] && LINE="$LINE No test files in $SKIPPED."
+          [ "$LOOSENED" = failure ] && LINE="$LINE A check was loosened with no written reason; see Loosened checks above."
           echo "$LINE" >> "$GITHUB_STEP_SUMMARY"
           echo "$LINE"

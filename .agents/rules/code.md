@@ -8,4 +8,6 @@ Write the least code that does the job, and write no code that does not. Decompo
 
 The [`npm test` chain](../../app/package.json) owns all numeric limits and enforces them in CI, which is [the gate](../../wiki/development/the-change-loop.md#the-gate); nothing builds locally.
 
+Never loosen a check silently: a skip comment, a skipped or deleted test, or a changed check setting needs a `Check:` bullet in the change's Decision log, as [a loosened check needs a reason](../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) says.
+
 If your target uses other code paths, adjust the `paths:` list to match its layout.
