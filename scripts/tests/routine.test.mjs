@@ -15,7 +15,7 @@ const cli = new URL('../../.agents/skills/routine/scripts/routine.mjs', import.m
 const CREATE = ['create', '--cron', '0 9 * * 1', '--prompt', '/improve', '--agent', 'claude'];
 
 function tmp(t, prefix) {
-  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), `wong-test-${prefix}`)));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }

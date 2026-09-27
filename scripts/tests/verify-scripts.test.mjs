@@ -14,7 +14,7 @@ const SECRET = 'sec"ret\\x=y';
 // A throwaway repo whose .env uses quotes, `export`, a comment, and CRLF line ends, with the
 // memory skill's parser where an installed repo keeps it.
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), 'verify-env-'));
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-verify-env-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const work = join(root, 'work');
   mkdirSync(join(work, '.claude/skills/memory/scripts/lib'), { recursive: true });
@@ -105,7 +105,7 @@ test('each browser journey runs in a throwaway profile, removed when the walk en
 // Cleanup runs with TMPDIR set to a folder inside this test's own temp dir, so
 // a wrong answer could only ever remove something the test made.
 function cleanupFixture(t) {
-  const base = mkdtempSync(join(tmpdir(), 'verify-cleanup-'));
+  const base = mkdtempSync(join(tmpdir(), 'wong-test-verify-cleanup-'));
   t.after(() => rmSync(base, { recursive: true, force: true }));
   for (const dir of ['tmp', 'home/wong-verify-x', 'outside']) mkdirSync(join(base, dir), { recursive: true });
   writeFileSync(join(base, 'outside/keep'), '');

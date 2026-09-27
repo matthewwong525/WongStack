@@ -11,7 +11,7 @@ const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'u
 
 // A temp dir holding a repo `main` with one commit, removed when the test ends.
 function repo(t) {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'primary-root-')));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'wong-test-primary-root-')));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   git(dir, 'init', '-q', '-b', 'main', 'main');
   git(join(dir, 'main'), 'commit', '-q', '--allow-empty', '-m', 'init');
@@ -44,7 +44,7 @@ test('a worktree of a bare repository has no primary checkout', t => {
 });
 
 test('outside a repository the lookup fails', t => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'primary-root-none-')));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'wong-test-primary-root-none-')));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   assert.throws(() => primaryRoot(dir), /not inside a Git checkout/);
 });

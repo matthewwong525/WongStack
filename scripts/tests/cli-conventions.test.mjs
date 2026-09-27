@@ -28,6 +28,7 @@ const scripts = {
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/routine/scripts/routine.mjs': ['ls'],
+  '.agents/skills/routine/scripts/tidy.mjs': ['sweep'],
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
   '.agents/skills/memory/scripts/run.mjs': [],
   '.agents/skills/memory/scripts/session-start.mjs': [],
@@ -36,7 +37,7 @@ const scripts = {
 // Run from an empty temp dir, with npx, wrangler, and gh stubs first on PATH that record any call
 // and exit 97, so a parser that falls through to the main path reaches nothing live.
 function sandbox(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'cli-conventions-'));
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-cli-conventions-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const bin = join(dir, 'bin');
   mkdirSync(bin);

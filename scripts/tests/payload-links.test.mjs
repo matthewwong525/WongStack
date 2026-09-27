@@ -16,7 +16,7 @@ const manifest = {
 // A repo with the source layout: a real .agents/ folder, .claude and .codex
 // links to it, and CLAUDE.md linked to AGENTS.md. `pages` maps a path to its text.
 function fixture(t, pages, { commit = false } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'payload-links-'));
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-payload-links-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const write = (path, text) => {
     mkdirSync(dirname(join(root, path)), { recursive: true });

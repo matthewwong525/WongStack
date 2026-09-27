@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
   assetsDirectory, databaseName, deployedWorkerName, hasD1, parseConfig, workerName, WranglerConfigError,
@@ -101,7 +102,7 @@ function deploy(t, { branch, generated, config = deployConfig, env = {} } = {}) 
 }
 
 function configFile(t, text, name = 'wrangler.jsonc') {
-  const dir = mkdtempSync('/tmp/wrangler-config-');
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-wrangler-config-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   writeFileSync(join(dir, name), text);
   return join(dir, name);

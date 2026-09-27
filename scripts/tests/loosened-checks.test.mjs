@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,7 +33,7 @@ const PACKAGE = JSON.stringify({ scripts: { lint: 'oxlint', test: 'npm run lint 
 // A bare "origin" and a clone whose `main` holds a small app, a mini app, and
 // the check scripts, pushed. Work happens on the branch `feature`.
 function fixture(t) {
-  const root = mkdtempSync('/tmp/loosened-checks-');
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-loosened-checks-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const env = gitEnv(root);
   const origin = join(root, 'origin.git');

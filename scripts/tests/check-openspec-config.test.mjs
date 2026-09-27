@@ -11,7 +11,7 @@ const script = resolve(dirname(fileURLToPath(import.meta.url)), '../check-opensp
 // Runs the check in a repo with `config`. With `stdout`, a fake `openspec`
 // prints it and exits with `code`; without, the real CLI on PATH answers.
 function check(t, stdout, code, config = 'schema: spec-driven\n') {
-  const root = mkdtempSync(join(tmpdir(), 'openspec-config-'));
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-openspec-config-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'openspec'));
   writeFileSync(join(root, 'openspec/config.yaml'), config);
