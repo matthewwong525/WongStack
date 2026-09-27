@@ -449,7 +449,7 @@ async function deployToken(cf, account, name, rows, groups, { secretSet, setSecr
   note('updated', `deploy token ${name}: new value sent to GitHub`);
 }
 
-const hasKey = (env) => /^wongm_/.test(env.CLOUDFLARE_MEMORY_TOKEN ?? '');
+const hasKey = (env) => (env.CLOUDFLARE_MEMORY_TOKEN ?? '').startsWith('wongm_');
 
 /**
  * Everything after the one billable ask, under `base`: the memory store (R2 check, database, bucket),
