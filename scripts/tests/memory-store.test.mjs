@@ -21,6 +21,8 @@ test('a recorded migration never runs again', async t => {
   assert.equal(rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n, before);
   const files = readdirSync(new URL('../../.agents/skills/memory/migrations/', import.meta.url)).filter(name => name.endsWith('.sql'));
   assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, files.length);
+  assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('facts') WHERE name = 'shared'"), [{ name: 'shared', dflt_value: '1' }]);
+  assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('memory_keys') WHERE name = 'reader'"), [{ name: 'reader', dflt_value: '0' }]);
 });
 
 test('a fact is never edited or deleted; a later fact supersedes it', async t => {
@@ -201,6 +203,29 @@ test('helpers: FTS query, tag normalization, near tags, redaction', () => {
   assert.deepEqual(values, [SECRET]);
   assert.equal(redact(`x ${SECRET} y`, values), 'x [redacted:.env] y');
   assert.equal(findCredential('eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4', []), 'JWT');
+});
+
+test('redaction replaces every token shape, keeps the word Bearer, and leaves a JSONL line valid', () => {
+  const memoryKey = `wongm_${Buffer.from('bo@other.example').toString('base64url')}.${'k'.repeat(43)}`;
+  const shapes = {
+    'GitHub token': 'ghp_abcdefghijklmnopqrstuvwxyz0123',
+    'GitHub fine-grained token': 'github_pat_11ABCDEFG0123456789_abcdefghij',
+    'API key (sk-)': 'sk-proj-abcdefghijklmnopqrstuvwx',
+    'AWS access key': 'AKIAABCDEFGHIJKLMNOP',
+    JWT: 'eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4',
+    'Memory key': memoryKey,
+  };
+  for (const [name, token] of Object.entries(shapes)) {
+    assert.equal(redact(`use ${token} twice: ${token}.`, []), 'use [redacted:token] twice: [redacted:token].', name);
+    assert.equal(findCredential(`use ${token}`, []), name);
+  }
+  assert.equal(redact('Authorization: Bearer abcdefghijklmnopqrstuvwxyz.0123', []), 'Authorization: Bearer [redacted:token]');
+  assert.equal(findCredential('Authorization: Bearer abcdefghijklmnopqrstuvwxyz.0123', []), 'Bearer header');
+  const line = JSON.stringify({ message: { content: `curl -H "Authorization: Bearer ${memoryKey}" and ${SECRET} and ${shapes['GitHub token']}` } });
+  const redacted = redact(line, secretValues({ A: SECRET }));
+  const parsed = JSON.parse(redacted);
+  assert.equal(parsed.message.content, 'curl -H "Authorization: Bearer [redacted:token]" and [redacted:.env] and [redacted:token]');
+  assert.equal(redact('plain words stay as they are', []), 'plain words stay as they are');
 });
 
 test('a fact from an earlier notes migration still prints its note', async t => {

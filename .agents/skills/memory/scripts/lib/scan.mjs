@@ -1,5 +1,6 @@
-// Credential hygiene: replace known .env values, and detect token-shaped strings without printing them.
+// Credential hygiene: replace known .env values and token-shaped strings, and detect them without printing them.
 const PLACEHOLDER = '[redacted:.env]';
+const TOKEN_PLACEHOLDER = '[redacted:token]';
 const MIN_SECRET_LENGTH = 8;
 
 const TOKEN_PATTERNS = [
@@ -8,8 +9,11 @@ const TOKEN_PATTERNS = [
   ['API key (sk-)', /\bsk-[A-Za-z0-9_-]{20,}/],
   ['AWS access key', /\bAKIA[0-9A-Z]{16}\b/],
   ['JWT', /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/],
-  ['Bearer header', /\bBearer\s+[A-Za-z0-9._~+/=-]{20,}/],
+  ['Memory key', /\bwongm_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{20,}/],
+  // The word stays and only the token is replaced, so a transcript still reads as a header.
+  ['Bearer header', /\b(Bearer\s+)[A-Za-z0-9._~+/=-]{20,}/],
 ];
+const GLOBAL_PATTERNS = TOKEN_PATTERNS.map(([, pattern]) => new RegExp(pattern.source, 'g'));
 
 // Values worth guarding: long enough that replacing them cannot mangle ordinary text. Longest first.
 export function secretValues(env) {
@@ -17,11 +21,13 @@ export function secretValues(env) {
     .sort((a, b) => b.length - a.length);
 }
 
-// One pass over the text, however many values there are.
+// .env values in one pass, however many there are, then every token shape. No placeholder holds a quote or a
+// backslash, so a JSONL line stays valid JSON.
 export function redact(text, values) {
-  if (!values.length) return text;
-  const pattern = new RegExp(values.map(value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
-  return text.replace(pattern, PLACEHOLDER);
+  const known = values.length
+    ? text.replace(new RegExp(values.map(value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g'), PLACEHOLDER)
+    : text;
+  return GLOBAL_PATTERNS.reduce((out, pattern) => out.replace(pattern, (_, bearer) => `${typeof bearer === 'string' ? bearer : ''}${TOKEN_PLACEHOLDER}`), known);
 }
 
 // Returns the name of the first rule that matches, or null. Never returns the matched text.

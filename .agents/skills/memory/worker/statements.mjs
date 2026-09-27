@@ -1,6 +1,7 @@
 // The memory script's write statements, shared with the memory route. A member key may run only these
 // writes, with its own email as the author, and plain reads: it adds facts, but cannot change or delete them.
-// `author` is the index of the author parameter; a write without one names no person.
+// `author` is the index of the author parameter; a write without one names no person. The client sends these
+// for every role; the route swaps in MEMBER_WRITES for a member key.
 
 export const WRITES = {
   session: {
@@ -18,8 +19,17 @@ export const WRITES = {
   run: { sql: 'INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts) VALUES (?, ?, ?, ?, ?, ?, ?)' },
 };
 
+// What the route runs for a member key in place of the script's own statement: a supersede marks only facts
+// under the key's email, so a teammate's fact stays live, and a reader key's fact is stored unshared.
+export const MEMBER_WRITES = {
+  supersede: { sql: 'UPDATE facts SET superseded_by = (SELECT max(id) FROM facts) WHERE superseded_by IS NULL AND id IN (?) AND lower(author) = ? RETURNING id' },
+  readerFact: { sql: 'INSERT INTO facts (slug, type, body, session_id, source, created_at, author, shared) VALUES (?, ?, ?, ?, ?, ?, ?, 0) RETURNING id' },
+};
+
+const listOf = (sql, count) => sql.replace('IN (?)', `IN (${Array.from({ length: count }, () => '?').join(', ')})`);
+
 // The supersede statement for `count` fact ids.
-export const supersedeSql = count => WRITES.supersede.sql.replace('IN (?)', `IN (${Array.from({ length: count }, () => '?').join(', ')})`);
+export const supersedeSql = count => listOf(WRITES.supersede.sql, count);
 
 // One shape per statement: whitespace collapsed, and a list of placeholders read as one.
 const shape = sql => String(sql).replace(/\s+/g, ' ').replace(/\(\s*\?(?:\s*,\s*\?)*\s*\)/g, '(?)').trim();
@@ -54,6 +64,18 @@ export function batchRefusal(statements, email) {
     if (AFTER_OWN_FACT.has(write) && !ownFact) return 'a member key tags or supersedes only after writing its own fact in the same batch';
   }
   return null;
+}
+
+// The batch a member key runs, once batchRefusal has passed it: each supersede gains the key's email, and a
+// reader's fact insert stores the fact unshared, whatever the request said.
+export function memberStatements(statements, { email, reader }) {
+  return statements.map(statement => {
+    const write = BY_SHAPE.get(shape(statement.sql));
+    const params = statement.params || [];
+    if (write === WRITES.supersede) return { sql: listOf(MEMBER_WRITES.supersede.sql, params.length), params: [...params, String(email).toLowerCase()] };
+    if (write === WRITES.fact && reader) return { sql: MEMBER_WRITES.readerFact.sql, params };
+    return statement;
+  });
 }
 
 // The session ids a batch upserts, so the route can check that each one is the key's own.

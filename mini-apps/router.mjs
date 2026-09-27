@@ -19,9 +19,10 @@ const SOURCE = /\.[cm]?ts$|\.test\.[cm]?js$|\/api\.mjs$/i;
 const notFound = () => new Response("Not found", { status: 404 });
 
 /**
- * A handler gets the app database and nothing else: a mini app saves straight
- * to production with no review, and the production Worker also binds the
- * memory store.
+ * A handler gets the app database and nothing else, and the Worker's
+ * `disallow_importable_env` flag stops it importing the rest. It still runs in
+ * the Worker that serves the memory store, so its code is reviewed before it
+ * publishes, like any Worker code.
  */
 export function handleMiniApp(request, env, ctx, routes) {
 	let path;
