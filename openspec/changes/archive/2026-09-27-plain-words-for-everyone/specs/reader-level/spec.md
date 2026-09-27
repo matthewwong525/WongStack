@@ -1,9 +1,23 @@
-# reader-level Specification
+# Spec Delta
 
-## Purpose
-Write every plan, question, and report in plain words for everyone, with detail when the person asks.
+## REMOVED Requirements
 
-## Requirements
+### Requirement: The person page records a technical level
+
+**Reason**: Every reader gets plain words by default, so no page needs a level.
+**Migration**: An existing `**Technical level:**` line is ignored and can be deleted. A person who wants detail every time says so, and it is kept as a preference on their person page.
+
+### Requirement: Plans use the reader's words
+
+**Reason**: It split plans by a technical level; *Plans are written in plain words* replaces it for every reader.
+**Migration**: None.
+
+### Requirement: Reports lead with the outcome
+
+**Reason**: It let technical lines follow for a technical reader; *Reports give the outcome and one link* replaces it for every reader.
+**Migration**: None.
+
+## ADDED Requirements
 
 ### Requirement: Plans are written in plain words
 
