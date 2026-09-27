@@ -32,7 +32,7 @@ At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-w
 
 ## Build in a helper
 
-Work the tasks in a fresh helper agent, so the build does not carry this conversation's planning talk. In Claude Code, start it with the Agent tool (`general-purpose`); in Codex, spawn a sub-agent. Keep the parent's model. The prompt is two lines: the exact change name, and *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. [The brief](references/build-helper.md) owns what the helper does and what it returns.
+Work the tasks in a fresh helper agent, so the build does not carry this conversation's planning talk. In Claude Code, start it with the Agent tool (`general-purpose`); in Codex, spawn a sub-agent. Keep the parent's model. The prompt is two lines: the exact change name, and *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. When a store was selected, add a third line: `store <id>`. [The brief](references/build-helper.md) owns what the helper does and what it returns.
 
 Read each report and act on its stop:
 

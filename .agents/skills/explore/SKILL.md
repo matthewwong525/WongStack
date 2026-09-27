@@ -8,7 +8,7 @@ user-invocable: true
 
 `/explore` is the first stop in [the change loop](../../../wiki/development/the-change-loop.md): compare real options and firm up scope before `/plan` writes a proposal. Find related work with `openspec list --json` and `openspec context --json`, by [the CLI contract](../plan/references/openspec-cli.md#select-one-root), and read what they point to.
 
-`/explore` **writes nothing**, not even the answers: [`/plan`](../plan/SKILL.md) records them in the proposal's Decision log. **It always runs before `/plan`**: you invoke it, or `/plan` invokes it in [bounded mode](#when-plan-invokes-explore).
+`/explore` **writes nothing**, not even the answers: [`/plan`](../plan/SKILL.md) records them in the proposal's Decision log. **It always runs before `/plan`**, except for [notes pasted from a plan's review page](../plan/SKILL.md#review-notes): you invoke it, or `/plan` invokes it in [bounded mode](#when-plan-invokes-explore).
 
 ## Questions during standalone exploration
 
@@ -32,7 +32,7 @@ Don't ask what a live fact answers: state it, with its age and author, as an ass
 
 ## The exit round
 
-When the work's shape is clear, put the unresolved material decisions in **at most one final group**, [like every other ask](references/asking-the-user.md): one structured call or one numbered chat group. Then hand off to [`/plan`](../plan/SKILL.md).
+When the work's shape is clear, put the unresolved material decisions in **at most one final group**, [like every other ask](references/asking-the-user.md): one structured call or one numbered chat group.
 
 - **At most four questions, and no more than the tool supports.** Ask those that most affect the artifacts; mark the other recommended answers as assumptions.
 - **Several separate parts?** One of the questions is whether to open a new workspace for each other part, by [open a part in a new workspace](../plan/references/new-workspace.md#ask-once).
@@ -41,6 +41,11 @@ When the work's shape is clear, put the unresolved material decisions in **at mo
 - **After the round, fill gaps with supported assumptions and reasons**, dependent questions and later UX layout choices included. Only an explicit return to standalone `/explore` reopens clarification.
 
 This limits clarification only, not action authorization or delivery gates.
+
+Then hand off:
+
+- **Bounded mode** returns to [`/plan`](../plan/SKILL.md), by [the steps below](#when-plan-invokes-explore).
+- **Standalone**, summarize and end with [the next step](references/asking-the-user.md#end-every-reply-with-the-next-step): *Plan it (Recommended)* / *Keep thinking* / *Stop*. On *Plan it*, invoke `/plan`; its bounded pass sees the exit round done and asks nothing. Never start `/plan` without that answer.
 
 ## When `/plan` invokes `/explore`
 
