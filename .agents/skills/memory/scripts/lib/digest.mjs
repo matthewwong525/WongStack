@@ -59,16 +59,19 @@ const ageDays = (iso, now) => {
 
 // One line per fact. Search and show add the change state and supersession when the fact carries them.
 export function formatFact(fact, now = Date.now()) {
-  const where = [fact.slug, fact.state, ageDays(fact.created_at, now), (fact.author || 'unknown').split('@')[0], `#${fact.id}`].filter(Boolean).join(', ');
+  const where = [fact.slug, fact.state, ageDays(fact.created_at, now), fact.author || 'unknown', `#${fact.id}`].filter(Boolean).join(', ');
   return `- [${fact.type}] ${fact.body.replace(/\s+/g, ' ')} (${where})${fact.superseded_by ? ` superseded by #${fact.superseded_by}` : ''}`;
 }
 
-function formatRun(run) {
+export const DIFFERED = 'model reported other counts';
+
+export function formatRun(run) {
   if (!run) return null;
   const when = `${(run.finished_at || run.started_at || '').slice(0, 16).replace('T', ' ')} UTC on ${run.host || 'unknown host'}`;
   if (run.status === 'failed') return `Last background ${run.kind} run failed (${when}): ${run.reason || 'no reason recorded'}`;
   const counts = Object.entries(JSON.parse(run.counts || '{}')).filter(([, value]) => value).map(([key, value]) => `${key} ${value}`).join(', ');
-  return `Last background ${run.kind} run (${when}): ${counts || 'nothing to do'}`;
+  const differed = run.reason?.startsWith(DIFFERED) ? " (the run's own report differed)" : '';
+  return `Last background ${run.kind} run (${when}): ${counts || 'nothing to do'}${differed}`;
 }
 
 export function consolidationDue(state, now = Date.now()) {

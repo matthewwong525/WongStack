@@ -8,7 +8,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { buildHomePart, HOME_FACTS, loadDigest, personPage, readCache } from './lib/digest.mjs';
-import { joinErrorFile, keyFile, RENEW_DAYS } from './lib/join.mjs';
+import { joinErrorFile, RENEW_DAYS } from './lib/join.mjs';
+import { keyFile } from './lib/members.mjs';
 import { homeContext, isMain, loadConfig, loadEnv, openStore, readJson, repoContext, spoolList } from './lib/store.mjs';
 import { pending, registerSession } from './lib/transcripts.mjs';
 

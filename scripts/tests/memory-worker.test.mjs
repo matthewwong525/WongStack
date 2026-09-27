@@ -3,12 +3,13 @@
 // app/worker/index.ts routes it; the admin commands reach the same store through the fake Cloudflare API.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
-import { handleMemory, hashKey, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
+import { handleMemory, hashKey, KEY_LIMIT, MAX_TRANSCRIPT_BYTES, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { batchRefusal, memberRefusal, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { keyEmail } from '../../.agents/skills/memory/scripts/lib/store.mjs';
@@ -18,6 +19,14 @@ const ADMIN_TOKEN = 'test-memory-token-value';
 const KEYS_SCHEMA = readFileSync(new URL('../../.agents/skills/memory/migrations/0002_keys.sql', import.meta.url), 'utf8');
 const servers = [];
 after(() => Promise.all(servers.map(server => new Promise(done => server.close(done)))));
+
+// A fake gh on PATH for every command: `gh auth token` prints FAKE_GH_TOKEN and `gh api user` prints
+// FAKE_GH_USER; each fails when its variable is empty, as gh does when signed out.
+const GH_BIN = mkdtempSync(join(tmpdir(), 'wong-test-fake-gh-'));
+writeFileSync(join(GH_BIN, 'gh'), '#!/bin/sh\n[ "$1 $2" = "auth token" ] && [ -n "$FAKE_GH_TOKEN" ] && { echo "$FAKE_GH_TOKEN"; exit 0; }\n[ "$1 $2" = "api user" ] && [ -n "$FAKE_GH_USER" ] && { echo "$FAKE_GH_USER"; exit 0; }\nexit 1\n', { mode: 0o755 });
+after(() => rmSync(GH_BIN, { recursive: true, force: true }));
+const GH_PATH = `${GH_BIN}:${process.env.PATH}`;
+const inDays = days => new Date(Date.now() + days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // A D1 binding over node:sqlite, and an R2 binding over a Map.
 function d1(db) {
@@ -72,57 +81,93 @@ const setWorker = (env, url) => {
 };
 const envKey = env => readFileSync(join(env.repo.root, '.env'), 'utf8').match(/^CLOUDFLARE_MEMORY_TOKEN=(\S+)$/m)?.[1];
 
-// The admin's commands go straight to the fake Cloudflare API with CLOUDFLARE_API_TOKEN.
-const asAdmin = env => ({ env: { WONG_CLOUDFLARE_API: env.fake.api, CLOUDFLARE_API_TOKEN: ADMIN_TOKEN } });
+// The admin's commands go straight to the fake Cloudflare API with CLOUDFLARE_API_TOKEN. gh is signed in as
+// `user`, by default the admin's GitHub account 101, or signed out when it is ''.
+const DEV = JSON.stringify({ id: 101, login: 'dev' });
+const asAdmin = (env, user = DEV) => ({ env: { WONG_CLOUDFLARE_API: env.fake.api, CLOUDFLARE_API_TOKEN: ADMIN_TOKEN, PATH: GH_PATH, FAKE_GH_USER: user, FAKE_GH_TOKEN: '' } });
 // A key's calls go to the recorded Worker URL, not the harness's REST fake.
 const viaWorker = (extra = {}) => ({ env: { WONG_MEMORY_API: '', ...extra } });
 
-// A store served by an app Worker, an admin key in .env, and a member key for ana.
+// A store served by an app Worker, the admin's key from member admin in .env, and ana's key as a join makes it.
 async function team(t) {
   const env = await setup(t);
   const url = await appWorker({ MEMORY_DB: d1(env.fake.db), MEMORY_BUCKET: r2(env.fake.objects) });
   setWorker(env, `${url}/_memory`);
-  const added = await memory(env.repo, env.fake, ['member', 'add', 'Ana@Example.com'], asAdmin(env));
-  assert.equal(added.code, 0, added.stderr);
-  const anaKey = added.stdout.match(/^CLOUDFLARE_MEMORY_TOKEN=(\S+)$/m)?.[1];
-  const self = await memory(env.repo, env.fake, ['member', 'add', 'dev@example.com', '--admin', '--env'], asAdmin(env));
+  const self = await memory(env.repo, env.fake, ['member', 'admin'], asAdmin(env));
   assert.equal(self.code, 0, self.stderr);
-  return { env, url, anaKey, added, self };
+  const anaKey = await addKey(env.fake.db, 'ana@example.com', 'member', { machine: 'ana-laptop', expiresAt: inDays(30), githubId: '201' });
+  // Two emails hold keys, so the Worker's answers say team; the script records that on its first call.
+  writeJsonFile(env.repo.stateDir, 'team.json', { team: true });
+  return { env, url, anaKey, self };
 }
 
 const call = (url, key, body) => fetch(`${url}/_memory/accounts/acct/d1/database/db1/query`, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
 
-test('member add prints a key once, stores only its hash in the store, and --env writes the admin key to .env', async t => {
-  const { env, anaKey, added, self } = await team(t);
-  assert.equal(keyEmail(anaKey), 'ana@example.com');
-  const rows = env.fake.db.prepare('SELECT hash, email, role FROM memory_keys ORDER BY email').all().map(row => ({ ...row }));
-  assert.deepEqual(rows.map(row => [row.email, row.role]), [['ana@example.com', 'member'], ['dev@example.com', 'admin']]);
-  assert.equal(rows[0].hash, await hashKey(anaKey));
-  assert.ok(!JSON.stringify(rows).includes(anaKey));
-  assert.match(added.stdout, /shown once/);
+test('member admin links the GitHub account and writes a 30-day admin key to .env and key.json, printing no key', async t => {
+  const { env, url, anaKey, self } = await team(t);
+  const adminKey = envKey(env);
+  assert.equal(keyEmail(adminKey), 'dev@example.com');
   assert.doesNotMatch(self.stdout, /wongm_/);
-  assert.match(envKey(env), /^wongm_/);
-  assert.equal(record(env).team, true);
+  assert.match(self.stdout, /linked GitHub account dev as this store's admin, for dev@example\.com/);
+  const saved = JSON.parse(readFileSync(join(env.repo.stateDir, 'key.json'), 'utf8'));
+  const [row] = env.fake.db.prepare("SELECT hash, role, machine, expires_at, github_id FROM memory_keys WHERE email = 'dev@example.com'").all().map(each => ({ ...each }));
+  assert.deepEqual(row, { hash: await hashKey(adminKey), role: 'admin', machine: saved.machine, expires_at: saved.expiresAt, github_id: '101' });
+  assert.deepEqual([saved.email, saved.role], ['dev@example.com', 'admin']);
+  const days = (Date.parse(saved.expiresAt) - Date.now()) / 86400000;
+  assert.ok(days > 29.9 && days <= 30, `expires in ${days} days`);
+  assert.deepEqual(env.fake.db.prepare('SELECT github_id, login, email FROM memory_admins').all().map(each => ({ ...each })), [{ github_id: '101', login: 'dev', email: 'dev@example.com' }]);
+  assert.ok(!JSON.stringify(env.fake.db.prepare('SELECT * FROM memory_keys').all()).includes(adminKey), 'only the hash is stored');
+
+  const again = await memory(env.repo, env.fake, ['member', 'admin'], asAdmin(env));
+  assert.equal(again.code, 0, again.stderr);
+  assert.equal(env.fake.db.prepare("SELECT count(*) AS n FROM memory_keys WHERE email = 'dev@example.com'").get().n, 1, 'this machine\'s key is replaced');
+  assert.equal((await call(url, anaKey, { sql: 'SELECT 1' })).status, 200, 'and no one else\'s');
+
   const listed = await memory(env.repo, env.fake, ['member', 'list'], asAdmin(env));
   assert.equal(listed.code, 0, listed.stderr);
-  assert.match(listed.stdout, /ana@example\.com \(member/);
-  assert.doesNotMatch(listed.stdout, /wongm_|[0-9a-f]{64}/);
+  assert.match(listed.stdout, /ana@example\.com \(member, since \S+, machine ana-laptop, GitHub 201, expires \d{4}-\d{2}-\d{2}\)/);
+  assert.match(listed.stdout, /dev@example\.com \(admin, since \S+, machine \S+, GitHub 101, expires/);
+  assert.match(listed.stdout, /Linked admin: dev \(GitHub 101\), dev@example\.com/);
+  assert.doesNotMatch(`${self.stdout}${again.stdout}${listed.stdout}`, /wongm_|[0-9a-f]{64}/);
 });
 
-test('member add stops when no Worker URL is recorded', async t => {
-  const env = await setup(t);
-  const result = await memory(env.repo, env.fake, ['member', 'add', 'ana@example.com'], asAdmin(env));
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /no memory Worker URL is recorded/);
-  assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_keys').get().n, 0);
-});
-
-test('a token that cannot write D1 names the permission and adds no key', async t => {
+test('no command makes a key for another person: member add says they join through GitHub', async t => {
   const { env } = await team(t);
-  const result = await memory(env.repo, env.fake, ['member', 'add', 'bo@example.com'], { env: { ...asAdmin(env).env, CLOUDFLARE_API_TOKEN: 'narrow-token' } });
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /lacks D1 Write/);
-  assert.equal(env.fake.db.prepare("SELECT count(*) AS n FROM memory_keys WHERE email = 'bo@example.com'").get().n, 0);
+  const before = env.fake.db.prepare('SELECT count(*) AS n FROM memory_keys').get().n;
+  for (const args of [['member', 'add', 'bo@example.com'], ['member', 'add', 'bo@example.com', '--admin', '--env']]) {
+    const result = await memory(env.repo, env.fake, args, asAdmin(env));
+    assert.notEqual(result.code, 0);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /wongm_/);
+  }
+  const refused = await memory(env.repo, env.fake, ['member', 'add', 'bo@example.com'], asAdmin(env));
+  assert.match(refused.stderr, /no key is made by hand for bo@example\.com: a teammate joins through GitHub/);
+  assert.match(refused.stderr, /member admin/);
+  assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_keys').get().n, before);
+});
+
+test('member admin changes nothing without a Worker URL, a signed-in gh, a git email, or a token that writes D1', async t => {
+  const solo = await setup(t);
+  const noWorker = await memory(solo.repo, solo.fake, ['member', 'admin'], asAdmin(solo));
+  assert.equal(noWorker.code, 1);
+  assert.match(noWorker.stderr, /no memory Worker URL is recorded/);
+  assert.equal(solo.fake.db.prepare('SELECT count(*) AS n FROM memory_keys').get().n, 0);
+
+  const { env } = await team(t);
+  const files = () => [readFileSync(join(env.repo.root, '.env'), 'utf8'), readFileSync(join(env.repo.stateDir, 'key.json'), 'utf8')];
+  const tables = () => JSON.stringify([env.fake.db.prepare('SELECT * FROM memory_keys ORDER BY hash').all(), env.fake.db.prepare('SELECT * FROM memory_admins').all()]);
+  const [filesBefore, tablesBefore] = [files(), tables()];
+  const signedOut = await memory(env.repo, env.fake, ['member', 'admin'], asAdmin(env, ''));
+  assert.equal(signedOut.code, 1);
+  assert.match(signedOut.stderr, /GitHub is not signed in on this machine/);
+  const narrow = await memory(env.repo, env.fake, ['member', 'admin'], { env: { ...asAdmin(env).env, CLOUDFLARE_API_TOKEN: 'narrow-token' } });
+  assert.equal(narrow.code, 1);
+  assert.match(narrow.stderr, /lacks D1 Write/);
+  execFileSync('git', ['config', 'user.email', ''], { cwd: env.repo.root });
+  const noEmail = await memory(env.repo, env.fake, ['member', 'admin'], asAdmin(env));
+  assert.equal(noEmail.code, 1);
+  assert.match(noEmail.stderr, /no git email is set/);
+  assert.deepEqual(files(), filesBefore);
+  assert.equal(tables(), tablesBefore);
 });
 
 test('a member searches through the Worker; an unknown or removed key is refused', async t => {
@@ -138,6 +183,7 @@ test('a member searches through the Worker; an unknown or removed key is refused
   assert.match(unknown.stderr, /rejected CLOUDFLARE_MEMORY_TOKEN \(HTTP 401\)/);
   const removed = await memory(env.repo, env.fake, ['member', 'remove', 'ana@example.com'], asAdmin(env));
   assert.match(removed.stdout, /no longer opens/);
+  assert.doesNotMatch(removed.stdout, /linked/, 'ana was never the admin');
   const later = await memory(env.repo, env.fake, ['search', 'deploys'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
   assert.match(later.stderr, /HTTP 401/);
 });
@@ -163,6 +209,9 @@ test('no key can name the keys table or unlock the schema, and nothing in the ba
     "INSERT INTO memory_keys VALUES ('h', 'x@y.co', 'admin', 'now')",
     "CREATE TRIGGER t AFTER INSERT ON facts BEGIN INSERT INTO memory_keys VALUES ('h', 'x@y.co', 'admin', 'now'); END",
     'PRAGMA writable_schema = ON',
+    'SELECT * FROM memory_admins',
+    "INSERT INTO memory_admins VALUES ('999', 'eve', 'eve@example.com', 'now')",
+    'DELETE FROM Memory_Admins',
   ];
   for (const sql of refused) {
     const response = await call(url, adminKey, { sql });
@@ -177,6 +226,7 @@ test('no key can name the keys table or unlock the schema, and nothing in the ba
   assert.equal(batch.status, 403);
   assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM facts').get().n, before);
   assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_keys').get().n, 2);
+  assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_admins').get().n, 1);
 });
 
 test('a Worker with no memory store answers 404, and a store with no bucket keeps no transcripts', async t => {
@@ -193,6 +243,21 @@ test('a Worker with no memory store answers 404, and a store with no bucket keep
   assert.equal((await object.json()).errors[0].code, 'no_bucket');
   const other = await fetch(`${url}/_memory/nothing`, { headers: { Authorization: 'Bearer wongm_ZGV2.k' } });
   assert.equal((await other.json()).errors[0].code, 'no_route');
+});
+
+test('the bucket refuses a transcript over 50 MB by its Content-Length or its body, and keeps one of exactly 50 MB', async () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(KEYS_SCHEMA);
+  db.prepare("INSERT INTO memory_keys VALUES (?, 'a@b.co', 'member', 'now')").run(await hashKey('wongm_k.1'));
+  const objects = new Map();
+  const put = (name, body, headers = {}) => handleMemory(new Request(`http://w/_memory/accounts/a/r2/buckets/b/objects/sessions/a@b.co/${name}`, { method: 'PUT', headers: { Authorization: 'Bearer wongm_k.1', ...headers }, body }), { MEMORY_DB: d1(db), MEMORY_BUCKET: r2(objects) });
+  const said = await put('said.jsonl', 'small', { 'Content-Length': String(MAX_TRANSCRIPT_BYTES + 1) });
+  assert.deepEqual([said.status, (await said.json()).errors[0].code], [413, 'too_large']);
+  const sent = await put('sent.jsonl', Buffer.alloc(MAX_TRANSCRIPT_BYTES + 1));
+  assert.deepEqual([sent.status, (await sent.json()).errors[0].code], [413, 'too_large']);
+  assert.equal(objects.size, 0);
+  assert.equal((await put('full.jsonl', Buffer.alloc(MAX_TRANSCRIPT_BYTES))).status, 200);
+  assert.equal(objects.get('sessions/a@b.co/full.jsonl').length, MAX_TRANSCRIPT_BYTES);
 });
 
 test('a member reads only their own transcripts; the admin reads every key', async t => {
@@ -318,13 +383,48 @@ test('the route answers a batch in Cloudflare\'s shape and refuses a request wit
 // ---------- expiry, the team header, and what a member key may write ----------
 
 const keyFor = email => `wongm_${Buffer.from(email).toString('base64url')}.k${Math.random().toString(36).slice(2)}`;
-async function addKey(db, email, role, { machine = null, expiresAt = null } = {}) {
+// A key row as join or member admin makes it; githubId only on a store with schema 5.
+async function addKey(db, email, role, { machine = null, expiresAt = null, githubId } = {}) {
   const key = keyFor(email);
-  db.prepare('INSERT INTO memory_keys (hash, email, role, created_at, machine, expires_at) VALUES (?, ?, ?, ?, ?, ?)').run(await hashKey(key), email, role, '2026-09-27T00:00:00Z', machine, expiresAt);
+  const row = { hash: await hashKey(key), email, role, created_at: '2026-09-27T00:00:00Z', machine, expires_at: expiresAt, ...(githubId ? { github_id: githubId } : {}) };
+  db.prepare(`INSERT INTO memory_keys (${Object.keys(row).join(', ')}) VALUES (${Object.keys(row).map(() => '?').join(', ')})`).run(...Object.values(row));
   return key;
 }
 
-test('an expired key runs nothing and the script says join renews it; a key with no expiry keeps working', async t => {
+// Put a migrated store back before schema 5, holding a key made the old way: no machine and no end date.
+function beforeSchema5(env) {
+  env.fake.db.exec('DROP TABLE memory_admins; ALTER TABLE memory_keys DROP COLUMN github_id; DELETE FROM schema_migrations WHERE version = 5');
+  return addKey(env.fake.db, 'bo@example.com', 'member');
+}
+
+test('migrate applies schema 5: every key without an end date stops, and the running admin\'s GitHub account is linked', async t => {
+  const { env, url } = await team(t);
+  const handMade = await beforeSchema5(env);
+  assert.equal((await call(url, handMade, { sql: 'SELECT 1' })).status, 200, 'a key with no end date works until the update');
+  const migrated = await memory(env.repo, env.fake, ['migrate'], asAdmin(env));
+  assert.equal(migrated.code, 0, migrated.stderr);
+  assert.match(migrated.stdout, /applied 0005_admin_accounts\.sql/);
+  assert.match(migrated.stdout, /linked GitHub account dev as this store's admin, for dev@example\.com/);
+  assert.deepEqual(env.fake.db.prepare('SELECT github_id, email FROM memory_admins').all().map(row => ({ ...row })), [{ github_id: '101', email: 'dev@example.com' }]);
+  assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_keys WHERE expires_at IS NULL').get().n, 0);
+  const stopped = await call(url, handMade, { sql: 'SELECT 1' });
+  assert.deepEqual([stopped.status, (await stopped.json()).errors[0].code], [401, 'key_expired']);
+});
+
+test('migrate without gh signed in links no one and says how to link the admin', async t => {
+  const { env } = await team(t);
+  await beforeSchema5(env);
+  const migrated = await memory(env.repo, env.fake, ['migrate'], asAdmin(env, ''));
+  assert.equal(migrated.code, 0, migrated.stderr);
+  assert.match(migrated.stdout, /applied 0005_admin_accounts\.sql/);
+  assert.match(migrated.stdout, /gh auth login`, then run `node \.claude\/skills\/memory\/scripts\/memory\.mjs member admin`/);
+  assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_admins').get().n, 0);
+  const again = await memory(env.repo, env.fake, ['migrate'], asAdmin(env));
+  assert.match(again.stdout, /up to date/);
+  assert.doesNotMatch(again.stdout, /linked/, 'a later migrate leaves linking to member admin');
+});
+
+test('an expired key runs nothing and the script says join renews it; a key before its end date keeps working', async t => {
   const { env, url } = await team(t);
   const old = await addKey(env.fake.db, 'bo@example.com', 'member', { machine: 'm1', expiresAt: '2026-01-01T00:00:00Z' });
   const response = await call(url, old, { sql: 'SELECT 1' });
@@ -335,7 +435,7 @@ test('an expired key runs nothing and the script says join renews it; a key with
   assert.match(search.stderr, /expired; `node \.claude\/skills\/memory\/scripts\/memory\.mjs join` renews it/);
   const future = await addKey(env.fake.db, 'cy@example.com', 'member', { machine: 'm2', expiresAt: '2999-01-01T00:00:00Z' });
   assert.equal((await call(url, future, { sql: 'SELECT 1' })).status, 200);
-  assert.equal((await call(url, envKey(env), { sql: 'SELECT 1' })).status, 200, 'the admin key from setup has no expiry');
+  assert.equal((await call(url, envKey(env), { sql: 'SELECT 1' })).status, 200, 'the admin key from member admin has not ended');
 });
 
 test('the Worker says when more than one email holds a key, and the script turns on the personal filter from it', async t => {
@@ -496,14 +596,15 @@ test('every read the memory script sends passes for a member', async t => {
 
 // A fake GitHub API: each token is one account, with the repositories it can see and its emails.
 const ACCOUNTS = {
-  'tok-ana': { repos: { 'owner/app': { private: true, permissions: { pull: true, push: false } } }, emails: [{ email: 'ana@example.com', verified: true, primary: true }] },
-  'tok-cy': { repos: { 'owner/app': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'cy@example.com', verified: true, primary: true }] },
-  'tok-dev': { repos: { 'owner/app': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'Dev@Example.com', verified: true, primary: true }] },
-  'tok-bo': { repos: { 'owner/app': { private: true, permissions: { pull: true } } }, emails: [{ email: 'bo@example.com', verified: false }, { email: 'bo@work.com', verified: true, primary: true }] },
-  'tok-noscope': { repos: { 'owner/app': { private: true, permissions: { pull: true } } } },
-  'tok-reader': { repos: { 'owner/pub': { private: false, permissions: { pull: true, push: false } } }, emails: [{ email: 'rae@example.com', verified: true, primary: true }] },
-  'tok-pusher': { repos: { 'owner/pub': { private: false, permissions: { pull: true, push: true } } }, emails: [{ email: 'pat@example.com', verified: true, primary: true }] },
-  'tok-stranger': { repos: { 'evil/fork': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'eve@example.com', verified: true, primary: true }] },
+  'tok-dev-twin': { id: 102, repos: { 'owner/app': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'dev@example.com', verified: true, primary: true }] },
+  'tok-ana': { id: 201, repos: { 'owner/app': { private: true, permissions: { pull: true, push: false } } }, emails: [{ email: 'ana@example.com', verified: true, primary: true }] },
+  'tok-cy': { id: 202, repos: { 'owner/app': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'cy@example.com', verified: true, primary: true }] },
+  'tok-dev': { id: 101, repos: { 'owner/app': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'Dev@Example.com', verified: true, primary: true }] },
+  'tok-bo': { id: 203, repos: { 'owner/app': { private: true, permissions: { pull: true } } }, emails: [{ email: 'bo@example.com', verified: false }, { email: 'bo@work.com', verified: true, primary: true }] },
+  'tok-noscope': { id: 204, repos: { 'owner/app': { private: true, permissions: { pull: true } } } },
+  'tok-reader': { id: 205, repos: { 'owner/pub': { private: false, permissions: { pull: true, push: false } } }, emails: [{ email: 'rae@example.com', verified: true, primary: true }] },
+  'tok-pusher': { id: 206, repos: { 'owner/pub': { private: false, permissions: { pull: true, push: true } } }, emails: [{ email: 'pat@example.com', verified: true, primary: true }] },
+  'tok-stranger': { id: 207, repos: { 'evil/fork': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'eve@example.com', verified: true, primary: true }] },
 };
 
 async function fakeGitHub() {
@@ -511,13 +612,15 @@ async function fakeGitHub() {
   const url = await listen(request => {
     const { pathname } = new URL(request.url);
     seen.push(pathname);
-    const account = ACCOUNTS[(request.headers.get('authorization') || '').replace(/^Bearer /, '')];
+    const token = (request.headers.get('authorization') || '').replace(/^Bearer /, '');
+    const account = ACCOUNTS[token];
     if (!account) return Response.json({ message: 'Bad credentials' }, { status: 401 });
     if (pathname.startsWith('/repos/')) {
       const repo = account.repos[pathname.slice('/repos/'.length)];
       return repo ? Response.json(repo) : Response.json({ message: 'Not Found' }, { status: 404 });
     }
     if (pathname === '/user/emails') return account.emails ? Response.json(account.emails) : Response.json({ message: 'Resource not accessible' }, { status: 403 });
+    if (pathname === '/user') return Response.json({ id: account.id, login: token.slice('tok-'.length) });
     return Response.json({ message: 'Not Found' }, { status: 404 });
   });
   return { url, seen };
@@ -533,6 +636,7 @@ async function joinable(t, { repo = 'owner/app', db } = {}) {
 }
 const joinCall = (url, body) => fetch(`${url}/_memory/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const errorCode = async response => (await response.json()).errors?.[0]?.code;
+const joinedKey = async (url, token, machine = 'm') => (await (await joinCall(url, { token, machine })).json()).result.key;
 
 test('a reader of a private repo joins with a 30-day reader key for their verified email; push gives a member key', async t => {
   const { env, url } = await joinable(t);
@@ -589,13 +693,50 @@ test('a join checks only the Worker\'s own repository at its own GitHub address,
   assert.deepEqual(github.seen, ['/repos/owner/app'], 'only the deployed repository is asked about');
 });
 
-test('an unverified git email gets the primary verified one, and the owner\'s new laptop gets an admin key', async t => {
-  const { url } = await joinable(t);
+test('an unverified git email gets the primary verified one, and only the linked GitHub account joins as admin', async t => {
+  const { env, url } = await joinable(t);
   const bo = (await (await joinCall(url, { token: 'tok-bo', machine: 'm', email: 'bo@example.com' })).json()).result;
   assert.equal(bo.email, 'bo@work.com');
   const dev = (await (await joinCall(url, { token: 'tok-dev', machine: 'new-laptop', email: 'dev@example.com' })).json()).result;
   assert.deepEqual([dev.email, dev.role], ['dev@example.com', 'admin']);
   assert.ok(dev.expiresAt, 'a joined admin key expires too');
+  const twin = (await (await joinCall(url, { token: 'tok-dev-twin', machine: 'twin', email: 'dev@example.com' })).json()).result;
+  assert.deepEqual([twin.email, twin.role], ['dev@example.com', 'member'], 'another account with the admin\'s verified email is a member');
+  const stored = hash => ({ ...env.fake.db.prepare('SELECT role, github_id FROM memory_keys WHERE hash = ?').get(hash) });
+  assert.deepEqual(stored(await hashKey(dev.key)), { role: 'admin', github_id: '101' });
+  assert.deepEqual(stored(await hashKey(twin.key)), { role: 'member', github_id: '102' });
+  assert.equal((await call(url, twin.key, { sql: 'DELETE FROM runs' })).status, 403, 'the twin\'s key is a member\'s');
+});
+
+test('a store before schema 5 makes nobody admin through join, and its old keys keep working', async t => {
+  const old = new DatabaseSync(':memory:');
+  for (const file of ['0001_memory.sql', '0002_keys.sql', '0003_key_machines.sql', '0004_readers.sql']) old.exec(readFileSync(new URL(`../../.agents/skills/memory/migrations/${file}`, import.meta.url), 'utf8'));
+  const oldAdmin = await addKey(old, 'dev@example.com', 'admin');
+  const { url } = await joinable(t, { db: old });
+  const dev = (await (await joinCall(url, { token: 'tok-dev', machine: 'm', email: 'dev@example.com' })).json()).result;
+  assert.deepEqual([dev.email, dev.role], ['dev@example.com', 'member'], 'an email alone never makes an admin');
+  assert.equal((await call(url, dev.key, { sql: 'SELECT 1' })).status, 200);
+  assert.equal((await call(url, oldAdmin, { sql: 'SELECT 1' })).status, 200);
+});
+
+test('one GitHub account holds at most 10 keys: an eleventh machine stops the one that joined longest ago', async t => {
+  const { env, url } = await joinable(t);
+  const expired = await addKey(env.fake.db, 'cy@example.com', 'member', { machine: 'gone', expiresAt: '2026-01-01T00:00:00Z', githubId: '202' });
+  const keys = [];
+  for (let n = 0; n < KEY_LIMIT; n += 1) keys.push(await joinedKey(url, 'tok-cy', `m${n}`));
+  assert.equal(env.fake.db.prepare("SELECT count(*) AS n FROM memory_keys WHERE hash = ?").get(await hashKey(expired)).n, 0, 'a join drops the account\'s expired keys');
+  const count = () => env.fake.db.prepare("SELECT count(*) AS n FROM memory_keys WHERE github_id = '202'").get().n;
+  assert.equal(count(), KEY_LIMIT);
+  for (const key of keys) assert.equal((await call(url, key, { sql: 'SELECT 1' })).status, 200);
+  const eleventh = await joinedKey(url, 'tok-cy', 'm10');
+  assert.equal(count(), KEY_LIMIT);
+  assert.equal((await call(url, eleventh, { sql: 'SELECT 1' })).status, 200);
+  assert.equal((await call(url, keys[0], { sql: 'SELECT 1' })).status, 401, 'the machine that joined longest ago stops');
+  for (const key of keys.slice(1)) assert.equal((await call(url, key, { sql: 'SELECT 1' })).status, 200);
+  const renewed = await joinedKey(url, 'tok-cy', 'm1');
+  assert.equal(count(), KEY_LIMIT, 'a renewal replaces its own key and stops no other');
+  assert.equal((await call(url, keys[2], { sql: 'SELECT 1' })).status, 200);
+  assert.equal((await call(url, renewed, { sql: 'SELECT 1' })).status, 200);
 });
 
 test('two machines keep two keys, and joining again from one machine replaces only its key', async t => {
@@ -608,7 +749,7 @@ test('two machines keep two keys, and joining again from one machine replaces on
   const renewed = await join('laptop');
   assert.equal((await call(url, first, { sql: 'SELECT 1' })).status, 401);
   assert.equal((await call(url, renewed, { sql: 'SELECT 1' })).status, 200);
-  assert.equal(env.fake.db.prepare("SELECT count(*) AS n FROM memory_keys WHERE email = 'ana@example.com' AND machine IS NOT NULL").get().n, 2);
+  assert.equal(env.fake.db.prepare("SELECT count(*) AS n FROM memory_keys WHERE email = 'ana@example.com' AND machine IN ('laptop', 'desktop')").get().n, 2);
 });
 
 test('a Worker with no repository or an unmigrated store refuses a join, and the token is never logged', async t => {
@@ -630,18 +771,14 @@ test('a Worker with no repository or an unmigrated store refuses a join, and the
 
 // ---------- memory.mjs join, member list, and the session-start hook ----------
 
-// A fake gh on PATH that prints FAKE_GH_TOKEN for `gh auth token`, or fails when it is empty.
-function fakeGh(t) {
-  const bin = tempDir(t, 'fake-gh-');
-  writeFileSync(join(bin, 'gh'), '#!/bin/sh\n[ "$1 $2" = "auth token" ] && [ -n "$FAKE_GH_TOKEN" ] && { echo "$FAKE_GH_TOKEN"; exit 0; }\nexit 1\n', { mode: 0o755 });
-  return token => viaWorker({ PATH: `${bin}:${process.env.PATH}`, FAKE_GH_TOKEN: token });
-}
+// The fake gh signed in with a GitHub token, for join.
+const fakeGh = () => token => viaWorker({ PATH: GH_PATH, FAKE_GH_TOKEN: token });
 const withoutKey = env => writeFileSync(join(env.repo.root, '.env'), readFileSync(join(env.repo.root, '.env'), 'utf8').replace(/^CLOUDFLARE_MEMORY_TOKEN=.*\n/m, ''));
 const stateFile = (env, name) => join(env.repo.stateDir, name);
 
 test('memory.mjs join writes the key to .env and never prints it; renewing replaces it', async t => {
   const { env, url } = await joinable(t);
-  const gh = fakeGh(t);
+  const gh = fakeGh();
   env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'project', 'deploys need a tag', 'save', '2026-09-01T00:00:00Z', 'dev@example.com')").run();
   withoutKey(env);
   const joined = await memory(env.repo, env.fake, ['join'], gh('tok-bo'));
@@ -663,8 +800,9 @@ test('memory.mjs join writes the key to .env and never prints it; renewing repla
 
 test('a refused join changes no file and prints its fix; in the background it is kept for the hook', async t => {
   const { env } = await joinable(t);
-  const gh = fakeGh(t);
+  const gh = fakeGh();
   const envBefore = readFileSync(join(env.repo.root, '.env'), 'utf8');
+  const keyBefore = readFileSync(stateFile(env, 'key.json'), 'utf8');
   const noScope = await memory(env.repo, env.fake, ['join'], gh('tok-noscope'));
   assert.equal(noScope.code, 1);
   assert.match(noScope.stderr, /gh auth refresh -h github\.com -s user:email/);
@@ -673,26 +811,30 @@ test('a refused join changes no file and prints its fix; in the background it is
   const signedOut = await memory(env.repo, env.fake, ['join', '--background'], gh(''));
   assert.match(signedOut.stderr, /GitHub is not signed in on this machine; sign in to GitHub on this machine: gh auth login/);
   assert.equal(readFileSync(join(env.repo.root, '.env'), 'utf8'), envBefore);
-  assert.ok(!existsSync(stateFile(env, 'key.json')));
+  assert.equal(readFileSync(stateFile(env, 'key.json'), 'utf8'), keyBefore);
   assert.match(JSON.parse(readFileSync(stateFile(env, 'join-error.json'), 'utf8')).message, /gh auth login/);
 });
 
-test('member list shows each machine and expiry; member remove revokes joined keys too; member add keeps them', async t => {
+test('member list shows each key\'s machine, GitHub account, and expiry; member remove revokes every key of an email and unlinks the admin', async t => {
   const { env, url, anaKey } = await joinable(t);
-  const laptop = (await (await joinCall(url, { token: 'tok-ana', machine: 'laptop' })).json()).result.key;
-  const desktop = (await (await joinCall(url, { token: 'tok-ana', machine: 'desktop' })).json()).result.key;
-  const readded = await memory(env.repo, env.fake, ['member', 'add', 'ana@example.com'], asAdmin(env));
-  assert.equal(readded.code, 0, readded.stderr);
-  assert.equal((await call(url, anaKey, { sql: 'SELECT 1' })).status, 401, 'member add replaces its own earlier key');
-  assert.equal((await call(url, laptop, { sql: 'SELECT 1' })).status, 200, 'and keeps the joined ones');
+  const laptop = await joinedKey(url, 'tok-ana', 'laptop');
+  const desktop = await joinedKey(url, 'tok-ana', 'desktop');
   const listed = await memory(env.repo, env.fake, ['member', 'list'], asAdmin(env));
-  assert.match(listed.stdout, /ana@example\.com \(member, reader, since \S+, machine desktop, expires \d{4}-\d{2}-\d{2}\)/);
-  assert.match(listed.stdout, /ana@example\.com \(member, reader, since \S+, machine laptop, expires/);
-  assert.match(listed.stdout, /ana@example\.com \(member, since \S+, made by member add, no expiry\)/);
+  assert.match(listed.stdout, /ana@example\.com \(member, reader, since \S+, machine desktop, GitHub 201, expires \d{4}-\d{2}-\d{2}\)/);
+  assert.match(listed.stdout, /ana@example\.com \(member, reader, since \S+, machine laptop, GitHub 201, expires/);
+  assert.match(listed.stdout, /ana@example\.com \(member, since \S+, machine ana-laptop, GitHub 201, expires/);
   assert.doesNotMatch(listed.stdout, /wongm_|[0-9a-f]{64}/);
   const removed = await memory(env.repo, env.fake, ['member', 'remove', 'ana@example.com'], asAdmin(env));
   assert.match(removed.stdout, /3 keys no longer open/);
-  for (const key of [laptop, desktop]) assert.equal((await call(url, key, { sql: 'SELECT 1' })).status, 401);
+  for (const key of [laptop, desktop, anaKey]) assert.equal((await call(url, key, { sql: 'SELECT 1' })).status, 401);
+
+  const unlinked = await memory(env.repo, env.fake, ['member', 'remove', 'dev@example.com'], asAdmin(env));
+  assert.match(unlinked.stdout, /removed dev@example\.com: their key no longer opens this store; GitHub account dev is no longer linked as the admin/);
+  assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_admins').get().n, 0);
+  const after = await memory(env.repo, env.fake, ['member', 'list'], asAdmin(env));
+  assert.match(after.stdout, /No keys open this store\.\nNo GitHub account is linked as admin; `node \.claude\/skills\/memory\/scripts\/memory\.mjs member admin` links yours\./);
+  const rejoined = (await (await joinCall(url, { token: 'tok-dev', machine: 'm', email: 'dev@example.com' })).json()).result;
+  assert.equal(rejoined.role, 'member', 'an unlinked account joins as a member');
 });
 
 const hookRun = (env, extra) => node(env.repo, env.fake, 'session-start.mjs', ['--agent', 'claude'], { input: JSON.stringify({ session_id: 's1', cwd: env.repo.root }), env: extra });
@@ -704,7 +846,7 @@ async function until(check, ms = 8000) {
 
 test('the hook sets up memory through GitHub in the background, and the next session loads it', async t => {
   const { env } = await joinable(t);
-  const gh = fakeGh(t);
+  const gh = fakeGh();
   withoutKey(env);
   const started = Date.now();
   const first = await hookRun(env, gh('tok-ana').env);
@@ -719,7 +861,7 @@ test('the hook sets up memory through GitHub in the background, and the next ses
 
 test('the hook renews a key near expiry, and shows a failure the person must fix without retrying', async t => {
   const { env } = await joinable(t);
-  const gh = fakeGh(t);
+  const gh = fakeGh();
   const joined = await memory(env.repo, env.fake, ['join'], gh('tok-ana'));
   assert.equal(joined.code, 0, joined.stderr);
   const key = envKey(env);
@@ -741,7 +883,7 @@ test('the hook renews a key near expiry, and shows a failure the person must fix
 
 test('in a linked worktree, the key and a join go only to the main checkout\'s memory address', async t => {
   const { env } = await joinable(t);
-  const gh = fakeGh(t);
+  const gh = fakeGh();
   const seen = [];
   const elsewhere = await listen(request => { seen.push(new URL(request.url).pathname); return new Response(null, { status: 500 }); });
   const tree = join(tempDir(t, 'wong-memory-tree-'), 'tree');
@@ -771,7 +913,6 @@ test('in a linked worktree, the key and a join go only to the main checkout\'s m
 
 // ---------- own notes only, and reader keys ----------
 
-const joinedKey = async (url, token) => (await (await joinCall(url, { token, machine: 'm' })).json()).result.key;
 const factRow = (env, id) => ({ ...env.fake.db.prepare('SELECT author, shared, superseded_by FROM facts WHERE id = ?').get(id) });
 
 test('only the admin supersedes a teammate\'s fact; a member\'s or a reader\'s supersede leaves it live and says who wrote it', async t => {
