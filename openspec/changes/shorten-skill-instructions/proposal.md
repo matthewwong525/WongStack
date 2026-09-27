@@ -13,8 +13,8 @@ The assistant reads its instructions for a task before it does the task. They ha
 - **The same rules, in fewer words.** Every instruction page is rewritten in the plain, short style the wiki already uses. Nothing the assistant does changes: every rule, command, and check stays.
   ```text
   before                 after
-  13,500 words (main)    ≤ 9,500
-  15,700 (linked pages)  ≤ 12,500
+  13,064 words (main)    9,565  (−27%)
+  15,674 (linked pages)  13,013 (−17%)
   ```
 - **A rule lives in one place.** A rule repeated across several skills is written once, and the others point to it. The reasons behind a rule stay in the wiki, not in the instructions.
 - **You can check the result.** The plan records the word counts before and after, and every automatic check still has to pass.
@@ -46,3 +46,10 @@ None. The rewrite keeps every behavior the specs describe, so the change sets `s
 - **2026-09-27** — Assumed: targets of at least 30% fewer words in the `SKILL.md` files and 20% in references, because a first read found repeated boilerplate and asides at about that rate; the build reports the actual numbers.
 - **2026-09-27** — Assumed: every heading another page links to keeps its exact text, because 98 distinct anchors point into these pages and the link check fails on a renamed one.
 - **2026-09-27** — Assumed: a minor release (25.10.0), because every installed skill changes and locally adapted skills will need a merge.
+- **2026-09-27** — Before counts (`wc -w`, main after 25.9.0): SKILL.md 13,064 without the vendored agent-browser (apply 1,144; continue 1,436; explore 732; improve 1,233; memory 1,093; plan 1,031; routine 567; save 1,347; ship 1,776; update-dependencies 367; verify 1,057; wong-setup 689; wong-sync 592); references 15,674. Targets: SKILL.md ≤ 9,145, references ≤ 12,539.
+- **2026-09-27** — Rewrote all 31 files in four parallel passes (ship/continue/save; improve/apply/memory/verify; plan/explore/routine/update-dependencies; wong-setup/wong-sync), each checked against the spec requirements that name its skill. No heading, code block, frontmatter `name`/`user-invocable`, or existing link changed.
+- **2026-09-27** — After counts: SKILL.md 13,064 → 9,565 (−26.8%); references 15,674 → 13,013 (−17.0%). At or over target: ship, continue, save, apply, plan, explore, routine, update-dependencies, and every save, plan, explore, and walkthrough reference. Under: improve (−21%), memory (−20%), verify (−23%), wong-setup (−20%), wong-sync (−18%), and the wong-setup/wong-sync references (−15% together).
+- **2026-09-27** — Assumed: accept the shortfall rather than cut further, because what remains in those files is spec-required rules or exact data (quoted prompts, permission tables, file lists, error codes, fragments a test parses) that the design says never to change.
+- **2026-09-27** — Assumed: `stack-pack-fragments.md` folds its 7th `wrangler.jsonc` rule, a repeat of the 1st (`migrations_dir`), into the 1st, so "Eight rules" reads "Seven rules"; its code-block comment "see the fifth rule below" stays byte-identical (it was already one off — the cron rule is sixth).
+- **2026-09-27** — Found, not fixed (out of scope; would change behavior): `asking-the-user.md` names "`/apply` into `/save`" as a chain that continues without asking, while the apply-plan-handoff spec says `/apply` does not invoke `/save`; the code-first-planning spec expects `/explore` to carry "prefer code over AI" guidance that it never had; `failure-map.md`'s missing-secrets row says values live in `.env`, which may be out of date for the minted deploy token.
+- **2026-09-27** — Checkpoint on `shorten-skill-instructions`: tasks 1.1–3.3 done; release checks, `measure-context --check`, and all 324 payload tests pass locally. CI decides task 3.4.

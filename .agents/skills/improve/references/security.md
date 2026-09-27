@@ -1,26 +1,26 @@
 # Investigating security candidates
 
-Use this with [`/improve`](../SKILL.md). A confirmed finding identifies controlled input, a reachable path, the missing or ineffective check, the affected data or action, and a safe negative verification probe. A pattern match is only a lead.
+Use this with [`/improve`](../SKILL.md). A pattern is a lead; a confirmed finding names controlled input, a reachable path, the missing or ineffective check, the affected data or action, and a safe negative verification probe.
 
 ## Map the trust boundary
 
-Read the repository's architecture and security guidance, then verify the mounted code. Trace the full path from entrypoint to handler and side effect. Identify who controls each input, which identity is established, which authorization is required, where validation occurs, and which service or data store receives the action.
+Read the security guidance, then trace the mounted code from entrypoint to side effect: who controls each input, which identity and authorization apply, and where validation happens.
 
-Authentication does not prove authorization or object ownership. A private-looking hostname, opaque identifier, internal package, or signed-in user does not remove the need to check the affected operation. Development bypass flags are not vulnerabilities or safe controls until their deployed configuration and reachability are known.
+Authentication is not authorization or ownership; a private hostname, opaque ID, internal package, or signed-in user still needs the operation checked. A development bypass flag is neither a vulnerability nor a safe control until its deployed configuration and reachability are known.
 
 ## Confirm the lead
 
 | Lead | Evidence to establish |
 | --- | --- |
-| Query construction | Controlled values use binding. Dynamic identifiers use a fixed allowlist. Trace every interpolated fragment. |
-| Raw HTML, Markdown, or SVG | Identify who can write the content and where context-appropriate sanitization occurs. Test intended formatting and hostile input. |
-| Webhook or machine request | Verify the sender with the correct raw data and secret before writes, queueing, or external effects. Reject an invalid signature. |
-| Controlled outbound URL | Check allowed schemes, hosts, addresses, and redirects at each hop. Establish the intended remote-fetch feature before narrowing it. |
-| Record identifier | Check identity, authorization, and ownership at lookup or mutation. Unguessable is not authorized. |
-| Upload or numeric input | Check type, size, range, storage path, and authority before data, money, inventory, or compute effects. |
-| Secret or error detail | Prove that a value reaches a response, client bundle, telemetry, or log. Help text that names a key is not the key. Never copy a value. |
-| Dependency advisory | Verify the authoritative advisory, installed version, affected configuration, and reachable use. The local survey has no advisory database. |
+| Query construction | Controlled values bound; dynamic identifiers allowlisted; every interpolated fragment traced. |
+| Raw HTML, Markdown, or SVG | Who writes it, where context-appropriate sanitization happens; test intended formatting and hostile input. |
+| Webhook or machine request | Sender verified from raw data and secret before writes, queueing, or external effects; bad signatures rejected. |
+| Controlled outbound URL | Schemes, hosts, addresses, and redirects checked at every hop; confirm the intended remote-fetch feature before narrowing. |
+| Record identifier | Identity, authorization, and ownership at lookup or mutation; unguessable is not authorized. |
+| Upload or numeric input | Type, size, range, storage path, and authority before data, money, inventory, or compute effects. |
+| Secret or error detail | Proof a value reaches a response, client bundle, telemetry, or log (a key's name is not the key). Never copy a value. |
+| Dependency advisory | Authoritative advisory, installed version, affected configuration, reachable use; the survey has no advisory database. |
 
-Find the source owner for each control. A check copied at several callers can drift; a central boundary can be safer when all legitimate paths use it. Do not move a check across a trust boundary only to remove duplication.
+Centralize a copied check only when every legitimate path uses the central one. Never move a check across a trust boundary just to remove duplication.
 
-Test the rejected path and legitimate callers. Prefer the smallest fix that closes the confirmed path. Changes to access policy, feature availability, destructive data, credentials, or external accounts require separate user authority. A security label does not grant it. [`/ship`](../../ship/SKILL.md) owns every delivery gate.
+Test the rejected path and legitimate callers; make the smallest fix that closes the confirmed path. Access policy, feature availability, destructive data, credentials, and external accounts need separate user authority; a security label does not grant it. [`/ship`](../../ship/SKILL.md) owns every delivery gate.

@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.10.0 — Shorter skill instructions
+
+- **The same rules in fewer words.** Every skill's `SKILL.md` and `references/*.md` is rewritten in [our voice](wiki/voice.md): 13,064 → 9,565 words across the `SKILL.md` files (−27%) and 15,674 → 13,013 across references (−17%). A rule another page owns is now a link to it, reasons the wiki gives are cut, and one example stands where there were several. No rule, command, flag, path, heading, or code block changed. The vendored `agent-browser` skill is untouched.
+- **`stack-pack-fragments.md` lists seven `wrangler.jsonc` rules, not eight.** The eighth repeated the first (`migrations_dir`); its one extra point now sits in the first.
+
+**Updating.** `/wong-sync` brings every skill file. A skill you adapted locally shows as a conflict; keep your adaptation and take the new wording around it.
+
 ## 25.9.0 — Newest building blocks, except Vitest 5
 
 - **The app's building blocks are current.** React and React DOM 19.3, Vite 8.3.1, the React plugin 6.1.1, jsdom 30.1.1, knip 6.38.0, oxlint 1.85.0, and jscpd 5.3.2, in `app/package.json` and its lockfile. `@types/node` stays on 22 to match `.nvmrc`. Nothing in the app changes.

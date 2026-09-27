@@ -1,42 +1,42 @@
 # The staging walkthrough
 
-How `/verify` exercises a change's own OpenSpec scenarios against the deployed preview and grades them. [The skill](../SKILL.md) owns the steps, the verdicts, and the hard rules; [the staging walkthrough](../../../../wiki/development/staging-walkthrough.md) owns the reasons; this file owns *how* a walk is performed.
+How `/verify` scouts a change's own OpenSpec scenarios, probes them against the deployed preview, and grades them. [The skill](../SKILL.md) owns the steps, verdicts, and hard rules; [the staging walkthrough](../../../../wiki/development/staging-walkthrough.md) owns the reasons.
 
-The phases split across two script calls, because scouting is cheap and running is not:
+The phases split across two script calls:
 
-- **§ a (scout)** runs on `RESULT: READY` from `verify-staging.sh scout-check`, *before* `/save` and before preflight. It reads local files only.
-- **§§ b–f** run on `RESULT: READY` from `verify-staging.sh preflight` (which prints `URL`, `RUN_DIR`, `SHA`, `BROWSER`), which the skill calls only once § a produced at least one journey. Pass `--no-browser` when no journey is a browser journey.
+- **§ a (scout)** runs on `RESULT: READY` from `verify-staging.sh scout-check`, *before* `/save` and preflight, reading local files only.
+- **§§ b–f** run on `RESULT: READY` from `verify-staging.sh preflight` (which prints `URL`, `RUN_DIR`, `SHA`, `BROWSER`), called only once § a produced a journey. Pass `--no-browser` when no journey is a browser journey.
 
-On `RESULT: NONE` — no scenario any probe can reach — the skill has already reported and stopped, and nothing below applies.
+On `RESULT: NONE` (no scenario any probe can reach) the skill has already reported and stopped.
 
-The browser is **[`agent-browser`](https://github.com/vercel-labs/agent-browser)**, a standalone CLI that carries its own Chrome and runs it on this machine. Preflight installs it only when a browser journey needs it. Request probes need only `curl`.
+The browser is **[`agent-browser`](https://github.com/vercel-labs/agent-browser)**, a standalone CLI with its own Chrome, run on this machine. Request probes need only `curl`.
 
 ## a — scout the scenarios
 
-The journeys come from the change's **own OpenSpec scenarios**, not from reading the app's routes. Read:
+Journeys come from the change's **own OpenSpec scenarios**, not the app's routes:
 
-- every `#### Scenario:` in `openspec/changes/<name>/specs/**/spec.md` — this change's promise, and
-- the scenarios of any capability in `openspec/specs/` whose files this branch's diff touches (`git diff --name-only origin/main..HEAD`), which catches a change that edits behavior an existing spec covers without writing a delta for it.
+- every `#### Scenario:` in `openspec/changes/<name>/specs/**/spec.md`, and
+- the scenarios of any capability in `openspec/specs/` whose files this branch's diff touches (`git diff --name-only origin/main..HEAD`).
 
 Do **not** walk the whole `openspec/specs/` surface.
 
-Then **match each scenario to the strongest probe that can observe it end to end** against the deployed preview:
+**Match each scenario to the strongest probe that can observe it end to end** against the deployed preview:
 
-1. **Browser journey** — the `THEN` is about something rendered: a message appears, a list updates, a count drops. Driven with `agent-browser`.
-2. **Request probe** — the `THEN` is about the request path with no UI: an endpoint's status code or body, a webhook's acknowledgement, a redirect, a header. Driven as plain HTTP requests against the preview URL; no browser involved.
-3. **State probe** — the `THEN` is an effect something *else* can read: a queue consumer writes a row, a cron marks a record. Usable only where an **existing** machine-level or stack-pack command reads that deployed state (for a stack-pack repo, a staging-database query). The shape is: trigger over HTTP where a trigger exists, then read the state with the existing command. **Never add tooling to the repo** — a scenario with no existing command to read it is unverifiable, not a reason to invent one.
+1. **Browser journey**: the `THEN` is about something rendered, such as a message appearing. Driven with `agent-browser`.
+2. **Request probe**: the `THEN` is about the request path with no UI: an endpoint's status or body, a webhook's acknowledgement, a redirect, a header. Plain HTTP requests against the preview URL.
+3. **State probe**: the `THEN` is an effect something *else* reads, such as a row a queue consumer writes. Usable only where an **existing** machine-level or stack-pack command reads that deployed state (a stack-pack repo's staging-database query): trigger over HTTP if possible, then read the state with that command. **Never add tooling to the repo**; with no existing command, the scenario is unverifiable.
 
-A scenario **no probe reaches** — no deployed surface, or observable only by building or executing the repo's code locally — is excluded and **noted by name with its reason**, so the report and the PR comment list it as unverified rather than implying it passed.
+A scenario **no probe reaches** (no deployed surface, or observable only by running the repo's code locally) is excluded and **noted by name with its reason**, so the report and PR comment list it as unverified.
 
 **Nothing left after the ladder is the answer `NONE`.** Report it in one line and stop: no `/save`, no preflight, no probes.
 
-**Destructive journeys are walked, not skipped.** Where staging is a seeded fixture, deleting things is often the scenario most worth walking, and there is no merge riding on the result to create pressure against it.
+**Walk destructive journeys; do not skip them.** On a seeded fixture, a delete is often the scenario most worth walking.
 
 ## b — write the journeys
 
 Files live per journey in `$RUN_DIR/journeys/`, named alike and numbered in walk order.
 
-**`<id>.meta.json`** — for the grader, never read by the scripts. The scenario's **THEN** is carried across **verbatim**, never paraphrased, never "improved" — and `probe` names the ladder rung:
+**`<id>.meta.json`** is for the grader, not the scripts. Copy the scenario's **THEN** **verbatim**, never paraphrased; `probe` names the ladder rung:
 
 ```json
 {
@@ -47,7 +47,7 @@ Files live per journey in `$RUN_DIR/journeys/`, named alike and numbered in walk
 }
 ```
 
-**Browser journey → `<id>.batch.json`** — the ordered `agent-browser` commands, as a JSON array. The driver feeds this to `agent-browser batch --bail --json` **unread**, so there is nothing between what you wrote and what runs:
+**Browser journey → `<id>.batch.json`**: the ordered `agent-browser` commands as a JSON array. The driver feeds it to `agent-browser batch --bail --json` **unread**, so what you write is what runs:
 
 ```json
 [
@@ -63,27 +63,27 @@ Files live per journey in `$RUN_DIR/journeys/`, named alike and numbered in walk
 ]
 ```
 
-**Request probe → `<id>.requests.txt`** — one step per line, tab-separated: `METHOD`, a path (resolved against the preview URL) or a full URL, and an optional JSON body. The driver curls each line in order with the Access headers applied and captures the full response — status line, headers, body — as that step's evidence:
+**Request probe → `<id>.requests.txt`**: one tab-separated step per line: `METHOD`, a path (resolved against the preview URL) or full URL, and an optional JSON body. The driver curls each line in order with the Access headers and captures the full response as evidence:
 
 ```
 POST	/api/notes	{"title":""}
 GET	/api/notes
 ```
 
-**State probe →** its trigger, when one exists, is an ordinary `<id>.requests.txt`. The state read is **not** run by the driver: after `run` completes, execute the existing command yourself and capture its output into the journey's evidence directory, so the command and its result are on disk beside everything else:
+**State probe →** its trigger, if any, is an ordinary `<id>.requests.txt`. The driver does **not** run the state read: after `run`, run the existing command yourself and capture its output into the journey's evidence directory:
 
 ```bash
 npm run db:query:staging -- "SELECT count(*) FROM notes" \
   | tee "$RUN_DIR/evidence/import-processed/02-state.txt"
 ```
 
-Rules that decide whether the evidence is worth anything:
+Evidence rules:
 
-- **Wait after every navigating action, before the screenshot.** A screenshot taken before the destination paints captures the *previous* page, and the grade is then confidently wrong. Use `["wait", "--load", "networkidle"]`, or `["wait", "--text", "..."]` when the page updates without a navigation.
-- **Screenshot wherever a human would look**, with an absolute path under `$RUN_DIR/evidence/<id>/`, numbered in order. `--full` for whole-page capture; `--annotate` when numbered element labels would make the evidence clearer.
-- **Address elements semantically** — `find role`, `find text`, `find label` — or by `@eN` refs taken from a `snapshot` in the same batch. Refs go stale the moment the page changes, so re-`snapshot` after anything that navigates or re-renders. Prefer semantic locators for anything a person could name.
-- **Write no assertions.** The journey's job is to produce evidence, not to decide. A request probe records the response it got, not the response you expected; an assertion here would bake in your guess at correctness and then be deleted with the run.
-- The URL is the preview URL preflight printed. There is no implicit base URL in a batch file — write it in full. Request-probe paths are the one exception: the driver resolves them against that URL so the file stays readable.
+- **Wait after every navigating action, before the screenshot**, or the screenshot captures the *previous* page. Use `["wait", "--load", "networkidle"]`, or `["wait", "--text", "..."]` when the page updates without navigating.
+- **Screenshot wherever a human would look**, to a numbered absolute path under `$RUN_DIR/evidence/<id>/`. `--full` for the whole page; `--annotate` for numbered element labels.
+- **Address elements semantically** (`find role`, `find text`, `find label`) or by `@eN` refs from a `snapshot` in the same batch. Re-`snapshot` after anything that navigates or re-renders, because refs go stale. Prefer semantic locators for anything a person could name.
+- **Write no assertions.** A journey produces evidence; it does not decide.
+- Write the preview URL preflight printed in full; a batch file has no implicit base URL. Only request-probe paths resolve against it.
 
 These files live in the temp run directory and nowhere else.
 
@@ -93,37 +93,33 @@ These files live in the temp run directory and nowhere else.
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" run "$RUN_DIR" "$URL"
 ```
 
-The driver runs every journey: batch files through `agent-browser` (each journey gets its own browser session, so a session that dies mid-journey costs that journey alone) and request files through `curl`, in journey order. Then perform any state-probe reads yourself, per § b, before grading.
+The driver runs every journey in order: batch files through `agent-browser`, each in its own browser session, and request files through `curl`. Then do any state-probe reads yourself, per § b, before grading.
 
 ## d — grade against the written expectation
 
-For each journey, read the captured evidence with that journey's `then` from `<id>.meta.json` beside it — screenshots and `$RUN_DIR/evidence/<id>.result.json` for a browser journey, the numbered response captures for a request probe, the command output for a state probe. Decide whether the evidence shows what the `THEN` describes.
+For each journey, read the evidence beside its `then` from `<id>.meta.json`: screenshots and `$RUN_DIR/evidence/<id>.result.json` for a browser journey, the numbered response captures for a request probe, the command output for a state probe. Decide whether the evidence shows what the `THEN` describes.
 
-- **"No error was reported" is not a pass — and neither is a bare `200`.** A journey whose batch completed cleanly but whose screenshot lacks the message the `THEN` requires **fails**; a response that answered `200` without the body the `THEN` describes **fails**. This is the whole reason the verdict is not in the script.
-- A failing command is evidence, not a crash — "the button was never there" and "the endpoint answered 404" are exactly what the walk exists to surface. `--bail` stops a browser journey there, so the evidence before it is the story of how far it got.
-- Check the landed URL in `<id>.url` when a screenshot looks unexpectedly like the previous page: that is the missing-wait signature, and it is a defect in the journey rather than in the app.
-- **Genuinely ambiguous? Stop and ask the user**, showing the evidence and the `THEN` side by side, with the readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks). Do not resolve it in either direction yourself.
+- **"No error was reported" is not a pass, and neither is a bare `200`.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**; a `200` without the body the `THEN` describes **fails**.
+- A failing command is evidence, not a crash: "the endpoint answered 404" is what the walk exists to surface. `--bail` stops a browser journey there, so the earlier evidence shows how far it got.
+- When a screenshot looks like the previous page, check the landed URL in `<id>.url`: that is a missing wait, a defect in the journey, not the app.
+- **Genuinely ambiguous? Stop and ask the user**, showing the evidence and the `THEN` side by side, with the readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks). Do not resolve it either way yourself.
 
-Grade against the words the `THEN` holds; no second agent grades.
-
-The verdict this produces feeds the table in [`SKILL.md`](../SKILL.md#verdicts), which owns what each one reports.
+Grade against the `THEN`'s words; no second agent grades. The verdict feeds the table in [`SKILL.md`](../SKILL.md#verdicts), which owns what each one reports.
 
 ## e — after a failure
 
-The evidence is posted (§ f) before staging is reset. A failure is **in scope** only when both halves hold:
+The evidence is posted (§ f) before staging is reset. A failure is **in scope** only when both hold:
 
 1. the contradicted `THEN` is one of *this change's own* scenarios, and
 2. the fix plausibly lives in files this branch already touches (`git diff --name-only origin/main..HEAD`).
 
-Anything else (pre-existing behavior, infrastructure, another capability's scenario) is out of scope. State the judgement in the report either way, in one line: *"in scope — the empty-title check is this change's own code"*, or *"out of scope — the login form predates this branch"*. A reader who disagrees can then say so, which is not possible if the reasoning stayed in your head.
+Anything else (pre-existing behavior, infrastructure, another capability's scenario) is out of scope. State the judgement in one line either way, so a reader can disagree: *"in scope — the empty-title check is this change's own code"*, or *"out of scope — the login form predates this branch"*.
 
-Three failure shapes are almost always **out of scope** even when they look fixable: a journey that fails because the fixture has nothing to act on (fix the seed deliberately, in its own change); a `401` from the app itself with a valid service token (the app is authenticating the wrong way); and a screenshot that shows the previous page (fix the journey's waits and re-walk — the app never misbehaved).
+Three failures are almost always **out of scope** even when they look fixable: nothing in the fixture to act on (fix the seed in its own change); a `401` from the app itself with a valid service token (the app authenticates wrongly); and a screenshot of the previous page (fix the journey's waits and re-walk).
 
 ## f — post the evidence, then clean up
 
-One comment per `/verify` invocation, not per journey, on every verdict. Verifying again appends another comment rather than editing the first, so the PR keeps an honest log of attempts.
-
-Write it so it is complete as prose — a reader with no images still gets the whole story. Name each journey's probe, and list unverifiable scenarios by name. Title it by verdict:
+One comment per `/verify` invocation, not per journey, on every verdict; verifying again appends a new comment, never edits the first. Make it complete as prose for a reader with no images, name each journey's probe, list unverifiable scenarios by name, and title it by verdict:
 
 ```bash
 gh pr comment --body-file "$RUN_DIR/comment.md"
@@ -164,7 +160,7 @@ The note is still listed and the count still reads 3.
 
 Always say **where each probe ran**.
 
-On **`UNKNOWN`** or **`TIMEOUT`** there may be no journeys to list. Say so in those words — *the walk could not be verified*, and what would make it runnable — rather than posting an empty-looking success:
+On **`UNKNOWN`** or **`TIMEOUT`**, with perhaps no journeys to list, say plainly *the walk could not be verified* and what would make it runnable, never an empty-looking success:
 
 ```markdown
 ## Staging walkthrough — UNKNOWN
@@ -176,7 +172,7 @@ token and retried once; the retry was challenged again, so the Access policy is
 not accepting it. Check the policy's service-token rule, then run `/verify` again.
 ```
 
-When a heal ran, **say so and say what it did** — "minted a service token and retried once". An `UNKNOWN` that hides its repair attempt reads as an untried walk, and the next reader repeats the work. Where the heal was *unavailable* — an Access wall with no Cloudflare token — say that instead, and name the credential that would have allowed it.
+When a heal ran, **say what it did**: "minted a service token and retried once". When it was *unavailable* (an Access wall with no Cloudflare token), say so and name the missing credential.
 
 Then the screenshots:
 
@@ -185,7 +181,7 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" publish "$RUN_DIR"
 ```
 
 - **`RESULT: WALKED`** → it printed `<local-path>\t<public-url>` per file; substitute them into the comment so screenshots render inline.
-- **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths. This is **not** a failure and is not reported as one.
-- Request- and state-probe evidence is text and is quoted inline in the comment; only screenshots go through `publish`.
+- **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths. This is **not** a failure.
+- Request- and state-probe evidence is text, quoted inline in the comment; only screenshots go through `publish`.
 
 The walk captures screenshots only; there is no video.

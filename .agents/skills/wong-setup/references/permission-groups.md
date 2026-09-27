@@ -1,6 +1,6 @@
 # The widen protocol and the permission-group ids
 
-Cloudflare permission groups are what a token's policy actually grants. The user grants two of them on the token screen; [the provisioning runbook](cloudflare.md) grants itself everything else it needs, on demand, using this protocol. This page owns the mechanics — the skill states the outcome and points here.
+Cloudflare permission groups are what a token's policy grants. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which this page owns.
 
 ## The sequence
 
@@ -15,18 +15,18 @@ Cloudflare permission groups are what a token's policy actually grants. The user
 ## The rules
 
 - **The widen is [pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized): don't ask, and report what you granted.**
-- **Resolve ids by name at runtime**, from `/user/tokens/permission_groups`. The recorded values below are a fallback and a test fixture — never the lookup path. Ids drift, groups are added, and one name is genuinely ambiguous (see the traps). A hardcoded id that silently stops matching is worse than a lookup that fails loudly.
-- **The `PUT` replaces the policy list wholesale.** The new set must still contain `API Tokens Write` (user scope) and `Account API Tokens Write` (account scope) — drop them and the token can never widen again, including on the next run. Preserve the existing account `resources` block as-is rather than rebuilding it; that map is what ties the token to the account, and losing it produces a token that verifies but sees no accounts.
-- **Re-verify, then probe one endpoint per permission added.** A widen that "succeeded" but didn't take is how a half-provision starts.
-- **A widen takes up to about a minute to propagate — retry before concluding anything.** The first probe after a `PUT` can return `403` on a permission the token now genuinely holds. **Do not diagnose a first `403` as a permission problem.** Retry with backoff (roughly 2s, 4s, 8s, 15s, 30s — about a minute total) and only treat it as a real failure if it is *still* failing at the end. Access endpoints are the worst offenders: one adopter saw Access `403` for about a minute after a successful widen, and the probe protocol read that as "the widen didn't take" and stopped a run that would have worked. A `403` that persists past the window is real; one that clears on retry was never a failure. Distinguish this from the lost-`resources` symptom below, which does *not* clear with time — that one shows an empty `/accounts`, not a `403`.
-- **If the widen didn't take: stop, provision nothing.** Report which surfaces are unavailable and list the permission names for the user to add by hand — that path still works, it's just more clicking. Cloudflare could restrict self-escalation in future; this check is what makes that arrive as a clear message instead of a confusing half-provision.
+- **Resolve ids by name at runtime**, from `/user/tokens/permission_groups`. The ids below are a fallback and a test fixture, never the lookup path: ids drift, groups are added, and one name is ambiguous (see the traps).
+- **The `PUT` replaces the policy list wholesale.** The new set must still contain `API Tokens Write` (user scope) and `Account API Tokens Write` (account scope), or the token can never widen again. Keep the existing account `resources` block as-is, never rebuilt: losing it gives a token that verifies but sees no accounts.
+- **Re-verify, then probe one endpoint per permission added.** A widen that "succeeded" but didn't take starts a half-provision.
+- **A widen takes up to about a minute to propagate — retry before concluding anything.** The first probe after a `PUT` can return `403` on a permission the token now holds. **Do not diagnose a first `403` as a permission problem.** Retry with backoff (roughly 2s, 4s, 8s, 15s, 30s — about a minute total); only a `403` still failing at the end is real. Access endpoints are the worst: one adopter's Access `403` lasted about a minute after a successful widen, and a run that would have worked stopped. The lost-`resources` symptom below does *not* clear with time — it shows an empty `/accounts`, not a `403`.
+- **If the widen didn't take: stop, provision nothing.** Report which surfaces are unavailable and list the permission names for the user to add by hand. If Cloudflare ever restricts self-escalation, this check turns it into a clear message, not a half-provision.
 
 ```bash
 curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   "https://api.cloudflare.com/client/v4/user/tokens/permission_groups?per_page=1000"
 ```
 
-The count was **392 groups** at the time of writing, which is why the endpoint needs `per_page=1000` — the default page hides most of them.
+There were **392 groups** at the time of writing, so the endpoint needs `per_page=1000`; the default page hides most.
 
 ## Verified ids
 
@@ -34,7 +34,7 @@ Read from the live API against a real account.
 
 ### What the user grants
 
-These two are the whole ask on the token screen. Every other group below, the runbook grants itself.
+These two are the whole ask on the token screen; the runbook grants every other group below itself.
 
 | Name | Scope | Id |
 |---|---|---|
@@ -57,7 +57,7 @@ These two are the whole ask on the token screen. Every other group below, the ru
 
 ### The CI deploy token
 
-The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, scoped to the one account. It cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list; `scripts/tests/downstream-contract.test.mjs` pins it, because hosted setups rely on it.
+The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, scoped to the one account; it cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list; `scripts/tests/downstream-contract.test.mjs` pins it for hosted setups.
 
 | Name | Scope | When | Id |
 |---|---|---|---|
@@ -82,16 +82,16 @@ Added only when a user asks for a login wall, and droppable afterward.
 
 ## The two traps
 
-**`Access: Apps and Policies Write` exists twice.** Same name, different scope, different id:
+**`Access: Apps and Policies Write` exists twice**, with different scopes and ids:
 
 ```
    1e13c5124ca64b72b1969a67e8829049   com.cloudflare.api.account        ✅ this one
    959972745952452f8be2452be8cbb9f2   com.cloudflare.api.account.zone   ❌ zone-scoped
 ```
 
-Match on `scopes` containing `com.cloudflare.api.account`, never on position in the response — ordering is not guaranteed. Picking the zone-scoped copy produces a token that accepts the policy and then fails every account-level Access call.
+Match on `scopes` containing `com.cloudflare.api.account`, never on position: ordering is not guaranteed. The zone-scoped copy gives a token that accepts the policy, then fails every account-level Access call.
 
-**Builds is filed under "CI".** There is no permission group whose name contains "build" — searching all 392 for it returns nothing. Workers Builds permissions are `Workers CI Read` and `Workers CI Write`.
+**Builds is filed under "CI".** None of the 392 group names contains "build"; Workers Builds permissions are `Workers CI Read` and `Workers CI Write`.
 
 ## Reading a token's current policy
 

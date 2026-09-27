@@ -6,80 +6,70 @@ user-invocable: true
 
 # /apply
 
-`/apply` is the **implement stage** of [the change loop](../../../wiki/development/the-change-loop.md) — its name for OpenSpec's **apply** step. It ensures the current line of work has an apply-ready OpenSpec change, then works that change's `tasks.md`: reads the proposal + specs + design, implements each pending task, and checks off `- [x]` as it goes.
+`/apply` is the **implement stage** of [the change loop](../../../wiki/development/the-change-loop.md), OpenSpec's **apply** step.
 
 ## Pick the path by the work
 
-The plan you need depends on what the work changes:
-
-- **The repo's code or process** → an apply-ready OpenSpec change. [Resolve it below](#resolve-the-plan-first). A new standalone page or small tool is code too: build it as a mini app, laid out as [mini apps](../../../wiki/stack/mini-apps.md) says.
-- **No repo file at all** (research, an errand, a message, a data change in a service) → [the to-do path](#work-that-changes-no-repo-file).
+- **The repo's code or process**, including a new standalone page or small tool (a [mini app](../../../wiki/stack/mini-apps.md)) → an apply-ready OpenSpec change: [resolve it below](#resolve-the-plan-first).
+- **No repo file** (research, an errand, a message, a data change in a service) → [the to-do path](#work-that-changes-no-repo-file).
 
 ## Resolve the plan first
 
-Before invoking the OpenSpec apply step, resolve the change the user is asking to implement by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, `recorded-branch`, then `sole-active`. The evidence helper reads Git but changes no Git state.
+Resolve the change by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, `recorded-branch`, then `sole-active`. An argument that names no existing change is intent for a new plan. Never let an unrelated `sole-active` entry override work this conversation just explored. If unsure, ask, listing what each candidate would implement; never guess.
 
-An argument that is a description rather than an existing change name is implementation intent for a new plan. Never let an unrelated `sole-active` entry override work the current conversation has just explored. When you ask, give each candidate with what it would implement; do not guess.
+Check `applyRequires` in `openspec status --change "<name>" --json`:
 
-For a resolved existing change, run `openspec status --change "<name>" --json` and inspect the schema-defined `applyRequires` artifacts:
+- **All done** → apply-ready; continue.
+- **The selected change is incomplete** → invoke the [`plan` skill](../plan/SKILL.md) to complete it in place.
+- **No change, clear intent** → invoke the `plan` skill with that intent.
+- **Unclear intent** → ask before any plan or code.
 
-- **All required artifacts are done** → the change is apply-ready; continue directly.
-- **The explicitly or contextually selected change is incomplete** → invoke the [`plan` skill](../plan/SKILL.md) to complete that same change in place.
-- **No applicable change exists, but the implementation intent is clear** → invoke the `plan` skill with that intent to create one.
-- **Intent is unclear** → pause for clarification before writing a plan or code.
+`/apply` authorizes plan-then-implement. After `/plan` returns, verify the `applyRequires` closure is complete; if planning paused or is blocked, report and stop. Otherwise announce the change's **exact name** and keep it; no other change may replace it.
 
-The user's `/apply` invocation authorizes the plan-then-implement shortcut. After `/plan` returns, verify that its `applyRequires` dependency closure is complete. If planning paused or remains blocked, report that and stop. Otherwise announce and keep the selected change's **exact name**; another active change must not replace it.
+Run `openspec instructions apply --change "<name>" --json` (the [CLI contract](../plan/references/openspec-cli.md) covers a store or non-default schema), read every `contextFiles` path, and work pending `tasks.md` tasks in order, checking off `- [x]` each and refreshing progress from the same change. `blocked` stops; `all_done` goes to the handoff. Returned context is guidance, not proof a task is done.
 
-Run `openspec instructions apply --change "<name>" --json` for that selected change, applying the [CLI contract](../plan/references/openspec-cli.md) for a store or non-default schema. Read every `contextFiles` path it reports. Work the pending tasks in order, make the edits, mark each completed checkbox, and refresh progress from the same change. A `blocked` state stops implementation; an `all_done` state goes to the completion handoff. Treat returned context as project constraints and operation guidance as advice, not evidence that a task is done. Report incomplete work or actual blockers.
-
-When it reaches an **all-tasks-complete** state — including when the selected change was already complete at invocation — [finish with a preview](#finish-with-a-preview). When a task-driven `/save` completed the final task, report from its result and its CI preview instead, with no upload.
-
-**Inside `/ship`, return instead.** When `/ship` invoked you, report completion and return with no upload and no `/save`: `/ship` archives and makes the run's one checkpoint.
+At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview), unless a task-driven `/save` completed the final task: then report its result and CI preview, with no upload. **When `/ship` invoked you, return instead**: report completion with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
 
 ## Finish with a preview
 
-Completion never saves. The work stays in this working tree until the person saves or publishes.
+Completion never saves; the work stays in this working tree until the person saves or publishes.
 
-1. **Did the app change?** Ask the same check CI uses:
+1. **Did the app change?** CI's check:
 
    ```bash
    DEFAULT_BRANCH=main bash "$(git rev-parse --show-toplevel)/.github/scripts/app-untouched.sh" --worktree
    ```
 
-   `untouched=true` with `mini_changed=false` means there is nothing new to look at: skip the upload and say so in one line.
-2. **Upload the preview** from this host, with the Cloudflare credential sourced from the primary worktree's `.env` as [the secrets convention](../../../wiki/development/secrets.md) says:
+   `untouched=true` with `mini_changed=false`: skip the upload and say so in one line.
+2. **Upload the preview** from this host, with the Cloudflare credential from the primary worktree's `.env` ([secrets convention](../../../wiki/development/secrets.md)). If it can not run (no stack pack, no credential), say why in one line.
 
    ```bash
    bash "$(git rev-parse --show-toplevel)/scripts/cf-preview.sh" --alias "<change-name>"
    ```
 
-   It builds the whole app on staging data, so the first run in a checkout also installs it. When the upload can not run — no stack pack, no credential — say why in one line.
-3. **Catch loosened checks.** Run the check CI runs, on the working tree:
+3. **Catch loosened checks** on the working tree:
 
    ```bash
    DEFAULT_BRANCH=main node "$(git rev-parse --show-toplevel)/.github/scripts/loosened-checks.mjs" --worktree
    ```
 
-   Fix each file it marks *needs a reason* without asking: switch the check back on, or add the `Check:` bullet [the gate](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) describes. Run it again until it exits 0.
-4. **Report and ask.** Lead with the outcome at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview URL, with `/apps/<name>/` added for a mini app. When the change has `Check:` bullets, list each one under *Checks loosened* in one plain line — what no longer gets checked, and why — and name any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)*, change it more, or save it to keep the progress. Publishing runs [`/ship`](../ship/SKILL.md). Saving runs [`/save`](../save/SKILL.md), which opens the pull request.
+   Fix each file marked *needs a reason* without asking: switch the check back on, or add [the `Check:` bullet](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason). Rerun until it exits 0.
+4. **Report and ask** at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level): what was built and the preview URL (plus `/apps/<name>/` for a mini app); under *Checks loosened*, each `Check:` bullet in one plain line (what is no longer checked, and why); and any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save it via [`/save`](../save/SKILL.md).
 
-Each further change the person asks for repeats these steps under the same alias.
+Each further change repeats these steps under the same alias.
 
 ## Work that changes no repo file
 
-The plan is the numbered to-do in the conversation, with each outward step marked. When there is none, write one first. Work it in order:
+Work the conversation's numbered to-do in order, outward steps marked; write one if missing.
 
 - **Steps that only read, search, or draft** run without a prompt.
-- **Each outward step** — a sent message, a post, a created or changed record in a service, a payment, a deletion — shows exactly what it will do (recipient, full text, amount, target) and asks, in [the shared ask format](../explore/references/asking-the-user.md). One confirmation covers one action, unless the person asked for a batch. A declined step is skipped and reported.
+- **Each outward step** (a sent message, a post, a created or changed record in a service, a payment, a deletion) shows exactly what it will do (recipient, full text, amount, target) and asks in [the shared ask format](../explore/references/asking-the-user.md). One confirmation, one action, unless the person asked for a batch. Skip and report a declined step.
 
-When the steps are done, report the result. Do not invoke `/save`: there is nothing to commit. To stop halfway, the person runs `/save`, which keeps a memory thread for `/continue`.
+Report the result without `/save`; nothing is committed. To stop halfway, the person runs `/save`, which keeps a memory thread for `/continue`.
 
 ## Boundaries
 
-- **Git stays with `/save`.** `/apply` reads branch evidence but runs no commit, push, branch, PR, or CI step. The preview upload is not git, and it gates nothing; `/apply` runs it.
-- **Never save to stop.** Paused, blocked, failed, or ending with tasks pending → no `/save`; report the remaining work and that `/save` can checkpoint it.
-- **A task that needs the gate is done through `/save`** — a passing CI run, a CI-published preview, or pushed browser evidence: invoke it, read the result, mark the task, continue. A failing or unverifiable result leaves the task unchecked; report and stop. [Exit versus implementation](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task) owns the rule.
-- **Resuming cold** (a fresh clone, another machine) → [`/continue <name>`](../continue/SKILL.md), which hands off here.
-- **Pause on ambiguity or blockers**; the proposal is the intent. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): the ways to clear the blocker, recommended first.
-
-Completed tasks end with a preview from this host. **`/save`** commits, pushes, and opens the PR whenever the person wants a checkpoint. **`/ship`** saves, waits for CI, archives, and merges.
+- **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)): no commit, push, branch, PR, or CI step here. The preview upload is not git and gates nothing.
+- **Never save to stop; save to finish a gate task** ([exit versus implementation](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). Paused, blocked, failed, or tasks pending → no `/save`; report what remains and that `/save` can checkpoint it. A task whose done needs the gate (passing CI, a CI-published preview, pushed browser evidence) runs `/save`; mark it on a pass, and on a failing or unverifiable result leave it unchecked, report, and stop.
+- **Resuming cold** → [`/continue <name>`](../continue/SKILL.md).
+- **Pause on ambiguity or blockers** (the proposal is the intent), ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ways to clear it, recommended first.
