@@ -26,7 +26,18 @@ List the parts by short titles in the person's words, then ask:
    — one plan, one review, one publish.
 ```
 
-Check `command -v paseo` first. Without it, drop option 1 and say in one line that new workspaces need Paseo. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
+A new change asked for where another is unpublished asks instead:
+
+```text
+1. Open it in a new workspace (Recommended)
+   — it plans there and waits for you; the work here stays as it is.
+2. Publish the work here first, then start it here
+   — one chat; the new change waits for that publish.
+```
+
+On option 1, `/plan` opens the workspace, reports it, and stops, drafting nothing here.
+
+Check `command -v paseo` first. Without it, drop option 1 from either list and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
 
 ## Open each workspace
 

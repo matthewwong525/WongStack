@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 26.4.0 — Clean up what recent releases left stale
+## Next (minor) — Clean up what recent releases left stale
 
 - **Pages tell the truth again.** The stack pages drop Tailwind, which left in v18, and say the agent hands you a preview link as soon as a build finishes. *Getting started* says setup needs an empty folder, and describes the starter page as it is: your apps under a *Learn the development loop* box. The contributing page stops saying an update wipes the cached copy; it never does.
 - **Links that pointed at nothing now point somewhere.** The pipeline page lists `scripts/cf-preview.sh` and `scripts/mini-dashboard.mjs`. The `/verify` walkthrough uses a real `wrangler d1 execute` command, not a made-up one. The secrets rule links `/save`'s named secrets. The tools page stops citing a "Step 0", and the UX page drops its "Part 1 —" headings.
@@ -14,6 +14,19 @@
 - **Source repo only.** Lint and coverage now include the memory service, the check scripts, and the mini-app router. A memory test that failed at random now waits properly. `/update-dependencies` covers the test tools, and a test fails when the four places that name the OpenSpec version disagree.
 
 **Updating.** `/wong-sync` brings the page, skill, and guard edits. From now on, a branch that changes any workflow file, `deploy.yml` included, needs a `Check:` bullet naming it. A record's `components.docsPath` is ignored: move any relocated pages back under `wiki/` before you sync.
+
+## 26.4.0 — Smoother publishing, with no dead ends
+
+- **Publishing from `main` saves once.** `/ship` on a default branch with uncommitted work goes straight to the archive; Step 3's one save cuts the branch. Before, it saved and ran CI, then did both again.
+- **`/ship` writes a missing plan for code.** Where no change selects and the work is code, it authors one by `/save`'s new-plan fallback and carries on, instead of stopping.
+- **Every edit asks *publish it?*.** A plain request that edited a repo file, such as a wiki note, and a change that leaves the app untouched both end with that question. The `WONG-STACK` block's plain-request rule says so.
+- **A typed `/explore` ends with a question.** When the thinking is done, it asks *Plan it* (recommended), *Keep thinking*, or *Stop*. Bounded mode still returns to `/plan`. Notes pasted from a review page skip exploring.
+- **`/continue` never builds on the wrong branch.** When it can't check out the change here, it recaps and asks what next, with nothing built.
+- **One plan link, only when the plan changed.** `/save` prints it when it changed the plan's sections or `tasks.md`, not for Status, Branch, Open questions, or Decision-log lines. The plan's link no longer counts against a report's one link.
+- **New work in a busy workspace gets its own choice:** open it in a new workspace (recommended), or publish the work here first.
+- **Smaller fixes.** The build helper carries a `store <id>` line and passes `--store`. `/ship`'s distillation skips its branch search on `main`. `asking-the-user.md` allows the *Review the plan* reply with no question, and says `/apply` saves only for a task that needs the gate.
+
+**Updating.** `/wong-sync` brings the skill, wiki, and `WONG-STACK` block edits. Nothing to do by hand.
 
 ## 26.3.0 — New workspaces are named after their part
 

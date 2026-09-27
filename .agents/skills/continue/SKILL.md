@@ -58,9 +58,9 @@ git status --porcelain              # is the tree clean
 git fetch origin                    # a handed-off branch may exist only on the remote
 ```
 
-- This workspace holds other unpublished work — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, checkpoint the current work with `/save` first, or resume read-only here.
+- This workspace holds other unpublished work — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, checkpoint the current work with `/save` first, or recap it here and stop.
 - Nothing else held here → `git checkout "$BRANCH"` (it tracks `origin/$BRANCH` when only remote), or `gh pr checkout <N>`. A Branch line naming a branch absent locally and remotely → never create it; ask for the correct branch or PR as a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask).
-- Checkout fails because another worktree has the branch → tell the user and proceed read-only; never force it.
+- Checkout fails because another worktree has the branch → say where it is open, recap, and stop; never force it.
 - Never `/save`d (no branch anywhere) → stay on the current branch; `/save` will cut it.
 
 ### 4. Orient and continue
@@ -85,7 +85,8 @@ Recap so the user can confirm the loaded state:
 
 Then continue:
 
+- **Not checked out** (declined or failed in step 3) → build and edit nothing, even with an instruction. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): open it in a new workspace *(Recommended when `paseo` is installed)*, `/save` the current work first, or stop.
 - **An explicit instruction** (step 1) → do *that*, with the change as backdrop; the instruction steers.
-- **Otherwise** → **invoke the `/apply` skill** to work the tasks.
+- **Otherwise**, after a checkout or with no branch yet → **invoke the `/apply` skill** to work the tasks.
 
 `/continue` resumes and implements; it drafts no specs ([`/apply` vs `/continue`](../../../wiki/development/the-change-loop.md#apply-vs-continue)).
