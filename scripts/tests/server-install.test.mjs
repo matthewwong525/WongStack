@@ -9,7 +9,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
-import { jobFolder, main, payloadFiles, repoFolder, run, setEnv, upstreamUrl } from '../../server/install-wongstack.mjs';
+import * as installer from '../../server/install-wongstack.mjs';
+import { CLOUDFLARE_CALL, jobFolder, main, payloadFiles, repoFolder, run, setEnv, upstreamUrl } from '../../server/install-wongstack.mjs';
 import { readEnv } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { databaseName, parseConfig, workerName } from '../lib-wrangler-config.mjs';
 import { ACCOUNT, TOKEN, fakeCloudflare, fakeGh } from './fixtures/cloudflare.mjs';
@@ -70,10 +71,10 @@ async function setup(t, { email = 'ada@example.com' } = {}) {
     return run(file, args, options);
   };
   /** One run of the installer in this process; returns its exit code and printed lines. */
-  const install = async (job = JOB) => {
+  const install = async (job = JOB, { fetch } = {}) => {
     const out = [];
     const err = [];
-    const code = await main({ stdin: typeof job === 'string' ? job : JSON.stringify(job), env, exec, sleep: async () => {}, now: () => new Date('2026-09-27T12:00:00Z'), out: (line) => out.push(line), err: (line) => err.push(line) });
+    const code = await main({ stdin: typeof job === 'string' ? job : JSON.stringify(job), env, exec, fetch, sleep: async () => {}, now: () => new Date('2026-09-27T12:00:00Z'), out: (line) => out.push(line), err: (line) => err.push(line) });
     return { code, out, err, last: out.at(-1) };
   };
   const pushed = () => tryGit('--git-dir', origin, 'rev-parse', '-q', '--verify', 'refs/heads/main');
@@ -184,6 +185,7 @@ test('a run stopped by Cloudflare finishes on the next run with no duplicate', a
   assert.equal(stopped.last, 'cloudflare');
   assert.equal(stopped.code, 1);
   assert.equal(stopped.err[0], `install-wongstack: Cloudflare POST /accounts/${ACCOUNT}/tokens: HTTP 500 1000`);
+  assert.deepEqual(stopped.out, [`Cloudflare POST /accounts/${ACCOUNT}/tokens: HTTP 500 1000`, 'cloudflare']);
   assert.equal(s.pushed(), null);
   s.fake.state.refuse = [];
   assert.equal((await s.install()).last, 'done');
@@ -246,6 +248,7 @@ test('a repo with other work stops with repo and changes nothing', async (t) => 
   const result = await s.install();
   assert.equal(result.last, 'repo');
   assert.deepEqual(result.err, ['install-wongstack: the repo already has work in it']);
+  assert.deepEqual(result.out, ['repo'], 'a stop that is not a refused call prints the reason alone');
   assert.ok(!existsSync(join(s.dir, '.env')));
   assert.equal(s.fake.calls.length, 0);
 });
@@ -263,6 +266,27 @@ test('a missing clone, a bad job, or no git email stops with repo', async (t) =>
   const elsewhere = await s.install({ ...JOB, repo: 'ada/other' });
   assert.equal(elsewhere.last, 'repo');
   assert.match(elsewhere.err[0], /other is not a clone/);
+});
+
+test('a refused call prints the call, without its query or the token, on the line before cloudflare', async (t) => {
+  const s = await setup(t);
+  s.fake.state.refusedPolls = 99;
+  const result = await s.install();
+  assert.equal(result.code, 1);
+  assert.deepEqual(result.out, [`Cloudflare GET /accounts/${ACCOUNT}/d1/database: HTTP 403 10000`, 'cloudflare']);
+  assert.match(result.out[0], CLOUDFLARE_CALL);
+  assert.ok(!result.out[0].includes('?') && !result.out[0].includes(TOKEN));
+});
+
+test('an unreachable Cloudflare prints the reason alone', async (t) => {
+  const s = await setup(t);
+  const offline = async (url, init) => {
+    if (url.includes('/d1/database')) throw new TypeError('fetch failed');
+    return fetch(url, init);
+  };
+  const result = await s.install(JOB, { fetch: offline });
+  assert.deepEqual(result.out, ['cloudflare']);
+  assert.equal(result.err[0], `install-wongstack: Cloudflare GET /accounts/${ACCOUNT}/d1/database: unreachable`);
 });
 
 test('a refused token stops with token before anything is copied', async (t) => {
@@ -288,6 +312,15 @@ test('upstreamUrl turns a remote into the source page', () => {
   assert.equal(upstreamUrl('git@github.com:ada/WongStack.git'), 'https://github.com/ada/WongStack');
   assert.equal(upstreamUrl('ssh://git@github.com/ada/WongStack'), 'https://github.com/ada/WongStack');
   assert.equal(upstreamUrl(''), 'https://github.com/matthewwong525/WongStack');
+});
+
+test('the installer exports every name a host imports, and CLOUDFLARE_CALL takes only a refused call', () => {
+  for (const name of ['run', 'jobFolder', 'repoFolder', 'CLOUDFLARE_CALL']) assert.ok(name in installer, name);
+  assert.match('Cloudflare PUT /user/tokens/abc: HTTP 403 9109', CLOUDFLARE_CALL);
+  assert.match('Cloudflare GET /accounts/x/d1/database: HTTP 500', CLOUDFLARE_CALL);
+  for (const line of ['Cloudflare GET /x?name=a: HTTP 403', 'Cloudflare GET /x: unreachable', 'Cloudflare GET /x: HTTP 403 not-a-code', 'git push: rejected']) {
+    assert.doesNotMatch(line, CLOUDFLARE_CALL, line);
+  }
 });
 
 test('jobFolder takes only a whole job with a safe repo name', () => {
