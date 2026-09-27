@@ -24,7 +24,7 @@ If `/apply` selected an incomplete change, complete that exact change rather tha
 
 Before tasks, decide whether a repeated process belongs in deterministic code, by [the principles](../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai); when that fork changes the scope, raise it in the exit round. A change to testable behavior gets a coverage task beside the related implementation; a prose-only change does not.
 
-Write the proposal's Why and What Changes for the person who asked, at [the reader's level](../explore/references/asking-the-user.md#write-at-the-readers-level). For a non-technical reader, say what they will see, get, or be able to do; put file names, code, and commands in the design, specs, and tasks, which the page does not show. Capabilities and Impact may stay technical.
+Write the proposal's Why and What Changes for the person who asked, in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): say what they will see, get, or be able to do; put file names, code, and commands in the design, specs, and tasks, which the page does not show. Capabilities and Impact may stay technical.
 
 ## Draw in the proposal, then build the page
 

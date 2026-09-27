@@ -72,7 +72,7 @@ The wiki is long-term memory, and it holds **repeatable knowledge**: facts that 
 
 Find the current person by `git config user.email`: their page is the one that lists it. When no page does, write a short page (name and email) in the next wiki save — do not ask first. The first page also makes the hub and links it from [the wiki's root](README.md).
 
-A person page may hold one line, `**Technical level:** technical` or `**Technical level:** non-technical`. Plans, questions, and reports use it: [write at the reader's level](../.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level). Write or change it when the person states their level, or asks for more or less technical detail — never from a guess about one message. No page, or no line, means non-technical, so a new person never gets jargon.
+Plans, questions, and reports are plain for everyone: [write in plain words](../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words). A person who wants more detail from now on — branch names, file paths — says so; write it on their page as a preference. Never infer it from one message.
 
 ### Where a fact goes
 

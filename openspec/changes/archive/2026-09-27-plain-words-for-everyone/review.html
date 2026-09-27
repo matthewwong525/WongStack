@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · 2026-09-27-open-parts-in-new-workspaces</title>
+<title>Review · 2026-09-27-plain-words-for-everyone</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="2026-09-27-open-parts-in-new-workspaces">
+<body data-change="2026-09-27-plain-words-for-everyone">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>2026-09-27-open-parts-in-new-workspaces</h1>
+  <h1>2026-09-27-plain-words-for-everyone</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -104,78 +104,34 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">When you ask for several separate things at once, the assistant works through them one after another in the same chat. Each part needs its own plan, review, and publish, so they tangle: a second plan waits beside a first change that isn't published yet, and you end up asking &quot;is this two changes in one?&quot; Paseo can open a fresh workspace for each part, so every part gets its own place, its own plan, and its own publish.</p>
+<p data-note="why-1" tabindex="0">The assistant still keeps two ways of talking. People marked &quot;technical&quot; get branch names, commit codes, and file paths, and everyone else gets plain words. That split is unnecessary: everyone is better served by plain words, with the details there for anyone who asks.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Several parts: one question, then a workspace each.</b> When a request holds parts that could each be published on its own, the assistant lists them and asks once. On yes, it does the first part here and opens a new Paseo workspace for each of the others.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">This is 3 separate parts:</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0"> A. Shorter instructions</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0"> B. Thinner specs</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0"> C. A help page</span>
-
-<span class="ln" data-note="item-1-line-6" tabindex="0">What next?</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">1. Do A here, open new</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0">   workspaces for B and C</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0">   (Recommended)</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0">2. Do them here, one at a time</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0">3. Keep them as one change</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Each new workspace plans its part, then waits for you.</b> It appears in Paseo beside this one, named after its part. It starts knowing what you said here about that part, writes its plan, and stops at the review link with <i>build it now?</i> You carry on there, as with any request.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-2-line-1" tabindex="0">you: do A, B, and C</span>
-<span class="ln" data-note="item-2-line-2" tabindex="0">   │</span>
-<span class="ln" data-note="item-2-line-3" tabindex="0">   ▼</span>
-<span class="ln" data-note="item-2-line-4" tabindex="0">this chat asks once</span>
-<span class="ln" data-note="item-2-line-5" tabindex="0">   │ yes</span>
-<span class="ln" data-note="item-2-line-6" tabindex="0">   ├──▶ this workspace:</span>
-<span class="ln" data-note="item-2-line-7" tabindex="0">   │      plans A</span>
-<span class="ln" data-note="item-2-line-8" tabindex="0">   ├──▶ new workspace:</span>
-<span class="ln" data-note="item-2-line-9" tabindex="0">   │      plans B, waits</span>
-<span class="ln" data-note="item-2-line-10" tabindex="0">   └──▶ new workspace:</span>
-<span class="ln" data-note="item-2-line-11" tabindex="0">          plans C, waits</span></pre></div></details></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>A part that builds on another doesn't wait.</b> If B needs A, B's workspace still opens now. It is told that A is being built or is about to publish, and plans on top of it. Whichever part publishes second catches up then, as it does today.</div></div></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>The next piece of work is one choice away.</b> When a part is published and more work you asked for is left, the closing question offers to open it in a new workspace. The same offer appears when you ask for something new, or pick up saved work, in a workspace that is still holding an unpublished change.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-4-line-1" tabindex="0">It's live.</span>
-
-<span class="ln" data-note="item-4-line-3" tabindex="0">What next?</span>
-<span class="ln" data-note="item-4-line-4" tabindex="0">1. Open a new workspace for</span>
-<span class="ln" data-note="item-4-line-5" tabindex="0">   &quot;Thinner specs&quot;</span>
-<span class="ln" data-note="item-4-line-6" tabindex="0">   (Recommended)</span>
-<span class="ln" data-note="item-4-line-7" tabindex="0">2. Stop here</span></pre></div></details></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>The same settings as this chat.</b> A new workspace uses the same AI model and permission setting as the chat that opened it, and starts from the latest published version, not from this workspace's unpublished work.</div></div></li>
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Without Paseo, nothing changes.</b> The parts are done one at a time in this chat, as now. A scheduled run with nobody watching never opens a workspace: it does the first part and notes the rest.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Everyone gets plain words; details when you ask.</b> A person's page no longer marks them &quot;technical&quot;. Every plan, question, and report is plain for everyone. Anyone can ask for more — for one reply, or from now on, which is kept as a preference on their page.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">Before                  After</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">─────────────────────   ─────────────────</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">Page says technical?    Everyone: plain</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0"> yes → full detail      Asked for more?</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0"> no  → plain words       yes → give it</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Reports, recaps, and questions follow the same rule.</b> Saving, publishing, and picking work back up give the outcome and one link for everyone. A failed check is still said plainly, never hidden.</div></div></li>
 </ol>
-<p class="aside">Non-goals: new workspaces never build or publish on their own; no dashboard that tracks the parts; a one-part request works exactly as today; small steps of one change are never split out.</p>
+<p class="aside">Non-goals: no change to what saving or publishing does; no command is renamed; old &quot;Technical level&quot; lines are not migrated.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked when a request has several separate parts, what the current chat should do → chose do the first part here and open a new workspace for each of the rest.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked what each new workspace should do when it opens → chose plan its part, then wait at the review link.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked when a part that needs another part published first should open → chose not to wait: its workspace opens now and is told the other part is being built or about to publish; what matters is a multiple-choice question asking whether to open a new workspace for the next work.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked whether the chat should ask before opening new workspaces → chose ask once, listing the parts.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a part is work that could be planned and published on its own; the steps of one change never split, and when unsure it stays one change, because each part costs its own review and publish.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the split question rides in <code>/explore</code>'s exit round, because that is the one question round before a plan, and the answer decides what this plan covers.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the same offer appears when a new change is asked for in a workspace holding another unpublished change, and in <code>/continue</code> when switching branches would leave other unpublished work, because that is where the old flow parked a plan on a side branch.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: after <code>/ship</code>, when this conversation or a memory thread names more work, the closing question offers to open it in a new workspace, recommended, beside <i>stop here</i>, because the user asked for that choice to continue on the next work.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the new agent copies the calling agent's provider, model, thinking, and mode, read with <code>paseo inspect</code>; outside a Paseo agent it takes Paseo's default model and <code>/routine</code>'s full-permission mode, because a part should run like the chat that opened it.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the new agent stands alone, not as this chat's sub-agent, because <code>paseo run</code> makes a sub-agent whenever <code>PASEO_AGENT_ID</code> is set, and the person works in the new workspace on its own.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: each workspace branches from the remote default branch after a fetch, created from the primary worktree, and Paseo names the branch, because a part starts from the latest published version and <code>/save</code> records whatever branch it gets.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the new agent's first message is <code>/plan</code> followed by a brief with the part in the person's words, the settled answers, the other parts and where they are, and what it builds on, because it starts with no conversation.</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the script lives beside <code>routine.mjs</code> and shares a Paseo lib with it, and the how lives in <code>plan/references/new-workspace.md</code>, because <code>/routine</code> is already WongStack's one door to Paseo and the reference then loads only when parts exist.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: no new rule in the always-loaded <code>WONG-STACK</code> block, because every request that becomes a change passes through <code>/explore</code>'s exit round, where the rule loads.</li>
-<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: an unattended run never opens a workspace, and without Paseo the question offers only the other choices, because a new agent with nobody to answer waits and spends usage.</li>
-<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: this replaces the 2026-08-02 preference for one branch, one PR, and one version when several changes are ready together, because the user now wants each part separate; the part published second takes the next version at publish, as <code>/ship</code>'s conflict step already does.</li>
-<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, 25.12.0 on today's main (25.11.0), because it changes how the payload's verbs behave; open PRs #150, #151, and #153 may publish first, so the number is settled at publish.</li>
-<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: <code>routine/scripts/workspace.mjs</code> opens a workspace through <code>paseo run</code>, and <code>routine/scripts/lib/paseo.mjs</code> now holds the Paseo lookup, call, and exit codes for both scripts. <code>routine.test.mjs</code> passed unchanged; <code>workspace.test.mjs</code> adds 16 tests. The rule is the change-loop section <i>Several parts, several workspaces</i>, and <code>plan/references/new-workspace.md</code> is the runbook, linked from <code>/explore</code>, <code>/plan</code>, <code>/continue</code>, <code>/ship</code>, and the next-step list.</li>
-<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: one real run on this host opened workspace <code>precious-monkey</code> from <code>origin/main</code> (58cdfdc, the latest), with this chat's model (<code>claude-opus-5-5</code>), thinking (<code>xhigh</code>), and mode (<code>bypassPermissions</code>), no parent agent, and <code>.env</code> seeded by setup. Its agent answered the brief. Archiving the workspace removed the worktree and agent but left an empty local branch, deleted by hand.</li>
-<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a missing <code>Created workspace</code> line is a warning, not exit 5, because the agent is already open by then, and a failure report would send the person to open a second one by hand.</li>
-<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>/continue</code> also recommends a new workspace when the tree is clean but this branch carries another active change, because switching would move this workspace away from that change.</li>
-<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: release 25.14.0, because main reached 25.13.0 (#150, #152, #153) during this build.</li>
-<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Saved: every task but the CI check is done; lint, link, retired-name, and config checks and 362 script tests pass locally. The branch predates main's 25.11.0 to 25.13.0, so <code>VERSION</code> and <code>CHANGELOG.md</code> will conflict and are merged at publish.</li>
-<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #154 (build, payload, and test checks), so every task is done.</li>
-<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Merged main (25.11.0 to 25.13.0) before archiving; <code>VERSION</code> stays 25.14.0 and the changelog keeps every entry. Distilled: no repeatable fact for the wiki beyond the change-loop section this change adds; the Paseo archive-leaves-a-branch fact stays in memory.</li>
-<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived: <code>openspec/specs/multi-part-workspaces/spec.md</code> created with 5 requirements; this checkpoint gates the archive and the merge of main.</li>
-<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Main shipped its own 25.14.0 (#155) before the merge, so this release is 25.15.0; the changelog keeps both entries.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked, after building <code>plain-words-and-verbs</code>: &quot;by default this should be for non-technical people unless they ask for more details or prompted to. shouldn't be a difference between a technical and non-technical person&quot; → chose plain words for everyone, detail only on request, and no technical level on person pages.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked how to release it, since <code>plain-words-and-verbs</code> shipped as 25.13.0 (PR #150) without this part → chose a new change on top of main, reviewed before publishing.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a person who wants details every time says so once, and it goes on their person page as an ordinary preference, because that is how a person asks &quot;from now on&quot; and the People rules already hold preferences. It is never guessed from one message.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: an existing <code>**Technical level:**</code> line is ignored, not migrated, because it is one line on a wiki page; the changelog says it can be deleted.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the section is renamed <i>Write in plain words</i>, and every link to it moves, because &quot;the reader's level&quot; no longer means anything.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the changed requirements are removed and re-added under new names, because a changed requirement must keep its old scenarios, and the technical-reader ones are the point of the change.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, 25.14.0, because nothing an installed repo relies on is removed.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: carried the edits over from the superseded <code>plain-words-and-verbs</code> branch onto main; also updated the proposal rule in <code>openspec/config.yaml</code> and the <code>reader-level</code> Purpose. Released as 25.14.0. Link, config, and retired-name checks and strict validation passed.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Saved for task 3.3: first checkpoint, pull request opened; facts stored (one preference, one superseding the old technical-level note).</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled facts: no repeatable fact beyond what this change writes into <i>Write in plain words</i> and the People rules.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived for ship; specs synced into <code>reader-level</code> and <code>structured-asks</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

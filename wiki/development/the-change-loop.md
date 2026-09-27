@@ -34,7 +34,7 @@ A person does not need to know the verbs. When they ask for a change to the repo
 2. On yes, **`/apply`**. It builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent just does the task and reports.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 
-A verb the person types keeps its own reach: `/ship` still runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is written at [the reader's level](../../.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level), so a non-technical person reviews outcomes, not mechanisms.
+A verb the person types keeps its own reach: `/ship` still runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is written in [plain words](../../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words), so the person reviews outcomes, not mechanisms.
 
 ### Offer a routine or an app
 

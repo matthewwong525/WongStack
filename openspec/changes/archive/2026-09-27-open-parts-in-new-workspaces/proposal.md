@@ -108,3 +108,4 @@ None.
 - **2026-09-27** — CI passed on PR #154 (build, payload, and test checks), so every task is done.
 - **2026-09-27** — Merged main (25.11.0 to 25.13.0) before archiving; `VERSION` stays 25.14.0 and the changelog keeps every entry. Distilled: no repeatable fact for the wiki beyond the change-loop section this change adds; the Paseo archive-leaves-a-branch fact stays in memory.
 - **2026-09-27** — Archived: `openspec/specs/multi-part-workspaces/spec.md` created with 5 requirements; this checkpoint gates the archive and the merge of main.
+- **2026-09-27** — Main shipped its own 25.14.0 (#155) before the merge, so this release is 25.15.0; the changelog keeps both entries.
