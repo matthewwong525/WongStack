@@ -21,7 +21,7 @@ This runbook turns a fresh WongStack install into a running app with session mem
 ## Boundaries
 
 - **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`.
-- **`curl` against Cloudflare, not `wrangler`**, so no app dependency is needed. Node only applies the memory schema and reads JSON ([required tools](../../../../wiki/development/required-tools.md)).
+- **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). The server installer runs the same script, so a fix reaches both. Each command prints one JSON report: what it created, what it reused, the names, and the URLs. On a stop it exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value** — not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. It never becomes a GitHub secret, and no step copies it.
 - **Ask before creating or deleting anything billable.** State what you will make, then make it. Every question is [a choice with a recommendation](../../explore/references/asking-the-user.md).
@@ -76,26 +76,32 @@ curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   https://api.cloudflare.com/client/v4/user/tokens/verify
 ```
 
-Success returns the token's own `id`, which Step 2 needs. **Translate every failure** with the [failure map](failure-map.md): give the cause and the one fix, never `9109` or `Invalid API Token` as the headline.
+Success returns the token's own `id`. **Translate every failure** with the [failure map](failure-map.md): give the cause and the one fix, never `9109` or `Invalid API Token` as the headline.
 
 ## Step 2 — the token widens itself
 
-**Do this without asking ([pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)), then report what you granted.** Follow [the widen protocol](permission-groups.md). Grant only the groups in [a normal provision](permission-groups.md#a-normal-provision), and the Access groups only when a user asks for a login wall.
+**Do this without asking ([pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)), then report what you granted.** From the target's root, with `CLOUDFLARE_API_TOKEN` exported from `DURABLE_ENV`:
 
-If the widen did not take: **stop, provision nothing**, and list the permission names for the user to add by hand.
+```bash
+P="node <source checkout>/.agents/skills/wong-setup/scripts/provision.mjs"
+$P widen
+```
+
+It follows [the widen protocol](permission-groups.md): it grants only the groups in [a normal provision](permission-groups.md#a-normal-provision), keeps the token's own two and its account resources, and waits out propagation. Tell the user what its report's `granted` list names. The Access groups are not in it; grant them by the protocol only when a user asks for a login wall.
+
+If it stops, the widen did not take: **provision nothing**, give the cause, and list the permission names for the user to add by hand.
 
 ## Step 3 — which account
 
 ```bash
-curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  https://api.cloudflare.com/client/v4/accounts
+$P accounts
 ```
 
 - **Exactly one** → use it, and say which.
 - **More than one** → **stop and ask.** Offer each account by name and id, wait for an explicit choice, and **create nothing until you have it**. Never infer the account from the repo name, the email, or the API's order.
 - **Zero, with a valid token** → the Account Resources miss ([failure map](failure-map.md)). Explain, offer to re-check once they save it, and create nothing.
 
-Write the chosen id narrowly to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV`.
+Write the chosen id narrowly to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV`, and export it; every later command reads it.
 
 ## Step 4 — provision
 
@@ -103,7 +109,11 @@ Ask once before the billable parts, as [a two-option choice](../../explore/refer
 
 ### 4a. Name things; don't ask
 
-Derive every name from the repository name and state it; never make the user invent one.
+Derive every name from the repository name and state it; never make the user invent one. The script derives them and checks each against the account:
+
+```bash
+$P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+```
 
 ```
    repo "recipe-box"  →  database   recipe-box-db
@@ -115,37 +125,45 @@ Derive every name from the repository name and state it; never make the user inv
                          CI token   recipe-box-deploy
 ```
 
-If a name is taken by something this repo did not create, say so and offer a suffix.
+The report's `checked` list marks each name `free`, `ours` (this repo made it on an earlier run), or `taken`. If a name is `taken`, say which, and offer the report's `base`: the first suffix, such as `recipe-box-2`, under which every name is free. The server installer takes that suffix without asking.
 
-Apply the id-free config fragments now — `package.json` scripts, `.env.example` variables, the `.gitignore` entries — from [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md). The `package.json` fragment's `db:migrate:staging` and `db:migrate:prod` are **filled, not copied**, with the literal names above: no copied payload file may carry a database name.
+Apply the id-free config fragments now — `package.json` scripts, `.env.example` variables, the `.gitignore` entries — from [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md). The `package.json` fragment's `db:migrate:staging` and `db:migrate:prod` are **filled, not copied**, with the literal names above: no copied payload file may carry a database name. The script fills them in 4c.
+
+After the one ask, a single command runs 4b through 4d, in order:
+
+```bash
+$P provision --repo <owner/name> --base <base>
+```
+
+Each step reuses what exists, so a run that stopped runs again from the top. The sections below say what it does and what to tell the user.
 
 ### 4b. The memory store
 
 [The memory convention](../../../../wiki/development/memory.md) owns what it holds and who can read it. It is a separate database with no staging twin, bound only by the production Worker for the memory route under `/_memory/`; staging and previews never bind it.
 
-1. **Is R2 on?** `GET /accounts/{account_id}/r2/buckets` succeeds → yes. An error saying to enable R2 → no: R2 needs a payment method on file, and no token can turn it on. Give the dashboard step (**Storage & databases → R2 → Overview → add the R2 subscription**) and continue without a bucket: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
-2. **The database.** Reuse `<repo>-memory` from `GET /accounts/{account_id}/d1/database`, or `POST` it.
-3. **The bucket, only when R2 is on.** Reuse or `POST /accounts/{account_id}/r2/buckets` with `{"name":"<repo>-memory"}`. Never turn on public access.
-4. **Record** the ids under `components.memory` in `.claude/.wong-stack.json` — `accountId`, `databaseId`, `database`, and `bucket` (or `null`) — and the memory URL as `worker`: `https://<worker>.<subdomain>.workers.dev/_memory`, with `<subdomain>` from `GET /accounts/{account_id}/workers/subdomain`. None of them is a secret.
-5. **Apply the schema.** With `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`, run `$M migrate`. With a Worker recorded, it runs with `CLOUDFLARE_API_TOKEN`.
-6. **The admin key.** Run `$M member add "$(git config user.email)" --admin --env`; it writes the key to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env` and never prints it. It needs `D1 Write`; widen if it names it. Mint no Cloudflare token for memory. Teammates [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once CI has deployed production. **Never** set the key as a GitHub secret: CI must not read transcripts.
+1. **Is R2 on?** The script lists the account's R2 buckets; an error saying to enable R2 means no. The report says `"r2": false`. R2 needs a payment method on file, and no token can turn it on. Give the dashboard step (**Storage & databases → R2 → Overview → add the R2 subscription**) and continue without a bucket: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
+2. **The database.** It reuses `<repo>-memory`, or creates it.
+3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`. It never turns on public access.
+4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json` — `accountId`, `databaseId`, `database`, and `bucket` (or `null`) — and the memory URL as `worker`: `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None of them is a secret.
+5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retried while the new store takes effect.
+6. **The admin key.** When `.env` holds no memory key yet, it runs `memory.mjs member add "$(git config user.email)" --admin --env`, which writes the key to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env` and never prints it. No git email stops it with `repo`: ask the user to set one. It mints no Cloudflare token for memory. Teammates [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once CI has deployed production. **Never** set the key as a GitHub secret: CI must not read transcripts.
 
-Memory answers once CI deploys production; until then, facts wait in the local spool.
+Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
 
-**Re-runs.** A store that verifies is current; create nothing. A store with no bucket, on an account that now has R2, gets one: create and record it, add `MEMORY_BUCKET` to the production config, and give `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key does not change.
+**Re-runs.** A store that verifies is current; the script creates nothing. A store with no bucket, on an account that now has R2, gets one: the script creates and records it, adds `MEMORY_BUCKET` to the production config, and gives `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key does not change. A config it can not edit lands in the report's `todo`; make that edit by hand.
 
 **Moving an older store.** A store whose `CLOUDFLARE_MEMORY_TOKEN` is an old `<repo>-memory` Cloudflare token (not a `wongm_` key) moves to the production Worker. The old token works until the last step, because only a memory key goes to the Worker.
 1. In the sync change: the memory route in `app/worker/index.ts` (the [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold)'s one import and branch), `MEMORY_DB` and `MEMORY_BUCKET` in the production config as in 4c, `worker` in the install record as in step 4, the R2 row on `<repo>-deploy` when the store has a bucket, and `$M migrate`.
-2. After that change merges and production deploys, run step 6, then check `$M digest` through the Worker.
+2. After that change merges and production deploys, run step 6's `$M member add` by hand, then check `$M digest` through the Worker.
 3. Only when that passes, delete the old token: find `<repo>-memory` in `GET /user/tokens`, then `DELETE /user/tokens/{id}`.
 
 If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key on their next session by [joining through GitHub](../../../../wiki/development/memory.md#joining-through-github); `member add` is the fallback for someone without GitHub access.
 
 ### 4c. The two app databases and the config
 
-`GET /accounts/{account_id}/d1/database` first — reuse by name. Otherwise `POST` each: production, and a staging copy for branch deploys, so a branch never writes real data. Say it plainly: *"Two databases: the real one, and a practice one your test versions use."*
+The script reuses each database by name, or creates it: production, and a staging copy for branch deploys, so a branch never writes real data. Say it plainly: *"Two databases: the real one, and a practice one your test versions use."*
 
-Create `app/wrangler.jsonc` from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md) with the **real ids**: production's in the top-level `d1_databases` entry, staging's inside `env.staging`'s own `d1_databases` entry, and the 4b memory store at the top level only — `MEMORY_DB`, plus `MEMORY_BUCKET` when it has a bucket. Follow the fragment's own rules. Keep its Worker entry point and settings (`main`, `assets`, `compatibility_date`, `compatibility_flags`): the fragment is the only thing that creates this file. The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
+When `app/wrangler.jsonc` does not exist, the script creates it from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md), comments kept, with the **real ids**: production's in the top-level `d1_databases` entry, staging's inside `env.staging`'s own `d1_databases` entry, and the 4b memory store at the top level only — `MEMORY_DB`, plus `MEMORY_BUCKET` when it has a bucket. It keeps the fragment's Worker entry point and settings (`main`, `assets`, `compatibility_date`, `compatibility_flags`): the fragment is the only thing that creates this file. It also writes the two `db:migrate:*` scripts into `app/package.json`. An existing config stays as it is, except for a new bucket's binding (see 4b's re-runs). The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
 
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`; they need no Worker or config of their own.
 
@@ -158,29 +176,13 @@ If an app does not answer, keep the old Workers and stop.
 
 ### 4d. The CI deploy token
 
-CI gets its own narrow token, never the user token ([why](../../../../wiki/stack/cloudflare-credentials.md#the-ci-deploy-token)).
+CI gets its own narrow token, never the user token ([why](../../../../wiki/stack/cloudflare-credentials.md#the-ci-deploy-token)). The script sends every value straight to `gh secret set` on stdin, so it is never in an argument, a file, or the terminal.
 
-```bash
-# Find an existing token by name first.
-curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens?per_page=100"
-```
+- **No `<repo>-deploy` token** → it creates one, with the groups in [the CI deploy token table](permission-groups.md#the-ci-deploy-token) — the `always` rows, plus the R2 row only when the store has a bucket — on this one account, and sets it as the `CLOUDFLARE_API_TOKEN` secret.
+- **The token exists and `gh secret list` shows `CLOUDFLARE_API_TOKEN`** → current; it changes nothing, except to add a row the token now needs.
+- **The token exists and the secret is missing** → it rolls the value and sets the secret. To rotate on request, delete the secret with `gh secret delete CLOUDFLARE_API_TOKEN`, then run the script again.
 
-- **No `<repo>-deploy` token** → `POST /accounts/{account_id}/tokens` with the name `<repo>-deploy`, one policy with the groups in [the CI deploy token table](permission-groups.md#the-ci-deploy-token) (the `always` rows, plus a conditional row only when the wrangler config needs it), and `resources` limited to `com.cloudflare.api.account.<account_id>`. Pipe the response's `result.value` straight into the secret, so the value is never in a variable, a file, or the terminal:
-
-  ```bash
-  curl -s -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-    "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens" --data @policy.json \
-    | node -e 'const j=JSON.parse(require("fs").readFileSync(0));if(!j.success){console.error(JSON.stringify(j.errors));process.exit(1)}process.stdout.write(j.result.value)' \
-    | gh secret set CLOUDFLARE_API_TOKEN
-  gh secret set CLOUDFLARE_ACCOUNT_ID --body "$CLOUDFLARE_ACCOUNT_ID"
-  ```
-
-  Write `policy.json` to a temporary file outside the repo and delete it after; it holds no secret.
-- **The token exists and `gh secret list` shows `CLOUDFLARE_API_TOKEN`** → current; change nothing.
-- **The token exists and the secret is missing, or the user asks to rotate** → roll it with `PUT /accounts/{account_id}/tokens/{token_id}/value` and pipe that response's `result` into `gh secret set CLOUDFLARE_API_TOKEN` the same way.
-
-`gh secret set` needs only the `repo` scope `gh auth login` grants. Say what the token can do: *"Automatic publishing uses its own small key. It can update your site and its databases, and nothing else."*
+It sets `CLOUDFLARE_ACCOUNT_ID` too, when missing. `gh secret set` needs only the `repo` scope `gh auth login` grants. Say what the token can do: *"Automatic publishing uses its own small key. It can update your site and its databases, and nothing else."*
 
 ### 4e. The workflow
 
@@ -192,7 +194,7 @@ Check `gh auth status` for the `workflow` scope; missing → offer `gh auth refr
 
 The workflow deploys on push, so the first deploy happens when `/save` pushes. Never push from here. Diagnose a red build with `gh run view --log-failed`; it needs no Cloudflare credential.
 
-`GET /accounts/{account_id}/workers/subdomain` gives `<subdomain>`; compute the patterns, don't ask:
+The `provision` report's `urls` give both patterns; don't ask:
 
 ```
    production   https://<worker>.<subdomain>.workers.dev
