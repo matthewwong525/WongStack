@@ -1,6 +1,6 @@
-# The README leads with how Claymoo runs on WongStack
+# The README leads with how Matt uses AI
 
-**Status:** ready-to-ship
+**Status:** in-progress
 **Branch:** assess-wongstack-market
 **Open questions:** none
 
@@ -10,19 +10,21 @@ WongStack is for business owners who want AI working across their whole business
 
 ## What Changes
 
-- **The README opens with Claymoo.** The first screen says what the landing page says: this is the setup Matt uses to run Claymoo, a clay-kit company with a small team, and now it's yours. The example asks come from the business: timing packed orders, profit by sales channel, and design briefs for ads. A daily routine and a team memory come next. The café and week-planning examples go.
+- **The README opens with Matt's way of using AI.** The first screen says this is Matt's opinionated way of using AI, for Matt's business and for everything else, and now it's yours. Claymoo, Matt's clay-kit company, is the proof. The example asks come mostly from the business: timing packed orders, profit by sales channel, and design briefs for ads. A daily routine, a team memory, and planning your week come next. The café and bill-splitter examples go.
   ```text
   Before                 After
   ─────────────────────  ─────────────────────
-  Your own AI assistant  The setup I use to
-  that remembers you     run Claymoo. Now
-                         yours.
+  Your own AI assistant  My opinionated way
+  that remembers you     of using AI. Now
+                         yours. (I run
+                         Claymoo.)
   What you can ask       What you can ask
    · quiet cafés          · time packed orders
    · plan my week         · profit by channel
    · bill splitter        · ad briefs
    · a 9am list           · a 9am list
    · short answers        · a team memory
+                          · plan my week
   Start in three steps   Start in three steps
   ```
 - **"What you get" speaks to a business and its team.** It keeps the same points: memory, apps, your own site, the notebook, your home base, and no lock-in. The wording now talks about tools that fit your business and one memory the whole team shares. The setup steps and the whole "For developers" part stay as they are.
@@ -62,3 +64,4 @@ None.
 - **2026-09-27** — Built: the README leads with Claymoo per the copy table, the matcher narrows to `claymooapp`, `AGENTS.md`'s "What this is" line changes, and the changelog has its patch entry. Local checks pass; CI (task 3.2) is next.
 - **2026-09-27** — Saved: merged main's 26.10.0–26.11.0 (changelog conflict resolved with this entry on top) and reconciled the `open-source-release` delta. The live spec's new scenario says "a private repository or service" rather than naming them, because naming them failed the private-name check.
 - **2026-09-27** — CI passed on PR #170 (task 3.2); every task is done.
+- **2026-09-27** — Asked at the publish question → the user said the lead should be wider than running Claymoo: it is how Matt uses AI in general, his opinionated way of doing it. The lead line now says so with Claymoo as the proof, a sixth ask (planning the week) shows the non-business side, and the spec says whose way it is.

@@ -108,19 +108,21 @@
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The README opens with Claymoo.</b> The first screen says what the landing page says: this is the setup Matt uses to run Claymoo, a clay-kit company with a small team, and now it's yours. The example asks come from the business: timing packed orders, profit by sales channel, and design briefs for ads. A daily routine and a team memory come next. The café and week-planning examples go.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The README opens with Matt's way of using AI.</b> The first screen says this is Matt's opinionated way of using AI, for Matt's business and for everything else, and now it's yours. Claymoo, Matt's clay-kit company, is the proof. The example asks come mostly from the business: timing packed orders, profit by sales channel, and design briefs for ads. A daily routine, a team memory, and planning your week come next. The café and bill-splitter examples go.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
 <span class="ln" data-note="item-1-line-1" tabindex="0">Before                 After</span>
 <span class="ln" data-note="item-1-line-2" tabindex="0">─────────────────────  ─────────────────────</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">Your own AI assistant  The setup I use to</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">that remembers you     run Claymoo. Now</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">                       yours.</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">What you can ask       What you can ask</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0"> · quiet cafés          · time packed orders</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0"> · plan my week         · profit by channel</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0"> · bill splitter        · ad briefs</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0"> · a 9am list           · a 9am list</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0"> · short answers        · a team memory</span>
-<span class="ln" data-note="item-1-line-12" tabindex="0">Start in three steps   Start in three steps</span></pre></div></details></li>
+<span class="ln" data-note="item-1-line-3" tabindex="0">Your own AI assistant  My opinionated way</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">that remembers you     of using AI. Now</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">                       yours. (I run</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">                       Claymoo.)</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">What you can ask       What you can ask</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0"> · quiet cafés          · time packed orders</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0"> · plan my week         · profit by channel</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0"> · bill splitter        · ad briefs</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0"> · a 9am list           · a 9am list</span>
+<span class="ln" data-note="item-1-line-12" tabindex="0"> · short answers        · a team memory</span>
+<span class="ln" data-note="item-1-line-13" tabindex="0">                        · plan my week</span>
+<span class="ln" data-note="item-1-line-14" tabindex="0">Start in three steps   Start in three steps</span></pre></div></details></li>
 <li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>&quot;What you get&quot; speaks to a business and its team.</b> It keeps the same points: memory, apps, your own site, the notebook, your home base, and no lock-in. The wording now talks about tools that fit your business and one memory the whole team shares. The setup steps and the whole &quot;For developers&quot; part stay as they are.</div></div></li>
 <li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Your company name can appear in public files.</b> A check keeps private project names out of the public repo, and it also blocks the word &quot;Claymoo&quot;. It will now block only the private project names, so the README can name your company.</div></div></li>
 <li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>The agent's short description of this repo matches.</b> The first line agents read here says &quot;business owner and their team&quot; instead of &quot;personal AI assistant&quot;.</div></div></li>
@@ -142,6 +144,7 @@
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: the README leads with Claymoo per the copy table, the matcher narrows to <code>claymooapp</code>, <code>AGENTS.md</code>'s &quot;What this is&quot; line changes, and the changelog has its patch entry. Local checks pass; CI (task 3.2) is next.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Saved: merged main's 26.10.0–26.11.0 (changelog conflict resolved with this entry on top) and reconciled the <code>open-source-release</code> delta. The live spec's new scenario says &quot;a private repository or service&quot; rather than naming them, because naming them failed the private-name check.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #170 (task 3.2); every task is done.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked at the publish question → the user said the lead should be wider than running Claymoo: it is how Matt uses AI in general, his opinionated way of doing it. The lead line now says so with Claymoo as the proof, a sixth ask (planning the week) shows the non-business side, and the spec says whose way it is.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

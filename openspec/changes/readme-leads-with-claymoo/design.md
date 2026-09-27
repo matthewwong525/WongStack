@@ -2,7 +2,7 @@
 
 ## Context
 
-See proposal.md for why. The README's first screen (title block, "What you can ask", "Start in three steps") is pinned by `open-source-release`; its link to the philosophy page is pinned by `knowledge-center`. The private-name matcher is one regex in `scripts/tests/private-names.test.mjs`, the only list of private names. The landing page's copy (wongstack-cloud, change `claymoo-landing`, `design.md` copy table) is the source for the story and the three example apps.
+See proposal.md for why. The README's first screen (title block, "What you can ask", "Start in three steps") is pinned by `open-source-release`; its link to the philosophy page is pinned by `knowledge-center`. The private-name matcher is one regex in `scripts/tests/private-names.test.mjs`, the only list of private names. The landing page's copy (wongstack-cloud, change `claymoo-landing`, `design.md` copy table) is the source for the three example apps. The lead is wider than the landing page's: it is Matt's opinionated way of using AI in general, with Claymoo as the proof.
 
 ## Goals / Non-Goals
 
@@ -23,12 +23,13 @@ See proposal.md for why. The README's first screen (title block, "What you can a
 
 | Place | Today | After |
 |---|---|---|
-| Lead line | **Your own AI assistant that remembers you and gets things done.** Ask in plain words… | **The setup I use to run Claymoo. Now yours.** I run Claymoo, a clay-kit company, with a small team. We ask for what the business needs in plain words, the way you'd message a coworker. It builds our tools, runs our errands, and remembers how we work. Everything it builds and learns lives in accounts you own. — Matt |
+| Lead line | **Your own AI assistant that remembers you and gets things done.** Ask in plain words… | **My opinionated way of using AI. Now yours.** I'm Matt. I run Claymoo, a clay-kit company, with a small team, and I use AI for almost everything: the business, the tools my team uses every day, and my own errands. WongStack is how I do it, set up for you to copy and change. Ask in plain words, the way you'd message a coworker. It does the work, builds the tools, and remembers how you work. Everything it builds and learns lives in accounts you own. |
 | "What you can ask" bullet 1 | *"Find three quiet cafés near the office that open before 8."* | *"Time each order we pack, and tell me what packing costs us."* Our warehouse team packs every order with the app it built. |
 | Bullet 2 | *"Plan my week around the Thursday deadline."* | *"Show our profit for each sales channel, after ads, shipping, and fees."* I check it on my phone every morning before I decide where to spend on ads. |
 | Bullet 3 | *"Make me a page that splits a restaurant bill."* You read a short plan… | *"Make a brief page for our designers."* You read a short plan, get a link to try it, and say publish to put it live. |
 | Bullet 4 | *"Every weekday at 9, list what is due today."* With the optional Paseo app… | *"Every weekday at 9, list the orders that haven't shipped."* With the optional [Paseo](https://paseo.sh) app, it runs on a schedule. |
 | Bullet 5 | *"Remember that I prefer short answers."* It still knows next week. | *"Remember that the ops lead signs off on refunds."* The whole team's chats know it next week. |
+| Bullet 6 (new) | — | *"Plan my week around Thursday's supplier call."* The business and the rest of your life, in one chat. |
 | After the list | It asks before it sends, buys, or deletes anything. | unchanged |
 | "What you get" · apps | **Small apps from one request.** | **Tools that fit your business, from one request.** (rest of the bullet unchanged) |
 | "What you get" · memory | **An assistant that remembers.** Each chat starts with what earlier chats learned about you and your work. | **One memory for the whole team.** Each chat starts with what earlier chats learned about your business and the people in it. (memory link unchanged) |

@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
-**The setup I use to run Claymoo. Now yours.** I run Claymoo, a clay-kit company, with a small team. We ask for what the business needs in plain words, the way you'd message a coworker. It builds our tools, runs our errands, and remembers how we work. Everything it builds and learns lives in accounts you own. — Matt
+**My opinionated way of using AI. Now yours.** I'm Matt. I run Claymoo, a clay-kit company, with a small team, and I use AI for almost everything: the business, the tools my team uses every day, and my own errands. WongStack is how I do it, set up for you to copy and change. Ask in plain words, the way you'd message a coworker. It does the work, builds the tools, and remembers how you work. Everything it builds and learns lives in accounts you own.
 
 ## What you can ask
 
@@ -13,6 +13,7 @@
 - *"Make a brief page for our designers."* You read a short plan, get a link to try it, and say publish to put it live.
 - *"Every weekday at 9, list the orders that haven't shipped."* With the optional [Paseo](https://paseo.sh) app, it runs on a schedule.
 - *"Remember that the ops lead signs off on refunds."* The whole team's chats know it next week.
+- *"Plan my week around Thursday's supplier call."* The business and the rest of your life, in one chat.
 
 It asks before it sends, buys, or deletes anything.
 

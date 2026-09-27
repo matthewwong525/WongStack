@@ -25,9 +25,9 @@ The full history SHALL be scanned for credentials before a public release; a rea
 
 ### Requirement: The README speaks to a business owner first
 
-The README's first screen SHALL tell how one real business runs on WongStack, with example requests from that business and no developer terms. One later section SHALL list setup's tools, why Cloudflare is needed, and each top-level entry's purpose.
+The README's first screen SHALL say whose way of using AI WongStack is, shown through that person's real business, with example requests and no developer terms. One later section SHALL list setup's tools, why Cloudflare is needed, and each top-level entry's purpose.
 
 #### Scenario: A business owner reads the first screen
 
 - **WHEN** a business owner who is new to coding agents reads the first screen
-- **THEN** they see which business runs on it, what that business asks for, and how to start, with no developer term
+- **THEN** they see whose way it is, what that person's business asks for, and how to start, with no developer term
