@@ -180,6 +180,22 @@ test('the check workflow and its scripts are settings', t => {
   assertFails(result, '.github/scripts/app-untouched.sh');
 });
 
+test('a lint step removed from the payload workflow fails, naming the file', t => {
+  const f = fixture(t);
+  const workflow = 'name: Payload\njobs:\n  checks:\n    steps:\n      - run: oxlint --deny-warnings scripts\n      - run: node --test\n';
+  f.commit({ '.github/workflows/payload.yml': workflow });
+  f.git('push', '-q', 'origin', 'HEAD:main');
+  const base = f.git('rev-parse', 'HEAD');
+  f.commit({ '.github/workflows/payload.yml': workflow.replace('      - run: oxlint --deny-warnings scripts\n', '') });
+  assertFails(f.check(['--base', base]), '.github/workflows/payload.yml');
+});
+
+test('an unexplained deploy workflow edit fails, naming the file', t => {
+  const f = fixture(t);
+  f.commit({ '.github/workflows/deploy.yml': 'name: Deploy\n' });
+  assertFails(f.check(), '.github/workflows/deploy.yml');
+});
+
 test('prose is never read for markers', t => {
   const f = fixture(t);
   f.commit({ 'wiki/README.md': `# Wiki\n\n${STRYKER_SKIP}\n`, 'notes.md': `${SKIPPED_TEST}\n` });

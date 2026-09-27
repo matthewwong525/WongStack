@@ -1,6 +1,6 @@
 # Core stack
 
-The runtime the stack pack targets: a **React SPA on Cloudflare Workers with a D1 database**, built by Vite and styled with Tailwind. One Worker serves the app and its APIs; D1 holds the data; migrations apply on deploy. Everything runs remote — there's no local server to babysit — and the [D1 pipeline](d1-pipeline.md) makes each merge a deploy.
+The runtime the stack pack targets: a **React SPA on Cloudflare Workers with a D1 database**, built by Vite. One Worker serves the app and its APIs; D1 holds the data; migrations apply on deploy. Everything runs remote — there's no local server to babysit — and the [D1 pipeline](d1-pipeline.md) makes each merge a deploy.
 
 This is the [Cloudflare stack](README.md)'s answer to *what to build on*. It's a recommendation, not a requirement: take it whole, take a piece, or skip it. The pack's [scripts](d1-pipeline.md) and pipeline docs assume it; the rest of WongStack does not.
 
@@ -12,7 +12,6 @@ This is the [Cloudflare stack](README.md)'s answer to *what to build on*. It's a
 | **Vite 8** | Build + dev | Stable release — no `overrides` pin needed. `@cloudflare/vite-plugin` wires the build to Workers. |
 | **Cloudflare Workers** | The runtime | One Worker serves the SPA, the JSON APIs, and static assets. `wrangler` deploys it. |
 | **D1** | The database | Cloudflare's SQLite. Migrations in `schema/migrations/` apply automatically on deploy — see the [deploy and data pipeline](d1-pipeline.md). |
-| **Tailwind 4** | Styling | Utility CSS through the Vite plugin. |
 
 Pin these versions where the scaffold needs them (Vite's Cloudflare plugin and the Workers runtime move together); the pack's scripts don't care about versions — they drive `wrangler`, which the runtime owns.
 
@@ -22,9 +21,9 @@ Pin these versions where the scaffold needs them (Vite's Cloudflare plugin and t
 
 **One runtime, front to back.** The SPA, the APIs, and the data binding all live in a single Worker with one config file (`wrangler.jsonc`), which also declares the [staging environment](d1-pipeline.md#why-staging-is-a-whole-worker). An agent reasoning about a change sees the whole surface in one place instead of stitching a frontend host to a separate backend to a separate database.
 
-**Cheap previews are the inner loop.** Every branch push gets its own preview URL on the [staging Worker](d1-pipeline.md#two-preview-urls-and-only-one-of-them-runs-your-queue), bound to staging data — a real, shareable deploy to exercise a change against, with no local build gate. `/save` pushes and hands back the URL; that URL, not a localhost server, is where you confirm the change works.
+**Cheap previews are the inner loop.** As soon as a build finishes, `/apply` uploads a preview to the [staging Worker](d1-pipeline.md#two-preview-urls-and-only-one-of-them-runs-your-queue) from the agent's machine and hands you its link, bound to staging data. `/save` and CI then give each pushed branch its own. That link, not a localhost server, is where you confirm the change works.
 
-**Nothing has to run on your machine.** Getting the app live is [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) plus one Cloudflare token; after that, building a change is push → preview URL → look at it. No `npm install`, no `wrangler dev`, no localhost.
+**Nothing has to run on your machine.** Getting the app live is [setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) plus one Cloudflare token; after that, building a change is ask → preview link → look at it. The agent installs and builds what it needs on its own machine, so nothing runs on yours: no `wrangler dev`, no localhost.
 
 ## Next
 

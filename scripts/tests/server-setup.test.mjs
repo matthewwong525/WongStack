@@ -21,8 +21,20 @@ test('the script parses as bash', () => {
   assert.equal(run.status, 0, run.stderr);
 });
 
-test('the script installs the OpenSpec version CI checks the skills against', () => {
-  const pinned = file => readFileSync(resolve(repo, file), 'utf8').match(/@fission-ai\/openspec@(\S+)/)?.[1];
-  assert.ok(pinned('server/setup.sh'), 'server/setup.sh installs an unpinned OpenSpec');
-  assert.equal(pinned('server/setup.sh'), pinned('.github/workflows/payload.yml'));
+// Every place that names the OpenSpec version moves together; CI's pin is the reference.
+const PINS = [
+  'server/setup.sh',
+  '.agents/skills/save/references/preconditions.md',
+  '.github/CONTRIBUTING.md',
+];
+
+test('every OpenSpec pin matches the version CI checks the skills against', () => {
+  const pinned = file => readFileSync(resolve(repo, file), 'utf8').match(/@fission-ai\/openspec@([\w.-]+)/)?.[1];
+  const ci = pinned('.github/workflows/payload.yml');
+  assert.ok(ci, '.github/workflows/payload.yml installs an unpinned OpenSpec');
+  for (const file of PINS) {
+    const pin = pinned(file);
+    assert.ok(pin, `${file} names no pinned OpenSpec version`);
+    assert.equal(pin, ci, `${file} pins OpenSpec ${pin}, but .github/workflows/payload.yml pins ${ci}`);
+  }
 });

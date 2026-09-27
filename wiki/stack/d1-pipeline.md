@@ -299,6 +299,8 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 |---|---|---|
 | `scripts/cf-build.sh` | the workflow's **build** step | Migrate production or staging by branch, then build. `--app-dir` prints where `package.json` lives, so CI can install in the right place. |
 | `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
+| `scripts/cf-preview.sh` | [`/apply`](../../.agents/skills/apply/SKILL.md), for a preview from the agent's machine | Install, migrate staging, build, upload a staging version under the preview alias, and print its URL. Never deploys production. |
+| `scripts/mini-dashboard.mjs` | `cf-build.sh`, after every build | Copy each [mini app](mini-apps.md) into the build and write `apps/apps.json` for the landing page. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging` | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
 | `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load both Workers from `app/.dev.vars`, refusing `.env`; compare the two Workers' secret names and staging's bindings against production's. |
 | `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config" and "what is this environment's database name", so a build and its deploy can't resolve different apps. |

@@ -70,7 +70,7 @@ Recap so the user can confirm the loaded state:
 - **The change** — 2–4 lines on the work and task progress, plus its **`Status:`** line and any **open questions**.
 - **The journey** — the last 1–3 `## Decision log` entries, so the resumer inherits the *why*.
 - **The session context** — open threads first, then live facts the change doesn't carry, with ages. Skip the line with no facts; say so when [the store is unreachable](../memory/SKILL.md#read).
-- **State** — the checked-out branch and the PR as a markdown link; unless the person asks for more, only the link, as *the review page on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
+- **State** — the checked-out branch and the PR as a markdown link; unless the person asks for more, only the link, as *the change on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
 - **Drift check** — **counts only**; load no diffs or threads unless asked:
   ```bash
   git log origin/main..HEAD --oneline | wc -l   # commits on the branch (vs how tasks.md reads)

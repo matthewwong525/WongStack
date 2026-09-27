@@ -6,7 +6,7 @@ Gives each separately publishable part of a request its own Paseo workspace, so 
 ## Requirements
 
 ### Requirement: Separate parts are asked about once
-When a request holds two or more parts that could each be planned and published alone, the agent SHALL list the parts and put one multiple-choice question in `/explore`'s exit round: do the first part here and open a new workspace for each other part *(Recommended)*, do them here one at a time, or keep them as one change. The steps of one change SHALL NOT be offered as parts. When Paseo is not installed or its daemon does not answer, the question SHALL omit the new-workspace option and say that it needs Paseo.
+When a request holds two or more parts that could each be planned and published alone, the agent SHALL ask once, in `/explore`'s exit round: open a new workspace for each other part *(Recommended)*, do them here one at a time, or keep them as one change. Steps of one change SHALL NOT count as parts. Without a running Paseo, the question SHALL leave out new workspaces and say they need Paseo.
 
 #### Scenario: Three parts with Paseo
 - **WHEN** a person asks for three separately publishable changes in one message, on a host with a running Paseo daemon
@@ -35,7 +35,7 @@ Each new agent's first message SHALL start with `/plan` and carry a brief: the p
 - **THEN** B's workspace opens at once, its brief says A is being built here, and B's plan records that it builds on A
 
 ### Requirement: The next work is offered in a new workspace
-When `/ship` finishes and the conversation or a memory thread names more work the person asked for, its closing question SHALL offer to open the next piece in a new workspace *(Recommended)* beside stopping. When a new change is asked for in a workspace that holds another unpublished change, or `/continue` would switch this workspace away from other unpublished work, the agent SHALL offer a new workspace for it before planning or checking out anything. `/continue`'s new workspace SHALL check out the change's recorded branch.
+When `/ship` finishes and more work the person asked for remains, its closing question SHALL offer to open the next piece in a new workspace *(Recommended)*, or stop. When new or resumed work would displace another unpublished change in this workspace, the agent SHALL offer a new workspace first and SHALL switch nothing here until the person answers. A resumed change's workspace SHALL open on its recorded branch.
 
 #### Scenario: More work after a publish
 - **WHEN** `/ship` merges part A and the queued part B has no workspace yet

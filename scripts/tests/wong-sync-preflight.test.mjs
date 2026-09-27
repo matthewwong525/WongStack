@@ -341,42 +341,13 @@ test('--max-changes reaches the preflight from the command line', t => {
   assert.equal(cli('2').status, 'update');
 });
 
-function docsPathFixture(t, files, docsPath = 'docs/development') {
-  const manifest = inventory({ core: { skillDirs: ['alpha'], files } });
-  const f = fixture(t, { manifest, components: { skills: ['alpha'], docsPath } });
-  rmSync(join(f.target, 'wiki'), { recursive: true, force: true });
-  write(f.target, 'docs/development/ux-principles.md', 'ui base\n');
-  return f;
-}
-
-test('docsPath maps wiki pages into one folder and finds the relocated UI page', t => {
-  const f = docsPathFixture(t, ['wiki/contributing.md', 'wiki/development/the-change-loop.md']);
-  write(f.source, 'wiki/contributing.md', 'contributing base\n');
-  write(f.source, 'wiki/development/the-change-loop.md', 'loop base\n');
-  f.updateRecord({ commit: f.commit('add wiki pages') });
-  write(f.target, 'docs/development/contributing.md', 'contributing base\n');
-  write(f.target, 'docs/development/the-change-loop.md', 'loop base\n');
-
-  write(f.source, 'wiki/contributing.md', 'contributing latest\n');
-  write(f.source, 'wiki/development/the-change-loop.md', 'loop latest\n');
-  write(f.source, 'wiki/ux-principles.md', 'ui latest\n');
-  f.commit('change wiki pages');
-  const report = f.inspect();
-  assert.ok(report.selection.categories.includes('ui'));
-  assert.deepEqual(report.changes.map(change => [change.sourcePath, change.targetPath, change.localState]), [
-    ['wiki/contributing.md', 'docs/development/contributing.md', 'installed-equivalent'],
-    ['wiki/development/the-change-loop.md', 'docs/development/the-change-loop.md', 'installed-equivalent'],
-    ['wiki/ux-principles.md', 'docs/development/ux-principles.md', 'installed-equivalent'],
-  ]);
-});
-
-test('docsPath refuses colliding pages and unsafe folders', t => {
-  const collide = docsPathFixture(t, ['wiki/page.md', 'wiki/development/page.md']);
-  assert.throws(() => collide.inspect(), error => error.code === 'path-collision'
-    && error.message.includes('wiki/page.md') && error.message.includes('wiki/development/page.md'));
-  for (const unsafe of ['../outside', '/absolute']) {
-    assert.throws(() => docsPathFixture(t, [], unsafe).inspect(), error => error.code === 'unsafe-path');
-  }
+test('two skills that map to one local name fail with path-collision', t => {
+  const manifest = inventory({ core: { skillDirs: ['alpha', 'beta'], files: [] } });
+  const f = fixture(t, { manifest, components: { skills: { alpha: 'beta' } } });
+  write(f.source, '.agents/skills/beta/SKILL.md', 'beta base\n');
+  f.commit('add beta');
+  assert.throws(() => f.inspect(), error => error.code === 'path-collision'
+    && error.message.includes('alpha') && error.message.includes('beta'));
 });
 
 test('the real scaffold ships the mini-app router and its example, never another app', t => {

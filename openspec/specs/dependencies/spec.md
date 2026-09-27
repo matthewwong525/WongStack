@@ -47,23 +47,9 @@ No skill SHALL install a runtime or tool without the person's consent, and a ski
 - **WHEN** `/verify` needs its browser CLI and it is absent
 - **THEN** it installs the tool at that step and says so
 
-### Requirement: Setup checks its tools before it writes anything
-
-Before it writes a file or clones anything, `/wong-setup` SHALL check for `git`, `gh`, Node.js at the required major, and the OpenSpec CLI, name each missing one plainly, and install it only after the person agrees. It SHALL use a system package manager only when that needs no password, otherwise install into the person's home folder, and SHALL never install a package manager.
-
-#### Scenario: Setup on a machine without Node
-
-- **WHEN** `/wong-setup` runs where Node.js is missing
-- **THEN** it says it needs Node.js and why, and installs it only after the person agrees
-
-#### Scenario: The person declines a tool
-
-- **WHEN** the person declines a tool setup needs
-- **THEN** setup writes nothing, creates nothing on GitHub or Cloudflare, and says running it again continues from the check
-
 ### Requirement: An on-demand verb updates this repo to latest
 
-The source repo SHALL have an `/update-dependencies` verb that, only when asked, surveys and updates the OpenSpec CLI, the browser CLI, `gh`, `git`, `node`, and the app's dependencies to their latest versions, including majors with their migration notes applied, and hands a nonempty diff to `/save`. It SHALL NOT run on a schedule, run a local test suite as the gate, or claim a green CI run proves every major safe.
+The source repo SHALL have an `/update-dependencies` verb that, only when asked, surveys and updates the OpenSpec CLI, the browser CLI, `gh`, `git`, `node`, the app's dependencies, and WongStack's own test tools to their latest versions, including majors with their migration notes applied, and hands a nonempty diff to `/save`. Every place that names the OpenSpec version SHALL move together, and a test SHALL fail when two of them disagree. It SHALL NOT run on a schedule, run a local test suite as the gate, or claim a green CI run proves every major safe.
 
 #### Scenario: Nothing is out of date
 
@@ -74,6 +60,11 @@ The source repo SHALL have an `/update-dependencies` verb that, only when asked,
 
 - **WHEN** a dependency's latest version is a major ahead
 - **THEN** the verb bumps to it, applies the migration notes, and leaves verification to CI
+
+#### Scenario: One OpenSpec pin is missed
+
+- **WHEN** an update moves the OpenSpec version in CI but not in the contributing guide
+- **THEN** the checks fail and name the file that still holds the old version
 
 ### Requirement: CLI updates check the OpenSpec contract
 
