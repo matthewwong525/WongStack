@@ -1,6 +1,6 @@
 # Thinner specs: keep the promises, cut the how
 
-**Status:** planned
+**Status:** in-progress
 **Branch:** explore/thinner-specs
 **Open questions:** none
 
@@ -50,10 +50,10 @@ None as deltas. This change sets `skip_specs: true` and rewrites `openspec/specs
 
 ## Impact
 
-- `openspec/specs/**`: every spec is rewritten; 31 capability folders fold into 8 new ones, for 25 in all. Target: under 28,000 words in total and at most two scenarios per requirement.
+- `openspec/specs/**`: every spec is rewritten; 31 capability folders fold into 8 new ones; with `multi-part-workspaces` from main, 26 in all. Target: under 28,000 words in total and at most two scenarios per requirement.
 - Payload: `.agents/rules/openspec.md` gains the spec bar; `openspec/config.yaml` (meta-only) gains a `specs` rule that points to it.
 - `scripts/retired-names.json`: `allow` paths and replacement texts that name moved or merged specs; new entries for the retired capability names that no live file should still cite.
-- `VERSION` 25.13.0 → 25.14.0 and a `CHANGELOG.md` entry.
+- `VERSION` 25.15.0 → 25.16.0 and a `CHANGELOG.md` entry.
 
 ## Decision log
 
@@ -71,3 +71,4 @@ None as deltas. This change sets `skip_specs: true` and rewrites `openspec/specs
 - **2026-09-27** — Assumed: a minor release, 25.14.0, because the rule file that ships to installed repos gains a new planning rule.
 - **2026-09-27** — Assumed: the rewrite meets the bar as built — 25 capabilities, 25,487 words, 265 requirements, 344 scenarios, and no requirement with more than two scenarios — so no merged spec was split back out.
 - **2026-09-27** — Assumed: the planning-config check requirement moves from `ux-wireframes` to `payload-checks`, because it guards the payload rather than the review page.
+- **2026-09-27** — Saved at CI gate task 5.4. `main` had shipped 25.14.0 (`79ac32f`, plain words for everyone) and 25.15.0 (`bd555b6`, multi-part workspaces). Merged it in: main's new `reader-level` and `structured-asks` wording (no technical level; plain words for all, detail when asked, kept as a preference on the person page) is folded into `asking-the-user`, and both source folders stay deleted. `multi-part-workspaces` already meets the bar and stays as is, so there are 26 capabilities, 26,276 words, and no requirement with more than two scenarios. This change becomes 25.16.0. Strict spec validation (26), the config, retired-names, payload-link, and context checks pass after the merge.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-How WongStack asks and writes to a person: one choice format through the best question tool, clarification bounded before planning, a next step ending every reply, all at the reader's technical level.
+How WongStack asks and writes to a person: one choice format through the best question tool, clarification bounded before planning, a next step ending every reply, all in plain words, with detail when the person asks.
 
 ## Requirements
 
@@ -84,42 +84,28 @@ Whenever a reply creates a plan or edits its proposal, whichever verb did it, th
 - **WHEN** `/apply` plans a change and goes on to build it
 - **THEN** the reply prints the plan's link before the build continues
 
-### Requirement: The person page records a technical level
+### Requirement: Plans, asks, and reports use plain words
 
-A person's wiki page MAY record `**Technical level:** technical` or `**Technical level:** non-technical`, and the agent SHALL write or change it only when the person states their level or asks for more or less detail. No page, or no line, SHALL mean non-technical.
-
-#### Scenario: No page
-
-- **WHEN** the current git email is on no person page
-- **THEN** plans, asks, and reports are written for a non-technical reader
-
-#### Scenario: An engineer says so
-
-- **WHEN** a person says "I'm a developer, give me the technical detail"
-- **THEN** the next wiki save records them as technical
-
-### Requirement: Plans, asks, and reports use the reader's words
-
-For a non-technical reader, a plan's Why and What Changes, every ask, and every report SHALL name what the person will see, get, lose, or risk, with no file path, identifier, command, or engineering term they did not use first. A skill SHALL try a fix within its own rules before asking, and SHALL NOT offer a choice that needs judgment the reader lacks.
+For every reader, a plan's Why and What Changes, every ask, and every report SHALL name what the person will see, get, lose, or risk, with no file path, identifier, command, or engineering term unless the person used it first or asked for that detail. A skill SHALL try a fix within its own rules before asking, and SHALL NOT offer a choice that needs judgment the person lacks.
 
 #### Scenario: A migration question
 
-- **WHEN** `/explore` must ask a non-technical person about changing stored data
+- **WHEN** `/explore` must ask about changing stored data
 - **THEN** it asks what should happen to the accounts that exist today, not how to migrate the schema
 
-#### Scenario: A technical reader
+#### Scenario: The person names the mechanism
 
-- **WHEN** the person's page says technical
-- **THEN** the plan and asks may name tables, files, and commands
+- **WHEN** a person asks to move the app's data into a new `accounts` table
+- **THEN** the plan may name the `accounts` table, because the person used the term first
 
-### Requirement: Reports lead with the outcome
+### Requirement: Reports give the outcome and one link
 
-A reply to a non-technical reader SHALL open with the outcome in plain words and, when the reader invoked the verb, give at most one link and leave out branch names, commit ids, and gate lines unless asked. A verb running inside another SHALL still print the lines its caller reads.
+A reply that returns control SHALL open with the outcome in plain words and, when the person invoked the verb, give at most one link and leave out branch names, commit ids, gate lines, and fact counts unless the person asks, for that reply or as a standing preference on their person page. The agent SHALL NOT infer a wish for detail from one message. A verb running inside another SHALL still print the lines its caller reads.
 
-#### Scenario: A build is saved
+#### Scenario: Details from now on
 
-- **WHEN** a non-technical reader's build is saved and its preview is ready
-- **THEN** the reply starts with what was built and the preview link, with no branch or commit line
+- **WHEN** a person says "always show me the branch and commit"
+- **THEN** the next wiki save records that preference on their person page, and later reports include those lines after the outcome
 
 #### Scenario: A save inside a publish
 

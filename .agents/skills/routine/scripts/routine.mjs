@@ -14,14 +14,11 @@
 //
 // Node built-ins only. ROUTINE_PASEO_BIN overrides the `paseo` found on PATH.
 
-import { execFile } from 'node:child_process';
-import { accessSync, constants, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
-import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
-
-const EXIT = { ok: 0, input: 2, noPaseo: 3, noDaemon: 4, client: 5 };
+import { EXIT, PaseoError as RoutineError, findPaseo as findPaseoBin, paseo } from './lib/paseo.mjs';
 const USAGE = `usage: routine.mjs create --cron <expr> --prompt <text> --agent claude|codex
                           [--name <n>] [--timezone <iana>] [--model <m>] [--dry-run]
        routine.mjs ls
@@ -38,14 +35,6 @@ const CRON_FIELDS = [
   ['month', 1, 12],
   ['day of week', 0, 7],
 ];
-
-class RoutineError extends Error {
-  constructor(code, message, extra = {}) {
-    super(message);
-    this.code = code;
-    this.extra = extra;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -203,29 +192,7 @@ function sameDir(a, b) {
 
 /** The `paseo` binary; exit 3 when it is not installed. */
 function findPaseo(env) {
-  const candidates = env.ROUTINE_PASEO_BIN
-    ? [env.ROUTINE_PASEO_BIN]
-    : (env.PATH ?? '').split(path.delimiter).filter(Boolean).map(d => path.join(d, 'paseo'));
-  for (const file of candidates) {
-    try { accessSync(file, constants.X_OK); return file; } catch { /* next */ }
-  }
-  throw new RoutineError(EXIT.noPaseo, 'Paseo is not installed: no `paseo` command on PATH.');
-}
-
-const DAEMON_DOWN = /Cannot connect to daemon|DAEMON_NOT_RUNNING|DAEMON_UNREACHABLE|ECONNREFUSED/i;
-
-/** One public `paseo … --json` call; exit 4 when the daemon does not answer. */
-async function paseo(bin, args) {
-  try {
-    const { stdout } = await promisify(execFile)(bin, [...args, '--json'], { encoding: 'utf8' });
-    try { return JSON.parse(stdout); } catch { return stdout.trim(); }
-  } catch (error) {
-    const out = `${error.stdout ?? ''}${error.stderr ?? ''}`;
-    if (DAEMON_DOWN.test(out)) {
-      throw new RoutineError(EXIT.noDaemon, 'The Paseo daemon does not answer. Start it with `paseo daemon start`.');
-    }
-    throw new RoutineError(EXIT.input, `paseo ${args.join(' ')} failed: ${out.trim() || error.message}`);
-  }
+  return findPaseoBin(env, 'ROUTINE_PASEO_BIN');
 }
 
 async function listSchedules(bin) {

@@ -21,11 +21,11 @@ context: |
 rules:
   proposal:
     - Keep it tight — what changes and why, plus a Non-goals line.
-    - Write Why and What Changes for the person who asked, at the reader's
-      level in .claude/skills/explore/references/asking-the-user.md. With no
-      recorded level, assume a non-technical reader - say what they will see,
-      get, or be able to do, and put file names, code, and commands in the
-      design, specs, and tasks. Capabilities and Impact may stay technical.
+    - Write Why and What Changes in plain words, by "Write in plain words" in
+      .claude/skills/explore/references/asking-the-user.md - say what the
+      person will see, get, or be able to do, and put file names, code, and
+      commands in the design, specs, and tasks. Capabilities and Impact may
+      stay technical.
     - A What Changes bullet that needs a picture carries it as a fenced text
       block indented inside the bullet, in plain characters, read top to bottom
       and about 40 columns wide. One drawing carries the change by default;

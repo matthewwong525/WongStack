@@ -46,6 +46,7 @@ Do not ask what a live fact already answers. State the fact, with its age and au
 When the shape of the work is clear, hand off to [`/plan`](../plan/SKILL.md). At that transition, collect the unresolved material decisions in **at most one final group**, in the [same shape as every other ask](references/asking-the-user.md). With a structured tool, use one call; with chat only, use one numbered group.
 
 - **At most four questions, and no more than the tool supports.** Ask the decisions that most affect the artifacts. Mark remaining recommended answers as assumptions.
+- **Several separate parts?** One of the questions is whether to open a new workspace for each other part, by [open a part in a new workspace](../plan/references/new-workspace.md#ask-once).
 - **Ask nothing already answered.** If the conversation settled every material decision, make no call and proceed to the summary.
 - **Count a completed exit round.** A bounded pass or nested call for the same work cannot reset this allowance or ask a second group.
 - **After the round, fill gaps with supported assumptions and reasons.** This includes incomplete details, dependent questions, and later UX layout choices. Do not reopen clarification during the current workflow. An explicit user return to standalone `/explore` permits further groups.
