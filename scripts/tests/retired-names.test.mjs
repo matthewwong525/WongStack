@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,7 +14,7 @@ const LIST = [
 
 // Runs the check in a throwaway git repo holding `files`.
 function check(t, files) {
-  const root = mkdtempSync('/tmp/retired-names-');
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-retired-names-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const all = { 'scripts/retired-names.json': JSON.stringify(LIST), ...files };
   for (const [path, text] of Object.entries(all)) {

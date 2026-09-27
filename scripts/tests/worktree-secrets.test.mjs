@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,7 +14,7 @@ const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.email=t@example.c
 
 // A primary checkout with `.env` and `app/.dev.vars`, plus one linked worktree.
 function fixture(t, { env = `# tools\nA=1\nB=${SECRET}\n`, devVars = 'S=1\nOLD=1\n', ignore = '.env*\n!.env.example\n.dev.vars*\n!.dev.vars.example\n' } = {}) {
-  const dir = mkdtempSync('/tmp/worktree-secrets-');
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-worktree-secrets-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const primary = join(dir, 'primary');
   mkdirSync(join(primary, 'app'), { recursive: true });

@@ -49,7 +49,7 @@ function expectedPayload() {
 // ── a practice repo on a pretend server ─────────────────────────────────────
 
 async function setup(t, { email = 'ada@example.com' } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'server-install-'));
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-server-install-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const home = join(root, 'home');
   const origin = join(root, 'origin.git');
@@ -274,7 +274,7 @@ test('jobFolder takes only a whole job with a safe repo name', () => {
 });
 
 test('setEnv replaces only its own lines and keeps the rest', (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'set-env-'));
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-set-env-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = join(dir, '.env');
   setEnv(file, { A: '1' });

@@ -24,7 +24,7 @@ function write(root, file, text) {
 }
 
 function fixture(t, entries, message = 'fixture') {
-  const root = mkdtempSync(path.join(tmpdir(), 'improve-survey-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'wong-test-improve-survey-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'config', 'user.email', 'fixture@example.invalid');
@@ -97,7 +97,7 @@ test('treats scopes literally and rejects escaped paths and external aliases', t
   assert.equal(JSON.parse(result.stdout).coverage.scanned, 1);
   assert.equal(existsSync(path.join(root, 'owned')), false);
   assert.throws(() => survey(root, '..'), /inside/);
-  const outside = mkdtempSync(path.join(tmpdir(), 'improve-outside-'));
+  const outside = mkdtempSync(path.join(tmpdir(), 'wong-test-improve-outside-'));
   t.after(() => rmSync(outside, { recursive: true, force: true }));
   symlinkSync(outside, path.join(root, 'escape'));
   assert.throws(() => survey(root, 'escape'), /resolve inside/);
@@ -116,7 +116,7 @@ test('reports missing tracked files as partial without source snippets', t => {
 
 test('skips file symlinks and unsupported or oversized files with explicit counts', t => {
   const root = fixture(t, { 'good.ts': 'export const good = true;\n', 'image.png': 'not text' });
-  const outside = mkdtempSync(path.join(tmpdir(), 'improve-outside-'));
+  const outside = mkdtempSync(path.join(tmpdir(), 'wong-test-improve-outside-'));
   t.after(() => rmSync(outside, { recursive: true, force: true }));
   writeFileSync(path.join(outside, 'private.ts'), 'dangerouslySetInnerHTML');
   symlinkSync(path.join(outside, 'private.ts'), path.join(root, 'link.ts'));

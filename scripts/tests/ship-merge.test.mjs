@@ -53,7 +53,7 @@ esac
 const MAIN_OUT = 'worktree /work/primary\\nHEAD abc\\nbranch refs/heads/main\\n\\nworktree /work/feature\\nHEAD def\\nbranch refs/heads/feature\\n';
 
 function run(t, env = {}) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'ship-merge-'));
+  const dir = mkdtempSync(path.join(tmpdir(), 'wong-test-ship-merge-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, 'bin'));
   for (const [name, body] of [['gh', FAKE_GH], ['git', FAKE_GIT]]) {

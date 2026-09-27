@@ -72,13 +72,13 @@ const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' 
 
 // A throwaway temp dir, removed when the test ends.
 export function tempDir(t, prefix) {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  const dir = mkdtempSync(join(tmpdir(), `wong-test-${prefix}`));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 
 function makeRepo(t, { bucket = true, envExtra = '', databaseId = 'db1', email = 'dev@example.com' } = {}) {
-  const root = tempDir(t, 'wong-memory-repo-');
+  const root = tempDir(t, 'memory-repo-');
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'config', 'user.email', email);
   git(root, 'config', 'user.name', 'Dev');
@@ -89,7 +89,7 @@ function makeRepo(t, { bucket = true, envExtra = '', databaseId = 'db1', email =
   writeFileSync(join(root, 'README.md'), 'test\n');
   git(root, 'add', 'README.md');
   git(root, 'commit', '-q', '-m', 'init');
-  const home = tempDir(t, 'wong-memory-home-');
+  const home = tempDir(t, 'memory-home-');
   return { root, home, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state') };
 }
 
@@ -103,6 +103,8 @@ function envFor(repo, fake, extra = {}) {
     CLOUDFLARE_MEMORY_TOKEN: '',
     WONG_MACHINE_FILE: join(repo.home, 'machine.json'),
     NODE_NO_WARNINGS: '1',
+    // The hook's tidy-up sweeps this machine's temp folder; a test that wants it turns it on.
+    WONG_TIDY: '0',
     ...extra,
   };
 }

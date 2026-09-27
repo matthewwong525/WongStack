@@ -13,6 +13,16 @@
 
 **Updating.** Installed repos get nothing new: `server/` and `wong-setup` never reach them. A host with its own installer moves to `server/install-wongstack.mjs`, run from its pinned WongStack commit.
 
+## 26.7.0 — WongStack cleans up after itself
+
+- **After you publish, you can close the workspace.** The closing question after a publish from a Paseo workspace offers *Close this workspace*, recommended when no more work is waiting. The chat finishes its reply, then the chat and workspace close, anything left running from them stops, and a branch that merged is deleted. The chat stays readable in Paseo's archived list. Unsaved work blocks the close, and the agent names the files.
+- **Each session tidies up in the background.** Session start never waits for it, and it runs at most every 6 hours. It closes this repo's workspaces idle 3+ days whose work is all saved, stops servers whose workspace is gone, and deletes WongStack's own temp folders (named `wong-…`) and main-checkout scratch files older than a day. It never touches another project's files, and never closes a chat with unsaved work.
+- **You hear what it did, once.** The next session opens with one line, such as *closed 2 workspaces; left "Weekly plan" open: it has unsaved work.* Nothing is said when nothing happened.
+- **Scratch files live in the workspace.** Agents put throwaway files in a git-ignored `.scratch/` folder at the checkout root, not the temp folder, which on some machines is memory. `node .claude/skills/routine/scripts/tidy.mjs scratch` makes it; the brief for a new workspace goes there.
+- **Source repo only.** Test temp folders now start with `wong-test-`, so the tidy-up can claim what a crashed run leaves behind.
+
+**Updating.** `/wong-sync` brings `tidy.mjs`, the session-start hook, and the skill and wiki edits, and re-offers the `.gitignore` fragment, now with `.scratch/`. The first session after the update tidies up once, so a machine full of old chats may see several closed at once. Set `WONG_TIDY=0` in the environment to turn the background tidy-up off.
+
 ## 26.6.0 — Memory keys stay home, and read-only teammates keep their notes to themselves
 
 - **Your memory key goes only to the address on your main checkout.** Memory read the memory Worker's address from the branch you had open, so a branch that changed one line got your key, or your GitHub token on a first join, at session start. Now the address comes from the main checkout, the one that holds `.env`. A branch that names another address is ignored, and the session start says so.

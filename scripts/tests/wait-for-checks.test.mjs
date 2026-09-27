@@ -44,7 +44,7 @@ esac
 `;
 
 function run(t, { env = {}, workflows = true, minutes = '1' } = {}) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'wait-checks-'));
+  const dir = mkdtempSync(path.join(tmpdir(), 'wong-test-wait-checks-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, 'bin'));
   mkdirSync(path.join(dir, 'repo/.github/workflows'), { recursive: true });

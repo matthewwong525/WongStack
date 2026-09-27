@@ -19,7 +19,7 @@ export const logger = (prefix = '') => `#!/usr/bin/env bash\necho "${prefix}$*" 
 //   subdir   put the repo in a folder of the temp dir, beside bin/ (for a sibling worktree)
 // Returns { dir, root, write, run }.
 export function pack(t, { scripts = [], config, tools = {}, subdir, prefix = 'pack-' } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  const dir = mkdtempSync(join(tmpdir(), `wong-test-${prefix}`));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const root = subdir ? join(dir, subdir) : dir;
   const write = (path, text) => {

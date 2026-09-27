@@ -26,7 +26,7 @@ const noSleep = async () => {};
 
 /** A target with the memory skill and the app's package.json, as an install leaves it before provisioning. */
 async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'provision-'));
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-provision-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const dir = join(root, 'recipe-box');
   mkdirSync(join(dir, '.agents', 'skills'), { recursive: true });
@@ -391,7 +391,7 @@ test('the wrangler config fills every placeholder, and a new placeholder fails',
   assert.equal(config.main, 'worker/index.ts');
   assert.deepEqual(config.env.staging.d1_databases[0], { binding: 'DB', database_name: 'demo-db-staging', database_id: 'id-staging', migrations_dir: '../schema/migrations' });
   assert.throws(() => wranglerConfig({ base: 'demo', ids, bucket: null, today: TODAY }, `${wranglerFragment()}// <your-new-thing>\n`), { reason: 'repo', message: /<your-new-thing>/ });
-  const other = join(mkdtempSync(join(tmpdir(), 'fragment-')), 'none.md');
+  const other = join(mkdtempSync(join(tmpdir(), 'wong-test-fragment-')), 'none.md');
   writeFileSync(other, '# Nothing here\n');
   assert.throws(() => wranglerFragment(other), { reason: 'repo' });
   rmSync(dirname(other), { recursive: true });
@@ -413,7 +413,7 @@ test('a Cloudflare error names the call and codes, never the token or the query'
 });
 
 test('readEnv handles export, quotes, and comments', (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'env-'));
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-env-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   writeFileSync(join(dir, '.env'), '# note\nexport A=1\nB="two # kept"\nC=three # cut\nnot a line\n');
   assert.deepEqual(readEnv(join(dir, '.env')), { A: '1', B: 'two # kept', C: 'three' });

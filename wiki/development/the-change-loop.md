@@ -58,6 +58,8 @@ One workspace holds one change. When a request has parts that could each be publ
 
 [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) is the runbook.
 
+**Scratch files** go in `.scratch/` at the checkout root, not the system temp folder: [`tidy.mjs scratch`](../../.agents/skills/routine/scripts/tidy.mjs) makes that git-ignored folder and prints its path. It sits on disk, not in memory, and goes away with its workspace. In the main checkout, the tidy-up each session starts deletes scratch files older than a day.
+
 ### Asking before drafting
 
 `/explore` owns clarification. Standalone, it asks small groups of questions for as long as the thinking needs. At the transition into `/plan`, however planning was invoked, it asks **at most one round**, and only the decisions where a wrong guess makes the artifacts *wrong*, not merely *different*. Later gaps become recorded assumptions. [The exit round](../../.agents/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` records the answers in the proposal's Decision log.
