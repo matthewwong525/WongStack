@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Give every CHANGELOG.md version a `v<version>` tag and a GitHub Release, on the first commit on this
 // branch's first-parent line that set VERSION to it. Versions that already have a Release are left alone,
-// so a run on each push to main labels the new version and fills in any that a failed run missed.
+// so a run on each push to main labels the new version and fills in any that a failed run missed. A Release
+// another run created meanwhile counts as done. A `## Next` heading fails the run: /ship numbers each entry
+// before it merges, so one on this branch means a release merged unnumbered.
 // Meta-only: .github/workflows/release.yml runs it; no target receives it.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
@@ -16,17 +18,19 @@ const HEADING = /^## (\d+\.\d+\.\d+) — (.+)$/;
 const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
 const lines = text => text.split('\n').filter(Boolean);
 
-// Creates one Release. False when GitHub refuses it with HTTP 403, as it does for the workflow's own token
-// on a commit that changes a workflow file; any other failure is thrown.
+// Creates one Release: 'created'; 'refused' when GitHub answers HTTP 403, as it does for the workflow's own
+// token on a commit that changes a workflow file; 'done' when HTTP 422 says it already exists, because the
+// other run on a near-simultaneous push made it first. Any other failure is thrown.
 function create(args, notes) {
   try {
     execFileSync('gh', args, { encoding: 'utf8', input: notes, stdio: ['pipe', 'pipe', 'pipe'] });
-    return true;
+    return 'created';
   } catch (error) {
     const stderr = String(error.stderr ?? '').trim();
+    if (stderr.includes('HTTP 422') && stderr.includes('already exists')) return 'done';
     console.error(stderr);
     if (!stderr.includes('HTTP 403')) throw error;
-    return false;
+    return 'refused';
   }
 }
 
@@ -61,7 +65,9 @@ function versionCommits() {
 }
 
 const { values } = parseCli({ usage: USAGE, options: { 'dry-run': { type: 'boolean' } } });
-const entries = changelogEntries(readFileSync('CHANGELOG.md', 'utf8'));
+const changelog = readFileSync('CHANGELOG.md', 'utf8');
+const entries = changelogEntries(changelog);
+const unnumbered = changelog.split('\n').filter(line => /^## Next\b/.test(line));
 const commits = versionCommits();
 const released = new Set(lines(run('gh', ['release', 'list', '--limit', '1000', '--json', 'tagName', '--jq', '.[].tagName'])));
 const tags = new Set(lines(run('git', ['tag', '--list', 'v*'])));
@@ -77,16 +83,24 @@ for (const { version, title, body } of entries.toReversed()) {
   const where = tags.has(tag) ? ['--verify-tag'] : ['--target', sha];
   const args = ['release', 'create', tag, ...where, '--title', `${version} — ${title}`, '--notes-file', '-', `--latest=${version === latest}`];
   console.log(`${values['dry-run'] ? 'would create' : 'creating'} ${tag} at ${tags.has(tag) ? 'its existing tag' : sha.slice(0, 7)}`);
-  if (!values['dry-run'] && !create(args, absoluteLinks(body, process.env.GITHUB_REPOSITORY, tag))) refused.push(tag);
+  if (values['dry-run']) continue;
+  const outcome = create(args, absoluteLinks(body, process.env.GITHUB_REPOSITORY, tag));
+  if (outcome === 'refused') refused.push(tag);
+  if (outcome === 'done') console.log(`${tag} already exists; another run made it`);
 }
 
-// A refusal is a known gap, not a failure: /ship fills it with the person's own login.
+// A refusal is a known gap, not a failure: the person who merged fills it with their own login.
 if (refused.length) {
   const fix = 'run node scripts/tag-releases.mjs with a GitHub login that has the workflow scope';
   for (const tag of refused) console.log(`::warning::GitHub refused ${tag}; ${fix}`);
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Releases GitHub refused\n\n${refused.map(tag => `- ${tag}`).join('\n')}\n\nTo fill them, ${fix}.\n`);
   }
+}
+
+if (unnumbered.length) {
+  console.error(`tag-releases: CHANGELOG.md holds ${unnumbered.join(', ')}; a release merged without a number. Run /ship's number-release.mjs on a branch and ship it.`);
+  process.exitCode = 1;
 }
 
 if (missing.length) {

@@ -8,7 +8,9 @@ import test from 'node:test';
 const script = new URL('../../.agents/skills/ship/scripts/merge.sh', import.meta.url).pathname;
 
 // Fake gh and git answer from env and log every call, so a test can check both
-// the outcome and the order of the calls.
+// the outcome and the order of the calls. HEAD_VERSION, BASE_VERSION, and
+// MAIN_VERSION are VERSION at HEAD, the merge base, and origin/main; unset means
+// the file is absent there.
 const FAKE_GH = `#!/usr/bin/env bash
 echo "gh $*" >> "$FAKE_DIR/calls"
 case "$1 $2" in
@@ -17,6 +19,8 @@ case "$1 $2" in
   "pr view")
     case "$*" in
       *state*) echo "\${STATE:-MERGED}" ;;
+      *"--json title "*) echo "\${TITLE-feat: a thing (v26.1.1)}" ;;
+      *"--json number "*) echo 7 ;;
       *) echo "pr=7 url=https://github.com/o/r/pull/7" ;;
     esac ;;
   "pr list") [ -n "\${LIST_RC:-}" ] && exit "$LIST_RC"; printf '%b' "\${STACKED:-}" ;;
@@ -28,6 +32,11 @@ echo "git $*" >> "$FAKE_DIR/calls"
 case "$*" in
   "rev-parse --abbrev-ref HEAD") echo "\${BRANCH_NAME:-feature}" ;;
   "rev-parse HEAD") echo "${'c'.repeat(40)}" ;;
+  "fetch origin main") exit "\${FETCH_RC:-0}" ;;
+  "merge-base HEAD origin/main") echo "${'b'.repeat(40)}" ;;
+  "show HEAD:VERSION") [ -n "\${HEAD_VERSION:-}" ] || exit 128; echo "$HEAD_VERSION" ;;
+  "show ${'b'.repeat(40)}:VERSION") [ -n "\${BASE_VERSION:-}" ] || exit 128; echo "$BASE_VERSION" ;;
+  "show origin/main:VERSION") [ -n "\${MAIN_VERSION:-}" ] || exit 128; echo "$MAIN_VERSION" ;;
   "ls-remote --exit-code --heads origin "*)
     n=$(grep -c '^git ls-remote' "$FAKE_DIR/calls")
     IFS=, read -ra rcs <<< "\${LSREMOTE_RC:-0}"
@@ -160,4 +169,41 @@ test('a delete that fails while the branch still exists keeps it', t => {
   const r = run(t, { PUSH_RC: '1' });
   assert.equal(r.status, 2);
   assert.match(r.stdout, /^branch=kept$/m);
+});
+
+test('a release merges under a subject naming its version, not the title\'s old one', t => {
+  const r = run(t, { HEAD_VERSION: '26.2.0', BASE_VERSION: '26.1.0', MAIN_VERSION: '26.1.0' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^merged=yes$/m);
+  assert.match(r.calls, /gh pr merge --squash --match-head-commit c{40} --subject feat: a thing \(v26\.2\.0\) \(#7\)\n/);
+  assert.ok(r.calls.indexOf('git fetch origin main') < r.calls.indexOf('gh pr merge'), 'fetch before merge');
+});
+
+test('with no VERSION the subject is the title and number', t => {
+  const r = run(t, { TITLE: 'fix: a typo' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.calls, /gh pr merge --squash --match-head-commit c{40} --subject fix: a typo \(#7\)\n/);
+});
+
+test('a number another release took stops before any merge call', t => {
+  const r = run(t, { HEAD_VERSION: '26.2.0', BASE_VERSION: '26.1.0', MAIN_VERSION: '26.2.0' });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^merged=no$/m);
+  assert.match(r.stdout, /^stale_version=26\.2\.0$/m);
+  assert.match(r.stderr, /main reached 26\.2\.0 while this branch carried 26\.2\.0/);
+  assert.doesNotMatch(r.calls, /pr merge|push origin --delete/);
+});
+
+test('an unrelated move of the default branch still merges', t => {
+  const r = run(t, { HEAD_VERSION: '26.1.0', BASE_VERSION: '26.1.0', MAIN_VERSION: '26.2.0', TITLE: 'docs: a page' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stdout, /stale_version/);
+  assert.match(r.calls, /--subject docs: a page \(#7\)\n/);
+});
+
+test('a failed fetch of the default branch stops before any merge call', t => {
+  const r = run(t, { FETCH_RC: '1' });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^merged=no$/m);
+  assert.doesNotMatch(r.calls, /pr merge/);
 });

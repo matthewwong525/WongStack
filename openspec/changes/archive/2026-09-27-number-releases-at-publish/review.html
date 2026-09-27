@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · 2026-09-27-smoother-publish-flow</title>
+<title>Review · 2026-09-27-number-releases-at-publish</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="2026-09-27-smoother-publish-flow">
+<body data-change="2026-09-27-number-releases-at-publish">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>2026-09-27-smoother-publish-flow</h1>
+  <h1>2026-09-27-number-releases-at-publish</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -104,49 +104,43 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">The last twenty releases changed how work gets built and published, and some steps no longer fit together. Publishing from the main copy saves twice and runs the checks twice. A wiki note from a plain request is never saved. A typed <code>/explore</code> jumps into planning. Resuming saved work can start building on the wrong branch. Almost every save shows a second plan link. You want the loop to do what it says, with no extra waits and no work left behind.</p>
+<p data-note="why-1" tabindex="0">When two changes are in progress at once, both pick the same next version number, and whichever publishes second has to be renumbered by hand. Three published updates already carry the wrong number in their title, and the automatic release labels failed once because two runs raced to make the same label. The steps for cutting a release are also written in three places that disagree, and one of them still says to label releases by hand.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Publishing saves once, from anywhere.</b> When you say <i>publish it</i> while working on the main copy, it saves once and runs the checks once. Today it saves, checks, and then does both again.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">Before              After</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">──────────────      ──────────────</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">publish it?         publish it?</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">  │                   │</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">save + checks       file the plan</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">  │                   │</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">file the plan       save + checks</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0">  │                   │</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0">save + checks       go live</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0">  │</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0">go live</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Publishing code with no plan writes the plan instead of stopping.</b> It writes the plan from the work and carries on, the same way saving already does.</div></div></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Every finished edit asks <i>publish it?</i>.</b> That covers a note the assistant writes to the wiki from a plain request, and a change that doesn't touch the app. Today the wiki guide says those just end with a report. The note is left unsaved, and it later blocks picking up other work.</div></div></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Typing <code>/explore</code> ends with a question, not a plan.</b> When the thinking is done, it asks <i>Plan it (Recommended)</i>, <i>Keep thinking</i>, or <i>Stop</i>. It still moves straight into planning when a plan asked it to explore.</div></div></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Resuming work never builds on the wrong branch.</b> When saved work can't be opened here, <code>/continue</code> shows where things stand and stops. It no longer starts building anyway.</div></div></li>
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>One plan link, only when the plan changed.</b> A save prints the plan's link when it changed what the plan says or its checklist. It no longer prints it for its own record-keeping. The plan link also no longer counts against the one-link limit on reports.</div></div></li>
-<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>Starting new work where other work is unpublished gets its own choice:</b> open it in a new workspace (recommended), or publish what's here first.</div></div></li>
-<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>Smaller fixes:</b> - The building helper stays on the right plan store. - The rule for asking questions stops saying building always leads to a save. - The written rules now allow the <i>Review the plan</i> fourth choice and its reply with no question, and say that notes from the review page skip exploring.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>A change stops choosing its own number.</b> Its notes go under a <i>Next</i> heading, marked patch, minor, or major. Publishing (<code>/ship</code>) picks the number right before it merges, from the latest published version, so two changes in progress can never pick the same one.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">Change A        Change B</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">## Next(minor)  ## Next(patch)</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">   │               │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">   ▼               │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">publish: live      │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">is 26.1.0          │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">─▶ A is 26.2.0     ▼</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">                publish: live</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">                is 26.2.0</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">                ─▶ B is 26.2.1</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>A number that went stale is caught before it merges.</b> If another update publishes while yours waits on its checks, the merge stops, renumbers yours, saves it again, and then merges. It never ships two updates under one number.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The published title always names the number that shipped.</b> The merge writes the title itself from the final number and the pull request's title, instead of trusting whatever an older commit said.</div></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Release labels no longer fail on a race.</b> When the label already exists because the other run made it first, that counts as done, not as a failure.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>The release steps live on one page.</b> The release rule for WongStack's own files becomes the one place that says how a release is cut. The other pages link to it, and the stale &quot;label it by hand&quot; step goes. The rule now also loads for every file WongStack ships, not only some of them, and a check keeps that list complete.</div></div></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>The update notes are tidied.</b> Three headings that lost their blank line in earlier conflict fixes get it back, and each numbering run keeps them that way.</div></div></li>
 </ol>
-<p class="aside">Non-goals: no change to release numbering, stale wiki pages, or the automatic checks. Two other workspaces cover those.</p>
+<p class="aside">Non-goals: no change to how installed repos save or publish their own work; no automatic choice between patch, minor, and major; no rewrite of the three past commit titles, which are already published.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked how to split the audit's fixes → chose three parts, each in its own workspace; this one keeps the publishing flow. Workspaces <i>Release collisions</i> and <i>Docs, specs, and checks cleanup</i> opened for the others.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked how releases should stop colliding → chose numbering at publish. That belongs to the <i>Release collisions</i> part. This change still bumps to 26.2.0 by today's rule, and whichever part publishes second catches up.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked how a wiki fact from a plain request gets saved → chose to end with <i>publish it?</i>, like <code>/apply</code>.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked where a typed <code>/explore</code> should stop → chose to stop and ask <i>Plan it</i> / <i>Keep thinking</i> / <i>Stop</i>; only bounded mode hands off to <code>/plan</code>.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>/ship</code> on a dirty default branch goes on to Step 2, and Step 3's save cuts the branch, as after the pull-in. The early save dates from 19.0.0, before the one-checkpoint rule, and no later plan gives a reason to keep it.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: removing the early save needs <code>/ship</code> Step 2 to author a missing change for code by <code>/save</code>'s new-plan fallback. Otherwise dirty code on <code>main</code> with no plan would stop, where today the early save writes the plan.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the distillation skips its <code>--branch</code> search when <code>BRANCH</code> is the default branch, because that search would return every fact saved on <code>main</code>.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>/ship</code>'s report keeps the archived plan's link. The plan link line is exempt from the one-link limit, and after a publish the archive is the record.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a save prints the plan link when it changed the plan's sections or tasks. Status, Branch, Open questions, and Decision-log lines are record-keeping, not a change to the plan.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the busy-workspace case needs no spec edit. <code>multi-part-workspaces</code> already requires offering a new workspace before planning, and the <i>Docs, specs, and checks cleanup</i> part is rewriting that spec.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a read-only <code>/continue</code> ends with the same three choices its busy-workspace question offers. That question already names the ways out.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Wiki distillation at ship: no repeatable fact (no live facts on the change or branch).</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archive checkpoint: all 13 tasks done; links, retired names, and all 26 specs pass. Script tests 363/375 locally, the one failure an ENOSPC from a full /tmp on the host. Open PRs #159, #160, #161 also claim 26.2.0; whichever merges first keeps it.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Merged main after #160 took 26.2.0 and moved releases to numbering at publish. Rewrote this entry as <code>## Next (minor)</code>, and <code>number-release.mjs</code> numbered it 26.2.0.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked how releases stop colliding → chose to number at publish: each change writes its notes under a <code>CHANGELOG.md</code> <code>## Next</code> heading and leaves <code>VERSION</code> alone, and <code>/ship</code> sets both from the default branch's version right before merging.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked which audit findings this part fixes → chose the merge subject, the HTTP 422 race, the payload rule's missing paths, one owner for release steps, the spec's stale <code>/ship</code> tagging claim, and the CHANGELOG blank lines; the other docs, specs, and checks cleanup is its own workspace.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the bump level rides in the heading as <code>## Next (patch|minor|major) — &lt;title&gt;</code>, because the author knows the level and the heading is the one place <code>/ship</code> reads.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the numbering script lives in the <code>ship</code> skill and does nothing when <code>CHANGELOG.md</code> has no entry the default branch lacks, because <code>/ship</code> is payload and installed repos have no <code>CHANGELOG.md</code>; a meta-only script would leave <code>/ship</code> naming a file targets lack.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>merge.sh</code> catches a stale number by comparing the default branch's <code>VERSION</code> with the one at the branch's merge base, and only when the branch changes <code>VERSION</code>, because an unrelated commit on the default branch should not force another save.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: on a stale number <code>/ship</code> renumbers, saves, and merges again without asking, because invoking <code>/ship</code> already authorizes the merge and the save it needs.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>payload.md</code> keeps static <code>paths:</code> globs, checked by a test against <code>payload-files.json</code>, because rule frontmatter can not be generated at load time.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the numbering script finds the branch's entry as the one heading the default branch lacks, and reads a numbered entry's level from its gap to the version below, because then a renumber and a branch cut before this ships take the same path with no hand edit.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: <code>tag-releases.mjs</code> fails on a <code>## Next</code> heading on the default branch, because that means a release merged without a number and nothing else would say so.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: no wiki edit at ship, because the change and branch hold no live facts (no repeatable fact); the release steps already live in the payload rule.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archive checkpoint: built all 15 tasks, archived, and numbered 26.2.0 from main 26.1.0 with the new script; the builder also reworded <code>wiki/stack/cloudflare-credentials.md</code> and <code>update-dependencies/SKILL.md</code>, which still said to raise <code>VERSION</code>, and restored a fourth missing blank line before <code>## 22.0.1</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

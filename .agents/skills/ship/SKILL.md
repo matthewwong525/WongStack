@@ -65,6 +65,18 @@ On a feature branch, run both. When `BRANCH` is `main`, run only `show`: the bra
 
 ## Step 3 — delegate the checkpoint to /save
 
+First, number the release. A change that writes a `## Next (patch|minor|major) — <Title>` entry in `CHANGELOG.md` gets its number here, from `main`'s version, so two changes in flight never take the same one:
+
+```bash
+git fetch origin main
+node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/number-release.mjs"
+```
+
+- `release=none` → nothing to number; go on. A repo with no `CHANGELOG.md` always lands here.
+- `release=X.Y.Z from=A.B.C` → `VERSION` and the entry's heading are written; they ride in this checkpoint.
+- `behind=yes` → `git merge origin/main`, resolve `CHANGELOG.md` as the union of intent with this branch's entry on top, and run the script again.
+- Exit 1 → report its message and stop before `/save`.
+
 **Invoke the `save` skill exactly once as ordinary `/save` and follow it verbatim**, with the exact `CHANGE_NAME` and archive path when there is a change. Proceed only on `SUCCESS` or `NONE` (invoking `/ship` is the approval where no checks exist). On `UNKNOWN`, `TIMEOUT`, or `FAILURE`, stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
 
 ## Step 4 — verify the preview (evidence, not a gate)
@@ -87,8 +99,9 @@ bash "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/merge.sh"
 - **Exit 0** → merged; a skipped sync is one report line, never a failure.
 - **Exit 1** → not merged, nothing deleted: report the error and stop.
 - **Exit 2** → merged, but a retarget or delete failed; the branch and its stacked PRs stay. Report it.
+- **`stale_version=<version>`** (with exit 1) → another release took this one's number while it waited. `git fetch origin main` → `git merge origin/main`, run the numbering script from [Step 3](#step-3--delegate-the-checkpoint-to-save) again, and invoke ordinary `/save`; re-run the merge script only on `SUCCESS` or `NONE`.
 
-A **merge conflict** exits 1: `git fetch origin main` → `git merge origin/main` (not rebase, unless asked), resolve each file as the **union of intent**, and invoke ordinary `/save` again; re-run the script only on `SUCCESS` or `NONE`. Never check out, switch, stash, reset, or force a branch to make the sync succeed, or delete a local branch.
+A **merge conflict** exits 1: `git fetch origin main` → `git merge origin/main` (not rebase, unless asked), resolve each file as the **union of intent**, run the numbering script again, and invoke ordinary `/save` again; re-run the script only on `SUCCESS` or `NONE`. Never check out, switch, stash, reset, or force a branch to make the sync succeed, or delete a local branch.
 
 ### Promote the branch's secret edits
 
