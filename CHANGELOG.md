@@ -13,6 +13,32 @@
 
 **Updating.** Nothing to do by hand. `/wong-sync` always runs the source's preflight, so the next sync of any install already uses the new fields and the catch-up page.
 
+## 26.13.0 — The starter app is built to grow
+
+- **Pages go through a router.** The starter app uses [React Router](https://reactrouter.com/) with one route list, `app/src/router.tsx`. The home page is its only page, and `Layout.tsx` is the frame around every page. A new page is a folder in `app/src/pages/` and one line in the list.
+- **An unknown address says so.** Any address the list does not name shows *Page not found* with a *Go home* link, not the home page.
+- **Each page keeps its parts beside it.** `app/src/pages/home/` holds `Home.tsx`, the tutorial, and the app list, each with its CSS and tests. `apps.ts` moves to `app/src/lib/`. `App.tsx`, `App.css`, and `index.css` are gone.
+- **One shared look, in one file.** `app/public/style.css`, served at `/style.css`, holds the device's font, light or dark to match the device, and a narrow column. The home page and every mini app link it. It is the only file that styles whole elements; a part's own styles use class names named for it, so one page's styles never land on another. The look is unchanged.
+- **The API goes through a route list too.** `app/worker/api/router.ts` holds the routes, one handler file each, starting with `GET /api/health`, which answers `{ "ok": true }`. An unknown API route answers 404. The Vite template's `{ "name": "Cloudflare" }` placeholder is gone.
+- **The example mini app grows the same way.** `hello/api.mjs` dispatches through a route list, its page script moves to `app.js`, and its page links `/style.css`. A new test checks both.
+- **The code rule says where things go.** `.agents/rules/code.md` gains *Where things go* and now loads for `mini-apps/` too. [Mini apps](wiki/stack/mini-apps.md) and [UX principles](wiki/ux-principles.md) link it.
+
+**Updating.** `/wong-sync` plans the move. A repo whose starter app is still the one WongStack gave it takes the whole move together: the new files, `react-router` in `app/package.json`, the deleted flat files, and the removed API placeholder. A repo that rebuilt its app keeps its own layout; the plan offers only the code rule and the shared stylesheet. Existing mini apps keep working unchanged, and can adopt `/style.css` and an `app.js` page script when next touched.
+
+## 26.12.1 — The README leads with how Matt uses AI
+
+- **The README opens with whose way this is.** Its first screen says WongStack is Matt's opinionated way of using AI, for Matt's business, Claymoo, and for everything else. The example asks come mostly from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers, plus one for planning the week. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.
+- **A company name can appear in public files.** The private-name check in `scripts/tests/private-names.test.mjs` now blocks `ClaymooApp`, `WongOS`, and `wongstack-cloud`, not the bare word "Claymoo", so the README can name the company while private repositories stay out.
+- **Source repo only.** `AGENTS.md`'s "What this is" line now describes an assistant a business owner and their team run their business on. The `WONG-STACK` block is unchanged.
+
+**Updating.** Nothing changes in installed repos.
+
+## 26.12.0 — The plan's link says what to do next
+
+- **A waiting plan tells you how to build it.** When a plan stops for your review, the line right under its link says *When you're ready, type `/apply` to build it.* It shows after a plan made on its own, a bare `/wong-sync`, notes pasted from the plan's page, and the reply to *Review the plan*.
+- **It stays out when the build goes on.** When `/apply`, `/continue`, or `/ship` builds the plan in the same run, or the plan has shipped, the link shows alone.
+- **One wording everywhere.** `build-review.mjs` prints the line third, after the link line, from its exported `NEXT_STEP`; [print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link) says when to copy it, and the `WONG-STACK` block states it.
+
 ## 26.11.0 — Memory keys come only through GitHub
 
 - **Notes show who wrote them in full.** Each fact in the start-up digest, `search`, `show`, and `live` names its writer's whole email, so `ana@example.com` and `ana@example.org` never look like one person.

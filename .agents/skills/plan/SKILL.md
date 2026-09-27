@@ -42,7 +42,7 @@ Build the page after drafting and after each later edit:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current
 ```
 
-It prints a status line, then the plan's link line, ready to copy as printed. Shorten any drawing line it warns is over 60 columns. Keep no other copy of the proposal's text. A clean build proves form, not that a drawing explains its bullet.
+It prints a status line, the plan's link line, and the next-step line, ready to copy as printed; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the next-step line goes with it. Shorten any drawing line it warns is over 60 columns. Keep no other copy of the proposal's text. A clean build proves form, not that a drawing explains its bullet.
 
 For screens, add a `## UX` design section: brief, flow, hierarchy, components, and a `### Review` subsection linking `review.html` and naming the items sketching each screen. Sketch phone work phone-first. UI-less changes omit it.
 

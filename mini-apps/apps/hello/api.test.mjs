@@ -18,3 +18,15 @@ test("no name greets the world", async () => {
 test("an unknown route is not found", async () => {
 	assert.equal((await get("/apps/hello/api/nothing")).status, 404);
 });
+
+test("a known route with the wrong method is not found", async () => {
+	const response = await api.fetch(new Request("https://mini.example/apps/hello/api/greeting", { method: "POST" }));
+	assert.equal(response.status, 404);
+	assert.deepEqual(await response.json(), { error: "Not found" });
+});
+
+test("a route named for an inherited property is not found", async () => {
+	for (const route of ["constructor", "__proto__", "toString"]) {
+		assert.equal((await get(`/apps/hello/api/${route}`)).status, 404, route);
+	}
+});

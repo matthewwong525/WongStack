@@ -1,5 +1,6 @@
 import { use } from 'react'
-import type { MiniApp } from './apps'
+import type { MiniApp } from '../../lib/apps'
+import './AppList.css'
 
 export function AppList({ apps }: { apps: Promise<MiniApp[] | null> }) {
   const list = use(apps)
@@ -15,7 +16,7 @@ export function AppList({ apps }: { apps: Promise<MiniApp[] | null> }) {
     )
   }
   return (
-    <ul>
+    <ul className="app-list">
       {list.map((app) => (
         <li key={app.name}>
           <a href={app.href}>

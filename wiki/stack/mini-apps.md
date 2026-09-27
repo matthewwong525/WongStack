@@ -11,6 +11,8 @@ repo/
    └─ apps/
       └─ tips/
          ├─ index.html
+         ├─ app.js    page script
+         ├─ style.css its own look
          ├─ app.json  title, description
          ├─ api.mjs   optional handler
          └─ api.test.mjs
@@ -22,6 +24,7 @@ The main app's Worker, `app/worker/index.ts`, sends every request under `/apps/`
 
 - **One folder per app**, `mini-apps/apps/<name>/`, with an `app.json` that holds a `title` and a one-line `description`. The folder name is the URL path: lowercase letters, digits, and hyphens. Copy the example app, `hello/`, to start.
 - **No build step of its own.** Pages are HTML, CSS, and plain JS modules. The optional handler, `api.mjs`, is plain JavaScript too. The main app's build bundles it into the main Worker.
+- **Grow it by file, not by size.** Markup goes in `index.html`, the page script in `app.js`, tested logic in named `.mjs` modules, and API routes in `api.mjs`'s route list. Link `/style.css` for the shared look, and put the app's own styles in `style.css`. [The code rule](../../.agents/rules/code.md#where-things-go) owns where each thing goes.
 - **Tests live with the app.** Write tests for its logic in the same folder, runnable with `node --test` from that folder. Plain JavaScript runs on any Node with no install and no type stripping.
 - **Data is shared on purpose.** A handler gets the app's D1 database, `DB`, and nothing else: staging for previews, production for published apps. It never gets the memory bindings, and the Worker's `disallow_importable_env` flag stops it importing them from the runtime. That stops a mistake, not code written to get around it: a handler runs in the same Worker as [the memory store](../development/memory.md#the-memory-key), so review its code before it publishes, like any Worker code. A table comes from a migration in the shared `schema/migrations/`, as [the data pipeline](d1-pipeline.md) says.
 - **One app never changes another.** A change to a shared file under `mini-apps/` outside `mini-apps/apps/`, such as `router.mjs`, is main-app code, so CI runs the main app's tests on it.
@@ -45,7 +48,7 @@ A mini app goes through [the change loop](../development/the-change-loop.md) lik
 
 There is no separate list page: the home page is the list, and each app's *Home* link goes back to it.
 
-The starter landing page, `app/src/App.tsx`, opens with a tutorial, *Learn the development loop*: a message to copy into the chat. The message asks the agent to remove the tutorial and explain each step, so your first change teaches you the whole loop. Below it, the page reads `/apps/apps.json` and lists the apps. It shares the mini apps' plain look — the device's font, light or dark to match the device, and outlined cards — so moving between them feels like one site.
+The starter landing page, `app/src/pages/home/Home.tsx`, opens with a tutorial, *Learn the development loop*: a message to copy into the chat. The message asks the agent to remove the tutorial and explain each step, so your first change teaches you the whole loop. Below it, the page reads `/apps/apps.json` and lists the apps. It links the shared look, `/style.css` (`app/public/style.css`), as every mini app does: the device's font, light or dark to match the device, and a narrow column. So moving between them feels like one site.
 
 On production the list shows every published app; on a preview it also shows the app that you preview. A bad folder name, or a missing title or description, stops the build and names the folder.
 
