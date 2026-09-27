@@ -1,95 +1,69 @@
 # Progressive-disclosure wiki: the rulebook
 
-A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one place to start, and every node drills down into more detail. You read the high level, click into the part you care about, and that part breaks down the same way — recursively. This page is how to add to such a wiki so it keeps working that way.
-
-It uses **plain Markdown and standard Markdown links** — nothing tool-specific — so it works in GitHub's renderer, any static-site generator, an in-app viewer, or just a folder of `.md` files.
+A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one place to start, and every page drills down into more detail, recursively. It is **plain Markdown with standard links**, so it renders anywhere.
 
 ## The shape: start general, break down as needed
 
-Every section starts from the **general process** and breaks each step down into its own page — and those pages break down again, as many layers deep as the work actually has. There's no fixed number of layers; you keep drilling until a page is specific enough to act on.
-
-- A section's `README.md` is the top: an overview of the whole process, each step clickable.
-- Any step with more to it links to its own page.
-- That page does the same for *its* steps — and so on, only as far as the real work goes.
-
-A worked shape: a section README with a "core loop" overview → a sub-process hub (e.g. `onboarding/README.md`, which is both a page and the folder's overview) → a single atomic leaf page specific enough to act on. **Don't manufacture depth** — add a layer only when there's genuinely more to break down. Many processes only need a level or two.
+A section's `README.md` gives the whole process, each step a link. A step with more to it gets its own page, which breaks down the same way: section README → hub (`onboarding/README.md`) → a leaf specific enough to act on. **Don't manufacture depth.**
 
 ## One topic, one page
 
-Each thing is documented in **exactly one place**. If the same procedure is written in two pages, that's a bug — pick the right home and replace the copy with a link. This is what keeps the tree trustworthy: there's never a second, stale version.
+Document each thing in **exactly one place**: the same procedure on two pages is a bug, a second copy gone stale. Pick its home; link from the other.
 
-Two patterns fall out of this:
-
-- **When vs. how.** Checklist/cadence pages (a daily or weekly list) say *when* to do something and link out; they never restate the procedure. The procedure page owns the *how*.
-- **Generic before specific.** Write the shared process once (e.g. "how to cut a release") and keep the specific leaves thin (one environment just covers its quirks, then links up to the generic page).
+- **When vs. how.** A checklist or cadence page says *when* and links out; the procedure page owns the *how*.
+- **Generic before specific.** Write the shared process once; a specific leaf adds only its quirks and links up.
 
 ## Every page stands on its own
 
-Readers don't browse a table of contents — they **follow inline links down, or search straight to a page**. So a reader can land anywhere, mid-tree, with no context. That means:
+Readers land on a page from search, with no context.
 
-- Give every page a clear **`#` title** and a strong **first sentence** that says what it is. Many doc tools (and GitHub's search) use that first line of prose as the result snippet or hover preview, so don't open with a breadcrumb, a caveat, or filler.
-- **Title the topic, not its place in a sequence.** A page's title is the thing itself — `Find inspiration`, never `Stage 1 — Find inspiration`; `Postgres backups`, never `Step 3`. Ordering belongs to the parent hub's numbered list, not the child's title. Truly atomic pages can be reordered, reused, and linked from anywhere without their titles going stale — and they read as clean topics in search results. The same applies to the opening sentence and body: define the topic and link to its neighbours by name; don't lean on "this is the fourth step of…".
-- Put drill-down links **inline, at the point of need** — inside the step a reader would be on when they want more — not only in a list at the bottom.
+- Give every page a clear **`#` title** and a **first sentence** that says what it is, never a breadcrumb, caveat, or filler: search results quote it.
+- **Title the topic, not its place in a sequence**: `Find inspiration`, never `Stage 1 — Find inspiration`. Order lives in the parent hub's list, so a page moves without going stale.
+- Put drill-down links **inline, at the point of need**, not only at the bottom.
 
 ## Link everything, generously
 
-Links are the connective tissue of a progressive-disclosure tree: the more the pages interlink, the easier it is to land anywhere and find the next thing. So **link every doc, app, page, tool, or external resource the moment you name it** — inline, at the point of need. The bar is low: if you mention something that has a page or URL, link it.
-
-- Naming another doc? Link it (`[the secrets convention](development/secrets.md)`) — never just say its name in plain text.
-- Naming an app page, dashboard, or external tool? Link it (`[the deploy dashboard](https://…)`).
-- Pointing at one **section** of a page, not the whole thing? Append the heading anchor: `[what belongs upstream](contributing.md#the-bar-does-this-belong-in-every-wongstack-repo)`. The anchor is the heading text **lowercased, spaces → hyphens, punctuation dropped** (so `## The bar: does this belong in *every* WongStack repo?` becomes `#the-bar-does-this-belong-in-every-wongstack-repo`). Linking the exact section beats linking the page and making the reader hunt. The same `#anchor` works within a page (`[see below](#adding-a-page--the-checklist)`).
-- Every page should point **up** to its hub, **down** to anything it references, and **sideways** to the sibling pages it hands off to or depends on.
-
-Err on the side of more links — a reader who doesn't need them loses nothing, and a reader who does shouldn't have to go searching. (The one exception: never put links inside a `mermaid` diagram — keep those visual-only; see below.)
+**Link every doc, app, page, tool, or resource the moment you name it**, inline: a reader who doesn't need the link loses nothing. Link a **section**, here or on another page, by its heading anchor: lowercased, spaces → hyphens, punctuation dropped (`## The bar: is it *upstream*?` → `#the-bar-is-it-upstream`). Every page points **up** to its hub, **down** to what it references, and **sideways** to the siblings it hands off to.
 
 ## Folders only for deep branches
 
-A folder is what makes a branch's hierarchy visible (in most rendered wikis, breadcrumbs and sidebars are driven by folder structure). Use one only when a step expands into several of its own pages worth grouping (like `onboarding/` — a hub plus a page per role). A lone page stays flat in the section folder. Don't hand-write breadcrumbs in the Markdown.
-
-A subfolder's `README.md` is its hub (most renderers, GitHub included, show a folder's `README.md` as its overview/index). Moving a page into a folder changes its URL, so update the links that point at it.
+Use a folder only when a step grows into several pages (`onboarding/`: a hub plus a page per role), with its `README.md` as the hub; a lone page stays flat. Breadcrumbs follow folders, so don't hand-write them. Moving a page changes its URL: update the links to it.
 
 ## Maps are pictures; links live in the list
 
-Open a section with a `mermaid` diagram when a picture helps see the whole flow — but keep the **diagram visual-only**. Put the clickable links in the numbered stage list beside it, where they get normal link behavior. (Clickable diagram nodes are brittle; the list is the source of navigation.)
+A `mermaid` diagram may open a section, but keep it **visual-only**: clickable nodes are brittle. The numbered list beside it carries the links.
 
 ## No orphans, no dead-ends, full hub-coverage
 
-- **No orphans:** every page must be reachable — something links to it (its hub at minimum).
-- **Hub-coverage:** a hub (a section or folder `README`) must link *every one* of its own children.
-- **No dead-ends:** a page should link onward — up to its hub at least, ideally down/sideways too.
+Something links to every page, its hub at minimum; a hub links *every one* of its children. Every page links onward, up at least.
 
 ## Repeatable knowledge
 
-The wiki is long-term memory, and it holds **repeatable knowledge**: facts that stay true and apply again — how we do things, who people are and how they like work done, the company, the product, the customers. The test: **will this help with a future task that is not this one?** Yes → the wiki. No → leave it in the [memory store](development/memory.md) or the change's proposal. A single decision, a date, or one change's details fail the test.
+The wiki is long-term memory for **repeatable knowledge**: facts that stay true and apply again: how we work, people, the company, the product, customers. The test: **will this help with a future task that is not this one?** Yes → the wiki. No → the [memory store](development/memory.md) or the change's proposal; a single decision, a date, or one change's details fail it.
 
-- **Write it when you learn it.** When a request teaches something repeatable, write it then, in the same request — "read this and remember it", or an answer worth keeping. Cite a source by URL or path; do not copy the source into git. Save it like any file edit, through a pull request ([the gate](development/the-change-loop.md#the-gate)); during a change, the edit rides in the change's pull request. [`/ship`](../.agents/skills/ship/SKILL.md) catches what a session missed.
-- **Let it grow from use.** Seed nothing. The first fact on a new topic makes its page; the first fact about a person makes the `people/` section. No `index.md` (hubs are the index) and no `log.md` (git history is the log).
-- **The same format everywhere.** A repo for one person and a repo for a team use the same rules: one person is a team of one.
+- **Write it when you learn it**, in the same request. Cite the source by URL or path; don't copy it into git. Save it through a pull request like any edit ([the gate](development/the-change-loop.md#the-gate)), inside a change's own if one is open; [`/ship`](../.agents/skills/ship/SKILL.md) catches what a session missed.
+- **Let it grow from use.** Seed nothing: the first fact on a topic makes its page; the first about a person makes `people/`. No `index.md` (hubs index) and no `log.md` (git logs).
+- **One format everywhere**: one person is a team of one.
 
 ### People
 
-`wiki/people/README.md` is the hub: who is who. Each person gets `wiki/people/<name>.md`, with **every git email they use**, their preferences, and how they like work done. In the person's [home](development/home.md), that means the owner and the people in their life; in a work repo, each teammate plus the customers and contacts who matter.
+`wiki/people/README.md` is the hub: who is who. Each person gets `wiki/people/<name>.md` with **every git email they use**, their preferences, and how they like work done: in [home](development/home.md), the owner and the people in their life; in a work repo, each teammate and the customers and contacts who matter.
 
-Find the current person by `git config user.email`: their page is the one that lists it. When no page does, write a short page (name and email) in the next wiki save — do not ask first. The first page also makes the hub and links it from [the wiki's root](README.md).
+Find the current person by `git config user.email`. When no page lists it, write a short one (name and email) in the next wiki save, without asking; the first page also makes the hub and links it from [the wiki's root](README.md).
 
-Plans, questions, and reports are plain for everyone: [write in plain words](../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words). A person who wants more detail from now on — branch names, file paths — says so; write it on their page as a preference. Never infer it from one message.
+When a person asks for more detail than [plain words](../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words) from now on, such as branch names, write it on their page; never infer it from one message.
 
 ### Where a fact goes
 
 1. **About one person → their page. About everyone → a topic page.**
-2. **Different preferences are not contradictions.** When two people want different things, keep both, each on its own page. Newest wins only between facts about the same person, or about the whole team.
-3. **Private life stays home.** Health, family, and money go only in the person's [home](development/home.md), never in another repo. A work preference can go in a work repo.
+2. **Different preferences are not contradictions:** keep each on its own page. Newest wins only between facts about the same person, or the whole team.
+3. **Private life stays home.** Health, family, and money go only in the person's [home](development/home.md); a work preference may go in a work repo.
 4. **A shared repo merges wiki edits through git**, like code.
 
 ## Adding a page — the checklist
 
-1. Is this genuinely a new topic, or detail that belongs inside an existing page? **Prefer extending an existing page.**
-2. Put it at the right layer, linked from its parent's stage/step.
-3. Give it a **topic title** (the thing itself, not a "Step N" label) and a strong opening sentence that defines the topic on its own.
-4. Link **generously** — *up* to its hub, *down* to anything it references, *sideways* to siblings — and link every doc, app, and resource you name. Make sure its parent links *to it*.
-5. Don't restate anything already documented — link instead.
-6. Add a subfolder only when a step grows into several of its own pages (a hub + children), not for a single new page.
+**Prefer extending an existing page.** Otherwise place the new one at the right layer, linked from its parent's step, and hold it to the rules above.
 
 ## Keeping it tidy
 
-Garden [the wiki](README.md) as explicit work: extend the page that owns each durable fact, merge duplicates, resolve contradictions newest-wins, prune stale content, and repair links under the rules above. Document **[repeatable knowledge](#repeatable-knowledge) only**; a change's specifics live in its proposal and specs (preserved in `openspec/changes/archive/` when it ships), never the wiki. One topic, one page; link, don't restate.
+Garden [the wiki](README.md) as explicit work: extend each fact's owning page, merge duplicates, resolve contradictions newest-wins, prune stale content, repair links.

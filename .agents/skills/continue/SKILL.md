@@ -1,14 +1,14 @@
 ---
 name: continue
-description: Resume a saved OpenSpec change by name, PR, or menu, or an open thread of non-code work, with an optional instruction: check out its branch, recap the plan and facts, check drift, and hand off to /apply. Use to continue, resume, or pick up a thread.
+description: Resume saved work — a change by name, PR, or menu, or an open thread — and hand it to /apply.
 user-invocable: true
 ---
 
 # /continue
 
-Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` is the intent, `tasks.md` the checklist, and its memory facts the session context. Do **not** reload the PR diff or review threads wholesale.
+Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context. Never reload the PR diff or review threads wholesale.
 
-This skill owns the checkout; `openspec` only reads ([the change loop](../../../wiki/development/the-change-loop.md)). The repo is whatever `gh` resolves here; never hardcode owner/repo. Check [the preconditions](../save/references/preconditions.md) before the first `git` or `gh` command. `main` means [the default branch](../save/references/git-gate.md#the-default-branch). The proposal's `**Branch:**` line names the branch, which may differ from the change name.
+This skill owns the checkout; `openspec` only reads ([the change loop](../../../wiki/development/the-change-loop.md)). The repo is whatever `gh` resolves; never hardcode owner/repo. Check [the preconditions](../save/references/preconditions.md) before the first `git` or `gh` command. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
 A handle selects by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs): a change name is `explicit`; a PR uses `changed-active`, then `recorded-branch`, on its head branch.
 
@@ -20,37 +20,37 @@ A handle selects by [the rungs](../save/references/checkpoint-evidence.md#select
 /continue [name-or-PR] [instruction]
 ```
 
-- **First token** = the handle: a **change name**, a **PR number**, or a PR **URL**.
-- **Everything after** = an **explicit instruction**, e.g. `/continue add-auth rebase onto main and fix the failing test`. Hold it for step 4; it overrides the default "work the tasks".
-- **No handle** → run `openspec list`, and list open threads of non-code work with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. The user picks from both as [an ordinary ask](../explore/references/asking-the-user.md), recommending what the branch or latest checkpoint points at. Show each change's name, task progress, and **`Status:`** line ([its values](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan)), and each thread's slug, age, and next step. Don't guess.
-- **A thread of non-code work** (chosen from the menu, or a handle naming a topic slug with open threads and no change) → no branch, no change. Run `memory.mjs show <slug>`, recap what is done and next, and hand the remaining steps to `/apply` as its to-do. Skip steps 2 to 4.
+- **First token**: the handle — a change name, PR number, or PR URL.
+- **The rest**: an explicit instruction that overrides "work the tasks" in step 4, e.g. `/continue add-auth rebase onto main and fix the failing test`.
+- **No handle** → run `openspec list`, and list open non-code threads with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. Offer both in [an ordinary ask](../explore/references/asking-the-user.md), recommending what the branch or latest checkpoint points at: each change's name, task progress, and `Status:` line ([its values](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan)); each thread's slug, age, and next step. Don't guess.
+- **A non-code thread** (picked, or a handle naming a topic slug with open threads and no change) → no branch or change. Run `memory.mjs show <slug>`, recap what is done and next, and hand the rest to `/apply` as its to-do. Skip steps 2–4.
 
 ### 2. Resolve the change and the branch
 
-- **Change name** (matches `openspec/changes/<name>/` or an `openspec list` entry) → read its proposal header and use the `**Branch:**` value as `BRANCH`:
+- **Change name** (a folder under `openspec/changes/` or an `openspec list` entry) → its proposal's `**Branch:**` value, which may differ from the name, is `BRANCH`:
   ```bash
   openspec show <name>          # or read openspec/changes/<name>/proposal.md + tasks.md
   node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" show <name>
   ```
-  Facts are keyed by the change name, even when the branch differs, and hold *session* context the change doesn't. **No facts is normal.** Folder absent in a fresh checkout → `git fetch origin` and inspect remote branch trees without checking them out:
+  Facts are keyed by the change name, whatever the branch, and hold session context the change lacks; **no facts is normal.** No folder in a fresh checkout → `git fetch origin` and search remote branch trees without checking them out:
   ```bash
   git for-each-ref refs/remotes/origin --format='%(refname)' | while IFS= read -r ref; do
     git cat-file -e "$ref:openspec/changes/$NAME/proposal.md" 2>/dev/null && echo "$ref"
   done
   ```
-  One branch carrying it supplies the proposal and branch; several require a choice. Read the proposal with `git show "$ref:openspec/changes/$NAME/proposal.md"`. A proposal with no Branch line never selects a branch by name: stay in the current checkout for an unsaved plan, and ask for the branch or PR when it is saved elsewhere.
-- **PR number/URL** → the branch is the PR's `headRefName`; find the unique active change in its diff:
+  One match supplies the proposal (`git show "$ref:openspec/changes/$NAME/proposal.md"`) and the branch; several need a choice. A proposal with no Branch line never selects a branch by name: stay here for an unsaved plan; ask for the branch or PR when it is saved elsewhere.
+- **PR number or URL** → the branch is its `headRefName`; find the one active change in its diff:
   ```bash
   gh pr view <N> --json headRefName,url,title,state
   ```
-  After `git fetch origin`, run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"`. When you ask, give each candidate's status and task progress. Read the selected folder after checkout; never infer its name from the PR branch.
-- **Bare number matching both a PR and an `openspec list` index** → ask which, as a two-option question naming the PR and the change it would load.
+  After `git fetch origin`, run `bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json --ref "origin/<headRefName>" --branch "<headRefName>"`. If you ask, give each candidate's status and task progress. Read the selected folder after checkout; never infer its name from the PR branch.
+- **A bare number matching both a PR and an `openspec list` index** → ask which, naming the PR and the change it would load.
 
 A change with no PR yet is fine: load it.
 
 ### 3. Check out the branch
 
-If there's a branch and it isn't already checked out:
+If there's a branch and it isn't checked out:
 
 ```bash
 git rev-parse --abbrev-ref HEAD     # where am I now
@@ -58,20 +58,20 @@ git status --porcelain              # is the tree clean
 git fetch origin                    # a handed-off branch may exist only on the remote
 ```
 
-- This workspace holds other unpublished work — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, checkpoint the current work with `/save` first, or recap it here and stop.
-- Nothing else held here → `git checkout "$BRANCH"` (it tracks `origin/$BRANCH` when only remote), or `gh pr checkout <N>`. A Branch line naming a branch absent locally and remotely → never create it; ask for the correct branch or PR as a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask).
-- Checkout fails because another worktree has the branch → say where it is open, recap, and stop; never force it.
-- Never `/save`d (no branch anywhere) → stay on the current branch; `/save` will cut it.
+- Other unpublished work here — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, `/save` the current work first, or recap it here and stop.
+- Nothing else here → `git checkout "$BRANCH"` (it tracks `origin/$BRANCH` when only remote), or `gh pr checkout <N>`. A Branch line naming a branch that exists neither locally nor remotely → never create it; ask for the right branch or PR as a [structured free-text question](../explore/references/asking-the-user.md#the-anatomy-of-an-ask).
+- Checkout fails because another worktree has the branch → say where, recap, and stop; never force it.
+- Never saved (no branch anywhere) → stay on the current branch; `/save` will cut it.
 
 ### 4. Orient and continue
 
 Recap so the user can confirm the loaded state:
 
-- **The change** — 2–4 lines on the work and task progress, plus its **`Status:`** line and any **open questions**.
-- **The journey** — the last 1–3 `## Decision log` entries, so the resumer inherits the *why*.
-- **The session context** — open threads first, then live facts the change doesn't carry, with ages. Skip the line with no facts; say so when [the store is unreachable](../memory/SKILL.md#read).
-- **State** — the checked-out branch and the PR as a markdown link; unless the person asks for more, only the link, as *the change on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
-- **Drift check** — **counts only**; load no diffs or threads unless asked:
+- **The change**: 2–4 lines on the work and task progress, its `Status:` line, and any open questions.
+- **The journey**: the last 1–3 `## Decision log` entries, so the resumer inherits the *why*.
+- **The session context**: open threads first, then live facts the change lacks, with ages. No facts → skip the line; say so when [the store is unreachable](../memory/SKILL.md#read).
+- **State**: the checked-out branch, and the PR as a markdown link — only the link, as *the change on GitHub*, unless asked ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
+- **Drift check**: **counts only**; never reload the PR diff or review threads unless asked:
   ```bash
   git log origin/main..HEAD --oneline | wc -l   # commits on the branch (vs how tasks.md reads)
   PR=$(gh pr view --json number --jq .number 2>/dev/null)
@@ -81,12 +81,12 @@ Recap so the user can confirm the loaded state:
       --jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved|not)]|length'
   fi
   ```
-  Fold it into one line, e.g. *"7 commits on the branch, 3/9 tasks unchecked, 2 unresolved review comments"*. Flag commits ahead of what `tasks.md` says, or unresolved review comments, so the user can decide whether to reconcile first. Unless the person asks for the counts, say it as progress — *"3 of 9 steps left, 2 comments from reviewers"* — with no branch or commit count, and commits ahead of `tasks.md` as *"some work isn't in the plan's checklist yet"*.
+  Fold it into one line, flagging commits ahead of `tasks.md` or unresolved review comments so the user can choose to reconcile first. Unless asked for counts, say it as progress, with no branch or commit count: *"3 of 9 steps left, 2 comments from reviewers"*; commits ahead of `tasks.md` become *"some work isn't in the plan's checklist yet"*.
 
-Then continue:
+Then:
 
-- **Not checked out** (declined or failed in step 3) → build and edit nothing, even with an instruction. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): open it in a new workspace *(Recommended when `paseo` is installed)*, `/save` the current work first, or stop.
-- **An explicit instruction** (step 1) → do *that*, with the change as backdrop; the instruction steers.
-- **Otherwise**, after a checkout or with no branch yet → **invoke the `/apply` skill** to work the tasks.
+- **Not checked out** (declined or failed in step 3) → build and edit nothing, even with an instruction. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), offering step 3's three choices.
+- **An explicit instruction** → do *that*, with the change as backdrop.
+- **Otherwise** (checked out, or no branch yet) → **invoke the `/apply` skill** to work the tasks.
 
 `/continue` resumes and implements; it drafts no specs ([`/apply` vs `/continue`](../../../wiki/development/the-change-loop.md#apply-vs-continue)).

@@ -1,5 +1,5 @@
 {
-  "revision": "dec731db66df3667dd0ab28c80c2c0af8435f7ae",
+  "revision": "1f41711f55c2d7f2f2d42d9112ae5dea019ecc8d",
   "owners": [
     "AGENTS.md",
     ".agents/skills/memory/references/writing-facts.md",
@@ -7,124 +7,299 @@
     "wiki/development/the-change-loop.md",
     "wiki/development/secrets.md",
     "wiki/development/staging-walkthrough.md",
-    "wiki/ux-principles.md"
+    "wiki/ux-principles.md",
+    "wiki/wiki-style.md",
+    "wiki/voice.md"
   ],
+  "startupCeiling": 2200,
   "files": {
     ".agents/skills/apply/SKILL.md": {
-      "words": 925,
-      "bytes": 6125
+      "words": 971,
+      "bytes": 7117
+    },
+    ".agents/skills/apply/references/build-helper.md": {
+      "words": 343,
+      "bytes": 2197
     },
     ".agents/skills/continue/SKILL.md": {
-      "words": 1596,
-      "bytes": 10438
+      "words": 1141,
+      "bytes": 8104
     },
     ".agents/skills/explore/SKILL.md": {
-      "words": 1071,
-      "bytes": 7137
+      "words": 593,
+      "bytes": 4308
+    },
+    ".agents/skills/explore/references/asking-the-user.md": {
+      "words": 1157,
+      "bytes": 7394
+    },
+    ".agents/skills/improve/SKILL.md": {
+      "words": 984,
+      "bytes": 7385
+    },
+    ".agents/skills/improve/references/consolidation.md": {
+      "words": 287,
+      "bytes": 2057
+    },
+    ".agents/skills/improve/references/security.md": {
+      "words": 385,
+      "bytes": 2531
+    },
+    ".agents/skills/improve/scripts/survey.mjs": {
+      "words": 1462,
+      "bytes": 13964
+    },
+    ".agents/skills/memory/SKILL.md": {
+      "words": 973,
+      "bytes": 6572
+    },
+    ".agents/skills/memory/references/writing-facts.md": {
+      "words": 301,
+      "bytes": 1843
+    },
+    ".agents/skills/memory/scripts/lib/digest.mjs": {
+      "words": 1428,
+      "bytes": 10811
+    },
+    ".agents/skills/memory/scripts/lib/join.mjs": {
+      "words": 753,
+      "bytes": 5482
+    },
+    ".agents/skills/memory/scripts/lib/members.mjs": {
+      "words": 1129,
+      "bytes": 8121
+    },
+    ".agents/skills/memory/scripts/lib/primary-root.mjs": {
+      "words": 335,
+      "bytes": 2616
+    },
+    ".agents/skills/memory/scripts/lib/scan.mjs": {
+      "words": 227,
+      "bytes": 1993
+    },
+    ".agents/skills/memory/scripts/lib/store.mjs": {
+      "words": 1859,
+      "bytes": 14418
+    },
+    ".agents/skills/memory/scripts/lib/transcripts.mjs": {
+      "words": 1238,
+      "bytes": 10279
+    },
+    ".agents/skills/memory/scripts/memory.mjs": {
+      "words": 4518,
+      "bytes": 35410
+    },
+    ".agents/skills/memory/scripts/run.mjs": {
+      "words": 731,
+      "bytes": 5692
+    },
+    ".agents/skills/memory/scripts/session-start.mjs": {
+      "words": 965,
+      "bytes": 7431
     },
     ".agents/skills/plan/SKILL.md": {
-      "words": 699,
-      "bytes": 4870
+      "words": 758,
+      "bytes": 5263
+    },
+    ".agents/skills/plan/references/new-workspace.md": {
+      "words": 1012,
+      "bytes": 6380
     },
     ".agents/skills/plan/references/openspec-cli.md": {
-      "words": 340,
-      "bytes": 2420
-    },
-    ".agents/skills/plan/references/review-author.md": {
-      "words": 403,
-      "bytes": 2826
-    },
-    ".agents/skills/save/SKILL.md": {
-      "words": 4686,
-      "bytes": 29547
-    },
-    ".agents/skills/save/references/git-gate.md": {
-      "words": 873,
-      "bytes": 5672
-    },
-    ".agents/skills/save/references/spec-sync.md": {
-      "words": 191,
-      "bytes": 1266
-    },
-    ".agents/skills/ship/SKILL.md": {
-      "words": 2569,
-      "bytes": 16449
-    },
-    ".agents/skills/verify/SKILL.md": {
-      "words": 2318,
-      "bytes": 14362
-    },
-    ".agents/skills/verify/references/walkthrough.md": {
-      "words": 2469,
-      "bytes": 15734
-    },
-    "AGENTS.md": {
-      "words": 758,
-      "bytes": 5625
-    },
-    "notes/README.md": {
-      "words": 672,
-      "bytes": 4320
-    },
-    "wiki/agent-knowledge-center.md": {
-      "words": 973,
-      "bytes": 5978
-    },
-    "wiki/development/secrets.md": {
-      "words": 676,
-      "bytes": 4358
-    },
-    "wiki/development/staging-walkthrough.md": {
-      "words": 3708,
-      "bytes": 23093
-    },
-    "wiki/development/the-change-loop.md": {
-      "words": 2899,
-      "bytes": 18617
-    },
-    "wiki/ux-principles.md": {
-      "words": 1576,
-      "bytes": 9628
-    },
-    ".agents/skills/plan/references/review-examples.html": {
-      "words": 831,
-      "bytes": 9518
+      "words": 451,
+      "bytes": 3173
     },
     ".agents/skills/plan/references/review-kit.html": {
-      "words": 4801,
-      "bytes": 43463
+      "words": 3353,
+      "bytes": 28302
     },
     ".agents/skills/plan/scripts/build-review.mjs": {
-      "bytes": 4654,
-      "words": 481
+      "words": 1230,
+      "bytes": 11054
     },
-    ".agents/skills/plan/scripts/check-review.js": {
-      "bytes": 3355,
-      "words": 288
+    ".agents/skills/routine/SKILL.md": {
+      "words": 432,
+      "bytes": 3121
+    },
+    ".agents/skills/routine/scripts/lib/paseo.mjs": {
+      "words": 359,
+      "bytes": 2408
+    },
+    ".agents/skills/routine/scripts/routine.mjs": {
+      "words": 1709,
+      "bytes": 13841
+    },
+    ".agents/skills/routine/scripts/tidy.mjs": {
+      "words": 3300,
+      "bytes": 25126
+    },
+    ".agents/skills/routine/scripts/workspace.mjs": {
+      "words": 1490,
+      "bytes": 11609
+    },
+    ".agents/skills/save/SKILL.md": {
+      "words": 1084,
+      "bytes": 7751
+    },
+    ".agents/skills/save/references/checkpoint-evidence.md": {
+      "words": 266,
+      "bytes": 1872
+    },
+    ".agents/skills/save/references/facts-save.md": {
+      "words": 113,
+      "bytes": 709
+    },
+    ".agents/skills/save/references/git-gate.md": {
+      "words": 675,
+      "bytes": 4502
+    },
+    ".agents/skills/save/references/named-secrets.md": {
+      "words": 315,
+      "bytes": 2294
+    },
+    ".agents/skills/save/references/new-plan.md": {
+      "words": 175,
+      "bytes": 1173
+    },
+    ".agents/skills/save/references/preconditions.md": {
+      "words": 126,
+      "bytes": 801
     },
     ".agents/skills/save/scripts/change-candidates.sh": {
-      "bytes": 1835,
-      "words": 255
+      "words": 26,
+      "bytes": 227
+    },
+    ".agents/skills/save/scripts/checkpoint-evidence.mjs": {
+      "words": 701,
+      "bytes": 6377
     },
     ".agents/skills/save/scripts/preview-url.sh": {
-      "bytes": 2395,
-      "words": 323
+      "words": 468,
+      "bytes": 3305
     },
-    ".agents/skills/save/scripts/sync-review-proposal.mjs": {
-      "bytes": 507,
-      "words": 56
+    ".agents/skills/save/scripts/render-pr-body.mjs": {
+      "words": 493,
+      "bytes": 4404
     },
     ".agents/skills/save/scripts/wait-for-checks.sh": {
-      "bytes": 4414,
-      "words": 703
+      "words": 1173,
+      "bytes": 7612
+    },
+    ".agents/skills/ship/SKILL.md": {
+      "words": 1644,
+      "bytes": 11933
+    },
+    ".agents/skills/ship/scripts/merge.sh": {
+      "words": 908,
+      "bytes": 6483
+    },
+    ".agents/skills/ship/scripts/number-release.mjs": {
+      "words": 752,
+      "bytes": 5536
+    },
+    ".agents/skills/ship/scripts/worktree-secrets.mjs": {
+      "words": 1054,
+      "bytes": 9104
+    },
+    ".agents/skills/update-dependencies/SKILL.md": {
+      "words": 308,
+      "bytes": 2528
+    },
+    ".agents/skills/verify/SKILL.md": {
+      "words": 817,
+      "bytes": 6107
+    },
+    ".agents/skills/verify/references/walkthrough.md": {
+      "words": 1620,
+      "bytes": 11136
     },
     ".agents/skills/verify/scripts/verify-runner.sh": {
-      "bytes": 7728,
-      "words": 1061
+      "words": 1174,
+      "bytes": 8527
     },
     ".agents/skills/verify/scripts/verify-staging.sh": {
-      "bytes": 15245,
-      "words": 2078
+      "words": 2133,
+      "bytes": 15644
+    },
+    ".agents/skills/wong-setup/SKILL.md": {
+      "words": 735,
+      "bytes": 5389
+    },
+    ".agents/skills/wong-setup/references/cloudflare.md": {
+      "words": 2822,
+      "bytes": 20276
+    },
+    ".agents/skills/wong-setup/references/failure-map.md": {
+      "words": 1228,
+      "bytes": 7306
+    },
+    ".agents/skills/wong-setup/references/permission-groups.md": {
+      "words": 951,
+      "bytes": 6794
+    },
+    ".agents/skills/wong-setup/references/tools.md": {
+      "words": 938,
+      "bytes": 6430
+    },
+    ".agents/skills/wong-setup/scripts/provision.mjs": {
+      "words": 3782,
+      "bytes": 30791
+    },
+    ".agents/skills/wong-sync/SKILL.md": {
+      "words": 498,
+      "bytes": 3565
+    },
+    ".agents/skills/wong-sync/references/latest-source.md": {
+      "words": 174,
+      "bytes": 1222
+    },
+    ".agents/skills/wong-sync/references/payload-manifest.md": {
+      "words": 1499,
+      "bytes": 10888
+    },
+    ".agents/skills/wong-sync/references/stack-pack-fragments.md": {
+      "words": 1609,
+      "bytes": 12567
+    },
+    ".agents/skills/wong-sync/scripts/preflight.mjs": {
+      "words": 2192,
+      "bytes": 20498
+    },
+    "AGENTS.md": {
+      "words": 905,
+      "bytes": 6542
+    },
+    "skill-descriptions": {
+      "words": 646,
+      "bytes": 4069
+    },
+    "wiki/agent-knowledge-center.md": {
+      "words": 1195,
+      "bytes": 7517
+    },
+    "wiki/development/secrets.md": {
+      "words": 1172,
+      "bytes": 7314
+    },
+    "wiki/development/staging-walkthrough.md": {
+      "words": 1604,
+      "bytes": 10390
+    },
+    "wiki/development/the-change-loop.md": {
+      "words": 3447,
+      "bytes": 21811
+    },
+    "wiki/ux-principles.md": {
+      "words": 1380,
+      "bytes": 8343
+    },
+    "wiki/voice.md": {
+      "words": 341,
+      "bytes": 1918
+    },
+    "wiki/wiki-style.md": {
+      "words": 1709,
+      "bytes": 10188
     }
   },
   "routes": {
@@ -132,8 +307,9 @@
       "before": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
-        "wiki/development/the-change-loop.md"
+        ".agents/skills/memory/references/writing-facts.md",
+        "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md"
       ],
       "after": [
         ".agents/skills/save/SKILL.md",
@@ -148,8 +324,10 @@
       "before": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        ".agents/skills/save/references/named-secrets.md",
         "wiki/development/secrets.md"
       ],
       "after": [
@@ -165,7 +343,9 @@
     "facts-save": {
       "before": [
         ".agents/skills/save/SKILL.md",
-        "notes/README.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        ".agents/skills/save/references/facts-save.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md"
       ],
       "after": [
@@ -180,15 +360,14 @@
       "before": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
         ".agents/skills/plan/SKILL.md",
         ".agents/skills/explore/SKILL.md",
         ".agents/skills/plan/references/openspec-cli.md",
         "wiki/agent-knowledge-center.md",
-        ".agents/skills/plan/references/review-author.md",
-        ".agents/skills/plan/references/review-examples.html",
-        ".agents/skills/plan/references/review-kit.html"
+        ".agents/skills/save/references/new-plan.md"
       ],
       "after": [
         ".agents/skills/save/SKILL.md",
@@ -207,8 +386,9 @@
       "before": [
         ".agents/skills/save/SKILL.md",
         ".agents/skills/save/references/git-gate.md",
-        "notes/README.md",
-        "wiki/development/the-change-loop.md"
+        ".agents/skills/memory/references/writing-facts.md",
+        "wiki/development/the-change-loop.md",
+        ".agents/skills/save/references/checkpoint-evidence.md"
       ],
       "after": [
         ".agents/skills/save/SKILL.md",
@@ -223,7 +403,8 @@
         ".agents/skills/continue/SKILL.md",
         ".agents/skills/apply/SKILL.md",
         ".agents/skills/plan/references/openspec-cli.md",
-        "notes/README.md",
+        ".agents/skills/save/references/checkpoint-evidence.md",
+        ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md"
       ],
       "after": [
@@ -233,9 +414,23 @@
         ".agents/skills/save/references/checkpoint-evidence.md",
         ".agents/skills/memory/references/writing-facts.md",
         "wiki/development/the-change-loop.md"
+      ]
+    },
+    "startup": {
+      "before": [
+        "AGENTS.md",
+        "wiki/wiki-style.md",
+        "wiki/voice.md",
+        "skill-descriptions"
       ],
-      "increaseReason": "The orientation reads the new explicit evidence/root contract. This small increase preserves branch and ambiguity handling; completion saves are measured separately."
+      "after": [
+        "AGENTS.md",
+        "wiki/wiki-style.md",
+        "wiki/voice.md",
+        "skill-descriptions"
+      ],
+      "requireReduction": true
     }
   },
-  "notes": "Fixed source-input model, not runtime telemetry. Active/archive routes include meaningful note capture but no spec deltas. Cold resume measures orientation. There is no visual-author route, because the planning agent draws in the proposal. Change-specific artifacts, implementation context, and repeated agent invocations vary and are excluded. Route files are counted once. Shared loop/owner reading is included conservatively on both sides. Baseline helper counts are read from the named Git revision."
+  "notes": "Fixed source-input model, not runtime telemetry. The baseline is recorded by --write-baseline at the measuring change's own starting commit, so a report counts that change alone. The startup route is what every session reads before the first message: AGENTS.md (the WONG-STACK block and the rest of CLAUDE.md), the wiki style and voice pages it imports, and skill-descriptions, every SKILL.md description joined; the memory digest is excluded. startupCeiling caps that route; raising it is a recorded decision. The inventory is every skill folder but the vendored agent-browser, plus the owner list. Save routes include meaningful fact capture but no spec deltas. Cold resume measures orientation. Change-specific artifacts, implementation context, and repeated agent invocations vary and are excluded. Route files are counted once."
 }

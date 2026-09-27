@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Three link checks, one run:
 //
-// 1. Resolve every internal link and import in the payload AS A TARGET REPO WOULD SEE IT.
+// 1. Resolve every internal link and import in the payload AS A TARGET REPO WOULD SEE IT,
+//    and every heading anchor on a shipped Markdown page against that page's headings.
 // 2. Reject every live Markdown link that passes through a symlink, because
 //    GitHub's web view and raw host do not follow a directory link.
 // 3. Resolve every link in a source-only skill (one no manifest category lists,
@@ -38,6 +39,12 @@
 // links silently. Its links resolve against the working tree, and a `#anchor` on
 // a Markdown target must match one of its headings as GitHub slugs them.
 //
+// WHY CHECK 1 READS ANCHORS
+//
+// An installed repo's own pages link shipped pages by heading. A trim that
+// renames a linked heading breaks those links in the install, never here, so a
+// shipped page's anchors must resolve before it ships.
+//
 // Exits 0 when every link passes, 1 with a list when any link dangles, passes
 // through a symlink, or misses in a source-only skill.
 
@@ -49,7 +56,7 @@ import { parseCli } from "./lib-cli.mjs";
 
 const { values } = parseCli({
   usage:
-    "usage: check-payload-links.mjs [--root <dir>]  (exits 1 when a payload link dangles, a link passes through a symlink, or a source-only skill links a missing path or heading)",
+    "usage: check-payload-links.mjs [--root <dir>]  (exits 1 when a payload link dangles or names a missing heading, a link passes through a symlink, or a source-only skill links a missing path or heading)",
   options: { root: { type: "string" } },
 });
 
@@ -171,6 +178,7 @@ function references(body, { imports = false } = {}) {
 
 function checkDead(files) {
   const dangling = [];
+  const anchors = [];
   // Link targets = what ships, plus what the target already has. Scanned files =
   // what ships, only. A target's own README is a legitimate destination but its
   // contents are the target's business, not ours to lint.
@@ -189,17 +197,35 @@ function checkDead(files) {
       if (!block) continue;
       raw = block[0];
     }
-    for (const { target } of references(maskCode(raw), { imports: true })) {
-      const path = target.split("#")[0];
+    const body = maskCode(raw);
+    for (const { target } of references(body, { imports: true })) {
+      const [path, anchor] = target.split(/#(.*)/s);
       if (!path) continue;
       const resolved = logical(posix.normalize(posix.join(posix.dirname(file), path)));
       const bare = resolved.replace(/\/$/, "");
       // A link into a directory resolves if the directory itself ships.
       const hit = targets.has(resolved) || targets.has(bare) || [...targets].some((f) => f.startsWith(bare + "/"));
       if (!hit) dangling.push({ file, target });
+      else if (anchor && missingAnchor(resolved, anchor)) anchors.push({ file, target });
+    }
+    // A same-page anchor: `references` drops `#...` targets, so read them here.
+    for (const m of body.matchAll(/\]\(#([^)\s]+)\)/g)) {
+      if (missingAnchor(file, m[1])) anchors.push({ file, target: `#${m[1]}` });
     }
   }
-  return dangling;
+  return { dangling, anchors };
+}
+
+/**
+ * True when a shipped Markdown page lacks the heading an anchor names. Installed
+ * repos' own pages link these anchors, and a trim that renames a heading breaks
+ * them where this repo can not see it. Files a target provides itself are skipped.
+ */
+function missingAnchor(logicalPath, anchor) {
+  if (!logicalPath.endsWith(".md")) return false;
+  const path = logicalPath === "CLAUDE.md" ? "AGENTS.md" : physical(logicalPath);
+  if (!exists(path)?.isFile()) return false;
+  return !anchorsOf(path).has(safeDecode(anchor).toLowerCase());
 }
 
 // --- Check 2: links through a symlink ----------------------------------------
@@ -398,7 +424,7 @@ function checkSourceOnly() {
 }
 
 const shipped = payload();
-const dead = checkDead(shipped);
+const { dangling: dead, anchors: deadAnchors } = checkDead(shipped);
 const symlinked = checkSymlinked();
 const sourceOnly = checkSourceOnly();
 
@@ -407,8 +433,14 @@ if (dead.length) {
   for (const d of dead) console.error(`  ${d.file} -> ${d.target}`);
   console.error("Either add the referenced page to the manifest, or generalize the reference.");
 }
-if (symlinked.length) {
+if (deadAnchors.length) {
   if (dead.length) console.error("");
+  console.error(`${deadAnchors.length} broken heading link(s) in the payload: the page has no such heading.`);
+  for (const a of deadAnchors) console.error(`  ${a.file} -> ${a.target}`);
+  console.error("Keep a linked heading's exact text, or update every link to it.");
+}
+if (symlinked.length) {
+  if (dead.length || deadAnchors.length) console.error("");
   console.error(`${symlinked.length} link(s) pass through a symlink: github.com cannot follow them.`);
   for (const s of symlinked) {
     console.error(`  ${s.file}:${s.line} -> ${s.target}`);
@@ -417,12 +449,12 @@ if (symlinked.length) {
   console.error("Link the real path. Code spans and commands may keep `.claude/`.");
 }
 if (sourceOnly.length) {
-  if (dead.length || symlinked.length) console.error("");
+  if (dead.length || deadAnchors.length || symlinked.length) console.error("");
   console.error(`${sourceOnly.length} broken link(s) in source-only skills: they resolve nowhere in this repo.`);
   for (const b of sourceOnly) console.error(`  ${b.file}:${b.line} -> ${b.target}   (${b.missing})`);
   console.error("Link a path that exists, and a heading as GitHub slugs it.");
 }
-if (dead.length || symlinked.length || sourceOnly.length) process.exit(1);
-console.log("No dead links: every internal link in the payload resolves in a target.");
+if (dead.length || deadAnchors.length || symlinked.length || sourceOnly.length) process.exit(1);
+console.log("No dead links: every internal link in the payload resolves in a target, heading anchors included.");
 console.log("No symlinked links: every live Markdown link names a real path.");
 console.log("No broken links in source-only skills: every path and heading resolves here.");

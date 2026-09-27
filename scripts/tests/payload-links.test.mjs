@@ -24,7 +24,7 @@ function fixture(t, pages, { commit = false } = {}) {
   };
   write('.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(manifest));
   write('.agents/skills/save/SKILL.md', '# save\n');
-  write('AGENTS.md', '# Agents\n\n<!-- WONG-STACK:BEGIN -->\n<!-- WONG-STACK:END -->\n');
+  write('AGENTS.md', '# Agents\n\n<!-- WONG-STACK:BEGIN -->\n## Rules\n<!-- WONG-STACK:END -->\n');
   write('wiki/shipped.md', '# Shipped\n');
   for (const [path, text] of Object.entries(pages)) write(path, text);
   symlinkSync('.agents', join(root, '.claude'));
@@ -158,8 +158,24 @@ test('a source-only skill fails on a missing path and a renamed heading, naming 
   assert.match(result.stderr, /-> \.\.\/\.\.\/\.\.\/wiki\/steps\.md#notes-2\s+\(no heading #notes-2\)/);
 });
 
-test("a shipped skill's heading anchor stays unchecked", t => {
-  const root = fixture(t, { '.agents/skills/save/SKILL.md': '# save\n\n[shipped](../../../wiki/shipped.md#no-such-heading)\n' });
+test('a shipped page links another by a heading that exists, and to one of its own headings', t => {
+  const root = fixture(t, {
+    'wiki/shipped.md': '# Shipped\n\n## The gate\n\nSee [below](#the-gate).\n',
+    '.agents/skills/save/SKILL.md': '# save\n\n[gate](../../../wiki/shipped.md#the-gate), [rules](../../../AGENTS.md#rules)\n',
+    'AGENTS.md': '# Agents\n\n<!-- WONG-STACK:BEGIN -->\n## Rules\n\n[gate](wiki/shipped.md#the-gate)\n<!-- WONG-STACK:END -->\n',
+  });
   const result = check(root);
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('a renamed linked heading in a shipped page fails, naming the file and the anchor', t => {
+  const root = fixture(t, {
+    'wiki/shipped.md': '# Shipped\n\n## The check\n\nSee [below](#the-gate).\n',
+    '.agents/skills/save/SKILL.md': '# save\n\n[gate](../../../wiki/shipped.md#the-gate)\n',
+  });
+  const result = check(root);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /2 broken heading link\(s\) in the payload/);
+  assert.match(result.stderr, /\.claude\/skills\/save\/SKILL\.md -> \.\.\/\.\.\/\.\.\/wiki\/shipped\.md#the-gate/);
+  assert.match(result.stderr, /wiki\/shipped\.md -> #the-gate/);
 });
