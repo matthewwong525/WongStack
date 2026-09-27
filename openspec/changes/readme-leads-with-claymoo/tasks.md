@@ -12,4 +12,4 @@
 ## 3. Release
 
 - [x] 3.1 Add a `## Next (patch) — The README leads with how Claymoo runs on WongStack` entry at the top of `CHANGELOG.md`'s entries, and run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/check-retired-names.mjs`; all pass
-- [ ] 3.2 Run `/save`: CI passes, and the README's first screen on GitHub shows the Claymoo lead and the five business asks
+- [x] 3.2 Run `/save`: CI passes, and the README's first screen on GitHub shows the Claymoo lead and the five business asks

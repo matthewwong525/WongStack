@@ -1,6 +1,6 @@
 # The README leads with how Claymoo runs on WongStack
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** assess-wongstack-market
 **Open questions:** none
 
@@ -61,3 +61,4 @@ None.
 - **2026-09-27** — Assumed: the allowed company-name sample in the matcher test uses its own path, `wiki/company.md`, because sharing `README.md` with a flagged sample would let the test pass even if the company name were flagged.
 - **2026-09-27** — Built: the README leads with Claymoo per the copy table, the matcher narrows to `claymooapp`, `AGENTS.md`'s "What this is" line changes, and the changelog has its patch entry. Local checks pass; CI (task 3.2) is next.
 - **2026-09-27** — Saved: merged main's 26.10.0–26.11.0 (changelog conflict resolved with this entry on top) and reconciled the `open-source-release` delta. The live spec's new scenario says "a private repository or service" rather than naming them, because naming them failed the private-name check.
+- **2026-09-27** — CI passed on PR #170 (task 3.2); every task is done.
