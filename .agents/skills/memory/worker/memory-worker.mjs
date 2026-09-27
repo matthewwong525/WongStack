@@ -4,7 +4,7 @@
 // code path. Each Worker serves one store, so the ids in the path are ignored. Key hashes live in the
 // store's memory_keys table, which no request may name: the admin's Cloudflare token manages keys, and
 // the join route below makes a key for a person GitHub lets into this repo.
-import { batchRefusal, sessionIds } from './statements.mjs';
+import { batchRefusal, memberStatements, sessionIds } from './statements.mjs';
 
 export const MEMORY_PREFIX = '/_memory/';
 export const TEAM_HEADER = 'Wong-Memory-Team';
@@ -30,15 +30,19 @@ export const mayTouch = (grant, key) => grant.role === 'admin' || key.startsWith
 // SQLite has no dynamic SQL and no escapes in identifiers, so no statement reaches the keys without naming them.
 const KEYS_GUARD = /memory_keys|writable_schema/i;
 
-// The key's email, role, expiry, and whether more than one email holds a key, in one query. A store the
-// admin has not migrated to schema 3 has no expiry column; its keys keep working until then.
+// The key's email, role, expiry, reader mark, and whether more than one email holds a key, in one query. A
+// store the admin has not migrated has fewer columns: before schema 4 no key is a reader, and before schema 3
+// no key expires. Its keys keep working until then.
 const TEAM = '(SELECT count(DISTINCT email) FROM memory_keys) > 1 AS team';
+const GRANTS = ['expires_at, reader', 'expires_at, 0 AS reader', 'NULL AS expires_at, 0 AS reader']
+  .map(columns => `SELECT email, role, ${columns}, ${TEAM} FROM memory_keys WHERE hash = ?`);
 async function findGrant(db, hash) {
-  try {
-    return await db.prepare(`SELECT email, role, expires_at, ${TEAM} FROM memory_keys WHERE hash = ?`).bind(hash).first();
-  } catch (error) {
-    if (!/no such column/i.test(error.message)) throw error;
-    return db.prepare(`SELECT email, role, NULL AS expires_at, ${TEAM} FROM memory_keys WHERE hash = ?`).bind(hash).first();
+  for (const [index, sql] of GRANTS.entries()) {
+    try {
+      return await db.prepare(sql).bind(hash).first();
+    } catch (error) {
+      if (index === GRANTS.length - 1 || !/no such column/i.test(error.message)) throw error;
+    }
   }
 }
 
@@ -57,12 +61,14 @@ async function query(db, grant, request) {
   const statements = input?.batch || (input?.sql ? [input] : null);
   if (!statements?.length) return fail(400, 'bad_request', 'send {"sql", "params"} or {"batch": [...]}');
   if (statements.some(({ sql }) => KEYS_GUARD.test(String(sql)))) return fail(403, 'keys_table', 'no memory key can read or change memory keys');
+  let run = statements;
   if (grant.role !== 'admin') {
     const refusal = batchRefusal(statements, grant.email) || await othersSession(db, statements, grant.email);
     if (refusal) return fail(403, 'member_write', refusal);
+    run = memberStatements(statements, grant);
   }
   try {
-    const result = await db.batch(statements.map(({ sql, params = [] }) => db.prepare(sql).bind(...params)));
+    const result = await db.batch(run.map(({ sql, params = [] }) => db.prepare(sql).bind(...params)));
     return json(200, { success: true, errors: [], result: result.map(({ results = [], meta = {} }) => ({ success: true, results, meta })) });
   } catch (error) {
     return fail(400, 7500, error.message);
@@ -80,8 +86,9 @@ async function object(bucket, grant, method, key, request) {
   return found ? new Response(found.body) : fail(404, 10007, 'object not found');
 }
 
-// Make a key for this machine when GitHub lets the token's user into this Worker's own repository: read
-// access for a private repository, push for a public one. The repository and GitHub's address come from
+// Make a key for this machine when GitHub lets the token's user into this Worker's own repository. Push access
+// gives a member key. Read access alone gives a reader key, on a private repository only: GitHub can not tell
+// a public repository's read-only collaborator from a stranger. The repository and GitHub's address come from
 // the Worker's env, never the request. The token is used for two GitHub calls and never kept.
 async function join(db, env, request) {
   const repo = env.GITHUB_REPOSITORY;
@@ -97,7 +104,8 @@ async function join(db, env, request) {
   if (found.status === 401) return fail(401, 'github_token', 'GitHub did not accept the token');
   if (!found.ok) return fail(403, 'no_access', `GitHub does not show ${repo} to this account`);
   const info = await found.json();
-  if (!(info.private ? info.permissions?.pull : info.permissions?.push)) {
+  const push = Boolean(info.permissions?.push);
+  if (!push && !(info.private && info.permissions?.pull)) {
     return fail(403, 'no_access', info.private ? `this account cannot read ${repo}` : `${repo} is public, so joining its memory needs push access`);
   }
   const listed = await github('/user/emails');
@@ -114,13 +122,19 @@ async function join(db, env, request) {
   try {
     const admin = await db.prepare("SELECT 1 AS yes FROM memory_keys WHERE email = ? AND role = 'admin' LIMIT 1").bind(email).first();
     const role = admin ? 'admin' : 'member';
+    // An admin is never a reader. Only a reader's key names the schema 4 column, so members join an older store.
+    const reader = !admin && !push;
+    const insert = reader
+      ? 'INSERT INTO memory_keys (hash, email, role, created_at, machine, expires_at, reader) VALUES (?, ?, ?, ?, ?, ?, 1)'
+      : 'INSERT INTO memory_keys (hash, email, role, created_at, machine, expires_at) VALUES (?, ?, ?, ?, ?, ?)';
     await db.batch([
       db.prepare('DELETE FROM memory_keys WHERE email = ? AND machine = ?').bind(email, machine),
-      db.prepare('INSERT INTO memory_keys (hash, email, role, created_at, machine, expires_at) VALUES (?, ?, ?, ?, ?, ?)').bind(await hashKey(key), email, role, iso(Date.now()), machine, expiresAt),
+      db.prepare(insert).bind(await hashKey(key), email, role, iso(Date.now()), machine, expiresAt),
     ]);
-    return json(200, { success: true, errors: [], result: { key, email, role, machine, expiresAt } });
+    return json(200, { success: true, errors: [], result: { key, email, role: reader ? 'reader' : role, machine, expiresAt } });
   } catch (error) {
-    if (/no such column/i.test(error.message)) return fail(503, 'not_migrated', 'the memory store needs its schema 3 migration');
+    // SQLite names a missing column one way in a read and another in an insert.
+    if (/no such column|has no column named/i.test(error.message)) return fail(503, 'not_migrated', 'the memory store needs its latest migration');
     throw error;
   }
 }

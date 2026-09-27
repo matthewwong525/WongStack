@@ -281,3 +281,12 @@ test('the Worker runs first for every route it serves, in the app config and its
   assert.ok(listed, 'the wrangler.jsonc fragment sets run_worker_first');
   assert.deepEqual(JSON.parse(listed).sort(), [...routes].sort());
 });
+
+// Without this flag, `import { env } from "cloudflare:workers"` hands a mini app every binding, memory's too.
+test('the app config and its fragment turn off importable bindings', () => {
+  assert.ok(parseConfig(join(repo, 'app/wrangler.jsonc')).compatibility_flags.includes('disallow_importable_env'));
+  const fragments = readFileSync(join(repo, '.agents/skills/wong-sync/references/stack-pack-fragments.md'), 'utf8');
+  const flags = /"compatibility_flags":\s*(\[[^\]]*\])/.exec(fragments)?.[1];
+  assert.ok(flags, 'the wrangler.jsonc fragment sets compatibility_flags');
+  assert.ok(JSON.parse(flags).includes('disallow_importable_env'));
+});

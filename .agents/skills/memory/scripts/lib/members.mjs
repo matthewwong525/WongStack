@@ -76,8 +76,9 @@ async function remove(ctx, email) {
 }
 
 async function list(ctx) {
-  const [rows] = await keys(ctx, [['SELECT email, role, created_at, machine, expires_at FROM memory_keys ORDER BY role, email, machine']]);
-  const line = row => `- ${row.email} (${row.role}, since ${row.created_at.slice(0, 10)}, ${row.machine ? `machine ${row.machine}` : 'made by member add'}, ${row.expires_at ? `expires ${row.expires_at.slice(0, 10)}` : 'no expiry'})`;
+  // Every column, so a store before the reader schema lists its keys too.
+  const [rows] = await keys(ctx, [['SELECT * FROM memory_keys ORDER BY role, email, machine']]);
+  const line = row => `- ${row.email} (${row.role}${row.reader ? ', reader' : ''}, since ${row.created_at.slice(0, 10)}, ${row.machine ? `machine ${row.machine}` : 'made by member add'}, ${row.expires_at ? `expires ${row.expires_at.slice(0, 10)}` : 'no expiry'})`;
   console.log(rows.length ? rows.map(line).join('\n') : 'No keys open this store.');
 }
 

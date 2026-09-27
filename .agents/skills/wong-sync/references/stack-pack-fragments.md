@@ -42,7 +42,9 @@ This fragment is the **only thing in the payload that creates a wrangler config*
   "name": "<your-worker>",
   "main": "worker/index.ts",
   "compatibility_date": "<today, YYYY-MM-DD>",
-  "compatibility_flags": ["nodejs_compat"],
+  // disallow_importable_env: code reaches a binding only through the env a
+  // route hands it, so a mini app can not import the memory store.
+  "compatibility_flags": ["nodejs_compat", "disallow_importable_env"],
   // The Worker runs first for every path it serves. Once this list exists,
   // any path NOT in it gets the single-page fallback, even a POST (which gets
   // 405), so each Worker route must be here — add your own prefixes too.

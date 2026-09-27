@@ -17,6 +17,7 @@ const TYPES = ['user', 'feedback', 'project', 'reference', 'thread'];
 const SOURCES = ['save', 'backfill', 'migration', 'consolidation'];
 const MAX_BODY = 400;
 const MAX_STRIPPED = 200000;
+const F_COLUMNS = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
 const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const readInput = file => JSON.parse(readFileSync(file === '-' || !file ? 0 : file, 'utf8'));
 
@@ -147,15 +148,21 @@ export async function putFacts(ctx, input) {
   if (errors.length) throw new StoreError(errors.join('; '));
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
-  const plan = digestPlan(ctx, store);
+  const plan = await digestPlan(ctx, store);
   const writes = writeStatements({ record, status, reason: input.reason, newTags: input.newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine });
   const results = await store.batch([...writes, ...plan.statements]);
   markSeen(ctx, record);
   try { plan.finish(results); } catch { /* the cache is best effort */ }
   // Count what the store marked: a supersede whose update changed nothing stored its fact as an add.
-  const marked = writes.flatMap(([sql], index) => sql.startsWith('UPDATE facts SET superseded_by') ? [results[index].length] : []);
-  const superseded = marked.reduce((sum, count) => sum + count, 0);
-  return { added: kept.length - marked.filter(Boolean).length, superseded, dropped: facts.length - kept.length, session: record?.id, status };
+  const supersedes = writes.flatMap(([sql, ids], index) => sql.startsWith('UPDATE facts SET superseded_by') ? [{ ids, marked: results[index].map(row => row.id) }] : []);
+  const superseded = supersedes.reduce((sum, { marked }) => sum + marked.length, 0);
+  return { added: kept.length - supersedes.filter(({ marked }) => marked.length).length, superseded, dropped: facts.length - kept.length, session: record?.id, status, left: await leftLive(store, supersedes) };
+}
+
+// The asked-for facts a supersede left live, with their authors: a member's supersede marks only its own facts.
+async function leftLive(store, supersedes) {
+  const ids = supersedes.flatMap(({ ids, marked }) => ids.filter(id => !marked.includes(id)));
+  return ids.length ? store.query(`SELECT id, author FROM facts WHERE superseded_by IS NULL AND id IN (${ids.map(() => '?').join(', ')}) ORDER BY id`, ids) : [];
 }
 
 // The live session in this checkout: its registry entry whose transcript changed most recently.
@@ -178,6 +185,7 @@ async function putFactsCommand(ctx, { values }) {
     const result = await putFacts(ctx, input);
     if (values.spooled) spoolRemove(values.spooled);
     console.log(`stored: added ${result.added}, superseded ${result.superseded}, dropped ${result.dropped}${result.session ? ` (session ${result.session}, ${result.status})` : ''}`);
+    for (const { id, author } of result.left) console.log(`left #${id} live: ${author ? `${author} wrote it, so only they or the admin` : 'it has no author, so only the admin'} can supersede it`);
   } catch (error) {
     if (!(error instanceof StoreError) || !error.spoolable || values.spooled) throw error;
     const file = spoolWrite(ctx, input);
@@ -196,7 +204,7 @@ async function search(ctx, { values, positionals }) {
   if (match) { joins.push('JOIN facts_fts ON facts_fts.rowid = f.id'); where.push('facts_fts MATCH ?'); params.push(match); }
   if (values.branch) { joins.push('JOIN sessions s ON s.id = f.session_id'); where.push('s.branch = ?'); params.push(values.branch); }
   if (!values.all) where.push('f.superseded_by IS NULL');
-  const personal = values.everyone ? null : personalFilter(ctx, store);
+  const personal = values.everyone ? null : await personalFilter(ctx, store);
   if (personal) { where.push(personal.clause); params.push(...personal.params); }
   const filters = { type: 'f.type = ?', slug: 'f.slug = ?', since: 'f.created_at >= ?', until: 'f.created_at <= ?', author: 'f.author LIKE ?' };
   for (const [key, clause] of Object.entries(filters)) {
@@ -210,9 +218,8 @@ async function search(ctx, { values, positionals }) {
       OR alias_of = coalesce((SELECT alias_of FROM tags WHERE name = ?1), ?1)))`.replaceAll('?1', '?'));
     params.push(values.tag, values.tag, values.tag, values.tag);
   }
-  const columns = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
   const limit = Number(values.limit) || 30;
-  const sql = `SELECT ${columns} FROM facts f ${joins.join(' ')} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+  const sql = `SELECT ${F_COLUMNS} FROM facts f ${joins.join(' ')} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY ${match ? 'bm25(facts_fts),' : ''} f.created_at DESC${values.state ? '' : ` LIMIT ${limit}`}`;
   const state = stateOf(ctx.root);
   // The state comes from this checkout's change folders, not the store, so it filters before the limit here.
@@ -221,9 +228,16 @@ async function search(ctx, { values, positionals }) {
   console.log(facts.length ? facts.map(fact => formatFact(fact)).join('\n') : 'No matching facts.');
 }
 
+// The team filter as a WHERE fragment on alias `f`, or none with --everyone or outside a team.
+async function teamWhere(ctx, store, values) {
+  const personal = values.everyone ? null : await personalFilter(ctx, store);
+  return personal ? { sql: ` AND ${personal.clause}`, params: personal.params } : { sql: '', params: [] };
+}
 async function show(ctx, { values, positionals: [slug] }) {
-  if (!slug) throw new StoreError('usage: memory.mjs show <slug> [--all]');
-  const facts = await openStore(ctx).query(`SELECT ${FACT_COLUMNS} FROM facts WHERE slug = ? ${values.all ? '' : 'AND superseded_by IS NULL'} ORDER BY created_at DESC, id DESC`, [slug]);
+  if (!slug) throw new StoreError('usage: memory.mjs show <slug> [--all] [--everyone]');
+  const store = openStore(ctx);
+  const team = await teamWhere(ctx, store, values);
+  const facts = await store.query(`SELECT ${F_COLUMNS} FROM facts f WHERE f.slug = ? ${values.all ? '' : 'AND f.superseded_by IS NULL'}${team.sql} ORDER BY f.created_at DESC, f.id DESC`, [slug, ...team.params]);
   const live = facts.filter(fact => !fact.superseded_by);
   console.log(`# ${slug} (${stateOf(ctx.root)(slug)}): ${live.length} live facts`);
   const threads = live.filter(fact => fact.type === 'thread');
@@ -260,12 +274,16 @@ async function tags(ctx) {
 // Print each candidate's neighbours, in one batch, so the writer can choose add, supersede, or drop.
 async function gateFacts(ctx, input, store = openStore(ctx)) {
   const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug }));
+  // A candidate's neighbours pass the digest's team filter, so a fact only its author sees never surfaces here.
+  const personal = await personalFilter(ctx, store);
+  const mine = personal ? ` AND ${personal.clause}` : '';
+  const mineParams = personal?.params || [];
   const statements = [TAG_NAMES];
   for (const fact of facts) {
-    statements.push([`SELECT ${FACT_COLUMNS} FROM facts WHERE superseded_by IS NULL AND slug = ? ORDER BY created_at DESC LIMIT 40`, [fact.slug || '']]);
+    statements.push([`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL AND f.slug = ?${mine} ORDER BY f.created_at DESC LIMIT 40`, [fact.slug || '', ...mineParams]]);
     const match = ftsQuery(fact.body || '');
     statements.push(match
-      ? [`SELECT ${FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ')} FROM facts f JOIN facts_fts ON facts_fts.rowid = f.id WHERE facts_fts MATCH ? AND f.superseded_by IS NULL AND f.slug != ? ORDER BY bm25(facts_fts) LIMIT 5`, [match, fact.slug || '']]
+      ? [`SELECT ${F_COLUMNS} FROM facts f JOIN facts_fts ON facts_fts.rowid = f.id WHERE facts_fts MATCH ? AND f.superseded_by IS NULL AND f.slug != ?${mine} ORDER BY bm25(facts_fts) LIMIT 5`, [match, fact.slug || '', ...mineParams]]
       : ['SELECT 1 WHERE 0']);
   }
   const [tagRows, ...results] = await store.batch(statements);
@@ -338,8 +356,11 @@ async function pendingCommand(ctx, { values }) {
   console.log(lines.join('\n'));
 }
 
-async function live(ctx) {
-  const rows = await openStore(ctx).query(`SELECT ${FACT_COLUMNS} FROM facts WHERE superseded_by IS NULL ORDER BY slug, type, created_at`);
+// The tidy reads this, so it takes the team filter: a fact only its author sees is never restated as shared.
+async function live(ctx, { values }) {
+  const store = openStore(ctx);
+  const team = await teamWhere(ctx, store, values);
+  const rows = await store.query(`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL${team.sql} ORDER BY f.slug, f.type, f.created_at`, team.params);
   const lines = [];
   let group = '';
   for (const fact of rows) {
@@ -375,7 +396,7 @@ async function finishRun(ctx, { values }) {
   if (!['capture', 'consolidation'].includes(values.kind)) throw new StoreError('usage: memory.mjs finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]');
   const status = values.status === 'failed' ? 'failed' : 'ok';
   const store = openStore(ctx);
-  const plan = digestPlan(ctx, store);
+  const plan = await digestPlan(ctx, store);
   const results = await store.batch([
     [WRITES.run.sql,
       [values.kind, ctx.machine, process.env.WONG_MEMORY_RUN_STARTED || now(), now(), status, values.reason ? values.reason.slice(0, 300) : null, JSON.stringify(values.counts ? JSON.parse(values.counts) : {})]],
@@ -441,12 +462,13 @@ const USAGE = `usage: memory.mjs <command>
   (search, show, gate, and put-facts take --home: the machine's home store, from ~/.wong-stack/machine.json)
   search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--state active|shipped|conversation] [--all] [--everyone] [--limit n]
                                (in a team, user and feedback facts are only yours unless --everyone)
-  show <slug> [--all]          a topic's open threads, then its live facts newest first
+  show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
   gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
-  pending [--limit n] [--exclude ids]   strip <session-id>   live   digest   stats   spool   due
+  pending [--limit n] [--exclude ids]   strip <session-id>   live [--everyone]   digest   stats   spool   due
+                               (in a team, search, show, and live hide other people's personal and reader facts unless --everyone)
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
   migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)
   join [--background]          get or renew this machine's memory key through your GitHub access to the repo
