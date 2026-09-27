@@ -1,6 +1,6 @@
 # Clean up what the v25–26 releases left stale
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** green-cow
 **Open questions:** none
 
@@ -66,3 +66,4 @@ None.
 - **2026-09-27** — Assumed: the `path-collision` check stays, with a new test for two skills renamed to one local name, because skill renames can still collide once `docsPath` is gone.
 - **2026-09-27** — Check: `scripts/tests/wong-sync-preflight.test.mjs` deletes the two `docsPath` tests, because the feature they test is removed.
 - **2026-09-27** — Checkpoint: tasks 1.1–5.1 built as 26.2.0; spec deltas reconciled into `openspec/specs/`; local lint, 367 script tests, and coverage (87.9% lines, 83.4% branches) pass. Waiting on CI for task 5.2.
+- **2026-09-27** — Checkpoint: CI passed on PR #159 (coverage floor included); task 5.2 done, all tasks complete.

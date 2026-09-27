@@ -28,4 +28,4 @@
 ## 5. Release
 
 - [x] 5.1 Bump `VERSION` to 26.2.0 (or the next minor after `main`) and add a newest-first `CHANGELOG.md` entry in plain words, with an Updating note: workflow files now need a `Check:` line, and `components.docsPath` is ignored. Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `node scripts/measure-context.mjs --check`; verify all pass.
-- [ ] 5.2 Save with `/save` and verify CI passes, the coverage floor included; if coverage falls below the floor, add tests for the newly measured files and save again.
+- [x] 5.2 Save with `/save` and verify CI passes, the coverage floor included; if coverage falls below the floor, add tests for the newly measured files and save again.
