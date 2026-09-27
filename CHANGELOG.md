@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.3.0 — New workspaces are named after their part
+
+- **A new workspace shows its part's name.** When a request splits into parts, each workspace the agent opens now takes the same short name its agent got, so Paseo's list reads *Release collisions*, not *nifty-leopard*. A workspace opened to pick up saved work takes the change's name. The folder and branch keep Paseo's names.
+- **A refused name still opens the workspace.** If Paseo won't take the name, the workspace and its agent still run, and the agent tells you it kept Paseo's name.
+- **`workspace.mjs` renames the workspace after `paseo run`,** with `paseo workspace rename`, because `paseo run --title` names only the agent. `workspaceName` now reports the new name. A failed rename adds a `warning` and still exits 0, and a fetch warning and a rename warning join into one. `--dry-run` also lists the rename command.
+
+**Updating.** `/wong-sync` brings the script and the `new-workspace.md` edit. Workspaces you already opened keep their old names; rename one with `paseo workspace rename <workspace-id> <title>`.
+
 ## 26.2.0 — Releases are numbered when they publish
 
 - **A change no longer picks its own version.** Write its notes under `## Next (patch|minor|major) — <Title>` at the top of `CHANGELOG.md`, and leave `VERSION` alone. `/ship` numbers it from `main`'s version right before it merges, so two changes in flight never take the same number.
