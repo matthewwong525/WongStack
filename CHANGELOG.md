@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 26.3.0 — Smoother publishing, with no dead ends
+## Next (minor) — Smoother publishing, with no dead ends
 
 - **Publishing from `main` saves once.** `/ship` on a default branch with uncommitted work goes straight to the archive; Step 3's one save cuts the branch. Before, it saved and ran CI, then did both again.
 - **`/ship` writes a missing plan for code.** Where no change selects and the work is code, it authors one by `/save`'s new-plan fallback and carries on, instead of stopping.
@@ -15,6 +15,14 @@
 - **Smaller fixes.** The build helper carries a `store <id>` line and passes `--store`. `/ship`'s distillation skips its branch search on `main`. `asking-the-user.md` allows the *Review the plan* reply with no question, and says `/apply` saves only for a task that needs the gate.
 
 **Updating.** `/wong-sync` brings the skill, wiki, and `WONG-STACK` block edits. Nothing to do by hand.
+
+## 26.3.0 — New workspaces are named after their part
+
+- **A new workspace shows its part's name.** When a request splits into parts, each workspace the agent opens now takes the same short name its agent got, so Paseo's list reads *Release collisions*, not *nifty-leopard*. A workspace opened to pick up saved work takes the change's name. The folder and branch keep Paseo's names.
+- **A refused name still opens the workspace.** If Paseo won't take the name, the workspace and its agent still run, and the agent tells you it kept Paseo's name.
+- **`workspace.mjs` renames the workspace after `paseo run`,** with `paseo workspace rename`, because `paseo run --title` names only the agent. `workspaceName` now reports the new name. A failed rename adds a `warning` and still exits 0, and a fetch warning and a rename warning join into one. `--dry-run` also lists the rename command.
+
+**Updating.** `/wong-sync` brings the script and the `new-workspace.md` edit. Workspaces you already opened keep their old names; rename one with `paseo workspace rename <workspace-id> <title>`.
 
 ## 26.2.0 — Releases are numbered when they publish
 
