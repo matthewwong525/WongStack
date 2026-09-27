@@ -89,8 +89,7 @@ Give the user a tight recap so they can confirm the loaded state:
 
 Then continue:
 
-- **If the instruction is a pasted review block** (it begins `Review notes from review.html`), fold it in by [`/plan`'s review-notes step](../plan/SKILL.md#review-notes) before implementing.
-- **If any other explicit instruction was passed** (step 1), do *that* — the change is the backdrop, the instruction is the task. Reconcile the two (e.g. "fix the failing test" → the tasks tell you which and why), but let the instruction steer.
+- **If an explicit instruction was passed** (step 1), do *that* — the change is the backdrop, the instruction is the task. Reconcile the two (e.g. "fix the failing test" → the tasks tell you which and why), but let the instruction steer.
 - **Otherwise**, **invoke the `/apply` skill** (via the Skill tool) to work the tasks — it owns the implement loop (start the first unchecked `- [ ]` in `tasks.md`, check off `- [x]` as tasks land, pause on ambiguity).
 
 From here it's an ordinary session with the change loaded: `/save` checkpoints the same change again, and `/ship` merges and archives it when every task is done. `/continue` resumes and implements; it drafts no specs — see [`/apply` vs `/continue`](../../../wiki/development/the-change-loop.md#apply-vs-continue).

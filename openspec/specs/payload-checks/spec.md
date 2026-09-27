@@ -86,7 +86,7 @@ The payload checks SHALL drive the plan review page in a real browser engine: ta
 
 #### Scenario: A review-page regression fails the payload checks
 
-- **WHEN** a change to the review kit stops a saved note from appearing in the copied `/continue` block
+- **WHEN** a change to the review kit stops a saved note from appearing in the copied request to update the plan
 - **THEN** the payload checks fail
 
 #### Scenario: The review page test is not shipped
