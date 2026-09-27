@@ -91,6 +91,15 @@ Run it again after any stop. It finishes what the last run began and makes no se
 
 Its Cloudflare steps are [the provisioning script](../.agents/skills/wong-setup/scripts/provision.mjs) `/wong-setup` runs, so a fix to one reaches both.
 
+## Test a change on a real server
+
+The source's tests use a pretend Cloudflare. Before you ship a change to either script, run both for real:
+
+1. Make a fresh Ubuntu 24.04 server, the smallest size, and run `setup.sh` from your branch.
+2. As the workspace user, sign in to `gh`, set a git email, and make an empty private repo to install into.
+3. Run the installer as [above](#install-wongstack-into-a-repo). Check that it prints `done`, the repo's first deploy passes, the site answers, and `memory.mjs digest` reads through the Worker. Run it again: it prints `done` and changes nothing.
+4. Delete the server, the repo, and on Cloudflare the Workers, databases, memory bucket, and `<repo>-deploy` token. Deleting a repo needs `gh auth refresh -s delete_repo` first.
+
 ## The size budget
 
 `setup.sh` stays at most 12 KiB. A host can then put it in first-boot data: Hetzner, for one, limits that to 32 KiB, and the host's own files need the rest. The source's tests fail when the script grows past the budget. The installer has no budget: it runs from the clone.
