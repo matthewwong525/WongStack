@@ -8,6 +8,11 @@
 # Prints key=value lines for the ship report:
 #   merged=yes|no  pr=<number> url=<url>  retargeted=<numbers>
 #   branch=deleted|deleted-at-merge|kept  synced=<path>|ref|skipped (<reason>)
+#   stale_version=<version>  with merged=no: another release took this one's
+#     number; /ship numbers it again from <version>, saves, and reruns this
+#
+# The squash commit's subject is the PR title, less any trailing " (vX.Y.Z)",
+# then " (v<VERSION>)" when the branch changes VERSION, then " (#<number>)".
 #
 # Exit codes:
 #   0  merged; the sync may still have been skipped (never a failure)
@@ -31,8 +36,32 @@ DEFAULT=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)
 if [ -z "$DEFAULT" ]; then say "merged=no"; fail "no default branch name from gh"; exit 1; fi
 if [ "$BRANCH" = "$DEFAULT" ]; then say "merged=no"; fail "on the default branch; nothing to merge"; exit 1; fi
 
+# ── Refuse a release whose number another release took ──────────────────────────
+# A release changes VERSION against its merge base. When the default branch's
+# VERSION has also moved from that base, two releases would ship one number.
+if ! git fetch origin "$DEFAULT" >/dev/null 2>&1; then
+  say "merged=no"; fail "git fetch origin $DEFAULT failed; cannot check the version"; exit 1
+fi
+HEAD_V=$(git show HEAD:VERSION 2>/dev/null)
+BASE_V=""
+if MB=$(git merge-base HEAD "origin/$DEFAULT" 2>/dev/null); then BASE_V=$(git show "$MB:VERSION" 2>/dev/null); fi
+MAIN_V=$(git show "origin/$DEFAULT:VERSION" 2>/dev/null)
+RELEASE=""
+if [ -n "$HEAD_V" ] && [ "$HEAD_V" != "$BASE_V" ]; then RELEASE=$HEAD_V; fi
+if [ -n "$RELEASE" ] && [ "$MAIN_V" != "$BASE_V" ]; then
+  say "merged=no"; say "stale_version=$MAIN_V"
+  fail "$DEFAULT reached $MAIN_V while this branch carried $RELEASE; number it again"; exit 1
+fi
+
+# ── The subject names the version that ships ───────────────────────────────────
+if ! PR_NUMBER=$(gh pr view --json number --jq .number) || ! TITLE=$(gh pr view --json title --jq .title); then
+  say "merged=no"; fail "cannot read the PR's title and number"; exit 1
+fi
+if [[ $TITLE =~ ^(.*)\ \(v[0-9]+\.[0-9]+\.[0-9]+\)$ ]]; then TITLE=${BASH_REMATCH[1]}; fi
+SUBJECT="$TITLE${RELEASE:+ (v$RELEASE)} (#$PR_NUMBER)"
+
 # ── Merge exactly the gated commit ──────────────────────────────────────────────
-if ! gh pr merge --squash --match-head-commit "$SHA"; then
+if ! gh pr merge --squash --match-head-commit "$SHA" --subject "$SUBJECT"; then
   say "merged=no"; fail "gh pr merge refused; the branch and PR are unchanged"; exit 1
 fi
 STATE=$(gh pr view --json state --jq .state)

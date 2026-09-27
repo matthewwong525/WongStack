@@ -9,12 +9,14 @@ const script = new URL('../tag-releases.mjs', import.meta.url).pathname;
 
 // A fake gh: `release list` prints $RELEASES (comma-separated); `release create` logs its
 // arguments, then its notes from stdin, to $FAKE_DIR/created. It answers HTTP 403 for the
-// tag in $REFUSE, as GitHub does for the workflow token, and HTTP 502 for the tag in $BREAK.
+// tag in $REFUSE, as GitHub does for the workflow token, HTTP 422 already-exists for the tag in
+// $EXISTS, as it does when another run made it first, and HTTP 502 for the tag in $BREAK.
 const FAKE_GH = `#!/usr/bin/env bash
 case "$1 $2" in
   "release list") tr , '\\n' <<< "\${RELEASES:-}" | sed '/^$/d' ;;
   "release create")
     [ "$3" = "\${REFUSE:-}" ] && { echo "HTTP 403: Resource not accessible by integration (https://api.github.com/repos/o/n/releases)" >&2; exit 1; }
+    [ "$3" = "\${EXISTS:-}" ] && { printf 'HTTP 422: Validation Failed (https://api.github.com/repos/o/n/releases)\\nRelease.tag_name already exists\\n' >&2; exit 1; }
     [ "$3" = "\${BREAK:-}" ] && { echo "HTTP 502: Bad Gateway" >&2; exit 1; }
     { echo "ARGS $*"; cat; echo; } >> "$FAKE_DIR/created" ;;
   *) exit 9 ;;
@@ -127,4 +129,21 @@ test('any other failure to create a Release fails the run', t => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /HTTP 502/);
   assert.deepEqual(creates(result.created), ['v1.0.0']);
+});
+
+test('a Release another run already made counts as done', t => {
+  const { run } = repo(t, { versions: ['1.0.0', '1.1.0', '1.2.0'], changelog: CHANGELOG });
+  const result = run([], { RELEASES: 'v1.0.0,v1.1.0', EXISTS: 'v1.2.0' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(creates(result.created), []);
+  assert.match(result.stdout, /^v1\.2\.0 already exists; another run made it$/m);
+  assert.doesNotMatch(result.stdout, /::warning::/);
+  assert.equal(result.stderr, '');
+});
+
+test('an unnumbered ## Next entry fails the run, naming it', t => {
+  const { run } = repo(t, { versions: ['1.0.0', '1.1.0', '1.2.0'], changelog: CHANGELOG.replace('## 1.2.0', '## Next (minor) — Unshipped\n\n- Oops.\n\n## 1.2.0') });
+  const result = run([], { RELEASES: 'v1.0.0,v1.1.0,v1.2.0' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /CHANGELOG\.md holds ## Next \(minor\) — Unshipped; a release merged without a number/);
 });
