@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Memory keys come only through GitHub
+## 26.11.0 — Memory keys come only through GitHub
 
 - **Notes show who wrote them in full.** Each fact in the start-up digest, `search`, `show`, and `live` names its writer's whole email, so `ana@example.com` and `ana@example.org` never look like one person.
 - **Admin is a GitHub account, not an email.** The store links the admin's GitHub account, and a join gives an admin key only to that account. Another account with the admin's verified email joins as a member. Joining now asks GitHub three things: the repository, the verified emails, and the account's id.

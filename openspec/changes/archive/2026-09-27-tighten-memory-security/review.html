@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · tighten-memory-security</title>
+<title>Review · 2026-09-27-tighten-memory-security</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="tighten-memory-security">
+<body data-change="2026-09-27-tighten-memory-security">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>tighten-memory-security</h1>
+  <h1>2026-09-27-tighten-memory-security</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -141,6 +141,9 @@
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the 50 MB cap holds for every key, the admin's too, and the Worker enforces it, because a client check alone can be skipped.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, because nothing breaks for a teammate with GitHub access; hand-sent keys stopping is the intended change.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built inside <code>/ship</code>: migration 0005, admin by linked GitHub account, <code>member admin</code> in place of <code>member add</code> (now a retired name), every key expiring, 10 keys per account, the 50 MB transcript cap, and full author emails. Joins on a store before 0005 keep the old per-email replace with no cap and make no admin; <code>migrate</code> links the admin only when it applies 0005 with a Worker recorded; <code>member admin</code> no longer sets the team flag, which now comes from the Worker. Local suites pass (471), with lint, link, retired-name, and config checks; examples use <code>example.com</code> because the private-names check blocks the company name. CI (task 5.1) is next.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #169 (build, payload, test); every task is done.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled: no repeatable fact; <code>wiki/development/memory.md</code> already carries the new rules from task 4.1.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived and checkpointed for merge by <code>/ship</code> as 26.11.0, after merging main's 26.10.0 and 26.10.1 (changelog, memory spec, <code>memory.mjs</code>, and the store tests resolved as a union).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
