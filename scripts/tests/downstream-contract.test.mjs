@@ -103,3 +103,21 @@ test('the deploy token permission list is pinned', () => {
       `the deploy token must never mint tokens or touch Access (${row.name}) — ${surface}`);
   }
 });
+
+test('every npm ci WongStack runs skips the audit request', () => {
+  const surface = "npm's retiring audit endpoint once held a CI install for 5 minutes";
+  const files = [
+    ...readdirSync(join(repo, '.github/workflows')).filter(name => name.endsWith('.yml')).map(name => `.github/workflows/${name}`),
+    ...readdirSync(join(repo, 'scripts')).filter(name => /\.(sh|mjs)$/.test(name)).map(name => `scripts/${name}`),
+  ];
+  let installs = 0;
+  for (const file of files) {
+    for (const line of read(file).split('\n')) {
+      if (line.trim().startsWith('#') || !/(^|[\s(;&|])npm ci\b/.test(line)) continue;
+      installs++;
+      assert.match(line, /--no-audit\b/, `${file}: ${line.trim()} needs --no-audit — ${surface}`);
+      assert.match(line, /--no-fund\b/, `${file}: ${line.trim()} needs --no-fund — ${surface}`);
+    }
+  }
+  assert.ok(installs > 0, 'found no npm ci line to check; the scan paths moved');
+});

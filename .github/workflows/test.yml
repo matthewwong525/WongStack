@@ -134,7 +134,7 @@ jobs:
       - name: Install
         if: ${{ steps.suite.outputs.found == 'true' }}
         working-directory: ${{ steps.suite.outputs.dir }}
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Restore mutation results
         if: ${{ steps.suite.outputs.stryker == 'true' }}
