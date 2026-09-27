@@ -27,7 +27,7 @@ Where the app runs. The process above does not depend on it, but every new insta
 You do not need these before you start. They explain what WongStack sets up.
 
 - **Repo:** the project folder and its saved history.
-- **Pull request:** a reviewable package of work. You or your team inspect what changed before it joins the main project.
+- **Pull request:** a reviewable package of work. You or your team inspect what changed before it joins the main project. The agent calls it *the change on GitHub*.
 - **CI:** automated checks, such as tests, that run on saved work. When your project has them, WongStack waits for them.
 - **OpenSpec:** the planning layer that records what is being built and what shipped. [The change loop](development/the-change-loop.md) shows where it fits.
 - **Wiki:** the repo's place for reusable team knowledge and conventions. You are in it.
@@ -35,5 +35,5 @@ You do not need these before you start. They explain what WongStack sets up.
 - **Preview link:** a separate copy of your site with the change in it, running on practice data. Anyone with the link can open it; your real site is untouched.
 - **Mini app:** a small page or tool, such as a bill splitter, that lives at `/apps/<name>/` on your site ([mini apps](stack/mini-apps.md)).
 - **Routine:** a request the assistant runs on a schedule, such as every weekday at 9. It needs the optional [Paseo](https://paseo.sh) app ([`/routine`](../.agents/skills/routine/SKILL.md)).
-- **Save:** keep the work so far without making it live. Every save, a wiki page included, gets a review page you publish when ready ([the gate](development/the-change-loop.md#the-gate)).
+- **Save:** keep the work so far without making it live. Every save, a wiki page included, gets a pull request you publish when ready ([the gate](development/the-change-loop.md#the-gate)).
 - **Publish:** make the change live on your real site, after its checks pass.

@@ -70,10 +70,10 @@ POST	/api/notes	{"title":""}
 GET	/api/notes
 ```
 
-**State probe →** its trigger, if any, is an ordinary `<id>.requests.txt`. The driver does **not** run the state read: after `run`, run the existing command yourself and capture its output into the journey's evidence directory:
+**State probe →** its trigger, if any, is an ordinary `<id>.requests.txt`. The driver does **not** run the state read: after `run`, run the query yourself from `app/` and capture its output into the journey's evidence directory. `<staging-db>` is `env.staging`'s database name in `wrangler.jsonc`:
 
 ```bash
-npm run db:query:staging -- "SELECT count(*) FROM notes" \
+npx wrangler d1 execute <staging-db> --remote --env staging --command "SELECT count(*) FROM notes" \
   | tee "$RUN_DIR/evidence/import-processed/02-state.txt"
 ```
 

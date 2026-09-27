@@ -93,7 +93,7 @@ gh pr checks --json name,bucket,link | jq -r '.[] | .name'
 
 Keep filters inside the syntax jq and gojq share — `select`, `map`, string interpolation, indexing. That covers everything the payload needs.
 
-**For local JSON files, just read them.** Skills are instructions to an agent, and an agent reading a small file beats a subshell parsing it: state the fields, their defaults, and any expansion in prose. It handles absent keys, renamed files, and malformed input by *noticing*, where `jq -r '.x // empty'` silently yields a blank. [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) Step 0 reads `.claude/.wong-stack.json` this way.
+**For local JSON files, just read them.** Skills are instructions to an agent, and an agent reading a small file beats a subshell parsing it: state the fields, their defaults, and any expansion in prose. It handles absent keys, renamed files, and malformed input by *noticing*, where `jq -r '.x // empty'` silently yields a blank. [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) reads `.claude/.wong-stack.json` this way before anything else.
 
 Reach for a shell pipeline only when you need determinism or volume — parsing four scalars is neither.
 

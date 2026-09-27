@@ -102,12 +102,3 @@ When the work is a process that will run again, planning SHALL weigh determinist
 
 - **WHEN** a plan covers a task that will run every week
 - **THEN** the plan considers a script before a recurring AI step
-
-### Requirement: Review-page notes update the plan
-
-A message pasted from a plan's review page SHALL update that plan's artifacts, record in the Decision log how each note was handled, and rebuild the review page. It SHALL NOT start a build.
-
-#### Scenario: Notes change a flow
-
-- **WHEN** a reviewer pastes notes that change a flow
-- **THEN** the plan's artifacts and review page are updated, and the agent asks whether to build it now

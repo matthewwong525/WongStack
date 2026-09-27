@@ -67,12 +67,17 @@ The payload checks SHALL drive the plan review page in a real browser: notes, dr
 
 ### Requirement: WongStack's scripts meet a quality bar
 
-WongStack's JavaScript scripts SHALL meet a committed coverage floor that only rises, and pass the scaffold's linter; its shell scripts SHALL pass a static shell checker at warning severity.
+Every JavaScript file WongStack's own tests exercise, the memory worker, the check scripts, and the mini-app router included, SHALL meet a committed coverage floor that only rises, and pass the scaffold's linter; its shell scripts SHALL pass a static shell checker at warning severity.
 
 #### Scenario: Coverage drops
 
 - **WHEN** a change takes script coverage below the floor
 - **THEN** the checks fail and name the measured and required figures
+
+#### Scenario: A lint error in the memory worker
+
+- **WHEN** a change leaves an unused variable in the memory worker
+- **THEN** the payload checks fail and name the file
 
 ### Requirement: Every guard is tested refusing
 

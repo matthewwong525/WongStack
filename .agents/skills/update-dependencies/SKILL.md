@@ -10,11 +10,13 @@ This meta-repo-only skill is absent from [the payload inventory](../wong-sync/re
 
 ## Survey and update
 
-Report installed (`--version`) and latest versions of `openspec`, `agent-browser`, `gh`, `git`, `node`, and each `app/package.json` dependency. Act on `npm outdated`'s Latest in `app/`, majors included; its nonzero exit is normal. If all is current, say so and stop without `/save`.
+Report installed (`--version`) and latest versions of `openspec`, `agent-browser`, `gh`, `git`, `node`, each `app/package.json` dependency, and each test tool in `scripts/tests/package.json`. Act on `npm outdated`'s Latest in `app/` and in `scripts/tests/`, majors included; its nonzero exit is normal. The test tools are pinned exactly, so bump the pin and `scripts/tests/package-lock.json` together. If all is current, say so and stop without `/save`.
 
 Update machine tools normally, asking first per [required tools](../../../wiki/development/required-tools.md) when that needs sudo or changes the runtime more than the user expects. Apply each major's migration notes; update `app/package-lock.json` with `app/package.json`.
 
 ## Check the OpenSpec contract
+
+Move every OpenSpec pin together: `.github/workflows/payload.yml`, `server/setup.sh`, `.agents/skills/save/references/preconditions.md`, and `.github/CONTRIBUTING.md`. [`scripts/tests/server-setup.test.mjs`](../../../scripts/tests/server-setup.test.mjs) fails and names the file when one differs from `payload.yml`'s.
 
 After a CLI update, check `init --tools none`, `context`, `status --json`, artifact/apply/archive instructions, validation, and archive flags against a disposable fixture, the release notes, and [the shared contract](../plan/references/openspec-cli.md). [No generated layer](../plan/references/openspec-cli.md) exists: never run `openspec update` or regenerate or patch `openspec-*` skills. Report a changed CLI field and adapt the owning WongStack skill before saving; never silently accept a missing contract.
 

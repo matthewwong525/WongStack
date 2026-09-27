@@ -68,7 +68,7 @@ const setWorker = (env, url) => {
   next.components.memory.worker = url;
   writeFileSync(file, JSON.stringify(next));
 };
-const envKey = env => readFileSync(join(env.repo.root, '.env'), 'utf8').match(/^CLOUDFLARE_MEMORY_TOKEN=(\S+)$/m)[1];
+const envKey = env => readFileSync(join(env.repo.root, '.env'), 'utf8').match(/^CLOUDFLARE_MEMORY_TOKEN=(\S+)$/m)?.[1];
 
 // The admin's commands go straight to the fake Cloudflare API with CLOUDFLARE_API_TOKEN.
 const asAdmin = env => ({ env: { WONG_CLOUDFLARE_API: env.fake.api, CLOUDFLARE_API_TOKEN: ADMIN_TOKEN } });
@@ -82,7 +82,7 @@ async function team(t) {
   setWorker(env, `${url}/_memory`);
   const added = await memory(env.repo, env.fake, ['member', 'add', 'Ana@Example.com'], asAdmin(env));
   assert.equal(added.code, 0, added.stderr);
-  const anaKey = added.stdout.match(/^CLOUDFLARE_MEMORY_TOKEN=(\S+)$/m)[1];
+  const anaKey = added.stdout.match(/^CLOUDFLARE_MEMORY_TOKEN=(\S+)$/m)?.[1];
   const self = await memory(env.repo, env.fake, ['member', 'add', 'dev@example.com', '--admin', '--env'], asAdmin(env));
   assert.equal(self.code, 0, self.stderr);
   return { env, url, anaKey, added, self };
@@ -706,7 +706,8 @@ test('the hook renews a key near expiry, and shows a failure the person must fix
   writeFileSync(stateFile(env, 'key.json'), JSON.stringify({ ...saved, expiresAt: new Date(Date.now() + 5 * 86400000).toISOString() }));
   const soon = await hookRun(env, gh('tok-ana').env);
   assert.match(soon.stdout, /renewing this machine's memory key through GitHub/);
-  assert.ok(await until(() => envKey(env) !== key), 'the renewal replaced the key');
+  // A half-written .env holds no key yet: that is "not yet", never a pass.
+  assert.ok(await until(() => { const next = envKey(env); return next && next !== key; }), 'the renewal replaced the key');
   await until(() => !existsSync(stateFile(env, 'join.lock')));
 
   withoutKey(env);

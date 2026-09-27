@@ -25,7 +25,7 @@ Write every plan, question, and report in plain words, for everyone. Give more d
 - **Name what the person will see, get, lose, or risk** — *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* — with no file path, identifier, command, or engineering term they did not use first.
 - **Fix before you ask.** Never offer a choice needing judgment the reader lacks. Where the skill's rules allow, try the fix first, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
 - **Lead a report with the outcome** — what is done, what they can open, what does not work. A failed or unverified check is part of the outcome, in plain words.
-  - **The person ran the verb:** at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts; give them exactly when the person asks.
+  - **The person ran the verb:** at most one link — the preview when there is one, else the pull request, called *the change on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts; give them exactly when the person asks.
   - **Inside another verb:** still print every line the calling verb reads, such as `/save`'s gate line inside `/ship`, `/apply`, or `/verify`.
 
 `/explore`'s limits (the 80/20 test, small groups, one exit round, four questions) bound clarification before planning, not a runbook's fork.

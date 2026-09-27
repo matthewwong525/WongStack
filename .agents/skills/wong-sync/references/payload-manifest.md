@@ -23,8 +23,6 @@ A skill installed under a recorded local name keeps that name: the target's `.cl
 
 The install record's skill names map upstream `.claude/skills/<name>/` paths to their local directories. String arrays are identity mappings; object mappings, or array entries with source and local names, preserve renames. New upstream core skills use their upstream name until implementation records another. A source may store the logical `.claude/` payload under its in-repo `.agents/` alias; the report always uses logical `.claude/` source and target paths.
 
-A target that keeps the wiki pages in another folder records it as `components.docsPath`, a repo-relative path such as `docs/development`. Payload paths under `wiki/development/`, then `wiki/`, map into that folder, so `wiki/development/the-change-loop.md` and `wiki/contributing.md` become `docs/development/the-change-loop.md` and `docs/development/contributing.md`. Two payload paths that map to one target path fail with `path-collision`; an absolute or escaping folder fails with `unsafe-path`. A record without the field keeps the `wiki/` paths.
-
 A source file stored as a symlink is read through its link, because a Git tree holds only the link text; this source stores `CLAUDE.md` as a link to `AGENTS.md`. Resolution is one hop, by Git path. A link to a folder, to another link, or to no file is not a payload unit, and a real file wins over a link to the same logical path.
 
 Ordinary files compare by Git blob identity first. The `CLAUDE.md` unit is only the text from the line containing `WONG-STACK:BEGIN` through the line containing `WONG-STACK:END`; prose outside the markers is never payload drift. Each upstream-changed unit is `added`, `modified`, or `removed`, and its target state is one of:
@@ -66,6 +64,6 @@ Fresh setup initializes the OpenSpec planning home with `openspec init --tools n
 
 ## Install record
 
-`.claude/.wong-stack.json` records the installed source version and commit, the memory store ids, actual local skill names, a relocated docs path, upstream location, and install/update dates. Setup or sync advances it only after its agreed changes and the applicable generated-layer migration are complete; a proposal alone does not.
+`.claude/.wong-stack.json` records the installed source version and commit, the memory store ids, actual local skill names, upstream location, and install/update dates. Setup or sync advances it only after its agreed changes and the applicable generated-layer migration are complete; a proposal alone does not.
 
 The record holds no mode: every install follows the same rules. The machine's [home](../../../../wiki/development/home.md) lives outside every repo, in `~/.wong-stack/machine.json`, and setup or sync never copies it.

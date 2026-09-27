@@ -17,7 +17,7 @@ Only files on the [payload manifest](../.agents/skills/wong-sync/references/payl
 
 ## The route
 
-1. **Fork** [WongStack](https://github.com/matthewwong525/WongStack) and clone your fork. Don't work in the cached clone under `~/.cache/wong-stack/` — `/wong-sync` resets it on every run and your work would be lost.
+1. **Fork** [WongStack](https://github.com/matthewwong525/WongStack) and clone your fork. Don't work in the cached clone under `~/.cache/wong-stack/`. `/wong-sync` fast-forwards it on every run and moves to a fresh checkout when it finds local work there ([latest source](../.agents/skills/wong-sync/references/latest-source.md)), so work left there is never used.
 2. **Branch** off the default branch.
 3. **Make the change** in the fork, generalized. Strip anything repo-specific that came along for the ride: your paths, your stack, your examples. What reads naturally here usually needs rewording to read naturally everywhere.
 4. **Apply the release ritual in the same commit** — editing the payload *is* a release:

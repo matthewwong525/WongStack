@@ -12,7 +12,7 @@
 //   - adds a line that turns a check off (a skip comment anywhere, or a
 //     skipped, focused, or to-do test in a test file);
 //   - deletes a test file, other than by moving it to another test file;
-//   - changes a check's settings: a known config file, the test workflow, a
+//   - changes a check's settings: a known config file, any workflow file, a
 //     script under .github/scripts/, or a package.json `test` script or a
 //     script it runs. Any change counts, stricter ones too: a script can not
 //     tell stricter from looser for every setting.
@@ -94,7 +94,7 @@ const KIND = {
 
 const isProse = path => /^(wiki|openspec)\//.test(path) || path.endsWith('.md');
 const isSettings = path =>
-  path === '.github/workflows/test.yml'
+  /^\.github\/workflows\/[^/]+\.ya?ml$/.test(path)
   || path.startsWith('.github/scripts/')
   || SETTINGS_FILE.some(pattern => pattern.test(basename(path)));
 

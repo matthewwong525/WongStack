@@ -6,7 +6,7 @@ How to decide what a screen should *be* — who it serves, what job it accomplis
 
 The one-line version: **UX leads, visuals serve.** First get the job and the flow right; then use hierarchy to make the screen express that flow. A beautiful screen that serves the wrong job is a failure; a plain screen that finishes the job in one straight line is a success.
 
-## Part 1 — Start from the use case
+## Start from the use case
 
 Never start from a layout. Before drawing anything, answer the **UX brief**:
 
@@ -18,7 +18,7 @@ Never start from a layout. Before drawing anything, answer the **UX brief**:
 
 Then design the **flow**: the shortest path from intent to done for the common case. Smart defaults pre-filled from context, no dead-end states, no detour through a second screen the common case doesn't need. Only after the flow works do visuals enter.
 
-## Part 2 — Principles
+## Principles
 
 Distilled from [Refactoring UI](https://www.refactoringui.com/). A mature design system already solves the book's "define systems in advance" chapters — type scale, spacing scale, palette are decided; never invent values outside them. What's left is judgment:
 
@@ -27,7 +27,7 @@ Distilled from [Refactoring UI](https://www.refactoringui.com/). A mature design
 - **Emphasize by de-emphasizing.** Make the signal stand out by muting the noise — a muted color, lighter weight, smaller supporting text — rather than making the signal bigger and bolder.
 - **Weight and color before size.** Hierarchy comes from font weight and semantic color far more than from font size. Reach for size last.
 - **Labels are a last resort.** Format data so it explains itself: `3 boxes · 82 items` beats `Boxes: 3  Items: 82`. When a label is needed, combine it with the value or mute it — the value is the content.
-- **Density is decided by the job, not by taste.** Start with generous white space and remove deliberately — except where density *is* the feature: an operator scanning a queue wants tight rows; a settings page wants air. The Part 1 brief decides which. You don't have to fill the screen — a narrow, focused column beats stretched content.
+- **Density is decided by the job, not by taste.** Start with generous white space and remove deliberately — except where density *is* the feature: an operator scanning a queue wants tight rows; a settings page wants air. The use-case brief decides which. You don't have to fill the screen — a narrow, focused column beats stretched content.
 - **Unambiguous spacing.** More space *between* groups than *within* them, always — ambiguous gaps make readers guess what belongs together.
 - **Design the empty state.** First-run and zero-results screens start the job (the primary action inline), never just announce absence.
 - **Fewer borders.** Separate with spacing and a background shift, not boxes inside boxes. Borders are the last tool, not the first.
@@ -72,7 +72,7 @@ A drawing is a fenced `text` block inside the bullet it explains, in plain chara
 
 - **Every screen in the flow**, and each empty, loading, or error state the flow names, as its own small sketch. A state a reviewer can not see is a state nobody designed.
 - **One primary action per state.**
-- **The phone layout first when the brief says phone** — see [context of use](#part-1--start-from-the-use-case) above. Keep a sketch about 40 columns wide, top to bottom.
+- **The phone layout first when the brief says phone** — see [context of use](#start-from-the-use-case) above. Keep a sketch about 40 columns wide, top to bottom.
 - **Low fidelity on purpose**: boxes and labels, no brand. It argues about the change; it is not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
 
 Each drawing starts folded under its item; opened, it spans the item's full width, fitted to the screen, and a drag still scrolls the page. A tap shows it full screen, where the reviewer pinches or presses + to zoom and drags to move it. **A reviewer taps + Note to comment** on a paragraph, item, or decision, or taps a line in the full-screen drawing — there is no annotate mode. Unfinished text stays a draft on its target; Save makes it a note. Notes stay in the browser, never in a repo file. **Copy notes** produces a plain request to paste into chat — *update the plan with these notes, don't build yet* — with one bullet per note, by change number. The plan is updated and its page rebuilt; building waits for a yes.

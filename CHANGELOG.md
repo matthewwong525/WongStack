@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.2.0 — Clean up what recent releases left stale
+
+- **Pages tell the truth again.** The stack pages drop Tailwind, which left in v18, and say the agent hands you a preview link as soon as a build finishes. *Getting started* says setup needs an empty folder, and describes the starter page as it is: your apps under a *Learn the development loop* box. The contributing page stops saying an update wipes the cached copy; it never does.
+- **Links that pointed at nothing now point somewhere.** The pipeline page lists `scripts/cf-preview.sh` and `scripts/mini-dashboard.mjs`. The `/verify` walkthrough uses a real `wrangler d1 execute` command, not a made-up one. The secrets rule links `/save`'s named secrets. The tools page stops citing a "Step 0", and the UX page drops its "Part 1 —" headings.
+- **Agents write to the wiki when they learn something.** The OpenSpec rule now follows the wiki's own repeatable-knowledge rule, not only "when wiki work is in scope".
+- **"Review page" means one thing: the plan's page.** In chat, the pull request is now *the change on GitHub*.
+- **The wiki-folder setting is gone.** `/wong-sync` no longer reads `components.docsPath` from `.claude/.wong-stack.json`; WongStack's pages always sync to `wiki/`. Two skills renamed to one local name still fail with `path-collision`.
+- **The switched-off-check guard watches every workflow file,** not only `test.yml`. Editing `deploy.yml` or any other workflow now needs a `Check:` line in the change's Decision log.
+- **Source repo only.** Lint and coverage now include the memory service, the check scripts, and the mini-app router. A memory test that failed at random now waits properly. `/update-dependencies` covers the test tools, and a test fails when the four places that name the OpenSpec version disagree.
+
+**Updating.** `/wong-sync` brings the page, skill, and guard edits. From now on, a branch that changes any workflow file, `deploy.yml` included, needs a `Check:` bullet naming it. A record's `components.docsPath` is ignored: move any relocated pages back under `wiki/` before you sync.
+
 ## 26.1.0 — A "Review the plan" choice that prints the plan's link
 
 - **The plan's closing question offers *Review the plan*.** After a plan, the choices are *Build it now* (recommended), *Review the plan*, and *Stop here*. To change the plan, you still type or paste notes.

@@ -40,7 +40,7 @@ The payload SHALL carry a plain, numbered walkthrough for the person that names 
 
 ### Requirement: Setup readies the computer before it writes anything
 
-Before it clones the source or writes in the folder, setup SHALL ready the tools it needs, one GitHub sign-in with the `workflow` and `user:email` scopes, the git name and email, and on Windows real symbolic links, asking before each install; the person SHALL type no command. A decline or failure SHALL stop setup with nothing written, and an existing git identity SHALL stay unchanged.
+Before it clones the source or writes in the folder, setup SHALL ready the tools it needs, one GitHub sign-in with the `workflow` and `user:email` scopes, the git name and email, and on Windows real symbolic links, asking before each install; the person SHALL type no command. Setup SHALL never install a package manager. A decline or failure SHALL stop setup with nothing written, and an existing git identity SHALL stay unchanged.
 
 #### Scenario: A new computer
 
