@@ -149,7 +149,7 @@ Every check has an escape hatch, and a person who does not read code can not see
 A reason is a bullet in the change's Decision log that starts with `Check:` and names the file:
 
 ```text
-- **2026-09-27** — Check: `app/stryker.conf.json` skips static mutants, because each one reruns every test.
+- **2026-09-27** — Check: `app/vitest.config.ts` excludes `src/generated/` from coverage, because that code is generated and has no tests of its own.
 ```
 
 Only a proposal the branch adds or edits counts, archived ones included, so an old reason never excuses a new loosening. The agent fixes a flagged file itself — it switches the check back on, or writes the reason — and lists every `Check:` bullet in plain words before *publish it?* and in the final report. The script is `.github/scripts/loosened-checks.mjs`; the Test workflow runs it on every push.

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.9.0 — Pushes stay fast when mutation testing would start over
+
+- **Updates keep earlier mutation results.** The Test workflow's saved Stryker file no longer has a key that hashes `package-lock.json` and the Stryker and Vitest configs. The key is now `stryker-<os>-` plus the run, so a dependency update, a WongStack update, or a test-settings change reuses what mutation testing already knows. A push re-tests only what it changed, in minutes, not 15 to 20. Old saved files match the new key, so the first push after the update starts warm.
+- **A full check runs every night, and nobody waits on it.** `test.yml` gains a `schedule` trigger (`17 6 * * *`) on the default branch. That run skips the restore, so Stryker tests every mutant from scratch, then saves the fresh file for later pushes. Running daily also keeps GitHub from evicting the cache after 7 quiet days.
+- **A red nightly check stops publishing.** When the nightly run finds a weak test, its check on the main branch turns red, and `/ship` stops and says so in plain words until a test is fixed. The next push that reuses its file fails the same way.
+- **Every mutant is tested again.** `app/stryker.conf.json` drops `ignoreStatic`. It saved no time in one repo's full runs and left those mutants untested. The first push after the update tests only the formerly skipped mutants.
+- **A push that starts cold finishes.** The Test job's limit rises from 15 to 30 minutes on a push, so a new repo's first run, or one after a lost cache, is not cut off. The nightly run gets 60.
+
+**Updating.** `/wong-sync` brings `.github/workflows/test.yml` and `app/stryker.conf.json`; each needs a `Check:` bullet in the sync plan's Decision log. A repo that raised its own `timeout-minutes` takes the new expression. To skip the nightly run, for example to save Actions minutes in a private repo (about 20 a day), remove the `schedule` lines from `test.yml`; pushes still work, only the daily full check stops. GitHub pauses a schedule after 60 days without activity in a public repo; turn the workflow back on from the Actions tab.
+
 ## 26.8.0 — Server installs come from WongStack
 
 - **The server installer lives here now.** `server/install-wongstack.mjs` sits beside `server/setup.sh`. A host clones WongStack, or your fork, at a pinned commit into `~/.cache/wong-stack/WongStack`, then runs the installer from there as the workspace user, with `{token, accountId, repo}` on stdin. It installs that clone's payload, `VERSION`, and commit into the person's empty repo, commits on `main`, and pushes. Fork WongStack, and your servers install your fork.

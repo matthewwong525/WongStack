@@ -24,7 +24,7 @@ gh api repos/:owner/:repo/commits/main/check-runs \
 ```
 - Default branch with uncommitted changes → go on to [Step 2](#step-2--archive-the-change) in the same tree; Step 3's save cuts the feature branch, as after a pull-in.
 - Clean default branch, or clean tree with 0 commits ahead → [the pull-in](#the-pull-in-nothing-to-ship-yet). A dirty feature branch with 0 commits is valid.
-- Only `ok` default-branch CI proceeds, even with an intent. **Stop** on `failure` (fix it first) or `UNKNOWN` (an empty answer or failed `gh` call; report gh's message).
+- Only `ok` default-branch CI proceeds, even with an intent. **Stop** on `failure` (fix it first) or `UNKNOWN` (an empty answer or failed `gh` call; report gh's message). When the failing check is the Test workflow's nightly run (its run's event is `schedule`), say in plain words that the nightly full check found a weak test, and that fixing it — a test that catches the change it missed — comes first.
 - Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`; commit, push, PR, and checks wait for `/save` after the archive.
 
 ### The pull-in: nothing to ship yet
