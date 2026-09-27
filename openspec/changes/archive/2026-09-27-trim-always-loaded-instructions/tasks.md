@@ -32,4 +32,4 @@
 - [x] 6.1 Add a `## Next (minor) — Shorter instructions, the same rules` entry to `CHANGELOG.md` with the before and after numbers and an Updating note for locally adapted files
 - [x] 6.2 Check `rule-map.md` has a row for every rule in the old text of each edited file
 - [x] 6.3 Run `node scripts/check-payload-links.mjs`, `node scripts/check-retired-names.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/measure-context.mjs --check`, and `openspec validate --specs --strict --no-interactive`
-- [ ] 6.4 `/save`, and confirm the payload and test checks pass in CI
+- [x] 6.4 `/save`, and confirm the payload and test checks pass in CI

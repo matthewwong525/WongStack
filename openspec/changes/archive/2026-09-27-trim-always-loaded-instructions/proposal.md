@@ -1,6 +1,6 @@
 # Shorter instructions, the same rules
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** jazzy-horse
 **Open questions:** none
 
@@ -62,3 +62,6 @@ None.
 - **2026-09-27** — Shortfall: authored skill Markdown is 27,385 → 24,844 words (−9%), not ≤ 21,000. 25.17.0 already cut these files 14–24%, so most sentences are one rule, flag, or command each; about 2,400 words are fenced code, tables tests read, or templates, which stay byte-exact. Six helpers trimmed a skill group each and stopped short rather than drop a rule; a review pass per group then restored eight narrowed rules (credential checks in `/save`, a heal report on every `/verify` verdict, `/ship`'s omit-`--branch` on `main`, and others, each noted in `rule-map.md`).
 - **2026-09-27** — Saved inside `/ship` for task 6.4 (the CI gate); main's 26.12.0–26.13.0 are merged after this checkpoint, then the overlapping files are re-trimmed.
 - **2026-09-27** — Merged main's 26.12.0–26.13.0: conflicts in `AGENTS.md`, `plan/SKILL.md`, `asking-the-user.md`, `payload-manifest.md`, and `CHANGELOG.md` kept main's new rules (the audience line, the "type `/apply`" next-step line, the tutorial rules) in the shorter wording. The merge put the start-up load at 2,223, over the ceiling, so the meta half of `AGENTS.md` lost 24 words of description (no rule): back to 2,199.
+- **2026-09-27** — CI passed on PR #173 after one lint fix in `measure-context.mjs` (task 6.4); every task is done.
+- **2026-09-27** — Distilled: no repeatable fact; what this change learned lives in `measure-context.mjs`, the payload rule, and `CONTRIBUTING.md`.
+- **2026-09-27** — Archived and checkpointed for merge by `/ship` as 26.14.0.

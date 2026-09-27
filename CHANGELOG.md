@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Shorter instructions, the same rules
+## 26.14.0 — Shorter instructions, the same rules
 
 - **Every chat starts lighter.** What an agent reads before your first message — the `WONG-STACK` block and the rest of `AGENTS.md`, [the wiki style](wiki/wiki-style.md) and [voice](wiki/voice.md) pages, and every skill description — drops from 3,601 to 2,199 words (−39%). The style and voice pages still load in every chat. Rules every reply needs stay in the `WONG-STACK` block, which Codex reads too, and the voice page no longer repeats them.
 - **Each step reads less.** [The change loop](wiki/development/the-change-loop.md) drops from 3,447 to 2,537 words (−26%); its step list now says what each stage is for and links the skill that owns the procedure. Every skill's `SKILL.md` and `references/*.md` together drop from 27,385 to 24,844 words (−9%). Repeats are merged into the page that owns them, and the rest links there.

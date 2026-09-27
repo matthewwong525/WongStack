@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · trim-always-loaded-instructions</title>
+<title>Review · 2026-09-27-trim-always-loaded-instructions</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="trim-always-loaded-instructions">
+<body data-change="2026-09-27-trim-always-loaded-instructions">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>trim-always-loaded-instructions</h1>
+  <h1>2026-09-27-trim-always-loaded-instructions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -140,6 +140,9 @@
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Shortfall: authored skill Markdown is 27,385 → 24,844 words (−9%), not ≤ 21,000. 25.17.0 already cut these files 14–24%, so most sentences are one rule, flag, or command each; about 2,400 words are fenced code, tables tests read, or templates, which stay byte-exact. Six helpers trimmed a skill group each and stopped short rather than drop a rule; a review pass per group then restored eight narrowed rules (credential checks in <code>/save</code>, a heal report on every <code>/verify</code> verdict, <code>/ship</code>'s omit-<code>--branch</code> on <code>main</code>, and others, each noted in <code>rule-map.md</code>).</li>
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Saved inside <code>/ship</code> for task 6.4 (the CI gate); main's 26.12.0–26.13.0 are merged after this checkpoint, then the overlapping files are re-trimmed.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Merged main's 26.12.0–26.13.0: conflicts in <code>AGENTS.md</code>, <code>plan/SKILL.md</code>, <code>asking-the-user.md</code>, <code>payload-manifest.md</code>, and <code>CHANGELOG.md</code> kept main's new rules (the audience line, the &quot;type <code>/apply</code>&quot; next-step line, the tutorial rules) in the shorter wording. The merge put the start-up load at 2,223, over the ceiling, so the meta half of <code>AGENTS.md</code> lost 24 words of description (no rule): back to 2,199.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #173 after one lint fix in <code>measure-context.mjs</code> (task 6.4); every task is done.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled: no repeatable fact; what this change learned lives in <code>measure-context.mjs</code>, the payload rule, and <code>CONTRIBUTING.md</code>.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived and checkpointed for merge by <code>/ship</code> as 26.14.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
