@@ -25,7 +25,10 @@ Ask in words the reader can judge. Find the current person's page by `git config
 - **Non-technical:** name what the person will see, get, lose, or risk — *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* Use no file path, identifier, command, or engineering term the person did not use first.
 - **Technical:** name the mechanism when it helps the choice.
 - **Fix before you ask.** Never offer a choice that needs judgment the reader does not have. Where the skill's own rules let it fix a failure, try the fix first, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
-- **Lead a report with the outcome** — what is done, what they can open, what does not work. Lines a skill must print, such as a gate result or a commit, follow it.
+- **Lead a report with the outcome** — what is done, what they can open, what does not work. A failed or unverified check is part of the outcome, said in plain words.
+  - **Non-technical, and the person ran the verb:** give at most one link — the preview when there is one, else the pull request, called *the review page on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts. Give them exactly when the person asks.
+  - **Inside another verb:** still print every line the calling verb reads, such as `/save`'s gate line inside `/ship`, `/apply`, or `/verify`.
+  - **Technical:** those lines follow the outcome.
 
 The same rule covers the question, each option's tradeoff, a blocker report, and the next-step question.
 

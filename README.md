@@ -59,8 +59,10 @@ You end with a working assistant, a starter site online, and memory that carries
 ### The commands
 
 ```text
-/explore -> /plan -> /apply -> /save -> /continue -> /ship
+/explore -> /plan -> /apply -> /save -> /ship
 ```
+
+`/continue` is the way back in: it picks up saved work later, from any machine.
 
 You do not have to type them. Ask for what you want, such as "add a sign-up page", and the agent runs the commands. It stops twice: at the plan, which ends with a link to its review page, and before it publishes. The commands are shortcuts: `/ship` runs everything with no stops. A command whose input is missing runs the one before it, so `/apply` plans first when there is no plan. [The change loop](wiki/development/the-change-loop.md) owns the details.
 

@@ -5,10 +5,13 @@ Every change to WongStack — and to any repo that installs it — moves through
 A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. A verb you invoke still works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for changing the repo's own code or process, and a new standalone page or tool is code: it is [a mini app](#mini-apps).
 
 ```
-/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
- think      draft the  implement  push +    resume →    merge +
- (no git)   change     + host     PR +      /apply      archive
+/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship
+ think      draft the  implement  push +    merge +
+ (no git)   change     + host     PR +      archive
             (no git)   preview    CI
+                          ▲
+            /continue ────┘
+            resume saved work later, on any machine
 ```
 
 Each verb is a WongStack skill using the OpenSpec CLI for planning records and validation. **OpenSpec owns the plan; the WongStack skills own all git** — OpenSpec never runs git itself. The verbs call the CLI directly. Setup initializes it with `openspec init --tools none`, so no generated agent workflow layer is needed. The three *think/draft/implement* verbs (`/explore`, `/plan`, `/apply`) implement no git themselves; the three *git* verbs (`/save`, `/continue`, `/ship`) own every branch, PR, and merge. When `/apply` completes every task, it does not cross that boundary: it [uploads a preview from the agent host](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) and asks whether to publish. The work stays in the working tree until you save or publish.

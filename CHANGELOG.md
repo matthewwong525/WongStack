@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.13.0 — Plain reports, and continue drawn as the way back in
+
+- **Reports give the outcome and one link.** For a non-technical reader who ran the verb, `/save`, `/continue`, and `/ship` leave out branch names, commit ids, the `SAVE_GATE_RESULT` line, `merge.sh`'s lines, and fact counts unless asked. A verb running inside another still prints what its caller reads. The rule lives in *Write at the reader's level* in `explore/references/asking-the-user.md`.
+- **`/continue` recaps read as progress** — *3 of 9 steps left, 2 comments from reviewers* — for a non-technical reader.
+- **The loop is `/explore → /plan → /apply → /save → /ship`,** with `/continue` as the way back in, in the `WONG-STACK` block, the README, and the change-loop page.
+- **The source wiki's word list** gains review page, preview link, mini app, routine, save, and publish.
+
+**Updating.** `/wong-sync` brings the block line and the skill and page edits. Nothing else to do.
+
 ## 25.12.0 — Builds run in a fresh helper
 
 - **`/apply` builds in a fresh helper agent.** Once the plan is ready, `/apply` hands the change's name to a new helper that reads the plan files and works the tasks. The conversation gets back a short report instead of every file the build opened, so it does not grow through the build. The helper's brief is `.agents/skills/apply/references/build-helper.md`: what to read, when to stop, what it must never do, and the report's shape. [Build in a helper](.agents/skills/apply/SKILL.md#build-in-a-helper) owns the loop.
