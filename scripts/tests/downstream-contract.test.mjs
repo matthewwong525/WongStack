@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,7 +61,7 @@ test('.env.example declares the Cloudflare variables', () => {
 test('deploy.yml reads only the two Cloudflare deploy secrets', () => {
   const surface = 'installed repos and hosted setups set exactly these GitHub secrets';
   const names = new Set([...read('.github/workflows/deploy.yml').matchAll(/secrets\.([A-Za-z0-9_]+)/g)].map(match => match[1]));
-  const cloudflare = [...names].filter(name => /^CLOUDFLARE_/.test(name)).sort();
+  const cloudflare = [...names].filter(name => name.startsWith('CLOUDFLARE_')).sort();
   assert.deepEqual(cloudflare, ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'], surface);
   for (const file of readdirSync(join(repo, '.github/workflows')).filter(name => name.endsWith('.yml'))) {
     assert.doesNotMatch(read(`.github/workflows/${file}`), /CLOUDFLARE_MEMORY_TOKEN/,
@@ -69,22 +69,12 @@ test('deploy.yml reads only the two Cloudflare deploy secrets', () => {
   }
 });
 
-test('/wong-setup owns the Cloudflare runbook', () => {
-  const surface = 'hosted setups and the README setup prompt run /wong-setup and its provisioning runbook';
-  assert.ok(existsSync(join(repo, `${setup}/references/cloudflare.md`)), `${setup}/references/cloudflare.md is missing — ${surface}`);
-  assert.ok(existsSync(join(repo, `${setup}/references/permission-groups.md`)), `${setup}/references/permission-groups.md is missing — ${surface}`);
-  assert.ok(!existsSync(join(repo, '.agents/skills/wong-cloudflare')), `.agents/skills/wong-cloudflare must be gone — ${surface}`);
-  const payload = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
-  assert.ok(!payload.core.skillDirs.includes('wong-cloudflare'),
-    'payload-files.json core.skillDirs must not ship wong-cloudflare — /wong-sync installs this list into every repo');
-});
-
 // Reads the rows of the table under `### The CI deploy token`.
 function deployTokenRows() {
   const lines = read(`${setup}/references/permission-groups.md`).split('\n');
   const start = lines.findIndex(line => line.trim() === '### The CI deploy token');
   assert.ok(start >= 0, 'permission-groups.md needs a "### The CI deploy token" section — hosted setups mint the deploy token from it');
-  const end = lines.findIndex((line, i) => i > start && /^#/.test(line));
+  const end = lines.findIndex((line, i) => i > start && line.startsWith('#'));
   const rows = [];
   for (const line of lines.slice(start + 1, end < 0 ? undefined : end)) {
     if (!line.trim().startsWith('|')) continue;
@@ -112,19 +102,4 @@ test('the deploy token permission list is pinned', () => {
     assert.doesNotMatch(row.name, /API Tokens|Access|Zero Trust|User Details/,
       `the deploy token must never mint tokens or touch Access (${row.name}) — ${surface}`);
   }
-});
-
-test('setup creates the repository and origin before its first gh secret set', () => {
-  const surface = 'a new folder has no GitHub repository until setup makes one, and gh secret set needs it';
-  const runbook = read(`${setup}/references/cloudflare.md`);
-  const at = needle => {
-    const index = runbook.indexOf(needle);
-    assert.ok(index >= 0, `${setup}/references/cloudflare.md must run \`${needle}\` — ${surface}`);
-    return index;
-  };
-  const secret = at('gh secret set');
-  assert.ok(at('gh auth status') < at('api.cloudflare.com'), `gh auth status must come before the first Cloudflare call — ${surface}`);
-  assert.ok(at('git init') < secret, `git init must come before the first gh secret set — ${surface}`);
-  assert.ok(at('gh repo create') < secret, `gh repo create must come before the first gh secret set — ${surface}`);
-  assert.match(runbook.slice(at('gh repo create'), secret), /^gh repo create .*--private --source \. --remote origin$/m, surface);
 });

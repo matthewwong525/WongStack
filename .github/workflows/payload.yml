@@ -24,13 +24,21 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: scripts/tests/package-lock.json
+      # WongStack's own test dependencies (meta-only; no target receives them).
       - run: npm ci
-        working-directory: app
+        working-directory: scripts/tests
       - name: Install supported OpenSpec CLI
         run: npm install -g @fission-ai/openspec@1.13.2
-      - name: Review assembly and migration fixtures
-        run: node --test scripts/tests/*.test.mjs
+      - name: Lint scripts
+        run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts
+      # shellcheck is preinstalled on ubuntu-latest.
+      - name: Check shell scripts
+        run: shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh server/*.sh
+      # c8 follows the scripts the tests spawn; the floor in .c8rc.json only rises.
+      # The review page's browser tests launch the runner's Google Chrome.
+      - name: Script tests and coverage
+        run: scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs
       - name: Release checks
         run: |
           node scripts/check-payload-links.mjs

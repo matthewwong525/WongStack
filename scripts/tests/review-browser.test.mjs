@@ -1,11 +1,23 @@
-import { after, before, test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { chromium } from 'playwright';
 import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { needs } from './fixtures/needs.mjs';
+
+// playwright-core carries no browser: CI launches the runner's Google Chrome,
+// and CHROME_PATH points a local run at any Chromium.
+async function launch() {
+  try {
+    const { chromium } = await import('playwright-core');
+    const where = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' };
+    return await chromium.launch({ headless: true, ...where });
+  } catch (error) {
+    return { missing: `no browser to drive (${error.message.split('\n')[0]}) — run \`npm ci\` in scripts/tests/ and set CHROME_PATH` };
+  }
+}
 
 const fence = '```';
 const long = 'The reviewer reads every word of this item before the next one. ';
@@ -41,7 +53,9 @@ ${Array.from({ length: 12 }, (_, i) => `  ${String(i + 1).padStart(2, '0')} ${'�
 - **2026-09-26** — Assumed: forty columns, because phones are narrow.
 `;
 const temps = [];
-let browser;
+const launched = await launch();
+const browser = launched.missing ? null : launched;
+const browserTest = (name, fn) => test(name, needs(launched.missing, launched.missing), fn);
 
 function fixture(source = proposal) {
   const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
@@ -87,10 +101,9 @@ async function copied(page) {
   return page.locator('#copybuf').inputValue();
 }
 
-before(async () => { browser = await chromium.launch({ headless: true }); });
 after(async () => { if (browser) await browser.close(); temps.forEach(path => rmSync(path, { recursive: true, force: true })); });
 
-test('a mouse click offers a note; a drag, a drawing control, and a link do not', async () => {
+browserTest('a mouse click offers a note; a drag, a drawing control, and a link do not', async () => {
   const { page, context, errors } = await open(fixture().url);
   const chip = page.locator('#chip');
   await tap(page, 'item-2');
@@ -120,7 +133,7 @@ test('a mouse click offers a note; a drag, a drawing control, and a link do not'
   await context.close();
 });
 
-test('on a touch screen, one tap on Note opens the editor and a tap on text does nothing', async () => {
+browserTest('on a touch screen, one tap on Note opens the editor and a tap on text does nothing', async () => {
   const { page, context, errors } = await open(fixture().url, { width: 390, touch: true });
   await at(page, 'item-2').tap({ position: { x: 4, y: 4 } });
   assert.equal(await page.locator('#chip').isVisible(), false);
@@ -140,7 +153,7 @@ test('on a touch screen, one tap on Note opens the editor and a tap on text does
   await context.close();
 });
 
-test('saving adds a pin and a list entry, and Copy notes writes the /continue block', async () => {
+browserTest('saving adds a pin and a list entry, and Copy notes writes the /continue block', async () => {
   const { page, context } = await open(fixture().url);
   await note(page, 'why-1', 'Say who reads it.');
   await note(page, 'item-2', 'Name the reason.');
@@ -161,7 +174,7 @@ test('saving adds a pin and a list entry, and Copy notes writes the /continue bl
   await context.close();
 });
 
-test('drafts stay on their targets, survive a reload, and are never copied', async () => {
+browserTest('drafts stay on their targets, survive a reload, and are never copied', async () => {
   const { page, context } = await open(fixture().url);
   await draft(page, 'item-2', 'Draft two');
   await draft(page, 'item-4', 'Draft four');
@@ -185,7 +198,7 @@ test('drafts stay on their targets, survive a reload, and are never copied', asy
   await context.close();
 });
 
-test('refused storage keeps notes for the session and says so', async () => {
+browserTest('refused storage keeps notes for the session and says so', async () => {
   const init = () => { Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new Error('storage refused'); } }); };
   const { page, context, errors } = await open(fixture().url, { init });
   assert.equal(await page.locator('.bar .session').isVisible(), true);
@@ -198,7 +211,7 @@ test('refused storage keeps notes for the session and says so', async () => {
   await context.close();
 });
 
-test('a refresh keeps notes attached, and a note whose text changed shows as possibly moved', async () => {
+browserTest('a refresh keeps notes attached, and a note whose text changed shows as possibly moved', async () => {
   const f = fixture();
   const { page, context } = await open(f.url);
   await note(page, 'item-4', 'Keep me');
@@ -218,7 +231,7 @@ test('a refresh keeps notes attached, and a note whose text changed shows as pos
   await context.close();
 });
 
-test('a drawing folds, fits the item\'s full width, and zooms and scrolls full screen', async () => {
+browserTest('a drawing folds, fits the item\'s full width, and zooms and scrolls full screen', async () => {
   const { page, context, errors } = await open(fixture().url, { width: 390 });
   const fold = page.locator('#item-3 details.drawing');
   assert.equal(await fold.evaluate(el => el.open), false);
@@ -266,7 +279,7 @@ test('a drawing folds, fits the item\'s full width, and zooms and scrolls full s
   await context.close();
 });
 
-test('no width from 320px scrolls sideways, and the phone editor docks', async () => {
+browserTest('no width from 320px scrolls sideways, and the phone editor docks', async () => {
   const f = fixture();
   for (const width of [320, 390, 1200]) {
     const { page, context } = await open(f.url, { width });
@@ -300,7 +313,7 @@ test('no width from 320px scrolls sideways, and the phone editor docks', async (
   await desk.context.close();
 });
 
-test('#/3 scrolls to item 3, and a keyboard note returns focus to its target', async () => {
+browserTest('#/3 scrolls to item 3, and a keyboard note returns focus to its target', async () => {
   const { page, context } = await open(fixture().url + '#/3', { height: 400 });
   const top = (await page.locator('#item-3').boundingBox()).y;
   assert.ok(top >= 0 && top < 20, `item 3 starts at ${top}px`);

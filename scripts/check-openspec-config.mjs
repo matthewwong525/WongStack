@@ -42,9 +42,15 @@ if (run.error && run.error.code === 'ENOENT') {
 }
 
 const output = `${run.stdout || ''}${run.stderr || ''}`;
-const complaint = output
-  .split('\n')
-  .find((line) => /could not parse|failed to parse/i.test(line) && /config\.ya?ml/i.test(line));
+const answer = parseJson(run.stdout || '');
+// Three ways the CLI says it could not use the config: an older CLI's parse
+// warning, a warning that it is ignoring part of it (a colon-space in a rule
+// turns the rule into a mapping), and 1.13's error in the JSON status.
+const complaint =
+  output
+    .split('\n')
+    .find((line) => (/could not parse|failed to parse/i.test(line) && /config\.ya?ml/i.test(line)) || /\bignoring\b/i.test(line)) ??
+  answer?.status?.find?.((entry) => entry?.severity === 'error')?.message;
 
 if (complaint) {
   console.error(`FAIL  ${configPath} — the OpenSpec CLI cannot read it, so every per-artifact rule is being ignored.`);
@@ -55,9 +61,9 @@ if (complaint) {
   process.exit(1);
 }
 
-// A crash or a non-zero exit without a JSON answer proves nothing about the
-// config. Passing it would be the check that lies, so it fails.
-if (run.status !== 0 && !isJson(run.stdout || '')) {
+// A crash, or any exit without a JSON answer, proves nothing about the config.
+// Passing it would be the check that lies, so it fails.
+if (answer === undefined) {
   console.error(`FAIL  \`openspec context --json\` exited ${run.status ?? run.signal} without JSON — cannot confirm ${configPath} parses.`);
   if (output.trim()) console.error(`      ${output.trim().split('\n')[0]}`);
   process.exit(1);
@@ -65,11 +71,10 @@ if (run.status !== 0 && !isJson(run.stdout || '')) {
 
 console.log(`openspec config: ${configPath} parses — per-artifact rules are in effect.`);
 
-function isJson(text) {
+function parseJson(text) {
   try {
-    JSON.parse(text);
-    return true;
+    return JSON.parse(text);
   } catch {
-    return false;
+    return undefined;
   }
 }

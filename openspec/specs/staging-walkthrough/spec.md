@@ -255,6 +255,8 @@ The journey definitions SHALL contain no assertions — their job is to produce 
 
 Cleanup SHALL run on every exit path, including when the skill stops on `UNKNOWN` or pauses to ask the user a question.
 
+Cleanup SHALL remove only a run directory the walk could have created: an existing directory directly inside the system temp directory, whose name starts with the walk's run prefix, after resolving `..` segments and symbolic links. It SHALL refuse any other path, remove nothing, and exit non-zero.
+
 #### Scenario: Nothing lands in the repo
 
 - **WHEN** a walk completes, whatever its verdict
@@ -283,6 +285,11 @@ Cleanup SHALL run on every exit path, including when the skill stops on `UNKNOWN
 
 - **WHEN** a walk stops early on `UNKNOWN`
 - **THEN** the temporary run directory is still removed
+
+#### Scenario: Cleanup refuses a path it did not make
+
+- **WHEN** cleanup is given `$HOME/wong-verify-x`, or a temp-directory path that climbs out with `..`
+- **THEN** it removes nothing and exits non-zero
 
 ### Requirement: The verdict is graded against the written expectation
 

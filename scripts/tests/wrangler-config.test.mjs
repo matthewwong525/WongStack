@@ -60,7 +60,7 @@ const loggers = { npx: logger('npx '), npm: logger('npm ') };
 
 // A fake `npx` for cf-deploy logs one line per call. For `wrangler versions
 // upload` it prints a version URL first and the alias URL second, like real
-// wrangler.
+// wrangler. DEPLOY_FAIL makes `wrangler deploy` fail.
 const deployNpx = `#!/usr/bin/env bash
 echo "$*" >> "$FAKE_LOG"
 case "$1 $2 $3" in
@@ -70,6 +70,7 @@ case "$1 $2 $3" in
     echo "Version Preview Alias URL: https://feature-x-demo-staging.example.workers.dev"
     ;;
   "wrangler deploy"*)
+    [ -n "\${DEPLOY_FAIL:-}" ] && { echo "Authentication error" >&2; exit 1; }
     echo "Deployed triggers"
     echo "  https://demo.example.workers.dev"
     ;;
@@ -86,8 +87,8 @@ function runIn(t, config, script, branch) {
 
 // Runs cf-deploy on `branch` and returns the exit status, output, recorded npx
 // calls, and GITHUB_OUTPUT. `generated` fakes a plugin build that named that
-// Worker.
-function deploy(t, { branch, generated, config = deployConfig } = {}) {
+// Worker. `env` adds to the script's environment.
+function deploy(t, { branch, generated, config = deployConfig, env = {} } = {}) {
   const fixture = pack(t, { scripts: ['cf-deploy.sh', ...LIB], config, tools: { npx: deployNpx }, prefix: 'cf-deploy-' });
   if (generated) {
     // What @cloudflare/vite-plugin leaves behind: a redirect to a flattened config.
@@ -95,7 +96,7 @@ function deploy(t, { branch, generated, config = deployConfig } = {}) {
     fixture.write('app/dist/demo/wrangler.json', JSON.stringify({ name: generated, main: 'index.js' }));
   }
   const output = join(fixture.dir, 'github-output');
-  const result = fixture.run('cf-deploy.sh', [], { env: { GITHUB_OUTPUT: output, CF_BRANCH: branch, CF_PRODUCTION_BRANCH: 'main' } });
+  const result = fixture.run('cf-deploy.sh', [], { env: { GITHUB_OUTPUT: output, CF_BRANCH: branch, CF_PRODUCTION_BRANCH: 'main', ...env } });
   return { ...result, github: existsSync(output) ? readFileSync(output, 'utf8') : '' };
 }
 
@@ -174,6 +175,14 @@ test('a plugin build that already chose staging drops --env and still deploys st
   assert.equal(run.status, 0, run.out);
   assert.deepEqual(run.calls, ['wrangler deploy', 'wrangler versions upload --preview-alias feature-x']);
   assert.equal(run.github, 'preview-url=https://feature-x-demo-staging.example.workers.dev\n');
+});
+
+test('a failed staging deploy stops before any alias upload or published URL', t => {
+  const run = deploy(t, { branch: 'feature/x', env: { DEPLOY_FAIL: '1' } });
+  assert.notEqual(run.status, 0, run.out);
+  assert.deepEqual(run.calls, ['wrangler deploy --env staging']);
+  assert.equal(run.github, '');
+  assert.doesNotMatch(run.out, /preview URL/);
 });
 
 // Both ways staging can land on production: the source config names it, or the

@@ -96,7 +96,7 @@ function codexMessages(lines) {
     if (item.type === 'message' && ['user', 'assistant'].includes(item.role)) {
       const text = blockText(item.content).trim();
       if (text && !(item.role === 'user' && CODEX_INJECTED.test(text))) out.push({ line, role: item.role, text });
-    } else if (/_call_output$/.test(item.type || '') && typeof item.output === 'string' && codexFailed(item.output)) {
+    } else if ((item.type || '').endsWith('_call_output') && typeof item.output === 'string' && codexFailed(item.output)) {
       out.push({ line, role: 'error', text: item.output.slice(0, ERROR_CHARS) });
     }
   }

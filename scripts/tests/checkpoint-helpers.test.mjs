@@ -79,16 +79,29 @@ test('selected root and base, same-name folders, and invalid refs remain explici
   assert.equal('legacy' in result, false);
   file(root, 'planning/changes/blank/proposal.md', '# Blank\n**Branch:**\neditor-work\n');
   assert.deepEqual(checkpointEvidence({ repo: root, changesDir: 'planning/changes' }).recorded, []);
-  assert.throws(() => checkpointEvidence({ repo: root, ref: 'missing' }));
-  assert.throws(() => checkpointEvidence({ repo: root, base: 'missing' }));
-  assert.throws(() => checkpointEvidence({ repo: root, changesDir: '../outside' }));
-  assert.throws(() => checkpointEvidence({ repo: join(root, 'absent') }));
+  assert.throws(() => checkpointEvidence({ repo: root, ref: 'missing' }), /rev-parse .*missing\^\{commit\}/);
+  assert.throws(() => checkpointEvidence({ repo: root, base: 'missing' }), /rev-parse .*missing\^\{commit\}/);
+  assert.throws(() => checkpointEvidence({ repo: root, changesDir: '../outside' }), /changes directory must be inside the selected repository/);
+  assert.throws(() => checkpointEvidence({ repo: join(root, 'absent') }), /cannot change to .*absent/);
   run(root, 'git', 'branch', '-m', 'main', 'trunk');
   assert.throws(() => checkpointEvidence({ repo: root }), /comparison base unavailable/);
   assert.equal(checkpointEvidence({ repo: root, base: 'trunk' }).base, 'trunk');
   const bad = spawnSync('bash', [join(project, '.agents/skills/save/scripts/change-candidates.sh'), '--json', '--base', 'missing'], { cwd: root, encoding: 'utf8' });
   assert.notEqual(bad.status, 0);
   assert.equal(bad.stdout, '');
+});
+
+test('the line output lists active and archived changes, one per line', t => {
+  const root = fixture(t);
+  const lines = (...args) => run(root, 'bash', join(project, '.agents/skills/save/scripts/change-candidates.sh'), ...args);
+  file(root, 'openspec/changes/committed/proposal.md', '# Committed\n');
+  run(root, 'git', 'add', '.');
+  run(root, 'git', 'commit', '-m', 'change');
+  file(root, 'openspec/changes/untracked/proposal.md', '# Untracked\n');
+  file(root, 'openspec/changes/archive/2026-09-20-done/proposal.md', '# Done\n');
+  assert.equal(lines('active'), 'committed\nuntracked');
+  assert.equal(lines('active', 'editor-work'), 'committed');
+  assert.equal(lines('archive'), '2026-09-20-done');
 });
 
 function bodyFixture(t, archived = false) {
@@ -130,8 +143,10 @@ test('archive bodies omit unavailable links and rendering errors preserve output
   assert(body.includes('/archive/2026-09-22-review%20work'));
   const output = join(root, 'body.md');
   writeFileSync(output, 'keep me');
-  for (const bad of [{ summaryFile: join(root, 'absent') }, { branch: '' }, { mode: 'invalid' }, { repoUrl: 'javascript:alert(1)' }, { previewUrl: 'https://user:secret@example.test' }, { changeRoot: '../outside' }]) {
-    assert.throws(() => writePrBody({ ...options, ...bad }, output));
+  const required = /change root, mode, branch, and summary file are required/;
+  const url = /expected an HTTP\(S\) URL without credentials/;
+  for (const [bad, message] of [[{ summaryFile: join(root, 'absent') }, /ENOENT/], [{ branch: '' }, required], [{ mode: 'invalid' }, required], [{ repoUrl: 'javascript:alert(1)' }, url], [{ previewUrl: 'https://user:secret@example.test' }, url], [{ changeRoot: '../outside' }, /change must be inside the selected repository/]]) {
+    assert.throws(() => writePrBody({ ...options, ...bad }, output), message);
     assert.equal(readFileSync(output, 'utf8'), 'keep me');
   }
   assert.throws(() => writePrBody(options, join(root, options.changeRoot, 'tasks.md')), /input artifact/);

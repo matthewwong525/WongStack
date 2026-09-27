@@ -1,12 +1,11 @@
 // Test harness for the memory scripts: a fake Cloudflare D1 + R2 REST API on node:sqlite,
 // and a throwaway git repo configured to use it.
 import { execFile, execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
@@ -31,6 +30,7 @@ async function fakeCloudflare({ bucket = true } = {}) {
     const body = Buffer.concat(chunks);
     calls.push(`${req.method} ${req.url}`);
     const send = (status, data, raw) => { res.writeHead(status, raw ? {} : { 'Content-Type': 'application/json' }); res.end(raw ? data : JSON.stringify(data)); };
+    if (offline === 'hang') return;
     if (offline) { res.socket.destroy(); return; }
     if (req.headers.authorization !== `Bearer ${TOKEN}`) return send(401, { success: false, errors: [{ code: 10000, message: 'Authentication error' }] });
     const d1 = req.url.match(/\/d1\/database\/([^/]+)\/query$/);
@@ -62,15 +62,23 @@ async function fakeCloudflare({ bucket = true } = {}) {
   const api = `http://127.0.0.1:${server.address().port}/client/v4`;
   return {
     db, dbFor, objects, calls, api,
+    // true drops each connection; 'hang' never answers, so the caller's timeout fires.
     setOffline: (value, databaseId) => { if (!databaseId) offline = value; else if (value) offlineDbs.add(databaseId); else offlineDbs.delete(databaseId); },
-    close: () => new Promise(done => server.close(done)),
+    close: () => new Promise(done => { server.closeAllConnections(); server.close(done); }),
   };
 }
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
-function makeRepo({ bucket = true, envExtra = '', databaseId = 'db1', email = 'dev@example.com' } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'wong-memory-repo-'));
+// A throwaway temp dir, removed when the test ends.
+export function tempDir(t, prefix) {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+function makeRepo(t, { bucket = true, envExtra = '', databaseId = 'db1', email = 'dev@example.com' } = {}) {
+  const root = tempDir(t, 'wong-memory-repo-');
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'config', 'user.email', email);
   git(root, 'config', 'user.name', 'Dev');
@@ -81,7 +89,7 @@ function makeRepo({ bucket = true, envExtra = '', databaseId = 'db1', email = 'd
   writeFileSync(join(root, 'README.md'), 'test\n');
   git(root, 'add', 'README.md');
   git(root, 'commit', '-q', '-m', 'init');
-  const home = mkdtempSync(join(tmpdir(), 'wong-memory-home-'));
+  const home = tempDir(t, 'wong-memory-home-');
   return { root, home, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state') };
 }
 
@@ -116,22 +124,19 @@ export function writeJsonFile(dir, name, value) {
   return file;
 }
 
-// A migrated fake store and a repo that points at it. Every fake closes when the test file ends.
-const fakes = [];
-after(() => Promise.all(fakes.map(fake => fake.close())));
-
-export async function setup({ bucket = true } = {}) {
+// A migrated fake store and a repo that points at it, both gone when the test ends.
+export async function setup(t, { bucket = true } = {}) {
   const fake = await fakeCloudflare({ bucket });
-  fakes.push(fake);
-  const repo = makeRepo({ bucket });
+  t.after(fake.close);
+  const repo = makeRepo(t, { bucket });
   const result = await memory(repo, fake, ['migrate']);
   if (result.code !== 0) throw new Error(`migrate failed: ${result.stderr}`);
   return { fake, repo };
 }
 
 // A home repo on its own database in the same fake, recorded in the work repo's machine file.
-export async function setupHome(env, { email = 'dev@example.com' } = {}) {
-  const home = makeRepo({ databaseId: 'db-home', email });
+export async function setupHome(t, env, { email = 'dev@example.com' } = {}) {
+  const home = makeRepo(t, { databaseId: 'db-home', email });
   const result = await memory(home, env.fake, ['migrate'], { env: { WONG_MEMORY_STATE_DIR: home.stateDir } });
   if (result.code !== 0) throw new Error(`home migrate failed: ${result.stderr}`);
   writeFileSync(join(env.repo.home, 'machine.json'), JSON.stringify({ home: home.root }));

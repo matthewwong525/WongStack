@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034  # sourced: the calling scripts read the variables set here
 # Shared shell helpers for the pack's bash pipeline scripts.
 #
 # `cf-build.sh`, `cf-deploy.sh`, and `cf-preview.sh` all need to answer the same

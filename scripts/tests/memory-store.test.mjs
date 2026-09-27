@@ -1,16 +1,15 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
-import { homeRows, memory, rows, SECRET, setup, setupHome, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { homeRows, memory, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
 
-test('a recorded migration never runs again', async () => {
-  const env = await setup();
+test('a recorded migration never runs again', async t => {
+  const env = await setup(t);
   const before = rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n;
   const calls = env.fake.calls.length;
   const again = await memory(env.repo, env.fake, ['migrate']);
@@ -22,8 +21,8 @@ test('a recorded migration never runs again', async () => {
   assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, files.length);
 });
 
-test('a fact is never edited or deleted; a later fact supersedes it', async () => {
-  const env = await setup();
+test('a fact is never edited or deleted; a later fact supersedes it', async t => {
+  const env = await setup(t);
   const first = await put(env, { source: 'save', slug: 'digest', facts: [{ action: 'add', type: 'project', body: 'The digest cap is 100 lines.' }] });
   assert.equal(first.code, 0, first.stderr);
   const [old] = rows(env, 'SELECT id FROM facts');
@@ -41,8 +40,21 @@ test('a fact is never edited or deleted; a later fact supersedes it', async () =
   assert.match(all.stdout, /100 lines.*superseded by/);
 });
 
-test('a resolved thread closes when a fact supersedes it, and show lists open threads first', async () => {
-  const env = await setup();
+test('a supersede of a missing or already-superseded fact counts as an add and stores the fact', async t => {
+  const env = await setup(t);
+  await put(env, { source: 'save', slug: 'cap', facts: [{ action: 'add', type: 'project', body: 'The cap is 100 lines.' }] });
+  const [old] = rows(env, 'SELECT id FROM facts');
+  await put(env, { source: 'save', slug: 'cap', facts: [{ action: 'supersede', supersedes: [old.id], type: 'project', body: 'The cap is 150 lines.' }] });
+  for (const [id, body] of [[old.id, 'The cap is 200 lines.'], [9999, 'The cap is 250 lines.']]) {
+    const result = await put(env, { source: 'save', slug: 'cap', facts: [{ action: 'supersede', supersedes: [id], type: 'project', body }] });
+    assert.match(result.stdout, /added 1, superseded 0/, `supersede of #${id}`);
+    assert.equal(rows(env, 'SELECT count(*) AS n FROM facts WHERE body = ?', body)[0].n, 1);
+  }
+  assert.equal(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', old.id)[0].superseded_by, old.id + 1, 'the first supersede stands');
+});
+
+test('a resolved thread closes when a fact supersedes it, and show lists open threads first', async t => {
+  const env = await setup(t);
   await put(env, { source: 'save', slug: 'po', facts: [
     { action: 'add', type: 'project', body: 'Search uses FTS5.' },
     { action: 'add', type: 'thread', body: 'Should search rank by recency too?' },
@@ -56,8 +68,8 @@ test('a resolved thread closes when a fact supersedes it, and show lists open th
   assert.match(after.stdout, /conversation\): 2 live facts/);
 });
 
-test('the gate shows live facts on the slug and close keyword matches elsewhere', async () => {
-  const env = await setup();
+test('the gate shows live facts on the slug and close keyword matches elsewhere', async t => {
+  const env = await setup(t);
   await put(env, { source: 'save', slug: 'alpha', facts: [{ action: 'add', type: 'feedback', body: 'User prefers one bundled pull request for refactors.' }] });
   await put(env, { source: 'save', slug: 'beta', facts: [{ action: 'add', type: 'project', body: 'The beta rollout uses feature flags.' }] });
   const candidates = writeJsonFile(env.repo.home, 'cand.json', { slug: 'beta', facts: [{ type: 'feedback', body: 'For a refactor the user wants a single bundled pull request.' }] });
@@ -67,8 +79,8 @@ test('the gate shows live facts on the slug and close keyword matches elsewhere'
   assert.match(gated.stdout, /Closest matches on other slugs:\n  - \[feedback\] User prefers one bundled pull request/);
 });
 
-test('length, type, and credential checks reject a fact without echoing a secret', async () => {
-  const env = await setup();
+test('length, type, and credential checks reject a fact without echoing a secret', async t => {
+  const env = await setup(t);
   const long = await put(env, { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'x'.repeat(401) }] });
   assert.equal(long.code, 1);
   assert.match(long.stderr, /401 characters; the limit is 400/);
@@ -81,8 +93,8 @@ test('length, type, and credential checks reject a fact without echoing a secret
   assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0);
 });
 
-test('tags need a definition, near duplicates warn, and aliases match their target', async () => {
-  const env = await setup();
+test('tags need a definition, near duplicates warn, and aliases match their target', async t => {
+  const env = await setup(t);
   const missing = await put(env, { source: 'save', slug: 't', facts: [{ action: 'add', type: 'project', body: 'A fact.', tags: ['save'] }] });
   assert.match(missing.stderr, /tag save does not exist/);
   await put(env, { source: 'save', slug: 't', newTags: [{ name: 'save', definition: 'The checkpoint verb.' }], facts: [{ action: 'add', type: 'project', body: 'Save stages by path.', tags: ['save'] }] });
@@ -96,8 +108,8 @@ test('tags need a definition, near duplicates warn, and aliases match their targ
   assert.match(listed.stdout, /- checkpoint \(1\) alias of save: Alias of save\./);
 });
 
-test('search filters by text, type, slug, date, author, and change state', async () => {
-  const env = await setup();
+test('search filters by text, type, slug, date, author, and change state', async t => {
+  const env = await setup(t);
   await put(env, { source: 'save', slug: 'one', facts: [{ action: 'add', type: 'user', body: 'The user is a staff engineer who likes terse replies.' }] });
   await put(env, { source: 'save', slug: 'two', facts: [{ action: 'add', type: 'project', body: 'Replies in reviews stay terse.' }] });
   const text = await memory(env.repo, env.fake, ['search', 'terse', 'replies']);
@@ -111,8 +123,8 @@ test('search filters by text, type, slug, date, author, and change state', async
   assert.match((await memory(env.repo, env.fake, ['search', '--state', 'active'])).stdout, /No matching facts/);
 });
 
-test('an offline write goes to the spool, and the spool drains through the gate', async () => {
-  const env = await setup();
+test('an offline write goes to the spool, and the spool drains through the gate', async t => {
+  const env = await setup(t);
   env.fake.setOffline(true);
   const offline = await put(env, { source: 'save', slug: 'sp', facts: [{ action: 'add', type: 'project', body: 'Written while offline.' }] });
   assert.equal(offline.code, 0);
@@ -129,8 +141,8 @@ test('an offline write goes to the spool, and the spool drains through the gate'
   assert.equal(readdirSync(join(env.repo.stateDir, 'spool')).length, 0);
 });
 
-test('a store with no bucket keeps working and says transcripts are not stored', async () => {
-  const env = await setup({ bucket: false });
+test('a store with no bucket keeps working and says transcripts are not stored', async t => {
+  const env = await setup(t, { bucket: false });
   await put(env, { source: 'save', slug: 'nb', facts: [{ action: 'add', type: 'project', body: 'No bucket here.' }] });
   const id = rows(env, 'SELECT id FROM facts')[0].id;
   const source = await memory(env.repo, env.fake, ['source', String(id)]);
@@ -138,8 +150,8 @@ test('a store with no bucket keeps working and says transcripts are not stored',
   assert.ok(!env.fake.calls.some(call => call.includes('/r2/')));
 });
 
-test('a missing token names the variable and prints no value', async () => {
-  const env = await setup();
+test('a missing token names the variable and prints no value', async t => {
+  const env = await setup(t);
   const result = await memory(env.repo, env.fake, ['search', 'x'], { env: { WONG_MEMORY_STATE_DIR: env.repo.stateDir } });
   assert.equal(result.code, 0);
   writeFileSync(join(env.repo.root, '.env'), 'OTHER=1\n');
@@ -160,8 +172,8 @@ test('helpers: FTS query, tag normalization, near tags, redaction', () => {
   assert.equal(findCredential('eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4', []), 'JWT');
 });
 
-test('a fact from an earlier notes migration still prints its note', async () => {
-  const env = await setup();
+test('a fact from an earlier notes migration still prints its note', async t => {
+  const env = await setup(t);
   const now = '2026-09-01T00:00:00Z';
   env.fake.db.prepare("INSERT INTO sessions (id, agent, status, raw_key, raw_bytes, updated_at) VALUES ('migration:old', 'migration', 'captured', 'migration/old.md', 14, ?)").run(now);
   const { id } = env.fake.db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at) VALUES ('old', 'project', 'The cap is 100 lines.', 'migration:old', 'migration', ?) RETURNING id").get(now);
@@ -171,8 +183,8 @@ test('a fact from an earlier notes migration still prints its note', async () =>
   assert.match(source.stdout, /Old note text\./);
 });
 
-test('no command imports notes', async () => {
-  const env = await setup();
+test('no command imports notes', async t => {
+  const env = await setup(t);
   const file = writeJsonFile(env.repo.home, 'migration.json', { notes: [{ slug: 'old', text: 'Old note text.', facts: [] }] });
   const before = env.fake.calls.length;
   const result = await memory(env.repo, env.fake, ['import', '--file', file]);
@@ -184,12 +196,12 @@ test('no command imports notes', async () => {
 const putHome = (env, input) => memory(env.repo, env.fake, ['put-facts', '--home', '--file', writeJsonFile(env.repo.home, `home-${Date.now()}-${Math.random()}.json`, input)]);
 const PRIVATE = { source: 'save', slug: 'family', session: 'current', facts: [{ action: 'add', type: 'user', body: "The person's daughter starts school on 2026-10-05." }] };
 
-test('--home with no machine record, or a record with no store, says so and writes nothing', async () => {
-  const env = await setup();
+test('--home with no machine record, or a record with no store, says so and writes nothing', async t => {
+  const env = await setup(t);
   const none = await putHome(env, PRIVATE);
   assert.equal(none.code, 1);
   assert.match(none.stderr, /no home recorded/);
-  writeFileSync(join(env.repo.home, 'machine.json'), JSON.stringify({ home: mkdtempSync(join(tmpdir(), 'not-a-home-')) }));
+  writeFileSync(join(env.repo.home, 'machine.json'), JSON.stringify({ home: tempDir(t, 'not-a-home-') }));
   const bare = await putHome(env, PRIVATE);
   assert.match(bare.stderr, /no home recorded/);
   const other = await memory(env.repo, env.fake, ['live', '--home']);
@@ -197,9 +209,9 @@ test('--home with no machine record, or a record with no store, says so and writ
   assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0);
 });
 
-test("--home writes to home's store with no session id and home's git email", async () => {
-  const env = await setup();
-  await setupHome(env, { email: 'ana@mail.com' });
+test("--home writes to home's store with no session id and home's git email", async t => {
+  const env = await setup(t);
+  await setupHome(t, env, { email: 'ana@mail.com' });
   const result = await putHome(env, PRIVATE);
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /added 1/);
@@ -211,9 +223,9 @@ test("--home writes to home's store with no session id and home's git email", as
   assert.match(local.stdout, /No matching facts/);
 });
 
-test("an offline home keeps the fact in home's spool, never in this repo's", async () => {
-  const env = await setup();
-  const home = await setupHome(env);
+test("an offline home keeps the fact in home's spool, never in this repo's", async t => {
+  const env = await setup(t);
+  const home = await setupHome(t, env);
   env.fake.setOffline(true, 'db-home');
   const result = await putHome(env, PRIVATE);
   assert.equal(result.code, 0, result.stderr);

@@ -3,18 +3,17 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { needs } from './fixtures/needs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const kit = readFileSync(resolve(here, '../../.agents/skills/plan/references/review-kit.html'), 'utf8');
-const requireFromApp = createRequire(resolve(here, '../../app/package.json'));
-// jsdom comes from app/node_modules. Without it the page checks skip and say why.
+// jsdom comes from scripts/tests/node_modules (`npm ci` there).
 let JSDOM, VirtualConsole;
-try { ({ JSDOM, VirtualConsole } = requireFromApp('jsdom')); } catch { /* reported by needsDom */ }
-const needsDom = { skip: JSDOM ? false : 'jsdom cannot be resolved — run `npm ci` in app/ to run the review page checks' };
+try { ({ JSDOM, VirtualConsole } = await import('jsdom')); } catch { /* reported by needsDom */ }
+const needsDom = needs(!JSDOM, 'jsdom cannot be resolved — run `npm ci` in scripts/tests/ to run the review page checks');
 
 const fence = '```';
 const proposal = `# Example
@@ -204,3 +203,16 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
   assert.equal(failure.status, 1);
   assert.match(failure.stderr, /missing/);
 }));
+
+test('a missing test dependency skips locally and fails in CI', () => {
+  const ci = process.env.CI;
+  try {
+    delete process.env.CI;
+    assert.deepEqual(needs(false, 'x'), {});
+    assert.deepEqual(needs(true, 'no jsdom'), { skip: 'no jsdom' });
+    process.env.CI = 'true';
+    assert.throws(() => needs(true, 'no jsdom'), /no jsdom — CI must run these tests/);
+  } finally {
+    if (ci === undefined) delete process.env.CI; else process.env.CI = ci;
+  }
+});

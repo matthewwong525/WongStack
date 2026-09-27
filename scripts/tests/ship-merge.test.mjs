@@ -74,6 +74,14 @@ test('a refused merge deletes nothing', t => {
   assert.doesNotMatch(r.calls, /push origin --delete|pr list/);
 });
 
+test('on the default branch it refuses before any merge call', t => {
+  const r = run(t, { BRANCH_NAME: 'main' });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^merged=no$/m);
+  assert.match(r.stderr, /on the default branch/);
+  assert.doesNotMatch(r.calls, /pr merge|push origin --delete/);
+});
+
 test('a PR that is not MERGED stops before any cleanup', t => {
   const r = run(t, { STATE: 'OPEN' });
   assert.equal(r.status, 1);

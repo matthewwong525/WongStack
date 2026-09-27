@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -25,14 +27,31 @@ const scripts = {
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
 };
 
-const run = (script, args) => spawnSync(process.execPath, [join(repo, script), ...args], { cwd: repo, encoding: 'utf8' });
+// Run from an empty temp dir, with npx, wrangler, and gh stubs first on PATH that record any call
+// and exit 97, so a parser that falls through to the main path reaches nothing live.
+function sandbox(t) {
+  const dir = mkdtempSync(join(tmpdir(), 'cli-conventions-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  const marker = join(dir, 'called');
+  for (const tool of ['npx', 'wrangler', 'gh']) {
+    writeFileSync(join(bin, tool), `#!/bin/sh\necho "${tool} $*" >> "${marker}"\nexit 97\n`);
+    chmodSync(join(bin, tool), 0o755);
+  }
+  const run = (script, args) => spawnSync(process.execPath, [join(repo, script), ...args], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+  const called = () => existsSync(marker) ? readFileSync(marker, 'utf8') : '';
+  return { run, called };
+}
 
 for (const [script, prefix] of Object.entries(scripts)) {
-  test(`${script}: --help prints usage and exits 0; an unknown flag exits 2`, () => {
+  test(`${script}: --help prints usage and exits 0; an unknown flag exits 2`, t => {
+    const { run, called } = sandbox(t);
     const help = run(script, ['--help']);
     assert.equal(help.status, 0, help.stderr);
     assert.match(help.stdout, /usage/i);
     const unknown = run(script, [...prefix, '--no-such-flag']);
     assert.equal(unknown.status, 2, `${unknown.stdout}${unknown.stderr}`);
+    assert.equal(called(), '', 'a live tool was called');
   });
 }

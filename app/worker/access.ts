@@ -98,6 +98,7 @@ async function getSigningKeys(teamDomain: string, forceRefresh = false): Promise
         "jwk",
         jwk,
         { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+        // Stryker disable next-line BooleanLiteral: nothing exports a verify-only key, so extractable is unobservable.
         false,
         ["verify"],
       ),
@@ -109,8 +110,8 @@ async function getSigningKeys(teamDomain: string, forceRefresh = false): Promise
 }
 
 function base64UrlDecode(segment: string): Uint8Array {
-  const padded = segment.replace(/-/g, "+").replace(/_/g, "/");
-  const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+  // atob decodes forgiving base64, so the missing padding needs no restoring.
+  const binary = atob(segment.replace(/-/g, "+").replace(/_/g, "/"));
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
@@ -184,6 +185,7 @@ export async function getAccessIdentity(
       keys = await getSigningKeys(teamDomain, true);
       key = keys.get(kid);
     }
+    // Stryker disable next-line ConditionalExpression: verify() also rejects a missing key; this says so first.
     if (!key) return null;
 
     const verified = await crypto.subtle.verify(

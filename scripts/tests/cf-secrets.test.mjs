@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { logger, pack } from './fixtures/pack.mjs';
 
@@ -130,4 +130,46 @@ test('an account credential in the primary copy is still refused', t => {
   assert.equal(result.status, 1);
   assert.deepEqual(result.calls, []);
   assert.match(result.output, /CLOUDFLARE_API_TOKEN/);
+});
+
+// The account-credential file is refused by name, even behind a symlink, and
+// before `npx` runs at all. Its keys look harmless, so only the file guard stops it.
+test('push refuses a .dev.vars that links to .env, and a file named .env', t => {
+  for (const [name, args, link] of [['symlink', ['push'], true], ['file argument', ['push', 'app/.env'], false]]) {
+    const fixture = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() }, prefix: 'cf-secrets-refuse-' });
+    fixture.write('app/.env', 'API_KEY=1\n');
+    if (link) symlinkSync('.env', join(fixture.root, 'app/.dev.vars'));
+    const result = fixture.run('cf-secrets.mjs', args);
+    assert.equal(result.status, 1, `${name}: ${result.out}`);
+    assert.match(result.out, /refusing to load '\.(dev\.vars|env)' into a Worker/, name);
+    assert.deepEqual(result.calls, [], `${name}: no npx call`);
+  }
+});
+
+// A fake `npx` answering `wrangler secret list` with the names in PROD or
+// STAGING (comma-separated), picked by `--env staging`.
+const secretList = `#!/usr/bin/env bash
+echo "$*" >> "$FAKE_LOG"
+case "$*" in *"--env staging"*) names=$STAGING ;; *) names=$PROD ;; esac
+printf '['; sep=''
+for n in \${names//,/ }; do printf '%s{"name":"%s","type":"secret_text"}' "$sep" "$n"; sep=,; done
+echo ']'
+`;
+
+function checkSecrets(t, env) {
+  const fixture = scaffold(t, { env: { staging: {} } }, { tools: { npx: secretList }, prefix: 'cf-secrets-check-' });
+  return fixture.run('cf-secrets.mjs', ['check'], { env: { CLOUDFLARE_API_TOKEN: 'test', ...env } });
+}
+
+test('check passes when both Workers hold the same secret names', t => {
+  const result = checkSecrets(t, { PROD: 'API_KEY,DB_URL', STAGING: 'DB_URL,API_KEY' });
+  assert.equal(result.status, 0, result.out);
+  assert.match(result.out, /secret names match across both Workers \(2 secret\(s\)\)/);
+  assert.deepEqual(result.calls, ['wrangler secret list --format json', 'wrangler secret list --env staging --format json']);
+});
+
+test('check fails and names a secret only one Worker holds', t => {
+  const result = checkSecrets(t, { PROD: 'API_KEY,DB_URL', STAGING: 'API_KEY' });
+  assert.equal(result.status, 1, result.out);
+  assert.match(result.out, /secret 'DB_URL' is set on production but missing from staging/);
 });

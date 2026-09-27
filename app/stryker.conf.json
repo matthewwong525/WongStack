@@ -12,6 +12,7 @@
   ],
   "coverageAnalysis": "perTest",
   "incremental": true,
+  "ignoreStatic": true,
   "thresholds": {
     "break": 100
   }

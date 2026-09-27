@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -66,4 +66,38 @@ test('each browser journey runs in a throwaway profile, removed when the walk en
   const used = readFileSync(join(root, 'profile'), 'utf8');
   assert.match(used, /wong-verify-profile\.[^/]+\/page$/, 'not the personal profile');
   assert.equal(existsSync(dirname(used)), false, 'the profile folder is removed');
+});
+
+// Cleanup runs with TMPDIR set to a folder inside this test's own temp dir, so
+// a wrong answer could only ever remove something the test made.
+function cleanupFixture(t) {
+  const base = mkdtempSync(join(tmpdir(), 'verify-cleanup-'));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  for (const dir of ['tmp', 'home/wong-verify-x', 'outside']) mkdirSync(join(base, dir), { recursive: true });
+  writeFileSync(join(base, 'outside/keep'), '');
+  const cleanup = runDir => spawnSync('bash', [script, 'cleanup', runDir], { encoding: 'utf8', env: { ...process.env, TMPDIR: join(base, 'tmp'), HOME: join(base, 'home') } });
+  return { base, tmp: join(base, 'tmp'), cleanup };
+}
+
+test('cleanup refuses a path it could not have made and removes nothing', t => {
+  const { base, tmp, cleanup } = cleanupFixture(t);
+  mkdirSync(join(tmp, 'wong-verify-a'));
+  symlinkSync(join(base, 'outside'), join(tmp, 'wong-verify-link'));
+  for (const runDir of [join(base, 'home/wong-verify-x'), join(tmp, 'wong-verify-a/../..'), join(tmp, 'wong-verify-link')]) {
+    const result = cleanup(runDir);
+    assert.equal(result.status, 1, `${runDir}: ${result.stdout}`);
+    assert.match(result.stderr, /refusing to remove/);
+  }
+  for (const kept of ['home/wong-verify-x', 'tmp/wong-verify-a', 'tmp/wong-verify-link', 'outside/keep']) {
+    assert.ok(existsSync(join(base, kept)), `${kept} was removed`);
+  }
+});
+
+test('cleanup removes a real run directory from the temp dir', t => {
+  const { tmp, cleanup } = cleanupFixture(t);
+  const runDir = execFileSync('mktemp', ['-d', join(tmp, 'wong-verify-XXXXXX')], { encoding: 'utf8' }).trim();
+  writeFileSync(join(runDir, 'shot.png'), '');
+  const result = cleanup(runDir);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(runDir), false);
 });
