@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.12.1 — The README leads with how Matt uses AI
+
+- **The README opens with whose way this is.** Its first screen says WongStack is Matt's opinionated way of using AI, for Matt's business, Claymoo, and for everything else. The example asks come mostly from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers, plus one for planning the week. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.
+- **A company name can appear in public files.** The private-name check in `scripts/tests/private-names.test.mjs` now blocks `ClaymooApp`, `WongOS`, and `wongstack-cloud`, not the bare word "Claymoo", so the README can name the company while private repositories stay out.
+- **Source repo only.** `AGENTS.md`'s "What this is" line now describes an assistant a business owner and their team run their business on. The `WONG-STACK` block is unchanged.
+
+**Updating.** Nothing changes in installed repos.
+
 ## 26.12.0 — The plan's link says what to do next
 
 - **A waiting plan tells you how to build it.** When a plan stops for your review, the line right under its link says *When you're ready, type `/apply` to build it.* It shows after a plan made on its own, a bare `/wong-sync`, notes pasted from the plan's page, and the reply to *Review the plan*.

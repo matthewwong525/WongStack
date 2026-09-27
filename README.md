@@ -4,15 +4,16 @@
 [![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
-**Your own AI assistant that remembers you and gets things done.** Ask in plain words, the way you would ask a person. It does the task, keeps what it learns about you, and can build and publish small apps for you. Everything it knows lives in files you own, not in someone else's app.
+**My opinionated way of using AI. Now yours.** I'm Matt. I run Claymoo, a clay-kit company, with a small team, and I use AI for almost everything: the business, the tools my team uses every day, and my own errands. WongStack is how I do it, set up for you to copy and change. Ask in plain words, the way you'd message a coworker. It does the work, builds the tools, and remembers how you work. Everything it builds and learns lives in accounts you own.
 
 ## What you can ask
 
-- *"Find three quiet cafés near the office that open before 8."*
-- *"Plan my week around the Thursday deadline."*
-- *"Every weekday at 9, list what is due today."* With the optional [Paseo](https://paseo.sh) app, it runs on a schedule.
-- *"Make me a page that splits a restaurant bill."* You read a short plan, get a link to try it, and say publish to put it live.
-- *"Remember that I prefer short answers."* It still knows next week.
+- *"Time each order we pack, and tell me what packing costs us."* Our warehouse team packs every order with the app it built.
+- *"Show our profit for each sales channel, after ads, shipping, and fees."* I check it on my phone every morning before I decide where to spend on ads.
+- *"Make a brief page for our designers."* You read a short plan, get a link to try it, and say publish to put it live.
+- *"Every weekday at 9, list the orders that haven't shipped."* With the optional [Paseo](https://paseo.sh) app, it runs on a schedule.
+- *"Remember that the ops lead signs off on refunds."* The whole team's chats know it next week.
+- *"Plan my week around Thursday's supplier call."* The business and the rest of your life, in one chat.
 
 It asks before it sends, buys, or deletes anything.
 
@@ -39,10 +40,10 @@ You end with a working assistant, a starter site online, and memory that carries
 
 ## What you get
 
-- **An assistant that remembers.** Each chat starts with what earlier chats learned about you and your work. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
-- **Small apps from one request.** A [mini app](wiki/stack/mini-apps.md) gets a plan and a link to try, and goes live at `/apps/<name>/` when you publish it.
+- **One memory for the whole team.** Each chat starts with what earlier chats learned about your business and the people in it. [Memory](wiki/development/memory.md) is kept in your own Cloudflare account.
+- **Tools that fit your business, from one request.** A [mini app](wiki/stack/mini-apps.md) gets a plan and a link to try, and goes live at `/apps/<name>/` when you publish it.
 - **Your own site, online for free.** Every change gets its own link to look at before it goes live.
-- **A notebook that grows.** What the assistant learns — how you like work done, who is who — goes into [a wiki](wiki/README.md) it reads next time.
+- **A notebook that grows.** What the assistant learns — how your business runs, who is who — goes into [a wiki](wiki/README.md) it reads next time.
 - **Your home base.** Your [home](wiki/development/home.md) folder carries who you are into every other project.
 - **No lock-in.** It is plain files in a folder you own. Switch agents, and the knowledge comes with you.
 
