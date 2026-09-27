@@ -3,13 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 25.9.0 — Newest building blocks
+## 25.9.0 — Newest building blocks, except Vitest 5
 
-- **The app's building blocks are current.** React and React DOM 19.3, Vitest and its coverage tool 5.0.2, Vite 8.3.1, the React plugin 6.1.1, jsdom 30.1.1, knip 6.38.0, oxlint 1.85.0, and jscpd 5.3.2, in `app/package.json` and its lockfile. `@types/node` stays on 22 to match `.nvmrc`. Nothing in the app changes.
+- **The app's building blocks are current.** React and React DOM 19.3, Vite 8.3.1, the React plugin 6.1.1, jsdom 30.1.1, knip 6.38.0, oxlint 1.85.0, and jscpd 5.3.2, in `app/package.json` and its lockfile. `@types/node` stays on 22 to match `.nvmrc`. Nothing in the app changes.
+- **Vitest stays on 4.** Stryker's Vitest runner does not work with Vitest 5 yet ([stryker-js #6210](https://github.com/stryker-mutator/stryker-js/issues/6210)): each mutant runs no tests, so the mutation score falls to near zero and the Test check fails. Move `vitest` and `@vitest/coverage-v8` together once Stryker ships the fix.
 - **The workflows run on the newest GitHub setup steps.** `actions/checkout` v7.0.1 and `actions/setup-node` v7.0.0, pinned by SHA, in `test.yml` and `deploy.yml` (and the meta-only `payload.yml` and `release.yml`). No setting changes: every step already sets `cache: npm`.
-- **One change instead of ten.** This replaces ten separate Dependabot pull requests.
+- **One change instead of eight.** This replaces eight separate Dependabot pull requests.
 
-**Updating.** `/wong-sync` brings the new versions and pins. If you added your own tests, Vitest 5 clears mocks before each test and fails a test whose async assertion is not awaited; see [its release notes](https://github.com/vitest-dev/vitest/releases/tag/v5.0.0). The sync changes `test.yml`, so its change needs a `Check:` bullet for it; CI names the file.
+**Updating.** `/wong-sync` brings the new versions and pins. If Dependabot offers Vitest 5 in your repo, leave it until Stryker fixes #6210. The sync changes `test.yml`, so its change needs a `Check:` bullet for it; CI names the file.
 
 ## 25.8.0 — Offers to make a task easier next time
 
