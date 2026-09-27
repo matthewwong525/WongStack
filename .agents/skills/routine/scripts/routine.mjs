@@ -362,7 +362,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     return EXIT.ok;
   } catch (error) {
     const code = error instanceof RoutineError ? error.code : 1;
-    process.stdout.write(`${JSON.stringify({ ok: false, code, error: error.message, ...(error.extra ?? {}) }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ ok: false, code, error: error.message, ...error.extra }, null, 2)}\n`);
     return code;
   }
 }

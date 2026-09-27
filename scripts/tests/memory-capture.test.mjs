@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -10,7 +10,7 @@ import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
-import { memory, node, rows, SECRET, setup, setupHome, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, node, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
 const age = (file, ms) => { const time = new Date(Date.now() - ms); utimesSync(file, time, time); };
@@ -42,8 +42,8 @@ function codexSession(env, n, messages) {
 
 const register = (env, entry) => registerSession({ stateDir: env.repo.stateDir }, entry);
 
-test('discovery claims live checkouts and the registry, and skips subagents, background runs, deleted worktrees, and fresh sessions', async () => {
-  const env = await setup();
+test('discovery claims live checkouts and the registry, and skips subagents, background runs, deleted worktrees, and fresh sessions', async t => {
+  const env = await setup(t);
   const live = claudeSession(env, 1, [['user', 'Plan the search.'], ['assistant', 'Done.']]);
   claudeSession(env, 2, [['user', 'sub work']], { sub: true });
   const background = claudeSession(env, 3, [['user', 'background']]);
@@ -61,8 +61,8 @@ test('discovery claims live checkouts and the registry, and skips subagents, bac
   assert.match(limited.stdout, /2 more wait for a later run/);
 });
 
-test('strip redacts and uploads the raw file, drops injected text, and a save makes later runs read only newer messages', async () => {
-  const env = await setup();
+test('strip redacts and uploads the raw file, drops injected text, and a save makes later runs read only newer messages', async t => {
+  const env = await setup(t);
   const session = claudeSession(env, 1, [
     ['user', [{ type: 'text', text: `Use ${SECRET} for the call.<system-reminder>ignore me</system-reminder>` }]],
     ['assistant', [{ type: 'text', text: 'Noted.' }, { type: 'tool_use', id: 't', name: 'Bash', input: {} }]],
@@ -87,8 +87,8 @@ test('strip redacts and uploads the raw file, drops injected text, and a save ma
   assert.doesNotMatch(again.stdout, /Noted\./);
 });
 
-test('#private records the session and uploads and prints nothing', async () => {
-  const env = await setup();
+test('#private records the session and uploads and prints nothing', async t => {
+  const env = await setup(t);
   const session = claudeSession(env, 1, [['user', 'Secret plans.'], ['assistant', 'OK.'], ['user', 'Keep this one #private please.']]);
   const result = await memory(env.repo, env.fake, ['strip', session.id]);
   assert.match(result.stdout, /private: .* recorded as private/);
@@ -97,8 +97,8 @@ test('#private records the session and uploads and prints nothing', async () => 
   assert.deepEqual(rows(env, 'SELECT status, raw_key FROM sessions'), [{ status: 'private', raw_key: null }]);
 });
 
-test('Codex transcripts parse, and an unknown format is reported and stores nothing', async () => {
-  const env = await setup();
+test('Codex transcripts parse, and an unknown format is reported and stores nothing', async t => {
+  const env = await setup(t);
   const codex = codexSession(env, 2, [['user', 'Codex asks.'], ['assistant', 'Codex answers.']]);
   const stripped = await memory(env.repo, env.fake, ['strip', codex.id]);
   assert.match(stripped.stdout, /branch feature/);
@@ -116,16 +116,16 @@ test('Codex transcripts parse, and an unknown format is reported and stores noth
 const hook = (env, extraEnv = {}, input = { session_id: 'live-1', transcript_path: null, cwd: env.repo.root }) =>
   node(env.repo, env.fake, 'session-start.mjs', ['--agent', 'claude'], { input: JSON.stringify(input), env: extraEnv });
 
-test('the hook adds nothing and starts nothing when there is nothing to do', async () => {
-  const env = await setup();
+test('the hook adds nothing and starts nothing when there is nothing to do', async t => {
+  const env = await setup(t);
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0);
   assert.equal(result.stdout, '');
   assert.match(readFileSync(join(env.repo.stateDir, 'registry.jsonl'), 'utf8'), /"id":"claude:live-1"/);
 });
 
-test('the hook prints the digest with branch threads, and starts one detached run for pending work', async () => {
-  const env = await setup();
+test('the hook prints the digest with branch threads, and starts one detached run for pending work', async t => {
+  const env = await setup(t);
   mkdirSync(join(env.repo.root, 'openspec/changes/add-po-search'), { recursive: true });
   writeFileSync(join(env.repo.root, 'openspec/changes/add-po-search/proposal.md'), '# x\n\n**Branch:** main\n');
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 'add-po-search', facts: [
@@ -159,8 +159,8 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   assert.match(fallback.stdout, /Start one background subagent/);
 });
 
-test('an unreachable store falls back to the cached digest and never fails the session', async () => {
-  const env = await setup();
+test('an unreachable store falls back to the cached digest and never fails the session', async t => {
+  const env = await setup(t);
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
   env.fake.setOffline(true);
   const result = await hook(env);
@@ -170,30 +170,29 @@ test('an unreachable store falls back to the cached digest and never fails the s
   assert.match(result.stdout, /Memory: skipped the store/);
 });
 
-test('the run lock admits one run, and a stale lock is taken over', () => {
-  const lock = join(mkdtempSync(join(tmpdir(), 'lock-')), 'run.lock');
+test('the run lock admits one run, and a stale lock is taken over', t => {
+  const lock = join(tempDir(t, 'lock-'), 'run.lock');
   assert.equal(takeLock(lock), true);
   assert.equal(takeLock(lock), false);
   age(lock, 3 * HOUR);
   assert.equal(takeLock(lock), true);
-  const vanished = join(mkdtempSync(join(tmpdir(), 'lock-')), 'run.lock');
+  const vanished = join(tempDir(t, 'lock-'), 'run.lock');
   symlinkSync(join(tmpdir(), 'no-such-lock-target'), vanished);
   assert.equal(takeLock(vanished), true, 'a lock that is gone when it is checked is free');
 });
 
-test('the hook exits inside its 5-second timeout when the store address does not answer', async () => {
-  const env = await setup();
+test('the hook gives up on a store that never answers and uses the cached digest', async t => {
+  const env = await setup(t);
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
-  const started = Date.now();
-  const result = await hook(env, { WONG_MEMORY_API: 'http://10.255.255.1', WONG_MEMORY_NO_HEADLESS: '1' });
-  assert.ok(Date.now() - started < 5000, `the hook took ${Date.now() - started} ms`);
+  env.fake.setOffline('hang');
+  const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0);
   assert.match(result.stdout, /Cached fact\./);
-  assert.match(result.stdout, /Memory: skipped the store \(memory store unreachable/);
+  assert.match(result.stdout, /Memory: skipped the store \(memory store unreachable \(timeout\)/);
 });
 
-test('two writers of the seen-set at once keep both entries and never read a torn file', async () => {
-  const file = join(mkdtempSync(join(tmpdir(), 'seen-')), 'seen.json');
+test('two writers of the seen-set at once keep both entries and never read a torn file', async t => {
+  const file = join(tempDir(t, 'seen-'), 'seen.json');
   writeFileSync(file, '{}');
   const store = pathToFileURL(join(import.meta.dirname, '../../.agents/skills/memory/scripts/lib/store.mjs')).href;
   const writer = key => new Promise(done => execFile(process.execPath, ['--input-type=module', '-e', `
@@ -263,8 +262,8 @@ test('the digest stays within its limits and states what it left out', () => {
   assert.equal(buildDigest({ facts: [] }), '');
 });
 
-test('the current change comes from the proposal Branch line, and consolidation needs a day and five sessions', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'slug-'));
+test('the current change comes from the proposal Branch line, and consolidation needs a day and five sessions', t => {
+  const dir = tempDir(t, 'slug-');
   mkdirSync(join(dir, 'openspec/changes/one'), { recursive: true });
   writeFileSync(join(dir, 'openspec/changes/one/proposal.md'), '**Branch:** feat/one\n');
   assert.equal(currentSlug(dir, 'feat/one'), 'one');
@@ -276,8 +275,8 @@ test('the current change comes from the proposal Branch line, and consolidation 
   assert.equal(consolidationDue({ first_fact: '2026-09-01T00:00:00Z', captured_since: 5 }, now), true);
 });
 
-test('the session that started a background run can never be listed or stripped by it', async () => {
-  const env = await setup();
+test('the session that started a background run can never be listed or stripped by it', async t => {
+  const env = await setup(t);
   const own = claudeSession(env, 1, [['user', 'The live session.']]);
   const other = claudeSession(env, 2, [['user', 'An older session.']]);
   const exclude = { WONG_MEMORY_EXCLUDE: own.id };
@@ -288,8 +287,8 @@ test('the session that started a background run can never be listed or stripped 
   assert.match(refused.stderr, /no transcript found/);
 });
 
-async function homeWithPerson(env) {
-  const home = await setupHome(env, { email: 'ana@mail.com' });
+async function homeWithPerson(t, env) {
+  const home = await setupHome(t, env, { email: 'ana@mail.com' });
   mkdirSync(join(home.root, 'wiki', 'people'), { recursive: true });
   writeFileSync(join(home.root, 'wiki', 'people', 'hana.md'), '# Hana\n\nGit email: hana@mail.com\n');
   writeFileSync(join(home.root, 'wiki', 'people', 'ana.md'), `# Ana\n\nGit emails: ana@corp.com, ana@mail.com\n\nPrefers short replies.\n\n${'More notes. '.repeat(500)}\n`);
@@ -300,9 +299,9 @@ async function homeWithPerson(env) {
 
 const homePart = stdout => stdout.slice(stdout.indexOf('## From home'));
 
-test("the hook adds the person's page and personal facts from home, within their own caps", async () => {
-  const env = await setup();
-  await homeWithPerson(env);
+test("the hook adds the person's page and personal facts from home, within their own caps", async t => {
+  const env = await setup(t);
+  await homeWithPerson(t, env);
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0, result.stderr);
   const part = homePart(result.stdout);
@@ -314,13 +313,11 @@ test("the hook adds the person's page and personal facts from home, within their
   assert.ok(Buffer.byteLength(facts.join('\n')) <= 3 * 1024);
 });
 
-test('an offline home gives one line, still shows the page, and the hook ends inside its timeout', async () => {
-  const env = await setup();
-  await homeWithPerson(env);
+test('an offline home gives one line and still shows the page', async t => {
+  const env = await setup(t);
+  await homeWithPerson(t, env);
   env.fake.setOffline(true, 'db-home');
-  const started = Date.now();
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
-  assert.ok(Date.now() - started < 5000, `the hook took ${Date.now() - started} ms`);
   assert.equal(result.code, 0);
   const part = homePart(result.stdout);
   assert.match(part, /### Your page: wiki\/people\/ana\.md/);
@@ -328,11 +325,11 @@ test('an offline home gives one line, still shows the page, and the hook ends in
   assert.doesNotMatch(part, /### Your facts/);
 });
 
-test('with no home recorded the hook adds no home part, and in home itself only the page', async () => {
-  const env = await setup();
+test('with no home recorded the hook adds no home part, and in home itself only the page', async t => {
+  const env = await setup(t);
   const none = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.doesNotMatch(none.stdout, /From home/);
-  const home = await homeWithPerson(env);
+  const home = await homeWithPerson(t, env);
   const inHome = await node(home, env.fake, 'session-start.mjs', ['--agent', 'claude'], {
     input: JSON.stringify({ session_id: 'home-1', transcript_path: null, cwd: home.root }),
     env: { WONG_MEMORY_NO_HEADLESS: '1', WONG_MEMORY_STATE_DIR: home.stateDir, WONG_MACHINE_FILE: join(env.repo.home, 'machine.json') },

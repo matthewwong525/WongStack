@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.3.0 — Tests that guard AI-written code
+
+- **The app carries no browser.** The review page's browser test moves from `app/review/` to WongStack's own checks (`scripts/tests/review-browser.test.mjs`), on `playwright-core` and the CI runner's Google Chrome. The scaffold drops `playwright`, `review/*.test.mjs` leaves its `test` script and `knip.jsonc`, and `test.yml` no longer installs Chromium, about 19 seconds per run.
+- **Mutation testing skips static mutants.** `app/stryker.conf.json` sets `ignoreStatic`. A static mutant changes code that runs once when a module loads, so testing it reruns every test; in one repo they were 17% of the mutants and 81% of the time. The 100% break threshold stays for every other mutant.
+- **The login check is tested with a real signature.** `app/worker/access.test.ts` signs tokens with a key generated in the test instead of mocking `crypto.subtle`, and a token signed by another key is refused. `access.ts` drops its base64 padding code, which `atob` never needed, and marks two mutants that change nothing observable with a `Stryker disable` comment and its reason.
+- **The walkthrough cleanup deletes only its own temp folders.** `verify-staging.sh cleanup` resolves the path and accepts only a `wong-verify-*` or `wong-walk-*` directory directly inside the system temp directory.
+- **Memory reports real supersedes.** `memory.mjs put-facts` counts a supersede only when the store marked the old fact; one that names a missing or already-superseded fact counts as added.
+- **Scripts pass shellcheck.** `scripts/lib-wrangler-config.sh` declares that its callers read the variables it sets; two small lint fixes in the memory and routine scripts. No behavior changes.
+
+WongStack's own checks, which no repo receives, now test each guard script's refusal path, lint the scripts, run shellcheck, and hold script coverage to a floor that only rises.
+
+**Updating.** `/wong-sync` removes `app/review/` and `playwright` from `app/package.json` and the browser step from `test.yml`, and adds `ignoreStatic`. The first CI run after it tests every mutant once, because the Stryker config changed. If you added your own browser tests to the app, keep `playwright` and add your own install step.
+
 ## 25.2.1 — Each rule written once, and old names caught
 
 - **Each rule has one owner.** Skills, references, and wiki pages that restated a rule now link its owner: the git boundary, the gate, the ask format, credential exclusion, the widen, the Access service token, the walk mechanics, and the mini-app flow. `save/references/archived-save.md` folds into `save/SKILL.md` ([the archived handoff](.agents/skills/save/SKILL.md#the-archived-handoff)), and `save/references/spec-sync.md` into [the CLI contract](.agents/skills/plan/references/openspec-cli.md#reconcile-deltas). Pasted review notes move from `/continue` to [`/plan`](.agents/skills/plan/SKILL.md#review-notes). No step, command, or behavior changes.

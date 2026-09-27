@@ -1,0 +1,12 @@
+{
+  "name": "wongstack-payload-tests",
+  "private": true,
+  "type": "module",
+  "description": "WongStack's own test dependencies. Meta-only: no target receives this file, and the core test workflow never discovers it.",
+  "devDependencies": {
+    "c8": "12.0.0",
+    "jsdom": "30.0.1",
+    "oxlint": "1.78.0",
+    "playwright-core": "1.63.0"
+  }
+}

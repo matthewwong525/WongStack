@@ -10,7 +10,8 @@ const NEW = 'b'.repeat(40);
 const OLD = 'a'.repeat(40);
 
 // A fake gh answers from env: PR heads in order (the last repeats), the checks
-// output, and stderr for each call. A fake git gives HEAD and the repo root.
+// output, and stderr for each call. NO_JSON makes it an older gh without
+// --json. A fake git gives HEAD and the repo root.
 const FAKE_GH = `#!/usr/bin/env bash
 echo "$*" >> "$FAKE_DIR/calls"
 case "$1 $2" in
@@ -21,7 +22,8 @@ case "$1 $2" in
     i=$(( n <= \${#heads[@]} ? n - 1 : \${#heads[@]} - 1 ))
     echo "\${heads[$i]}" ;;
   "pr checks")
-    [ "$3" = "--help" ] && { echo "  --json fields"; exit 0; }
+    [ "$3" = "--help" ] && { [ -n "\${NO_JSON:-}" ] || echo "  --json fields"; exit 0; }
+    [ -n "\${NO_JSON:-}" ] && [ "$3" = "--json" ] && { echo "unknown flag: --json" >&2; exit 1; }
     [ -n "\${CHECKS_ERR:-}" ] && echo "$CHECKS_ERR" >&2
     [ -n "\${CHECKS:-}" ] && printf '%b\\n' "$CHECKS"
     exit 0 ;;
@@ -35,7 +37,7 @@ case "$*" in
 esac
 `;
 
-function run(t, { env = {}, workflows = true } = {}) {
+function run(t, { env = {}, workflows = true, minutes = '1' } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'wait-checks-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(path.join(dir, 'bin'));
@@ -46,7 +48,7 @@ function run(t, { env = {}, workflows = true } = {}) {
     chmodSync(path.join(dir, 'bin', name), 0o755);
   }
   writeFileSync(path.join(dir, 'calls'), '');
-  const result = spawnSync('bash', [script, '1'], {
+  const result = spawnSync('bash', [script, minutes], {
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -98,4 +100,30 @@ test('an auth failure is UNKNOWN with gh\'s message', t => {
 test('passing checks on local HEAD are SUCCESS', t => {
   const { out } = run(t, { env: { CHECKS: `${PASS}\\nskipping\\tlint\\thttps://ci/2` } });
   assert.match(out, /RESULT: SUCCESS/);
+});
+
+test('a failed check is FAILURE and names it', t => {
+  const { out } = run(t, { env: { CHECKS: `${PASS}\\nfail\\te2e\\thttps://ci/2` } });
+  assert.match(out, /RESULT: FAILURE/);
+  assert.match(out, /- e2e {2}https:\/\/ci\/2/);
+  assert.doesNotMatch(out, /- unit/);
+});
+
+test('a cancelled check is FAILURE', t => {
+  const { out } = run(t, { env: { CHECKS: `${PASS}\\ncancel\\te2e\\thttps://ci/2` } });
+  assert.match(out, /RESULT: FAILURE/);
+  assert.match(out, /- e2e/);
+});
+
+test('checks that never finish are TIMEOUT with the pending names', t => {
+  const { out } = run(t, { minutes: '0', env: { CHECKS: `${PASS}\\npending\\te2e\\thttps://ci/2` } });
+  assert.match(out, /RESULT: TIMEOUT/);
+  assert.match(out, /- e2e \(still running\)/);
+});
+
+test('a gh without --json falls back to plain text', t => {
+  const { out, calls } = run(t, { env: { NO_JSON: '1', CHECKS: 'unit\\tpass\\t1m\\thttps://ci/1\\ne2e\\tfail\\t2m\\thttps://ci/2' } });
+  assert.match(out, /RESULT: FAILURE/);
+  assert.match(out, /- e2e {2}https:\/\/ci\/2/);
+  assert.doesNotMatch(calls, /pr checks --json/);
 });

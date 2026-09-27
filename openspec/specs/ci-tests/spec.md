@@ -111,7 +111,7 @@ The default suite SHALL instead ship **with the app scaffold**, in the app's own
 
 The test pipeline SHALL remain able to find that suite without any root manifest, through the subdirectory discovery the workflow already performs. A repo whose application lives in a subdirectory SHALL be covered with no configuration and no file at its root.
 
-WongStack SHALL use the suite on **its own application** — the Worker code the scaffold ships, whose identity module is the file an adopter is most likely to reimplement incorrectly. It SHALL NOT be required to test its own toolkit scripts; whether those deserve a suite of their own is a separate question this capability does not answer.
+WongStack SHALL use the suite on **its own application** — the Worker code the scaffold ships, whose identity module is the file an adopter is most likely to reimplement incorrectly. WongStack's toolkit scripts and skill files SHALL be tested by the meta-only payload checks, never by the shipped suite, so a target neither runs nor pays for tests of files it does not edit. The core test workflow SHALL NOT install a browser.
 
 #### Scenario: A repo with no npm toolchain receives no manifest
 
@@ -136,6 +136,11 @@ WongStack SHALL use the suite on **its own application** — the Worker code the
 - **WHEN** WongStack's own CI runs
 - **THEN** the suite exercises the Worker code the scaffold ships, including the Access identity module's rejection paths
 - **AND** a regression in it fails the check
+
+#### Scenario: A target's test run installs no browser
+
+- **WHEN** the core test workflow runs the app suite in any repo
+- **THEN** no step installs a browser or its system packages
 
 ### Requirement: Workflows are pinned, bounded, and kept current
 

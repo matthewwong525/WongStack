@@ -1,0 +1,12 @@
+{
+  "all": true,
+  "src": ["scripts", ".agents/skills"],
+  "include": ["scripts/*.mjs", ".agents/skills/*/scripts/**/*.mjs"],
+  "exclude": ["scripts/tests/**"],
+  "reporter": ["text-summary"],
+  "reports-dir": "scripts/tests/coverage",
+  "temp-directory": "scripts/tests/coverage/tmp",
+  "check-coverage": true,
+  "lines": 85,
+  "branches": 81
+}

@@ -294,15 +294,22 @@ publish)
 # ──────────────────────────────────────────────────────────────────────────────
 cleanup)
   RUN_DIR="${2:-}"
-  # Only ever remove a directory this script made, under the system temp dir.
+  # Only ever remove a directory this script could have made: an existing
+  # directory directly inside the system temp dir, judged after realpath has
+  # resolved `..` and symlinks, so `$HOME/wong-verify-x`, a `..` climb, or a
+  # wong-verify-* link pointing elsewhere is refused and nothing is removed.
   # Nothing the walkthrough writes has ever been inside the repo, so there is
   # nothing here that could touch the working tree even if this were wrong.
   # The wong-walk-* pattern is accepted alongside wong-verify-* so a run
   # directory left by the previous skill name can still be cleaned.
-  case "$RUN_DIR" in
-    */wong-verify-*|*/wong-walk-*) rm -rf "$RUN_DIR"; echo "cleaned $RUN_DIR" ;;
-    *) echo "refusing to remove '$RUN_DIR' — not a walkthrough run directory" >&2; exit 1 ;;
-  esac
+  REAL=$(realpath -- "$RUN_DIR" 2>/dev/null) || REAL=""
+  TMP_ROOT=$(realpath -- "${TMPDIR:-/tmp}" 2>/dev/null) || TMP_ROOT=""
+  case "${REAL##*/}" in wong-verify-*|wong-walk-*) OURS=1 ;; *) OURS=0 ;; esac
+  if [ "$OURS" = 1 ] && [ -n "$TMP_ROOT" ] && [ -d "$REAL" ] && [ "$(dirname -- "$REAL")" = "$TMP_ROOT" ]; then
+    rm -rf -- "$REAL"; echo "cleaned $RUN_DIR"
+  else
+    echo "refusing to remove '$RUN_DIR' — not a walkthrough run directory in ${TMP_ROOT:-the temp dir}" >&2; exit 1
+  fi
   ;;
 
 *)

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The module holds a `keyCache` at module scope. Every test imports it fresh
 // through `vi.resetModules()`, so a key stubbed in one case cannot leak into a
@@ -95,15 +95,16 @@ describe("getAccessIdentity — rejections that need no key", () => {
       ).toBeNull();
     }
 
-    const atobSpy = vi.fn(globalThis.atob);
-    vi.stubGlobal("atob", atobSpy);
-    const complete = makeToken({ alg: "RS256", kid: "kid-1" }, { email: "a@example.com" });
-    for (const token of [`.${complete.split(".").slice(1).join(".")}`, `${complete.split(".")[0]}..x`, `${complete.slice(0, complete.lastIndexOf("."))}.`]) {
+    // A well-formed header with one segment emptied must still stop before any
+    // key fetch: an empty payload or signature is not worth a network call.
+    const [header, payload] = makeToken({ alg: "RS256", kid: "kid-1" }, {}).split(".");
+    for (const token of [`.${payload}.x`, `${header}..x`, `${header}.${payload}.`]) {
       expect(
         await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
+        token,
       ).toBeNull();
     }
-    expect(atobSpy).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("rejects an algorithm other than RS256, or a header with no kid, before fetching a key", async () => {
@@ -131,27 +132,60 @@ describe("getAccessIdentity — rejections that need no key", () => {
 // The headline behaviour, and the one the header-trust reimplementation breaks:
 // Access sends no email header for a service token, so the identity has to come
 // out of the verified assertion.
-describe("getAccessIdentity — the service-token identity", () => {
+//
+// Every accepted token here carries a real RS256 signature. The test generates
+// a key pair, serves the public half as the team's certificate set, and signs
+// with the private half; the platform's key import and signature check run for
+// real, so a wrong algorithm, a malformed key, or a decoding fault fails a case.
+describe("getAccessIdentity — verified assertions", () => {
   const KID = "kid-1";
-  const SIGNING_KEY = { fake: "imported-key" } as unknown as CryptoKey;
+  const RS256 = {
+    name: "RSASSA-PKCS1-v1_5",
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: "SHA-256",
+  };
 
   let getAccessIdentity: typeof import("./access").getAccessIdentity;
-  let verify: ReturnType<typeof vi.fn>;
+  let signingKey: CryptoKeyPair;
+  let otherKey: CryptoKeyPair;
+  let publicJwk: JsonWebKey & { kid: string };
+
+  const serveCerts = (keys: unknown[]) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ keys })),
+    );
+
+  /**
+   * A token signed with `privateKey`. A `jti` nonce is bumped until the
+   * signature holds both `-` and `_`, so every case exercises the URL-safe
+   * decoding rather than passing on a lucky signature.
+   */
+  async function signToken(
+    header: Record<string, unknown>,
+    payload: Record<string, unknown>,
+    privateKey = signingKey.privateKey,
+  ): Promise<string> {
+    for (let jti = 0; ; jti++) {
+      const input = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify({ ...payload, jti }))}`;
+      const bytes = await crypto.subtle.sign(RS256.name, privateKey, new TextEncoder().encode(input));
+      const signature = Buffer.from(bytes).toString("base64url");
+      if (signature.includes("-") && signature.includes("_")) return `${input}.${signature}`;
+    }
+  }
+
+  const bearer = (token: string) => requestWith({ "Cf-Access-Jwt-Assertion": token });
+
+  beforeAll(async () => {
+    signingKey = await crypto.subtle.generateKey(RS256, true, ["sign", "verify"]);
+    otherKey = await crypto.subtle.generateKey(RS256, true, ["sign", "verify"]);
+    publicJwk = { ...(await crypto.subtle.exportKey("jwk", signingKey.publicKey)), kid: KID };
+  });
 
   beforeEach(async () => {
     ({ getAccessIdentity } = await loadAccess());
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({ keys: [{ kid: KID, kty: "RSA", n: "x", e: "AQAB" }] }),
-      ),
-    );
-    vi.spyOn(crypto.subtle, "importKey").mockResolvedValue(SIGNING_KEY);
-    verify = vi.fn(async () => true);
-    vi.spyOn(crypto.subtle, "verify").mockImplementation(
-      verify as unknown as typeof crypto.subtle.verify,
-    );
+    serveCerts([publicJwk]);
   });
 
   const claims = (extra: Record<string, unknown>) => ({
@@ -162,98 +196,59 @@ describe("getAccessIdentity — the service-token identity", () => {
   });
 
   it("resolves a common_name with no email to a service identity", async () => {
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1", sub: "" }));
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1", sub: "" }));
 
-    const identity = await getAccessIdentity(
-      requestWith({ "Cf-Access-Jwt-Assertion": token }),
-      ENV,
-    );
+    const identity = await getAccessIdentity(bearer(token), ENV);
 
     expect(identity?.kind).toBe("service");
     expect(identity?.id).toBe("client-id-1");
     expect(identity?.claims.email).toBeUndefined();
-
-    // Assert what the stub was asked to verify, so a path that never ran cannot
-    // hide behind a stub that always says yes: the real key, the token's own
-    // signature bytes, and the header.payload signing input.
-    const [algorithm, key, signature, data] = verify.mock.calls[0]!;
-    expect(algorithm).toBe("RSASSA-PKCS1-v1_5");
-    expect(key).toBe(SIGNING_KEY);
-    expect(new TextDecoder().decode(signature as Uint8Array)).toBe("signature");
-    expect(new TextDecoder().decode(data as Uint8Array)).toBe(
-      token.split(".").slice(0, 2).join("."),
-    );
   });
 
   it("resolves an email claim to a user identity", async () => {
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
 
-    const identity = await getAccessIdentity(
-      requestWith({ "Cf-Access-Jwt-Assertion": token }),
-      ENV,
-    );
-
-    expect(identity).toMatchObject({ id: "human@example.com", kind: "user" });
+    expect(await getAccessIdentity(bearer(token), ENV)).toMatchObject({
+      id: "human@example.com",
+      kind: "user",
+    });
   });
 
-  it("decodes URL-safe signatures with the required padding", async () => {
-    const decode = globalThis.atob;
-    const atobSpy = vi.fn((value: string) => decode(value));
-    vi.stubGlobal("atob", atobSpy);
-    const token = makeToken(
+  it("refuses a token signed by a key outside the served set", async () => {
+    // The forger knows the served kid; only the signature gives it away.
+    const token = await signToken(
       { alg: "RS256", kid: KID },
       claims({ email: "human@example.com" }),
-      "-_8",
+      otherKey.privateKey,
     );
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
-    ).toMatchObject({ id: "human@example.com" });
-    expect(atobSpy).toHaveBeenCalledWith("+/8=");
-    expect(verify.mock.calls[0]?.[2]).toEqual(Uint8Array.from([251, 255]));
+    expect(await getAccessIdentity(bearer(token), ENV)).toBeNull();
+  });
+
+  it("refuses a token whose payload changed after signing", async () => {
+    const [header, , signature] = (
+      await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }))
+    ).split(".");
+    const forged = base64Url(JSON.stringify(claims({ email: "admin@example.com" })));
+
+    expect(await getAccessIdentity(bearer(`${header}.${forged}.${signature}`), ENV)).toBeNull();
   });
 
   it("accepts an audience list but rejects claims with no identity", async () => {
-    const token = makeToken(
-      { alg: "RS256", kid: KID },
-      { ...claims({}), aud: ["another-app", AUD] },
-    );
+    const token = await signToken({ alg: "RS256", kid: KID }, { ...claims({}), aud: ["another-app", AUD] });
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
-    ).toBeNull();
+    expect(await getAccessIdentity(bearer(token), ENV)).toBeNull();
   });
 
-  it("ignores a cert without a key id", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          keys: [
-            { kty: "RSA", n: "unused", e: "AQAB" },
-            { kid: KID, kty: "RSA", n: "x", e: "AQAB" },
-          ],
-        }),
-      ),
-    );
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
+  it("ignores a cert without a key id, even one that could never be imported", async () => {
+    serveCerts([{ kty: "oct", k: "AAAA" }, publicJwk]);
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
-    ).toMatchObject({ id: "human@example.com" });
-    expect(crypto.subtle.importKey).toHaveBeenCalledOnce();
-    expect(crypto.subtle.importKey).toHaveBeenCalledWith(
-      "jwk",
-      { kid: KID, kty: "RSA", n: "x", e: "AQAB" },
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-      false,
-      ["verify"],
-    );
+    expect(await getAccessIdentity(bearer(token), ENV)).toMatchObject({ id: "human@example.com" });
   });
 
   it("reuses a fresh key cache for the same team", async () => {
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
-    const request = requestWith({ "Cf-Access-Jwt-Assertion": token });
+    const request = bearer(await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" })));
 
     expect(await getAccessIdentity(request, ENV)).toMatchObject({ id: "human@example.com" });
     expect(await getAccessIdentity(request, ENV)).toMatchObject({ id: "human@example.com" });
@@ -263,20 +258,15 @@ describe("getAccessIdentity — the service-token identity", () => {
 
   it("refreshes the key cache for another team", async () => {
     const otherTeam = "other-team.cloudflareaccess.com";
-    const first = makeToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
-    const second = makeToken(
+    const first = await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com" }));
+    const second = await signToken(
       { alg: "RS256", kid: KID },
       { ...claims({ email: "human@example.com" }), iss: `https://${otherTeam}` },
     );
 
+    expect(await getAccessIdentity(bearer(first), ENV)).not.toBeNull();
     expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": first }), ENV),
-    ).not.toBeNull();
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": second }), {
-        ...ENV,
-        CF_ACCESS_TEAM_DOMAIN: otherTeam,
-      }),
+      await getAccessIdentity(bearer(second), { ...ENV, CF_ACCESS_TEAM_DOMAIN: otherTeam }),
     ).not.toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
@@ -284,11 +274,12 @@ describe("getAccessIdentity — the service-token identity", () => {
   it("reuses keys before the TTL and refreshes at its boundary", async () => {
     const startedAt = 1_800_000_000_000;
     vi.spyOn(Date, "now").mockReturnValue(startedAt);
-    const token = makeToken(
-      { alg: "RS256", kid: KID },
-      claims({ email: "human@example.com", exp: startedAt / 1000 + 7200 }),
+    const request = bearer(
+      await signToken(
+        { alg: "RS256", kid: KID },
+        claims({ email: "human@example.com", exp: startedAt / 1000 + 7200 }),
+      ),
     );
-    const request = requestWith({ "Cf-Access-Jwt-Assertion": token });
 
     await getAccessIdentity(request, ENV);
     vi.mocked(Date.now).mockReturnValue(startedAt + 1001);
@@ -301,7 +292,7 @@ describe("getAccessIdentity — the service-token identity", () => {
   });
 
   it("reads the assertion from the browser cookie as well as the header", async () => {
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1" }));
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1" }));
 
     for (const cookie of [
       `CF_Authorization=${token}`,
@@ -309,94 +300,42 @@ describe("getAccessIdentity — the service-token identity", () => {
       `other=x; CF_Authorization=${token}`,
     ]) {
       const identity = await getAccessIdentity(requestWith({ Cookie: cookie }), ENV);
-      expect(identity?.kind).toBe("service");
+      expect(identity?.kind, cookie).toBe("service");
     }
   });
 
-  it("returns null when the signature does not verify", async () => {
-    verify.mockResolvedValue(false);
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1" }));
-
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
-    ).toBeNull();
-  });
-
   it("rejects an assertion issued for a different application or organization", async () => {
-    const wrongAud = makeToken(
+    const wrongAud = await signToken(
       { alg: "RS256", kid: KID },
       { ...claims({ common_name: "client-id-1" }), aud: "some-other-app" },
     );
-    const wrongIss = makeToken(
+    const wrongIss = await signToken(
       { alg: "RS256", kid: KID },
       { ...claims({ common_name: "client-id-1" }), iss: "https://someone-else.cloudflareaccess.com" },
     );
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": wrongAud }), ENV),
-    ).toBeNull();
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": wrongIss }), ENV),
-    ).toBeNull();
+    expect(await getAccessIdentity(bearer(wrongAud), ENV)).toBeNull();
+    expect(await getAccessIdentity(bearer(wrongIss), ENV)).toBeNull();
   });
 
   it("rejects an expired or not-yet-valid assertion", async () => {
     const now = 1_800_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now * 1000);
-    const expired = makeToken(
-      { alg: "RS256", kid: KID },
-      { ...claims({ common_name: "client-id-1" }), exp: now - 1 },
-    );
-    const future = makeToken(
-      { alg: "RS256", kid: KID },
-      { ...claims({ common_name: "client-id-1" }), nbf: now + 600 },
-    );
-    const expiresNow = makeToken(
-      { alg: "RS256", kid: KID },
-      { ...claims({ common_name: "client-id-1" }), exp: now },
-    );
-    const nonNumericExpiry = makeToken(
-      { alg: "RS256", kid: KID },
-      { ...claims({ common_name: "client-id-1" }), exp: "later" },
-    );
-    const validNow = makeToken(
-      { alg: "RS256", kid: KID },
-      { ...claims({ common_name: "client-id-1" }), nbf: now },
-    );
-    const nonNumericNotBefore = makeToken(
-      { alg: "RS256", kid: KID },
-      { ...claims({ common_name: "client-id-1" }), nbf: "9999999999999" },
-    );
+    const withTimes = (times: Record<string, unknown>) =>
+      signToken({ alg: "RS256", kid: KID }, { ...claims({ common_name: "client-id-1" }), ...times });
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": expired }), ENV),
-    ).toBeNull();
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": future }), ENV),
-    ).toBeNull();
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": expiresNow }), ENV),
-    ).toBeNull();
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": nonNumericExpiry }), ENV),
-    ).toBeNull();
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": validNow }), ENV),
-    ).not.toBeNull();
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": nonNumericNotBefore }), ENV),
-    ).not.toBeNull();
+    for (const times of [{ exp: now - 1 }, { nbf: now + 600 }, { exp: now }, { exp: "later" }]) {
+      expect(await getAccessIdentity(bearer(await withTimes(times)), ENV), JSON.stringify(times)).toBeNull();
+    }
+    for (const times of [{ nbf: now }, { nbf: "9999999999999" }]) {
+      expect(await getAccessIdentity(bearer(await withTimes(times)), ENV), JSON.stringify(times)).not.toBeNull();
+    }
   });
 
   it("refetches once for an unknown kid, then rejects if it is still unknown", async () => {
-    const token = makeToken(
-      { alg: "RS256", kid: "rotated-kid" },
-      claims({ common_name: "client-id-1" }),
-    );
+    const token = await signToken({ alg: "RS256", kid: "rotated-kid" }, claims({ common_name: "client-id-1" }));
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
-    ).toBeNull();
+    expect(await getAccessIdentity(bearer(token), ENV)).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
@@ -407,21 +346,17 @@ describe("getAccessIdentity — the service-token identity", () => {
         throw new Error("network down");
       }),
     );
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1" }));
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1" }));
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
-    ).toBeNull();
+    expect(await getAccessIdentity(bearer(token), ENV)).toBeNull();
   });
 
   it("fails closed when the certs endpoint returns an error", async () => {
-    const json = vi.fn(async () => ({ keys: [{ kid: KID, kty: "RSA", n: "x", e: "AQAB" }] }));
+    const json = vi.fn(async () => ({ keys: [publicJwk] }));
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 503, json })));
-    const token = makeToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1" }));
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ common_name: "client-id-1" }));
 
-    expect(
-      await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
-    ).toBeNull();
+    expect(await getAccessIdentity(bearer(token), ENV)).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(json).not.toHaveBeenCalled();
   });

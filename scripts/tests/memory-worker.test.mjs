@@ -75,8 +75,8 @@ const asAdmin = env => ({ env: { WONG_CLOUDFLARE_API: env.fake.api, CLOUDFLARE_A
 const viaWorker = (extra = {}) => ({ env: { WONG_MEMORY_API: '', ...extra } });
 
 // A store served by an app Worker, an admin key in .env, and a member key for ana.
-async function team() {
-  const env = await setup();
+async function team(t) {
+  const env = await setup(t);
   const url = await appWorker({ MEMORY_DB: d1(env.fake.db), MEMORY_BUCKET: r2(env.fake.objects) });
   setWorker(env, `${url}/_memory`);
   const added = await memory(env.repo, env.fake, ['member', 'add', 'Ana@Example.com'], asAdmin(env));
@@ -89,8 +89,8 @@ async function team() {
 
 const call = (url, key, body) => fetch(`${url}/_memory/accounts/acct/d1/database/db1/query`, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
 
-test('member add prints a key once, stores only its hash in the store, and --env writes the admin key to .env', async () => {
-  const { env, anaKey, added, self } = await team();
+test('member add prints a key once, stores only its hash in the store, and --env writes the admin key to .env', async t => {
+  const { env, anaKey, added, self } = await team(t);
   assert.equal(keyEmail(anaKey), 'ana@example.com');
   const rows = env.fake.db.prepare('SELECT hash, email, role FROM memory_keys ORDER BY email').all().map(row => ({ ...row }));
   assert.deepEqual(rows.map(row => [row.email, row.role]), [['ana@example.com', 'member'], ['dev@example.com', 'admin']]);
@@ -106,24 +106,24 @@ test('member add prints a key once, stores only its hash in the store, and --env
   assert.doesNotMatch(listed.stdout, /wongm_|[0-9a-f]{64}/);
 });
 
-test('member add stops when no Worker URL is recorded', async () => {
-  const env = await setup();
+test('member add stops when no Worker URL is recorded', async t => {
+  const env = await setup(t);
   const result = await memory(env.repo, env.fake, ['member', 'add', 'ana@example.com'], asAdmin(env));
   assert.equal(result.code, 1);
   assert.match(result.stderr, /no memory Worker URL is recorded/);
   assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_keys').get().n, 0);
 });
 
-test('a token that cannot write D1 names the permission and adds no key', async () => {
-  const { env } = await team();
+test('a token that cannot write D1 names the permission and adds no key', async t => {
+  const { env } = await team(t);
   const result = await memory(env.repo, env.fake, ['member', 'add', 'bo@example.com'], { env: { ...asAdmin(env).env, CLOUDFLARE_API_TOKEN: 'narrow-token' } });
   assert.equal(result.code, 1);
   assert.match(result.stderr, /lacks D1 Write/);
   assert.equal(env.fake.db.prepare("SELECT count(*) AS n FROM memory_keys WHERE email = 'bo@example.com'").get().n, 0);
 });
 
-test('a member searches through the Worker; an unknown or removed key is refused', async () => {
-  const { env, anaKey } = await team();
+test('a member searches through the Worker; an unknown or removed key is refused', async t => {
+  const { env, anaKey } = await team(t);
   env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'project', 'deploys need a tag', 'save', '2026-09-01T00:00:00Z', 'dev@example.com')").run();
   const calls = env.fake.calls.length;
   const asAna = await memory(env.repo, env.fake, ['search', 'deploys'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
@@ -139,8 +139,8 @@ test('a member searches through the Worker; an unknown or removed key is refused
   assert.match(later.stderr, /HTTP 401/);
 });
 
-test('a key for another repo\'s store is unknown here', async () => {
-  const { url } = await team();
+test('a key for another repo\'s store is unknown here', async t => {
+  const { url } = await team(t);
   const other = new DatabaseSync(':memory:');
   other.exec(KEYS_SCHEMA);
   other.prepare("INSERT INTO memory_keys VALUES (?, 'bo@example.com', 'admin', '2026-09-26T00:00:00Z')").run(await hashKey('wongm_Ym8.other'));
@@ -148,8 +148,8 @@ test('a key for another repo\'s store is unknown here', async () => {
   assert.equal(response.status, 401);
 });
 
-test('no key can name the keys table or unlock the schema, and nothing in the batch runs', async () => {
-  const { env, url } = await team();
+test('no key can name the keys table or unlock the schema, and nothing in the batch runs', async t => {
+  const { env, url } = await team(t);
   const adminKey = envKey(env);
   const refused = [
     'SELECT * FROM memory_keys',
@@ -176,13 +176,13 @@ test('no key can name the keys table or unlock the schema, and nothing in the ba
   assert.equal(env.fake.db.prepare('SELECT count(*) AS n FROM memory_keys').get().n, 2);
 });
 
-test('a Worker with no memory store answers 404, and a store with no bucket keeps no transcripts', async () => {
+test('a Worker with no memory store answers 404, and a store with no bucket keeps no transcripts', async t => {
   const staging = await appWorker({});
   const response = await call(staging, 'wongm_any.key', { sql: 'SELECT 1' });
   assert.equal(response.status, 404);
   assert.equal((await response.json()).errors[0].code, 'no_store');
 
-  const env = await setup();
+  const env = await setup(t);
   const url = await appWorker({ MEMORY_DB: d1(env.fake.db) });
   env.fake.db.prepare("INSERT INTO memory_keys VALUES (?, 'dev@example.com', 'admin', 'now')").run(await hashKey('wongm_ZGV2.k'));
   const object = await fetch(`${url}/_memory/accounts/acct/r2/buckets/repo-memory/objects/sessions/x`, { headers: { Authorization: 'Bearer wongm_ZGV2.k' } });
@@ -192,8 +192,8 @@ test('a Worker with no memory store answers 404, and a store with no bucket keep
   assert.equal((await other.json()).errors[0].code, 'no_route');
 });
 
-test('a member reads only their own transcripts; the admin reads every key', async () => {
-  const { env, url, anaKey } = await team();
+test('a member reads only their own transcripts; the admin reads every key', async t => {
+  const { env, url, anaKey } = await team(t);
   const adminKey = envKey(env);
   const at = key => `${url}/_memory/accounts/acct/r2/buckets/repo-memory/objects/${encodeURI(key)}`;
   const as = key => ({ headers: { Authorization: `Bearer ${key}` } });
@@ -219,8 +219,8 @@ test('a member reads only their own transcripts; the admin reads every key', asy
   assert.match(source.stdout, /only the author and the admin can read this transcript/);
 });
 
-test('in a team, user and feedback facts are only your own, matched on every email on your people page', async () => {
-  const { env } = await team();
+test('in a team, user and feedback facts are only your own, matched on every email on your people page', async t => {
+  const { env } = await team(t);
   const insert = (type, body, author) => env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', ?, ?, 'save', '2026-09-26T00:00:00Z', ?)").run(type, body, author);
   insert('feedback', 'ana likes short deploy notes', 'ana@example.com');
   insert('project', 'ana says deploy runs at noon', 'ana@example.com');
@@ -242,8 +242,8 @@ test('in a team, user and feedback facts are only your own, matched on every ema
   assert.match(digest.stdout, /runs at noon/);
 });
 
-test('a solo repo does not filter by person', async () => {
-  const env = await setup();
+test('a solo repo does not filter by person', async t => {
+  const env = await setup(t);
   env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'feedback', 'someone else prefers tabs', 'save', '2026-09-26T00:00:00Z', 'other@example.com')").run();
   const result = await memory(env.repo, env.fake, ['search', 'tabs']);
   assert.match(result.stdout, /prefers tabs/);
@@ -254,8 +254,8 @@ test('uploads are filed under the key\'s email', async () => {
   assert.equal(keyEmail('cf-token-value'), null);
 });
 
-test('an older store\'s Cloudflare token goes to the REST API even with a Worker recorded', async () => {
-  const env = await setup();
+test('an older store\'s Cloudflare token goes to the REST API even with a Worker recorded', async t => {
+  const env = await setup(t);
   let workerCalls = 0;
   setWorker(env, `${await listen(() => { workerCalls += 1; return new Response(null, { status: 500 }); })}/_memory`);
   env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'project', 'still on the old token', 'save', '2026-09-26T00:00:00Z', 'dev@example.com')").run();
@@ -265,8 +265,8 @@ test('an older store\'s Cloudflare token goes to the REST API even with a Worker
   assert.equal(workerCalls, 0);
 });
 
-test('before production deploys the route, a key\'s write waits in the spool', async () => {
-  const env = await setup();
+test('before production deploys the route, a key\'s write waits in the spool', async t => {
+  const env = await setup(t);
   setWorker(env, `${await listen(() => new Response('There is nothing here yet', { status: 404 }))}/_memory`);
   const input = writeJsonFile(env.repo.home, 'facts.json', { source: 'save', slug: 'sp', facts: [{ action: 'add', type: 'project', body: 'Written before the first deploy.' }] });
   const result = await memory(env.repo, env.fake, ['put-facts', '--file', input], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: `wongm_${Buffer.from('dev@example.com').toString('base64url')}.k` }));
@@ -275,23 +275,23 @@ test('before production deploys the route, a key\'s write waits in the spool', a
   assert.equal(readdirSync(join(env.repo.stateDir, 'spool')).length, 1);
 });
 
-test('a memory key with no recorded Worker stops with a clear message', async () => {
-  const env = await setup();
+test('a memory key with no recorded Worker stops with a clear message', async t => {
+  const env = await setup(t);
   const result = await memory(env.repo, env.fake, ['search', 'x'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: 'wongm_YUBiLmNv.k' }));
   assert.equal(result.code, 1);
   assert.match(result.stderr, /records no components\.memory\.worker/);
 });
 
-test('there is no worker deploy command', async () => {
-  const env = await setup();
+test('there is no worker deploy command', async t => {
+  const env = await setup(t);
   const result = await memory(env.repo, env.fake, ['worker', 'deploy'], asAdmin(env));
   assert.equal(result.code, 2);
   assert.match(result.stderr, /unknown command: worker\nusage:/);
   assert.doesNotMatch(result.stderr, /worker deploy/);
 });
 
-test('with a Worker recorded, migrate runs with the admin token straight to Cloudflare', async () => {
-  const { env } = await team();
+test('with a Worker recorded, migrate runs with the admin token straight to Cloudflare', async t => {
+  const { env } = await team(t);
   const result = await memory(env.repo, env.fake, ['migrate'], asAdmin(env));
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /up to date/);

@@ -136,14 +136,6 @@ jobs:
         working-directory: ${{ steps.suite.outputs.dir }}
         run: npm ci
 
-      - name: Install browser for review tests
-        if: ${{ steps.suite.outputs.found == 'true' }}
-        working-directory: ${{ steps.suite.outputs.dir }}
-        run: |
-          if node -e "const p=require('./package.json');process.exit(p.devDependencies?.playwright?0:1)"; then
-            npx playwright install --with-deps chromium
-          fi
-
       - name: Restore mutation results
         if: ${{ steps.suite.outputs.stryker == 'true' }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

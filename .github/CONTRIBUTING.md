@@ -21,7 +21,10 @@ Use Node.js 22 ([`.nvmrc`](../.nvmrc)) and OpenSpec 1.13.2 (`npm install -g @fis
 
 ```bash
 (cd app && npm ci && npm test)
-node --test scripts/tests/*.test.mjs
+(cd scripts/tests && npm ci)
+scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts
+shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh server/*.sh
+scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs
 node scripts/check-payload-links.mjs
 node scripts/check-openspec-config.mjs
 node scripts/check-retired-names.mjs
@@ -29,7 +32,11 @@ openspec validate --specs --strict --no-interactive
 node scripts/measure-context.mjs --check
 ```
 
-`npm test` in `app/` is the `test` check. The other six commands are the `payload` check. Without `npm ci` in `app/`, the review page tests skip.
+`npm test` in `app/` is the `test` check. The rest are the `payload` check. Outside CI, the review page tests skip without `npm ci` in `scripts/tests/`, and its browser tests skip unless Google Chrome is installed or `CHROME_PATH` names a Chromium; in CI both fail instead.
+
+A test of WongStack itself, and any dependency it needs, goes in `scripts/tests/` and [its manifest](../scripts/tests/package.json), never in `app/`: the whole `app/` folder ships to every repo, so a test there runs, and installs its dependencies, in repos that never edit the file it tests.
+
+The coverage floor in [`scripts/tests/.c8rc.json`](../scripts/tests/.c8rc.json) only rises. Raise it when your tests raise coverage; lowering it needs a stated reason in the change's Decision log.
 
 ## What CI does on a pull request from a fork
 

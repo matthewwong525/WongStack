@@ -109,6 +109,8 @@ function sessionUpsert(record, status, { reason, author, machine }) {
     status, reason || null, record.readThrough == null ? null : String(record.readThrough), record.rawKey || null, record.rawBytes || null, now()]];
 }
 
+const SUPERSEDE = 'UPDATE facts SET superseded_by = (SELECT max(id) FROM facts)';
+
 // Statements for one write: the session row, new tags, then each kept fact with its tags and supersedes.
 // Every fact insert returns its id, in order, so a caller can map its own keys to ids.
 function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine }) {
@@ -119,7 +121,7 @@ function writeStatements({ record, status, reason, newTags = [], facts, source, 
       [fact.slug, fact.type, fact.body.trim(), sessionId || null, source, fact.createdAt || createdAt, author || null]]);
     for (const tag of fact.tags || []) statements.push(['INSERT OR IGNORE INTO fact_tags (fact_id, tag) VALUES ((SELECT max(id) FROM facts), ?)', [tag]]);
     const ids = (fact.supersedes || []).map(Number).filter(Boolean);
-    if (ids.length) statements.push([`UPDATE facts SET superseded_by = (SELECT max(id) FROM facts) WHERE superseded_by IS NULL AND id IN (${ids.map(() => '?').join(', ')})`, ids]);
+    if (ids.length) statements.push([`${SUPERSEDE} WHERE superseded_by IS NULL AND id IN (${ids.map(() => '?').join(', ')}) RETURNING id`, ids]);
   }
   return statements;
 }
@@ -150,14 +152,14 @@ export async function putFacts(ctx, input) {
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
   const plan = digestPlan(ctx, store);
-  const results = await store.batch([
-    ...writeStatements({ record, status, reason: input.reason, newTags: input.newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: ctx.author, machine: ctx.machine }),
-    ...plan.statements,
-  ]);
+  const writes = writeStatements({ record, status, reason: input.reason, newTags: input.newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: ctx.author, machine: ctx.machine });
+  const results = await store.batch([...writes, ...plan.statements]);
   markSeen(ctx, record);
   try { plan.finish(results); } catch { /* the cache is best effort */ }
-  const superseded = kept.filter(fact => fact.action === 'supersede').length;
-  return { added: kept.length - superseded, superseded, dropped: facts.length - kept.length, session: record?.id, status };
+  // Count what the store marked: a supersede whose update changed nothing stored its fact as an add.
+  const marked = writes.flatMap(([sql], index) => sql.startsWith(SUPERSEDE) ? [results[index].length] : []);
+  const superseded = marked.reduce((sum, count) => sum + count, 0);
+  return { added: kept.length - marked.filter(Boolean).length, superseded, dropped: facts.length - kept.length, session: record?.id, status };
 }
 
 // The live session in this checkout: its registry entry whose transcript changed most recently.

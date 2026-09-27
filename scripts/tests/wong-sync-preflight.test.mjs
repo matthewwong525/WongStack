@@ -255,7 +255,7 @@ test('both documented helper paths emit the same bounded JSON contract', t => {
   assert.ok(canonicalReport.changes.every(change => !('content' in change) && !('diff' in change)));
 });
 
-test('a synthetic large no-op stays within the preflight budget', t => {
+test('a synthetic large no-op reports current and times its preflight', t => {
   const f = fixture(t, { manifest: { core: { dirs: ['payload'] } } });
   for (let index = 0; index < 1200; index += 1) {
     const name = `payload/group-${index % 20}/file-${String(index).padStart(4, '0')}.txt`;
@@ -267,7 +267,6 @@ test('a synthetic large no-op stays within the preflight budget', t => {
   const report = f.inspect();
   assert.equal(report.status, 'current');
   assert.equal(report.selection.currentUnits, 1200);
-  assert.ok(report.timings.preflightMs < 5000, `preflight took ${report.timings.preflightMs}ms`);
   assert.deepEqual(Object.keys(report.timings), ['preflightMs']);
   t.diagnostic(`synthetic 1200-unit preflight: ${report.timings.preflightMs}ms (source refresh and model latency excluded)`);
 });

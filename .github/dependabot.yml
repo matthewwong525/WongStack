@@ -11,6 +11,12 @@ updates:
       # The types follow the Node major in .nvmrc; move both together by hand.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+  # WongStack's own test dependencies (meta-only).
+  - package-ecosystem: npm
+    directory: /scripts/tests
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
   - package-ecosystem: github-actions
     directory: /
     schedule:
