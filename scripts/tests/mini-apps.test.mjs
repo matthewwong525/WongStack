@@ -40,7 +40,7 @@ writeFileSync('.wrangler/deploy/config.json', JSON.stringify({ configPath: '../.
 const fakeNpm = `#!/usr/bin/env bash
 echo "\${PWD#"$FAKE_ROOT"/}|npm $*" >> "$FAKE_LOG"
 case "$*" in
-  ci) mkdir -p node_modules ;;
+  "ci --no-audit --no-fund") mkdir -p node_modules ;;
   "run build:app") node fake-build.mjs ;;
 esac
 `;
@@ -306,8 +306,8 @@ test('preview installs the app first when it has no node_modules', t => {
   const root = miniRepo(t, { installed: false, stagingExists: true });
   const result = preview(root, []);
   assert.equal(result.status, 0, result.out);
-  assert.equal(result.calls[0], 'npm ci');
-  assert.equal(preview(root, []).calls.includes('npm ci'), false, 'installed once');
+  assert.equal(result.calls[0], 'npm ci --no-audit --no-fund');
+  assert.equal(preview(root, []).calls.some(call => call.startsWith('npm ci')), false, 'installed once');
 });
 
 test('preview creates the staging Worker only when it is missing', t => {

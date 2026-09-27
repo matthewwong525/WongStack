@@ -13,6 +13,13 @@
 - **Teammates need one more `gh` scope.** `user:email`, to read verified emails: [required tools](wiki/development/required-tools.md#gh-needs-the-useremail-scope-for-memory).
 
 **Updating.** `/wong-sync` brings the route, the script, the deploy change, and migration `0003_key_machines.sql`. After the update merges and production deploys, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once. Until then, old keys keep working and `join` is refused.
+## 25.4.1 — Installs skip npm's audit
+
+- **No install waits on npm's audit.** `test.yml`'s and `deploy.yml`'s `Install` step and `scripts/cf-preview.sh`'s first-run install now run `npm ci --no-audit --no-fund`. npm is retiring the audit endpoint `npm ci` calls, and on one CI run it held the install for 5 minutes instead of the usual 8 seconds. Nothing read the audit summary or the funding notice.
+
+WongStack's own checks now fail on any `npm ci` in a workflow or `scripts/` file that drops either flag.
+
+**Updating.** `/wong-sync` brings the new lines. If you changed your own `Install` step, add `--no-audit --no-fund` to it. Installs you run by hand keep npm's defaults.
 
 ## 25.4.0 — Review notes update the plan and stop
 

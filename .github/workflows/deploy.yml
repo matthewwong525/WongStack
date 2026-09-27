@@ -186,7 +186,7 @@ jobs:
       - name: Install
         if: ${{ steps.app.outputs.configured == 'true' }}
         working-directory: ${{ steps.app.outputs.dir }}
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       # Not provisioned yet: build the app directly. Deliberately not through
       # cf-build.sh — that would need a wrangler config with an `env.staging`

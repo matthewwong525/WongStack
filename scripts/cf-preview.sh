@@ -112,7 +112,7 @@ fi
 # ── Install, migrate, build ──────────────────────────────────────────────────
 if [ ! -d "$BUILD_DIR/node_modules" ]; then
   say "installing the app's dependencies (once per checkout)"
-  (cd "$BUILD_DIR" && npm ci)
+  (cd "$BUILD_DIR" && npm ci --no-audit --no-fund)
 fi
 
 if [ "$HAS_D1" = true ]; then

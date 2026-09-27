@@ -26,7 +26,7 @@ jobs:
           cache: npm
           cache-dependency-path: scripts/tests/package-lock.json
       # WongStack's own test dependencies (meta-only; no target receives them).
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
         working-directory: scripts/tests
       - name: Install supported OpenSpec CLI
         run: npm install -g @fission-ai/openspec@1.13.2
