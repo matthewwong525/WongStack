@@ -32,4 +32,4 @@ The loop appears as `/explore → /plan → /apply → /save → /continue → /
 
 ## Migration Plan
 
-Minor release, 25.11.0, above 25.10.1. `/wong-sync` brings the block line, the skill edits, and the change-loop page. Installed repos need no step.
+Minor release, 25.12.0, above 25.11.0. `/wong-sync` brings the block line, the skill edits, and the change-loop page. Installed repos need no step.

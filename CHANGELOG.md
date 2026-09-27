@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 25.11.0 — Plain reports, and continue drawn as the way back in
+## 25.12.0 — Plain reports, and continue drawn as the way back in
 
 - **Reports give the outcome and one link.** For a non-technical reader who ran the verb, `/save`, `/continue`, and `/ship` leave out branch names, commit ids, the `SAVE_GATE_RESULT` line, `merge.sh`'s lines, and fact counts unless asked. A verb running inside another still prints what its caller reads. The rule lives in *Write at the reader's level* in `explore/references/asking-the-user.md`.
 - **`/continue` recaps read as progress** — *3 of 9 steps left, 2 comments from reviewers* — for a non-technical reader.
@@ -11,6 +11,13 @@
 - **The source wiki's word list** gains review page, preview link, mini app, routine, save, and publish.
 
 **Updating.** `/wong-sync` brings the block line and the skill and page edits. Nothing else to do.
+
+## 25.11.0 — Every plan prints its link, and "What next?" is tap-to-answer
+
+- **Every plan prints its link.** Whenever a reply makes or changes a plan, it prints *Click here to see the plan:* and a link to the change's `review.html`, on its own line above the closing question. This holds whichever verb made the plan — `/plan`, `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or review notes — and even when the build goes on. A new [*Print the plan's link*](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link) section owns the rule, the `WONG-STACK` block states it, and `/plan`'s *Finish* links it instead of keeping its own wording.
+- **"What next?" uses the question tool.** [*End every reply with the next step*](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step) now says the closing question goes through the same tool as every other ask (`AskUserQuestion`, `request_user_input`, or an equivalent), with the report and link written as chat text first. Before, agents asked clarification questions with the tool but typed the closing menu as a numbered list. Sessions with no question tool still get the numbered list.
+
+**Updating.** `/wong-sync` brings the block line and the two skill edits. Nothing to migrate.
 
 ## 25.10.1 — Fixes from a repo check
 

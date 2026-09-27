@@ -51,7 +51,7 @@ None.
 - `.agents/skills/save/SKILL.md` (§5), `.agents/skills/continue/SKILL.md` (§4 recap), `.agents/skills/ship/SKILL.md` (Step 6): each report section links the rule and names which of its lines are the caller-read ones.
 - Loop picture: `AGENTS.md` (the `WONG-STACK` block; `CLAUDE.md` is its link), `README.md`, `wiki/development/the-change-loop.md`, `wiki/development/README.md`.
 - `wiki/README.md`: six terms added to *Terms the agent may use*.
-- `VERSION` 25.10.1 → 25.11.0 and a `CHANGELOG.md` entry.
+- `VERSION` 25.11.0 → 25.12.0 and a `CHANGELOG.md` entry.
 - No script or test changes.
 
 ## Decision log

@@ -18,6 +18,6 @@
 
 ## 4. Release
 
-- [x] 4.1 Bump `VERSION` 25.10.1 → 25.11.0 and add a `CHANGELOG.md` entry with an **Updating** line.
+- [x] 4.1 Bump `VERSION` 25.11.0 → 25.12.0 and add a `CHANGELOG.md` entry with an **Updating** line.
 - [x] 4.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `openspec validate plain-words-and-verbs --strict --no-interactive`. Verify: all pass.
-- [ ] 4.3 CI passes on the pull request, checked by `/save`.
+- [x] 4.3 CI passes on the pull request, checked by `/save`.
