@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.14.0 — Thinner specs: keep the promises, cut the how
+
+- **A spec states a promise, not a procedure.** `.claude/rules/openspec.md` gains the spec bar. A requirement stays when a person or an installed repo relies on it: what they see or get, what must never happen, and what an update delivers or keeps. The steps, script and file names, and exact wording stay in the skill. Each requirement gets one or two scenarios. The rule loads whenever anyone edits `openspec/`, so new specs stay short in every installed repo.
+- **WongStack's own specs follow it** (meta-only). `openspec/specs/` drops from 48 capabilities and about 84,000 words to 25 and about 25,500. Overlapping specs merge — the three about updates become `wong-sync`, the three about memory become `memory`, and so on. `/verify` walks fewer, sharper scenarios. The old wording stays in the archive.
+
+**Updating.** `/wong-sync` brings the rule. Nothing to do by hand, and your own specs are not rewritten.
+
 ## 25.13.0 — Plain reports, and continue drawn as the way back in
 
 - **Reports give the outcome and one link.** For a non-technical reader who ran the verb, `/save`, `/continue`, and `/ship` leave out branch names, commit ids, the `SAVE_GATE_RESULT` line, `merge.sh`'s lines, and fact counts unless asked. A verb running inside another still prints what its caller reads. The rule lives in *Write at the reader's level* in `explore/references/asking-the-user.md`.

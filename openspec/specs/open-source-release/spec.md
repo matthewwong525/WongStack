@@ -2,154 +2,74 @@
 
 ## Purpose
 
-Make the public WongStack repository safe and legal to reuse: a license, a way to report security problems, no committed secrets, and a setup prompt whose URL works for a first-time reader.
+Make the public WongStack repository safe and legal to reuse: a license, private security reports, no committed secrets or private names, working links, and a tagged Release per version.
 
 ## Requirements
 
-### Requirement: The repository carries an open-source license and a security policy
+### Requirement: The repository carries a license and a security policy
 
-The repository root SHALL contain an MIT `LICENSE` with the copyright holder and year, and a `SECURITY.md`. `SECURITY.md` SHALL say how to report a vulnerability privately, and SHALL name each Cloudflare credential WongStack uses, where it is stored, and what it can do. The README SHALL link both files.
+The repository SHALL hold an MIT `LICENSE` and a `SECURITY.md` that says how to report a vulnerability privately and what each Cloudflare credential can do. The README SHALL link both.
 
-#### Scenario: A reader checks reuse terms
-
-- **WHEN** a reader opens the repository on GitHub
-- **THEN** GitHub detects the MIT license
-- **AND** the README links `LICENSE` and `SECURITY.md`
-
-#### Scenario: A reader finds the credential powers
+#### Scenario: A reader checks the credential powers
 
 - **WHEN** a reader opens `SECURITY.md`
-- **THEN** it names the user token, the deploy token, and the memory key, where each is stored, and which one can mint other tokens
+- **THEN** it names each token, where it lives, and which one can mint others
 
-### Requirement: The setup URL resolves for a first-time reader
+### Requirement: Links resolve on GitHub
 
-Every `raw.githubusercontent.com` URL in the README SHALL name a path that is a regular file in the git tree of the default branch. It SHALL NOT pass through a symbolic link, because that host returns `404` for a path through a directory link. A deterministic test SHALL fail when a README raw URL names a path that is not a regular file in the tree.
+No live Markdown link and no README `raw.githubusercontent.com` URL SHALL pass through a symbolic link, because GitHub returns a 404 for it.
 
-#### Scenario: The setup prompt URL loads
+#### Scenario: The setup prompt
 
-- **WHEN** a user pastes the README setup prompt into a coding agent
+- **WHEN** a person pastes the README's setup prompt into a coding agent
 - **THEN** the agent fetches the `wong-setup` runbook with HTTP `200`
 
-#### Scenario: A link path is rejected
+### Requirement: No secret or private name is published
 
-- **WHEN** a README raw URL names a path under `.claude/`
-- **THEN** the test fails and names the URL and the real path to use
-
-### Requirement: The release is scanned for committed secrets
-
-Before the release, the full git history SHALL be scanned for credential patterns: GitHub tokens, API keys, AWS keys, JWTs, bearer headers, and Cloudflare token-shaped values in `.env`-style assignments. The change SHALL record the scan result without printing a match. A true match SHALL stop the release until the credential is rotated. History SHALL NOT be rewritten as part of this change.
-
-#### Scenario: The scan is clean
-
-- **WHEN** the history scan finds no credential
-- **THEN** the change records the scan date, the patterns, and a clean result
+The full history SHALL be scanned for credentials before a public release; a real match SHALL stop it until rotated, reported without its value. No live file outside `openspec/changes/` and `CHANGELOG.md` SHALL name a private downstream repository or service.
 
 #### Scenario: The scan finds a credential
 
 - **WHEN** the history scan finds a live credential
-- **THEN** the release stops, the credential's name and commit are reported without its value, and the owner is asked to rotate it
+- **THEN** the release stops and the owner is asked to rotate it
 
 ### Requirement: The repository carries the community files GitHub detects
 
-The repository SHALL contain a contributing guide, a code of conduct, issue templates, a pull request template, and a code owners file, each at a path GitHub's community profile detects. The contributing guide SHALL say how to run the test suite and the payload checks, and SHALL say that a pull request from a fork gets a build check but no preview deploy. The issue template configuration SHALL send security reports to the private advisory form. The pull request template SHALL include the VERSION and CHANGELOG checklist for payload changes.
-
-#### Scenario: A first-time contributor opens an issue
-
-- **WHEN** a reader selects "New issue" on GitHub
-- **THEN** they choose a bug or feature template, and the security option opens the private advisory form
+The repository SHALL hold the contributing, conduct, template, and code owners files GitHub detects. Security reports SHALL route to the private advisory form, and the guide SHALL tell fork contributors they get no preview.
 
 #### Scenario: A fork opens a pull request
 
-- **WHEN** an outside contributor reads the contributing guide before opening a PR from a fork
-- **THEN** it tells them that no preview URL appears on their PR and why
+- **WHEN** a contributor reads the guide before a pull request from a fork
+- **THEN** it says no preview link will appear, and why
 
-### Requirement: The README states the problem, the requirements, and the layout
+### Requirement: The README speaks to a non-technical reader first
 
-The README's first screen SHALL be written for a non-technical reader. It SHALL say what the assistant does, with example requests, before any install step, and SHALL NOT depend on terms such as git, OpenSpec, CI, or pull request. The developer material SHALL sit under one later heading. That section SHALL list every tool that setup needs, including Node, `curl`, the OpenSpec install command, and the Windows symlink setting. It SHALL say why Cloudflare is required and link `SECURITY.md`. It SHALL name every top-level folder and file of the repository with its purpose. Working from the source SHALL start with a fork.
+The README's first screen SHALL say what the assistant does, with example requests and no developer terms. One later section SHALL list setup's tools, why Cloudflare is needed, and each top-level entry's purpose.
 
-#### Scenario: A non-technical reader opens the README
+#### Scenario: A non-technical reader
 
-- **WHEN** a reader who has never used a coding agent reads the README's first screen
-- **THEN** they learn what they can ask the assistant and how to start, without meeting a developer term
+- **WHEN** someone new to coding agents reads the first screen
+- **THEN** they learn what to ask and how to start, with no developer term
 
-#### Scenario: A reader checks prerequisites
+### Requirement: GitHub settings enforce the gate
 
-- **WHEN** a reader follows the README's requirements list on a new Windows machine
-- **THEN** the list names every tool setup calls, and the symlink setting that the skills need
+The default branch SHALL require the test and payload checks, block force-push and deletion, and allow only squash merges, with an owner bypass for prose. Private vulnerability reporting, secret scanning, push protection, and Dependabot alerts SHALL be on.
 
-#### Scenario: A reader asks what a folder is for
+#### Scenario: A red pull request
 
-- **WHEN** a reader sees `schema/` or `paseo.json` at the repository root
-- **THEN** the README's layout table says what it is
-
-### Requirement: GitHub settings enforce the documented gate
-
-The default branch SHALL be protected by a ruleset that requires the test and payload checks to pass and blocks force-push and deletion. The repository owner SHALL be able to bypass it for prose saved straight to the default branch. Private vulnerability reporting, secret scanning, push protection, and Dependabot alerts SHALL be on. Only squash merges SHALL be allowed, and head branches SHALL be deleted after a merge. The agent SHALL show each setting to the user before it applies it.
-
-#### Scenario: A red PR cannot merge
-
-- **WHEN** a PR's required checks fail
+- **WHEN** a pull request's required checks fail
 - **THEN** GitHub refuses the merge
-
-#### Scenario: A reporter follows SECURITY.md
-
-- **WHEN** a reader opens the private vulnerability reporting link in `SECURITY.md`
-- **THEN** GitHub shows the report form
-
-### Requirement: Markdown links resolve on github.com
-
-No live Markdown link SHALL pass through a symbolic link, because GitHub's web view does not follow a directory link. Links SHALL name the real path.
-
-#### Scenario: A reader clicks a skill link in the wiki
-
-- **WHEN** a reader clicks a link to a skill from a wiki page on github.com
-- **THEN** GitHub opens the file, not a 404 page
-
-### Requirement: Live files carry no private names
-
-No tracked file outside `openspec/changes/` and `CHANGELOG.md` SHALL name a private downstream repository or service. Change folders are exempt because an active change may name a private repository to describe its task, and it becomes part of the archive when it ships. Examples and tests SHALL use generic names.
-
-#### Scenario: A reader searches the code
-
-- **WHEN** a reader searches the live files for a private downstream name
-- **THEN** there is no match outside the change folders and the changelog
 
 ### Requirement: Each release is tagged
 
-Each release SHALL be tagged `v<VERSION>` on its merge commit, and SHALL have a GitHub Release whose body is its changelog entry. A workflow on the default branch SHALL create them on every push, with no manual step. A release's commit SHALL be the first first-parent commit on the default branch whose `VERSION` file holds that version, not the version named in a commit title. The same run SHALL create every missing tag and Release for each version that has a `CHANGELOG.md` entry, so a skipped or failed run is filled in by the next one. A version that already has its Release SHALL be left unchanged. A changelog version with no matching `VERSION` commit SHALL fail the run and name the version. When GitHub refuses to create a Release with HTTP 403, as it does for the workflow's own token on a commit that changes workflow files, the run SHALL continue. It SHALL list each refused version in its output and the job summary with a warning, and SHALL NOT fail for it; any other creation error SHALL fail the run. In the WongStack repository, after `/ship` merges a release, the agent SHALL run the same script from the synced default-branch checkout with the person's own GitHub login, creating any Release the workflow could not. The workflow and the script SHALL be meta-only and SHALL NOT ship in the payload.
+Each version SHALL get a `v<VERSION>` tag on the first default-branch commit that set it and a GitHub Release carrying its changelog entry, created automatically, filling any missed version. When GitHub refuses the workflow's token, the run SHALL warn and pass, and `/ship` SHALL create the missing Release with the person's own login. A changelog version no commit set SHALL fail the run.
 
-#### Scenario: A user pins a version
+#### Scenario: A new version merges
 
-- **WHEN** a user looks for release 19.0.0
-- **THEN** the tag `v19.0.0` and its GitHub Release exist, and the release body is the 19.0.0 changelog entry
+- **WHEN** a pull request raising `VERSION` to 25.7.0 merges
+- **THEN** the merge commit is tagged `v25.7.0` and a Release carries the 25.7.0 entry
 
-#### Scenario: A new version lands on the default branch
+#### Scenario: GitHub refuses the workflow
 
-- **WHEN** a pull request that raises `VERSION` to 25.7.0 merges
-- **THEN** the workflow tags the merge commit `v25.7.0` and publishes a Release titled with the 25.7.0 changelog heading, whose body is that entry
-
-#### Scenario: Past versions have no Release
-
-- **WHEN** the workflow runs and versions 19.0.1 through 25.6.0 have changelog entries but no Release
-- **THEN** each gets a tag on the commit that first set `VERSION` to it and a Release with its entry
-- **AND** `v19.0.0` and `v20.2.0`, which already have Releases, are not changed
-
-#### Scenario: A commit title names the wrong version
-
-- **WHEN** a commit titled `(v24.0.3)` sets `VERSION` to 25.2.1
-- **THEN** the tag `v25.2.1` goes on that commit, and no `v24.0.3` tag is created
-
-#### Scenario: A changelog version never reached VERSION
-
-- **WHEN** `CHANGELOG.md` has an entry for a version that no commit on the default branch set in `VERSION`
-- **THEN** the run fails and names that version, after creating the Releases it could
-
-#### Scenario: GitHub refuses the workflow's token
-
-- **WHEN** the workflow creates Releases for 20.1.0 and 20.1.1, and GitHub answers HTTP 403 for 20.1.0
-- **THEN** the run creates 20.1.1, lists 20.1.0 as refused in its output and job summary with a warning, and passes
-
-#### Scenario: /ship fills the gap
-
-- **WHEN** `/ship` merges a WongStack release whose commit changes a workflow file, and the workflow's Release for it was refused
-- **THEN** `/ship` runs the script from the synced default-branch checkout with the person's login, and the Release exists afterwards
+- **WHEN** GitHub answers HTTP 403 for a release that changes a workflow file
+- **THEN** the run warns and passes, and `/ship` creates it after
