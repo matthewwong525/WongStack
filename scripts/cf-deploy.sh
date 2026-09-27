@@ -147,6 +147,10 @@ if [ "$STAGING_NAME" = "$PROD_NAME" ]; then
   exit 1
 fi
 
+# The alias shares one URL label with the staging Worker's name; cut it to fit.
+ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
+[ -n "$ALIAS" ] || { echo "cf-deploy: ERROR — the staging Worker name '$STAGING_NAME' leaves no room for a preview alias" >&2; exit 1; }
+
 echo "cf-deploy: preview branch — deploying the staging Worker ($STAGING_NAME)"
 (cd "$APP_DIR" && npx wrangler deploy "${STAGING_ENV[@]}")
 

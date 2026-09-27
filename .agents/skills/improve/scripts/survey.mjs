@@ -23,7 +23,7 @@ const SENSITIVE = [
 function excluded(file) {
   return /^(?:notes|openspec\/changes)(?:\/|$)/.test(file)
     || /(?:^|\/)(?:node_modules|vendor|dist|build|coverage|target|\.git|\.wrangler|\.venv|__pycache__)(?:\/|$)/.test(file)
-    || /(?:^|\/)(?:\.env(?:\.[^/]*)?|\.dev\.vars(?:\.[^/]*)?|package-lock\.json|bun\.lockb?|pnpm-lock\.yaml|yarn\.lock|Cargo\.lock|worker-configuration\.d\.ts|review\.html)$/.test(file)
+    || /(?:^|\/)(?:\.env(?:\.[^/]*)?|\.dev\.vars(?:\.[^/]*)?|CHANGELOG\.md|package-lock\.json|bun\.lockb?|pnpm-lock\.yaml|yarn\.lock|Cargo\.lock|worker-configuration\.d\.ts|review\.html)$/.test(file)
     || file.endsWith('.min.js');
 }
 

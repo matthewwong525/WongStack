@@ -1,6 +1,6 @@
 # Cloudflare credentials
 
-One token gets everything running. Create it with **two checkboxes** and save it in the primary worktree's `.env`. The agent then grants it only the permissions each step needs — [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall — and tells you what it granted. This user token stays on your computer. CI gets a [separate, smaller token](#the-ci-deploy-token).
+One token gets everything running. Create it with **two permission rows** and save it in the primary worktree's `.env`. The agent then grants it only the permissions each step needs — [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall — and tells you what it granted. This user token stays on your computer. CI gets a [separate, smaller token](#the-ci-deploy-token).
 
 This page is the token screen in detail: where to click, what to tick, what it can do afterward, and the security trade-off that design makes. Values land in `.env` per the [secrets convention](../development/secrets.md); real values never touch git.
 
@@ -45,7 +45,7 @@ Follow this literally. It's four menu steps, two permission rows, and one field 
 
 **Do not skip Account Resources.** Leaving it unset produces a token that verifies successfully and can see nothing — Cloudflare reports the out-of-scope account as *no accounts* rather than as an error, so it reads like an empty Cloudflare account. If that happens you can edit the existing token; you don't need a new one, and the value in the primary worktree's `.env` stays valid because the token id doesn't change.
 
-Two checkboxes really is the whole ask. The agent adds only the groups a step needs, when it needs them: Workers, D1, and account settings for provisioning, and the Access groups only if you ask for a login wall. The [widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#a-normal-provision) lists each one.
+Two permission rows really are the whole ask. The agent adds only the groups a step needs, when it needs them: Workers, D1, and account settings for provisioning, and the Access groups only if you ask for a login wall. The [widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#a-normal-provision) lists each one.
 
 ## Store it
 
@@ -71,7 +71,7 @@ So each credential lives in one place: the user token in the primary worktree's 
 
 The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-key) owns that name and what a key can reach.
 
-## How two checkboxes become enough
+## How two permission rows become enough
 
 The token rewrites its own permissions: it reads its own policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified against the live API. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no re-paste. [The widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md) owns the calls, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall. Someone who never wants a login wall never grants anything Zero-Trust-shaped.
 
@@ -93,7 +93,7 @@ The same call in reverse: provision, hand the extra permissions back, widen agai
 
 ## The security trade-off, stated plainly
 
-**A token that can widen itself is effectively account-root.** It is bounded only by what its owner can do. The two-checkbox starting point is cosmetic, not a security boundary, and this page won't pretend otherwise.
+**A token that can widen itself is effectively account-root.** It is bounded only by what its owner can do. The two-row starting point is cosmetic, not a security boundary, and this page won't pretend otherwise.
 
 Self-widening and least privilege are mutually exclusive, and this design chose usability: you visit the dashboard once either way, so ticking two boxes instead of nine saves a real step — and it means optional features cost nothing up front. If you'd rather have least privilege, grant the specific groups above by hand and skip the widening; everything downstream works the same.
 

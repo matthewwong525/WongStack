@@ -19,7 +19,7 @@ case "$1 $2" in
       *state*) echo "\${STATE:-MERGED}" ;;
       *) echo "pr=7 url=https://github.com/o/r/pull/7" ;;
     esac ;;
-  "pr list") printf '%b' "\${STACKED:-}" ;;
+  "pr list") [ -n "\${LIST_RC:-}" ] && exit "$LIST_RC"; printf '%b' "\${STACKED:-}" ;;
   "api -X") exit "\${PATCH_RC:-0}" ;;
 esac
 `;
@@ -28,7 +28,10 @@ echo "git $*" >> "$FAKE_DIR/calls"
 case "$*" in
   "rev-parse --abbrev-ref HEAD") echo "\${BRANCH_NAME:-feature}" ;;
   "rev-parse HEAD") echo "${'c'.repeat(40)}" ;;
-  "ls-remote --exit-code --heads origin "*) exit "\${LSREMOTE_RC:-0}" ;;
+  "ls-remote --exit-code --heads origin "*)
+    n=$(grep -c '^git ls-remote' "$FAKE_DIR/calls")
+    IFS=, read -ra rcs <<< "\${LSREMOTE_RC:-0}"
+    exit "\${rcs[$(( n <= \${#rcs[@]} ? n - 1 : \${#rcs[@]} - 1 ))]}" ;;
   "push origin --delete "*) exit "\${PUSH_RC:-0}" ;;
   "fetch origin --prune") exit 0 ;;
   "worktree list --porcelain") printf '%b' "\${WORKTREES:-}" ;;
@@ -136,4 +139,25 @@ test('a diverged local main is skipped in one line', t => {
   const r = run(t, { WORKTREES: 'worktree /work/feature\\nbranch refs/heads/feature\\n', FETCHMAIN_RC: '1' });
   assert.equal(r.status, 0);
   assert.match(r.stdout, /^synced=skipped \(local main could not fast-forward\)$/m);
+});
+
+test('a failed list of stacked PRs keeps the branch', t => {
+  const r = run(t, { LIST_RC: '1' });
+  assert.equal(r.status, 2);
+  assert.match(r.stdout, /^branch=kept$/m);
+  assert.match(r.stderr, /could not list the PRs/);
+  assert.doesNotMatch(r.calls, /push origin --delete/);
+});
+
+test('a delete that loses the race to GitHub counts as deleted at merge', t => {
+  const r = run(t, { LSREMOTE_RC: '0,2', PUSH_RC: '1' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^branch=deleted-at-merge$/m);
+  assert.match(r.stdout, /^synced=\/work\/primary$/m);
+});
+
+test('a delete that fails while the branch still exists keeps it', t => {
+  const r = run(t, { PUSH_RC: '1' });
+  assert.equal(r.status, 2);
+  assert.match(r.stdout, /^branch=kept$/m);
 });

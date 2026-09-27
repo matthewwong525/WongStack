@@ -102,43 +102,6 @@ Callers SHALL treat `UNKNOWN` as *unverified*, never as *no checks*: `/save` rep
 - **THEN** the script prints `RESULT: UNKNOWN` with the message `gh` produced
 - **AND** `/ship` does not merge on that result
 
-### Requirement: Runtimes are installed at the point of need, never pre-emptively
-
-No WongStack skill SHALL install a language runtime as a precaution, as part of a readiness check, or "while we're here." A runtime SHALL be installed only at the moment a step actually requires it, and only after the user consents. Installation SHALL prefer a user-local method (the official installer, or `nvm` into the user's home) over a `sudo` package manager, which can fail outright on a managed machine. Installing a runtime is the only step in the flow that modifies the machine rather than the repo, and SHALL be the only step that asks for that reason.
-
-Node.js is required by the OpenSpec CLI, which is distributed solely as an npm package with no standalone binary. The payload SHALL continue to depend on that CLI rather than reimplementing its artifact schema, so Node is a real dependency of the planning verbs and of the memory layer.
-
-Where a skill names which verbs survive without the CLI, that list SHALL match what
-the verbs actually do. `/save` shells out to `openspec new change`,
-`openspec status --json`, and `openspec instructions` when it authors a change for a
-session that skipped `/plan`, and it writes facts through the memory script, so it is
-**not** a no-runtime verb. A list that is wrong here is worse than no list: it
-is read at the one moment the user is deciding whether to install anything.
-
-#### Scenario: Setup on a machine without Node
-
-- **WHEN** `/wong-setup` runs its readiness check on a machine with no Node.js
-- **THEN** it does not install Node during the check
-- **AND** it proceeds until a step genuinely requires the OpenSpec CLI or the memory script, then explains in plain language what needs installing and why, and asks
-
-#### Scenario: The user declines the runtime install
-
-- **WHEN** the user declines the Node install
-- **THEN** setup completes the layer that needs no runtime — `CLAUDE.md`, the wiki, the skills, and the verbs that touch only git and files
-- **AND** it names exactly which verbs are unavailable without Node, including session memory, and how to enable them later
-- **AND** it does not dead-end, fail, or leave the repo half-written
-
-#### Scenario: Install prefers a user-local method
-
-- **WHEN** the user consents to installing Node
-- **THEN** the install targets the user's own home directory rather than requiring `sudo`, wherever the platform allows it
-
-#### Scenario: The unavailable-verbs list is accurate
-
-- **WHEN** setup states which verbs work without Node
-- **THEN** `/save`'s change-authoring and fact paths are named as needing it, alongside `/plan`, `/apply`, `/continue`'s fact recap, `/explore`'s memory search,, and `/ship`
-- **AND** no verb is promised to work that shells out to the CLI or the memory script
-
 ### Requirement: Core setup requires a Cloudflare account
 
 Every WongStack repo SHALL require a Cloudflare account for its memory store. R2 SHALL be optional: it needs a payment method on file, and without it the store keeps no raw transcripts. That account need not host the application, and the Cloudflare stack pack SHALL stay opt-in. The required-tools page SHALL list the account, the provisioning token, and the memory token beside the command-line tools, and SHALL link the credentials page for how to obtain them.
@@ -157,3 +120,47 @@ WongStack SHALL NOT install Paseo on a person's own machine. The one place WongS
 - **WHEN** a reader opens the required-tools page
 - **THEN** it says that setup and the verbs never install Paseo on their machine
 - **AND** it names `server/setup.sh` as the one place that installs Paseo, for a server
+
+### Requirement: Runtimes are installed with consent, and only setup checks ahead
+
+No WongStack skill SHALL install a language runtime or tool without the person's consent, and none SHALL install one "while we're here". A skill other than `/wong-setup` SHALL install a runtime or tool only at the moment a step requires it.
+
+`/wong-setup` is the one exception, because nothing works until its tools exist. Before it writes any file or clones the source, it SHALL check for `git`, `gh`, Node.js at least at the major version in `.nvmrc`, and the OpenSpec CLI. It SHALL name each missing tool in plain language, and install each one only after the person agrees. It SHALL install through the system package manager (Homebrew when it is already present, `winget`, or `apt`) only when that install needs no password prompt. Otherwise it SHALL install into the person's own home folder. It SHALL NOT install a package manager itself. When a tool is declined or its install fails, setup SHALL stop before it writes anything, say what is missing and what to try, and say that running setup again continues from the check.
+
+Node.js is required by the OpenSpec CLI, which is distributed solely as an npm package with no standalone binary. The payload SHALL continue to depend on that CLI rather than reimplementing its artifact schema, so Node is a real dependency of the planning verbs and of the memory layer.
+
+Where a skill names which verbs survive without the CLI, that list SHALL match what the verbs actually do. `/save` shells out to `openspec new change`, `openspec status --json`, and `openspec instructions` when it authors a change for a session that skipped `/plan`, and it writes facts through the memory script, so it is **not** a no-runtime verb. A list that is wrong here is worse than no list: it is read at the one moment the user is deciding whether to install anything.
+
+#### Scenario: Setup on a machine without Node
+
+- **WHEN** `/wong-setup` runs in an empty folder on a machine with no Node.js
+- **THEN** it says, before it writes anything, that it needs Node.js and why, and asks to install it
+- **AND** it installs Node only after the person agrees
+
+#### Scenario: The user declines the runtime install
+
+- **WHEN** the person declines a tool setup needs
+- **THEN** setup writes no file and creates nothing on GitHub or Cloudflare
+- **AND** it names what is missing, what it is for, and that running setup again continues from the check
+
+#### Scenario: The package manager would ask for a password
+
+- **WHEN** a missing tool's package-manager install would prompt for an admin password, or no supported package manager is present
+- **THEN** setup installs the tool into the person's home folder instead
+- **AND** it does not install a package manager
+
+#### Scenario: Every tool is present
+
+- **WHEN** setup finds `git`, `gh`, the required Node.js version, and the OpenSpec CLI
+- **THEN** it installs nothing and asks nothing about tools
+
+#### Scenario: Other skills install at the point of need
+
+- **WHEN** a verb other than `/wong-setup` finds a tool missing, such as `/verify` without its browser CLI
+- **THEN** it installs the tool only when a step needs it, and says so
+
+#### Scenario: The unavailable-verbs list is accurate
+
+- **WHEN** a skill states which verbs work without Node
+- **THEN** `/save`'s change-authoring and fact paths are named as needing it, alongside `/plan`, `/apply`, `/continue`'s fact recap, `/explore`'s memory search, and `/ship`
+- **AND** no verb is promised to work that shells out to the CLI or the memory script

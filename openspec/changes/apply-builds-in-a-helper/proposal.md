@@ -49,7 +49,7 @@ None.
 - `.agents/skills/apply/references/build-helper.md` (new): the helper's brief, read only by the helper.
 - `wiki/development/the-change-loop.md`: the `/apply` line says it builds in a helper.
 - `scripts/measure-usage.mjs` and `scripts/tests/usage-measurement.test.mjs` (meta-only): the context-by-skill view and its test.
-- `VERSION` 25.10.1 → 25.11.0 and a `CHANGELOG.md` entry.
+- `VERSION` 25.11.0 → 25.12.0 and a `CHANGELOG.md` entry.
 
 ## Decision log
 
@@ -67,3 +67,4 @@ None.
 - **2026-09-27** — Assumed: the measurement becomes a context-by-skill view in `measure-usage.mjs`, because a before/after check should be one repeatable command, not a throwaway script. The after-check needs real builds, so `/ship` records it as an open thread.
 - **2026-09-27** — Assumed: a minor release, 25.10.0, because it changes how the payload's `/apply` works.
 - **2026-09-27** — Built: `/apply` gains *Build in a helper*, and the helper's brief is `apply/references/build-helper.md`; the change-loop `/apply` line links it. `measure-usage.mjs` prints main-thread context by skill; its first run put `/apply` at 119k start and 149k peak (median over 128 sessions), and `/save` at 200k start, so the saving also reaches the steps after a build. Main reached 25.10.1 meanwhile, so this release is 25.11.0, not 25.10.0. Payload link, config, and retired-name checks, strict validation, and 323 script tests passed.
+- **2026-09-27** — Assumed: release 25.12.0, because main shipped its own 25.11.0 (#152) during this build; the CHANGELOG entries are merged, newest first.

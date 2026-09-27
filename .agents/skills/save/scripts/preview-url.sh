@@ -8,7 +8,8 @@
 #   1. GitHub Deployments for the head SHA  -> latest status .environment_url
 #   2. Commit statuses for the head SHA     -> .target_url that looks like a preview
 #   3. Check-runs for the head SHA          -> .details_url that looks like a preview
-#   4. PR comments (Vercel/Netlify/etc bots)-> first preview-looking URL in the body
+#   4. PR comments (Vercel/Netlify/etc bots)-> the newest comment that names the
+#                                              head commit; its first preview URL
 #
 # Prints the URL on success (and a "via: <method>" line on stderr), nothing on miss.
 # Usage: preview-url.sh
@@ -59,9 +60,11 @@ URL=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" --jq '.check_run
   | grep -Ei "$PREVIEW_RE" | grep -viE 'github\.com' | drop_bare_apex | head -1)
 emit "$URL" "check run"
 
-# 4. PR comment bodies
-BODY=$(gh pr view --json comments --jq '.comments[].body' 2>/dev/null)
-URL=$(echo "$BODY" | grep -oiE "https?://[a-z0-9._-]*($PREVIEW_RE)[^ )\"'>]*" | drop_bare_apex | head -1)
+# 4. PR comment bodies, one line each, newest first. Only a comment that names
+# the head commit counts: a bot that comments once per deploy leaves every older
+# commit's preview on the PR too.
+BODY=$(gh pr view --json comments --jq '.comments | reverse | .[].body | gsub("[\r\n]+"; " ")' 2>/dev/null)
+URL=$(echo "$BODY" | grep -F "${SHA:0:7}" | grep -oiE "https?://[a-z0-9._-]*($PREVIEW_RE)[^ )\"'>|]*" | drop_bare_apex | head -1)
 emit "$URL" "PR comment"
 
 exit 0

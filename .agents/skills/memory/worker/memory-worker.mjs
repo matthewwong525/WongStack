@@ -4,7 +4,7 @@
 // code path. Each Worker serves one store, so the ids in the path are ignored. Key hashes live in the
 // store's memory_keys table, which no request may name: the admin's Cloudflare token manages keys, and
 // the join route below makes a key for a person GitHub lets into this repo.
-import { memberRefusal } from './statements.mjs';
+import { batchRefusal, sessionIds } from './statements.mjs';
 
 export const MEMORY_PREFIX = '/_memory/';
 export const TEAM_HEADER = 'Wong-Memory-Team';
@@ -42,13 +42,23 @@ async function findGrant(db, hash) {
   }
 }
 
+// Why a member's session upserts would rewrite a row another author holds, or null when every row is its own
+// or new. A row with no author predates keys, and only the admin may take it over.
+async function othersSession(db, statements, email) {
+  for (const id of sessionIds(statements)) {
+    const row = await db.prepare('SELECT author FROM sessions WHERE id = ?').bind(id).first();
+    if (row && String(row.author ?? '').toLowerCase() !== email) return `session ${id} belongs to another author`;
+  }
+  return null;
+}
+
 async function query(db, grant, request) {
   const input = await request.json().catch(() => null);
   const statements = input?.batch || (input?.sql ? [input] : null);
   if (!statements?.length) return fail(400, 'bad_request', 'send {"sql", "params"} or {"batch": [...]}');
   if (statements.some(({ sql }) => KEYS_GUARD.test(String(sql)))) return fail(403, 'keys_table', 'no memory key can read or change memory keys');
   if (grant.role !== 'admin') {
-    const refusal = statements.map(statement => memberRefusal(statement, grant.email)).find(Boolean);
+    const refusal = batchRefusal(statements, grant.email) || await othersSession(db, statements, grant.email);
     if (refusal) return fail(403, 'member_write', refusal);
   }
   try {
@@ -137,7 +147,9 @@ function route(db, env, grant, request, pathname) {
   const r2 = pathname.match(/\/r2\/buckets\/[^/]+\/objects\/(.+)$/);
   if (r2) {
     if (!env.MEMORY_BUCKET) return fail(404, 'no_bucket', 'this memory store keeps no transcripts');
-    return object(env.MEMORY_BUCKET, grant, request.method, decodeURIComponent(r2[1]), request);
+    let key;
+    try { key = decodeURIComponent(r2[1]); } catch { return fail(400, 'bad_path', 'the object path is not valid percent-encoding'); }
+    return object(env.MEMORY_BUCKET, grant, request.method, key, request);
   }
   return fail(404, 'no_route', `no route for ${request.method} ${pathname}`);
 }

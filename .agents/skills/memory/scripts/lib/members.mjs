@@ -33,14 +33,18 @@ export function envKeyFile(ctx) {
   return join(ctx.primaryRoot, '.env');
 }
 
-// Set CLOUDFLARE_MEMORY_TOKEN in the primary checkout's .env, replacing an earlier value.
+// Set CLOUDFLARE_MEMORY_TOKEN in the primary checkout's .env, replacing every earlier line for it: the
+// parser keeps the last one, so a stale duplicate would win.
 export function writeEnvKey(ctx, key) {
   const file = envKeyFile(ctx);
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const line = `CLOUDFLARE_MEMORY_TOKEN=${key}`;
-  const next = /^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=.*$/m.test(text)
-    ? text.replace(/^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=.*$/m, line)
-    : `${text}${text && !text.endsWith('\n') ? '\n' : ''}${line}\n`;
+  const earlier = /^\s*(?:export\s+)?CLOUDFLARE_MEMORY_TOKEN\s*=[^\n]*$/;
+  const lines = text.split('\n');
+  const first = lines.findIndex(each => earlier.test(each));
+  const next = first === -1
+    ? `${text}${text && !text.endsWith('\n') ? '\n' : ''}${line}\n`
+    : lines.flatMap((each, index) => index === first ? [line] : earlier.test(each) ? [] : [each]).join('\n');
   writeFileSync(file, next);
   return file;
 }

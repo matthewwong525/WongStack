@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
 import { handleMemory, hashKey, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
-import { memberRefusal, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
+import { batchRefusal, memberRefusal, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { keyEmail } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { memory, node, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -374,8 +374,21 @@ test('every write the memory script sends passes for a member under its own emai
     other[write.author] = 'bo@example.com';
     assert.match(memberRefusal({ sql, params: other }, email), /only under its own email/, name);
   }
-  for (const sql of ["SELECT body FROM facts WHERE body LIKE '%delete%'", 'WITH x AS (SELECT 1) SELECT * FROM x', 'select 1;']) {
+  for (const sql of ['SELECT body FROM facts WHERE body LIKE ?', 'WITH x AS (SELECT 1) SELECT * FROM x', 'select 1;', 'SELECT updated_at, created_by FROM tags']) {
     assert.equal(memberRefusal({ sql }, email), null, sql);
+  }
+  // A read is checked on its whole text: a write word anywhere is refused, even inside a literal.
+  assert.match(memberRefusal({ sql: "SELECT body FROM facts WHERE body LIKE '%delete%'" }, email), /not change or delete/);
+});
+
+test('a member tags or supersedes only after its own fact in the same batch', () => {
+  const email = 'ana@example.com';
+  const fact = { sql: WRITES.fact.sql, params: ['s', 'project', 'b', null, 'save', 'now', email] };
+  const tag = { sql: WRITES.factTag.sql, params: ['t'] };
+  const supersede = { sql: supersedeSql(1), params: [3] };
+  assert.equal(batchRefusal([fact, tag, supersede], email), null);
+  for (const batch of [[supersede], [tag], [supersede, fact], [{ sql: 'SELECT 1' }, supersede]]) {
+    assert.match(batchRefusal(batch, email), /only after writing its own fact/);
   }
 });
 
@@ -397,12 +410,19 @@ test('a member key cannot change, delete, or write under another name, and a ref
     `SELECT 1 /* */ ; DELETE FROM facts`,
     `WITH x AS (SELECT 1) DELETE FROM facts`,
     `SELECT 1 -- '\nDELETE FROM facts`,
+    "WITH a AS (SELECT 1 AS [']) DELETE FROM tags WHERE 'x'='x'",
+    "SELECT 1 AS \"'\"; DELETE FROM tags WHERE 'x'='x'",
+    { sql: supersedeSql(1), params: [id] },
   ];
-  for (const sql of refused) {
-    const response = await call(url, anaKey, { sql });
-    assert.equal(response.status, 403, sql);
-    assert.equal((await response.json()).errors[0].code, 'member_write', sql);
+  env.fake.db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('keep', 'A tag to keep.', 'now')").run();
+  for (const each of refused) {
+    const statement = typeof each === 'string' ? { sql: each } : each;
+    const response = await call(url, anaKey, statement);
+    assert.equal(response.status, 403, statement.sql);
+    assert.equal((await response.json()).errors[0].code, 'member_write', statement.sql);
   }
+  assert.equal(env.fake.db.prepare("SELECT count(*) AS n FROM tags WHERE name = 'keep'").get().n, 1, 'no tag was deleted');
+  assert.equal(env.fake.db.prepare('SELECT superseded_by FROM facts WHERE id = ?').get(id).superseded_by, null, 'the fact stays live');
   const asBo = await call(url, anaKey, { sql: WRITES.fact.sql, params: ['x', 'project', 'as bo', null, 'save', 'now', 'bo@example.com'] });
   assert.equal(asBo.status, 403);
   const hidden = await call(url, anaKey, { batch: [
@@ -429,6 +449,45 @@ test('a member saves and supersedes through the script, under the key\'s email e
   assert.match(replaced.stdout, /added 0, superseded 1/);
   const mine = await memory(env.repo, env.fake, ['search', 'plans'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
   assert.match(mine.stdout, /one drawing/, 'Ana sees her own feedback in a team');
+});
+
+test('a member cannot rewrite a session another author holds, or one written before keys', async t => {
+  const { env, url, anaKey } = await team(t);
+  const insert = env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, reason, updated_at) VALUES (?, 'claude', ?, 'captured', 'theirs', 'now')");
+  insert.run('claude:bo', 'bo@example.com');
+  insert.run('claude:old', null);
+  insert.run('claude:ana', 'ana@example.com');
+  const upsert = (id, reason) => ({ sql: WRITES.session.sql, params: [id, 'claude', 'ana@example.com', null, null, null, null, null, 'skipped', reason, null, null, null, 'later'] });
+  for (const id of ['claude:bo', 'claude:old']) {
+    const response = await call(url, anaKey, upsert(id, 'mine now'));
+    assert.equal(response.status, 403, id);
+    assert.match((await response.json()).errors[0].message, /belongs to another author/);
+  }
+  assert.equal((await call(url, anaKey, upsert('claude:ana', 'still mine'))).status, 200);
+  assert.equal((await call(url, anaKey, upsert('claude:new', 'new'))).status, 200);
+  const reasons = Object.fromEntries(env.fake.db.prepare('SELECT id, reason FROM sessions').all().map(row => [row.id, row.reason]));
+  assert.deepEqual(reasons, { 'claude:bo': 'theirs', 'claude:old': 'theirs', 'claude:ana': 'still mine', 'claude:new': 'new' });
+});
+
+test('a malformed object path is a 400, not a crash', async t => {
+  const { url, anaKey } = await team(t);
+  const response = await fetch(`${url}/_memory/accounts/a/r2/buckets/b/objects/%E0`, { headers: { Authorization: `Bearer ${anaKey}` } });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).errors[0].code, 'bad_path');
+});
+
+test('every read the memory script sends passes for a member', async t => {
+  const { env, anaKey } = await team(t);
+  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'thread', 'deploys need a tag', 'save', '2026-09-01T00:00:00Z', 'dev@example.com')").run();
+  const input = writeJsonFile(env.repo.home, 'gate.json', { source: 'save', slug: 'x', facts: [{ type: 'project', body: 'Deploys need a tag.' }] });
+  const reads = [
+    ['search', 'deploys'], ['search', '--tag', 'x', '--type', 'thread', '--slug', 'x', '--since', '2026-01-01', '--until', '2999-01-01', '--author', 'dev', '--all', '--everyone'],
+    ['search', '--branch', 'main', '--state', 'conversation', '--limit', '5'], ['show', 'x', '--all'], ['live'], ['tags'], ['gate', '--file', input],
+  ];
+  for (const args of reads) {
+    const result = await memory(env.repo, env.fake, args, viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+    assert.equal(result.code, 0, `${args.join(' ')}: ${result.stderr}`);
+  }
 });
 
 // ---------- joining through GitHub ----------

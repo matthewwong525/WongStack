@@ -69,10 +69,11 @@ async function loadHome(ctx) {
   } catch { return ''; }
 }
 
-async function main() {
+const USAGE = 'usage: session-start.mjs [--agent claude|codex]   the SessionStart hook; reads the hook\'s JSON on stdin';
+
+async function main(agent) {
   let input = {};
   try { input = JSON.parse(readFileSync(0, 'utf8') || '{}'); } catch { /* no input */ }
-  const agent = parseArgs({ options: { agent: { type: 'string', default: 'claude' } }, strict: false }).values.agent;
   const ctx = repoContext(input.cwd || process.cwd());
   const sessionId = `${agent}:${input.session_id || 'unknown'}`;
   const background = process.env.WONG_MEMORY_RUN === '1';
@@ -100,6 +101,11 @@ async function main() {
 }
 
 if (isMain(import.meta.url)) {
+  let args;
+  try {
+    args = parseArgs({ options: { agent: { type: 'string', default: 'claude' }, help: { type: 'boolean' } }, strict: true });
+  } catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
+  if (args.values.help) { console.log(USAGE); process.exit(0); }
   // Exit once the output is flushed: an aborted fetch's socket would otherwise hold the hook past its timeout.
-  main().catch(error => `Memory: skipped (${error.message}).\n`).then(out => process.stdout.write(out, () => process.exit(0)));
+  main(args.values.agent).catch(error => `Memory: skipped (${error.message}).\n`).then(out => process.stdout.write(out, () => process.exit(0)));
 }
