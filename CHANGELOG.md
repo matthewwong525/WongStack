@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.11.0 — Every plan prints its link, and "What next?" is tap-to-answer
+
+- **Every plan prints its link.** Whenever a reply makes or changes a plan, it prints *Click here to see the plan:* and a link to the change's `review.html`, on its own line above the closing question. This holds whichever verb made the plan — `/plan`, `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or review notes — and even when the build goes on. A new [*Print the plan's link*](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link) section owns the rule, the `WONG-STACK` block states it, and `/plan`'s *Finish* links it instead of keeping its own wording.
+- **"What next?" uses the question tool.** [*End every reply with the next step*](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step) now says the closing question goes through the same tool as every other ask (`AskUserQuestion`, `request_user_input`, or an equivalent), with the report and link written as chat text first. Before, agents asked clarification questions with the tool but typed the closing menu as a numbered list. Sessions with no question tool still get the numbered list.
+
+**Updating.** `/wong-sync` brings the block line and the two skill edits. Nothing to migrate.
+
 ## 25.10.1 — Fixes from a repo check
 
 - **Teammates can't change or hide each other's memory.** The memory route now refuses three writes it let through. A fact tag or supersede without the member's own new fact before it in the same batch is refused, so a replacement is always visible and credited. So is a session upsert onto a row another author holds, or one written before keys. The read check now looks at the whole SQL text, so a quoted name like `[']` can't hide a `DELETE`. A malformed `%` in an object path is a 400, not a crash. The statements are unchanged, so member checkouts need no update.
