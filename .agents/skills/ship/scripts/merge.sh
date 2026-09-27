@@ -44,7 +44,12 @@ gh pr view --json number,url --jq '"pr=\(.number) url=\(.url)"' || true
 
 # ── Retarget before delete, always ─────────────────────────────────────────────
 RETARGETED=()
-for n in $(gh pr list --state open --base "$BRANCH" --json number --jq '.[].number'); do
+# A failed list must not read as "no stacked PRs": deleting the branch would close them.
+if ! STACKED=$(gh pr list --state open --base "$BRANCH" --json number --jq '.[].number'); then
+  say "retargeted="; say "branch=kept"
+  fail "could not list the PRs based on $BRANCH; the branch is kept so none of them closes"; exit 2
+fi
+for n in $STACKED; do
   if ! gh api -X PATCH "repos/:owner/:repo/pulls/$n" -f base="$DEFAULT" --jq '.number' >/dev/null; then
     say "retargeted=${RETARGETED[*]:-}"; say "branch=kept"
     fail "could not retarget PR #$n; the branch is kept so that PR stays open"; exit 2
@@ -56,7 +61,10 @@ say "retargeted=${RETARGETED[*]:-}"
 # ── Delete the remote branch, unless GitHub already did at merge ───────────────
 git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; rc=$?
 case $rc in
+  # GitHub's own delete at merge can land between the check and the push, so
+  # a failed delete asks again before it counts as a failure.
   0) if git push origin --delete "$BRANCH"; then say "branch=deleted"
+     elif git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; [ $? -eq 2 ]; then say "branch=deleted-at-merge"
      else say "branch=kept"; fail "git push --delete failed"; exit 2; fi ;;
   2) say "branch=deleted-at-merge" ;;
   *) say "branch=kept"; fail "git ls-remote failed (exit $rc); cannot tell whether the branch exists"; exit 2 ;;

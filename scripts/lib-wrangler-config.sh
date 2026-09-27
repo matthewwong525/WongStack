@@ -95,17 +95,22 @@ wong_ci_branch() {
 }
 
 # The preview alias for a branch or a name. An alias must be lowercase
-# alphanumeric-and-hyphen and at most 63 characters, so a branch like
-# `feat/Add_Thing` can't be passed through as-is. Prints nothing when no usable
-# character is left; the caller refuses that.
+# alphanumeric-and-hyphen and start with a letter, so a branch like
+# `feat/Add_Thing` can't be passed through as-is, and `123-fix` becomes
+# `b-123-fix`. Its URL label is `<alias>-<worker>`, which must fit in 63
+# characters, so with the Worker's name the alias is cut to fit; without it, to
+# 63. Prints nothing when no usable character is left; the caller refuses that.
 #
-# Usage: wong_preview_alias <branch-or-name>
+# Usage: wong_preview_alias <branch-or-name> [worker-name]
 wong_preview_alias() {
-  printf '%s' "$1" \
+  local max=63 alias
+  [ -n "${2:-}" ] && max=$(( 62 - ${#2} ))
+  [ "$max" -ge 1 ] || return 0
+  alias=$(printf '%s' "$1" \
     | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
-    | cut -c1-63 \
-    | sed -E 's/-+$//'
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+  case "$alias" in ''|[a-z]*) ;; *) alias="b-$alias" ;; esac
+  printf '%s' "$alias" | cut -c1-"$max" | sed -E 's/-+$//'
 }
 
 # The preview URL from a `wrangler versions upload` log: the first workers.dev

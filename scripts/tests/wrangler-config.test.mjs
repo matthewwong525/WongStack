@@ -178,6 +178,26 @@ test('a feature branch deploys only to staging and publishes the alias URL', t =
   assert.match(run.out, /preview URL https:\/\/feature-x-demo-staging\.example\.workers\.dev/);
 });
 
+const alias = (...args) => spawnSync('bash', ['-c', 'source "$0"; wong_preview_alias "$@"', join(repo, 'scripts/lib-wrangler-config.sh'), ...args], { encoding: 'utf8' }).stdout.trim();
+
+test('a preview alias starts with a letter and leaves room for the Worker name', () => {
+  assert.equal(alias('feat/Add_Thing'), 'feat-add-thing');
+  assert.equal(alias('123-fix'), 'b-123-fix');
+  assert.equal(alias('x'.repeat(80)).length, 63);
+  const fitted = alias(`explore/${'long-'.repeat(15)}end`, 'demo-staging');
+  assert.equal(`${fitted}-demo-staging`.length <= 63, true, fitted);
+  assert.doesNotMatch(fitted, /-$/);
+  assert.equal(alias('feature', 'w'.repeat(62)), '');
+});
+
+test('a long branch uploads an alias that fits beside the staging Worker name', t => {
+  const run = deploy(t, { branch: `explore/${'long-'.repeat(15)}end` });
+  assert.equal(run.status, 0, run.out);
+  const upload = run.calls.find(call => call.includes('versions upload'));
+  const used = upload.match(/--preview-alias (\S+)/)[1];
+  assert.ok(`${used}-demo-staging`.length <= 63, used);
+});
+
 test('a plugin build that already chose staging drops --env and still deploys staging', t => {
   const run = deploy(t, { branch: 'feature/x', generated: 'demo-staging' });
   assert.equal(run.status, 0, run.out);

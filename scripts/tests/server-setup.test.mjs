@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,4 +19,10 @@ test('the script stays inside the size budget', () => {
 test('the script parses as bash', () => {
   const run = spawnSync('bash', ['-n', script], { encoding: 'utf8' });
   assert.equal(run.status, 0, run.stderr);
+});
+
+test('the script installs the OpenSpec version CI checks the skills against', () => {
+  const pinned = file => readFileSync(resolve(repo, file), 'utf8').match(/@fission-ai\/openspec@(\S+)/)?.[1];
+  assert.ok(pinned('server/setup.sh'), 'server/setup.sh installs an unpinned OpenSpec');
+  assert.equal(pinned('server/setup.sh'), pinned('.github/workflows/payload.yml'));
 });

@@ -6,7 +6,7 @@
 # it returns NONE and the PR review is the gate (see the RESULT lines below).
 #
 # Prints exactly one RESULT line at the end:
-#   RESULT: SUCCESS   — every check passed (or skipped)
+#   RESULT: SUCCESS   — every check passed (or skipped), the same on two polls
 #   RESULT: FAILURE   — at least one check failed/cancelled (failing names follow)
 #   RESULT: NONE      — the repo has no workflow files, and gh reports no checks
 #   RESULT: TIMEOUT   — still pending after the time budget (pending names follow)
@@ -22,6 +22,14 @@
 # .github/workflows/*.yml or *.yaml waits up to WAIT_FOR_CHECKS_GRACE seconds
 # (default 60) before it becomes UNKNOWN. WAIT_FOR_CHECKS_INTERVAL (default 10)
 # sets the poll interval; tests shorten both.
+#
+# ── Why a pass is settled ─────────────────────────────────────────────────────
+# Each workflow runs on push and on pull_request, and skips the pull_request
+# copy for a same-repo PR. Those skipped checks finish at once, so a poll can
+# see only them, or them plus a fast pass, before GitHub registers the push run
+# that does the testing. SUCCESS therefore needs the same finished list on two
+# polls in a row, and a list of only skipped checks keeps the wait going until
+# the grace period ends. FAILURE needs no second poll: one red check decides.
 #
 # ── Why UNKNOWN exists ────────────────────────────────────────────────────────
 # An earlier version ran `gh pr checks --json …` with stderr sent to /dev/null
@@ -103,6 +111,7 @@ poll_checks() {
   fi
 }
 
+PREVIOUS=""
 while :; do
   # Note: gh pr checks exits non-zero when checks are merely pending (8) or
   # failing (1), so the exit code says nothing about whether checks *exist*.
@@ -134,7 +143,15 @@ while :; do
       done
       exit 0
     fi
-    echo "RESULT: SUCCESS"; exit 0
+    # A pass needs the same finished list twice in a row, and more than skipped
+    # checks until the grace period ends (see "Why a pass is settled" above).
+    SETTLED=$(printf '%s\n' "$LINES" | sort)
+    if printf '%s\n' "$LINES" | grep -qv '^skipping	' || [ "$(date +%s)" -ge "$CHECKS_DEADLINE" ]; then
+      [ "$SETTLED" = "$PREVIOUS" ] && { echo "RESULT: SUCCESS"; exit 0; }
+    fi
+    PREVIOUS=$SETTLED
+  else
+    PREVIOUS=""
   fi
 
   if [ "$(date +%s)" -ge "$DEADLINE" ]; then

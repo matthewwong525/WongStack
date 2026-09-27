@@ -146,7 +146,10 @@ for req in "$JOURNEYS"/*.requests.txt; do
       [ -n "${body:-}" ] && echo "body: $body"
       echo "---"
     } >"$out"
-    curl -sS -i -X "$method" \
+    # -X HEAD would wait for a body that never comes; -I asks for headers only.
+    # Every request is bounded, so one hung URL can't use up the walk's budget.
+    if [ "$method" = HEAD ]; then verb=(-I); else verb=(-X "$method"); fi
+    curl -sS -i "${verb[@]}" --max-time "${VERIFY_REQUEST_TIMEOUT:-30}" \
       ${CURL_ACCESS[@]+"${CURL_ACCESS[@]}"} \
       ${body:+-H "Content-Type: application/json" --data "$body"} \
       "$url" >>"$out" 2>>"$RUN_DIR/evidence/$id.stderr"
