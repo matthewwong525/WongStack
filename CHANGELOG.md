@@ -3,6 +3,26 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.8.1 — Fixes from a repo check
+
+- **Teammates can't change or hide each other's memory.** The memory route now refuses three writes it let through. A fact tag or supersede without the member's own new fact before it in the same batch is refused, so a replacement is always visible and credited. So is a session upsert onto a row another author holds, or one written before keys. The read check now looks at the whole SQL text, so a quoted name like `[']` can't hide a `DELETE`. A malformed `%` in an object path is a 400, not a crash. The statements are unchanged, so member checkouts need no update.
+- **`.env` values are read correctly.** `parseEnv` drops the quotes from a quoted value followed by spaces or a `# comment`. Before, it kept them, so a memory key failed and the transcript redactor looked for the wrong text. `writeEnvKey` replaces every `CLOUDFLARE_MEMORY_TOKEN=` line, so a stale duplicate can't win.
+- **The check wait needs a settled pass.** `wait-for-checks.sh` reports `SUCCESS` only when two polls agree. A list of only skipped checks keeps it waiting until the grace period ends, so the instant pull-request copies no longer pass a save before the tests are registered. `FAILURE` stays immediate.
+- **`merge.sh` fails closed.** A failed `gh pr list` keeps the branch instead of deleting it and closing stacked PRs. A delete that loses the race to GitHub's own delete at merge reports `deleted-at-merge`, not an error.
+- **Smaller fixes.**
+  - `search --state` filters before `--limit`.
+  - Preview discovery's PR-comment method takes the newest comment naming the head commit.
+  - The test, payload, and deploy workflows run on branch pushes only, so a release tag no longer redeploys staging. The mini-app tests run after a red suite.
+  - A preview alias starts with a letter and fits beside the staging Worker's name.
+  - `npm run deploy` in `app/` runs `scripts/cf-deploy.sh`, which deploys nothing outside CI.
+  - `/verify`'s request probes time out after 30 seconds (`VERIFY_REQUEST_TIMEOUT`), and `HEAD` uses `curl -I`.
+  - `server/setup.sh` pins OpenSpec 1.13.2.
+  - The background run's instructions allow `finish-run --counts`.
+  - The `/improve` survey skips `CHANGELOG.md`.
+  - The memory scripts `run.mjs` and `session-start.mjs` answer `--help`.
+
+**Updating.** `/wong-sync` brings the fixes. The memory route's fix takes effect on the next production deploy from `main`.
+
 ## 25.8.0 — Offers to make a task easier next time
 
 - **A task that will come back ends with one offer.** When the agent finishes a task it did by hand and there is a clear sign it recurs, its closing next-step question adds one option: run it on a schedule through `/routine`, or build a mini app for it. A clear sign is the person saying it recurs, or a memory fact showing they asked before; never a guess. Judgment on each run means a routine; fixed steps mean a mini app. [Offer a routine or an app](wiki/development/the-change-loop.md#offer-a-routine-or-an-app) owns the rule, the `WONG-STACK` block states it, and [the ask convention](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step) links it.

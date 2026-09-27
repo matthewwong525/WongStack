@@ -55,6 +55,21 @@ test('the walk reads .env through the memory parser and escapes the Access heade
   assert.equal(readFileSync(join(root, 'token'), 'utf8'), 'tok=en==');
 });
 
+test('a request that never answers times out, and HEAD probes return headers', async t => {
+  const { work, bin, run } = fixture(t);
+  writeFileSync(join(run, 'journeys/api.requests.txt'), 'GET\t/hang\nHEAD\t/ok\n');
+  const server = createServer((req, res) => { if (req.url !== '/hang') res.end('ok'); });
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => server.closeAllConnections() || server.close());
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, VERIFY_REQUEST_TIMEOUT: '1' };
+  const started = Date.now();
+  const stdout = await new Promise((done, fail) => execFile('bash', [script, 'run', run, `http://127.0.0.1:${server.address().port}`], { cwd: work, env, encoding: 'utf8', timeout: 20000 },
+    (error, out, err) => (error ? fail(new Error(err || out)) : done(out))));
+  assert.match(stdout, /RESULT: WALKED/);
+  assert.ok(Date.now() - started < 15000, 'the hung request did not hold the walk');
+  assert.match(readFileSync(join(run, 'evidence/api/02-response.txt'), 'utf8'), /HTTP\/1\.1 200/);
+});
+
 test('a linked worktree reads the primary checkout\'s .env', async t => {
   const { root, work, bin, run } = fixture(t);
   const git = (...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: work });

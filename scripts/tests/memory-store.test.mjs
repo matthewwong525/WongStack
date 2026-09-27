@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
-import { readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
+import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
+import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
 import { homeRows, memory, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
@@ -121,6 +123,35 @@ test('search filters by text, type, slug, date, author, and change state', async
   assert.match((await memory(env.repo, env.fake, ['search', '--since', '2999-01-01'])).stdout, /No matching facts/);
   assert.match((await memory(env.repo, env.fake, ['search', '--author', 'dev@'])).stdout, /\(one, conversation, 0d, dev, #1\)/);
   assert.match((await memory(env.repo, env.fake, ['search', '--state', 'active'])).stdout, /No matching facts/);
+});
+
+test('--state filters before the limit, so an older match is still found', async t => {
+  const env = await setup(t);
+  mkdirSync(join(env.repo.root, 'openspec', 'changes', 'busy'), { recursive: true });
+  await put(env, { source: 'save', slug: 'chat', facts: [{ action: 'add', type: 'thread', body: 'Open question from a conversation.' }] });
+  for (const n of [1, 2, 3]) await put(env, { source: 'save', slug: 'busy', facts: [{ action: 'add', type: 'thread', body: `Open item ${n} in a change.` }] });
+  const found = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--state', 'conversation', '--limit', '2']);
+  assert.match(found.stdout, /from a conversation/);
+  const capped = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--state', 'active', '--limit', '2']);
+  assert.equal(capped.stdout.trim().split('\n').length, 2);
+});
+
+test('.env values lose their quotes and comments, and keep what is inside the quotes', () => {
+  const text = ['A="abc" # note', 'B="x y"  ', "C='single'", 'D="has # inside"', 'E=plain # note', 'export F=exported', 'G=a#b', 'H=', 'I="crlf"\r', ''].join('\n');
+  assert.deepEqual(parseEnv(text), { A: 'abc', B: 'x y', C: 'single', D: 'has # inside', E: 'plain', F: 'exported', G: 'a#b', H: '', I: 'crlf' });
+});
+
+test('writing the memory key replaces every earlier line, so the new key is the one read', t => {
+  const primaryRoot = tempDir(t, 'env-key-');
+  const file = join(primaryRoot, '.env');
+  writeFileSync(file, 'A=1\r\nCLOUDFLARE_MEMORY_TOKEN=\r\nB=2\r\nexport CLOUDFLARE_MEMORY_TOKEN=old\r\n');
+  writeEnvKey({ primaryRoot }, 'new');
+  assert.equal(parseEnv(readFileSync(file, 'utf8')).CLOUDFLARE_MEMORY_TOKEN, 'new');
+  assert.equal(readFileSync(file, 'utf8').match(/CLOUDFLARE_MEMORY_TOKEN/g).length, 1);
+  assert.equal(parseEnv(readFileSync(file, 'utf8')).B, '2');
+  writeFileSync(file, 'A=1');
+  writeEnvKey({ primaryRoot }, 'first');
+  assert.equal(readFileSync(file, 'utf8'), 'A=1\nCLOUDFLARE_MEMORY_TOKEN=first\n');
 });
 
 test('an offline write goes to the spool, and the spool drains through the gate', async t => {

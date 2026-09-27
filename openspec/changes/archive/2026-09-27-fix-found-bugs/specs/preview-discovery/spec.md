@@ -1,10 +1,4 @@
-# preview-discovery Specification
-
-## Purpose
-
-Lets `/save`, `/verify`, and `/ship` find the preview URL for the current commit without per-repo configuration, and never report a provider's home page as a preview.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Preview discovery never reports a bare provider apex
 

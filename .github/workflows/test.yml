@@ -58,7 +58,10 @@
 name: Test
 
 on:
+  # Branches only: a tag names a commit its branch push already ran, and a
+  # tag run would test it again or deploy it to staging under the tag's name.
   push:
+    branches: ['**']
   pull_request:
 
 concurrency:
@@ -181,7 +184,7 @@ jobs:
       # there, and Node 22 reads a directory argument as a file.
       - name: Test the changed mini apps
         id: mini
-        if: ${{ steps.scope.outputs.mini_apps != '' }}
+        if: ${{ !cancelled() && steps.scope.outputs.mini_apps != '' }}
         env:
           MINI_APPS: ${{ steps.scope.outputs.mini_apps }}
         run: |

@@ -4,7 +4,10 @@
 name: Payload checks
 
 on:
+  # Branches only: a tag names a commit its branch push already ran, and a
+  # tag run would test it again or deploy it to staging under the tag's name.
   push:
+    branches: ['**']
   pull_request:
 
 concurrency:
