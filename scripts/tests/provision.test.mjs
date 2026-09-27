@@ -223,8 +223,9 @@ test('a fresh provision with R2 on makes the memory store, the key, both databas
     worker: 'https://recipe-box.ada.workers.dev/_memory',
   });
   assert.ok(env.fake.rows('recipe-box-memory', 'SELECT version FROM schema_migrations').length >= 3);
-  const [admin] = env.fake.rows('recipe-box-memory', 'SELECT email, role FROM memory_keys');
-  assert.deepEqual(admin, { email: EMAIL, role: 'admin' });
+  const [admin] = env.fake.rows('recipe-box-memory', 'SELECT email, role, github_id, expires_at IS NOT NULL AS ends FROM memory_keys');
+  assert.deepEqual(admin, { email: EMAIL, role: 'admin', github_id: '4242', ends: 1 });
+  assert.deepEqual(env.fake.rows('recipe-box-memory', 'SELECT github_id, login, email FROM memory_admins'), [{ github_id: '4242', login: 'ada', email: EMAIL }]);
   assert.match(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_API_TOKEN, TOKEN, 'the other .env lines stay');
 

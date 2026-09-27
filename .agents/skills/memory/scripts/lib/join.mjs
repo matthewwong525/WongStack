@@ -3,12 +3,10 @@
 // expiry, so the session-start hook knows when to renew. With --background (the hook), a failure the person
 // must fix is kept in join-error.json, and the hook shows it until they run join themselves.
 import { execFileSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import { closeSync, openSync, rmSync, statSync } from 'node:fs';
-import { hostname } from 'node:os';
 import { join as joinPath } from 'node:path';
-import { envKeyFile, writeEnvKey } from './members.mjs';
-import { loadConfig, readJson, SCRIPT, statePath, StoreError, writeJson } from './store.mjs';
+import { envKeyFile, machineName, writeEnvKey } from './members.mjs';
+import { loadConfig, SCRIPT, statePath, StoreError, writeJson } from './store.mjs';
 
 export const RENEW_DAYS = 7;
 const TIMEOUT_MS = 20000;
@@ -29,12 +27,7 @@ const FIXES = {
 // Refusals only the person can fix; the others (a Worker not yet deployed or migrated) clear on their own.
 const PERSONAL = new Set(['gh_login', 'github_token', 'needs_scope', 'no_access', 'no_email']);
 
-export const keyFile = ctx => joinPath(ctx.stateDir, 'key.json');
 export const joinErrorFile = ctx => joinPath(ctx.stateDir, 'join-error.json');
-
-// This clone's machine name: the host name and a short suffix kept in key.json, so two hosts with the same
-// name never replace each other's key.
-const machineName = ctx => readJson(keyFile(ctx), {}).machine || `${hostname()}-${randomBytes(3).toString('hex')}`;
 
 class JoinError extends StoreError {
   constructor(code, reason, kind = 'auth') {
