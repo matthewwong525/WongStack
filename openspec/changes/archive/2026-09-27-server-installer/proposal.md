@@ -1,6 +1,6 @@
 # Server installs come from WongStack
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** fabulous-tiger
 **Open questions:** none
 
@@ -76,3 +76,4 @@ None.
 - **2026-09-27** — Cleanup removed the Hetzner server and SSH key, the Worker `wongstack-install-test` (no staging Worker was ever deployed), the three D1 databases, the memory bucket, and the `wongstack-install-test-deploy` token. The GitHub repo `matthewwong525/wongstack-install-test` still exists: deleting it needs the `delete_repo` scope.
 - **2026-09-27** — Deleted the throwaway GitHub repo `matthewwong525/wongstack-install-test` after the person granted `gh` the `delete_repo` scope. Nothing from the test is left standing.
 - **2026-09-27** — Distilled: the real-server test steps went into `server/README.md` as *Test a change on a real server*, the page that owns both scripts. No wiki page changed.
+- **2026-09-27** — Archive checkpoint for 26.8.0: merged `main` twice (26.6.0 and 26.7.0). The installer builds the wrangler config from the fragment, so it picks up 26.6.0's `disallow_importable_env` flag unchanged. The new tests' temp folders now start with `wong-test-`, the 26.7.0 convention. The full script suite passed locally again (464 pass, 11 skipped).

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Server installs come from WongStack
+## 26.8.0 — Server installs come from WongStack
 
 - **The server installer lives here now.** `server/install-wongstack.mjs` sits beside `server/setup.sh`. A host clones WongStack, or your fork, at a pinned commit into `~/.cache/wong-stack/WongStack`, then runs the installer from there as the workspace user, with `{token, accountId, repo}` on stdin. It installs that clone's payload, `VERSION`, and commit into the person's empty repo, commits on `main`, and pushes. Fork WongStack, and your servers install your fork.
 - **A server install gets today's memory.** The app's production Worker serves the memory store, the admin memory key for the person's git email goes to `.env`, and a bucket keeps full transcripts when R2 is on. No memory Cloudflare token is minted. The repo's `.env.example` is the source's own, and `app/wrangler.jsonc` comes from the stack pack's fragment.
