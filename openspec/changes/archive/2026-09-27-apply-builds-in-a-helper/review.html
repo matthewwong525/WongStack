@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · 2026-09-27-plain-words-and-verbs</title>
+<title>Review · 2026-09-27-apply-builds-in-a-helper</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="2026-09-27-plain-words-and-verbs">
+<body data-change="2026-09-27-apply-builds-in-a-helper">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>2026-09-27-plain-words-and-verbs</h1>
+  <h1>2026-09-27-apply-builds-in-a-helper</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -104,50 +104,51 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">When you save or publish, the assistant's report ends in lines only a programmer reads: branch names, commit codes, and a gate result. Every drawing of the loop shows &quot;continue&quot; as a step between saving and publishing, when it really means &quot;pick this up later&quot;. And the list of words the assistant may use leaves out the ones you actually meet, like <i>preview link</i> and <i>review page</i>. You should get the outcome and one link, see the loop as it is, and find every word explained.</p>
+<p data-note="why-1" tabindex="0">When you say &quot;build it&quot;, the assistant builds in the same conversation where you planned. That conversation already holds about 120k tokens of planning talk, and every build step carries it along. Over 127 past builds, the conversation doubled to about 300k by the end. Nothing ran out of room, but each step costs more, and the leftover talk crowds the assistant's focus. The plan is already saved in files, so a fresh helper can build from those alone.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Reports give you the outcome and one link.</b> When you save, publish, or pick up work yourself, the reply says what happened and gives the one link that matters. Branch names, commit codes, and check results stay out unless you ask for them. People who want the details still get them.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">Before                  After</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">─────────────────────   ─────────────────</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">Saved. Branch          Saved. Not live</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">explore/tip-split,     yet: here's the</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">commit 4dab306,        review page.</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">PR #151, CI passed,    &lt;link&gt;</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">3 facts stored.</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0">SAVE_GATE_RESULT=</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0">SUCCESS</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Picking work back up reads like progress, not git.</b> When you continue saved work, the recap says what the work is and how far it got — <i>3 of 9 steps left, 2 comments from reviewers</i> — instead of commit counts and branch names.</div></div></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The loop picture shows continue as a side door.</b> Every drawing and one-line summary of the loop puts &quot;continue&quot; beside the loop, as the way back in later, not as a stop between saving and publishing.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-3-line-1" tabindex="0">explore ▶ plan ▶ apply ▶ save ▶ ship</span>
-<span class="ln" data-note="item-3-line-2" tabindex="0">                   ▲</span>
-<span class="ln" data-note="item-3-line-3" tabindex="0">     continue ─────┘</span>
-<span class="ln" data-note="item-3-line-4" tabindex="0">     (pick up saved work later,</span>
-<span class="ln" data-note="item-3-line-5" tabindex="0">      on any computer)</span></pre></div></details></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>The word list covers what you'll see.</b> The list of words the assistant may use gains <i>preview link</i>, <i>review page</i>, <i>mini app</i>, <i>routine</i>, <i>save</i>, and <i>publish</i>. <i>Save</i> notes that a wiki-only save goes live right away.</div></div></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>A fresh helper does the building.</b> After the plan is ready, the assistant hands the change to a helper agent that starts empty. The helper reads the plan files, builds each task, and ticks it off. The conversation you're in gets back a short report, not every file the helper opened.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">you: build it</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">   │</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">   ▼</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">this chat: find the plan</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">   │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">   ▼</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">helper (fresh): read plan,</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">  build tasks, tick them off</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">   │  short report</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">   ▼</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">this chat: preview link,</span>
+<span class="ln" data-note="item-1-line-12" tabindex="0">  &quot;publish it?&quot;</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>You talk to the same assistant as before.</b> The preview link, the loosened-checks list, and the <i>publish it?</i> question still come from the conversation you're in. Small follow-up tweaks after the preview are made there too.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Questions still reach you.</b> A helper can't ask you anything. When it hits something unclear, or a task that needs a save, it stops and hands back. The assistant asks you or saves, then starts a new helper for the tasks left.</div></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Every build works this way.</b> That includes a build that <i>publish it</i> or picking up saved work starts. An AI tool that has no helper agents builds in the conversation, as now.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>The usage report shows the saving.</b> It gains one table: how full the conversation is when each step starts, and at its peak. Run it before and after to see the difference.</div></div></li>
 </ol>
-<p class="aside">Non-goals: no command is renamed; no change to what saving or publishing does; no word list in installed repos yet, which comes with the &quot;what can I ask?&quot; page.</p>
+<p class="aside">Non-goals: no automatic <code>/compact</code> (only you can type it); no helper for planning, saving, or publishing; no change to what gets built or checked.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked which audit area to explore next → chose words and verbs.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked what this change should cover → chose the loop picture, the word list, and plain reports.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked what happens to a report's technical lines for a non-technical reader → chose hide them unless asked.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked whether the command names should change → chose keep the names.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the report rule lives once, in <i>Write at the reader's level</i>, and <code>/save</code>, <code>/continue</code>, and <code>/ship</code> link it, because one topic lives on one page and the three reports already link that section.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a verb that runs inside another verb (<code>/save</code> inside <code>/ship</code>, <code>/apply</code>, or <code>/verify</code>) still prints its gate line whatever the reader's level, because the calling verb reads it; the reader may see it during a publish.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the <code>/continue</code> recap for a non-technical reader counts steps and reviewer comments, and drops commit counts and the branch name, because those are the parts a reader can act on.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the one link is the preview when there is one, else the pull request, called <i>the review page on GitHub</i>, because it is the one place the person can look at the work.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the word list stays on the source wiki's front page, because installed repos get their own front page from setup; shipping the list belongs to the queued &quot;what can I ask?&quot; page.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the loop becomes <code>/explore → /plan → /apply → /save → /ship</code>, with <code>/continue</code> named after it as the way back in, because <code>/continue</code> hands off to <code>/apply</code> and is not a stage.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, because nothing an installed repo relies on is removed.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: the report rule in <i>Write at the reader's level</i> (outcome plus at most one link for a non-technical reader who ran the verb; caller-read lines kept inside another verb); <code>/save</code> §5, <code>/continue</code> §4, and <code>/ship</code> Step 6 link it; the loop reads <code>/explore → /plan → /apply → /save → /ship</code> with <code>/continue</code> as the way back in, in the block, README, change-loop diagram, and development hub; six terms added to the source wiki's list. Moved to a fresh branch, <code>plain-words-and-verbs</code>, cut from <code>main</code>, because the workspace's branch merged as PR #148. Released as 25.11.0 above main's 25.10.1. Link, config, and retired-name checks and strict validation passed.</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Merged main's 25.11.0 (PR #152, the plan-link rule) into the branch; kept both <code>WONG-STACK</code> lines and renumbered this release to 25.12.0.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled: no repeatable fact.</li>
-<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived and checkpointed for merge by <code>/ship</code>.</li>
-<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Merged main's 25.12.0 (PR #153) at merge time and renumbered this release to 25.13.0.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked whether to run a Paseo compact before building or build in a helper → chose build in a helper, with this conversation keeping the preview, questions, and report.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked when to use the helper → chose always, for one predictable path.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked whether to measure first → chose yes. Baseline over 127 past <code>/apply</code> sessions: main-thread context at build start median 119k (p90 203k); peak median 297k (p90 520k); 2 of 127 compacted.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: no automatic compact, because Paseo has no compact command and <code>/compact</code> is a built-in only the person can type; sending it to the agent's own id through <code>paseo send</code> is untested and needs a second message to resume.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the helper's brief lives in <code>apply/references/build-helper.md</code> and the parent passes its path with the change name, because the brief then loads only in the helper, not in every <code>/apply</code>.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the helper stops and returns on ambiguity, a blocker, or a gate task, and the parent asks or runs <code>/save</code> and then starts a new helper for the remaining tasks, because a subagent could not see the ask tool on 2026-09-15 and git stays with the parent's <code>/save</code>.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: planning, the preview, the loosened-checks fix, and the report stay in the parent, because they are short or need the person.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: follow-up edits after the preview run in the parent, because they are small and conversational; a follow-up that adds tasks to <code>tasks.md</code> goes through a helper.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a host with no helper agents, or an <code>/apply</code> already running inside a helper, builds inline, because nesting may be unavailable.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the helper uses the parent's model, because a cheaper model could lower build quality.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the helper's brief forbids deleting caches and running global installers, because a read-only audit subagent deleted the Playwright cache on 2026-09-25.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the measurement becomes a context-by-skill view in <code>measure-usage.mjs</code>, because a before/after check should be one repeatable command, not a throwaway script. The after-check needs real builds, so <code>/ship</code> records it as an open thread.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, 25.10.0, because it changes how the payload's <code>/apply</code> works.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built: <code>/apply</code> gains <i>Build in a helper</i>, and the helper's brief is <code>apply/references/build-helper.md</code>; the change-loop <code>/apply</code> line links it. <code>measure-usage.mjs</code> prints main-thread context by skill; its first run put <code>/apply</code> at 119k start and 149k peak (median over 128 sessions), and <code>/save</code> at 200k start, so the saving also reaches the steps after a build. Main reached 25.10.1 meanwhile, so this release is 25.11.0, not 25.10.0. Payload link, config, and retired-name checks, strict validation, and 323 script tests passed.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: release 25.12.0, because main shipped its own 25.11.0 (#152) during this build; the CHANGELOG entries are merged, newest first.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #153 (task 4.3), checked by a task-driven <code>/save</code>.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled: no repeatable fact. The Paseo compact finding stays in memory and this Decision log; the open thread is the after-measurement.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived and checkpointed for merge by <code>/ship</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

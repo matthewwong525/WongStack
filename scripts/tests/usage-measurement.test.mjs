@@ -65,3 +65,19 @@ test('rolls subagents into their parent task and filters by working directory', 
   assert.deepEqual([report.tree.main.dollars, report.tree.subagents.dollars], [10, 10]);
   assert.equal(measureUsage({ dir }).perTask.count, 2);
 });
+
+test('reports main-thread context at a skill\'s first turn and at its peak', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-usage-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(join(dir, 'project', 's1', 'subagents'), { recursive: true });
+  writeFileSync(join(dir, 'project', 's1.jsonl'), jsonl([
+    assistant('r1', 'claude-opus-5', { cache_read_input_tokens: 50000 }),
+    assistant('r2', 'claude-opus-5', { cache_read_input_tokens: 119000, input_tokens: 1000 }, [], { skill: 'apply' }),
+    assistant('r3', 'claude-opus-5', { cache_read_input_tokens: 290000, cache_creation_input_tokens: 10000 }, [], { skill: 'apply' }),
+    assistant('r4', 'claude-opus-5', { cache_read_input_tokens: 200000 }, [], { skill: 'apply' }),
+  ]));
+  writeFileSync(join(dir, 'project', 's1', 'subagents', 'agent-a.jsonl'), jsonl([assistant('r5', 'claude-opus-5', { cache_read_input_tokens: 900000 }, [], { skill: 'apply' })]));
+  const { contextBySkill } = measureUsage({ dir });
+  assert.deepEqual(contextBySkill.apply, { tasks: 1, startMedian: 120000, startP90: 120000, peakMedian: 300000, peakP90: 300000 });
+  assert.deepEqual(Object.keys(contextBySkill), ['apply']);
+});
