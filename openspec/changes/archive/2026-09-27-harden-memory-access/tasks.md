@@ -33,4 +33,4 @@
 
 - [x] 5.1 Add a `## Next (minor) — Memory keys stay home, and read-only teammates keep their notes to themselves` entry at the top of `CHANGELOG.md`, with an *Updating* note: add `disallow_importable_env` to your own `app/wrangler.jsonc` (`/wong-sync` plans it), run `memory.mjs migrate` once, and read-only teammates renew as readers
 - [x] 5.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-retired-names.mjs`, `node scripts/check-openspec-config.mjs`, `openspec validate harden-memory-access --strict --no-interactive`, and the touched suites with `TMPDIR=/var/tmp node --test scripts/tests/memory-*.test.mjs scripts/tests/wrangler-config.test.mjs`
-- [ ] 5.3 `/save`, and confirm CI passes on this branch
+- [x] 5.3 `/save`, and confirm CI passes on this branch

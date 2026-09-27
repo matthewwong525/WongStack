@@ -45,7 +45,7 @@ A key has one of three roles:
 
 - **Admin:** the person who ran setup. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store) writes their key to `.env`. They read every transcript in the store.
 - **Member:** a teammate. They read facts and add them under their own email, and they read only their own transcripts. The route runs only the memory script's own writes for them, so they cannot change or delete a fact, rewrite another person's session, or remove the store's guards. They supersede only facts they wrote, with their own replacement in the same save, so the replacement is always visible and credited. A supersede aimed at a teammate's fact leaves it live, and the script names who wrote it; only the admin supersedes anyone's.
-- **Reader:** someone who can read a private repo on GitHub but not push to it. A reader is a member whose facts only they see: the route stores every fact they write as unshared, whatever the request says, and teammates' digests and searches skip it.
+- **Reader:** someone who can read a private repo on GitHub but not push to it. A reader is a member whose facts only they see: the route stores every fact they write as unshared, whatever the request says, and teammates' digests and searches skip it. Knowledge meant for the team goes in [the wiki](../README.md) instead, through a pull request like any file edit.
 
 Who can read what, stated plainly:
 

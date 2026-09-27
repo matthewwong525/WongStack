@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · harden-memory-access</title>
+<title>Review · 2026-09-27-harden-memory-access</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="harden-memory-access">
+<body data-change="2026-09-27-harden-memory-access">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>harden-memory-access</h1>
+  <h1>2026-09-27-harden-memory-access</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -156,6 +156,9 @@
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a minor release, because no route is removed and every current member keeps memory.</li>
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the post-deploy check (migrate, then a read-only account joins as a reader) becomes a memory thread instead of a task, because <code>/ship</code> archives before production deploys.</li>
 <li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Built inside <code>/ship</code>: the memory address comes from the primary checkout, <code>disallow_importable_env</code> is set, transcripts lose token shapes, every member supersedes only its own facts, and a private repo's read-only person joins as a reader whose facts only they see (digest, search, show, live, and the write gate). Local memory suites, link, retired-name and config checks, and strict validation pass; CI (task 5.3) is next.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>CI passed on PR #164 after merging main's 26.3.0–26.5.0 (changelog resolved as a union); every task is done.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled: <code>wiki/development/memory.md</code> (the <i>Reader</i> role says team knowledge goes in the wiki through a pull request).</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived and checkpointed for merge by <code>/ship</code> as 26.6.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

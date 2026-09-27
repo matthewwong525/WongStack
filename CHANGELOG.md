@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Memory keys stay home, and read-only teammates keep their notes to themselves
+## 26.6.0 — Memory keys stay home, and read-only teammates keep their notes to themselves
 
 - **Your memory key goes only to the address on your main checkout.** Memory read the memory Worker's address from the branch you had open, so a branch that changed one line got your key, or your GitHub token on a first join, at session start. Now the address comes from the main checkout, the one that holds `.env`. A branch that names another address is ignored, and the session start says so.
 - **Mini apps lose the side door to memory.** A handler got only `DB`, but it could still `import { env } from "cloudflare:workers"` and reach `MEMORY_DB`. The app's `wrangler.jsonc` and the stack-pack fragment now set `disallow_importable_env`, and `app/worker-configuration.d.ts` is regenerated. The wiki no longer promises a wall the runtime can not keep: a handler shares the Worker with memory, so review its code before it publishes.

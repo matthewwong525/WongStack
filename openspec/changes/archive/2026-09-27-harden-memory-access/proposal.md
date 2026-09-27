@@ -1,6 +1,6 @@
 # Close the first memory security gaps
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore-worker-memory-security
 **Open questions:** none
 
@@ -84,3 +84,6 @@ None.
 - **2026-09-27** — Assumed: a minor release, because no route is removed and every current member keeps memory.
 - **2026-09-27** — Assumed: the post-deploy check (migrate, then a read-only account joins as a reader) becomes a memory thread instead of a task, because `/ship` archives before production deploys.
 - **2026-09-27** — Built inside `/ship`: the memory address comes from the primary checkout, `disallow_importable_env` is set, transcripts lose token shapes, every member supersedes only its own facts, and a private repo's read-only person joins as a reader whose facts only they see (digest, search, show, live, and the write gate). Local memory suites, link, retired-name and config checks, and strict validation pass; CI (task 5.3) is next.
+- **2026-09-27** — CI passed on PR #164 after merging main's 26.3.0–26.5.0 (changelog resolved as a union); every task is done.
+- **2026-09-27** — Distilled: `wiki/development/memory.md` (the *Reader* role says team knowledge goes in the wiki through a pull request).
+- **2026-09-27** — Archived and checkpointed for merge by `/ship` as 26.6.0.
