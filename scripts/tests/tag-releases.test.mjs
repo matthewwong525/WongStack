@@ -2,17 +2,21 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 const script = new URL('../tag-releases.mjs', import.meta.url).pathname;
 
 // A fake gh: `release list` prints $RELEASES (comma-separated); `release create` logs its
-// arguments, then its notes from stdin, to $FAKE_DIR/created.
+// arguments, then its notes from stdin, to $FAKE_DIR/created. It answers HTTP 403 for the
+// tag in $REFUSE, as GitHub does for the workflow token, and HTTP 502 for the tag in $BREAK.
 const FAKE_GH = `#!/usr/bin/env bash
 case "$1 $2" in
   "release list") tr , '\\n' <<< "\${RELEASES:-}" | sed '/^$/d' ;;
-  "release create") { echo "ARGS $*"; cat; echo; } >> "$FAKE_DIR/created" ;;
+  "release create")
+    [ "$3" = "\${REFUSE:-}" ] && { echo "HTTP 403: Resource not accessible by integration (https://api.github.com/repos/o/n/releases)" >&2; exit 1; }
+    [ "$3" = "\${BREAK:-}" ] && { echo "HTTP 502: Bad Gateway" >&2; exit 1; }
+    { echo "ARGS $*"; cat; echo; } >> "$FAKE_DIR/created" ;;
   *) exit 9 ;;
 esac
 `;
@@ -103,4 +107,24 @@ test('relative links in the notes point at the repo at that tag', t => {
   const result = run([], { GITHUB_REPOSITORY: 'owner/name' });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.created, /\[the page\]\(https:\/\/github\.com\/owner\/name\/blob\/v1\.0\.0\/wiki\/a\.md#x\), \[a site\]\(https:\/\/example\.com\), and \[below\]\(#y\)/);
+});
+
+test('a Release GitHub refuses is reported, and the run passes', t => {
+  const { run } = repo(t, { versions: ['1.0.0', '1.1.0', '1.2.0'], changelog: CHANGELOG });
+  const summary = join(mkdtempSync(join(tmpdir(), 'tag-releases-summary-')), 'summary.md');
+  t.after(() => rmSync(dirname(summary), { recursive: true, force: true }));
+  const result = run([], { REFUSE: 'v1.1.0', GITHUB_STEP_SUMMARY: summary });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(creates(result.created), ['v1.0.0', 'v1.2.0']);
+  assert.match(result.stderr, /HTTP 403/);
+  assert.match(result.stdout, /^::warning::GitHub refused v1\.1\.0; run node scripts\/tag-releases\.mjs/m);
+  assert.match(readFileSync(summary, 'utf8'), /### Releases GitHub refused\n\n- v1\.1\.0\n/);
+});
+
+test('any other failure to create a Release fails the run', t => {
+  const { run } = repo(t, { versions: ['1.0.0', '1.1.0', '1.2.0'], changelog: CHANGELOG });
+  const result = run([], { BREAK: 'v1.1.0' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /HTTP 502/);
+  assert.deepEqual(creates(result.created), ['v1.0.0']);
 });

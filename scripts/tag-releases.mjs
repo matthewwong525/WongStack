@@ -4,7 +4,7 @@
 // so a run on each push to main labels the new version and fills in any that a failed run missed.
 // Meta-only: .github/workflows/release.yml runs it; no target receives it.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { parseCli } from './lib-cli.mjs';
 
 const USAGE = `usage: tag-releases.mjs [--dry-run]
@@ -13,8 +13,22 @@ const USAGE = `usage: tag-releases.mjs [--dry-run]
 
 const HEADING = /^## (\d+\.\d+\.\d+) — (.+)$/;
 
-const run = (cmd, args, input) => execFileSync(cmd, args, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'inherit'] }).trim();
+const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
 const lines = text => text.split('\n').filter(Boolean);
+
+// Creates one Release. False when GitHub refuses it with HTTP 403, as it does for the workflow's own token
+// on a commit that changes a workflow file; any other failure is thrown.
+function create(args, notes) {
+  try {
+    execFileSync('gh', args, { encoding: 'utf8', input: notes, stdio: ['pipe', 'pipe', 'pipe'] });
+    return true;
+  } catch (error) {
+    const stderr = String(error.stderr ?? '').trim();
+    console.error(stderr);
+    if (!stderr.includes('HTTP 403')) throw error;
+    return false;
+  }
+}
 
 // [{ version, title, body }] from each `## X.Y.Z — Title` section, newest first.
 function changelogEntries(text) {
@@ -53,6 +67,7 @@ const released = new Set(lines(run('gh', ['release', 'list', '--limit', '1000', 
 const tags = new Set(lines(run('git', ['tag', '--list', 'v*'])));
 const latest = entries.map(entry => entry.version).reduce((a, b) => (a && !newer(b, a) ? a : b), null);
 const missing = [];
+const refused = [];
 
 for (const { version, title, body } of entries.toReversed()) {
   const tag = `v${version}`;
@@ -62,7 +77,16 @@ for (const { version, title, body } of entries.toReversed()) {
   const where = tags.has(tag) ? ['--verify-tag'] : ['--target', sha];
   const args = ['release', 'create', tag, ...where, '--title', `${version} — ${title}`, '--notes-file', '-', `--latest=${version === latest}`];
   console.log(`${values['dry-run'] ? 'would create' : 'creating'} ${tag} at ${tags.has(tag) ? 'its existing tag' : sha.slice(0, 7)}`);
-  if (!values['dry-run']) run('gh', args, absoluteLinks(body, process.env.GITHUB_REPOSITORY, tag));
+  if (!values['dry-run'] && !create(args, absoluteLinks(body, process.env.GITHUB_REPOSITORY, tag))) refused.push(tag);
+}
+
+// A refusal is a known gap, not a failure: /ship fills it with the person's own login.
+if (refused.length) {
+  const fix = 'run node scripts/tag-releases.mjs with a GitHub login that has the workflow scope';
+  for (const tag of refused) console.log(`::warning::GitHub refused ${tag}; ${fix}`);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Releases GitHub refused\n\n${refused.map(tag => `- ${tag}`).join('\n')}\n\nTo fill them, ${fix}.\n`);
+  }
 }
 
 if (missing.length) {
