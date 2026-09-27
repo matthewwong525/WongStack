@@ -45,6 +45,7 @@ and an unindented one. (review.html#/list/empty)
 - **2026-09-26** — Asked how to draw → chose **text**.
 - **2026-09-26** — Assumed: forty columns, because phones are narrow.
 - **2026-09-26** — The user added a note.
+- **2026-09-26** — Check: \`app/vitest.config.ts\` lowers a limit, because a reason.
 `;
 
 function fixture(fn, source = proposal) {
@@ -93,7 +94,7 @@ test('the page renders the proposal as static content', needsDom, () => fixture(
   assert.deepEqual(items.map(li => li.id), ['item-1', 'item-2', 'item-3']);
   assert.equal(text(items[0].querySelector('[data-note="item-1"]')), 'First item wraps onto an indented line and an unindented one.');
   assert.deepEqual([...document.querySelectorAll('[data-note] > .add')].map(add => add.dataset.open),
-    ['why-1', 'why-2', 'item-1', 'item-2', 'item-3', 'decision-1', 'decision-2', 'decision-3'], 'every text target has a Note button');
+    ['why-1', 'why-2', 'item-1', 'item-2', 'item-3', 'decision-1', 'decision-2', 'decision-3', 'decision-4'], 'every text target has a Note button');
   const art = items[1].querySelector('pre.art');
   assert.equal(art.textContent, 'a ─→ b\n\nc ─→ d');
   const fold = art.closest('details.drawing');
@@ -106,8 +107,8 @@ test('the page renders the proposal as static content', needsDom, () => fixture(
   assert.equal(items[2].querySelector('code').textContent, 'code **not bold**');
   assert.equal(document.querySelector('#changes p.aside').textContent, 'Non-goals: anything else.');
   const decisions = [...document.querySelectorAll('.decision')];
-  assert.deepEqual(decisions.map(d => d.querySelector('.tag').textContent), ['asked', 'assumed', 'log']);
-  assert.deepEqual(decisions.map(d => d.dataset.note), ['decision-1', 'decision-2', 'decision-3']);
+  assert.deepEqual(decisions.map(d => d.querySelector('.tag').textContent), ['asked', 'assumed', 'log', 'check']);
+  assert.deepEqual(decisions.map(d => d.dataset.note), ['decision-1', 'decision-2', 'decision-3', 'decision-4']);
   assert.match(decisions[0].textContent, /2026-09-26Asked how to draw → chose text\./);
   window.close();
 }));

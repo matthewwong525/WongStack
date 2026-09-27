@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.6.0 — Checks the AI loosens are caught
+
+- **A loosened check fails the Test check unless a reason is written.** `.github/scripts/loosened-checks.mjs` compares the branch with the base `app-untouched.sh` finds. It flags a file when the change adds a skip comment (Stryker, coverage, lint, or TypeScript), adds a skipped, focused, or to-do test, deletes a test file, or changes a check's settings: a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, `test.yml`, or a script under `.github/scripts/`. A flagged file passes when a proposal the branch adds or edits names it in a Decision-log bullet that starts with `Check:`. [A loosened check needs a reason](wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) owns the rule.
+- **The Test workflow runs it on every push**, after the suite and on docs-only branches too, so one run reports a red suite and a missing reason together. The job summary lists each flagged file as explained or not, and the failure says exactly which bullet to add.
+- **`app-untouched.sh` prints a fourth line, `base`**: the commit the change is compared with, or empty when there is none.
+- **You see each loosened check before publishing.** `/apply` runs the check on the working tree, fixes what it flags without asking, and lists every `Check:` bullet in plain words above *publish it?*. `/ship`'s report carries the same list, and the review page tags those decisions `check`.
+- **The code rule says it once.** `.claude/rules/code.md` links the new gate section.
+
+**Updating.** `/wong-sync` brings the script, the workflow step, and the skill edits. The sync itself changes `test.yml` and `.github/scripts/`, so its change needs `Check:` bullets for them; CI's failure names each file, and the agent adds them. After that, only a branch that loosens a check needs one.
+
 ## 25.5.0 — Memory access comes from GitHub
 
 - **A teammate joins memory on their own.** `memory.mjs join` sends the person's `gh` token to the production Worker's new `/_memory/join` route. The route asks GitHub about the repository CI deployed it from, never one the request names. A private repo lets in anyone who can read it, a public one anyone who can push, and the key's email is one GitHub has verified. The session-start hook runs `join` in the background when there is no key, and memory loads from the next session: [joining through GitHub](wiki/development/memory.md#joining-through-github). No key goes in the repo.
