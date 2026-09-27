@@ -14,7 +14,7 @@ const BASE = `${intro}${entry('26.1.0 — Current')}${entry('26.0.0 — Older').
 // A repo whose `main` is pushed to a local bare `origin`, with `feature` checked out from it.
 // `files` are written on main's first commit; a null value leaves the file out.
 function repo(t, files = { VERSION: '26.1.0\n', 'CHANGELOG.md': BASE }) {
-  const dir = mkdtempSync(join(tmpdir(), 'number-release-'));
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-number-release-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
   mkdirSync(work);
@@ -167,7 +167,7 @@ test('a missing blank line before a heading is restored', t => {
 });
 
 test('no origin/main fails with a plain message', t => {
-  const dir = mkdtempSync(join(tmpdir(), 'number-release-'));
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-number-release-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   execFileSync('git', ['init', '-q', '-b', 'main', dir]);
   writeFileSync(join(dir, 'CHANGELOG.md'), `${intro}${entry('Next (minor) — A')}`);

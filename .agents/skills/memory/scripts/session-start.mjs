@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // SessionStart hook. Runs no model and never blocks the session: register the session, print the
 // digest, and start one detached background run when there is work. Any failure prints one line.
+// It also prints the last tidy-up's line and starts the next one detached (routine/scripts/tidy.mjs).
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { buildHomePart, HOME_FACTS, loadDigest, personPage, readCache } from './lib/digest.mjs';
 import { joinErrorFile, keyFile, RENEW_DAYS } from './lib/join.mjs';
@@ -13,6 +14,7 @@ import { pending, registerSession } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BUDGET_MS = 1500;
+const TIDY = join(HERE, '../../routine/scripts/tidy.mjs');
 
 const fallbackInstruction = sessionId => `Memory: past sessions wait for capture, and a background run could not start on its own. Start one background subagent with the smallest capable model. Tell it to follow the "Background run" section of .claude/skills/memory/SKILL.md and to exclude session ${sessionId}. Do not wait for it.`;
 
@@ -52,6 +54,21 @@ function startJoin(ctx, expired) {
   } catch { return ''; }
 }
 
+// The last tidy-up's one line, read and cleared in-process, then the next tidy-up, detached; WONG_TIDY=0
+// skips starting it. The tidy-up runs at most every 6 hours on its own. Never throws.
+async function tidyUp(ctx) {
+  if (!existsSync(TIDY)) return '';
+  let line = '';
+  try { line = (await import(pathToFileURL(TIDY).href)).takeReport(ctx.commonDir); } catch { /* no line */ }
+  if (process.env.WONG_TIDY === '0') return line;
+  try {
+    const child = spawn(process.execPath, [TIDY, 'sweep'], { cwd: ctx.root, detached: true, stdio: 'ignore' });
+    child.on('error', () => {});
+    child.unref();
+  } catch { /* the next session tries again */ }
+  return line;
+}
+
 // The person's page and personal facts from home, fetched beside the repo's own digest. Never throws.
 async function loadHome(ctx) {
   try {
@@ -83,11 +100,14 @@ async function main(agent) {
   // The digest fetch runs while local discovery reads the disk.
   const digest = (async () => loadDigest(ctx, openStore(ctx, { timeoutMs: BUDGET_MS }), BUDGET_MS))().catch(error => ({ error }));
   const home = loadHome(ctx);
+  const tidy = tidyUp(ctx);
   const localWork = spoolList(ctx).length > 0 || pending(ctx, { exclude: [sessionId] }).length > 0;
   const result = await digest;
   const homePart = await home;
 
   const out = [];
+  const tidied = await tidy;
+  if (tidied) out.push(tidied);
   const joining = startJoin(ctx, Boolean(result.error?.expired));
   if (joining) out.push(joining);
   if (result.error) {

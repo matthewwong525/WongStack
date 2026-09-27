@@ -26,7 +26,7 @@ esac
 // A repo whose first-parent history sets VERSION to each of `versions` in turn,
 // with commit titles from `titles` when given, and CHANGELOG.md as `changelog`.
 function repo(t, { versions, titles = {}, changelog, tags = [] }) {
-  const dir = mkdtempSync(join(tmpdir(), 'tag-releases-'));
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-tag-releases-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const root = join(dir, 'repo');
   mkdirSync(root);
@@ -113,7 +113,7 @@ test('relative links in the notes point at the repo at that tag', t => {
 
 test('a Release GitHub refuses is reported, and the run passes', t => {
   const { run } = repo(t, { versions: ['1.0.0', '1.1.0', '1.2.0'], changelog: CHANGELOG });
-  const summary = join(mkdtempSync(join(tmpdir(), 'tag-releases-summary-')), 'summary.md');
+  const summary = join(mkdtempSync(join(tmpdir(), 'wong-test-tag-releases-summary-')), 'summary.md');
   t.after(() => rmSync(dirname(summary), { recursive: true, force: true }));
   const result = run([], { REFUSE: 'v1.1.0', GITHUB_STEP_SUMMARY: summary });
   assert.equal(result.status, 0, result.stderr);

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — WongStack cleans up after itself
+
+- **After you publish, you can close the workspace.** The closing question after a publish from a Paseo workspace offers *Close this workspace*, recommended when no more work is waiting. The chat finishes its reply, then the chat and workspace close, anything left running from them stops, and a branch that merged is deleted. The chat stays readable in Paseo's archived list. Unsaved work blocks the close, and the agent names the files.
+- **Each session tidies up in the background.** Session start never waits for it, and it runs at most every 6 hours. It closes this repo's workspaces idle 3+ days whose work is all saved, stops servers whose workspace is gone, and deletes WongStack's own temp folders (named `wong-…`) and main-checkout scratch files older than a day. It never touches another project's files, and never closes a chat with unsaved work.
+- **You hear what it did, once.** The next session opens with one line, such as *closed 2 workspaces; left "Weekly plan" open: it has unsaved work.* Nothing is said when nothing happened.
+- **Scratch files live in the workspace.** Agents put throwaway files in a git-ignored `.scratch/` folder at the checkout root, not the temp folder, which on some machines is memory. `node .claude/skills/routine/scripts/tidy.mjs scratch` makes it; the brief for a new workspace goes there.
+- **Source repo only.** Test temp folders now start with `wong-test-`, so the tidy-up can claim what a crashed run leaves behind.
+
+**Updating.** `/wong-sync` brings `tidy.mjs`, the session-start hook, and the skill and wiki edits, and re-offers the `.gitignore` fragment, now with `.scratch/`. The first session after the update tidies up once, so a machine full of old chats may see several closed at once. Set `WONG_TIDY=0` in the environment to turn the background tidy-up off.
+
 ## 26.5.0 — Clean up what recent releases left stale
 
 - **Pages tell the truth again.** The stack pages drop Tailwind, which left in v18, and say the agent hands you a preview link as soon as a build finishes. *Getting started* says setup needs an empty folder, and describes the starter page as it is: your apps under a *Learn the development loop* box. The contributing page stops saying an update wipes the cached copy; it never does.

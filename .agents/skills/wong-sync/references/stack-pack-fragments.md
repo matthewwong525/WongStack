@@ -131,7 +131,7 @@ CF_ACCESS_CLIENT_ID=
 CF_ACCESS_CLIENT_SECRET=
 ```
 
-## `.gitignore` → the two secrets files
+## `.gitignore` → the two secrets files, and scratch
 
 Two files hold real credentials and are never committed: `.env` (the account-level Cloudflare token the credentials page calls *"effectively account-root, treat it like a root password"*) and `app/.dev.vars` (the Worker's runtime secrets, beside the wrangler config). Each has per-environment variants and a committed, values-blank `.example` twin. Add these four lines if they aren't there:
 
@@ -149,3 +149,9 @@ Apply this fragment **before** asking for the token, since that is when a repo f
 **Widening `.gitignore` does not untrack a file already committed.** Check with `git ls-files .env .dev.vars` before applying. If either is tracked, say so plainly and give the two steps: `git rm --cached .env` to stop tracking it, and **rotate the credential**, because it is in the history of every clone.
 
 A repo that already has the bare `.dev.vars` line keeps working; widening it is the upgrade.
+
+Add one more line, for the folder agents keep throwaway files in. Ignored, a scratch file never shows as unsaved work, never blocks closing a workspace, and never gets committed:
+
+```gitignore
+.scratch/
+```

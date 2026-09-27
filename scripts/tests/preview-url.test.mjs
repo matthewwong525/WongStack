@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +13,7 @@ const script = join(repo, '.agents/skills/save/scripts/preview-url.sh');
 // line and newest first, as the script's jq asks, with @SHA@ as the head commit.
 // Every Deployment, status, and check-run list is empty, so only method 4 can match.
 function discover(t, commentBody) {
-  const root = mkdtempSync('/tmp/preview-url-');
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-preview-url-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const bin = join(root, 'bin');
   mkdirSync(bin);

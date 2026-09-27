@@ -611,7 +611,7 @@ test('a Worker with no repository or an unmigrated store refuses a join, and the
 
 // A fake gh on PATH that prints FAKE_GH_TOKEN for `gh auth token`, or fails when it is empty.
 function fakeGh(t) {
-  const bin = tempDir(t, 'wong-fake-gh-');
+  const bin = tempDir(t, 'fake-gh-');
   writeFileSync(join(bin, 'gh'), '#!/bin/sh\n[ "$1 $2" = "auth token" ] && [ -n "$FAKE_GH_TOKEN" ] && { echo "$FAKE_GH_TOKEN"; exit 0; }\nexit 1\n', { mode: 0o755 });
   return token => viaWorker({ PATH: `${bin}:${process.env.PATH}`, FAKE_GH_TOKEN: token });
 }

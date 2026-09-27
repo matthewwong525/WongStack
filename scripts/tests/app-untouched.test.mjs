@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,7 +29,7 @@ function gitEnv(home) {
 // A bare "origin" and a clone whose `main` holds the main app, a wiki page, and
 // one mini app, pushed. Returns helpers bound to the clone.
 function fixture(t) {
-  const root = mkdtempSync('/tmp/app-untouched-');
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-app-untouched-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const env = gitEnv(root);
   const origin = join(root, 'origin.git');

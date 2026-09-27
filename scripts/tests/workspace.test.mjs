@@ -15,7 +15,7 @@ const CALLER = { Provider: 'claude', Model: 'claude-opus-5-5', Thinking: 'high',
 const CREATED = 'Created workspace ws-42 - clever-otter (clever-otter)\nsetup needs approval\nTip: pass --workspace <id>';
 
 function tmp(t, prefix) {
-  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), `wong-test-${prefix}`)));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }

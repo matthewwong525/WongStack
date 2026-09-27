@@ -41,7 +41,7 @@ Check `command -v paseo` first. Without it, drop option 1 from either list and s
 
 ## Open each workspace
 
-For each other part, write [its brief](#the-brief) to a temporary file and run:
+For each other part, write [its brief](#the-brief) to a file in the git-ignored scratch folder, whose path `node "$(git rev-parse --show-toplevel)/.claude/skills/routine/scripts/tidy.mjs" scratch` makes and prints, and run:
 
 ```bash
 W="$(git rev-parse --show-toplevel)/.claude/skills/routine/scripts/workspace.mjs"
@@ -84,3 +84,13 @@ The brief is `/continue <change name>`, plus the person's instruction if they ga
 ## Next work
 
 When `/ship` finishes, look for more work the person asked for: first in this conversation, then with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Offer the next part that has no workspace yet: open it in a new workspace *(Recommended)*, or stop here. A part already open elsewhere is named, never opened twice.
+
+When `/ship` merged from a Paseo worktree (`PASEO_AGENT_ID` is set, and this is not the main checkout), the question also offers *Close this workspace*: once this reply ends, the chat and its workspace close, and anything left running from them stops. It comes first and recommended when no next work is waiting; otherwise the next part stays first. Keep the question to three options, dropping the walk first. Picking it runs:
+
+```bash
+node "$(git rev-parse --show-toplevel)/.claude/skills/routine/scripts/tidy.mjs" close
+```
+
+- **Exit 0** → say you are closing this workspace now, and end the reply. The chat stays readable in Paseo's archived list.
+- **Exit 2** closed nothing → give its `error` in plain words, such as the unsaved files it names, and offer to save them first.
+- **Exits 3 to 5** closed nothing → say Paseo could not close it from here, and that the Paseo app can archive the workspace.

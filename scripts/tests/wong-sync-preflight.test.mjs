@@ -9,6 +9,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -49,7 +50,7 @@ function inventory(overrides = {}) {
 }
 
 function fixture(t, { manifest = inventory(), components = { skills: ['alpha'] }, targetFiles = {} } = {}) {
-  const root = mkdtempSync('/tmp/wong-sync-preflight-');
+  const root = mkdtempSync(join(tmpdir(), 'wong-sync-preflight-'));
   const source = join(root, 'source');
   const target = join(root, 'target');
   mkdirSync(source);
@@ -323,7 +324,7 @@ test('directory and dangling links never become payload units', t => {
 });
 
 test('WongStack as its own source reads its linked CLAUDE.md block', t => {
-  const target = mkdtempSync('/tmp/wong-sync-self-');
+  const target = mkdtempSync(join(tmpdir(), 'wong-sync-self-'));
   t.after(() => rmSync(target, { recursive: true, force: true }));
   write(target, '.claude/.wong-stack.json', `${JSON.stringify({ commit: git(repo, 'rev-parse', 'HEAD'), components: { skills: ['wong-sync'] } })}\n`);
   const report = preflight({ target, source: repo });

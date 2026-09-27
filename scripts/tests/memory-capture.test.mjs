@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -157,6 +157,39 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   assert.match(called, /RUN=1/);
   const fallback = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.match(fallback.stdout, /Start one background subagent/);
+});
+
+test('the hook prints the last tidy-up line once, and starts the next tidy-up detached', async t => {
+  const env = await setup(t);
+  const tidy = join(env.repo.root, '.git', 'wong-tidy');
+  mkdirSync(tidy, { recursive: true });
+  writeFileSync(join(tidy, 'report.json'), JSON.stringify({ closed: ['Old docs'], left: [{ name: 'Weekly plan', reason: 'it has unsaved work' }] }));
+  const first = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
+  assert.equal(first.code, 0, first.stderr);
+  assert.equal(first.stdout, 'Tidy-up: closed 1 workspace ("Old docs"); left "Weekly plan" open: it has unsaved work.\n');
+  assert.equal((await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' })).stdout, '', 'the line prints once');
+  assert.ok(!existsSync(join(tidy, 'last-sweep')), 'WONG_TIDY=0 starts no tidy-up');
+  const temp = tempDir(t, 'hook-tmp-');
+  const started = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1', WONG_TIDY: '1', TMPDIR: temp, TIDY_PASEO_BIN: join(temp, 'no-paseo') });
+  assert.equal(started.code, 0, started.stderr);
+  for (let i = 0; i < 100 && !existsSync(join(tidy, 'last-sweep')); i += 1) await new Promise(done => setTimeout(done, 100));
+  assert.ok(existsSync(join(tidy, 'last-sweep')), 'the hook started a tidy-up');
+});
+
+test('a broken tidy-up never breaks the hook', async t => {
+  const env = await setup(t);
+  const temp = tempDir(t, 'hook-tmp-');
+  const extra = { WONG_MEMORY_NO_HEADLESS: '1', WONG_TIDY: '1', TMPDIR: temp, TIDY_PASEO_BIN: join(temp, 'no-paseo') };
+  mkdirSync(join(env.repo.root, '.git', 'wong-tidy'));
+  writeFileSync(join(env.repo.root, '.git', 'wong-tidy', 'report.json'), '{ torn');
+  const torn = await hook(env, { ...extra, WONG_TIDY: '0' });
+  assert.equal(torn.code, 0, torn.stderr);
+  assert.equal(torn.stdout, '');
+  rmSync(join(env.repo.root, '.git', 'wong-tidy'), { recursive: true, force: true });
+  writeFileSync(join(env.repo.root, '.git', 'wong-tidy'), 'not a folder');
+  const broken = await hook(env, extra);
+  assert.equal(broken.code, 0, broken.stderr);
+  assert.equal(broken.stdout, '');
 });
 
 test('an unreachable store falls back to the cached digest and never fails the session', async t => {
