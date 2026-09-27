@@ -162,6 +162,11 @@ function writeIfDifferent(path, next) {
   return true;
 }
 
+// The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the Markdown link still parses.
+export function planLink(page) {
+  return `Click here to see the plan: [review.html](${/[\s()]/.test(page) ? `<${page}>` : page})`;
+}
+
 export function buildReview(changeRoot, { requireCurrent = false } = {}) {
   const proposalPath = join(changeRoot, 'proposal.md');
   const reviewPath = join(changeRoot, 'review.html');
@@ -190,7 +195,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
       const result = buildReview(root, { requireCurrent: args.values['require-current'] === true });
       for (const warning of result.warnings) console.error(`review: warning: ${warning}`);
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
-      if (result.kind !== 'no-page') console.log(resolve(root, 'review.html'));
+      if (result.kind !== 'no-page') console.log(planLink(resolve(root, 'review.html')));
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }
 }

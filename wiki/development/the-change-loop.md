@@ -30,7 +30,7 @@ Entering late never skips a stop: **no verb merges as a way of stopping.** A pau
 
 A person does not need to know the verbs. When they ask for a change to the repo's code or process with no verb, the agent runs the loop and stops twice:
 
-1. **`/plan`**, which ends with the review link and asks *build it now?*
+1. **`/plan`**, which ends with the review link and asks *build it now?* Picking *Review the plan* instead prints the link again and waits.
 2. On yes, **`/apply`**. It builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent just does the task and reports.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 

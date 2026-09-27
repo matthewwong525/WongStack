@@ -11,7 +11,7 @@ Where should the convention live?
   3. A wiki page — best hub placement, one hop further from the ask site.
 ```
 
-- **Two or three options**; two is normal for a confirmation.
+- **Two or three options**; two is normal for a confirmation. The one exception is a fourth, *Review the plan*, by [the plan's link](#print-the-plans-link).
 - **The recommended one first, labelled `(Recommended)`** in the option text itself.
 - **A short tradeoff on each:** what the user gets and what it costs; an option with no consequence is not a choice.
 - **Keep the custom answer open** in the tool's own free-text field, never as an added Other option. Use a custom answer as given, not forced into the nearest option.
@@ -59,7 +59,7 @@ This page decides how a question **looks**, never which actions **need** one. An
 
 Before you finish, put to the user **what they must decide for this work to continue**, as an ask like any other: the same format, through the first callable tool in [which tool carries it](#which-tool-carries-it). Write the report, and any link, as chat text first; the tool carries only the question. A numbered list at the end of a reply is for a session with no such tool, never a habit.
 
-- A finished plan: [the plan's link](#print-the-plans-link) in chat text, then the question: build it now *(Recommended)* / change the plan first / stop here.
+- A finished plan: [the plan's link](#print-the-plans-link) in chat text, then the question: *Build it now (Recommended)* / *Review the plan* / *Stop here*. To change the plan, the person types or pastes notes.
 - A blocked task: the supported ways to clear it, below the intact blocker report.
 - A report or audit: the one fix worth taking next.
 - A finished task that will clearly come back: add one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
@@ -69,6 +69,8 @@ A handoff the invocation already authorized continues instead of asking: `/apply
 
 ## Print the plan's link
 
-Whenever a reply makes or changes a plan, print one line of chat text: *Click here to see the plan:* and a Markdown link to the change's `review.html`, by the path the page builder printed. The line is the same whatever made the plan — [`/plan`](../../plan/SKILL.md), `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or notes pasted from the review page. Print it even when the work goes on to build; it adds no stop. Put it just above the closing question, outside the question tool: a tool's card may not make a link clickable. Some hosts also hide the chat text a turn writes before a question card, so end the question's own text with the page's path too: *What next? (Plan: `<path>`)*. Leave either out and the person may have no way to find the page.
+Whenever a reply makes or changes a plan, print *Click here to see the plan:* and the link to the change's `review.html` as one line of chat text. Copy the line the page builder prints as is, never a shortened path. The line is the same whatever made the plan — [`/plan`](../../plan/SKILL.md), `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or notes pasted from the review page. Print it even when the work goes on to build; it adds no stop. Put it just above the closing question, never inside it: a tool's card may not make a link clickable.
+
+Some hosts hide the chat text written before a question card, so the question carries the fallback. **Any closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing: the next reply ends with the link line in plain text and no question after it, and the person's next message decides — build it, notes, or stop.
 
 Written prose stays short and plain, in [our voice](../../../../wiki/voice.md). The skills that cite this page: [`/explore`](../SKILL.md), [`/plan`](../../plan/SKILL.md), [`/apply`](../../apply/SKILL.md), [`/save`](../../save/SKILL.md), [`/continue`](../../continue/SKILL.md), [`/ship`](../../ship/SKILL.md), [`/verify`](../../verify/SKILL.md), and [`/improve`](../../improve/SKILL.md).
