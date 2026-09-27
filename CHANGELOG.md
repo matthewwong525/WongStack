@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Paseo starts with your settings
+## 26.15.0 — Paseo starts with your settings
 
 - **Every install's new workspaces open ready to work.** `paseo.json` joins the payload. Its worktree setup copies your secrets files into each new Paseo workspace, as only this repo did before. A repo with its own `paseo.json` gets WongStack's entries merged in, keeping its own steps; [the payload manifest](.agents/skills/wong-sync/references/payload-manifest.md#the-paseo-project-file) owns the rule.
 - **Paseo names things the way WongStack does.** `paseo.json` tells Paseo's generator how to write workspace titles (a few plain words), branch names (short topic names), commit messages, and pull requests (the form `/save` and `/ship` use, with no version and with the Claude sign-off).

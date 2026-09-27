@@ -24,5 +24,5 @@
 
 ## 5. Integration
 
-- [ ] 5.1 Run `/save` and verify the Payload checks and Test workflows pass in CI
-- [ ] 5.2 After merge, run `presets.mjs add --dry-run` on this machine and verify it reports all four presets as kept and writes nothing
+- [x] 5.1 Run `/save` and verify the Payload checks and Test workflows pass in CI
+- [x] 5.2 After merge, run `presets.mjs add --dry-run` on this machine and verify it reports all four presets as kept and writes nothing

@@ -1,6 +1,6 @@
 # Paseo starts with your settings in every install
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore-paseo-defaults
 **Open questions:** none
 
@@ -70,3 +70,5 @@ None.
 - **2026-09-27** — Assumed: the preset script lives with `/routine`, because that skill already owns WongStack's Paseo glue and ships to every install.
 - **2026-09-27** — Assumed: commit and pull request titles carry no version number, because `merge.sh` adds it at publish time.
 - **2026-09-27** — Assumed: the build also lists `paseo.json` in `.agents/rules/payload.md`'s paths, because `payload-rule-paths.test.mjs` requires every payload file there; the server installer adds presets as its last step, after the push, so an early stop's error line stays first and a rerun still adds them; `PRESETS_PASEO_BIN` overrides the `paseo` binary for tests, like `WORKSPACE_PASEO_BIN`. Tasks 1.1–4.2 landed; saving for the CI gate (5.1).
+- **2026-09-27** — Task 5.2 ran before merge, because the script is the same either side of it: a dry run on this machine kept all four presets by name and left `config.json` unchanged. Distilled into `wiki/development/required-tools.md`: Paseo's settings live in the repo's `paseo.json` and each computer's `~/.paseo/config.json`.
+- **2026-09-27** — Archive checkpoint: archived as `openspec/changes/archive/2026-09-27-ship-paseo-defaults`, numbered 26.15.0, saved for the final CI gate before merge.
