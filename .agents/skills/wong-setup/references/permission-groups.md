@@ -1,6 +1,6 @@
 # The widen protocol and the permission-group ids
 
-Cloudflare permission groups are what a token's policy grants. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which this page owns.
+Cloudflare permission groups are what a token's policy grants. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which this page owns. [`provision.mjs`](../scripts/provision.mjs) runs it, and `scripts/tests/provision.test.mjs` fails when the script's groups differ from the tables below.
 
 ## The sequence
 
@@ -53,11 +53,11 @@ These two are the whole ask on the token screen; the runbook grants every other 
 | `Workers CI Read` | account | reading build state (see the traps) | `ad99c5ae555e45c4bef5bdf2678388ba` |
 | `Workers CI Write` | account | repointing a Workers Builds fallback | `2e095cf436e2455fa62c9a9c2e18c478` |
 | `User Details Read` | user | self-verification | `8acbe5bb0d54464ab867149d7f7cf8ac` |
-| `Workers R2 Storage Write` | account | only when the app adds an R2 bucket | `bf7481a1826f439697cb59a20b22293e` |
+| `Workers R2 Storage Write` | account | checking whether R2 is on, and the memory bucket | `bf7481a1826f439697cb59a20b22293e` |
 
 ### The CI deploy token
 
-The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, scoped to the one account; it cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list; `scripts/tests/downstream-contract.test.mjs` pins it for hosted setups.
+The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, scoped to the one account; it cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list; `scripts/tests/downstream-contract.test.mjs` pins it for hosted setups, and `scripts/tests/provision.test.mjs` holds the script to it.
 
 | Name | Scope | When | Id |
 |---|---|---|---|
