@@ -1,6 +1,6 @@
 # The README leads with how Matt uses AI
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** assess-wongstack-market
 **Open questions:** none
 
@@ -64,4 +64,5 @@ None.
 - **2026-09-27** — Built: the README leads with Claymoo per the copy table, the matcher narrows to `claymooapp`, `AGENTS.md`'s "What this is" line changes, and the changelog has its patch entry. Local checks pass; CI (task 3.2) is next.
 - **2026-09-27** — Saved: merged main's 26.10.0–26.11.0 (changelog conflict resolved with this entry on top) and reconciled the `open-source-release` delta. The live spec's new scenario says "a private repository or service" rather than naming them, because naming them failed the private-name check.
 - **2026-09-27** — CI passed on PR #170 (task 3.2); every task is done.
-- **2026-09-27** — Asked at the publish question → the user said the lead should be wider than running Claymoo: it is how Matt uses AI in general, his opinionated way of doing it. The lead line now says so with Claymoo as the proof, a sixth ask (planning the week) shows the non-business side, and the spec says whose way it is.
+- **2026-09-27** — Asked at the publish question → the user said the lead should be wider than running Claymoo: it is how Matt uses AI in general, an opinionated way of doing it. The lead line now says so with Claymoo as the proof, a sixth ask (planning the week) shows the non-business side, and the spec says whose way it is.
+- **2026-09-27** — CI passed on PR #170 with the wider lead; every task is done.
