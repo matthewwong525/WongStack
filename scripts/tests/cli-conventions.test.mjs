@@ -25,6 +25,7 @@ const scripts = {
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
   '.agents/skills/improve/scripts/survey.mjs': [],
+  '.agents/skills/explore/scripts/other-work.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/wong-sync/scripts/merge-check.mjs': [],

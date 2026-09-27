@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Planning checks for other work first
+
+- **Planning looks around first.** When `/explore` or `/plan` starts on work that changes the repo, it lists this repo's other work: the other workspaces on this computer, the plans in them (saved or not), and open pull requests, which show teammates' work too. The new [`other-work.mjs`](.agents/skills/explore/scripts/other-work.mjs) gathers the list; the agent judges what overlaps. [Check for other work](.agents/skills/explore/SKILL.md#check-for-other-work) owns the step.
+- **You hear about an overlap only when there is one.** It names the other work and why it overlaps, then asks: keep going here, work there instead, or narrow this one. When nothing overlaps, it says nothing.
+- **It stays in its lane.** It reads only this repo, never your other projects. It skips pull requests from bots, such as dependency updates, and workspaces with nothing left to publish. Without GitHub, it checks this computer and says so in one line; without Paseo, it works from git alone. It runs once per piece of work, so a plan right after an exploration doesn't repeat it.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.16.0 — Updates catch up old, heavily edited installs
 
 - **Old installs update in place.** A repo from before 19.0.0 no longer needs a fresh setup. Its update plan also makes the moves it missed: the shared agent folder, the rules file both agents read, wiki pages kept in another folder, leftover OpenSpec skills, and the CI deploy token. Every local edit stays. [Catching up an older install](.agents/skills/wong-sync/references/catch-up.md) owns the steps; the preflight's new `catchUp` field lists which apply, from the repo's layout and install record alone.

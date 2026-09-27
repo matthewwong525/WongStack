@@ -26,6 +26,22 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"
 
 Don't ask what a live fact answers: state it, with its age and author, as an assumption the user can correct. When [the store is unreachable](../memory/SKILL.md#read), say so and continue.
 
+## Check for other work
+
+Once the work is known to change repo files, look at this repo's other work once, so two chats don't plan the same thing unaware:
+
+```bash
+node "$(git rev-parse --show-toplevel)/.claude/skills/explore/scripts/other-work.mjs"
+```
+
+It prints this repo's other live workspaces (name, branch, active plans, changed files, `busy` when an agent runs there, `pr` when one is open) and open pull requests not opened by a bot. Compare them with the request by meaning, not file names: two plans about the installer overlap before either touches a file.
+
+- **An overlap:** name the other work and why it overlaps, then put [the overlap ask](../plan/references/new-workspace.md#ask-once) in the next question group, or alone when nothing else is open.
+- **No overlap:** say nothing about the check.
+- **A `notes` line:** say it in one line, such as open pull requests not being checked, and go on.
+
+Skip it for work that changes no repo file, and when this conversation already ran it for this work.
+
 ## The exit round
 
 When the work's shape is clear, put the open material decisions in **at most one final group**, [like every other ask](references/asking-the-user.md):
@@ -45,6 +61,6 @@ This limits clarification, not action authorization or delivery gates. Then hand
 `/plan` runs this skill in **bounded mode** before drafting, even via `/apply` or `/ship`, with one chance to ask:
 
 1. **Read the conversation** for the intent, the answers, and whether this transition's exit round already ran.
-2. **Search memory, then investigate only the gap**, which may be empty. `/plan` does not search again.
+2. **Search memory, [check for other work](#check-for-other-work) unless it already ran for this work, then investigate only the gap**, which may be empty. `/plan` does not search again.
 3. **Run [the exit round](#the-exit-round) only if needed and not yet done.** Resolve pending answers before dependent planning; when nobody can answer, use [the fallback](references/asking-the-user.md#which-tool-carries-it).
 4. **Summarize** the answers and assumptions, then **return to `/plan`**.
