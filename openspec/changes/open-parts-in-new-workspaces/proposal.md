@@ -1,6 +1,6 @@
 # Open each part of a request in its own workspace
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** plan-multi-part-paseo-workspaces
 **Open questions:** none
 
@@ -105,3 +105,4 @@ None.
 - **2026-09-27** — Assumed: `/continue` also recommends a new workspace when the tree is clean but this branch carries another active change, because switching would move this workspace away from that change.
 - **2026-09-27** — Assumed: release 25.14.0, because main reached 25.13.0 (#150, #152, #153) during this build.
 - **2026-09-27** — Saved: every task but the CI check is done; lint, link, retired-name, and config checks and 362 script tests pass locally. The branch predates main's 25.11.0 to 25.13.0, so `VERSION` and `CHANGELOG.md` will conflict and are merged at publish.
+- **2026-09-27** — CI passed on PR #154 (build, payload, and test checks), so every task is done.

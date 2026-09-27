@@ -24,4 +24,4 @@
 ## 4. Release
 
 - [x] 4.1 Bump `VERSION` to the next minor above main at the time (25.14.0) and add a newest-first `CHANGELOG.md` entry in plain words; verify the payload checks pass locally
-- [ ] 4.2 Run `openspec validate open-parts-in-new-workspaces --strict --no-interactive` and the script tests, then `/save` so CI confirms the whole change
+- [x] 4.2 Run `openspec validate open-parts-in-new-workspaces --strict --no-interactive` and the script tests, then `/save` so CI confirms the whole change
