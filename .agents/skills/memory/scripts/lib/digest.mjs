@@ -15,15 +15,23 @@ export const FACT_COLUMNS = 'id, slug, type, body, author, created_at, session_i
 const F_COLUMNS = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
 const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 
+// Whether the store carries the reader schema (migration 4), read once per store.
+const READER_SCHEMA = ['SELECT count(*) AS n FROM schema_migrations WHERE version = 4'];
+const hasReaders = store => (store.readerSchema ??= store.query(...READER_SCHEMA).then(([row]) => Number(row?.n) > 0));
+
 // In a team, `user` and `feedback` facts are personal: show only the current person's, matched on every
-// email on their people page, their git email, and their memory key's email. Other types come from everyone.
+// email on their people page, their git email, and their memory key's email. Other types come from everyone,
+// except a fact a reader key wrote, which only its author sees; a store before the reader schema has none.
 // Returns a WHERE clause on alias `f` with its params, or null when the repo is not a team.
-export function personalFilter(ctx, store) {
+export async function personalFilter(ctx, store) {
   if (!store.config.team) return null;
   const emails = new Set([(ctx.author || '').toLowerCase(), store.email].filter(email => email?.includes('@')));
   for (const email of personPage(ctx)?.text.toLowerCase().match(EMAIL) || []) emails.add(email);
   const list = emails.size ? [...emails] : [''];
-  return { clause: `(f.type NOT IN ('user', 'feedback') OR lower(f.author) IN (${list.map(() => '?').join(', ')}))`, params: list };
+  const own = `lower(f.author) IN (${list.map(() => '?').join(', ')})`;
+  const personal = { clause: `(f.type NOT IN ('user', 'feedback') OR ${own})`, params: list };
+  if (!await hasReaders(store)) return personal;
+  return { clause: `${personal.clause} AND (f.shared = 1 OR ${own})`, params: [...list, ...list] };
 }
 
 // When consolidation last ran, and how many sessions were captured since.
@@ -105,15 +113,15 @@ export function buildDigest({ facts, live = facts.length, threads = [], run = nu
 
 // The digest's statements, and how to turn their results into the text, the cache, and the consolidation state.
 // Writers append these to their own batch, so the refreshed digest sees their writes in the same round trip.
-export function digestPlan(ctx, store) {
+export async function digestPlan(ctx, store) {
   const slug = currentSlug(ctx.root, ctx.branch);
-  const personal = personalFilter(ctx, store);
+  const personal = await personalFilter(ctx, store);
   const where = `f.superseded_by IS NULL${personal ? ` AND ${personal.clause}` : ''}`;
   const params = personal?.params || [];
   const statements = [
     [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} ORDER BY ${TYPE_ORDER}, f.created_at DESC, f.id DESC LIMIT ${FETCH_LIMIT}`, params],
     [`SELECT count(*) AS live FROM facts f WHERE ${where}`, params],
-    [`SELECT ${FACT_COLUMNS} FROM facts WHERE superseded_by IS NULL AND type = 'thread' AND slug = ? ORDER BY created_at DESC`, [slug || '']],
+    [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type = 'thread' AND f.slug = ? ORDER BY f.created_at DESC`, [...params, slug || '']],
     ['SELECT kind, host, started_at, finished_at, status, reason, counts FROM runs ORDER BY id DESC LIMIT 1'],
     CONSOLIDATION_STATE,
   ];
@@ -127,7 +135,7 @@ export function digestPlan(ctx, store) {
 }
 
 export async function loadDigest(ctx, store, budget) {
-  const plan = digestPlan(ctx, store);
+  const plan = await digestPlan(ctx, store);
   return plan.finish(await store.batch(plan.statements, budget));
 }
 

@@ -63,18 +63,24 @@ test('discovery claims live checkouts and the registry, and skips subagents, bac
 
 test('strip redacts and uploads the raw file, drops injected text, and a save makes later runs read only newer messages', async t => {
   const env = await setup(t);
+  // Neither token is in .env: their shapes alone get them replaced.
+  const github = 'ghp_abcdefghijklmnopqrstuvwxyz0123';
+  const otherKey = `wongm_${Buffer.from('bo@other.example').toString('base64url')}.${'q'.repeat(43)}`;
   const session = claudeSession(env, 1, [
     ['user', [{ type: 'text', text: `Use ${SECRET} for the call.<system-reminder>ignore me</system-reminder>` }]],
-    ['assistant', [{ type: 'text', text: 'Noted.' }, { type: 'tool_use', id: 't', name: 'Bash', input: {} }]],
+    ['assistant', [{ type: 'text', text: `Noted. I pushed with ${github} and read billing's memory with ${otherKey}.` }, { type: 'tool_use', id: 't', name: 'Bash', input: {} }]],
     ['user', [{ type: 'tool_result', tool_use_id: 't', is_error: true, content: 'Error: ENOENT' }]],
   ]);
   const stripped = await memory(env.repo, env.fake, ['strip', session.id]);
   assert.equal(stripped.code, 0, stripped.stderr);
   assert.match(stripped.stdout, /\[user\] Use \[redacted:\.env\] for the call\./);
+  assert.match(stripped.stdout, /pushed with \[redacted:token\] and read billing's memory with \[redacted:token\]\./);
   assert.match(stripped.stdout, /\[error\] Error: ENOENT/);
-  assert.doesNotMatch(stripped.stdout, /ignore me|super-secret/);
+  assert.doesNotMatch(stripped.stdout, /ignore me|super-secret|ghp_|wongm_/);
   const object = env.fake.objects.get(`sessions/dev@example.com/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
   assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
+  assert.ok(object.includes('[redacted:token]') && !object.includes(github) && !object.includes(otherKey));
+  for (const line of object.trim().split('\n')) JSON.parse(line);
   const saved = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'd.json', { session: session.id, source: 'backfill', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'The call needs the service token.' }] })]);
   assert.match(saved.stdout, /captured/);
   assert.equal(rows(env, 'SELECT read_through FROM sessions')[0].read_through, '3');

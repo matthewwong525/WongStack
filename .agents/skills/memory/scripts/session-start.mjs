@@ -69,6 +69,14 @@ async function tidyUp(ctx) {
   return line;
 }
 
+// One line when this branch records another memory address than the main checkout: memory ignores it.
+function branchWorkerLine(ctx) {
+  try {
+    const { branchWorker } = loadConfig(ctx);
+    return branchWorker ? `Memory: this branch names another memory address (${branchWorker}); memory uses the main checkout's.` : '';
+  } catch { return ''; }
+}
+
 // The person's page and personal facts from home, fetched beside the repo's own digest. Never throws.
 async function loadHome(ctx) {
   try {
@@ -108,6 +116,8 @@ async function main(agent) {
   const out = [];
   const tidied = await tidy;
   if (tidied) out.push(tidied);
+  const redirected = branchWorkerLine(ctx);
+  if (redirected) out.push(redirected);
   const joining = startJoin(ctx, Boolean(result.error?.expired));
   if (joining) out.push(joining);
   if (result.error) {

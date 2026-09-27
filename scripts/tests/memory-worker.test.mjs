@@ -2,6 +2,7 @@
 // behind a local server with node:sqlite and Map bindings over the harness's store, routed the way
 // app/worker/index.ts routes it; the admin commands reach the same store through the fake Cloudflare API.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
@@ -9,6 +10,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
 import { handleMemory, hashKey, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { batchRefusal, memberRefusal, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
+import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { keyEmail } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { memory, node, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -495,6 +497,7 @@ test('every read the memory script sends passes for a member', async t => {
 // A fake GitHub API: each token is one account, with the repositories it can see and its emails.
 const ACCOUNTS = {
   'tok-ana': { repos: { 'owner/app': { private: true, permissions: { pull: true, push: false } } }, emails: [{ email: 'ana@example.com', verified: true, primary: true }] },
+  'tok-cy': { repos: { 'owner/app': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'cy@example.com', verified: true, primary: true }] },
   'tok-dev': { repos: { 'owner/app': { private: true, permissions: { pull: true, push: true } } }, emails: [{ email: 'Dev@Example.com', verified: true, primary: true }] },
   'tok-bo': { repos: { 'owner/app': { private: true, permissions: { pull: true } } }, emails: [{ email: 'bo@example.com', verified: false }, { email: 'bo@work.com', verified: true, primary: true }] },
   'tok-noscope': { repos: { 'owner/app': { private: true, permissions: { pull: true } } } },
@@ -531,17 +534,35 @@ async function joinable(t, { repo = 'owner/app', db } = {}) {
 const joinCall = (url, body) => fetch(`${url}/_memory/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const errorCode = async response => (await response.json()).errors?.[0]?.code;
 
-test('a reader of a private repo joins with a 30-day member key for their verified email', async t => {
+test('a reader of a private repo joins with a 30-day reader key for their verified email; push gives a member key', async t => {
   const { env, url } = await joinable(t);
   const response = await joinCall(url, { token: 'tok-ana', machine: 'laptop-a1', email: 'ana@example.com' });
   assert.equal(response.status, 200);
   const { key, email, role, machine, expiresAt } = (await response.json()).result;
-  assert.deepEqual([keyEmail(key), email, role, machine], ['ana@example.com', 'ana@example.com', 'member', 'laptop-a1']);
+  assert.deepEqual([keyEmail(key), email, role, machine], ['ana@example.com', 'ana@example.com', 'reader', 'laptop-a1']);
   const days = (Date.parse(expiresAt) - Date.now()) / 86400000;
   assert.ok(days > 29.9 && days <= 30, `expires in ${days} days`);
-  const row = env.fake.db.prepare("SELECT role, machine, expires_at FROM memory_keys WHERE hash = ?").get(await hashKey(key));
-  assert.deepEqual({ ...row }, { role: 'member', machine: 'laptop-a1', expires_at: expiresAt });
+  const row = env.fake.db.prepare("SELECT role, reader, machine, expires_at FROM memory_keys WHERE hash = ?").get(await hashKey(key));
+  assert.deepEqual({ ...row }, { role: 'member', reader: 1, machine: 'laptop-a1', expires_at: expiresAt });
   assert.equal((await call(url, key, { sql: 'SELECT 1' })).status, 200);
+  const pusher = (await (await joinCall(url, { token: 'tok-cy', machine: 'm' })).json()).result;
+  assert.equal(pusher.role, 'member');
+  assert.equal(env.fake.db.prepare('SELECT reader FROM memory_keys WHERE hash = ?').get(await hashKey(pusher.key)).reader, 0);
+});
+
+test('a store before the reader migration refuses only a reader\'s join, and still refuses an expired key', async t => {
+  const old = new DatabaseSync(':memory:');
+  for (const file of ['0001_memory.sql', '0002_keys.sql', '0003_key_machines.sql']) old.exec(readFileSync(new URL(`../../.agents/skills/memory/migrations/${file}`, import.meta.url), 'utf8'));
+  const { url } = await joinable(t, { db: old });
+  const reader = await joinCall(url, { token: 'tok-ana', machine: 'm' });
+  assert.deepEqual([reader.status, await errorCode(reader)], [503, 'not_migrated']);
+  const member = await joinCall(url, { token: 'tok-cy', machine: 'm' });
+  assert.equal(member.status, 200);
+  const joined = (await member.json()).result;
+  assert.equal(joined.role, 'member');
+  assert.equal((await call(url, joined.key, { sql: 'SELECT 1' })).status, 200);
+  const expired = await addKey(old, 'bo@example.com', 'member', { machine: 'm1', expiresAt: '2026-01-01T00:00:00Z' });
+  assert.equal((await call(url, expired, { sql: 'SELECT 1' })).status, 401);
 });
 
 test('a join is refused to a public repo\'s reader, a stranger, a token GitHub rejects, and a token that cannot read emails', async t => {
@@ -665,8 +686,8 @@ test('member list shows each machine and expiry; member remove revokes joined ke
   assert.equal((await call(url, anaKey, { sql: 'SELECT 1' })).status, 401, 'member add replaces its own earlier key');
   assert.equal((await call(url, laptop, { sql: 'SELECT 1' })).status, 200, 'and keeps the joined ones');
   const listed = await memory(env.repo, env.fake, ['member', 'list'], asAdmin(env));
-  assert.match(listed.stdout, /ana@example\.com \(member, since \S+, machine desktop, expires \d{4}-\d{2}-\d{2}\)/);
-  assert.match(listed.stdout, /ana@example\.com \(member, since \S+, machine laptop, expires/);
+  assert.match(listed.stdout, /ana@example\.com \(member, reader, since \S+, machine desktop, expires \d{4}-\d{2}-\d{2}\)/);
+  assert.match(listed.stdout, /ana@example\.com \(member, reader, since \S+, machine laptop, expires/);
   assert.match(listed.stdout, /ana@example\.com \(member, since \S+, made by member add, no expiry\)/);
   assert.doesNotMatch(listed.stdout, /wongm_|[0-9a-f]{64}/);
   const removed = await memory(env.repo, env.fake, ['member', 'remove', 'ana@example.com'], asAdmin(env));
@@ -716,4 +737,135 @@ test('the hook renews a key near expiry, and shows a failure the person must fix
   assert.match(blocked.stdout, /could not join through GitHub: GitHub is not signed in on this machine; sign in to GitHub on this machine: gh auth login\. Then run/);
   await new Promise(done => setTimeout(done, 1000));
   assert.doesNotMatch(readFileSync(join(env.repo.root, '.env'), 'utf8'), /wongm_/, 'no join started');
+});
+
+test('in a linked worktree, the key and a join go only to the main checkout\'s memory address', async t => {
+  const { env } = await joinable(t);
+  const gh = fakeGh(t);
+  const seen = [];
+  const elsewhere = await listen(request => { seen.push(new URL(request.url).pathname); return new Response(null, { status: 500 }); });
+  const tree = join(tempDir(t, 'wong-memory-tree-'), 'tree');
+  execFileSync('git', ['worktree', 'add', '-q', tree], { cwd: env.repo.root });
+  const branchRecord = worker => writeJsonFile(join(tree, '.claude'), '.wong-stack.json', { components: { memory: { ...record(env), worker } } });
+  mkdirSync(join(tree, '.claude'), { recursive: true });
+  branchRecord(`${elsewhere}/_memory`);
+  const inTree = { ...env.repo, root: tree };
+  const treeHook = () => node(inTree, env.fake, 'session-start.mjs', ['--agent', 'claude'], { input: JSON.stringify({ session_id: 's1', cwd: tree }), env: viaWorker().env });
+  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'project', 'deploys need a tag', 'save', '2026-09-01T00:00:00Z', 'dev@example.com')").run();
+
+  const hook = await treeHook();
+  assert.equal(hook.code, 0, hook.stderr);
+  assert.match(hook.stdout, /this branch names another memory address \(http:\/\/127\.0\.0\.1:\d+\/_memory\); memory uses the main checkout's/);
+  assert.match(hook.stdout, /deploys need a tag/, 'the digest came from the main checkout\'s Worker');
+  withoutKey(env);
+  const joined = await memory(inTree, env.fake, ['join'], gh('tok-dev'));
+  assert.equal(joined.code, 0, joined.stderr);
+  assert.match(envKey(env), /^wongm_/, 'the key went to the main checkout\'s .env');
+  assert.deepEqual(seen, [], 'the branch\'s address got no request');
+
+  branchRecord(record(env).worker);
+  const matching = await treeHook();
+  assert.equal(matching.code, 0, matching.stderr);
+  assert.doesNotMatch(matching.stdout, /another memory address/);
+});
+
+// ---------- own notes only, and reader keys ----------
+
+const joinedKey = async (url, token) => (await (await joinCall(url, { token, machine: 'm' })).json()).result.key;
+const factRow = (env, id) => ({ ...env.fake.db.prepare('SELECT author, shared, superseded_by FROM facts WHERE id = ?').get(id) });
+
+test('only the admin supersedes a teammate\'s fact; a member\'s or a reader\'s supersede leaves it live and says who wrote it', async t => {
+  const { env, url } = await joinable(t);
+  const readerKey = await joinedKey(url, 'tok-ana');
+  const memberKey = await joinedKey(url, 'tok-cy');
+  const [{ id: bo }] = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('m', 'project', 'Bo says deploys run at noon.', 'save', '2026-09-26T00:00:00Z', 'bo@example.com') RETURNING id").all();
+  const replace = (name, body) => writeJsonFile(env.repo.home, `${name}.json`, { source: 'save', slug: 'm', facts: [{ action: 'supersede', supersedes: [bo], type: 'project', body }] });
+
+  const asAna = await memory(env.repo, env.fake, ['put-facts', '--file', replace('ana', 'Deploys run at one.')], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: readerKey }));
+  assert.equal(asAna.code, 0, asAna.stderr);
+  assert.match(asAna.stdout, /added 1, superseded 0/);
+  assert.match(asAna.stdout, new RegExp(`left #${bo} live: bo@example\\.com wrote it, so only they or the admin can supersede it`));
+  assert.equal(factRow(env, bo).superseded_by, null);
+  const asCy = await memory(env.repo, env.fake, ['put-facts', '--file', replace('cy', 'Deploys run at two.')], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: memberKey }));
+  assert.match(asCy.stdout, /left #\d+ live: bo@example\.com wrote it/);
+  assert.equal(factRow(env, bo).superseded_by, null, 'a member can not replace a teammate\'s fact either');
+
+  const [own] = env.fake.db.prepare("SELECT id FROM facts WHERE body = 'Deploys run at two.'").all();
+  const ownAgain = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'own.json', { source: 'save', slug: 'm', facts: [{ action: 'supersede', supersedes: [own.id], type: 'project', body: 'Deploys run at three.' }] })], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: memberKey }));
+  assert.match(ownAgain.stdout, /added 0, superseded 1/, 'a member still supersedes its own fact');
+  assert.doesNotMatch(ownAgain.stdout, /left #/);
+
+  const asAdmin = await memory(env.repo, env.fake, ['put-facts', '--file', replace('dev', 'Deploys run at four.')], viaWorker());
+  assert.match(asAdmin.stdout, /added 0, superseded 1/);
+  assert.notEqual(factRow(env, bo).superseded_by, null, 'the admin supersedes anyone\'s fact');
+});
+
+test('a reader\'s facts are stored unshared, whatever the request asks', async t => {
+  const { env, url } = await joinable(t);
+  const readerKey = await joinedKey(url, 'tok-ana');
+  const memberKey = await joinedKey(url, 'tok-cy');
+  const fact = (author, body) => ({ sql: WRITES.fact.sql, params: ['r', 'project', body, null, 'save', 'now', author] });
+  const saved = await (await call(url, readerKey, fact('ana@example.com', 'a reader note'))).json();
+  assert.equal(factRow(env, saved.result[0].results[0].id).shared, 0);
+  const shared = await call(url, readerKey, { sql: 'INSERT INTO facts (slug, type, body, session_id, source, created_at, author, shared) VALUES (?, ?, ?, ?, ?, ?, ?, 1) RETURNING id', params: fact('ana@example.com', 'share me').params });
+  assert.deepEqual([shared.status, await errorCode(shared)], [403, 'member_write']);
+  const byMember = await (await call(url, memberKey, fact('cy@example.com', 'a member note'))).json();
+  assert.equal(factRow(env, byMember.result[0].results[0].id).shared, 1);
+});
+
+test('a reader\'s thread shows in their own digest, search, and gate, never a teammate\'s, and shows for everyone on request', async t => {
+  const { env, url } = await joinable(t);
+  const readerKey = await joinedKey(url, 'tok-ana');
+  const memberKey = await joinedKey(url, 'tok-cy');
+  mkdirSync(join(env.repo.root, 'openspec', 'changes', 'x'), { recursive: true });
+  writeFileSync(join(env.repo.root, 'openspec', 'changes', 'x', 'proposal.md'), '# X\n\n**Branch:** main\n');
+  const input = writeJsonFile(env.repo.home, 'thread.json', { source: 'save', slug: 'x', facts: [{ action: 'add', type: 'thread', body: 'Ana wonders whether deploys need a tag.' }] });
+  const saved = await memory(env.repo, env.fake, ['put-facts', '--file', input], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: readerKey }));
+  assert.equal(saved.code, 0, saved.stderr);
+  const as = key => viaWorker(key ? { CLOUDFLARE_MEMORY_TOKEN: key } : {});
+  const run = (args, key) => memory(env.repo, env.fake, args, as(key));
+  const THREAD = /Ana wonders/;
+
+  assert.match((await run(['digest'], readerKey)).stdout, THREAD);
+  assert.match((await run(['search', 'deploys'], readerKey)).stdout, THREAD);
+  for (const key of [memberKey, null]) {
+    const digest = await run(['digest'], key);
+    assert.equal(digest.code, 0, digest.stderr);
+    assert.doesNotMatch(digest.stdout, THREAD);
+    assert.doesNotMatch((await run(['search', 'deploys'], key)).stdout, THREAD);
+    const gate = await run(['gate', '--file', writeJsonFile(env.repo.home, 'gate.json', { slug: 'x', facts: [{ type: 'project', body: 'Deploys need a tag.' }] })], key);
+    assert.equal(gate.code, 0, gate.stderr);
+    assert.doesNotMatch(gate.stdout, THREAD);
+  }
+  assert.match((await run(['search', 'deploys', '--everyone'])).stdout, THREAD, 'the admin sees it with --everyone');
+});
+
+test('the team filter adds the reader clause only when the store has the reader schema', async () => {
+  const store = n => ({ config: { team: true }, email: 'ana@example.com', query: async () => [{ n }] });
+  const ctx = { author: 'ana@example.com', root: '/nowhere' };
+  const before = await personalFilter(ctx, store(0));
+  assert.deepEqual(before, { clause: "(f.type NOT IN ('user', 'feedback') OR lower(f.author) IN (?))", params: ['ana@example.com'] });
+  const after = await personalFilter(ctx, store(1));
+  assert.equal(after.clause, `${before.clause} AND (f.shared = 1 OR lower(f.author) IN (?))`);
+  assert.deepEqual(after.params, ['ana@example.com', 'ana@example.com']);
+  assert.equal(await personalFilter(ctx, { ...store(1), config: { team: false } }), null);
+});
+
+test('a reader\'s fact is absent from a teammate\'s live and show, and present with --everyone and for the reader', async t => {
+  const { env, url } = await joinable(t);
+  const readerKey = await joinedKey(url, 'tok-ana');
+  const memberKey = await joinedKey(url, 'tok-cy');
+  const input = writeJsonFile(env.repo.home, 'note.json', { source: 'save', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'Ana keeps her deploy notes here.' }] });
+  assert.equal((await memory(env.repo, env.fake, ['put-facts', '--file', input], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: readerKey }))).code, 0);
+  const run = (args, key) => memory(env.repo, env.fake, args, viaWorker(key ? { CLOUDFLARE_MEMORY_TOKEN: key } : {}));
+  const NOTE = /Ana keeps her deploy notes/;
+  for (const args of [['live'], ['show', 'x']]) {
+    assert.match((await run(args, readerKey)).stdout, NOTE, `${args[0]} as the reader`);
+    for (const key of [memberKey, null]) {
+      const result = await run(args, key);
+      assert.equal(result.code, 0, result.stderr);
+      assert.doesNotMatch(result.stdout, NOTE, `${args[0]} as a teammate`);
+      assert.match((await run([...args, '--everyone'], key)).stdout, NOTE, `${args[0]} --everyone`);
+    }
+  }
 });

@@ -19,7 +19,7 @@ const FIXES = {
   gh_login: 'sign in to GitHub on this machine: gh auth login',
   github_token: 'sign in to GitHub again: gh auth login',
   needs_scope: `let gh read your verified emails: ${REFRESH}`,
-  no_access: `ask the repo's owner for access on GitHub, or for a key made with \`${SCRIPT} member add\``,
+  no_access: 'ask the repo\'s owner for access on GitHub: read access to a private repo, push access to a public one',
   no_email: 'verify an email on your GitHub account, at https://github.com/settings/emails',
   no_repo: 'wait until CI deploys production, which tells the memory Worker its repository',
   not_migrated: `ask the repo's owner to run \`${SCRIPT} migrate\``,
@@ -103,7 +103,8 @@ async function joinCommand(ctx, { values }) {
   try {
     const joined = await joinStore(ctx);
     const differs = ctx.author && ctx.author.toLowerCase() !== joined.email ? ` (${ctx.author} is not a verified email on your GitHub account)` : '';
-    console.log(`joined this repo's memory as ${joined.email}${differs}, ${joined.role}, on machine ${joined.machine}. The key is in ${joined.file} as CLOUDFLARE_MEMORY_TOKEN, and renews itself before ${joined.expiresAt.slice(0, 10)}.`);
+    const reader = joined.role === 'reader' ? ' As a reader, only you see the facts you save.' : '';
+    console.log(`joined this repo's memory as ${joined.email}${differs}, ${joined.role}, on machine ${joined.machine}. The key is in ${joined.file} as CLOUDFLARE_MEMORY_TOKEN, and renews itself before ${joined.expiresAt.slice(0, 10)}.${reader}`);
   } catch (error) {
     // Only a refusal the person must fix is kept; a network failure is retried at the next session start.
     if (values.background && PERSONAL.has(error.code)) writeJson(statePath(ctx, 'join-error.json'), { message: error.message, at: new Date().toISOString() });

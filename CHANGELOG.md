@@ -13,6 +13,16 @@
 
 **Updating.** `/wong-sync` brings `tidy.mjs`, the session-start hook, and the skill and wiki edits, and re-offers the `.gitignore` fragment, now with `.scratch/`. The first session after the update tidies up once, so a machine full of old chats may see several closed at once. Set `WONG_TIDY=0` in the environment to turn the background tidy-up off.
 
+## 26.6.0 — Memory keys stay home, and read-only teammates keep their notes to themselves
+
+- **Your memory key goes only to the address on your main checkout.** Memory read the memory Worker's address from the branch you had open, so a branch that changed one line got your key, or your GitHub token on a first join, at session start. Now the address comes from the main checkout, the one that holds `.env`. A branch that names another address is ignored, and the session start says so.
+- **Mini apps lose the side door to memory.** A handler got only `DB`, but it could still `import { env } from "cloudflare:workers"` and reach `MEMORY_DB`. The app's `wrangler.jsonc` and the stack-pack fragment now set `disallow_importable_env`, and `app/worker-configuration.d.ts` is regenerated. The wiki no longer promises a wall the runtime can not keep: a handler shares the Worker with memory, so review its code before it publishes.
+- **Transcripts lose token-shaped text before upload.** Besides `.env` values, anything shaped like a GitHub, `sk-`, AWS, JWT, Bearer, or memory key is replaced with `[redacted:token]`, in the stored transcript and in what capture reads. A fact holding a memory key is rejected too.
+- **Only you, or the admin, replace your notes.** A teammate's supersede now marks only facts under their own email. One aimed at someone else's fact leaves it live, and `put-facts` names who wrote it. A teammate's tidy merges only their own facts.
+- **Read-only collaborators join as readers.** On a private repo, someone with read access but not push gets a reader key. The route stores every fact a reader writes as unshared, and teammates' digests, searches, and write gates skip it; `search --everyone` still shows it. A public repo still needs push access. `member list` and `join` show `reader`. New migration `0004_readers.sql` adds `memory_keys.reader` and `facts.shared`.
+
+**Updating.** Add `"disallow_importable_env"` to `compatibility_flags` in your own `app/wrangler.jsonc`, which is never synced; `/wong-sync` plans it. After the update, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once; until then, read-only people can not join, and nothing else changes. A read-only teammate's current key keeps sharing until its next renewal makes it a reader key.
+
 ## 26.5.0 — Clean up what recent releases left stale
 
 - **Pages tell the truth again.** The stack pages drop Tailwind, which left in v18, and say the agent hands you a preview link as soon as a build finishes. *Getting started* says setup needs an empty folder, and describes the starter page as it is: your apps under a *Learn the development loop* box. The contributing page stops saying an update wipes the cached copy; it never does.
