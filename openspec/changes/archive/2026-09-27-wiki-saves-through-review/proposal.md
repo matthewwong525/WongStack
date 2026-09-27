@@ -86,3 +86,5 @@ None.
 - **2026-09-27** — Asked, after the save report left out the plan's link twice, what next → chose add the fix to this change, then publish, and make sure the link shows next time.
 - **2026-09-27** — Assumed: the save and publish reports missed the link because their "one link" rule never named the plan-link rule, and the second miss came from the host hiding chat text written above a question card; so the reports now name the rule, and the question's own text carries the plan's path.
 - **2026-09-27** — Merged main's 25.15.0–25.17.0 (thinner specs #157, shorter skills #151) at ship time. The spec deltas were rewritten against the merged capabilities (`people-wiki` → `knowledge-center`, `dependency-currency` → `dependencies`, which no longer mentions the allowlist) in the promise-not-procedure style, and the skill conflicts were resolved on main's shorter text with this change's rules kept. Release stays 26.0.0, above main's 25.17.0.
+- **2026-09-27** — Distilled: no repeatable fact; the rules the facts state now live in the save and ship skills and the change loop.
+- **2026-09-27** — Archived and checkpointed for merge by `/ship`.
