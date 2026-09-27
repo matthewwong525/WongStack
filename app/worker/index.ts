@@ -13,6 +13,7 @@
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
 import { handleMiniApp, MINI_PREFIX } from "../../mini-apps/router.mjs";
 import miniApps from "../../mini-apps/routes.mjs";
+import { API_PREFIX, handleApi } from "./api/router.ts";
 
 export default {
   fetch(request, env, ctx) {
@@ -31,11 +32,10 @@ export default {
       return handleMiniApp(request, env, ctx, miniApps);
     }
 
-    if (url.pathname.startsWith("/api/")) {
-      return Response.json({
-        name: "Cloudflare",
-      });
+    // The app's own API: one handler per route, listed in api/router.ts.
+    if (url.pathname.startsWith(API_PREFIX)) {
+      return handleApi(request, env);
     }
-		return new Response(null, { status: 404 });
+    return new Response(null, { status: 404 });
   },
 } satisfies ExportedHandler<Env>;

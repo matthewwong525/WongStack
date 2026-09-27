@@ -13,17 +13,14 @@ describe("worker routing", () => {
       {} as ExecutionContext,
     );
 
-  it("answers /api/* with the JSON payload", async () => {
-    const response = await call("/api/hello");
+  it("sends /api/* to the API router", async () => {
+    const health = await call("/api/health");
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({ ok: true });
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ name: "Cloudflare" });
-  });
-
-  it("answers the API root prefix too", async () => {
-    const response = await call("/api/");
-
-    expect(response.status).toBe(200);
+    const unknown = await call("/api/nothing");
+    expect(unknown.status).toBe(404);
+    expect(await unknown.json()).toEqual({ error: "Not found" });
   });
 
   it("sends /_memory/* to the memory route, which answers 404 with no memory store bound", async () => {
@@ -46,6 +43,7 @@ describe("worker routing", () => {
     for (const path of ["/", "/index.html", "/api", "/apiary/thing", "/_memory", "/apps", "/appstore/"]) {
       const response = await call(path);
       expect(response.status, path).toBe(404);
+      expect(await response.text(), path).toBe("");
     }
   });
 });
