@@ -10,6 +10,7 @@ const SLOT = '<!-- review:content -->';
 const start = '<!-- proposal:start -->';
 const end = '<!-- proposal:end -->';
 const WIDE = 60;
+const TECHNICAL = 12;
 const USAGE = 'usage: build-review.mjs <change-root> [--require-current]';
 const kitPath = resolve(dirname(fileURLToPath(import.meta.url)), '../references/review-kit.html');
 
@@ -111,10 +112,18 @@ function decisions(section) {
   }).join('\n')}\n</ol>`;
 }
 
+// Code spans in Why and What Changes prose, drawings excluded: a summary full of file names reads as a diff.
+function technical(sectionsFound, warnings) {
+  const spans = ['why', 'what changes'].flatMap(name => blocks(sectionsFound[name], 'item'))
+    .reduce((total, block) => total + (block.text.match(/`[^`]+`/g) || []).length, 0);
+  if (spans > TECHNICAL) warnings.push(`Why and What Changes name ${spans} files or commands; move them to the design and tasks`);
+}
+
 function render(markdown, warnings) {
   const found = sections(markdown);
   if (!found.why) throw new Error('proposal.md: missing ## Why');
   if (!found['what changes']) throw new Error('proposal.md: missing ## What Changes');
+  technical(found, warnings);
   const why = blocks(found.why, 'paragraph').map((block, i) => {
     if (block.drawings && block.drawings.length) throw new Error('proposal.md: a drawing in ## Why; put drawings in What Changes bullets');
     return `<p data-note="why-${i + 1}" tabindex="0">${inline(block.text)}</p>`;

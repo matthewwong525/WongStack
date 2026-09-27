@@ -23,6 +23,8 @@ Likewise a real `AGENTS.md` holds the `WONG-STACK` block and `CLAUDE.md` links t
 
 On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, as setup does for `.claude` and `.codex`.
 
+An install from before 19.0.0 may still have a real `.claude/` or `.codex/` folder, or `AGENTS.md` linking to a real `CLAUDE.md`. [Catching up an older install](catch-up.md) owns those moves, and the rest such an install missed.
+
 A skill installed under a local name keeps it: the record's `components.skills` mapping beats defaults. The inventory limits copying, not how far exploration follows a named dependency or impact. Never copy target-owned notes, app code, business docs, or OpenSpec records. No install seeds `wiki/people/` or other knowledge sections; they grow from use.
 
 ## Deterministic sync preflight
@@ -40,11 +42,29 @@ Files compare by Git blob first. The `CLAUDE.md` unit is only the lines from `WO
 - `latest-equivalent` — it already equals the refreshed source;
 - `locally-adapted` — it equals neither and stays protected.
 
+An installed commit older than the inventory has no `payload-files.json`. The preflight then compares against an empty baseline: every current unit is `added`, and one the target already has is `latest-equivalent` or `locally-adapted`. A missing inventory at the source `HEAD` is still an error.
+
+The report adds two fields, still `schemaVersion: 1`, so an old install's own `/wong-sync` reads it:
+
+- `catchUp` — `{ needed, reasons }`. Each reason is a fixed code with the paths it saw, read from the target's layout and install record alone: `agent-folder`, `codex-folder`, `rules-file`, `rules-file-reversed`, `wiki-elsewhere`, `opted-out`, `generated-openspec`, `deploy-token`, and `no-baseline`. `needed` is true for any reason, or an installed version below 19.0.0. [Catching up an older install](catch-up.md) owns what each asks of the plan.
+- `updating` — one `{ version, title, note }` per source `CHANGELOG.md` entry above the installed version, newest first, with its `**Updating.**` or `**Moving an existing install.**` text, or `null`. `updatingComplete` is `false` when the changelog is missing or unparsable, or the installed version is unknown; that is never an error, because the file changes are still proven.
+
 The JSON report gives each changed unit's path and class, with counts, never a file body or diff. It returns `status: error` on a bad or non-ancestor commit, invalid inventory, an unsafe or escaping path, missing markers, a read or Git error, or a change set over the safety limit. [`/wong-sync`](../SKILL.md) owns what each status does.
+
+[`merge-check.mjs`](../scripts/merge-check.mjs) runs after the plan merges new text into edited files, before the install record advances. With the same arguments plus `--from <installed commit>`, it takes each unit the preflight calls `modified` and `locally-adapted`, and lists every upstream hunk with an added line the target no longer has: the file, the source line range, the count, and the first missing line. Only the text between the markers counts for the `CLAUDE.md` block. It exits 0 when nothing is missing, 1 when something is, and 2 on a usage or read error; with no baseline it reports `skipped`. A moved or reworded line passes, so it catches dropped sections, and the plan's review catches rewording.
 
 **improve** ships its survey helper and references as one folder; the helper reads tracked text and Git history on OpenSpec's Node.js, adds no package, and calls no service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduling.
 
 **plan** ships the [review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), and the builder as one folder. Each change's standalone `review.html` is built from its `proposal.md` alone, viewer bundled; `/save` rebuilds it the same way. A cited owner page ships too: `scripts/check-payload-links.mjs` enforces link closure in a target.
+
+### Planning an update
+
+Every `/wong-sync`, however old, reads this page from the source, so the plan's use of the report lives here, not in the installed skill. Whether the installed skill hands the report to `/explore` or `/plan`, add these lines to that description, in order, word for word:
+
+- When `catchUp.needed`, plan each reported move by [catching up an older install](catch-up.md).
+- Carry each applicable `updating` note as a task; post-publish steps come after the gate.
+- Before the install-record task, run `node <source path>/.claude/skills/wong-sync/scripts/merge-check.mjs --target <target root> --source <source path> --from <installed commit>`; take or name every missing hunk.
+- Write Why and What Changes for the person, not an engineer, as five groups: what they get, what changes in how they work, what of theirs stays, what is left out and why, and what they do themselves. Name a file, skill, or command there only when they must type it, and keep to 12 code spans or fewer; counts, paths, and commands go in the design and tasks.
 
 ## The memory store and its hooks
 
@@ -76,7 +96,7 @@ Fresh setup runs `openspec init --tools none`. The verbs call the CLI directly a
 
 ## Not copied
 
-Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's `.claude/.wong-stack.json` is written after agreed implementation and never copied upstream. Old verdict files may inform exploration; nothing writes new ones.
+Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's `.claude/.wong-stack.json` is written after agreed implementation and never copied upstream. Old verdict files may inform exploration; nothing writes new ones. An older install's leftover layout and record fields are caught up in place by [catching up an older install](catch-up.md).
 
 ## Install record
 

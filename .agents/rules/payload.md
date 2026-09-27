@@ -28,7 +28,7 @@ paths:
 This rule is meta-repo only — it never ships to a target. You are touching a file WongStack distributes (or the machinery around one). The conventions:
 
 - **Every payload edit is a release.** A payload `wiki/` page is no exception. This rule owns how a release is cut; every other page links here:
-  1. **Write a `## Next (patch|minor|major) — <Title>` entry** at the top of [`CHANGELOG.md`](../../CHANGELOG.md)'s entries, in the same change, so the updater can detect and explain it. One entry per change.
+  1. **Write a `## Next (patch|minor|major) — <Title>` entry** at the top of [`CHANGELOG.md`](../../CHANGELOG.md)'s entries, in the same change, so the updater can detect and explain it. One entry per change. Its **Updating.** note becomes a to-do in each install's sync plan, so write any hand step in plain words and say what a named tool is for; an engineer's note lands as jargon on the owner's plan.
   2. **Leave [`VERSION`](../../VERSION) alone.** Raise it by hand and two changes in flight pick the same number.
   3. **`/ship` numbers it.** Right before its checkpoint, [`number-release.mjs`](../skills/ship/scripts/number-release.mjs) bumps `main`'s `VERSION` by the entry's level and renames the heading `## X.Y.Z — <Title>`. `merge.sh` refuses a number another release took meanwhile, and names the shipped version in the merge title.
   4. **Fill the release labels when the Releases run warned.** Run `node scripts/tag-releases.mjs` from the checkout `merge.sh` reported as `synced`, with your own `gh` login, and name any Release it creates in the ship report. The Releases workflow's token can not label a version whose commit changes a workflow file; GitHub answers HTTP 403, and the workflow only warns.

@@ -8,7 +8,7 @@ The Cloudflare stack pack every install takes: the deploy and data pipeline scri
 
 ### Requirement: Every install takes the pack
 
-The pack SHALL ship in the core payload to every install and every sync, and no install-record flag SHALL gate it.
+The pack SHALL ship in the core payload to every new install, and no install-record flag SHALL gate it for a new install. A sync SHALL treat an earlier release's opt-out flag as the person's choice: the plan names the pack as left out until the person asks for it.
 
 #### Scenario: A new install
 
@@ -18,7 +18,7 @@ The pack SHALL ship in the core payload to every install and every sync, and no 
 #### Scenario: A legacy opt-out flag
 
 - **WHEN** an install record carries `components.stackPack: false` from an earlier release
-- **THEN** the flag is ignored, and the repo is not supported until it is set up again
+- **THEN** the sync plan lists the pack as left out, with that reason, and the repo still updates in place
 
 ### Requirement: Staging is its own Worker
 

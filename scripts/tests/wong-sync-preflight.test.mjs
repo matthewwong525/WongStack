@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -392,4 +393,165 @@ test('the real scaffold ships the mini-app router and its example, never another
     'mini-apps/routes.d.mts',
     'mini-apps/routes.mjs',
   ]);
+});
+
+test('an installed commit with no inventory compares every current unit as added', t => {
+  const f = fixture(t);
+  rmSync(join(f.source, '.agents/skills/wong-sync/references/payload-files.json'));
+  const bare = f.commit('a commit from before the inventory');
+  f.updateRecord({ commit: bare });
+  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', `${JSON.stringify(inventory(), null, 2)}\n`);
+  write(f.source, '.agents/skills/alpha/SKILL.md', 'alpha latest\n');
+  f.commit('add the inventory back and change alpha');
+  rmSync(join(f.target, 'pack.txt'));
+  const report = f.inspect();
+  assert.equal(report.status, 'update');
+  assert.equal(report.selection.installedUnits, 0);
+  assert.ok(report.changes.every(change => change.operation === 'added'));
+  const state = path => report.changes.find(change => change.sourcePath === path).localState;
+  assert.equal(state('plain.txt'), 'latest-equivalent');
+  assert.equal(state('.claude/skills/alpha/SKILL.md'), 'locally-adapted');
+  assert.equal(state('pack.txt'), 'missing');
+  assert.ok(report.catchUp.reasons.some(reason => reason.code === 'no-baseline'));
+  assert.equal(report.catchUp.needed, true);
+
+  rmSync(join(f.source, '.agents/skills/wong-sync/references/payload-files.json'));
+  f.commit('drop the inventory at the current commit');
+  assert.throws(() => f.inspect(), error => error.code === 'missing-inventory');
+});
+
+// Today's layout: a real .agents, .claude and .codex linking to it, and CLAUDE.md linking to a real AGENTS.md.
+function currentLayout(f) {
+  renameSync(join(f.target, '.claude'), join(f.target, '.agents'));
+  symlinkSync('.agents', join(f.target, '.claude'));
+  symlinkSync('.agents', join(f.target, '.codex'));
+  renameSync(join(f.target, 'CLAUDE.md'), join(f.target, 'AGENTS.md'));
+  symlinkSync('AGENTS.md', join(f.target, 'CLAUDE.md'));
+}
+
+const codes = report => report.catchUp.reasons.map(reason => reason.code);
+
+test('the current layout on a current version needs no catch-up', t => {
+  const f = fixture(t);
+  f.updateRecord({ version: '26.0.0' });
+  currentLayout(f);
+  write(f.target, '.github/workflows/deploy.yml', 'on: push\n');
+  assert.deepEqual(f.inspect().catchUp, { needed: false, reasons: [] });
+  f.updateRecord({ version: '18.1.0' });
+  assert.deepEqual(f.inspect().catchUp, { needed: true, reasons: [] });
+});
+
+test('each catch-up reason fires on its own layout', t => {
+  const old = fixture(t);
+  assert.deepEqual(old.inspect().catchUp.reasons, [
+    { code: 'agent-folder', paths: ['.claude'] },
+    { code: 'codex-folder', paths: [] },
+    { code: 'rules-file', paths: ['CLAUDE.md'] },
+  ]);
+  write(old.target, 'AGENTS.md', 'their own agents file\n');
+  assert.deepEqual(old.inspect().catchUp.reasons.find(reason => reason.code === 'rules-file').paths, ['CLAUDE.md', 'AGENTS.md']);
+
+  const cases = [
+    ['codex-folder', f => { rmSync(join(f.target, '.codex')); mkdirSync(join(f.target, '.codex')); }],
+    ['codex-folder', f => rmSync(join(f.target, '.codex'))],
+    ['agent-folder', f => {
+      rmSync(join(f.target, '.claude'));
+      renameSync(join(f.target, '.agents'), join(f.target, '.claude'));
+      symlinkSync('.claude', join(f.target, '.agents'));
+    }],
+    ['rules-file-reversed', f => {
+      rmSync(join(f.target, 'CLAUDE.md'));
+      renameSync(join(f.target, 'AGENTS.md'), join(f.target, 'CLAUDE.md'));
+      symlinkSync('CLAUDE.md', join(f.target, 'AGENTS.md'));
+    }],
+    ['wiki-elsewhere', f => f.updateRecord({ components: { skills: ['alpha'], docsPath: 'docs/development' } })],
+    ['opted-out', f => f.updateRecord({ components: { skills: ['alpha'], stackPack: false, ui: false } })],
+    ['generated-openspec', f => mkdirSync(join(f.target, '.agents/skills/openspec-explore'))],
+    ['deploy-token', f => { f.updateRecord({ version: '17.2.0' }); write(f.target, '.github/workflows/deploy.yml', 'on: push\n'); }],
+  ];
+  for (const [code, arrange] of cases) {
+    const f = fixture(t);
+    f.updateRecord({ version: '26.0.0' });
+    currentLayout(f);
+    arrange(f);
+    const report = f.inspect();
+    assert.deepEqual(codes(report), [code], code);
+    assert.equal(report.catchUp.needed, true, code);
+  }
+
+  const reasons = (() => {
+    const f = fixture(t);
+    currentLayout(f);
+    f.updateRecord({ version: '17.2.0', components: { skills: ['alpha'], stackPack: false, appScaffold: false, docsPath: 'docs' } });
+    mkdirSync(join(f.target, '.agents/skills/openspec-explore'));
+    write(f.target, '.github/workflows/deploy.yml', 'on: push\n');
+    return f.inspect().catchUp.reasons;
+  })();
+  assert.deepEqual(reasons, [
+    { code: 'wiki-elsewhere', paths: ['docs'] },
+    { code: 'opted-out', paths: ['components.stackPack', 'components.appScaffold'] },
+    { code: 'generated-openspec', paths: ['.claude/skills/openspec-explore'] },
+    { code: 'deploy-token', paths: ['.github/workflows/deploy.yml'] },
+  ]);
+
+  const token = fixture(t);
+  currentLayout(token);
+  token.updateRecord({ version: '18.0.0' });
+  write(token.target, '.github/workflows/deploy.yml', 'on: push\n');
+  assert.deepEqual(codes(token.inspect()), []);
+});
+
+const changelog = `# Changelog
+
+## Next (minor) — Upcoming
+
+- Something new.
+
+**Updating.** Run the upcoming step once.
+
+## 1.2.0 — Two
+
+- A change.
+
+**Updating.** After it publishes, run \`memory.mjs migrate\` once.
+
+Until then, nothing else changes.
+
+## 1.1.0 — One
+
+- No hand step.
+
+## 1.0.0 — Base
+
+**Moving an existing install.** Not for this range.
+
+## Before 1.0.0
+
+Older entries are in git history.
+`;
+
+test('updating lists each changelog entry above the installed version with its hand steps', t => {
+  const f = fixture(t);
+  write(f.source, 'CHANGELOG.md', changelog);
+  f.commit('add a changelog');
+  const report = f.inspect();
+  assert.equal(report.updatingComplete, true);
+  assert.deepEqual(report.updating, [
+    { version: 'Next (minor)', title: 'Upcoming', note: '**Updating.** Run the upcoming step once.' },
+    { version: '1.2.0', title: 'Two', note: '**Updating.** After it publishes, run `memory.mjs migrate` once.\n\nUntil then, nothing else changes.' },
+    { version: '1.1.0', title: 'One', note: null },
+  ]);
+  assert.equal(report.schemaVersion, 1);
+
+  write(f.source, 'CHANGELOG.md', changelog.replace(/## Next[\s\S]*?(?=## 1\.2\.0)/, ''));
+  f.commit('number the release');
+  f.updateRecord({ version: '1.2.0' });
+  assert.deepEqual(f.inspect().updating, []);
+});
+
+test('a source with no changelog reports updating as incomplete, never an error', t => {
+  const report = fixture(t).inspect();
+  assert.notEqual(report.status, 'error');
+  assert.deepEqual(report.updating, []);
+  assert.equal(report.updatingComplete, false);
 });
