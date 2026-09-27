@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 25.4.1 — Installs skip npm's audit
+
+- **No install waits on npm's audit.** `test.yml`'s and `deploy.yml`'s `Install` step and `scripts/cf-preview.sh`'s first-run install now run `npm ci --no-audit --no-fund`. npm is retiring the audit endpoint `npm ci` calls, and on one CI run it held the install for 5 minutes instead of the usual 8 seconds. Nothing read the audit summary or the funding notice.
+
+WongStack's own checks now fail on any `npm ci` in a workflow or `scripts/` file that drops either flag.
+
+**Updating.** `/wong-sync` brings the new lines. If you changed your own `Install` step, add `--no-audit --no-fund` to it. Installs you run by hand keep npm's defaults.
+
 ## 25.4.0 — Review notes update the plan and stop
 
 - **Copy notes is a plain request.** `review.html` copies `Update the plan <name> with these notes from the review page. Don't build yet.`, then one bullet per note: `- Change #2 ("<quote>"): <note>`, with `Why, paragraph <n>`, `Change #<n>, drawing line <k>`, or `Decision #<n>` for the other spots. It no longer starts with `/continue`. The toast says *Paste them into chat to update the plan.* Saved notes and their labels are unchanged.
