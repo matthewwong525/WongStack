@@ -14,8 +14,9 @@ context: |
   records the actual feature branch. Branch and change names may differ.
   The WongStack skills own all git — OpenSpec never runs git itself.
 
-  Editing the payload is a release: bump VERSION (semver) and add a newest-first
-  CHANGELOG.md entry in the same change.
+  Editing the payload is a release: add a "## Next (patch|minor|major) — Title"
+  entry at the top of CHANGELOG.md in the same change and leave VERSION alone;
+  /ship numbers it from the default branch right before it merges.
 
 # Per-artifact rules.
 rules:
@@ -53,6 +54,6 @@ rules:
       still gets the review page.
   tasks:
     - Group tasks by the surface they touch (skill, script, docs, CLAUDE.md).
-    - A payload change is not done until VERSION and CHANGELOG.md are updated.
+    - A payload change is not done until CHANGELOG.md has its "## Next (level)" entry; /ship numbers VERSION, so no task raises it.
   specs:
     - Write each requirement as a promise, not a procedure, by the spec bar in .claude/rules/openspec.md - one or two scenarios each, and the steps left to the skill.

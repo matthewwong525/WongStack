@@ -20,12 +20,7 @@ Only files on the [payload manifest](../.agents/skills/wong-sync/references/payl
 1. **Fork** [WongStack](https://github.com/matthewwong525/WongStack) and clone your fork. Don't work in the cached clone under `~/.cache/wong-stack/`. `/wong-sync` fast-forwards it on every run and moves to a fresh checkout when it finds local work there ([latest source](../.agents/skills/wong-sync/references/latest-source.md)), so work left there is never used.
 2. **Branch** off the default branch.
 3. **Make the change** in the fork, generalized. Strip anything repo-specific that came along for the ride: your paths, your stack, your examples. What reads naturally here usually needs rewording to read naturally everywhere.
-4. **Apply the release ritual in the same commit** — editing the payload *is* a release:
-   - bump `VERSION` (semver: patch for wording, minor for new behavior, major for breaking),
-   - add a newest-first entry to `CHANGELOG.md` naming what changed and why.
-
-   A payload change without these is incomplete: the updater relies on them to tell every other repo that something moved.
-   After the squash merge, tag the merge commit and publish the release from its changelog entry: `git tag v<VERSION> <merge-sha>`, `git push origin v<VERSION>`, then `gh release create v<VERSION> --title v<VERSION> --notes-file <entry>`.
+4. **Add a changelog entry in the same commit** — editing the payload *is* a release. At the top of `CHANGELOG.md`'s entries, add `## Next (<level>) — <Title>` naming what changed and why; the level is `patch` for wording, `minor` for new behavior, `major` for breaking. Leave `VERSION` alone: WongStack numbers the release when it publishes. A payload change without the entry is incomplete: the updater relies on it to tell every other repo that something moved. [WongStack's release rule](https://github.com/matthewwong525/WongStack/blob/main/.agents/rules/payload.md) owns the steps.
 5. **Open the PR** against WongStack, with the generality argument in the body — why this belongs in every repo, not just yours. That's the case a reviewer is actually weighing.
 
 ## Why this isn't automated

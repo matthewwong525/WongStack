@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 26.2.0 — Clean up what recent releases left stale
+## Next (minor) — Clean up what recent releases left stale
 
 - **Pages tell the truth again.** The stack pages drop Tailwind, which left in v18, and say the agent hands you a preview link as soon as a build finishes. *Getting started* says setup needs an empty folder, and describes the starter page as it is: your apps under a *Learn the development loop* box. The contributing page stops saying an update wipes the cached copy; it never does.
 - **Links that pointed at nothing now point somewhere.** The pipeline page lists `scripts/cf-preview.sh` and `scripts/mini-dashboard.mjs`. The `/verify` walkthrough uses a real `wrangler d1 execute` command, not a made-up one. The secrets rule links `/save`'s named secrets. The tools page stops citing a "Step 0", and the UX page drops its "Part 1 —" headings.
@@ -14,6 +14,17 @@
 - **Source repo only.** Lint and coverage now include the memory service, the check scripts, and the mini-app router. A memory test that failed at random now waits properly. `/update-dependencies` covers the test tools, and a test fails when the four places that name the OpenSpec version disagree.
 
 **Updating.** `/wong-sync` brings the page, skill, and guard edits. From now on, a branch that changes any workflow file, `deploy.yml` included, needs a `Check:` bullet naming it. A record's `components.docsPath` is ignored: move any relocated pages back under `wiki/` before you sync.
+
+## 26.2.0 — Releases are numbered when they publish
+
+- **A change no longer picks its own version.** Write its notes under `## Next (patch|minor|major) — <Title>` at the top of `CHANGELOG.md`, and leave `VERSION` alone. `/ship` numbers it from `main`'s version right before it merges, so two changes in flight never take the same number.
+- **`/ship` runs `number-release.mjs` before its checkpoint.** The new script in the `ship` skill writes `VERSION` and the `## X.Y.Z — <Title>` heading, keeps the entry on top, and restores one blank line before every heading. A repo with no `CHANGELOG.md` gets `release=none` and sees no change.
+- **A stale number stops the merge.** When another release lands while yours waits on its checks, `merge.sh` prints `stale_version=<version>` and merges nothing; `/ship` numbers it again, saves, and merges.
+- **The merge title names the version that shipped.** `merge.sh` passes `--subject` built from the pull request's title, ` (v<VERSION>)` for a release, and ` (#<number>)`.
+- **Release labels no longer fail on a race.** `tag-releases.mjs` counts an HTTP 422 *already exists* as done, and fails when a `## Next` heading reaches `main` unnumbered.
+- **The release steps live in one place.** The meta-only payload rule owns them, and now loads for every shipped path; a new test keeps its paths in step with `payload-files.json`. `wiki/contributing.md` drops the hand-tagging step.
+
+**Updating.** `/wong-sync` brings the `ship` skill's new script and steps, and the `wiki/contributing.md` and `wiki/stack/cloudflare-credentials.md` edits. Nothing to do by hand: a repo with no `CHANGELOG.md` ships exactly as before.
 
 ## 26.1.0 — A "Review the plan" choice that prints the plan's link
 
@@ -83,6 +94,7 @@
 - **The usage report shows context by skill.** `scripts/measure-usage.mjs` (meta-only) now prints each skill's main-thread context at its first turn and at its peak. Before this release, `/apply` started at 119k tokens and peaked at 149k (median over 128 sessions).
 
 **Updating.** `/wong-sync` brings the new `/apply` section, the helper's brief, and the change-loop line. Nothing else to do.
+
 ## 25.11.0 — Every plan prints its link, and "What next?" is tap-to-answer
 
 - **Every plan prints its link.** Whenever a reply makes or changes a plan, it prints *Click here to see the plan:* and a link to the change's `review.html`, on its own line above the closing question. This holds whichever verb made the plan — `/plan`, `/apply` planning first, `/continue`, `/ship`, `/wong-sync`, or review notes — and even when the build goes on. A new [*Print the plan's link*](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link) section owns the rule, the `WONG-STACK` block states it, and `/plan`'s *Finish* links it instead of keeping its own wording.
@@ -145,6 +157,7 @@
 - **A steadier test.** `wait-for-checks.test.mjs` gives its grace-period test 3 seconds instead of 1. The script's whole-second deadline could leave it less than a second on a busy machine.
 
 **Updating.** `/wong-sync` brings the new page and the shared lookup. `routine.mjs`, `worktree-secrets.mjs`, `verify-staging.sh`, and `cf-secrets.mjs` now load it from `.claude/skills/memory/`. If you renamed the memory skill, those scripts fail on load until the path matches.
+
 ## 25.6.0 — Checks the AI loosens are caught
 
 - **A loosened check fails the Test check unless a reason is written.** `.github/scripts/loosened-checks.mjs` compares the branch with the base `app-untouched.sh` finds. It flags a file when the change adds a skip comment (Stryker, coverage, lint, or TypeScript), adds a skipped, focused, or to-do test, deletes a test file, or changes a check's settings: a test, coverage, mutation, lint, type, duplicate-code, or unused-code config, a `package.json` `test` script or a script it runs, `test.yml`, or a script under `.github/scripts/`. A flagged file passes when a proposal the branch adds or edits names it in a Decision-log bullet that starts with `Check:`. [A loosened check needs a reason](wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) owns the rule.
@@ -165,6 +178,7 @@
 - **Teammates need one more `gh` scope.** `user:email`, to read verified emails: [required tools](wiki/development/required-tools.md#gh-needs-the-useremail-scope-for-memory).
 
 **Updating.** `/wong-sync` brings the route, the script, the deploy change, and migration `0003_key_machines.sql`. After the update merges and production deploys, the admin runs `node .claude/skills/memory/scripts/memory.mjs migrate` once. Until then, old keys keep working and `join` is refused.
+
 ## 25.4.1 — Installs skip npm's audit
 
 - **No install waits on npm's audit.** `test.yml`'s and `deploy.yml`'s `Install` step and `scripts/cf-preview.sh`'s first-run install now run `npm ci --no-audit --no-fund`. npm is retiring the audit endpoint `npm ci` calls, and on one CI run it held the install for 5 minutes instead of the usual 8 seconds. Nothing read the audit summary or the funding notice.
@@ -300,6 +314,7 @@ Note ids, labels, storage, and the copy format do not change, so saved notes sta
 3. Only then, delete the old `<repo>-memory` Cloudflare token.
 
 Until step 2, the store keeps working with the old token. Teammates who held that token need a member key from the admin.
+
 ## 22.0.1 — Only the mini-app scaffold ships, not every mini app
 
 - **The scaffold lists what ships.** `payload-files.json` named the whole `mini-apps/` folder, so an app made in the WongStack source repo would have reached every repo that installs or syncs WongStack. It now lists the mini Worker (`worker.ts`, its editor config, and its ignore files) and the example app `mini-apps/apps/hello/`, and nothing else. `mini-apps/wrangler.jsonc` stays out, as before. A sync test with the real manifest checks that a second app folder is never selected. A repo on 22.0.0 already has these files, so its next `/wong-sync` changes nothing.

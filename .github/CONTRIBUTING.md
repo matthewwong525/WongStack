@@ -13,7 +13,7 @@ For anything larger than a typo, [open an issue](https://github.com/matthewwong5
 3. Make the change, and run the checks below.
 4. Push the branch to your fork, and open a pull request against `main`. Use the template, and link the issue.
 
-A change to a payload file is a release. Bump `VERSION` and add a `CHANGELOG.md` entry in the same pull request. [Contributing upstream](../wiki/contributing.md) owns the release steps and says which files are payload.
+A change to a payload file is a release. Add a `## Next (patch|minor|major) — <Title>` entry to `CHANGELOG.md` in the same pull request, and leave `VERSION` alone. [The payload rule](../.agents/rules/payload.md) owns the release steps; [contributing upstream](../wiki/contributing.md#whats-in-scope) says which files are payload.
 
 ## Run the checks
 

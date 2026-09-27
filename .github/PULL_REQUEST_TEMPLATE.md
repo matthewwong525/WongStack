@@ -9,5 +9,5 @@
 ## Checklist
 
 - [ ] The `test` and `payload` checks pass in CI.
-- [ ] A payload file changed: `VERSION` is bumped and `CHANGELOG.md` has a new entry ([release steps](https://github.com/matthewwong525/WongStack/blob/main/wiki/contributing.md)).
+- [ ] A payload file changed: `CHANGELOG.md` has a `## Next (patch|minor|major) — <Title>` entry, and `VERSION` is untouched ([release steps](https://github.com/matthewwong525/WongStack/blob/main/.agents/rules/payload.md)).
 - [ ] `node scripts/check-payload-links.mjs` passes. Markdown links name `.agents/`, not `.claude/`.

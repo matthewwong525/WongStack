@@ -67,3 +67,4 @@ None.
 - **2026-09-27** — Check: `scripts/tests/wong-sync-preflight.test.mjs` deletes the two `docsPath` tests, because the feature they test is removed.
 - **2026-09-27** — Checkpoint: tasks 1.1–5.1 built as 26.2.0; spec deltas reconciled into `openspec/specs/`; local lint, 367 script tests, and coverage (87.9% lines, 83.4% branches) pass. Waiting on CI for task 5.2.
 - **2026-09-27** — Checkpoint: CI passed on PR #159 (coverage floor included); task 5.2 done, all tasks complete.
+- **2026-09-27** — Merged `main` after #160 (26.2.0, releases numbered at publish) took the same number: the entry is now `## Next (minor)`, `VERSION` stays at main's, and `/ship` numbers it before merging. Main's payload check had failed on the flaky envKey test this change fixes; its job was re-run.

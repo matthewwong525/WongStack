@@ -1,6 +1,6 @@
 # Adding a skill to the payload
 
-Adding a skill to WongStack means creating it under [`.agents/skills/`](../../.agents/skills/) and wiring it through every surface that installs, versions, and advertises the payload — so [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) pulls it into target repos (fresh installs and updates run the same manifest-driven sync, fronted by [`/wong-setup`](../../.agents/skills/wong-setup/SKILL.md)), and the docs and READMEs still match reality. It's a [release](README.md), so it ends with a version bump and a changelog entry.
+Adding a skill to WongStack means creating it under [`.agents/skills/`](../../.agents/skills/) and wiring it through every surface that installs, versions, and advertises the payload — so [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) pulls it into target repos (fresh installs and updates run the same manifest-driven sync, fronted by [`/wong-setup`](../../.agents/skills/wong-setup/SKILL.md)), and the docs and READMEs still match reality. It's a [release](README.md), so it ends with a changelog entry.
 
 Work through it in order:
 
@@ -8,7 +8,7 @@ Work through it in order:
 
 2. **Wire it into the payload inventory.** Add the directory name to `core.skillDirs` in [`payload-files.json`](../../.agents/skills/wong-sync/references/payload-files.json). That machine-readable file is the one source of truth for fresh setup, sync, and payload link checks; its companion [manifest guide](../../.agents/skills/wong-sync/references/payload-manifest.md) owns the rules. The installer copies the whole skill directory, including `references/` and `scripts/`. A target's install record maps upstream names to local names, so setup and sync preserve a target-owned skill with the same name instead of silently replacing it. Update a setup surface only when that surface separately names the skill; do not create a second copy-list.
 
-3. **Cut the release.** Bump [`VERSION`](../../VERSION) — a new skill is additive, so a **minor** bump — and add a newest-first entry to [`CHANGELOG.md`](../../CHANGELOG.md) describing it. `/wong-sync` reads every entry newer than a repo's installed version to walk the user through what changed, so an unversioned skill is invisible to existing installs. This is the [release](README.md) that any payload edit ends with.
+3. **Cut the release.** Add a `## Next (minor) — <Title>` entry to [`CHANGELOG.md`](../../CHANGELOG.md) describing it — a new skill is additive, so **minor** — and leave [`VERSION`](../../VERSION) alone; `/ship` numbers it. `/wong-sync` reads every entry newer than a repo's installed version to walk the user through what changed, so a skill with no entry is invisible to existing installs. [The payload rule](../../.agents/rules/payload.md) owns the release steps.
 
 4. **Update the user-facing surfaces.** Add the skill to the command table or related discovery text in [`README.md`](../../README.md). Add its operating rule to the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../AGENTS.md) when every installed repo must know it. Link its owning workflow page from the [development hub](README.md). These are what a reader and a freshly installed repo see.
 

@@ -4,7 +4,7 @@ Working on WongStack means editing the toolkit itself — this repo is the meta-
 
 The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) brings into other repos and keeps current — a fresh install (fronted by [`/wong-setup`](../../.agents/skills/wong-setup/SKILL.md)) is the same manifest-driven sync in the case where every payload file happens to be absent: the workflow skills under [`.claude/skills/`](../../.agents/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/`, driven through the CLI), this [`wiki/`](../README.md) wiki, [`VERSION`](../../VERSION), [`CHANGELOG.md`](../../CHANGELOG.md), and the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../AGENTS.md). The canonical file-by-file list lives in one place: the [payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md) inside `wong-sync`. Everything else in the repo is scaffolding around it.
 
-**Editing the payload is a release.** Any change a downstream repo would receive has to be versioned and explained, or the installer's updater can't detect it — so a payload edit always ends by bumping [`VERSION`](../../VERSION) (semver) and adding a newest-first [`CHANGELOG.md`](../../CHANGELOG.md) entry in the same change, then running the two release checks: `node scripts/check-payload-links.mjs` for links that fail in a target, and `node scripts/check-openspec-config.mjs` for a config the OpenSpec CLI cannot read. The [payload rule](../../.agents/rules/payload.md) owns the release steps.
+**Editing the payload is a release**, cut by the steps in [the payload rule](../../.agents/rules/payload.md), or the installer's updater can't detect it.
 
 ## Processes
 

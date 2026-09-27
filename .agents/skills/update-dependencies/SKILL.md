@@ -20,7 +20,7 @@ Move every OpenSpec pin together: `.github/workflows/payload.yml`, `server/setup
 
 After a CLI update, check `init --tools none`, `context`, `status --json`, artifact/apply/archive instructions, validation, and archive flags against a disposable fixture, the release notes, and [the shared contract](../plan/references/openspec-cli.md). [No generated layer](../plan/references/openspec-cli.md) exists: never run `openspec update` or regenerate or patch `openspec-*` skills. Report a changed CLI field and adapt the owning WongStack skill before saving; never silently accept a missing contract.
 
-If payload files changed, follow [the release rule](../../rules/payload.md); otherwise say why no bump is due.
+If payload files changed, follow [the release rule](../../rules/payload.md); otherwise say why no release is due.
 
 ## Hand off
 
