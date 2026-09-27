@@ -15,6 +15,14 @@ Every install starts from an empty folder and takes **every** category below.
 
 A target keeps the payload in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it, like this source. The inventory uses logical `.claude/` paths; the install writes each under `.agents/`. So `.claude/hooks.json` is also `.codex/hooks.json`, which Codex reads, and `.claude/config.toml` is `.codex/config.toml`, which enables Codex's Default-mode questions. Codex loads `.agents/skills` natively, so each skill loads once in each agent.
 
+The rules live the same way: a real `AGENTS.md` holds the `WONG-STACK` block, and `CLAUDE.md` is a symbolic link to it. Codex reads only `AGENTS.md` and Claude Code reads `CLAUDE.md`, so one file serves both, and two copies can never drift. The inventory's block unit stays `CLAUDE.md`; the preflight reads it through the link. A sync plans the move, keeping every line of the target's own text:
+
+- a real `CLAUDE.md` and no `AGENTS.md` — `git mv CLAUDE.md AGENTS.md`, then `ln -s AGENTS.md CLAUDE.md`;
+- a real `CLAUDE.md` and a real `AGENTS.md` — a reviewed task merges both into `AGENTS.md` with one `WONG-STACK` block, then links `CLAUDE.md`; never overwrite either file;
+- `CLAUDE.md` already links to `AGENTS.md` — nothing.
+
+On Windows, make the link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, as setup does for `.claude` and `.codex`.
+
 A skill installed under a recorded local name keeps that name: the target's `.claude/.wong-stack.json` `components.skills` mapping wins over defaults. The inventory limits copying, not exploration's expansion from the preflight's changed units to a named dependency or impact. Target-owned notes, app code, business docs, and existing OpenSpec records are never copied from the source. `wiki/people/` and other knowledge sections grow from use in the target; no install seeds them.
 
 ## Deterministic sync preflight

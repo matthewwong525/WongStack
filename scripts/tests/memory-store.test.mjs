@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -6,6 +7,7 @@ import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scr
 import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
+import { MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { homeRows, memory, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
@@ -123,8 +125,65 @@ test('search filters by text, type, slug, date, author, and change state', async
   assert.doesNotMatch(typed.stdout, /reviews/);
   assert.match((await memory(env.repo, env.fake, ['search', '--slug', 'two'])).stdout, /reviews/);
   assert.match((await memory(env.repo, env.fake, ['search', '--since', '2999-01-01'])).stdout, /No matching facts/);
-  assert.match((await memory(env.repo, env.fake, ['search', '--author', 'dev@'])).stdout, /\(one, conversation, 0d, dev, #1\)/);
+  assert.match((await memory(env.repo, env.fake, ['search', '--author', 'dev@'])).stdout, /\(one, conversation, 0d, dev@example\.com, #1\)/);
   assert.match((await memory(env.repo, env.fake, ['search', '--state', 'active'])).stdout, /No matching facts/);
+});
+
+test('two authors who share the part before the @ never read as one person, and the digest keeps its limits', async t => {
+  const env = await setup(t);
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('ops', 'project', ?, 'save', '2026-09-01T00:00:00Z', ?)");
+  for (let i = 0; i < 60; i += 1) insert.run(`Release note ${i} ${'about the deploy window '.repeat(6)}`.trim(), i % 2 ? 'operations@example.org' : 'operations@example.com');
+  const digest = (await memory(env.repo, env.fake, ['digest'])).stdout.trimEnd();
+  assert.match(digest, /, operations@example\.com, #\d+\)/);
+  assert.match(digest, /, operations@example\.org, #\d+\)/);
+  assert.ok(digest.split('\n').length <= MAX_LINES, `${digest.split('\n').length} lines`);
+  assert.ok(Buffer.byteLength(digest) <= MAX_BYTES, `${Buffer.byteLength(digest)} bytes`);
+  const found = (await memory(env.repo, env.fake, ['search', 'release', '--limit', '60'])).stdout;
+  const authors = new Set(found.match(/operations@[\w.]+(?=, #)/g));
+  assert.deepEqual([...authors].sort(), ['operations@example.com', 'operations@example.org']);
+});
+
+// A session's facts, with the branch the session started on.
+async function sessionFacts(env, id, branch, facts) {
+  await put(env, { session: id, source: 'save', facts });
+  env.fake.db.prepare('UPDATE sessions SET branch = ? WHERE id = ?').run(branch, id);
+}
+
+const lines = result => result.stdout.trim().split('\n').map(line => line.replace(/ \(.*$/, '')).sort();
+
+test('search by change finds a session whose branch was renamed, alone or with the branch', async t => {
+  const env = await setup(t);
+  await sessionFacts(env, 'claude:renamed', 'magical-chicken', [
+    { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Home keeps private-life facts.' },
+    { action: 'add', type: 'reference', slug: 'paseo', body: 'Paseo renames branches from its sidebar.' },
+  ]);
+  await sessionFacts(env, 'claude:current', 'explore/home-mode', [{ action: 'add', type: 'project', slug: 'other', body: 'Started on the new name.' }]);
+  await sessionFacts(env, 'claude:unrelated', 'elsewhere', [{ action: 'add', type: 'project', slug: 'unrelated', body: 'Nothing to do with it.' }]);
+  const both = await memory(env.repo, env.fake, ['search', '--branch', 'explore/home-mode', '--change', 'add-home-repo']);
+  assert.equal(both.code, 0, both.stderr);
+  assert.deepEqual(lines(both), ['- [project] Home keeps private-life facts.', '- [project] Started on the new name.', '- [reference] Paseo renames branches from its sidebar.']);
+  const change = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
+  assert.deepEqual(lines(change), ['- [project] Home keeps private-life facts.', '- [reference] Paseo renames branches from its sidebar.']);
+  const branch = await memory(env.repo, env.fake, ['search', '--branch', 'explore/home-mode']);
+  assert.deepEqual(lines(branch), ['- [project] Started on the new name.'], 'the branch alone misses the renamed session');
+  const worded = await memory(env.repo, env.fake, ['search', 'paseo', '--change', 'add-home-repo']);
+  assert.deepEqual(lines(worded), ['- [reference] Paseo renames branches from its sidebar.']);
+});
+
+test("search by change keeps the team filter on a teammate's personal facts", async t => {
+  const env = await setup(t);
+  mkdirSync(env.repo.stateDir, { recursive: true });
+  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
+  execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
+  await sessionFacts(env, 'claude:bo', 'bo-branch', [
+    { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Bo shipped the home schema.' },
+    { action: 'add', type: 'feedback', slug: 'prefs', body: 'Bo wants short replies.' },
+  ]);
+  execFileSync('git', ['config', 'user.email', 'dev@example.com'], { cwd: env.repo.root });
+  const mine = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
+  assert.deepEqual(lines(mine), ['- [project] Bo shipped the home schema.']);
+  const everyone = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo', '--everyone']);
+  assert.deepEqual(lines(everyone), ['- [feedback] Bo wants short replies.', '- [project] Bo shipped the home schema.']);
 });
 
 test('--state filters before the limit, so an older match is still found', async t => {

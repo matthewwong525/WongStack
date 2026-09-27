@@ -145,8 +145,8 @@ Each step reuses what exists, so a run that stopped runs again from the top. The
 2. **The database.** It reuses `<repo>-memory`, or creates it.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`. It never turns on public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json` — `accountId`, `databaseId`, `database`, and `bucket` (or `null`) — and the memory URL as `worker`: `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None of them is a secret.
-5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retried while the new store takes effect.
-6. **The admin key.** When `.env` holds no memory key yet, it runs `memory.mjs member add "$(git config user.email)" --admin --env`, which writes the key to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env` and never prints it. No git email stops it with `repo`: ask the user to set one. It mints no Cloudflare token for memory. Teammates [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once CI has deployed production. **Never** set the key as a GitHub secret: CI must not read transcripts.
+5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retried while the new store takes effect. On a new store, it also links the GitHub account `gh` is signed in as, making it the admin.
+6. **The admin key.** When `.env` holds no memory key yet, it runs `memory.mjs member admin`. That links the user's GitHub account as the store's admin, and writes a 30-day admin key for this machine to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env`; the key renews itself and is never printed. No git email stops it with `repo`: ask the user to set one. A signed-out `gh` stops it with `cloudflare`: ask the user to run `gh auth login`. It mints no Cloudflare token for memory. Teammates [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once CI has deployed production. **Never** set the key as a GitHub secret: CI must not read transcripts.
 
 Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
 
@@ -154,10 +154,10 @@ Memory answers once CI deploys production; until then, facts wait in the local s
 
 **Moving an older store.** A store whose `CLOUDFLARE_MEMORY_TOKEN` is an old `<repo>-memory` Cloudflare token (not a `wongm_` key) moves to the production Worker. The old token works until the last step, because only a memory key goes to the Worker.
 1. In the sync change: the memory route in `app/worker/index.ts` (the [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold)'s one import and branch), `MEMORY_DB` and `MEMORY_BUCKET` in the production config as in 4c, `worker` in the install record as in step 4, the R2 row on `<repo>-deploy` when the store has a bucket, and `$M migrate`.
-2. After that change merges and production deploys, run step 6's `$M member add` by hand, then check `$M digest` through the Worker.
+2. After that change merges and production deploys, run step 6's `$M member admin` by hand, then check `$M digest` through the Worker.
 3. Only when that passes, delete the old token: find `<repo>-memory` in `GET /user/tokens`, then `DELETE /user/tokens/{id}`.
 
-If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key on their next session by [joining through GitHub](../../../../wiki/development/memory.md#joining-through-github); `member add` is the fallback for someone without GitHub access.
+If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key on their next session by [joining through GitHub](../../../../wiki/development/memory.md#joining-through-github). No key is made by hand: someone without GitHub access to the repo gets that access first.
 
 ### 4c. The two app databases and the config
 

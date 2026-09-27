@@ -14,6 +14,46 @@
 - **The code rule says where things go.** `.agents/rules/code.md` gains *Where things go* and now loads for `mini-apps/` too. [Mini apps](wiki/stack/mini-apps.md) and [UX principles](wiki/ux-principles.md) link it.
 
 **Updating.** `/wong-sync` plans the move. A repo whose starter app is still the one WongStack gave it takes the whole move together: the new files, `react-router` in `app/package.json`, the deleted flat files, and the removed API placeholder. A repo that rebuilt its app keeps its own layout; the plan offers only the code rule and the shared stylesheet. Existing mini apps keep working unchanged, and can adopt `/style.css` and an `app.js` page script when next touched.
+## 26.12.1 — The README leads with how Matt uses AI
+
+- **The README opens with whose way this is.** Its first screen says WongStack is Matt's opinionated way of using AI, for Matt's business, Claymoo, and for everything else. The example asks come mostly from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers, plus one for planning the week. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.
+- **A company name can appear in public files.** The private-name check in `scripts/tests/private-names.test.mjs` now blocks `ClaymooApp`, `WongOS`, and `wongstack-cloud`, not the bare word "Claymoo", so the README can name the company while private repositories stay out.
+- **Source repo only.** `AGENTS.md`'s "What this is" line now describes an assistant a business owner and their team run their business on. The `WONG-STACK` block is unchanged.
+
+**Updating.** Nothing changes in installed repos.
+
+## 26.12.0 — The plan's link says what to do next
+
+- **A waiting plan tells you how to build it.** When a plan stops for your review, the line right under its link says *When you're ready, type `/apply` to build it.* It shows after a plan made on its own, a bare `/wong-sync`, notes pasted from the plan's page, and the reply to *Review the plan*.
+- **It stays out when the build goes on.** When `/apply`, `/continue`, or `/ship` builds the plan in the same run, or the plan has shipped, the link shows alone.
+- **One wording everywhere.** `build-review.mjs` prints the line third, after the link line, from its exported `NEXT_STEP`; [print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link) says when to copy it, and the `WONG-STACK` block states it.
+
+## 26.11.0 — Memory keys come only through GitHub
+
+- **Notes show who wrote them in full.** Each fact in the start-up digest, `search`, `show`, and `live` names its writer's whole email, so `ana@example.com` and `ana@example.org` never look like one person.
+- **Admin is a GitHub account, not an email.** The store links the admin's GitHub account, and a join gives an admin key only to that account. Another account with the admin's verified email joins as a member. Joining now asks GitHub three things: the repository, the verified emails, and the account's id.
+- **No key is made by hand, and every key ends.** `member add` is gone; it answers that teammates join through GitHub. The admin's own key comes from `member admin`, which links the GitHub account `gh` is signed in as and writes a 30-day key to `.env` that renews itself, never printed. Setup runs it. `member remove` also unlinks the admin, and `member list` shows each key's GitHub account and the linked admin.
+- **At most 10 keys per person.** A join from an 11th machine works at once, and the key of the machine that joined longest ago stops; that machine rejoins on its own at its next start.
+- **Saved chats cap at 50 MB.** A bigger session's facts are still captured, but its full transcript is not kept, and `source` says why. The memory route refuses a bigger upload from any key.
+
+**Updating.** After the update merges and production deploys, run `node .claude/skills/memory/scripts/memory.mjs migrate` once, with `gh` signed in: it links your GitHub account as admin and stops every key that had no end date. Without `gh`, it says to run `member admin`. Every machine rejoins through GitHub at its next session start, so fresh memory skips one session while the cached digest still shows. A teammate who got a key by hand needs access to the repo on GitHub, then joins on their own.
+
+## 26.10.1 — Memory reports what it really saved
+
+- **The background memory report counts what was stored.** While a background run works, the memory script tallies what each `put-facts` and `strip` stored, in `run-tally.json` in the clone's memory state folder. `finish-run` records that tally, not the model's own `--counts`. When the model's counts differ, the run's record says `model reported other counts: <keys>`, and the next digest adds *(the run's own report differed)*. A hand-run `finish-run`, or a run an older `run.mjs` started, records `--counts` as before.
+- **Publishing finds a chat's notes after a branch rename.** `memory.mjs search` takes `--change <slug>`: facts from every session that wrote a fact on that change. With `--branch` too, it returns facts from either set. `/ship`'s distill step runs `search --branch "$BRANCH" --change "$CHANGE_NAME"` on a feature branch and `search --change "$CHANGE_NAME"` on `main`, so a chat whose branch was renamed loses none.
+- **Source repo only: the link check covers source-only skills.** `scripts/check-payload-links.mjs` resolves every link in a skill no manifest category lists (today `wong-setup` and `update-dependencies`) against this repo, and checks a `#anchor` against the target page's headings as GitHub slugs them. A missing path or renamed heading fails with `file:line -> target`.
+- **Source repo only: the add-a-skill guide covers WongStack-only skills.** Such a skill does step 1 only: no manifest entry, no setup surface, and no changelog entry of its own.
+
+**Updating.** Nothing to do by hand. `/wong-sync` brings the memory scripts and the `memory` and `ship` skills.
+
+## 26.10.0 — Codex reads the WongStack rules in every install
+
+- **One rules file serves both agents.** Codex reads only `AGENTS.md`, and chat setup wrote the rules to `CLAUDE.md`, so Codex in those repos never saw them. `/wong-setup` now writes the rules to a real `AGENTS.md` and makes `CLAUDE.md` a link to it (`ln -s AGENTS.md CLAUDE.md`, with `MSYS=winsymlinks:nativestrict` on Windows). One copy, so the two can not drift. It is the layout this repo and server installs already use.
+- **Updates read the rules through the link.** The update check still finds changes to the `WONG-STACK` block and still leaves your own text alone when `CLAUDE.md` is a link.
+- **Shipped pages link `AGENTS.md`.** The link check no longer lets a shipped page link `CLAUDE.md`; GitHub's web view can not follow the link.
+
+**Updating.** The next `/wong-sync` plans the move: a repo with only a real `CLAUDE.md` renames it to `AGENTS.md` and links `CLAUDE.md` to it, with every line kept. A repo that already has its own `AGENTS.md` gets a reviewed task that merges both into `AGENTS.md`, then links. A repo whose `CLAUDE.md` already links to `AGENTS.md` needs nothing. [The agent folder](.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder) owns the steps.
 
 ## 26.9.0 — Pushes stay fast when mutation testing would start over
 

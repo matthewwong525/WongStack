@@ -3,6 +3,8 @@
 export const MEMORY_PREFIX: string;
 export const TEAM_HEADER: string;
 export const KEY_DAYS: number;
+export const KEY_LIMIT: number;
+export const MAX_TRANSCRIPT_BYTES: number;
 export function handleMemory(request: Request, env: object): Promise<Response>;
 export function hashKey(key: string): Promise<string>;
 export function newKey(email: string): string;

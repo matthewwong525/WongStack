@@ -183,8 +183,8 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
 }
 
 /**
- * A fake `gh` in `<dir>/bin`: `secret list` and `secret set` against `<dir>/secrets`, every argument list
- * logged to `<dir>/calls`. A `<dir>/fail` file makes every call fail.
+ * A fake `gh` in `<dir>/bin`: `secret list` and `secret set` against `<dir>/secrets`, and `api user` as ada's
+ * GitHub account, 4242; every argument list logged to `<dir>/calls`. A `<dir>/fail` file makes every secret call fail.
  */
 export function fakeGh(dir) {
   const bin = join(dir, 'bin');
@@ -192,6 +192,7 @@ export function fakeGh(dir) {
   mkdirSync(bin, { recursive: true });
   const script = `#!/bin/sh
 echo "$*" >> "${dir}/calls"
+[ "$1 $2" = "api user" ] && { echo '{"id":4242,"login":"ada"}'; exit 0; }
 [ -e "${dir}/fail" ] && { echo "gh: HTTP 403" >&2; exit 1; }
 case "$1 $2" in
   "secret list") for f in "${dir}/secrets"/*; do [ -e "$f" ] && printf '%s\\t2026-01-01T00:00:00Z\\n' "$(basename "$f")"; done; exit 0 ;;

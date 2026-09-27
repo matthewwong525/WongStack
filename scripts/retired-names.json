@@ -36,6 +36,7 @@
   {"name": "#the-prose-allowlist", "replacement": "`wiki/development/the-change-loop.md#the-gate`"},
   {"name": "prose-save.md", "replacement": "`save/references/facts-save.md`"},
   {"name": "docsPath", "replacement": "WongStack's pages stay under `wiki/`"},
+  {"name": "member add", "replacement": "joining through GitHub (`memory.mjs join`), or `member admin` for the admin's own key", "allow": ["scripts/tests/memory-worker.test.mjs", ".agents/skills/memory/migrations/0003_key_machines.sql"], "why": "the test proves `member add` makes no key, and a shipped migration describes the store of its own time"},
   {"name": "app/src/App.tsx", "replacement": "`app/src/router.tsx` and `app/src/pages/home/Home.tsx`", "allow": [".agents/skills/wong-sync/references/payload-manifest.md"], "why": "the tutorial rule checks a target still on the flat layout"},
   {"name": "app/src/index.css", "replacement": "`app/public/style.css`, served at `/style.css`"}
 ]
