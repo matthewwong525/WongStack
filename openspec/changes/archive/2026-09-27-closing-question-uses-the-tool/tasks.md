@@ -16,4 +16,4 @@
 
 - [x] 3.1 Bump `VERSION` to 25.11.0 and add a newest-first `CHANGELOG.md` entry with an **Updating** line saying `/wong-sync` brings it and nothing needs migrating. Verify `VERSION` and the top `CHANGELOG.md` heading agree.
 - [x] 3.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `openspec validate closing-question-uses-the-tool --strict --no-interactive`; verify each passes. If `origin/main` already has 25.11.0 by then, take the next minor.
-- [ ] 3.3 Checkpoint with `/save` and verify CI passes on the pull request.
+- [x] 3.3 Checkpoint with `/save` and verify CI passes on the pull request.

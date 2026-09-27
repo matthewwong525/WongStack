@@ -61,3 +61,5 @@ None.
 - **2026-09-27** — Assumed: a minor release, 25.10.0, because it adds a standing rule; installed repos need no migration. The unsaved setup change also picked 25.10.0, so whichever publishes second takes the next number.
 - **2026-09-27** — Assumed: the report and the plan link go in the chat text just before the question, because a tap-to-answer card holds short choices, not a report.
 - **2026-09-27** — Built: the *Print the plan's link* section and the tool line in `asking-the-user.md`, the `WONG-STACK` block line, and `/plan`'s *Finish* link. The setup change shipped first as 25.10.0 and a fix as 25.10.1, so this release is renumbered 25.11.0 on top of `main`.
+- **2026-09-27** — Distilled: no repeatable fact for the wiki. The one preference (print the plan link from a shared rule) is now the rule itself.
+- **2026-09-27** — Archived after CI passed on the pull request (task 3.3); this is the archive checkpoint.
