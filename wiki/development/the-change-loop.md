@@ -2,16 +2,16 @@
 
 Every change to WongStack — and to any repo that installs it — moves through one loop, from a rough idea to a shipped, archived spec. The durable handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change** — a folder under `openspec/changes/<name>/` (a `proposal.md` and a `tasks.md`, with optional delta specs) — committed with the code and visible from any clone via `openspec list`.
 
-A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. A verb you invoke still works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. A new standalone page or tool takes [the mini-app path](#mini-apps). The full loop is for changing the repo's own code or process.
+A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. A verb you invoke still works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for changing the repo's own code or process, and a new standalone page or tool is code: it is [a mini app](#mini-apps).
 
 ```
 /explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /continue ─▶ /ship
  think      draft the  implement  push +    resume →    merge +
- (no git)   change     the tasks  PR +      /apply      archive
-            (no git)   (no git)   preview
+ (no git)   change     + host     PR +      /apply      archive
+            (no git)   preview    CI
 ```
 
-Each verb is a WongStack skill using the OpenSpec CLI for planning records and validation. **OpenSpec owns the plan; the WongStack skills own all git** — OpenSpec never runs git itself. The verbs call the CLI directly. Setup initializes it with `openspec init --tools none`, so no generated agent workflow layer is needed. The three *think/draft/implement* verbs (`/explore`, `/plan`, `/apply`) implement no git themselves; the three *git* verbs (`/save`, `/continue`, `/ship`) own every branch, PR, and merge. When `/apply` completes every task, it automatically crosses that boundary by invoking `/save`.
+Each verb is a WongStack skill using the OpenSpec CLI for planning records and validation. **OpenSpec owns the plan; the WongStack skills own all git** — OpenSpec never runs git itself. The verbs call the CLI directly. Setup initializes it with `openspec init --tools none`, so no generated agent workflow layer is needed. The three *think/draft/implement* verbs (`/explore`, `/plan`, `/apply`) implement no git themselves; the three *git* verbs (`/save`, `/continue`, `/ship`) own every branch, PR, and merge. When `/apply` completes every task, it does not cross that boundary: it [uploads a preview from the agent host](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) and asks whether to publish. The work stays in the working tree until you save or publish.
 
 The diagram shows the durable stages, not a command tollbooth. **Every verb whose precondition is missing invokes the verb before it to produce it** — one rule, nested:
 
@@ -28,8 +28,8 @@ Entering late never skips a stop: **no verb merges as a way of stopping.** A pau
 A person does not need to know the verbs. When they ask for a change to the repo's code or process with no verb, the agent runs the loop and stops twice:
 
 1. **`/plan`**, which ends with the review link and asks *build it now?*
-2. On yes, **`/apply`**. Its completion save returns the CI result and the preview, then asks *publish it?*
-3. On yes, **`/ship`**, to the merge.
+2. On yes, **`/apply`**. It builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent just does the task and reports.
+3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 
 A verb the person types keeps its own reach: `/ship` still runs the whole chain with no stop, and `/apply` plans and builds without one. Every plan, question, and report is written at [the reader's level](../../.agents/skills/explore/references/asking-the-user.md#write-at-the-readers-level), so a non-technical person reviews outcomes, not mechanisms.
 
@@ -41,16 +41,16 @@ A verb the person types keeps its own reach: `/ship` still runs the whole chain 
 
 - **[`/explore`](../../.agents/skills/explore/SKILL.md)** — think a problem through, and own the single [question round](#asking-before-drafting) before planning. It **always runs**: you invoke it, or `/plan` invokes it in a bounded pass. Nothing is written yet.
 - **[`/plan`](../../.agents/skills/plan/SKILL.md)** — draft the change: a folder `openspec/changes/<name>/` holding the proposal, tasks, optional design, optional delta specs, and a `review.html` page: one scrolling document with the proposal's text drawings and its decisions, labeled *asked* or *assumed*. `/plan` draws in the proposal itself, with no second agent and no browser. Still no git. **A change that touches behavior plans its tests**: `tasks.md` carries a task to add or extend test coverage, which `/apply` writes and CI then runs on every push. `/save` never authors tests; coverage grows where the context is richest.
-- **[`/apply`](../../.agents/skills/apply/SKILL.md)** — ensure an apply-ready plan, invoking `/plan` first when there is none; then implement the change's `tasks.md` and invoke `/save` once when every task is complete. When `/ship` invoked it, it returns instead, and `/ship` makes the one checkpoint. Where the `/save` boundary falls mid-list is [stated below](#apply-never-saves-to-stop-but-may-save-to-finish-a-task).
-- **[`/save`](../../.agents/skills/save/SKILL.md)** — checkpoint, the git stage: commit code and change together, push, open or update a PR whose body **mirrors the change**, wait for CI when present, and return a preview URL. Before committing it **syncs the change** ([the living handoff](#the-change-is-a-living-handoff-not-just-a-plan)) and records the session's **facts** in the [memory store](memory.md) for `/continue`. Skipped `/plan`? `/save` authors the change from your session, so nothing ships without its handoff. After `/ship` archives, the same `/save` checkpoints the archive, so the git, PR, and CI logic exists once.
+- **[`/apply`](../../.agents/skills/apply/SKILL.md)** — ensure an apply-ready plan, invoking `/plan` first when there is none; then implement the change's `tasks.md` and, when every task is complete, upload a preview from the agent host and ask whether to publish. It never saves on completion. When `/ship` invoked it, it returns with no upload, and `/ship` makes the one checkpoint. Where a `/save` can still fall mid-list is [stated below](#apply-never-saves-to-stop-but-may-save-to-finish-a-task).
+- **[`/save`](../../.agents/skills/save/SKILL.md)** — checkpoint, the git stage: commit code and change together, push, open or update a PR whose body **mirrors the change**, wait for CI when present, and return a preview URL. Before committing it **syncs the change** ([the living handoff](#the-change-is-a-living-handoff-not-just-a-plan)) and records the session's **facts** in the [memory store](memory.md) for `/continue`. Skipped `/plan`? `/save` authors the change from your session, so nothing ships without its handoff. You invoke it when you want a checkpoint or a review; `/apply` never does on completion. After `/ship` archives, the same `/save` checkpoints the archive, so the git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** — resume a change by name, by PR, or from a menu that also lists open threads of non-code work: check out its recorded branch, recap the proposal, the tail of its Decision log, and its memory facts, run a counts-only drift check, then hand off to `/apply`. Picks up cold on any machine from a fresh clone.
 - **[`/ship`](../../.agents/skills/ship/SKILL.md)** — archive the change to `openspec/changes/archive/YYYY-MM-DD-<name>/`, invoke `/save` once so the archive commit is pushed and gated, run [`/verify`](#verifying-the-app) once for evidence, then squash-merge on [the gate](#the-gate). On a branch with nothing to ship it invokes `/apply` first, which returns without a checkpoint, so a one-go run has **one** checkpoint and one CI run before the walk. A failed walk is fixed in the same PR. An unfinished change is finished through `/apply`, never archived. A merge script does the merge, the retarget, the branch delete, and the sync.
 
-Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Completing `/apply` invokes the same save workflow automatically. Re-`/plan` if the spec needs to change.
+Loop back any time: invoke `/save` as often as you like while building — each save keeps the plan and Status current and **appends** to the Decision log (it never rewrites history), so the change accumulates the story of the work, not just its latest snapshot. Re-`/plan` if the spec needs to change.
 
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` never invokes `/save` to **stop**. Paused, blocked, or unfinished work is reported, and you checkpoint it yourself, so a `/apply` that gives up leaves nothing pushed. The exception is a task whose done needs [the gate](#the-gate) — CI green, a live preview, browser evidence: `/apply` runs `/save` to implement it, marks it on a pass, and stops with it unchecked on a failing or unverifiable result, as [`/verify`](#verifying-the-app) does. `/plan` names `/save` in such a task; when it is the last task, its save is the completion save, not a second one.
+`/apply` never invokes `/save` to **stop**, and never on completion either: finished work ends with a preview from the agent host. Paused, blocked, or unfinished work is reported, and you checkpoint it yourself, so a `/apply` that gives up leaves nothing pushed. The exception is a task whose done needs [the gate](#the-gate) — CI green, a CI-published preview, browser evidence: `/apply` runs `/save` to implement it, marks it on a pass, and stops with it unchecked on a failing or unverifiable result, as [`/verify`](#verifying-the-app) does. When the final task is such a task, its save already published a CI preview, and `/apply` reports that instead of uploading another. `/plan` names `/save` in such a task; most changes have none.
 
 ### Verbs for any work
 
@@ -65,7 +65,7 @@ The work decides the form; no mode or setting does.
 
 ### Mini apps
 
-"Make me a …" builds a small app in `mini-apps/apps/<name>/`, previewed from the agent host and saved [straight to the default branch](#the-prose-allowlist). [Mini apps](../stack/mini-apps.md) owns the layout, the preview, and the save.
+"Make me a …" builds a small app in its own folder, `mini-apps/apps/<name>/`, which the main app's Worker serves at `/apps/<name>/`. It takes this same loop, stops included: a plan, a host preview at `/apps/<name>/`, then *publish it?* [Mini apps](../stack/mini-apps.md) owns the layout and the rules.
 
 ### Verifying the app
 
@@ -80,7 +80,7 @@ restating it. Two rules, and one carve-out.
 control, OpenSpec, and everything-lives-in-the-repo; GitHub Actions is an optional accelerator,
 honored when configured. Where checks exist, push and let CI run — the skills wait and fix failures.
 Where they don't, the PR (plus the OpenSpec change and its archive) is the record a human reviews.
-Either way, **nothing builds locally as a prerequisite.** A [mini-app](#mini-apps) preview builds the app on the agent host, but it is no exception: it gates nothing and never reaches production.
+Either way, **nothing builds locally as a prerequisite.** `/apply`'s preview builds the app on the agent host, but it is no exception: it gates nothing and never reaches production.
 
 **The ladder is CI-when-present → merge**, and a skipped rung is never a failure. Nothing else gates
 a merge. The app's own test suite is not a separate rung — it runs *inside* CI as an ordinary check,
@@ -126,8 +126,6 @@ allowlist is closed: a surface that isn't named here gets the gate until someone
 it. One exception, in the WongStack source repo only: a `wiki/` page that ships as payload is a
 release, so it takes a branch, a PR, and a `VERSION` and `CHANGELOG.md` bump.
 
-**A mini-app save is the second direct route.** When every changed path is inside one app's folder, `/save` runs that app's tests on the agent host and pushes to the default branch; anything else takes the normal route. [Mini apps](../stack/mini-apps.md#save-it-straight-to-production) owns the rules.
-
 ## The change is a living handoff, not just a plan
 
 `/save` maintains three surfaces on the change so a cold reader inherits the *why*, not just the *what*:
@@ -148,7 +146,7 @@ Most changes are `proposal.md` + `tasks.md` only. A change writes delta specs un
 
 ## `/apply` vs `/continue`
 
-Both end up working the change's `tasks.md`, but they enter from different places. **`/apply`** is the live-session implement stage: use it after `/plan`, directly after `/explore`, or with a clear new implementation request. It reuses an applicable ready change or invokes `/plan` first, and finishing every task automatically hands the result to `/save`. **`/continue`** is the *resume* on-ramp: it takes a handle (change name, PR, or the menu), checks out the branch, orients you (Status + Decision-log tail + drift check), then hands off to `/apply` and therefore gets the same completion behavior. Cold on another machine → `/continue`; already here → `/apply`.
+Both end up working the change's `tasks.md`, but they enter from different places. **`/apply`** is the live-session implement stage: use it after `/plan`, directly after `/explore`, or with a clear new implementation request. It reuses an applicable ready change or invokes `/plan` first, and finishing every task ends with a preview from the agent host. **`/continue`** is the *resume* on-ramp: it takes a handle (change name, PR, or the menu), checks out the branch, orients you (Status + Decision-log tail + drift check), then hands off to `/apply` and therefore gets the same completion behavior. Cold on another machine → `/continue`; already here → `/apply`.
 
 Adding a verb of your own is a matter of writing a `SKILL.md` under `.agents/skills/<name>/` and pointing at it from this page — the loop above is a convention, not a hardcoded list.
 

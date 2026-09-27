@@ -3,12 +3,14 @@
 ## Purpose
 
 Define how `/apply` resolves or creates the applicable OpenSpec plan before implementation while preserving the existing workflow ownership boundaries.
+
 ## Requirements
+
 ### Requirement: Apply ensures an applicable plan exists
 
 `/apply` SHALL resolve the line of work the user intends to implement before it starts. An explicit change reference SHALL take precedence, followed by the change established in the current conversation, then a unique active change modified in the current worktree or branch diff, then a change whose recorded branch or legacy name matches the current branch. A sole active change MAY be selected only when the conversation does not establish different new work.
 
-The plan `/apply` needs SHALL depend on the kind of work. A change to the repo's existing code or process SHALL need an apply-ready OpenSpec change. A mini app SHALL need only its stated request, as `mini-apps` defines. Work that changes no repo file SHALL need the to-do in the conversation, as `work-verbs` defines.
+The plan `/apply` needs SHALL depend on the kind of work. A change to the repo's code or process, a mini app included, SHALL need an apply-ready OpenSpec change. Work that changes no repo file SHALL need the to-do in the conversation, as `work-verbs` defines.
 
 #### Scenario: Apply follows exploration without a plan
 
@@ -46,15 +48,15 @@ The plan `/apply` needs SHALL depend on the kind of work. A change to the repo's
 - **THEN** it asks the user to identify the work or change
 - **AND** it does not plan or implement an inferred unrelated change
 
-#### Scenario: A mini-app request
-
-- **WHEN** the person asks for a new standalone page
-- **THEN** `/apply` builds it without invoking `/plan`
-
 #### Scenario: Non-code work
 
 - **WHEN** the conversation holds a to-do for work that changes no repo file
 - **THEN** `/apply` works that to-do and creates no OpenSpec change
+
+#### Scenario: A mini-app request
+
+- **WHEN** the person asks for a new standalone page and no change represents it
+- **THEN** `/apply` invokes `/plan` first, like any code change, and builds the page from that change
 
 ### Requirement: Planning and implementation remain delegated
 
@@ -74,7 +76,7 @@ The shortcut SHALL invoke the existing `/plan` workflow for artifact authoring a
 
 ### Requirement: The shortcut preserves workflow ownership
 
-Automatic planning SHALL NOT move artifact-authoring behavior into `/apply`, move git behavior out of `/save`, or make standalone `/plan` automatically implement its output. A completed implementation SHALL continue to invoke `/save` exactly once under the existing `apply-completion-handoff` contract.
+Automatic planning SHALL NOT move artifact-authoring behavior into `/apply`, move git behavior out of `/save`, or make standalone `/plan` automatically implement its output. A completed implementation SHALL end with a preview from the agent host and SHALL NOT invoke `/save`, as `apply-completion-handoff` defines.
 
 #### Scenario: User invokes plan by itself
 
@@ -84,6 +86,5 @@ Automatic planning SHALL NOT move artifact-authoring behavior into `/apply`, mov
 #### Scenario: Auto-planned apply completes all tasks
 
 - **WHEN** `/apply` planned the work automatically and completes every task
-- **THEN** it invokes `/save` exactly once
-- **AND** `/save` remains the owner of branch, commit, push, pull-request, preview, and CI mechanics
-
+- **THEN** it uploads a preview from the agent host and asks whether to publish, without invoking `/save`
+- **AND** `/save` remains the owner of branch, commit, push, pull-request, CI-preview, and CI mechanics

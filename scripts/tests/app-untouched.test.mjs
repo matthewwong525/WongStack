@@ -59,8 +59,8 @@ function fixture(t) {
   git('push', '-q', '-u', 'origin', 'main');
 
   // Runs the check in the clone as a workflow would, and parses its key=value lines.
-  const check = vars => {
-    const result = spawnSync('bash', [script], {
+  const check = (vars, args = []) => {
+    const result = spawnSync('bash', [script, ...args], {
       cwd: work,
       encoding: 'utf8',
       env: { ...env, DEFAULT_BRANCH: 'main', ...vars },
@@ -188,4 +188,58 @@ test('an empty diff is not proof', t => {
   const f = fixture(t);
   f.branch('same-as-main');
   assert.deepEqual(f.check(f.onBranch('same-as-main')), { untouched: 'false', mini_apps: '', mini_changed: 'false' });
+});
+
+// Writes files into the clone without committing them.
+function write(f, files) {
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(f.work, path)), { recursive: true });
+    writeFileSync(join(f.work, path), text);
+  }
+}
+const worktree = f => f.check({}, ['--worktree']);
+
+test('--worktree: uncommitted prose leaves the main app untouched', t => {
+  const f = fixture(t);
+  write(f, { 'wiki/README.md': '# Wiki, edited\n', 'openspec/changes/x/tasks.md': '- [ ] 1\n' });
+  f.git('add', 'openspec');
+  assert.deepEqual(worktree(f), { untouched: 'true', mini_apps: '', mini_changed: 'false' });
+});
+
+test('--worktree: an uncommitted app edit touches the main app', t => {
+  const f = fixture(t);
+  write(f, { 'app/src/index.ts': 'export const x = 2;\n' });
+  assert.equal(worktree(f).untouched, 'false');
+});
+
+test('--worktree: an untracked mini-app file names its app', t => {
+  const f = fixture(t);
+  write(f, { 'mini-apps/apps/tips/index.html': '<p>tips</p>\n' });
+  assert.deepEqual(worktree(f), { untouched: 'true', mini_apps: 'tips', mini_changed: 'true' });
+});
+
+test('--worktree: committed branch work counts with the uncommitted work', t => {
+  const f = fixture(t);
+  f.branch('feature');
+  f.commit({ 'app/src/index.ts': 'export const x = 2;\n' }, 'code');
+  write(f, { 'wiki/after.md': '# After\n' });
+  assert.equal(worktree(f).untouched, 'false');
+});
+
+test('--worktree: no base fails safe to touched', t => {
+  const f = fixture(t);
+  write(f, { 'wiki/new.md': '# New\n' });
+  assert.deepEqual(f.check({ DEFAULT_BRANCH: 'trunk' }, ['--worktree']),
+    { untouched: 'false', mini_apps: 'hello', mini_changed: 'true' });
+});
+
+test('--worktree: a clean tree is not proof', t => {
+  const f = fixture(t);
+  assert.deepEqual(worktree(f), { untouched: 'false', mini_apps: '', mini_changed: 'false' });
+});
+
+test('an unknown argument is a usage error', t => {
+  const f = fixture(t);
+  const result = spawnSync('bash', [script, '--nope'], { cwd: f.work, encoding: 'utf8' });
+  assert.equal(result.status, 2);
 });
