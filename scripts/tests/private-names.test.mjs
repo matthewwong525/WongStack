@@ -9,7 +9,7 @@ const here = fileURLToPath(import.meta.url);
 const repo = resolve(dirname(here), '../..');
 
 // Private downstream repositories and services. This list lives here only.
-const PRIVATE = /claymoo|wongos|wongstack-cloud/i;
+const PRIVATE = /claymooapp|wongos|wongstack-cloud/i;
 
 // The changelog and the archive are the record and keep their names. Active
 // changes are exempt too: a change that removes a name has to say it, and it
@@ -39,6 +39,7 @@ test('the matcher flags live files and spares the record', () => {
     { path: 'openspec/changes/archive/2026-01-01-x/proposal.md', text: 'wongstack-cloud' },
     { path: 'openspec/changes/some-change/tasks.md', text: 'Replace ClaymooApp.' },
     { path: 'wiki/clean.md', text: 'Run it in MyApp.' },
+    { path: 'wiki/company.md', text: 'I run Claymoo, a clay-kit company.' },
   ];
   assert.deepEqual(privateHits(sample), ['wiki/example.md', 'scripts/tests/x.test.mjs', 'README.md']);
 });

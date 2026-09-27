@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — The README leads with how Claymoo runs on WongStack
+
+- **The README opens with a real business.** Its first screen tells how Matt runs Claymoo, a clay-kit company with a small team, on WongStack, the same story the landing page tells. The example asks come from that business: timing packed orders, profit by sales channel, a brief page for designers, a 9am list of unshipped orders, and a fact the whole team remembers. "What you get" now speaks of tools that fit your business and one memory for the whole team. The setup steps and "For developers" are unchanged.
+- **A company name can appear in public files.** The private-name check in `scripts/tests/private-names.test.mjs` now blocks `ClaymooApp`, `WongOS`, and `wongstack-cloud`, not the bare word "Claymoo", so the README can name the company while private repositories stay out.
+- **Source repo only.** `AGENTS.md`'s "What this is" line now describes an assistant a business owner and their team run their business on. The `WONG-STACK` block is unchanged.
+
+**Updating.** Nothing changes in installed repos.
+
 ## 26.9.0 — Pushes stay fast when mutation testing would start over
 
 - **Updates keep earlier mutation results.** The Test workflow's saved Stryker file no longer has a key that hashes `package-lock.json` and the Stryker and Vitest configs. The key is now `stryker-<os>-` plus the run, so a dependency update, a WongStack update, or a test-settings change reuses what mutation testing already knows. A push re-tests only what it changed, in minutes, not 15 to 20. Old saved files match the new key, so the first push after the update starts warm.
