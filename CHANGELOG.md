@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 25.9.1 — Fixes from a repo check
+## 25.10.1 — Fixes from a repo check
 
 - **Teammates can't change or hide each other's memory.** The memory route now refuses three writes it let through. A fact tag or supersede without the member's own new fact before it in the same batch is refused, so a replacement is always visible and credited. So is a session upsert onto a row another author holds, or one written before keys. The read check now looks at the whole SQL text, so a quoted name like `[']` can't hide a `DELETE`. A malformed `%` in an object path is a 400, not a crash. The statements are unchanged, so member checkouts need no update.
 - **`.env` values are read correctly.** `parseEnv` drops the quotes from a quoted value followed by spaces or a `# comment`. Before, it kept them, so a memory key failed and the transcript redactor looked for the wrong text. `writeEnvKey` replaces every `CLOUDFLARE_MEMORY_TOKEN=` line, so a stale duplicate can't win.
@@ -22,6 +22,17 @@
   - The memory scripts `run.mjs` and `session-start.mjs` answer `--help`.
 
 **Updating.** `/wong-sync` brings the fixes. The memory route's fix takes effect on the next production deploy from `main`.
+
+## 25.10.0 — Setup gets your computer ready first
+
+- **Setup installs the tools it needs, after asking.** Before it writes anything, setup checks for `git`, `gh`, Node.js, and OpenSpec, and asks once to install the missing ones. It uses Homebrew (when already there), `winget`, or `apt` only when no password is needed; otherwise it installs into `~/.local`. A no, or a failed install, stops setup with nothing written. The new `wong-setup/references/tools.md` owns the steps.
+- **One GitHub sign-in, with every scope.** Setup shows a code and a link, and one approval grants `workflow` and `user:email`. Nobody types `gh auth login`, and the first push no longer fails for a missing scope.
+- **Git name and email come from GitHub** when they are unset, so memory's admin key no longer stops on a new computer.
+- **Windows folder links are tested.** Setup walks the person through Developer Mode when links are refused, and makes its links so a refusal fails out loud instead of becoming a copy.
+- **Memory is reported honestly.** The closing report says memory is on only when it answered; otherwise it starts once the site first goes live.
+- **The pages match.** `README.md`, `wiki/stack/getting-started.md`, `wiki/stack/cloudflare-credentials.md`, and `wiki/development/required-tools.md` say setup may install free tools, name the GitHub account, and describe the token as two permission rows.
+
+**Updating.** Nothing to do in an installed repo: `/wong-sync` brings the page edits, and the setup changes reach new installs.
 
 ## 25.9.0 — Newest building blocks, except Vitest 5
 
