@@ -73,7 +73,7 @@ The exploration inside `/plan` SHALL start from the classified changed units, re
 
 ### Requirement: Local installation choices survive an update
 
-The install record `.claude/.wong-stack.json` SHALL keep the repo's renamed skills and relocated docs folder, and SHALL advance to the new source version and commit only after the update is implemented. A renamed skill SHALL be updated in place, never duplicated.
+The install record `.claude/.wong-stack.json` SHALL keep the repo's renamed skills, and SHALL advance to the new source version and commit only after the update is implemented. A renamed skill SHALL be updated in place, never duplicated.
 
 #### Scenario: Renamed skill
 
@@ -84,20 +84,6 @@ The install record `.claude/.wong-stack.json` SHALL keep the repo's renamed skil
 
 - **WHEN** a sync plan is drafted but not built
 - **THEN** the install record still names the old version
-
-### Requirement: Relocated wiki pages map safely
-
-When the install record names a docs folder, sync SHALL map the WongStack wiki pages into it, and two pages that land on one path, or a folder outside the repo, SHALL be an error, never an overwrite.
-
-#### Scenario: Pages in a docs folder
-
-- **WHEN** the record sets the docs folder to `docs/development`
-- **THEN** `wiki/development/the-change-loop.md` maps to `docs/development/the-change-loop.md`
-
-#### Scenario: Two pages collide
-
-- **WHEN** two wiki pages map to the same file in the docs folder
-- **THEN** sync reports an error naming both and changes nothing
 
 ### Requirement: Sync runs only in an installed repo
 

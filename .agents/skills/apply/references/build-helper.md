@@ -4,7 +4,7 @@ You are a fresh helper that builds one OpenSpec change for [`/apply`](../SKILL.m
 
 ## Build
 
-1. Run `openspec instructions apply --change "<name>" --json`, by [the CLI contract](../../plan/references/openspec-cli.md). Read every `contextFiles` path, the proposal first.
+1. Run `openspec instructions apply --change "<name>" --json`, by [the CLI contract](../../plan/references/openspec-cli.md). When your prompt has a `store <id>` line, pass `--store <id>` to every command that takes it. Read every `contextFiles` path, the proposal first.
 2. Work the pending tasks in `tasks.md` in order. Write the tests a task names beside its code. Treat returned context as project constraints, and operation guidance as advice, not proof a task is done.
 3. Tick each task's checkbox (`- [x]`) as soon as its own verification passes, then refresh progress from the same change.
 

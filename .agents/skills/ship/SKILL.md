@@ -22,7 +22,7 @@ git log origin/main..HEAD --oneline
 gh api repos/:owner/:repo/commits/main/check-runs \
   --jq '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)'
 ```
-- Default branch with uncommitted changes, before any pull-in → ordinary `/save` cuts the feature branch and commits; re-run this preflight there. (After a pull-in, Step 3's save cuts it.)
+- Default branch with uncommitted changes → go on to [Step 2](#step-2--archive-the-change) in the same tree; Step 3's save cuts the feature branch, as after a pull-in.
 - Clean default branch, or clean tree with 0 commits ahead → [the pull-in](#the-pull-in-nothing-to-ship-yet). A dirty feature branch with 0 commits is valid.
 - Only `ok` default-branch CI proceeds, even with an intent. **Stop** on `failure` (fix it first) or `UNKNOWN` (an empty answer or failed `gh` call; report gh's message).
 - Record `BRANCH=$(git rev-parse --abbrev-ref HEAD)`; commit, push, PR, and checks wait for `/save` after the archive.
@@ -43,7 +43,7 @@ If `/plan` pauses, `/apply` ends with tasks pending, or a task-driven `/save` fa
 
 ## Step 2 — archive the change
 
-Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → apply `/save`'s test for authoring one to the branch diff: code or a plan for code → stop: no identifiable change record; `/save` can author one. Anything else needed no change: skip the archive and the distillation below, and go to Step 3 with no `CHANGE_NAME`.
+Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → apply `/save`'s test for authoring one to the branch diff: code or a plan for code → author the change from the session and the diff by [the new-plan fallback](../save/references/new-plan.md), select it as `explicit`, and continue below. Anything else needed no change: skip the archive and the distillation below, and go to Step 3 with no `CHANGE_NAME`.
 
 **Several active change folders** in the branch diff or working tree → stop before archive, even with an explicit selection: the merge would carry them all. Ask [as options](../explore/references/asking-the-user.md), naming them: move the others off the branch *(Recommended)*, or ship all on purpose. Require `openspec/changes/$CHANGE_NAME/`; keep `CHANGE_NAME` fixed through archive and checkpoint.
 
@@ -61,7 +61,7 @@ node "$M" show "$CHANGE_NAME"
 node "$M" search --branch "$BRANCH" --limit 200
 ```
 
-Deduplicate the two outputs. Place each repeatable one by [the wiki rules](../../rules/wiki.md): extend its owning page, or add a page linked from its hub; never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. [Store unreachable](../memory/SKILL.md#read) → log the step skipped and continue. The edits ride in this PR's archive checkpoint.
+On a feature branch, run both. When `BRANCH` is `main`, run only `show`: the branch search would return every fact saved on `main`. Deduplicate the outputs. Place each repeatable one by [the wiki rules](../../rules/wiki.md): extend its owning page, or add a page linked from its hub; never move a private-life fact into this repo's wiki. Append one Decision-log line naming the pages changed, or `no repeatable fact`. [Store unreachable](../memory/SKILL.md#read) → log the step skipped and continue. The edits ride in this PR's archive checkpoint.
 
 ## Step 3 — delegate the checkpoint to /save
 

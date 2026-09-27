@@ -13,9 +13,9 @@ This page is for the person doing it. It assumes you know nothing about Cloudfla
 
 ## You don't need to have built anything yet
 
-This works from an empty folder. If your project doesn't have a website in it yet, saying yes in step 1 also gets you a **starter site** — a working page with a button on it that talks to your data. It's yours from the moment it lands; change it, replace it, or delete it.
+This works from an empty folder. Saying yes in step 1 also gets you a **starter site**: a working page that lists *Your apps* under a *Learn the development loop* box. It's yours from the moment it lands; change it, replace it, or delete it.
 
-You don't choose this separately and there's nothing to configure. The agent looks at your project, and if there's nothing to publish yet, the starter site is simply part of what "yes" gives you. If your project *does* already have a website, it's left completely alone — the agent never touches, moves, or overwrites what you built.
+Setup starts from an empty folder, so the starter site always comes with it; there's nothing to choose or configure.
 
 What lands with the starter site is the page itself and the code that serves it. The one thing it can't bring is the file that says *which* data storage to connect to, because those names and ids don't exist until your account does — so [step 5](#5-wait-about-a-minute) writes that file, wiring the site to the storage it just made. That's why there's nothing for you to fill in.
 
@@ -64,7 +64,7 @@ The agent does the rest: gives itself the permissions it needs, sets up your dat
 
 **You do:** nothing. It'll hand you the address at the end.
 
-Open it. If you took the starter site, the page loads and has a button that fetches something live from your project — clicking it is the proof that the whole chain works: your address, your code, your data storage. If it answers, you're online.
+Open it. The page loads and lists your apps, the proof that your address and your code are live. If it shows up, you're online.
 
 At the top of the page is a box called *Learn the development loop*. Press **Copy** and paste the message into your chat. Your first change removes that box, and the agent explains each step as it goes.
 

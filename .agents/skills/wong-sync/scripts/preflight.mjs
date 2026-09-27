@@ -202,11 +202,6 @@ function skillMappings(record) {
   return mapping;
 }
 
-function docsPathOf(record) {
-  const value = record.components?.docsPath;
-  return value === undefined ? null : safeRelativePath(value, 'components.docsPath');
-}
-
 // Every install takes every category; old component flags are ignored.
 function selectedCategories(inventory) {
   return ['core', 'ui', 'pack', 'scaffold'].filter(category => category === 'core' || inventory[category]);
@@ -221,14 +216,7 @@ function excluded(path, excludes) {
   return excludes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
 }
 
-// components.docsPath keeps the wiki pages in one target folder: pages under
-// wiki/development/ and wiki/ both land in it, the more specific prefix first.
-function targetPathFor(logicalPath, mapping, docsPath = null) {
-  if (docsPath) {
-    for (const prefix of ['wiki/development/', 'wiki/']) {
-      if (logicalPath.startsWith(prefix)) return `${docsPath}/${logicalPath.slice(prefix.length)}`;
-    }
-  }
+function targetPathFor(logicalPath, mapping) {
   const match = logicalPath.match(/^\.claude\/skills\/([^/]+)(\/.*)?$/);
   if (!match) return logicalPath;
   const localName = mapping.get(match[1]) ?? match[1];
@@ -239,7 +227,6 @@ function expandInventory(source, revision, tree, inventory, record) {
   validateInventory(inventory, revision);
   const categories = selectedCategories(inventory);
   const mapping = skillMappings(record);
-  const docsPath = docsPathOf(record);
   const files = new Map();
   const targets = new Map();
   const blocks = new Map();
@@ -259,7 +246,7 @@ function expandInventory(source, revision, tree, inventory, record) {
       existing.categories = [...new Set([...existing.categories, category])].sort();
       return;
     }
-    const targetPath = targetPathFor(path, mapping, docsPath);
+    const targetPath = targetPathFor(path, mapping);
     const owner = targets.get(targetPath);
     if (owner) fail('path-collision', `${owner} and ${path} both map to ${targetPath}`);
     targets.set(targetPath, path);

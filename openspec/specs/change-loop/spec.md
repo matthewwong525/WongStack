@@ -8,12 +8,17 @@ How a request becomes work in every WongStack repo: plain requests are done dire
 
 ### Requirement: Plain requests are done directly
 
-The agent SHALL do a plain request (research, an errand, a reminder, a question) directly, with no verb and no question round, asking only when it cannot act without an answer.
+The agent SHALL do a plain request (research, an errand, a reminder, a question) directly, with no verb and no question round, asking only when it cannot act without an answer. A plain request that edited a repo file, such as a wiki note, SHALL end by asking whether to publish it, so no edit is left unsaved.
 
 #### Scenario: An errand
 
 - **WHEN** the person asks for a shop's opening hours
 - **THEN** the agent answers, with no `/explore` round and no OpenSpec change
+
+#### Scenario: A note to remember
+
+- **WHEN** the person says "remember that invoices go out on the 1st" and the agent writes it to the wiki
+- **THEN** the reply ends by asking whether to publish it, recommended first, and a yes runs `/ship`
 
 ### Requirement: A change asked with no verb stops twice
 
@@ -102,12 +107,3 @@ When the work is a process that will run again, planning SHALL weigh determinist
 
 - **WHEN** a plan covers a task that will run every week
 - **THEN** the plan considers a script before a recurring AI step
-
-### Requirement: Review-page notes update the plan
-
-A message pasted from a plan's review page SHALL update that plan's artifacts, record in the Decision log how each note was handled, and rebuild the review page. It SHALL NOT start a build.
-
-#### Scenario: Notes change a flow
-
-- **WHEN** a reviewer pastes notes that change a flow
-- **THEN** the plan's artifacts and review page are updated, and the agent asks whether to build it now

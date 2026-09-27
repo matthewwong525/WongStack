@@ -42,18 +42,9 @@ A vendored skill that only a WongStack verb calls SHALL NOT be offered for autom
 - **WHEN** a person asks about unread Slack messages
 - **THEN** the vendored browser skill is not triggered, and `/verify` still calls it by name
 
-### Requirement: Each rule has one owner
-
-Each workflow rule SHALL be written in one payload file; others SHALL link it and state only how they differ.
-
-#### Scenario: A rule written twice
-
-- **WHEN** a reviewer finds the same procedure in two skills
-- **THEN** one copy is replaced by a link to the other
-
 ### Requirement: Save loads conditional procedures only when they apply
 
-`/save` SHALL complete an ordinary checkpoint without loading its conditional procedures (named secrets, facts-only, new-plan fallback, archived handoff), and SHALL load each one that applies before acting on it.
+`/save` SHALL complete an ordinary checkpoint without loading its conditional procedures (named secrets, facts-only, new-plan fallback), and SHALL load each one that applies before acting on it.
 
 #### Scenario: An ordinary checkpoint
 

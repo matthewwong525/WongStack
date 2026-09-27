@@ -26,7 +26,18 @@ List the parts by short titles in the person's words, then ask:
    — one plan, one review, one publish.
 ```
 
-Check `command -v paseo` first. Without it, drop option 1 and say in one line that new workspaces need Paseo. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
+A new change asked for where another is unpublished asks instead:
+
+```text
+1. Open it in a new workspace (Recommended)
+   — it plans there and waits for you; the work here stays as it is.
+2. Publish the work here first, then start it here
+   — one chat; the new change waits for that publish.
+```
+
+On option 1, `/plan` opens the workspace, reports it, and stops, drafting nothing here.
+
+Check `command -v paseo` first. Without it, drop option 1 from either list and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../memory/SKILL.md#write).
 
 ## Open each workspace
 
@@ -58,7 +69,7 @@ A part that builds on another opens now, with the others; it does not wait for t
 
 ## Report
 
-Before you draft the plan you kept, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add the script's `warning` when present. When it prints `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
+Before you draft the plan you kept, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* The script names the workspace "<title>" too, so that is the name in Paseo's list. Add the script's `warning` when present, such as a workspace that kept Paseo's name. When it prints `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
 
 ## Pick up saved work
 
