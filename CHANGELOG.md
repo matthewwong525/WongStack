@@ -11,6 +11,14 @@
 
 **Updating.** Nothing to do by hand.
 
+## 26.16.1 — The cloud can run WongStack's server installer
+
+- **A new token gets a minute to start working.** Right after the installer widens a Cloudflare token, Cloudflare can refuse it for a few seconds with `401` as well as `403`. [The provisioning script](.agents/skills/wong-setup/scripts/provision.mjs) now waits out either answer, so `/wong-setup` and `server/install-wongstack.mjs` both stop failing on a token that was about to work.
+- **A failed install names the Cloudflare step.** When Cloudflare refuses a call, the installer prints that call, its status, and Cloudflare's error codes on the line before the reason word, such as `Cloudflare PUT /user/tokens/abc: HTTP 403 9109`. It never holds a token or a query.
+- **A host can drop its own copy of the installer.** The installer exports `CLOUDFLARE_CALL`, the pattern that line matches, beside `run`, `jobFolder`, and `repoFolder`. [`server/README.md`](server/README.md#what-a-host-may-import) lists the names a host may import.
+
+**Updating.** Nothing reaches an installed repo: `server/` and `/wong-setup` stay in the source. A host that runs its own copy of the installer can switch: pin the WongStack commit that ships this, and import from `server/install-wongstack.mjs` in that clone instead.
+
 ## 26.16.0 — Updates catch up old, heavily edited installs
 
 - **Old installs update in place.** A repo from before 19.0.0 no longer needs a fresh setup. Its update plan also makes the moves it missed: the shared agent folder, the rules file both agents read, wiki pages kept in another folder, leftover OpenSpec skills, and the CI deploy token. Every local edit stays. [Catching up an older install](.agents/skills/wong-sync/references/catch-up.md) owns the steps; the preflight's new `catchUp` field lists which apply, from the repo's layout and install record alone.

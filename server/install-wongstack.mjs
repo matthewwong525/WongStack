@@ -3,7 +3,8 @@
 // /wong-setup does for an empty folder, with every choice made ahead. A host clones this source at a
 // pinned commit into ~/.cache/wong-stack/WongStack and runs this file from there, as the workspace user,
 // with {token, accountId, repo} on stdin. It installs this clone: its payload, VERSION, and commit.
-// It prints one last line: `done`, or why it stopped (`token`, `repo`, `cloudflare`, or `push`).
+// It prints one last line: `done`, or why it stopped (`token`, `repo`, `cloudflare`, or `push`); a refused
+// Cloudflare call that stopped it comes on the line before, when it matches CLOUDFLARE_CALL.
 // Every step checks before it acts, so a second run finishes a first run that stopped.
 // No token value goes into an argument, an error, the output, or a commit. server/README.md is the contract.
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -13,6 +14,9 @@ import { fileURLToPath } from 'node:url';
 import { ProvisionError, names, provision, run, widen } from '../.agents/skills/wong-setup/scripts/provision.mjs';
 
 export { run };
+
+/** A refused Cloudflare call as the installer prints it before the reason; hosts test the line with it. */
+export const CLOUDFLARE_CALL = /^Cloudflare (GET|POST|PUT|PATCH|DELETE) \/[A-Za-z0-9/._:-]{1,200}: HTTP \d{3}( \d+(,\d+)*)?$/;
 
 /** The source this installer came from: the clone it runs in. */
 export const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -252,6 +256,7 @@ export async function main({ stdin, env = process.env, fetch, sleep, now = () =>
     return 0;
   } catch (error) {
     err(`install-wongstack: ${error.message}`);
+    if (CLOUDFLARE_CALL.test(error.message)) out(error.message);
     out(error.reason ?? 'repo');
     return 1;
   }
