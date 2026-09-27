@@ -1,6 +1,6 @@
 # Reliability fixes and housekeeping
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** loud-walrus
 **Open questions:** none
 
@@ -74,3 +74,4 @@ None.
 - **2026-09-27** — Local checks: lint and the c8-wrapped script suite pass (484 tests: 475 pass, 9 skip, 0 fail); the payload link check, now reading 33 heading links in `wong-setup` and `update-dependencies`, found none broken; the OpenSpec config check, the retired-names check, strict spec validation, and the context check pass.
 - **2026-09-27** — Asked whether to delete the gone local branches in the main checkout → chose the 138 whose tip equals a merged pull request's head; deleted all 138. Kept `server-setup-script` and `update-openspec` (checked out in worktrees), `explore/setup-usage-ux` (one unpushed renumber commit; its work shipped as #150), and `climu-dev-vars-commands` (PR #17 closed unmerged).
 - **2026-09-27** — Distilled facts before the archive: no repeatable fact; the store had no facts for this change or its branch.
+- **2026-09-27** — Archived by `/ship` and saved as one checkpoint on `loud-walrus`; the specs synced `memory` (2 modified), `delivery-gate` (1 modified), and `payload-checks` (1 modified). Before it, `main` shipped 26.10.0 (`3aee591`, Codex reads the rules): merged it in, kept both `CHANGELOG.md` entries with this one on top, and kept its simpler `checkSymlinked()` call beside the new source-only check. This change is 26.10.1. After the merge the link tests (12), memory tests (47), lint, and the link check pass.

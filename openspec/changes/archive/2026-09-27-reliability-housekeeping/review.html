@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · reliability-housekeeping</title>
+<title>Review · 2026-09-27-reliability-housekeeping</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,11 +92,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="reliability-housekeeping">
+<body data-change="2026-09-27-reliability-housekeeping">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>reliability-housekeeping</h1>
+  <h1>2026-09-27-reliability-housekeeping</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Open a drawing and tap it to see it full screen.</p>
@@ -141,6 +141,12 @@
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: heading anchors are checked only for source-only skills, because the fact names anchors as the gap there, and turning anchor checks on across the payload may surface unrelated breakage in a housekeeping change.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a patch release, because each item fixes or documents existing behavior.</li>
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the branch cleanup deletes only branches not checked out in any worktree and whose tip matches a merged pull request's head, and lists the rest for you, because a gone upstream alone does not prove the work landed.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: a <code>put-facts --home</code> that finds no home recorded counts every fact in its input as dropped, and a home write adds nothing else to the tally, because the runbook counts <code>no home recorded</code> as dropped and home facts are not this repo's capture.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-27</p>Assumed: the model's <code>--counts</code> is compared only on known count keys, and on a failed run its own reason comes first with the differing-counts note after, so no free text from the model reaches the note.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Local checks: lint and the c8-wrapped script suite pass (484 tests: 475 pass, 9 skip, 0 fail); the payload link check, now reading 33 heading links in <code>wong-setup</code> and <code>update-dependencies</code>, found none broken; the OpenSpec config check, the retired-names check, strict spec validation, and the context check pass.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-27</p>Asked whether to delete the gone local branches in the main checkout → chose the 138 whose tip equals a merged pull request's head; deleted all 138. Kept <code>server-setup-script</code> and <code>update-openspec</code> (checked out in worktrees), <code>explore/setup-usage-ux</code> (one unpushed renumber commit; its work shipped as #150), and <code>climu-dev-vars-commands</code> (PR #17 closed unmerged).</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Distilled facts before the archive: no repeatable fact; the store had no facts for this change or its branch.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-27</p>Archived by <code>/ship</code> and saved as one checkpoint on <code>loud-walrus</code>; the specs synced <code>memory</code> (2 modified), <code>delivery-gate</code> (1 modified), and <code>payload-checks</code> (1 modified). Before it, <code>main</code> shipped 26.10.0 (<code>3aee591</code>, Codex reads the rules): merged it in, kept both <code>CHANGELOG.md</code> entries with this one on top, and kept its simpler <code>checkSymlinked()</code> call beside the new source-only check. This change is 26.10.1. After the merge the link tests (12), memory tests (47), lint, and the link check pass.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
