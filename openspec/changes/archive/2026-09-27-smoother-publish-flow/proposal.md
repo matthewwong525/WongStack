@@ -77,3 +77,4 @@ None.
 - **2026-09-27** — Assumed: a read-only `/continue` ends with the same three choices its busy-workspace question offers. That question already names the ways out.
 - **2026-09-27** — Wiki distillation at ship: no repeatable fact (no live facts on the change or branch).
 - **2026-09-27** — Archive checkpoint: all 13 tasks done; links, retired names, and all 26 specs pass. Script tests 363/375 locally, the one failure an ENOSPC from a full /tmp on the host. Open PRs #159, #160, #161 also claim 26.2.0; whichever merges first keeps it.
+- **2026-09-27** — Merged main after #160 took 26.2.0 and moved releases to numbering at publish. Rewrote this entry as `## Next (minor)`, and `number-release.mjs` numbered it 26.3.0.
