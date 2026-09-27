@@ -52,3 +52,5 @@ None.
 - **2026-09-27** — Assumed: task 2.3's save is `/ship`'s one checkpoint, because the change ships in the same run; a failing gate stops the merge.
 - **2026-09-27** — Distilled: no repeatable fact. The change and branch had no live facts, and the Paseo behavior found here (`paseo run --title` names only the agent) is written into `workspace.mjs`'s header comment.
 - **2026-09-27** — Archive checkpoint: `workspace.mjs` renames each new workspace to its part's title after `paseo run`, a refused rename is a warning, and the 18 workspace tests pass locally. The two open workspaces were renamed by hand. Ships as 26.2.0.
+- **2026-09-27** — Assumed: ships as 26.3.0, not 26.2.0, because PR #160 took 26.2.0 while this waited and made `/ship` number releases; the merge put this entry on top as `## Next (minor)`, and `number-release.mjs` numbered it.
+- **2026-09-27** — Archive checkpoint: merged `main` after #160, kept both changelog entries with this one on top, and numbered it 26.3.0.

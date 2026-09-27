@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — New workspaces are named after their part
+## 26.3.0 — New workspaces are named after their part
 
 - **A new workspace shows its part's name.** When a request splits into parts, each workspace the agent opens now takes the same short name its agent got, so Paseo's list reads *Release collisions*, not *nifty-leopard*. A workspace opened to pick up saved work takes the change's name. The folder and branch keep Paseo's names.
 - **A refused name still opens the workspace.** If Paseo won't take the name, the workspace and its agent still run, and the agent tells you it kept Paseo's name.
