@@ -90,6 +90,8 @@ The driver runs every journey in order: batch files through `agent-browser`, eac
 
 For each journey, read the evidence beside the `then` in `<id>.meta.json` — screenshots and `$RUN_DIR/evidence/<id>.result.json` for a browser journey, the numbered response captures for a request probe, the command output for a state probe — and decide whether it shows what the `THEN` describes.
 
+**Show a browser journey's screenshots in the chat as you grade it**, before its verdict: open each numbered screenshot in walk order with your image tool, one plain line above each saying what it shows. The batch ran every step at once, so grading is when the person can follow along. [Show what the browser is doing](../../../../wiki/development/home.md#show-what-the-browser-is-doing) owns the how; the walk's screenshots are already taken, so skip its `screenshot` step.
+
 - **"No error" is not a pass, and neither is a bare `200`.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does a `200` without the body the `THEN` describes.
 - A failing command is evidence, not a crash: "the endpoint answered 404" is what the walk exists to surface. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
 - A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is a defect in the journey, not the app.

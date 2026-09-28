@@ -184,3 +184,12 @@ Before writing a browser journey, the walk SHALL load the guide the installed br
 
 - **WHEN** the machine's browser CLI moves to a newer version with changed commands
 - **THEN** the next walk writes its journeys from the newer version's guide, with no repo change
+
+### Requirement: The walk shows its screenshots in the chat
+
+While grading a browser journey, `/verify` SHALL show that journey's screenshots in the chat, in walk order, each with a line saying what it shows, as well as posting them with the evidence.
+
+#### Scenario: A two-step journey
+
+- **WHEN** `/verify` grades a journey that took screenshots of a form and its result
+- **THEN** both pictures appear in the chat before the verdict, in that order
