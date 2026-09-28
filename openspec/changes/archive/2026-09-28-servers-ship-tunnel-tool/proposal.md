@@ -1,7 +1,7 @@
 # Setup installs the agent's browser and tunnel tool up front
 
-**Status:** draft
-**Branch:** impolite-piranha
+**Status:** ready-to-ship
+**Branch:** cloudflared-agent-browser
 **Open questions:** none
 
 ## Why
@@ -78,3 +78,4 @@ None.
 - **2026-09-28** — Assumed: `required-tools.md` gets an *Installing cloudflared* heading holding the install commands, because `tools.md` links to them and the commands stay on one page.
 - **2026-09-28** — Assumed: `server/README.md`'s end state says `cloudflared` runs only while a link is open, never as a service, because the host contract should promise what the design rules out.
 - **2026-09-28** — Distilled: no repeatable fact; the change and session wrote no live facts, and the measured sizes stay in this log.
+- **2026-09-28** — Archive checkpoint: tasks complete, specs synced into `install-onboarding` and `dependencies`, released as 26.23.0; two open threads recorded for the first real setup and the first new wongstack-cloud server.

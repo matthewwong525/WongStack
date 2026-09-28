@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Setup installs the agent's browser and tunnel tool up front
+## 26.23.0 — Setup installs the agent's browser and tunnel tool up front
 
 - **Setup asks once for everything.** Its one install question now also covers the agent's browser and Cloudflare's free tunnel tool, `cloudflared`, which sends you a private link to that browser. Say yes, and nothing stops later to ask. [Get the computer ready](.agents/skills/wong-setup/references/tools.md#the-helpers-the-browser-and-the-link-tool) owns the how.
 - **A failed browser or tunnel install doesn't stop setup.** Setup names the one that didn't install and carries on; the agent offers it again the first time it needs it.
