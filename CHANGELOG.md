@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Plans ask until they're clear, and publish in one pick
+## 26.27.0 — Plans ask until they're clear, and publish in one pick
 
 - **Follow-up questions before a plan.** When your answers open a new choice, the assistant asks another short set of multiple-choice questions instead of guessing. It still asks only what would make the plan wrong, never asks the same thing twice, and stops once nothing is open. [The exit round](.agents/skills/explore/SKILL.md#the-exit-round) owns the rule.
 - **Build and publish in one pick.** The question under a finished plan adds *Build and publish*, second after *Build it now*. It builds, checks, and makes the change live with no stop at the preview.

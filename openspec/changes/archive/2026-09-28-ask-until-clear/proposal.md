@@ -1,7 +1,7 @@
 # Plans ask until they're clear, go straight from updates, and can publish in one pick
 
-**Status:** planned
-**Branch:** relieved-camel
+**Status:** ready-to-ship
+**Branch:** allow-multiple-choice
 **Open questions:** none
 
 ## Why
@@ -78,3 +78,5 @@ None.
 - **2026-09-28** — Assumed: prose only, no script, because the behavior lives in skill instructions.
 - **2026-09-28** — Assumed: the `AGENTS.md` rule reads "build it now, or build and publish?" and *The exit round* drops a line repeating the assumptions rule, because the build first failed CI's instruction-size check (2206 words against 2200, skill bytes grown).
 - **2026-09-28** — Wiki distillation: no repeatable fact beyond `wiki/development/the-change-loop.md`, which this change edits.
+- **2026-09-28** — Assumed: merged `main` (26.26.0, review notes can be questions) as the union of both changes, and trimmed wording in `wong-sync`, `plan`, `improve`, and the ask format, because the combined skills ran 104 bytes over the instruction-size check.
+- **2026-09-28** — Archive checkpoint: archived by `/ship` and saved for release 26.27.0.
