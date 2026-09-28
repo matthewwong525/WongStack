@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Setup installs the agent's browser and tunnel tool up front
+
+- **Setup asks once for everything.** Its one install question now also covers the agent's browser and Cloudflare's free tunnel tool, `cloudflared`, which sends you a private link to that browser. Say yes, and nothing stops later to ask. [Get the computer ready](.agents/skills/wong-setup/references/tools.md#the-helpers-the-browser-and-the-link-tool) owns the how.
+- **A failed browser or tunnel install doesn't stop setup.** Setup names the one that didn't install and carries on; the agent offers it again the first time it needs it.
+- **A new agent server has both ready.** [`server/setup.sh`](server/README.md) now installs `cloudflared` from Cloudflare's package repository, with no question, and its final check lists it. It runs only while a link is open, never as a service. wongstack-cloud builds each new server from this script, so it needs no change.
+- **The server check and its promise can't drift apart.** A test fails when the script's final check and *The end state* in `server/README.md` name different tools.
+
+**Updating.** Nothing to do by hand. An existing computer or server asks once, the first time it needs the browser or the tunnel tool.
+
 ## 26.21.0 — Take over the agent's browser from your phone
 
 - **You get a private link and take over from anywhere.** When the agent's browser needs you, for a login, a captcha, a code, or a choice it shouldn't make, the agent sends you a link. It opens the agent's browser on your phone or laptop, and you do the step there. A password goes only into the real site, never through the chat. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the how.

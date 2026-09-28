@@ -15,20 +15,8 @@ Beyond them, no core payload script or skill invokes another runtime: **no `jq`,
 
 | Tool | Why |
 |---|---|
-| `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. `/verify` installs it on the machine the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
-| `cloudflared` | Cloudflare's free tunnel tool, which puts the agent's browser behind a private link when it [hands you the browser](home.md#hand-the-browser-over) on your phone or another computer. The agent asks, then installs it the first time such a hand-over needs it. A hand-over at this computer never needs it. |
-
-The agent installs `cloudflared` from Cloudflare's own channel:
-
-- **macOS:** `brew install cloudflared`
-- **Windows:** `winget install --id Cloudflare.cloudflared`
-- **Linux:** Cloudflare's [package repository](https://pkg.cloudflare.com/), or with no password, the release binary into `~/.local/bin`:
-
-  ```bash
-  mkdir -p ~/.local/bin
-  curl -fsSL -o ~/.local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64   # -arm64 on ARM
-  chmod +x ~/.local/bin/cloudflared
-  ```
+| `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
+| `cloudflared` | Cloudflare's free tunnel tool, which puts the agent's browser behind a private link when it [hands you the browser](home.md#hand-the-browser-over) on your phone or another computer. Setup offers it up front, in the same question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time such a hand-over needs it. A hand-over at this computer never needs it. |
 
 Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and every other core verb still needs only the four commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
@@ -76,7 +64,21 @@ A teammate gets their memory key by [joining through GitHub](memory.md#joining-t
 
 **Nothing is installed without asking.** Installing a runtime changes the machine, not the repo. When a step needs a tool and it is missing, the skill explains what and why, and asks.
 
-**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh`, Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: `/verify` adds its browser the first time it needs one, and a hand-over its tunnel tool.
+**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh`, Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). The same question covers `agent-browser` and `cloudflared`, so nothing stops later to ask; a failed install of either is named and skipped, since setup needs neither. It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: on a machine setup didn't ready, or where a helper failed, `/verify` adds its browser the first time it needs one, and a hand-over its tunnel tool. The [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) asks nothing and installs both.
+
+### Installing `cloudflared`
+
+Setup and a first hand-over install it from Cloudflare's own channel:
+
+- **macOS:** `brew install cloudflared`
+- **Windows:** `winget install --id Cloudflare.cloudflared`
+- **Linux:** Cloudflare's [package repository](https://pkg.cloudflare.com/) with passwordless `sudo`, or else the release binary into `~/.local/bin`:
+
+  ```bash
+  mkdir -p ~/.local/bin
+  curl -fsSL -o ~/.local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64   # -arm64 on ARM
+  chmod +x ~/.local/bin/cloudflared
+  ```
 
 ## The Cloudflare stack pack
 

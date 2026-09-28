@@ -19,12 +19,13 @@ This page maps what the Cloudflare API returns to **the one thing the user shoul
 
 ### Getting the computer ready
 
-[Get the computer ready](tools.md) stops on each of these with nothing written; running setup again starts from the check.
+[Get the computer ready](tools.md) stops on each of these with nothing written, except a helper that fails to install; running setup again starts from the check.
 
 | Symptom | Cause | What to say |
 |---|---|---|
 | The person says no to an install | They'd rather not add the tool | Name what it is for (*"Node.js runs the planning and memory tools; without it, setup can't continue"*), and that a yes later picks up here. |
 | An install asks for a password, or `sudo -n true` fails | The system installer needs admin rights the agent can't type | Use the user-folder route. Stop only when that fails too, naming the failed download. |
+| `agent-browser` or `cloudflared` is still missing after its install | A download failed, or the system refused it | Don't stop. Name it and what it's for (*"The tool that sends you a private link to my browser didn't install"*), say you'll offer it again the first time you need it, and continue. |
 | `git` is missing on Linux with no passwordless `sudo` | `git` has no user-folder route | Ask them to install Git from their system's software app, then run setup again. |
 | No `one-time code` line in `gh`'s output | `gh` failed before the browser step, or changed its wording | Show the output's last line and offer one more try. Never guess a code. |
 | `gh auth status` still fails after they said done | The approval wasn't finished, or ran in another GitHub account | Start the sign-in again for a fresh code: *"The approval didn't reach me. Here's a new code."* |

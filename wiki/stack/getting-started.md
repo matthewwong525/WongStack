@@ -14,7 +14,7 @@ It assumes you know nothing about Cloudflare, databases, or deployment: where a 
 
 ## What it costs
 
-Cloudflare's free tier covers all of this. You need a free Cloudflare account and a free GitHub account. Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, and OpenSpec — and it asks before each one.
+Cloudflare's free tier covers all of this. You need a free Cloudflare account and a free GitHub account. Setup may also install a few free tools it needs — Git, GitHub's app, Node.js, OpenSpec, a browser for the agent, and a tool that sends you a private link to that browser — and it asks before it installs any.
 
 ## After that: how you work
 
