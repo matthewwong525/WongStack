@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Check the live preview end to end, grade the evidence, and post it to the PR; also walks the app, tests an API, or screenshots.
+description: Check the live preview end to end, grade the evidence, post it to the PR; also walks the app, tests an API, or screenshots.
 user-invocable: true
 ---
 
@@ -8,7 +8,7 @@ user-invocable: true
 
 Invoking `/verify` authorizes, without a prompt: Step 2's `/save` with its commit, push, and PR; Step 3's machine-level browser install; Step 4's Access service-token mint; and Step 6's staging reset. Confirm anything else in [the shared ask format](../explore/references/asking-the-user.md).
 
-`/verify` produces **evidence, on request**, any time, and gates nothing ([why](../../../wiki/development/the-change-loop.md#verifying-the-app)). [The staging walkthrough](../../../wiki/development/staging-walkthrough.md) owns why; [the walkthrough reference](references/walkthrough.md) owns how.
+`/verify` produces **evidence, on request**, any time, and gates nothing. [The staging walkthrough](../../../wiki/development/staging-walkthrough.md) owns why; [the walkthrough reference](references/walkthrough.md) owns how.
 
 ## Step 1 — scout first, before spending anything
 
@@ -74,7 +74,7 @@ Close with [the next step](../explore/references/asking-the-user.md#end-every-re
 | **UNKNOWN** | the walk could not run or be trusted, after any heal | **unverified**, and why |
 | **TIMEOUT** | the walk exceeded its budget | **unverified**: what completed, where it stopped |
 
-Verdicts are **reported**; none gates anything. [`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure): report it as *unverified*, naming any heal that did not take ([why](../../../wiki/development/staging-walkthrough.md#the-verdicts)).
+[`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure): report it as *unverified*, naming any heal that did not take ([why](../../../wiki/development/staging-walkthrough.md#the-verdicts)).
 
 ## Hard rules
 

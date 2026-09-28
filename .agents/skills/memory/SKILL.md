@@ -56,7 +56,7 @@ Writing is two calls, the **write gate**:
 
 **From a session**, pass the JSON on stdin in a quoted heredoc, so the shell leaves it alone: `node .claude/skills/memory/scripts/memory.mjs put-facts --file - <<'EOF'`, the JSON, then `EOF`.
 
-`gate` takes the same JSON without `action`. A tag must exist or be defined in `newTags`. `"session": "current"` is this session. The script rejects a fact matching a `.env` value or token pattern, and spools facts locally when the store is unreachable.
+`gate` takes the same JSON without `action`. A tag must exist or be defined in `newTags`. `"session": "current"` is this session. The script rejects a fact matching a `.env` value or token pattern, and spools facts locally when the store is unreachable. [`/close`](../close/SKILL.md) runs `keep-transcript current` to upload this session's transcript now.
 
 **Private life goes home**, with `--home`, in its own JSON with no session: [writing facts](references/writing-facts.md#private-life-goes-home).
 

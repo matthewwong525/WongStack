@@ -7,7 +7,10 @@
 // not ignore the folder yet. `close` checks that this workspace is saved, then
 // hands off to a detached child that waits for this chat's reply to end,
 // archives the workspace, stops processes left running from it, and deletes its
-// local branch when its pull request merged at the local tip. `sweep` is the
+// local branch when its pull request merged at the local tip. `close --discard`
+// skips the saved check and throws the work away first: it closes the branch's
+// open pull request, deletes the branch online, resets the tree, and has the
+// child delete the local branch too. `sweep` is the
 // background tidy-up the session-start hook starts, at most once every 6 hours
 // per repo: it archives this repo's saved workspaces idle 3+ days, stops
 // processes whose worktree is gone, and deletes `wong-*` temp entries and
@@ -40,7 +43,8 @@ import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-
 import { EXIT, PaseoError, findPaseo, paseo } from './lib/paseo.mjs';
 
 const USAGE = `usage: tidy.mjs scratch [--dry-run]         make .scratch/ here and print its path
-       tidy.mjs close [--dry-run]           close this workspace once this reply ends
+       tidy.mjs close [--discard] [--dry-run] close this workspace once this reply ends;
+                                            --discard throws its unpublished work away first
        tidy.mjs sweep [--report] [--dry-run] the background tidy-up; --report prints and clears its last line`;
 const COMMANDS = ['scratch', 'close', 'sweep', 'close-child'];
 
@@ -202,7 +206,7 @@ function worktreeState(dir) {
 function pullRequest(dir, branch) {
   if (!branch) return null;
   try {
-    return JSON.parse(execFileSync('gh', ['pr', 'view', branch, '--json', 'state,headRefOid'], {
+    return JSON.parse(execFileSync('gh', ['pr', 'view', branch, '--json', 'number,state,headRefOid'], {
       cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
     }));
   } catch { return null; }
@@ -363,14 +367,40 @@ function refusal(state) {
   return 'Git could not read this workspace, so it stays open.';
 }
 
-async function close({ dryRun }, env) {
+/**
+ * Throws a worktree's work away: closes the branch's open pull request, deletes
+ * the branch online, and resets the tree so Paseo archives it as a clean one.
+ */
+function throwAway(dir, branch) {
+  const notes = [];
+  let pr = null;
+  let remote = false;
+  if (branch) {
+    const open = pullRequest(dir, branch);
+    if (open?.state === 'OPEN') {
+      try {
+        execFileSync('gh', ['pr', 'close', branch], { cwd: dir, stdio: 'ignore' });
+        pr = open.number ?? branch;
+      } catch { notes.push(`could not close the pull request for ${branch}`); }
+    }
+    if (tryGit(dir, 'ls-remote', '--exit-code', '--heads', 'origin', branch) !== null) {
+      remote = tryGit(dir, 'push', '-q', 'origin', '--delete', branch) !== null;
+      if (!remote) notes.push(`could not delete the branch ${branch} online`);
+    }
+  }
+  git(dir, 'reset', '-q', '--hard');
+  git(dir, 'clean', '-q', '-fd');
+  return { pr, remote, ...(notes.length ? { notes } : {}) };
+}
+
+async function close({ dryRun, discard = false }, env) {
   const repo = here();
   if (!repo.linked) throw refuse('This is the main checkout, which never closes.');
   const agentId = env.PASEO_AGENT_ID?.trim();
   if (!agentId) throw refuse('This chat is not a Paseo agent, so there is no workspace to close.');
   const state = worktreeState(repo.root);
-  const merged = mergedAtTip(pullRequest(repo.root, state.branch), state.tip);
-  const saved = savedState({ ...state, merged });
+  const merged = !discard && mergedAtTip(pullRequest(repo.root, state.branch), state.tip);
+  const saved = discard ? { saved: true } : savedState({ ...state, merged });
   if (!saved.saved) throw refuse(refusal(saved));
   const bin = findPaseo(env, 'TIDY_PASEO_BIN');
   const root = realpath(repo.root);
@@ -378,21 +408,22 @@ async function close({ dryRun }, env) {
   if (!ws) throw refuse('Paseo has no workspace for this folder.');
   const job = {
     agentId, workspaceId: ws.workspaceId, name: ws.name || path.basename(root), worktree: root,
-    primary: repo.primary, commonDir: repo.commonDir, branch: state.branch, deleteBranch: merged,
+    primary: repo.primary, commonDir: repo.commonDir, branch: state.branch, deleteBranch: discard || merged, discard,
   };
   if (dryRun) return { ok: true, dryRun: true, job };
+  const discarded = discard ? throwAway(root, state.branch) : null;
   const child = spawn(process.execPath, [SELF, 'close-child'], {
     cwd: repo.primary, detached: true, stdio: 'ignore', env: { ...env, TIDY_CLOSE_JOB: JSON.stringify(job) },
   });
   child.on('error', () => {});
   child.unref();
   return {
-    ok: true, workspaceId: ws.workspaceId, name: job.name, branch: job.branch, deleteBranch: merged,
-    message: 'Closing this workspace once this reply ends.',
+    ok: true, workspaceId: ws.workspaceId, name: job.name, branch: job.branch, deleteBranch: job.deleteBranch,
+    ...(discarded ? { discarded } : {}), message: 'Closing this workspace once this reply ends.',
   };
 }
 
-/** The detached half of `close`: wait, archive, stop leftovers, delete a merged branch, report. */
+/** The detached half of `close`: wait, archive, stop leftovers, delete a merged or thrown-away branch, report. */
 async function closeChild(env) {
   const job = JSON.parse(env.TIDY_CLOSE_JOB || 'null');
   if (!job?.workspaceId) throw refuse('close-child runs only from close.');
@@ -409,6 +440,7 @@ async function closeChild(env) {
       report.stopped += stopOrphans({ roots: [job.worktree], live: [] }) ?? 0;
       if (job.branch && job.deleteBranch) {
         if (tryGit(job.primary, 'branch', '-D', job.branch) === null) report.notes.push(`kept the branch ${job.branch}: git would not delete it`);
+        else if (job.discard) report.notes.push(`threw away the branch ${job.branch}`);
         else report.branches.push(job.branch);
       } else if (job.branch) {
         report.notes.push(`kept the branch ${job.branch}: its pull request did not merge at its last commit`);
@@ -540,6 +572,7 @@ function parseArgs(argv) {
   const flags = {};
   for (const arg of rest) {
     if (arg === '--dry-run') flags.dryRun = true;
+    else if (arg === '--discard' && command === 'close') flags.discard = true;
     else if (arg === '--report' && command === 'sweep') flags.report = true;
     else throw new PaseoError(EXIT.input, `Unknown argument ${arg}.\n${USAGE}`);
   }

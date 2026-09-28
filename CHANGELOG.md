@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.28.0 — Close a workspace from any finished task
+
+- **A new `/close` wraps up a chat in one go.** It asks nothing. It saves what the chat learned, saves any unfinished work to GitHub, and otherwise updates the wiki. Then it closes the workspace; the chat stays readable in Paseo's archived list. [`/close`](.agents/skills/close/SKILL.md) owns the steps.
+- **Nothing planned is forgotten.** Before it closes, `/close` writes a wrap-up to memory: what the chat set out to do, what got done, and one open to-do for each piece left. The next session start shows them, and `/continue` picks them up.
+- **The whole conversation is kept.** `/close` uploads the chat's transcript, secrets blanked out, to the memory store's private storage right away, through the new `memory.mjs keep-transcript`. A chat marked `#private` is never uploaded, and a store without that storage skips it and says so.
+- **Unfinished work is never lost.** It is saved to its own branch with an open pull request, off the live site, for `/continue` to pick up on any computer. Only *close and throw it away* deletes it: that closes the pull request and deletes the branch, through the new `tidy.mjs close --discard`. Your project's main folder is never closed or thrown away.
+- **Only `/close` updates the wiki.** `/ship` now just puts code live. After a publish, `/close` writes the lasting facts into the wiki and publishes them as a small second update that changes only the wiki.
+- **Every finished task offers to close.** In a Paseo workspace, the last question after a publish, a research answer, an errand, or a declined publish offers *Close this workspace*, which runs `/close`. A plan waiting for review or a build in progress gets no close offer.
+- **Instructions got shorter to make room.** A few skill pages say the same rules in fewer words, so the new skill adds no reading to each session.
+
+**Updating.** Nothing to do by hand. After this update, pick *Close this workspace* or type `/close` when a chat is done; it now also updates the wiki, which publishing no longer does.
+
 ## 26.27.0 — Plans ask until they're clear, and publish in one pick
 
 - **Follow-up questions before a plan.** When your answers open a new choice, the assistant asks another short set of multiple-choice questions instead of guessing. It still asks only what would make the plan wrong, never asks the same thing twice, and stops once nothing is open. [The exit round](.agents/skills/explore/SKILL.md#the-exit-round) owns the rule.

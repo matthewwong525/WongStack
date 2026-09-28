@@ -123,6 +123,55 @@ test('#private records the session and uploads and prints nothing', async t => {
   assert.deepEqual(rows(env, 'SELECT status, raw_key FROM sessions'), [{ status: 'private', raw_key: null }]);
 });
 
+test('keep-transcript uploads the redacted transcript and sets raw_key without touching capture', async t => {
+  const env = await setup(t);
+  const session = claudeSession(env, 1, [['user', `Use ${SECRET} for the call.`], ['assistant', 'Done.']]);
+  register(env, { id: session.id, agent: 'claude', transcript: session.file, cwd: env.repo.root });
+  const saved = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'd.json', { session: 'current', source: 'save', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'The call needs the service token.' }] })]);
+  assert.match(saved.stdout, /captured/);
+  const before = rows(env, 'SELECT status, read_through FROM sessions')[0];
+  const kept = await memory(env.repo, env.fake, ['keep-transcript', 'current']);
+  assert.equal(kept.code, 0, kept.stderr);
+  const key = `sessions/dev@example.com/claude/${session.id.split(':')[1]}.jsonl`;
+  assert.match(kept.stdout, new RegExp(`kept: .* is in ${key}`));
+  const object = env.fake.objects.get(key).toString('utf8');
+  assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
+  const [row] = rows(env, 'SELECT status, read_through, raw_key, raw_bytes FROM sessions');
+  assert.deepEqual({ status: row.status, read_through: row.read_through }, before);
+  assert.equal(row.raw_key, key);
+  assert.equal(row.raw_bytes, Buffer.byteLength(object));
+
+  const fresh = claudeSession(env, 2, [['user', 'Not captured yet.']]);
+  assert.equal((await memory(env.repo, env.fake, ['keep-transcript', fresh.id])).code, 0);
+  assert.deepEqual(rows(env, 'SELECT status, read_through FROM sessions WHERE id = ?', fresh.id), [{ status: 'skipped', read_through: null }]);
+  assert.equal(JSON.parse((await memory(env.repo, env.fake, ['pending', '--json'])).stdout).some(item => item.id === fresh.id), true, 'the background run still captures it');
+});
+
+test('keep-transcript skips a private session, a store with no bucket, and one over 50 MB, with exit 0', async t => {
+  const env = await setup(t);
+  const secret = claudeSession(env, 1, [['user', 'Keep this #private.']]);
+  const priv = await memory(env.repo, env.fake, ['keep-transcript', secret.id]);
+  assert.equal(priv.code, 0, priv.stderr);
+  assert.match(priv.stdout, /transcript not kept: .* is private/);
+  const big = claudeSession(env, 2, [['user', 'Load the export.'], ['assistant', [{ type: 'tool_use', id: 't', name: 'Read', input: { data: 'x'.repeat(MAX_TRANSCRIPT_BYTES) } }]]]);
+  const large = await memory(env.repo, env.fake, ['keep-transcript', big.id]);
+  assert.equal(large.code, 0, large.stderr);
+  assert.match(large.stdout, /transcript not kept: The full transcript is 51 MB, over the 50 MB limit/);
+  assert.equal(env.fake.objects.size, 0);
+  assert.equal(rows(env, 'SELECT raw_key FROM sessions WHERE id = ?', big.id)[0].raw_key, null);
+  assert.equal(rows(env, 'SELECT count(*) AS n FROM sessions WHERE id = ?', secret.id)[0].n, 0);
+
+  const bare = await setup(t, { bucket: false });
+  const plain = claudeSession(bare, 3, [['user', 'Hello.']]);
+  const none = await memory(bare.repo, bare.fake, ['keep-transcript', plain.id]);
+  assert.equal(none.code, 0, none.stderr);
+  assert.match(none.stdout, /transcript not kept: this store has no R2 bucket/);
+  env.fake.setOffline(true);
+  const offline = await memory(env.repo, env.fake, ['keep-transcript', claudeSession(env, 4, [['user', 'Hello.']]).id]);
+  assert.equal(offline.code, 0, offline.stderr);
+  assert.match(offline.stdout, /transcript not kept: memory store unreachable/);
+});
+
 test('Codex transcripts parse, and an unknown format is reported and stores nothing', async t => {
   const env = await setup(t);
   const codex = codexSession(env, 2, [['user', 'Codex asks.'], ['assistant', 'Codex answers.']]);

@@ -1,6 +1,6 @@
 # Progressive-disclosure wiki: the rulebook
 
-A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one place to start, and every page drills down into more detail, recursively. It is **plain Markdown with standard links**, so it renders anywhere.
+A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one place to start, and every page drills down, recursively. It is **plain Markdown with standard links**, so it renders anywhere.
 
 ## The shape: start general, break down as needed
 
@@ -27,7 +27,7 @@ Readers land on a page from search, with no context.
 
 ## Folders only for deep branches
 
-Use a folder only when a step grows into several pages (`onboarding/`: a hub plus a page per role), with its `README.md` as the hub; a lone page stays flat. Breadcrumbs follow folders, so don't hand-write them. Moving a page changes its URL: update the links to it.
+Use a folder only when a step grows into several pages (`onboarding/`: a hub plus a page per role), with its `README.md` as the hub; a lone page stays flat. Breadcrumbs follow folders, so don't hand-write them. Moving a page changes its URL: update its links.
 
 ## Maps are pictures; links live in the list
 
@@ -41,7 +41,7 @@ Something links to every page, its hub at minimum; a hub links *every one* of it
 
 The wiki is long-term memory for **repeatable knowledge**: facts that stay true and apply again: how we work, people, the company, the product, customers. The test: **will this help with a future task that is not this one?** Yes → the wiki. No → the [memory store](development/memory.md) or the change's proposal; a single decision, a date, or one change's details fail it.
 
-- **Write it when you learn it**, in the same request. Cite the source by URL or path; don't copy it into git. Save it through a pull request like any edit ([the gate](development/the-change-loop.md#the-gate)), inside a change's own if one is open; [`/ship`](../.agents/skills/ship/SKILL.md) catches what a session missed.
+- **Write it when you learn it**, in the same request. Cite the source by URL or path; don't copy it into git. Save it through a pull request like any edit ([the gate](development/the-change-loop.md#the-gate)), inside a change's own if one is open; [`/close`](../.agents/skills/close/SKILL.md) catches what a session missed.
 - **Let it grow from use.** Seed nothing: the first fact on a topic makes its page; the first about a person makes `people/`. No `index.md` (hubs index) and no `log.md` (git logs).
 - **One format everywhere**: one person is a team of one.
 
@@ -62,8 +62,8 @@ When a person asks for more detail than [plain words](../.agents/skills/explore/
 
 ## Adding a page — the checklist
 
-**Prefer extending an existing page.** Otherwise place the new one at the right layer, linked from its parent's step, and hold it to the rules above.
+**Prefer extending an existing page.** Otherwise place it at the right layer, linked from its parent's step, held to the rules above.
 
 ## Keeping it tidy
 
-Garden [the wiki](README.md) as explicit work: extend each fact's owning page, merge duplicates, resolve contradictions newest-wins, prune stale content, repair links.
+Garden [the wiki](README.md): extend each fact's owning page, merge duplicates, resolve contradictions newest-wins, prune stale content, repair links.

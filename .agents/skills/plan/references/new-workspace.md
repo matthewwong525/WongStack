@@ -83,7 +83,7 @@ A part that builds on another opens now with the rest, not after that part publi
 
 ## Report
 
-Before drafting the plan you kept, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Paseo's list shows the same title. Add any `warning` the script prints, such as a workspace that kept Paseo's name. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
+Before drafting the plan you kept, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints, such as a workspace that kept Paseo's name. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
 
 ## Pick up saved work
 
@@ -99,12 +99,4 @@ The brief is `/continue <change name>`, plus the person's instruction if any. Wh
 
 When `/ship` finishes, look for more asked-for work in this conversation, then with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Offer the next part with no workspace yet: open it in a new workspace *(Recommended)*, or stop here. Name a part already open elsewhere; never open it twice.
 
-When `/ship` merged from a Paseo worktree (`PASEO_AGENT_ID` set, not the main checkout), the question also offers *Close this workspace*: when this reply ends, the chat and workspace close and anything still running from them stops. It comes first, recommended, when no next work waits; else the next part stays first. Keep the question to three options, dropping the walk first. Picking it runs:
-
-```bash
-node "$(git rev-parse --show-toplevel)/.claude/skills/routine/scripts/tidy.mjs" close
-```
-
-- **Exit 0**: say you are closing this workspace now, and end the reply. The chat stays readable in Paseo's archived list.
-- **Exit 2** closed nothing: give its `error` in plain words, such as the unsaved files it names, and offer to save them first.
-- **Exits 3 to 5** closed nothing: say Paseo could not close it from here; the Paseo app can archive the workspace.
+In a Paseo worktree, the question also offers *Close this workspace*, which runs [`/close`](../../close/SKILL.md). It comes first, recommended, when no next work waits; else the next part stays first. Keep the question to three options, dropping the walk first.

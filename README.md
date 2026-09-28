@@ -60,10 +60,10 @@ You end with a working assistant, a starter site online, memory that carries ove
 ### The commands
 
 ```text
-/explore -> /plan -> /apply -> /save -> /ship
+/explore -> /plan -> /apply -> /save -> /ship -> /close
 ```
 
-`/continue` is the way back in: it picks up saved work later, from any machine.
+`/continue` is the way back in: it picks up saved work later, from any machine. `/close` wraps up any finished chat.
 
 You do not have to type them. Ask for what you want, such as "add a sign-up page", and the agent runs the commands. It stops twice: at the plan, which ends with a link to its review page, and before it publishes. The commands are shortcuts: `/ship` runs everything with no stops. A command whose input is missing runs the one before it, so `/apply` plans first when there is no plan. [The change loop](wiki/development/the-change-loop.md) owns the details.
 
@@ -75,6 +75,7 @@ You do not have to type them. Ask for what you want, such as "add a sign-up page
 | `/save` | Commit, push, open or update the pull request, and wait for CI. A plain conversation saves only its facts. |
 | `/continue` | Pick up saved work later, from any machine or session. |
 | `/ship` | Finish the change, run CI once, walk the preview, merge, and keep the record of what shipped. |
+| `/close` | Wrap up a chat: save what it learned to memory and the wiki, keep unfinished work on GitHub, and close its workspace. `close and throw it away` deletes the unfinished work instead. |
 | `/improve [area]` | Review recent work and one area, then ship one maintenance fix. `--audit-only` reports findings with no edits. |
 | `/routine <when>: <prompt>` | Run a prompt or command on a schedule. Optional: it needs [Paseo](https://paseo.sh). |
 | `/wong-sync` | Get the latest WongStack and plan the update, up to a review page. |

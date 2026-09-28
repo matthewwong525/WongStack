@@ -49,20 +49,7 @@ Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references
 
 **Read `tasks.md` first.** Unchecked tasks (`- [ ]`) → invoke [`apply`](../apply/SKILL.md) for that change inside `/ship`, then re-read; still pending → report and stop. Never let this runbook's authorization answer the archive's incomplete-task confirmation.
 
-[The CLI contract](../plan/references/openspec-cli.md#validate-and-archive) owns `--skip-specs`. Stop unless `openspec status --change "$CHANGE_NAME" --json` shows every schema artifact complete or deliberately skipped and `openspec validate "$CHANGE_NAME" --strict --no-interactive` passes. Then, after the distillation, run `openspec archive "$CHANGE_NAME" --yes`, verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists, and keep its path.
-
-### Distill the change's facts into the wiki
-
-Before the archive, catch the [repeatable knowledge](../../../wiki/wiki-style.md#repeatable-knowledge) sessions missed, from the live facts of the change, its branch, and every session that wrote a fact on it, so a renamed branch loses none:
-
-```bash
-M="$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"
-node "$M" show "$CHANGE_NAME"
-node "$M" search --branch "$BRANCH" --change "$CHANGE_NAME" --limit 200   # feature branch
-node "$M" search --change "$CHANGE_NAME" --limit 200                      # main
-```
-
-Run `show`, then the search for where you are; on `main`, omit `--branch`: it would return every fact saved there. Deduplicate, then place each repeatable fact by [the wiki rules](../../rules/wiki.md), never a private-life one. Append one Decision-log line naming the pages changed, or `no repeatable fact`. [Store unreachable](../memory/SKILL.md#read) → log the step skipped and go on. The edits ride in the archive checkpoint.
+[The CLI contract](../plan/references/openspec-cli.md#validate-and-archive) owns `--skip-specs`. Stop unless `openspec status --change "$CHANGE_NAME" --json` shows every schema artifact complete or deliberately skipped and `openspec validate "$CHANGE_NAME" --strict --no-interactive` passes. Then run `openspec archive "$CHANGE_NAME" --yes`, verify exactly one `openspec/changes/archive/*-$CHANGE_NAME/` exists, and keep its path.
 
 ## Step 3 — delegate the checkpoint to /save
 
@@ -125,4 +112,4 @@ Lead with the outcome in [plain words](../explore/references/asking-the-user.md#
 - **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it; an absent skill is one line.
 - **Secrets** — promoted, skipped, and unresolved key names (never values), or why it was skipped.
 
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): open the next work the person asked for in a new workspace *(Recommended)*, walk the merged app, or stop here; after a stop, the ways to clear the blocker. From a Paseo worktree, also offer *Close this workspace*, recommended when no next work waits. [Next work](../plan/references/new-workspace.md#next-work) owns how both run.
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): open the next work the person asked for in a new workspace *(Recommended)*, walk the merged app, or stop here; after a stop, the ways to clear the blocker. From a Paseo worktree, also offer *Close this workspace* ([`/close`](../close/SKILL.md)), which updates the wiki; [next work](../plan/references/new-workspace.md#next-work) owns the order.

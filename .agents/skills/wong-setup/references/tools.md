@@ -1,6 +1,6 @@
 # Get the computer ready
 
-[`/wong-setup`](../SKILL.md) runs this after the empty-folder check, before it clones the source. It readies four things, in order: the tools, the GitHub sign-in, the git name and email, and on Windows, folder links. Nothing is written in the target folder until all four pass. Setup checks ahead, unlike other skills, because nothing works until these exist; [required tools](../../../../wiki/development/required-tools.md) says why each is needed.
+[`/wong-setup`](../SKILL.md) runs this after the empty-folder check, before it clones the source. It readies four things, in order: the tools, the GitHub sign-in, the git name and email, and on Windows, folder links; nothing is written in the target folder until all four pass. [Required tools](../../../../wiki/development/required-tools.md) says why each is needed.
 
 **The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, and a tool that links you to it. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
 
@@ -52,7 +52,7 @@ A helper still missing after its install is not a stop: say so in one plain line
 
 ### Paseo: point to it, never install it
 
-After the tools pass, check `command -v paseo`. Missing → say one plain sentence, then continue: *"Paseo is a free app for chatting with me from your phone, running things on a schedule, and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it, and never stop setup without it: it is a desktop download with its own window ([required tools](../../../../wiki/development/required-tools.md) says more).
+After the tools pass, check `command -v paseo`. Missing → say one plain sentence, then continue: *"Paseo is a free app for chatting with me from your phone, running things on a schedule, and giving each piece of work its own space; get it at [paseo.sh](https://paseo.sh) whenever you like."* Never install it, and never stop setup without it: it is a desktop download with its own window.
 
 ## 2. The GitHub sign-in
 
@@ -101,4 +101,4 @@ your assistant's folders.
 3. Tell me when it's on
 ```
 
-Then run `git config --global core.symlinks true` and test again; continue only when it passes. Setup's agent-folder step links with `MSYS=winsymlinks:nativestrict`, so a refused link fails out loud instead of becoming a copy.
+Then run `git config --global core.symlinks true` and test again; continue only when it passes.
