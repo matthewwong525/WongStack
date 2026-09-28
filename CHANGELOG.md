@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.22.0 — Watch the agent browse, in the chat
+
+- **You see pictures as it goes.** While the agent browses for you, it drops a picture of the page into the chat at each key moment: a new page, right before it sends, books, pays for, or deletes something, and the result. One plain line above each says what it shows, so you can catch a wrong page or field before it's done. [Show what the browser is doing](wiki/development/home.md#show-what-the-browser-is-doing) owns the how.
+- **The chat doesn't flood.** No picture after every click or keystroke, and none when the page hasn't changed: the agent takes each one with `agent-browser screenshot --if-changed`.
+- **App checks show theirs too.** When `/verify` checks your app before it goes live, it shows each step's picture in the chat as it grades that check, not only on GitHub afterwards. What it posts to GitHub doesn't change.
+- **Nothing while you have the browser.** During a hand-over, for a login or a captcha, the agent takes no pictures until you hand it back.
+- **Pictures stay out of your project.** They sit in agent-browser's temp folder, never in a repo file. The rule *Browse as the person* now names showing key moments.
+- **Closing a hand-over right after opening it no longer reports an error.** `hand-over.mjs close` could stop the background watcher before it was ready, so the link closed but the result read `error`. It now records `closed`.
+
+**Updating.** Nothing to do by hand. Pictures show in the chat in [Paseo](https://paseo.sh); a plain terminal shows a placeholder instead.
+
 ## 26.21.0 — Take over the agent's browser from your phone
 
 - **You get a private link and take over from anywhere.** When the agent's browser needs you, for a login, a captcha, a code, or a choice it shouldn't make, the agent sends you a link. It opens the agent's browser on your phone or laptop, and you do the step there. A password goes only into the real site, never through the chat. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the how.

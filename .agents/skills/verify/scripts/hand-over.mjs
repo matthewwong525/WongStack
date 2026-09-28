@@ -224,8 +224,13 @@ async function close() {
     console.error('No hand-over link is open.');
     return 0;
   }
-  if (alive(pid)) process.kill(pid, 'SIGTERM');
-  else await recoverStale('closed');
+  if (alive(pid)) {
+    process.kill(pid, 'SIGTERM');
+    for (let i = 0; i < 50 && alive(pid); i++) await sleep(100);
+  }
+  // A watcher signalled before it set its handlers dies without a result; the close still stands.
+  if (alive(pid)) return wait();
+  if (!readJson(FILES.result)?.result) await recoverStale('closed');
   return wait();
 }
 
