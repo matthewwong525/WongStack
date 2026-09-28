@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Better drawings in plans and explore
+
+- **Plans draw more than a column of steps.** A short [drawing guide](.agents/skills/plan/references/drawings.md) gives five patterns to copy: a titled frame, options side by side, a branch that splits and joins, labels under boxes, and a comparison table.
+- **Wider when a drawing needs it.** Drawings still aim for 40 columns, the width of a phone, and may reach 56 for options side by side, a table, or a before-and-after. The plan's page still warns past 60.
+- **Crooked boxes get caught.** When a box's right edge doesn't line up with its top corner, building the plan's page names the drawing and line. It still builds the page.
+- **Screen sketches show the change.** A plan that changes a screen draws it before and after; one that adds a screen draws each state its steps name, such as empty or error.
+- **Explore draws while you think.** `/explore` draws in the chat by the same guide when a picture makes the flow, the options, or their costs clearer. It still writes no files.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.23.0 — Setup installs the agent's browser and tunnel tool up front
 
 - **Setup asks once for everything.** Its one install question now also covers the agent's browser and Cloudflare's free tunnel tool, `cloudflared`, which sends you a private link to that browser. Say yes, and nothing stops later to ask. [Get the computer ready](.agents/skills/wong-setup/references/tools.md#the-helpers-the-browser-and-the-link-tool) owns the how.

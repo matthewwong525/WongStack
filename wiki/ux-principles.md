@@ -12,7 +12,7 @@ Never start from a layout. Before drawing anything, answer the **UX brief**:
 
 - **Who is here, and what job are they trying to accomplish?** Not the feature name — the actual job. Not "manage the listings page" but "copy our good content onto the stale listings without doing it one-by-one."
 - **What does *done* look like?** The end state the user is trying to reach. The screen should drive toward it, not just display data near it.
-- **Context of use.** Desk or floor? Phone, tablet, or desktop? Gloved hands with a scanner? Interrupted every two minutes? One app can span a writer at a desk and an operator at a station — same design system, very different screens. **When the answer is a phone, the phone layout is the design, not an afterthought:** sketch it first, about 40 columns wide, the width of a phone. A screen that only works at 960px is not finished.
+- **Context of use.** Desk or floor? Phone, tablet, or desktop? Gloved hands with a scanner? Interrupted every two minutes? One app can span a writer at a desk and an operator at a station — same design system, very different screens. **When the answer is a phone, the phone layout is the design, not an afterthought:** sketch it first, about 40 columns wide, the width of a phone; up to 56 only to set options or a before-and-after side by side. A screen that only works at 960px is not finished.
 - **Common case vs edge case.** The common case gets the real estate and the straight-line flow; edge cases may cost an extra step or live in a menu. Never let a rare case complicate the frequent one.
 - **Frequency assumptions, stated explicitly.** "Operators run this ~200×/day; admins open the settings ~1×/month." Write the assumption down so it can be challenged — until you have real usage data, these are judgment calls; once you do, cite event counts instead.
 
@@ -68,11 +68,12 @@ Worker-only or UI-less changes skip the section entirely and draw no screen. The
 
 The picture lives in the proposal and shows at `openspec/changes/<name>/review.html` — one page per change, built by [the plan skill's builder](../.agents/skills/plan/scripts/build-review.mjs) from `proposal.md` and [the fixed kit](../.agents/skills/plan/references/review-kit.html). The page is one scrolling document: Why, the What Changes items with their drawings, and the decisions, each labeled *asked* or *assumed*.
 
-A drawing is a fenced `text` block inside the bullet it explains, in plain characters. One drawing carries the change by default: a flow, a before-and-after diff, a file tree, or a screen. What a screen sketch must hold is what the rest of this page argues for:
+A drawing is a fenced `text` block inside the bullet it explains, drawn by [the drawing guide](../.agents/skills/plan/references/drawings.md). One drawing carries the change by default: a flow, a before-and-after diff, a file tree, or a screen. What a screen sketch must hold is what the rest of this page argues for:
 
 - **Every screen in the flow**, and each empty, loading, or error state the flow names, as its own small sketch. A state a reviewer can not see is a state nobody designed.
+- **Before and after for a changed screen**, side by side when both fit in 56 columns, else one above the other. A reviewer can not judge a change they only see half of.
 - **One primary action per state.**
-- **The phone layout first when the brief says phone** — see [context of use](#start-from-the-use-case) above. Keep a sketch about 40 columns wide, top to bottom.
+- **The phone layout first when the brief says phone** — see [context of use](#start-from-the-use-case) above. Keep a sketch about 40 columns wide, top to bottom; a before-and-after may reach 56.
 - **Low fidelity on purpose**: boxes and labels, no brand. It argues about the change; it is not a picture of the finished screen. Raising the fidelity invites a review of the paint job instead of the flow.
 
 Each drawing starts folded under its item; opened, it spans the item's full width, fitted to the screen, and a drag still scrolls the page. A tap shows it full screen, where the reviewer pinches or presses + to zoom and drags to move it. **A reviewer taps + Note to comment** on a paragraph, item, or decision, or taps a line in the full-screen drawing — there is no annotate mode. Unfinished text stays a draft on its target; Save makes it a note. Notes stay in the browser, never in a repo file. **Copy notes** produces a plain request to paste into chat — *update the plan with these notes, don't build yet* — with one bullet per note, by change number. **Save copies the same request too**, with every saved note, and the page says so before and after; a failed copy still keeps the note. The plan is updated and its page rebuilt; building waits for a yes.

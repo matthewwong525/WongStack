@@ -14,6 +14,8 @@ user-invocable: true
 
 Ask material questions [the shared way](references/asking-the-user.md), in small groups answerable together: two or three, one when only one matters, within the tool's capacity. Wait for answers before dependent follow-ups. Skip settled questions; use as many groups as needed, with no fixed script. Keep findings in chat.
 
+When a picture makes the flow as it is today, the options, or what each costs clearer, draw it in chat by [the drawing guide](../plan/references/drawings.md). The drawing stays in chat, like every finding.
+
 **The 80/20 test:** ask only where a wrong guess makes the artifacts *wrong*, not merely *different*: scope, observable behavior, compatibility, acceptance criteria. Assume and record naming, placement, wording, and anything a reviewer can cheaply change later.
 
 ## Search memory before asking
