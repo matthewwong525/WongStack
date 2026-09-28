@@ -11,13 +11,26 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 Beyond them, no core payload script or skill invokes another runtime: **no `jq`, no `python`, and no project-language toolchain**, and no script adds a package or lockfile. WongStack installs into repos of every stack, so every added dependency is a repo it cannot serve.
 
-**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys.**
+**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. Handing that browser to another device adds one more: `cloudflared`.**
 
 | Tool | Why |
 |---|---|
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. `/verify` installs it on the machine the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
+| `cloudflared` | Cloudflare's free tunnel tool, which puts the agent's browser behind a private link when it [hands you the browser](home.md#hand-the-browser-over) on your phone or another computer. The agent asks, then installs it the first time such a hand-over needs it. A hand-over at this computer never needs it. |
 
-It is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` never acquires it, and every other core verb still needs only the four commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
+The agent installs `cloudflared` from Cloudflare's own channel:
+
+- **macOS:** `brew install cloudflared`
+- **Windows:** `winget install --id Cloudflare.cloudflared`
+- **Linux:** Cloudflare's [package repository](https://pkg.cloudflare.com/), or with no password, the release binary into `~/.local/bin`:
+
+  ```bash
+  mkdir -p ~/.local/bin
+  curl -fsSL -o ~/.local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64   # -arm64 on ARM
+  chmod +x ~/.local/bin/cloudflared
+  ```
+
+Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and every other core verb still needs only the four commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
 **Paseo is where you chat.** [Paseo](https://paseo.sh) runs Claude Code or Codex on your own computer and reaches it from your phone; [the README's steps](https://github.com/matthewwong525/WongStack#start-in-three-steps) start there, and setup points to it when it's missing ([the check](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#paseo-point-to-it-never-install-it)). No verb needs it except two: [`/routine`](../../.agents/skills/routine/SKILL.md) schedules recurring runs through it, and a request with several separate parts can [open a new workspace per part](the-change-loop.md#several-parts-several-workspaces). WongStack still never installs Paseo on your computer, because it is a desktop download with its own window; the one place it installs Paseo is the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md), for a server you give to agents. Without Paseo, `/routine` says so and changes nothing, the parts of a request are done one at a time, and every other verb works as before. The script uses Paseo's own daemon client, because `paseo schedule create` cannot set worktree isolation. A Paseo update that changes that client makes `/routine` stop and give the steps for the Paseo app.
 
@@ -63,7 +76,7 @@ A teammate gets their memory key by [joining through GitHub](memory.md#joining-t
 
 **Nothing is installed without asking.** Installing a runtime changes the machine, not the repo. When a step needs a tool and it is missing, the skill explains what and why, and asks.
 
-**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh`, Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: `/verify` adds its browser the first time it needs one.
+**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh`, Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. Every other skill keeps point-of-need installs: `/verify` adds its browser the first time it needs one, and a hand-over its tunnel tool.
 
 ## The Cloudflare stack pack
 

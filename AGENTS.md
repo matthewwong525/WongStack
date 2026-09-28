@@ -4,7 +4,7 @@
 
 This repo is **WongStack**: an AI assistant and knowledge center a business owner and their team run their business on, shipped as a **template you clone and work from**. The [payload manifest](.agents/skills/wong-sync/references/payload-manifest.md) lists what ships: skills, rules, the wiki, [OpenSpec](https://github.com/Fission-AI/OpenSpec) records, and the `WONG-STACK` block below. The [README](README.md) tells the user story.
 
-This **meta-repo** ships WongStack *and* dogfoods it, so the block below applies here too. Don't run [`/wong-setup`](.agents/skills/wong-setup/SKILL.md) or [`/wong-sync`](.agents/skills/wong-sync/SKILL.md) here; this is the source, and both stop.
+This **meta-repo** ships WongStack *and* dogfoods it, so the block below applies here too. Don't run [`/wong-setup`](.agents/skills/wong-setup/SKILL.md) or [`/wong-sync`](.agents/skills/wong-sync/SKILL.md) here; both stop.
 
 A payload edit loads [the release rules](.agents/rules/payload.md); the full process: [wiki/development/](wiki/development/README.md).
 
@@ -36,7 +36,7 @@ Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge to the wiki when you learn it**: what will help a future task that is not this one, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge). A change's specifics stay in its proposal and archive.
-- **Browse as the person, one task at a time**: [saved logins](wiki/development/home.md#saved-browser-logins).
+- **Browse as the person, one task at a time; hand over what needs them**: [saved logins](wiki/development/home.md#saved-browser-logins), [hand-over](wiki/development/home.md#hand-the-browser-over).
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads those whose `paths:` match its files.
 
 <!-- WONG-STACK:END -->

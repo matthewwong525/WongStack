@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.21.0 — Take over the agent's browser from your phone
+
+- **You get a private link and take over from anywhere.** When the agent's browser needs you, for a login, a captcha, a code, or a choice it shouldn't make, the agent sends you a link. It opens the agent's browser on your phone or laptop, and you do the step there. A password goes only into the real site, never through the chat. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the how.
+- **Ask for it any time.** Say *let me take over*, and the agent stops using the browser and sends the link. Say *done* when you're finished.
+- **The agent knows when you're done.** It names the page you reach once past the step, such as your inbox, or the captcha box gone, and carries on when that happens. A second code page doesn't count.
+- **The link dies fast.** Each link has a new random address and a secret key. It closes once you're past the step, when you say *done*, or after 10 minutes, even if the chat stops, and never works again. While it's open, the agent reads only the page's address or whether the box is still there.
+- **At the computer, nothing leaves it.** Say you're at the computer the agent runs on, and you get a local link with no tunnel.
+- **New script:** [`hand-over.mjs`](.agents/skills/verify/scripts/hand-over.mjs) in `/verify`'s scripts folder opens the link, watches for the finish, and closes everything. It uses only Node's built-in modules. The rule *Browse as the person* now names the hand-over.
+
+**Updating.** Nothing to do by hand. The first time you take over from another device, the agent asks to install Cloudflare's free tunnel tool, `cloudflared`, which carries the private link. It adds nothing to your project.
+
 ## 26.20.0 — Pushes skip mutation testing
 
 - **A push gets checked in a minute or two again.** `npm test` no longer ends in `stryker run`, so the Test check stops running mutation testing. In a busy repo it made each push wait 7 to 25 minutes.
