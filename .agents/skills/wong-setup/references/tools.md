@@ -2,7 +2,7 @@
 
 [`/wong-setup`](../SKILL.md) runs this after the empty-folder check, before it clones the source. It readies four things, in order: the tools, the GitHub sign-in, the git name and email, and on Windows, folder links. Nothing is written in the target folder until all four pass. Setup checks ahead, unlike other skills, because nothing works until these exist; [required tools](../../../../wiki/development/required-tools.md) says why each is needed.
 
-**The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need two free tools, Node.js and GitHub's app, to set things up. Install them (Recommended), or stop here?"* One yes covers the tools it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up here. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
+**The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, and a tool that links you to it. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
 
 ## 1. The tools
 
@@ -15,7 +15,7 @@ Check each with `command -v`, in this order, since the clone needs `git` and Ope
 | Node.js | `node --version` is at least the major version in the source's `.nvmrc`, read from `https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.nvmrc` |
 | OpenSpec | `openspec --version` answers |
 
-Install each missing one by the first route with **no password prompt**, which the agent's shell cannot answer. Never install a package manager.
+Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask names them. Install each missing one of the four by the first route with **no password prompt**, which the agent's shell cannot answer. Never install a package manager.
 
 | System (`uname -s`) | Route |
 |---|---|
@@ -40,6 +40,15 @@ On macOS, Node's archive is `node-v…-darwin-<arch>.tar.gz` (unpack with `tar -
 **OpenSpec** installs with the command in [the preconditions](../../save/references/preconditions.md), which own the pinned version. When a global npm install needs `sudo`, add `--prefix ~/.local`.
 
 After a user-folder install, run `export PATH="$HOME/.local/bin:$PATH"`, and add that line once to the profile of the shell `$SHELL` names (`~/.zshrc` or `~/.bashrc`). Then check every tool again; one still missing is a failed install.
+
+### The helpers: the browser and the link tool
+
+After the four pass, install each missing helper the same yes covered ([why each](../../../../wiki/development/required-tools.md)):
+
+- **`agent-browser`:** `npm install -g agent-browser` (`--prefix ~/.local` when it needs `sudo`), then `agent-browser install` for its Chrome, with `--with-deps` on Linux only when `sudo -n true` succeeds.
+- **`cloudflared`:** [its route](../../../../wiki/development/required-tools.md#installing-cloudflared) for this system.
+
+A helper still missing after its install is not a stop: say so in one plain line (*"The browser didn't install; I'll offer it again when I need it."*) and continue.
 
 ### Paseo: point to it, never install it
 

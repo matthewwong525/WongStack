@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.23.0 — Setup installs the agent's browser and tunnel tool up front
+
+- **Setup asks once for everything.** Its one install question now also covers the agent's browser and Cloudflare's free tunnel tool, `cloudflared`, which sends you a private link to that browser. Say yes, and nothing stops later to ask. [Get the computer ready](.agents/skills/wong-setup/references/tools.md#the-helpers-the-browser-and-the-link-tool) owns the how.
+- **A failed browser or tunnel install doesn't stop setup.** Setup names the one that didn't install and carries on; the agent offers it again the first time it needs it.
+- **A new agent server has both ready.** [`server/setup.sh`](server/README.md) now installs `cloudflared` from Cloudflare's package repository, with no question, and its final check lists it. It runs only while a link is open, never as a service. wongstack-cloud builds each new server from this script, so it needs no change.
+- **The server check and its promise can't drift apart.** A test fails when the script's final check and *The end state* in `server/README.md` name different tools.
+
+**Updating.** Nothing to do by hand. An existing computer or server asks once, the first time it needs the browser or the tunnel tool.
+
 ## 26.22.0 — Watch the agent browse, in the chat
 
 - **You see pictures as it goes.** While the agent browses for you, it drops a picture of the page into the chat at each key moment: a new page, right before it sends, books, pays for, or deletes something, and the result. One plain line above each says what it shows, so you can catch a wrong page or field before it's done. [Show what the browser is doing](wiki/development/home.md#show-what-the-browser-is-doing) owns the how.

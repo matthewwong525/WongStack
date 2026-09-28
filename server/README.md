@@ -21,8 +21,9 @@ It asks nothing and takes several minutes. It is safe to run again.
 
 After a zero exit:
 
-- `node` (24), `git`, `gh`, `openspec`, `paseo`, `claude`, `codex`, `opencode`, and `agent-browser` are on the workspace user's path.
+- `node` (24), `git`, `gh`, `openspec`, `paseo`, `claude`, `codex`, `opencode`, `agent-browser`, and `cloudflared` are on the workspace user's path.
 - agent-browser's Chrome is in the workspace user's home, with the sandbox on.
+- `cloudflared` runs only while a hand-over's link is open, never as a service.
 - `paseo.service` runs `paseo daemon run` as the workspace user, on `127.0.0.1:6767`.
 
 The script checks this itself last. When a check fails, it prints `missing: <name>` and exits non-zero. Any failed command earlier also stops it with a non-zero exit.

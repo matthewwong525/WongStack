@@ -38,3 +38,17 @@ test('every OpenSpec pin matches the version CI checks the skills against', () =
     assert.equal(pin, ci, `${file} pins OpenSpec ${pin}, but .github/workflows/payload.yml pins ${ci}`);
   }
 });
+
+// The final check and server/README.md's end state promise the same tools; a
+// host reads the README, so a tool on one side only breaks it silently.
+test('the final check names the tools the end state promises', () => {
+  const checked = new Set(readFileSync(script, 'utf8').match(/^for tool in ([^;]+);/m)?.[1].trim().split(/\s+/));
+  const readme = readFileSync(resolve(repo, 'server/README.md'), 'utf8');
+  const bullet = readme.split(/^## The end state$/m)[1]?.match(/^- (.+)$/m)?.[1] ?? '';
+  const promised = new Set([...bullet.matchAll(/`([^`]+)`/g)].map(m => m[1]));
+  assert.ok(checked.size, 'server/setup.sh has no `for tool in` check');
+  assert.ok(promised.size, "server/README.md's end state names no tools");
+  const only = (a, b) => [...a].filter(t => !b.has(t));
+  assert.deepEqual(only(checked, promised), [], 'checked by setup.sh but not in the end state');
+  assert.deepEqual(only(promised, checked), [], 'in the end state but not checked by setup.sh');
+});

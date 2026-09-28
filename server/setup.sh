@@ -35,6 +35,14 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubc
 apt-get update
 apt-get install -y gh
 
+# Only a hand-over starts it, as a quick tunnel, and stops it after: no service.
+step "Cloudflare Tunnel"
+curl -fsSL -o /etc/apt/keyrings/cloudflare-main.gpg https://pkg.cloudflare.com/cloudflare-main.gpg
+chmod go+r /etc/apt/keyrings/cloudflare-main.gpg
+echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" >/etc/apt/sources.list.d/cloudflared.list
+apt-get update
+apt-get install -y cloudflared
+
 step "OpenSpec, Paseo, Codex, OpenCode, agent-browser"
 npm install -g @fission-ai/openspec@1.13.2 @getpaseo/cli @openai/codex opencode-ai agent-browser
 
@@ -85,7 +93,7 @@ systemctl enable --now paseo.service
 # The last word: every promised tool is on the user's path, and Paseo runs.
 step "check"
 missing=0
-for tool in node git gh openspec paseo claude codex opencode agent-browser; do
+for tool in node git gh openspec paseo claude codex opencode agent-browser cloudflared; do
   as_user bash -c "command -v $tool" >/dev/null || { echo "missing: $tool" >&2; missing=1; }
 done
 systemctl is-active --quiet paseo.service || { echo "missing: paseo.service" >&2; missing=1; }
