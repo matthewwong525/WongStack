@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { finished, globToRegExp, keyMatches, tidyTabs, tunnelOrigin } from '../../.agents/skills/verify/scripts/hand-over.mjs';
-import { toPage, typedKeys } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
+import { autofillToken, FIELD_SCAN, fieldBox, finished, globToRegExp, keyMatches, tidyTabs, tunnelOrigin } from '../../.agents/skills/verify/scripts/hand-over.mjs';
+import { sendPlan, toPage, typedKeys } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
@@ -18,8 +18,8 @@ const BLANK = { active: true, label: null, tabId: 't2', title: 'about:blank', ty
 
 // A HOME of its own, and fake cloudflared and agent-browser first on PATH that log each call to one
 // file in order. The fakes print the real shapes recorded from cloudflared 2026.9.3 and
-// agent-browser 0.38.1. The test sets the tabs, the live-feed port, the page address, and the
-// element count through files.
+// agent-browser 0.38.1. The test sets the tabs, the live-feed port, the page address, the
+// element count, and the scanned fields through files; a `fail` file fails each field command.
 function fixture(t, { cloudflared = true } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-'));
   const bin = join(root, 'bin');
@@ -36,6 +36,8 @@ case "$1 $2" in
   "stream enable") rm -f "${file('stream-off')}"; echo "✓ Streaming enabled" ;;
   "get url") cat "${file('url')}" ;;
   "get count") cat "${file('count')}" ;;
+  "eval -b") printf '{"success":true,"data":{"origin":"https://pay.example.com/card","result":%s},"error":null}\n' "$(cat "${file('fields')}")" ;;
+  "fill "*|"focus "*|"select "*|"check "*|"uncheck "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
 esac
 `);
   if (cloudflared) {
@@ -54,6 +56,7 @@ exec sleep 600
   writeFileSync(file('count'), '1\n');
   writeFileSync(file('tabs'), JSON.stringify([{ ...REAL, active: true }]));
   writeFileSync(file('stream-port'), '9\n');
+  writeFileSync(file('fields'), '[]\n');
   // Without cloudflared, PATH is the fake bin alone, so it carries the two tools the fake uses.
   if (!cloudflared) for (const tool of ['cat', 'rm']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
   const env = { ...process.env, HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50' };
@@ -318,4 +321,148 @@ test('typedKeys turns each change of the box into key presses at the caret', () 
   assert.deepEqual(typedKeys('41', '4111 1111'), Array.from('11 1111', text => ({ text })));
   assert.deepEqual(typedKeys('a', 'a😀'), [{ text: '😀' }]);
   assert.deepEqual(typedKeys('same', 'same'), []);
+});
+
+// A card form as FIELD_SCAN returns it from agent-browser 0.38.1 (the live check's fixture page).
+const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+const CARD_FORM = [
+  { kind: 'text', type: 'text', label: 'Card number', autocomplete: 'off', name: 'ekashu_card_number', id: 'ekashu_card_number', placeholder: '', required: true, options: [], selector: '#ekashu_card_number' },
+  { kind: 'select', type: 'select', label: 'Expires End', autocomplete: '', name: 'ekashu_expires_end_month', id: 'ekashu_expires_end_month', placeholder: '', required: true, options: [{ value: '', text: 'MM' }, ...MONTHS.map(m => ({ value: m, text: m }))], selector: '#ekashu_expires_end_month' },
+  { kind: 'checkbox', type: 'checkbox', label: 'I agree', autocomplete: '', name: 'agree', id: '', placeholder: '', required: false, options: [], selector: 'body > form:nth-of-type(1) > p:nth-of-type(4) > label:nth-of-type(1) > input:nth-of-type(1)' },
+];
+
+/** Calls a field route with the key header unless `key` is null; resolves to the status and JSON. */
+async function route(port, key, path, body) {
+  const response = await fetch(`http://127.0.0.1:${port}/${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: key === null ? {} : { 'x-hand-over-key': key },
+    body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+  });
+  const text = await response.text();
+  return { status: response.status, json: text ? JSON.parse(text) : null };
+}
+
+test('GET /fields needs the key and lists the scanned fields by ref, without a selector', async t => {
+  const f = fixture(t, { cloudflared: false });
+  f.set('fields', JSON.stringify(CARD_FORM));
+  const { port, key } = opened(f, '--local');
+  const before = f.calls().length;
+  assert.equal((await route(port, null, 'fields')).status, 403);
+  assert.equal((await route(port, '0'.repeat(64), 'fields')).status, 403);
+  assert.equal(f.calls().length, before, 'nothing ran without the key');
+  const { status, json } = await route(port, key, 'fields');
+  assert.equal(status, 200);
+  assert.match(json.signature, /^[0-9a-f]{64}$/);
+  assert.deepEqual(json.fields.map(({ ref, kind, label, autocomplete, type, inputmode }) => ({ ref, kind, label, autocomplete, type, inputmode })), [
+    { ref: 0, kind: 'text', label: 'Card number', autocomplete: 'cc-number', type: 'text', inputmode: 'numeric' },
+    { ref: 1, kind: 'select', label: 'Expires End', autocomplete: 'cc-exp-month', type: 'text', inputmode: '' },
+    { ref: 2, kind: 'checkbox', label: 'I agree', autocomplete: '', type: 'text', inputmode: '' },
+  ]);
+  assert.deepEqual(json.fields[1].options[3], { value: '03', text: '03' });
+  assert.doesNotMatch(JSON.stringify(json), /selector|#ekashu|nth-of-type/);
+  assert.deepEqual(f.calls().slice(before), [`agent-browser eval -b ${Buffer.from(FIELD_SCAN).toString('base64')} --json`]);
+  assert.equal((await route(port, key, 'fields')).json.signature, json.signature, 'the same page, the same signature');
+});
+
+test('the field routes set a field only by a current ref, with the calls each route records', async t => {
+  const f = fixture(t, { cloudflared: false });
+  f.set('fields', JSON.stringify(CARD_FORM));
+  const { port, key } = opened(f, '--local');
+  assert.equal((await route(port, key, 'focus', { ref: 0 })).status, 409, 'no scan yet, so no ref is current');
+  await route(port, key, 'fields');
+  const before = f.calls().length;
+
+  assert.equal((await route(port, null, 'focus', { ref: 0 })).status, 403);
+  for (const bad of ['{', '[0]', '{}', { ref: -1 }, { ref: '0' }, { ref: 0, pad: 'x'.repeat(5000) }]) assert.equal((await route(port, key, 'focus', bad)).status, 400, JSON.stringify(bad));
+  assert.equal((await route(port, key, 'select', { ref: 1, value: '13' })).status, 400, 'a choice the page does not offer');
+  assert.equal((await route(port, key, 'select', { ref: 0, value: '03' })).status, 400, 'a text box is not a dropdown');
+  assert.equal((await route(port, key, 'check', { ref: 2, checked: 'yes' })).status, 400);
+  assert.equal((await route(port, key, 'focus', { ref: 7 })).status, 409, 'a ref past the scan is stale');
+  assert.equal((await route(port, key, 'focus')).status, 405);
+  assert.equal(f.calls().length, before, 'no refused request reached agent-browser');
+
+  const ok = { status: 200, json: { ok: true } };
+  assert.deepEqual(await route(port, key, 'focus', { ref: 0 }), ok);
+  assert.deepEqual(await route(port, key, 'select', { ref: 1, value: '03' }), ok);
+  assert.deepEqual(await route(port, key, 'check', { ref: 2, checked: true }), ok);
+  assert.deepEqual(await route(port, key, 'check', { ref: 2, checked: false }), ok);
+  const box = CARD_FORM[2].selector;
+  assert.deepEqual(f.calls().slice(before), ['agent-browser fill #ekashu_card_number ', 'agent-browser focus #ekashu_card_number', 'agent-browser select #ekashu_expires_end_month 03', `agent-browser check ${box}`, `agent-browser uncheck ${box}`]);
+
+  f.set('fail', '');
+  assert.equal((await route(port, key, 'focus', { ref: 0 })).status, 409, 'a field that is gone answers 409');
+});
+
+test('FIELD_SCAN reads no value, tick state, or choice', () => {
+  for (const read of ['.value', '.checked', '.selectedIndex', '.selected', '.defaultValue']) assert.ok(!FIELD_SCAN.includes(read), read);
+  assert.doesNotThrow(() => new Function(`return ${FIELD_SCAN}`));
+});
+
+test('autofillToken takes the page\'s own mark, then the field\'s words, then its type', () => {
+  const token = (label, extra = {}) => autofillToken({ name: '', id: '', label, placeholder: '', type: 'text', options: [], ...extra });
+  const table = {
+    'cc-number': ['Card number', 'cardnum', 'CCNum', 'PAN'],
+    'cc-csc': ['CVV', 'cvc2', 'Security code', 'Card verification number'],
+    'cc-exp-month': ['Expiry month', 'MM', 'expMonth'],
+    'cc-exp-year': ['Expiry year', 'YY', 'exp_year'],
+    'cc-exp': ['Expiry date', 'Expiration', 'MM/YY'],
+    'cc-name': ['Name on card', 'Cardholder'],
+    'one-time-code': ['OTP', 'One-time code', 'Verification code', '2FA code'],
+    'new-password': ['New password', 'Confirm password'],
+    'current-password': ['Password'],
+    email: ['Email address', 'e-mail'],
+    username: ['Username', 'Login'],
+    tel: ['Phone', 'Mobile number'],
+    'postal-code': ['Postal code', 'ZIP'],
+    'address-line1': ['Street address'],
+    'address-level2': ['City'],
+    country: ['Country'],
+    'given-name': ['First name'],
+    'family-name': ['Last name', 'Surname'],
+    name: ['Full name'],
+  };
+  for (const [want, labels] of Object.entries(table)) for (const label of labels) assert.equal(token(label), want, label);
+
+  assert.equal(token('Card', { autocomplete: 'section-pay billing cc-number' }), 'cc-number');
+  assert.equal(token('Card', { autocomplete: 'shipping tel' }), 'tel');
+  assert.equal(token('Card number', { autocomplete: 'off' }), 'cc-number', 'off is ignored');
+  assert.equal(token('Card number', { autocomplete: 'on' }), 'cc-number', 'on is ignored');
+  assert.equal(token('Anything', { type: 'email' }), 'email');
+  assert.equal(token('Anything', { type: 'tel' }), 'tel');
+  assert.equal(token('Secret', { type: 'password' }), 'current-password');
+  assert.equal(token('Notes'), '');
+
+  // ekashu's card page: names only, and one label for both expiry dropdowns.
+  assert.equal(token('', { name: 'ekashu_card_number' }), 'cc-number');
+  assert.equal(token('', { name: 'ekashu_card_security_code' }), 'cc-csc');
+  const choices = texts => [{ value: '', text: 'Select' }, ...texts.map(text => ({ value: text, text }))];
+  const years = ['2026', '2027', '2028', '2029', '2030'];
+  assert.equal(token('Expires End', { name: 'ekashu_expires_end_month', type: 'select', options: choices(MONTHS) }), 'cc-exp-month');
+  assert.equal(token('Expires End', { name: 'ekashu_expires_end_year', type: 'select', options: choices(years) }), 'cc-exp-year');
+  assert.equal(token('Expires End', { type: 'select', options: choices(MONTHS) }), 'cc-exp-month', 'a month list with no month in the words');
+  assert.equal(token('Expires End', { type: 'select', options: choices(['26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37']) }), 'cc-exp-year', 'twelve two-digit years are not months');
+});
+
+test('fieldBox gives the box the type and keyboard its token implies', () => {
+  const box = label => fieldBox({ name: '', id: '', label, placeholder: '', type: 'text', options: [] });
+  assert.deepEqual(box('Card number'), { autocomplete: 'cc-number', type: 'text', inputmode: 'numeric' });
+  assert.deepEqual(box('CVV'), { autocomplete: 'cc-csc', type: 'text', inputmode: 'numeric' });
+  assert.deepEqual(box('One-time code'), { autocomplete: 'one-time-code', type: 'text', inputmode: 'numeric' });
+  assert.deepEqual(box('Password'), { autocomplete: 'current-password', type: 'password', inputmode: '' });
+  assert.deepEqual(box('New password'), { autocomplete: 'new-password', type: 'password', inputmode: '' });
+  assert.deepEqual(box('Email'), { autocomplete: 'email', type: 'email', inputmode: '' });
+  assert.deepEqual(box('Phone'), { autocomplete: 'tel', type: 'tel', inputmode: '' });
+  assert.deepEqual(box('Postal code'), { autocomplete: 'postal-code', type: 'text', inputmode: '' }, 'a Canadian postal code has letters');
+  assert.deepEqual(box('Notes'), { autocomplete: '', type: 'text', inputmode: '' });
+});
+
+test('sendPlan presses only new letters at the end of a focused field, else refocuses and retypes', () => {
+  const keys = text => Array.from(text);
+  assert.deepEqual(sendPlan('4111', '41111', true), { focus: false, keys: ['1'] }, 'append');
+  assert.deepEqual(sendPlan('', '4', true), { focus: false, keys: ['4'] });
+  assert.deepEqual(sendPlan('41111', '4111', true), { focus: true, keys: keys('4111') }, 'deletion');
+  assert.deepEqual(sendPlan('', '4111 1111 1111 1111', false), { focus: true, keys: keys('4111 1111 1111 1111') }, 'a whole value filled into an unfocused field');
+  assert.deepEqual(sendPlan('41', '4111', false), { focus: true, keys: keys('4111') }, 'another field was focused since');
+  assert.deepEqual(sendPlan('abc', 'xbc', true), { focus: true, keys: keys('xbc') }, 'a change before the end');
+  assert.deepEqual(sendPlan('abc', '', true), { focus: true, keys: [] }, 'emptied: cleared, nothing pressed');
 });

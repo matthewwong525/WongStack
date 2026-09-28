@@ -15,7 +15,15 @@
 // port and passes `/stream?key=<hex>` through to the live feed, with no `Origin`, never reading a
 // frame. It polls every 2 seconds, reading only `agent-browser get url` (matched against `--until`:
 // `**` any run, `*` no `/`) and `agent-browser get count <selector>` (0 meets `--until-gone`); both
-// given means both must hold, neither means only `close` or the deadline ends it. On finish,
+// given means both must hold, neither means only `close` or the deadline ends it.
+//
+// For the page's field list it also serves four routes, each needing the key in an `x-hand-over-key`
+// header. `GET /fields` runs the fixed FIELD_SCAN through `agent-browser eval`, which reads each
+// field's label, kind, marks, and a dropdown's choices, never a value, tick state, or current choice;
+// the page gets them with a `ref` per field and never sees a selector. `POST /focus` clears and
+// focuses a field (`fill <sel> ""`, `focus <sel>`), `POST /select` picks a scanned choice, and
+// `POST /check` ticks or unticks a box. Typed text never reaches the watcher: the page sends it as key
+// presses over the live feed. The routes run one at a time and log nothing. On finish,
 // deadline, `close`, or a signal it closes the page, kills the tunnel, and writes `result.json` with
 // no address or key in it. `wait` blocks for that result and prints
 // `HANDOVER_RESULT=done|timeout|closed|error`.
@@ -25,7 +33,7 @@
 // Node built-ins only. HANDOVER_POLL_MS overrides the 2-second poll, for tests.
 
 import { execFile, spawn, spawnSync } from 'node:child_process';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { connect, createServer as createTcpServer } from 'node:net';
@@ -51,7 +59,90 @@ const PAGES = {
   '/page.mjs': { file: join(HERE, 'hand-over-page.mjs'), type: 'text/javascript; charset=utf-8' },
 };
 const BLANK_URLS = new Set(['', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/']);
+const BODY_LIMIT = 4096;
 const sleep = ms => new Promise(done => setTimeout(done, ms));
+
+/**
+ * The page script behind `GET /fields`: the top document's visible, enabled, writable text fields,
+ * dropdowns, and tick boxes in page order, at most 40, each with a selector the watcher keeps. It reads
+ * attributes, labels, and a dropdown's choices, and never a field's value, tick state, or choice.
+ */
+export const FIELD_SCAN = `(() => {
+  const SKIP = new Set(['hidden', 'submit', 'button', 'reset', 'image', 'file', 'radio', 'range', 'color']);
+  const clean = text => String(text ?? '').replace(/\\s+/g, ' ').trim().slice(0, 80);
+  const textOf = node => {
+    const copy = node.cloneNode(true);
+    for (const inner of copy.querySelectorAll('input, select, textarea, script, style')) inner.remove();
+    return copy.textContent;
+  };
+  const byIds = ids => ids.split(/\\s+/).map(id => document.getElementById(id)).filter(Boolean).map(textOf).join(' ');
+  const labelOf = field => clean(field.labels?.[0] && textOf(field.labels[0])) || clean(field.getAttribute('aria-label'))
+    || clean(byIds(field.getAttribute('aria-labelledby') ?? '')) || clean(field.getAttribute('placeholder')) || clean(field.getAttribute('name'));
+  const path = field => {
+    const steps = [];
+    for (let node = field; node && node !== document.body; node = node.parentElement) {
+      let nth = 1;
+      for (let before = node.previousElementSibling; before; before = before.previousElementSibling) if (before.localName === node.localName) nth++;
+      steps.unshift(node.localName + ':nth-of-type(' + nth + ')');
+    }
+    return 'body > ' + steps.join(' > ');
+  };
+  const selectorOf = field => field.id && document.querySelectorAll('#' + CSS.escape(field.id)).length === 1 ? '#' + CSS.escape(field.id) : path(field);
+  const fields = [];
+  for (const field of document.querySelectorAll('input, select, textarea')) {
+    const type = field.localName === 'input' ? field.type : field.localName;
+    if (SKIP.has(type) || field.disabled || field.readOnly || !field.getClientRects().length) continue;
+    fields.push({
+      kind: type === 'select' ? 'select' : type === 'checkbox' ? 'checkbox' : 'text',
+      type,
+      label: labelOf(field),
+      autocomplete: field.getAttribute('autocomplete') ?? '',
+      name: field.getAttribute('name') ?? '',
+      id: field.id,
+      placeholder: field.getAttribute('placeholder') ?? '',
+      required: field.required,
+      options: type === 'select' ? Array.from(field.options, option => ({ value: option.getAttribute('value') ?? option.text, text: clean(option.text) })) : [],
+      selector: selectorOf(field),
+    });
+    if (fields.length === 40) break;
+  }
+  return fields;
+})()`;
+
+/** The HTML autofill field names a page's own `autocomplete` may end in. */
+const AUTOFILL_TOKENS = new Set(['name', 'honorific-prefix', 'given-name', 'additional-name', 'family-name', 'honorific-suffix', 'nickname', 'username', 'new-password', 'current-password', 'one-time-code', 'organization-title', 'organization', 'street-address', 'address-line1', 'address-line2', 'address-line3', 'address-level4', 'address-level3', 'address-level2', 'address-level1', 'country', 'country-name', 'postal-code', 'cc-name', 'cc-given-name', 'cc-additional-name', 'cc-family-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc', 'cc-type', 'transaction-currency', 'transaction-amount', 'language', 'bday', 'bday-day', 'bday-month', 'bday-year', 'sex', 'url', 'photo', 'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-extension', 'email', 'impp']);
+const MONTHS = /^((0?[1-9]|1[0-2])\b|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/;
+const EXP = /\bexp|\bvalid/;
+
+/** The choices of a dropdown that look like a date part, placeholders such as *Month* left out. */
+const dateChoices = options => (options ?? []).map(option => option.text.toLowerCase()).filter(text => /^\d+$/.test(text) || MONTHS.test(text));
+const monthList = options => { const texts = dateChoices(options); return texts.length === 12 && texts.every(text => MONTHS.test(text)); };
+const yearList = options => { const texts = dateChoices(options); return texts.length > 1 && !monthList(options) && texts.every(text => /^(\d{2}|\d{4})$/.test(text)); };
+
+/** The first rule matching a field's joined name, id, label, and placeholder names its token. */
+const AUTOFILL_RULES = [
+  ['cc-number', words => /\bcard ?(number|num|no)\b|\bcardnum|\bcc ?num|\bpan\b/.test(words)],
+  ['cc-csc', words => /\b(cvv2?|cvc2?|cvn|cv2|csc)\b|security code|card verification|verification (number|value)/.test(words)],
+  ['cc-exp-month', (words, field) => /\bmm\b(?! ?\/)/.test(words) || (EXP.test(words) && (/\bmonth/.test(words) || monthList(field.options)))],
+  ['cc-exp-year', (words, field) => /(?<!\/ ?)\byy(yy)?\b/.test(words) || (EXP.test(words) && (/\byear/.test(words) || yearList(field.options)))],
+  ['cc-exp', words => /expir|\bexp\b|\bmm ?\/ ?yy/.test(words)],
+  ['cc-name', words => /name on card|card ?holder|\bcc ?name/.test(words)],
+  ['one-time-code', words => /\botp\b|one ?time|verification code|\b2fa\b|\bmfa\b/.test(words)],
+  ['new-password', words => /pass ?(word|wd)|\bpwd\b/.test(words) && /\bnew|confirm|repeat|again/.test(words)],
+  ['current-password', words => /pass ?(word|wd)|\bpwd\b/.test(words)],
+  ['email', words => /e ?mail/.test(words)],
+  ['username', words => /\buser|\blog ?in\b/.test(words)],
+  ['tel', words => /phone|mobile|\btel\b/.test(words)],
+  ['postal-code', words => /postal|\bzip|post ?code/.test(words)],
+  ['address-line1', words => /address|street/.test(words)],
+  ['address-level2', words => /\bcity\b|\btown\b/.test(words)],
+  ['country', words => /country/.test(words)],
+  ['given-name', words => /first ?name|given ?name/.test(words)],
+  ['family-name', words => /last ?name|surname|family ?name/.test(words)],
+  ['name', words => /full ?name/.test(words)],
+];
+const TYPE_TOKENS = { email: 'email', tel: 'tel', password: 'current-password' };
+const NUMERIC_TOKENS = new Set(['cc-number', 'cc-csc', 'one-time-code']);
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -85,6 +176,24 @@ export function tidyTabs(tabs) {
   if (!real.length) return { close: [], front: null };
   const active = tabs.find(tab => tab.active);
   return { close: tabs.filter(blank).map(tab => tab.tabId), front: !active || blank(active) ? real.at(-1).tabId : null };
+}
+
+/**
+ * The autofill token for a scanned field, so a password manager can fill its box, or '': the page's
+ * own `autocomplete` when it ends in a known token, else the first rule its words match, else its type.
+ */
+export function autofillToken(field) {
+  const own = (field.autocomplete ?? '').toLowerCase().split(/\s+/).findLast(word => AUTOFILL_TOKENS.has(word));
+  if (own) return own;
+  const words = [field.name, field.id, field.label, field.placeholder].join(' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[^a-zA-Z0-9/]+/g, ' ').toLowerCase();
+  return AUTOFILL_RULES.find(([, matches]) => matches(words, field))?.[0] ?? TYPE_TOKENS[field.type] ?? '';
+}
+
+/** The hand-over page's box for a field: its autofill token and the `type` and `inputmode` it implies. */
+export function fieldBox(field) {
+  const autocomplete = autofillToken(field);
+  const type = autocomplete.endsWith('-password') ? 'password' : autocomplete === 'email' || autocomplete === 'tel' ? autocomplete : 'text';
+  return { autocomplete, type, inputmode: NUMERIC_TOKENS.has(autocomplete) ? 'numeric' : '' };
 }
 
 /** True when `given` is the hand-over key, compared in constant time. */
@@ -155,15 +264,105 @@ function refuse(socket, status) {
   socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
 }
 
+/** Ends a route with a JSON reply, or an empty one. */
+function reply(response, status, body) {
+  const text = body ? JSON.stringify(body) : '';
+  response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
+}
+
+/** A request's JSON object body, or null when it is not one or passes BODY_LIMIT. */
+async function readBody(request) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size <= BODY_LIMIT) chunks.push(chunk);
+  }
+  if (size > BODY_LIMIT) return null;
+  try {
+    const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    return body && typeof body === 'object' && !Array.isArray(body) ? body : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Each POST field route: the field kind it acts on, and its agent-browser calls, or null for a bad body. */
+const FIELD_ACTIONS = {
+  '/focus': { kind: 'text', calls: field => [['fill', field.selector, ''], ['focus', field.selector]] },
+  '/select': { kind: 'select', calls: (field, { value }) => (field.options.some(option => option.value === value) ? [['select', field.selector, value]] : null) },
+  '/check': { kind: 'checkbox', calls: (field, { checked }) => (typeof checked === 'boolean' ? [[checked ? 'check' : 'uncheck', field.selector]] : null) },
+};
+
+/**
+ * The field list's routes. The last scan's fields, selectors included, stay here; the page names a
+ * field only by its `ref`, an index into that scan. Every agent-browser call runs through one queue.
+ */
+function fieldRoutes() {
+  let scanned = [];
+  let queue = Promise.resolve();
+  let scanning = null;
+  const serial = job => {
+    const run = queue.then(job);
+    queue = run.catch(() => {});
+    return run;
+  };
+  const readFields = async () => {
+    const found = (await browserData(['eval', '-b', Buffer.from(FIELD_SCAN).toString('base64')]))?.result;
+    if (!Array.isArray(found)) return null;
+    scanned = found;
+    const fields = found.map((field, ref) => ({ ref, kind: field.kind, label: field.label, ...fieldBox(field), options: field.options.map(({ value, text }) => ({ value, text })) }));
+    return { signature: createHash('sha256').update(JSON.stringify(fields)).digest('hex'), fields };
+  };
+  // A request joins a scan already waiting, unless a command was queued since: a pick can show a new field.
+  const scan = () => {
+    if (!scanning) {
+      const run = serial(readFields).catch(() => null);
+      scanning = run;
+      run.then(() => { if (scanning === run) scanning = null; });
+    }
+    return scanning;
+  };
+
+  return async (pathname, request, response) => {
+    if (pathname === '/fields') {
+      if (request.method !== 'GET') return reply(response, 405);
+      const list = await scan();
+      return list ? reply(response, 200, list) : reply(response, 503);
+    }
+    if (request.method !== 'POST') return reply(response, 405);
+    const body = await readBody(request);
+    const action = FIELD_ACTIONS[pathname];
+    if (!body || !Number.isInteger(body.ref) || body.ref < 0) return reply(response, 400);
+    const field = scanned[body.ref];
+    if (!field) return reply(response, 409);
+    const calls = field.kind === action.kind && action.calls(field, body);
+    if (!calls) return reply(response, 400);
+    scanning = null;
+    const ok = await serial(async () => {
+      for (const args of calls) if ((await browser(args)) === null) return false;
+      return true;
+    });
+    return ok ? reply(response, 200, { ok }) : reply(response, 409);
+  };
+}
+
 /**
  * Serves the page on 127.0.0.1:`port` and pipes `/stream?key=<key>` to the live feed on
- * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. Resolves to a close().
+ * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes need
+ * the key in an `x-hand-over-key` header. Resolves to a close().
  */
 export function servePage({ port, streamPort, key }) {
   const sockets = new Set();
   const track = socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); return socket; };
+  const fields = fieldRoutes();
   const server = createServer((request, response) => {
-    const page = request.method === 'GET' && PAGES[new URL(request.url, 'http://page').pathname];
+    const { pathname } = new URL(request.url, 'http://page');
+    if (pathname === '/fields' || FIELD_ACTIONS[pathname]) {
+      if (!keyMatches(request.headers['x-hand-over-key'], key)) return reply(response, 403);
+      return void fields(pathname, request, response).catch(() => reply(response, 500));
+    }
+    const page = request.method === 'GET' && PAGES[pathname];
     if (!page) {
       response.writeHead(404, { 'content-length': 0 }).end();
       return;

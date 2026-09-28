@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Fill a handed-over form from a list of its fields
+
+- **Every field in one list, dropdowns included.** When the agent hands you its browser, the page now lists the site's fields under the live view, each with its label: a box for each text field, a dropdown with the site's own choices, and a tick box. What you type or pick lands in that field as you go, so an expiry month or year dropdown works from a phone at last. You then tap the site's own *Pay* or *Sign in* button in the live view.
+- **Your password manager fills it in one tap.** Each box says what it holds (card number, expiry, security code, email, password, one-time code), worked out from the site's own marks or the field's name and label. So 1Password or your phone's autofill can fill the whole list at once.
+- **Private as before.** The list shows only labels and choices, never what's in a field. What you type goes to the site and nowhere else; the agent still sees only the page's address, or whether the box it waits on is gone.
+- **A multiple choice before the link.** Before a hand-over, the agent now asks with two choices, *Ready, send the link* or *Not now*, instead of a plain question you have to type an answer to.
+- **The old way still works.** A field the list can't reach, such as one inside a payment provider's embedded box, still works by tapping it in the live view and typing under *Other typing*. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the details.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.29.0 — Ask in chat before handing the browser over
 
 - **A yes or no is a chat question.** Before the agent publishes, sends, books, pays for, or deletes something in its browser, it asks you in the chat, with a picture of the page, and waits for your yes. It never hands you the browser just to get that answer.
