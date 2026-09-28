@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Pushes skip mutation testing
+## 26.20.0 — Pushes skip mutation testing
 
 - **A push gets checked in a minute or two again.** `npm test` no longer ends in `stryker run`, so the Test check stops running mutation testing. In a busy repo it made each push wait 7 to 25 minutes.
 - **One pull request can't turn others red.** Stryker reused saved results its own diff could not see were stale, so a weak test passed on its branch, turned the main branch red after merging, then failed pull requests that never touched that code. With no saved results, that can't happen.

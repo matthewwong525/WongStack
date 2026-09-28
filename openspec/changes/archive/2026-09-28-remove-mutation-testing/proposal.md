@@ -1,6 +1,6 @@
 # Remove mutation testing
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** stryker-merge-performance
 **Open questions:** none.
 
@@ -44,6 +44,10 @@ Non-goals: replacing mutation testing with another tool, updating Vitest to 5 (S
 - **2026-09-28** — Assumed: `app/.gitignore` keeps `reports`, because it stops an old local `reports/stryker-incremental.json` from being committed.
 - **2026-09-28** — implemented tasks 1.1–4.2: Stryker leaves `npm test`, the packages, and the scaffold; `test.yml` loses the nightly run, the cache steps, and the 60-minute limit; `/ship` drops the red-nightly sentence; a `## Next (minor)` CHANGELOG entry. Payload links, OpenSpec config, retired names, and loosened checks pass locally. Task 5.1 waits for `/save`'s CI run.
 - **2026-09-28** — saved for task 5.1's CI evidence; the `ci-tests` and `app-scaffold` deltas are synced to `openspec/specs/`.
+- **2026-09-28** — evidence, task 5.1 ([36375938169](https://github.com/matthewwong525/WongStack/actions/runs/36375938169), push of `208bdaf`): Test job green in 22 s; steps are checkout, scope, locate, install, Test, loosened checks, summary, with no Stryker restore, save, or run; 7 test files passed at 100% coverage; loosened checks marked `app/stryker.conf.json` explained.
+- **2026-09-28** — ship distill: no repeatable fact. The live facts are this change's decision and two threads (wongstack-cloud's sync, the Vitest 5 hold).
+- **2026-09-28** — archived for shipping; the `ci-tests` and `app-scaffold` deltas were already synced to `openspec/specs/` at the 5.1 save, so the archive uses `--skip-specs` after an equality check.
+- **2026-09-28** — archive checkpoint: `origin/main` unchanged since the branch point; numbered release 26.20.0.
 
 ## Capabilities
 

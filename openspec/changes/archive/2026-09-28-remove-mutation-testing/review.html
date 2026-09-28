@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · remove-mutation-testing</title>
+<title>Review · 2026-09-28-remove-mutation-testing</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="remove-mutation-testing">
+<body data-change="2026-09-28-remove-mutation-testing">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>remove-mutation-testing</h1>
+  <h1>2026-09-28-remove-mutation-testing</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -142,6 +142,10 @@
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: <code>app/.gitignore</code> keeps <code>reports</code>, because it stops an old local <code>reports/stryker-incremental.json</code> from being committed.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>implemented tasks 1.1–4.2: Stryker leaves <code>npm test</code>, the packages, and the scaffold; <code>test.yml</code> loses the nightly run, the cache steps, and the 60-minute limit; <code>/ship</code> drops the red-nightly sentence; a <code>## Next (minor)</code> CHANGELOG entry. Payload links, OpenSpec config, retired names, and loosened checks pass locally. Task 5.1 waits for <code>/save</code>'s CI run.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>saved for task 5.1's CI evidence; the <code>ci-tests</code> and <code>app-scaffold</code> deltas are synced to <code>openspec/specs/</code>.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>evidence, task 5.1 (<a href="https://github.com/matthewwong525/WongStack/actions/runs/36375938169">36375938169</a>, push of <code>208bdaf</code>): Test job green in 22 s; steps are checkout, scope, locate, install, Test, loosened checks, summary, with no Stryker restore, save, or run; 7 test files passed at 100% coverage; loosened checks marked <code>app/stryker.conf.json</code> explained.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>ship distill: no repeatable fact. The live facts are this change's decision and two threads (wongstack-cloud's sync, the Vitest 5 hold).</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>archived for shipping; the <code>ci-tests</code> and <code>app-scaffold</code> deltas were already synced to <code>openspec/specs/</code> at the 5.1 save, so the archive uses <code>--skip-specs</code> after an equality check.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>archive checkpoint: <code>origin/main</code> unchanged since the branch point; numbered release 26.20.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

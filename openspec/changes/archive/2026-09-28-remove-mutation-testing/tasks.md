@@ -24,4 +24,4 @@
 
 ## 5. Evidence
 
-- [ ] 5.1 `/save` the change and record the branch's Test run: green, no Stryker step in the log, and its time.
+- [x] 5.1 `/save` the change and record the branch's Test run: green, no Stryker step in the log, and its time.
