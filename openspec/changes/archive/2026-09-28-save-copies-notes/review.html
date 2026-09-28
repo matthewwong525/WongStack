@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -8,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-09-28-save-copies-notes</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,17 +93,61 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-09-28-save-copies-notes">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-09-28-save-copies-notes</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">On a plan's review page, you save each note, then must remember to tap Copy notes before you paste them into chat. Forget that step and the chat gets old notes, or none.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Save copies every saved note, ready to paste.</b> Each time you save a note, the page puts all your saved notes on the clipboard in the same message Copy notes makes, and says so: <i>Saved and copied 3 notes. Paste them into chat to update the plan.</i> Drafts still stay out.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">type a note</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">    │</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">    ▼</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">tap Save</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">    │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">    ▼</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">all saved notes</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">on the clipboard</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">    │</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">    ▼</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">&quot;Saved and copied 3 notes.</span>
+<span class="ln" data-note="item-1-line-12" tabindex="0"> Paste them into chat…&quot;</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The page tells you before you save.</b> The hint at the top and the line under the Save button both say saving copies all your notes. The Copy notes button stays, for copying again after you delete one.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">┌──────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">│ #/2 · item &quot;Item two …&quot;      │</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">│ ┌──────────────────────────┐ │</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">│ │ What should change here? │ │</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">│ └──────────────────────────┘ │</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">│ [Save] Discard  Close        │</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0">│ Saving copies all your notes.│</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">└──────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>If the copy fails, the note is still saved.</b> The page says <i>Saved. Tap Copy notes to copy them.</i></div></div></li>
+</ol>
+<p class="aside">Non-goals: no change to the copied message's wording, no auto-copy on delete or discard, no change to drafts.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: copy on Save only, not on Delete, because the request names saving, and Copy notes still copies after a delete.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: keep the Copy notes button, because it recopies after a delete and after a failed copy.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the copied block is the one Copy notes makes, saved notes only, because that is what the plan update reads.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: say it in the header hint, a line under Save, and the toast after, because the request asks the page to say it will copy.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: a minor release, because reviewers get a new behavior.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Built: Save and Copy notes share one copy routine; Save copies every saved note and toasts the result; the header hint and a line under Save say so; the fallback copy hands focus back. A new browser test covers it; the four payload checks and both review test files pass.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Distilled: no repeatable fact beyond <code>wiki/ux-principles.md</code>'s <i>The review file</i>, which now says Save copies too; the session wrote none.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Archived and checkpointed for merge by <code>/ship</code>.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>

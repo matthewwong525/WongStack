@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.19.0 — Saving a note copies all your notes
+
+- **Save copies every saved note, ready to paste.** On a plan's review page, each time you save a note, the page puts all your saved notes on the clipboard, in the same message Copy notes makes. It then says *Saved and copied 3 notes. Paste them into chat to update the plan.* Drafts still stay out.
+- **The page says so before you save.** The hint at the top and a line under the Save button both read *Saving a note copies all your notes.* Copy notes stays, for copying again after you delete a note.
+- **A failed copy keeps the note.** The page says *Saved. Tap Copy notes to copy them.*
+
+**Updating.** Nothing to do by hand. A plan's review page picks this up the next time it's rebuilt.
+
 ## 26.18.1 — The browser tool reads its own current guide
 
 - **The agent loads the browser tool's guide before it drives the browser.** Before `/verify` writes a preview check's browser steps, and before a task uses your saved logins, the agent runs `agent-browser skills get core`. That guide comes with the installed tool, so it always matches its version and the steps never go stale. [The walkthrough](.agents/skills/verify/references/walkthrough.md) and [Saved browser logins](wiki/development/home.md#saved-browser-logins) each say so once.
