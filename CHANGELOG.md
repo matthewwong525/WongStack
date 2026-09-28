@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.29.0 — Ask in chat before handing the browser over
+
+- **A yes or no is a chat question.** Before the agent publishes, sends, books, pays for, or deletes something in its browser, it asks you in the chat, with a picture of the page, and waits for your yes. It never hands you the browser just to get that answer.
+- **The link comes after you answer.** When a step needs you on the page (a login, a code, a card), the agent first asks in the chat whether you're ready, and sends the link only once you reply. A link dies after 10 minutes, so one sent while you're away was dead by the time you saw it. If you just said *let me take over*, the link comes straight away. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the rule.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.28.0 — Close a workspace from any finished task
 
 - **A new `/close` wraps up a chat in one go.** It asks nothing. It saves what the chat learned, saves any unfinished work to GitHub, and otherwise updates the wiki. Then it closes the workspace; the chat stays readable in Paseo's archived list. [`/close`](.agents/skills/close/SKILL.md) owns the steps.

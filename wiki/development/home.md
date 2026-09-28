@@ -39,7 +39,8 @@ The agent reaches your accounts (mail, calendar, banking) through [agent-browser
 
 While the agent browses for you, it drops a picture of the page into the chat at each key moment, so you can catch a wrong page or a wrong field before it's too late.
 
-- **When.** Each new page, right before an action that sends, books, pays for, or deletes something, and the result. Not after every click or keystroke: a flood of pictures hides the one that matters.
+- **When.** Each new page, right before an action that publishes, sends, books, pays for, or deletes something, and the result. Not after every click or keystroke: a flood of pictures hides the one that matters.
+- **A picture before a yes.** Before one of those actions, the picture goes with a question in the chat: *Publish the site now?* The agent waits for your yes, however long you take, then acts.
 - **How.** The agent takes the picture into agent-browser's temp folder, then opens the path it prints with its own image tool (Claude's Read, Codex's image view). [Paseo](https://paseo.sh) shows an image a tool opens as a picture in the chat; a terminal shows a placeholder, which does no harm.
 
   ```bash
@@ -55,7 +56,8 @@ While the agent browses for you, it drops a picture of the page into the chat at
 
 When a step needs you, the agent sends you a private link that opens its browser on your phone or laptop, and the link closes itself. The link opens a live view of the page, with a *Type here* box under it: tap a field on the page, then tap the box, and your phone's keyboard types into that field. On a laptop you can also click and type on the page itself.
 
-- **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. The agent never tries to get past one itself: no retries, no disguised browser, no solving service.
+- **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. The agent never tries to get past one itself: no retries, no disguised browser, no solving service. A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
+- **Ask first.** Before it sends a link, the agent asks in the chat: *I need you to log in to your bank. Ready?* It sends the link only once you reply, so the 10 minutes start when you're there, not while you're away. A question waits for you; a link dies. If your last message was *let me take over*, you're there, so the link comes straight away.
 - **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/verify/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. `open` closes blank tabs and brings the task's page to the front, so the link never opens on an empty page:
 
   ```bash
