@@ -11,21 +11,32 @@
   #view { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; background: #8882; border-radius: 6px; touch-action: pinch-zoom; outline: none; }
   #view:focus-visible { outline: 2px solid Highlight; }
   .hint, #status { font-size: 0.85rem; opacity: 0.65; margin: 6px 2px; }
-  #type { box-sizing: border-box; width: 100%; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; }
+  #type, #fields input:not([type=checkbox]), #fields select { box-sizing: border-box; width: 100%; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
+  #fields { display: grid; gap: 12px; margin: 10px 0; }
+  #fields label { display: block; font-size: 0.95rem; margin: 0 2px 4px; }
+  #fields .check { display: flex; gap: 10px; align-items: center; }
+  #fields .check label { margin: 0; }
+  #fields .check input { width: 1.4rem; height: 1.4rem; }
+  .miss { font-size: 0.85rem; color: #d33; margin: 4px 2px 0; }
+  #other summary { margin: 10px 2px; cursor: pointer; }
   .keys { display: flex; gap: 8px; margin-top: 8px; }
   .keys button { font-size: 0.95rem; padding: 6px 14px; border: 1px solid #8886; border-radius: 6px; background: none; color: inherit; }
 </style>
 </head>
 <body>
 <canvas id="view" tabindex="0" aria-label="The agent's browser. Click a field, then type."></canvas>
-<p class="hint">Tap a field above, then type here. On a computer you can also click and type on the page itself.</p>
-<input id="type" type="text" placeholder="Type here…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" aria-label="Type here">
-<div class="keys">
-  <button type="button" data-key="Backspace" aria-label="Backspace">⌫</button>
-  <button type="button" data-key="Tab">Tab</button>
-  <button type="button" data-key="Enter">Enter</button>
-</div>
 <p id="status" role="status">Connecting…</p>
+<form id="fields" autocomplete="on" hidden></form>
+<details id="other" open>
+  <summary>Other typing</summary>
+  <p class="hint" id="other-hint">Tap a field above, then type here. On a computer you can also click and type on the page itself.</p>
+  <input id="type" type="text" placeholder="Type here…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" aria-label="Type here">
+  <div class="keys">
+    <button type="button" data-key="Backspace" aria-label="Backspace">⌫</button>
+    <button type="button" data-key="Tab">Tab</button>
+    <button type="button" data-key="Enter">Enter</button>
+  </div>
+</details>
 <script type="module" src="page.mjs"></script>
 </body>
 </html>
