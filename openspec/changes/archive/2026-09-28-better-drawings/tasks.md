@@ -22,4 +22,4 @@
 
 ## 4. Gate
 
-- [ ] 4.1 `/save`: CI passes, including the review tests
+- [x] 4.1 `/save`: CI passes, including the review tests

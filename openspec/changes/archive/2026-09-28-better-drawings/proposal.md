@@ -1,6 +1,6 @@
 # Better drawings in plans and explore
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** explore-ascii-drawings
 **Open questions:** none
 
@@ -90,3 +90,5 @@ None.
 - **2026-09-28** — Assumed: the edge check covers only the line characters, not `+`/`|` boxes, because `+` and `|` show up in plain text and would give false warnings.
 - **2026-09-28** — Built inside `/ship`: the guide, the builder's box-edge check, and the docs; `/plan` also says to fix a box edge the builder flags, beside its width sentence. Run over every archived proposal, the check flags only show-browsing-in-chat's three known crooked boxes and nothing else.
 - **2026-09-28** — Asked how to fit the instruction-size budget, which main had nearly used up (170 bytes left; the change added about 3,700) → chose trim to fit, keeping the check as strict: the guide keeps its drawings but loses most prose and one overlapping example, and the payload manifest drops a repeated tutorial paragraph and says its preflight, Paseo, and not-copied rules in fewer words.
+- **2026-09-28** — Distilled at ship: `.github/CONTRIBUTING.md` now says the size check also fails unless instructions stay below the baseline, and that line-drawing characters count three bytes; the OpenSpec fact stays in memory, no other repeatable fact.
+- **2026-09-28** — Archived at ship as 26.24.0; all tasks done and CI green on the branch.

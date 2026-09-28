@@ -3,9 +3,9 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Better drawings in plans and explore
+## 26.24.0 — Better drawings in plans and explore
 
-- **Plans draw more than a column of steps.** A short [drawing guide](.agents/skills/plan/references/drawings.md) gives five patterns to copy: a titled frame, options side by side, a branch that splits and joins, labels under boxes, and a comparison table.
+- **Plans draw more than a column of steps.** A short [drawing guide](.agents/skills/plan/references/drawings.md) gives five patterns to copy: a titled frame, a branch that splits and joins, options side by side with labels under, a comparison table, and a screen before and after.
 - **Wider when a drawing needs it.** Drawings still aim for 40 columns, the width of a phone, and may reach 56 for options side by side, a table, or a before-and-after. The plan's page still warns past 60.
 - **Crooked boxes get caught.** When a box's right edge doesn't line up with its top corner, building the plan's page names the drawing and line. It still builds the page.
 - **Screen sketches show the change.** A plan that changes a screen draws it before and after; one that adds a screen draws each state its steps name, such as empty or error.
