@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.25.0 — Type into the agent's browser during a hand-over
+
+- **You can type from your phone.** A hand-over link now opens a page of our own: the live page, and a *Type here* box under it. Tap a field on the page, then tap the box, and your phone's keyboard types into that field. ⌫, Tab, and Enter sit under the box. On a laptop you can also click and type on the page itself. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the how.
+- **Clicks land where you tap.** The picture was drawn at one size while clicks were worked out at another, so every click landed about a quarter lower and missed the box. The agent now sets the page's size before it sends the link, and the page works out each click from the picture itself.
+- **The link opens on the right page.** The agent closes blank tabs and brings the task's page to the front first, so the link never opens on an empty page.
+- **The link shows only the task.** agent-browser's control panel, which also showed the agent's other browser sessions and a chat box, is gone from the hand-over. The link is as safe as before: a new random address and secret key each time, closed when you're past the step, when you say *done*, or after 10 minutes.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.24.0 — Better drawings in plans and explore
 
 - **Plans draw more than a column of steps.** A short [drawing guide](.agents/skills/plan/references/drawings.md) gives five patterns to copy: a titled frame, a branch that splits and joins, options side by side with labels under, a comparison table, and a screen before and after.

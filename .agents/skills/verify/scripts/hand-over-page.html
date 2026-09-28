@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Your turn in the browser</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
+  body { margin: 0 auto; max-width: 1280px; padding: 8px; }
+  #view { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; background: #8882; border-radius: 6px; touch-action: pinch-zoom; outline: none; }
+  #view:focus-visible { outline: 2px solid Highlight; }
+  .hint, #status { font-size: 0.85rem; opacity: 0.65; margin: 6px 2px; }
+  #type { box-sizing: border-box; width: 100%; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; }
+  .keys { display: flex; gap: 8px; margin-top: 8px; }
+  .keys button { font-size: 0.95rem; padding: 6px 14px; border: 1px solid #8886; border-radius: 6px; background: none; color: inherit; }
+</style>
+</head>
+<body>
+<canvas id="view" tabindex="0" aria-label="The agent's browser. Click a field, then type."></canvas>
+<p class="hint">Tap a field above, then type here. On a computer you can also click and type on the page itself.</p>
+<input id="type" type="text" placeholder="Type here…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" aria-label="Type here">
+<div class="keys">
+  <button type="button" data-key="Backspace" aria-label="Backspace">⌫</button>
+  <button type="button" data-key="Tab">Tab</button>
+  <button type="button" data-key="Enter">Enter</button>
+</div>
+<p id="status" role="status">Connecting…</p>
+<script type="module" src="page.mjs"></script>
+</body>
+</html>

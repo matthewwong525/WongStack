@@ -53,10 +53,10 @@ While the agent browses for you, it drops a picture of the page into the chat at
 
 ### Hand the browser over
 
-When a step needs you, the agent sends you a private link that opens its browser on your phone or laptop, and the link closes itself.
+When a step needs you, the agent sends you a private link that opens its browser on your phone or laptop, and the link closes itself. The link opens a live view of the page, with a *Type here* box under it: tap a field on the page, then tap the box, and your phone's keyboard types into that field. On a laptop you can also click and type on the page itself.
 
 - **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. The agent never tries to get past one itself: no retries, no disguised browser, no solving service.
-- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/verify/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background:
+- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/verify/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. `open` closes blank tabs and brings the task's page to the front, so the link never opens on an empty page:
 
   ```bash
   node .claude/skills/verify/scripts/hand-over.mjs open --until "**mail.google.com/mail/**"   # a login: the logged-in page
@@ -69,6 +69,6 @@ When a step needs you, the agent sends you a private link that opens its browser
 - **While it's open.** The agent sends its browser no commands, so it never fights you for the page. When you say *done*, it runs `hand-over.mjs close`.
 - **After it closes.** On `done`, the agent takes a fresh snapshot, because you may have moved the page, and carries on. On `timeout`, it says so and offers a new link. On `HANDOVER_NEEDS=cloudflared`, it asks, installs [Cloudflare's tunnel tool](required-tools.md), and tries again.
 
-**Is the link safe?** Each link gets a new random address plus a secret key that only the link carries, and it dies once you're past the step, when you say *done*, or after 10 minutes, even if the chat stops. A copy left in the chat is dead too. Anyone who sees it while it's open, say over your shoulder, can use the browser until it closes. Cloudflare carries the connection, so like any site it hosts, it could in principle see what you type; your app already runs on Cloudflare, so this adds no new company to trust. The agent reads only the page's address, or whether the box it waits on is still there: never the page, what you type, or a picture of it. The page also shows the agent's other browser sessions on this computer, which the one-task rule above keeps to this one. The browser runs with no window, so Chrome can't offer to save your password; only the login itself is kept, as before.
+**Is the link safe?** Each link gets a new random address plus a secret key that only the link carries, and it dies once you're past the step, when you say *done*, or after 10 minutes, even if the chat stops. A copy left in the chat is dead too. Anyone who sees it while it's open, say over your shoulder, can use the browser until it closes. Cloudflare carries the connection, so like any site it hosts, it could in principle see what you type; your app already runs on Cloudflare, so this adds no new company to trust. The agent reads only the page's address, or whether the box it waits on is still there: never the page, what you type, or a picture of it. The page shows only this task's browser, never the agent's other browser sessions. The browser runs with no window, so Chrome can't offer to save your password; only the login itself is kept, as before.
 
 Back to [Working on WongStack](README.md).
