@@ -12,7 +12,7 @@ Create an apply-ready OpenSpec change and its required `review.html`, the review
 
 ## Explore first
 
-Run [`/explore`](../explore/SKILL.md) in bounded mode; [its exit round](../explore/SKILL.md#the-exit-round) is the plan's only question round. Log each decision in the Decision log: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every earlier answer and the exit round, `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one.
+Run [`/explore`](../explore/SKILL.md) in bounded mode; it asks by [the exit round](../explore/SKILL.md#the-exit-round). Log each decision in the Decision log: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every answer, `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one.
 
 When the exit round chose new workspaces, [open one per other part](references/new-workspace.md) and report them before drafting; then plan only the part this chat keeps.
 
@@ -48,7 +48,7 @@ A change that adds or restructures a screen gets [a `## UX` design section](../.
 
 ## Review notes
 
-A message beginning `Update the plan <name> with these notes from the review page` is feedback on an existing change: no verb, build, or [explore round](#explore-first). Read artifact paths from `openspec status --change "<name>" --json` ([the CLI contract](references/openspec-cli.md)); when this checkout has no such change, say so and stop. Each bullet names its spot (`Change #2`) and quotes its text; if they disagree, trust the quote. Apply each note where it belongs, keeping the artifacts coherent, and log one Decision-log line per note: what it changed, or why it was declined. Rewrite an artifact substantially by its `openspec instructions <artifact-id> --change "<name>" --json`, then validate. Create no artifact the notes did not ask for. Rebuild the page. Then [finish](#finish) as a standalone `/plan`; never start building from the notes.
+A message beginning `Notes on the plan <name> from the review page`, or the older `Update the plan <name> with these notes`, is feedback on an existing change: no verb, build, or [explore round](#explore-first). Read artifact paths from `openspec status --change "<name>" --json` ([the CLI contract](references/openspec-cli.md)); when this checkout has no such change, say so and stop. Each bullet names its spot (`Change #2`) and quotes its text; if they disagree, trust the quote. Answer a question note in chat, with no edit or log line, offering any edit it suggests in the closing question. Apply each other note where it belongs, keeping the artifacts coherent, and log one Decision-log line each: what it changed, or why it was declined. Rewrite an artifact substantially by its `openspec instructions <artifact-id> --change "<name>" --json`, then validate. Create no artifact the notes did not ask for. Rebuild the page. Then [finish](#finish) as a standalone `/plan`; never start building from the notes.
 
 ## Finish
 

@@ -74,7 +74,7 @@ A changed unit that the repo has edited since install SHALL be marked locally ad
 
 ### Requirement: The update is judged from its changed units
 
-The exploration inside `/plan` SHALL start from the classified changed units, read other repo files only for a named dependency or impact, and ask at most one question round. Earlier user decisions, including an old verdict record, SHALL inform it as context, never as approval.
+The exploration inside `/plan` SHALL start from the classified changed units, read other repo files only for a named dependency or impact, and ask by the shared rule for questions before planning. Earlier user decisions, including an old verdict record, SHALL inform it as context, never as approval.
 
 #### Scenario: Small update
 
@@ -163,3 +163,12 @@ A sync plan's Why and What Changes SHALL say what the person gets, what changes 
 
 - **WHEN** an update changes over a hundred payload units
 - **THEN** the review page names the few things the person will notice and do, not the files
+
+### Requirement: An update goes straight into planning
+
+When the preflight reports an update, sync SHALL invoke `/plan` directly, and SHALL NOT stop at a standalone `/explore` or its *Plan it?* question, including in an install whose own sync skill hands the report to `/explore`.
+
+#### Scenario: An older install's skill names explore
+
+- **WHEN** an install's own sync skill says to hand the report to `/explore`
+- **THEN** the exploration runs as `/plan`'s bounded pass and the sync ends at the plan's review link, never at *Plan it?*

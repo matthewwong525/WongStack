@@ -15,6 +15,32 @@
 
 **Updating.** Nothing to do by hand. After this update, pick *Close this workspace* or type `/close` when a chat is done; it now also updates the wiki, which publishing no longer does.
 
+## 26.27.0 — Plans ask until they're clear, and publish in one pick
+
+- **Follow-up questions before a plan.** When your answers open a new choice, the assistant asks another short set of multiple-choice questions instead of guessing. It still asks only what would make the plan wrong, never asks the same thing twice, and stops once nothing is open. [The exit round](.agents/skills/explore/SKILL.md#the-exit-round) owns the rule.
+- **Build and publish in one pick.** The question under a finished plan adds *Build and publish*, second after *Build it now*. It builds, checks, and makes the change live with no stop at the preview.
+- **Updates go straight to a plan.** An update from WongStack goes directly into planning, with no *Plan it?* stop first, even when an older install's own update steps say to think it through first.
+- **The upkeep check asks follow-ups too.** `/improve` may ask another set of questions before it picks a fix, when your answers leave a real choice open.
+
+**Updating.** Nothing to do by hand.
+
+## 26.26.0 — Review notes can be questions
+
+- **Copied notes just say they are notes.** On a plan's review page, Copy notes now starts *Notes on the plan \<name\> from the review page. Don't build yet.*, not *Update the plan … with these notes*. Each note says for itself whether it asks or changes something. The bullets are unchanged.
+- **A question gets an answer, not an edit.** The assistant answers a question note in chat and leaves the plan, its decision log, and its page alone. It changes the plan only for a note that asks for a change. When an answer shows the plan should change, it offers that edit in its closing question.
+- **The page stops assuming a change.** The note box says *A question or a change*. After a copy, the page says *Paste them into chat.*
+
+**Updating.** Nothing to do by hand. Review pages built before this release still copy *Update the plan …*, and the assistant handles those notes the same way. Each page picks up the new words the next time its plan changes.
+
+## 26.25.0 — Type into the agent's browser during a hand-over
+
+- **You can type from your phone.** A hand-over link now opens a page of our own: the live page, and a *Type here* box under it. Tap a field on the page, then tap the box, and your phone's keyboard types into that field. ⌫, Tab, and Enter sit under the box. On a laptop you can also click and type on the page itself. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the how.
+- **Clicks land where you tap.** The picture was drawn at one size while clicks were worked out at another, so every click landed about a quarter lower and missed the box. The agent now sets the page's size before it sends the link, and the page works out each click from the picture itself.
+- **The link opens on the right page.** The agent closes blank tabs and brings the task's page to the front first, so the link never opens on an empty page.
+- **The link shows only the task.** agent-browser's control panel, which also showed the agent's other browser sessions and a chat box, is gone from the hand-over. The link is as safe as before: a new random address and secret key each time, closed when you're past the step, when you say *done*, or after 10 minutes.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.24.0 — Better drawings in plans and explore
 
 - **Plans draw more than a column of steps.** A short [drawing guide](.agents/skills/plan/references/drawings.md) gives five patterns to copy: a titled frame, a branch that splits and joins, options side by side with labels under, a comparison table, and a screen before and after.

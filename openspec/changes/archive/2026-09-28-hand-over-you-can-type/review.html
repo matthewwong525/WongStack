@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -8,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-09-28-hand-over-you-can-type</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,17 +93,61 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-09-28-hand-over-you-can-type">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-09-28-hand-over-you-can-type</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">When the agent hands you its browser, you can see the page but not use it. A WongOS agent paying a parking ticket handed over the card form: the first link showed a blank page, and on the second, clicking the card box did nothing and nothing could be typed. The hand-over exists so you can enter a password or a card, so right now it fails at its one job.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Clicks land where you tap.</b> The picture you saw was drawn at one size while your clicks were worked out at another, so every click landed about a quarter lower than you aimed and missed the box. The agent now fixes the page's size before it sends the link, so the picture and your clicks agree.</div></div></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>A hand-over page that works on a phone.</b> The link now opens a small page of our own instead of agent-browser's control panel. It shows the live page, and under it a <i>Type here</i> box. Tap a field on the live page, then tap the box: your phone's keyboard opens, and what you type goes into that field. On a laptop you can also just click and type on the live page.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">┌──────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">│ City of Markham payment  │</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">│ ┌──────────────────────┐ │</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">│ │ Card number [______] │ │</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">│ │ Expiry      [__/__]  │ │</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">│ │        [ Pay ]       │ │</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0">│ └──────────────────────┘ │</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">│  tap a field above, then │</span>
+<span class="ln" data-note="item-2-line-9" tabindex="0">│ ┌──────────────────────┐ │</span>
+<span class="ln" data-note="item-2-line-10" tabindex="0">│ │ Type here…           │ │</span>
+<span class="ln" data-note="item-2-line-11" tabindex="0">│ └──────────────────────┘ │</span>
+<span class="ln" data-note="item-2-line-12" tabindex="0">│  ⌫   Tab   Enter         │</span>
+<span class="ln" data-note="item-2-line-13" tabindex="0">└──────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>You land on the right tab.</b> Before sending the link, the agent closes blank tabs and brings the real page to the front, so the link never opens on an empty page.</div></div></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>The link shows only the task.</b> agent-browser's panel also showed every other browser session on the computer and a chat box. The new page shows only the page you're handed. The link stays as safe as before: a new random address and a secret key each time, closed when you're past the step, when you say <i>done</i>, or after 10 minutes.</div></div></li>
+</ol>
+<p class="aside">Non-goals: no pinch-free phone layout of the site itself (the page keeps its desktop size, and you can zoom the picture); no copy and paste into the page; no change to when the agent hands over or how it knows you're done.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-28</p>Asked how the person should type from a phone → chose our own hand-over page with a real text box, over patching agent-browser's panel or telling phone users to switch to a laptop.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the click bug is agent-browser 0.38.1's, because its headless page is 1280×577 while its live feed and panel report 1280×720; <code>agent-browser set viewport 1280 720</code> made clicks and typing work locally and over a real tunnel, so <code>open</code> runs it every time.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the tunnel, origin, and cookie checks were not the cause, because mouse and key events reached the page over a real <code>trycloudflare.com</code> link once the size matched.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the page maps clicks from the frame's own picture size, not the size the feed reports, so a future size mismatch can't send clicks astray again.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: blank tabs (<code>about:blank</code>, a new-tab page, no address) are closed only when a real page is open, and the newest real page becomes the front tab, because the agent's page is the one it last opened.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: a minor release, because the hand-over gains phone typing and a new page.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the agent-browser click bug is not reported upstream in this change; the closing reply offers it, because filing an issue is an outward action.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: a real phone test stays an open memory thread written at <code>/save</code>, because no phone is reachable from here; the build checks an emulated phone over a real tunnel.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Built: <code>toPage</code> also handles a picture with bars around it (the canvas scaled to fit), and ignores a tap on a bar; with no bars it is the design's formula.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Built: the watcher calls agent-browser without blocking, so its 2-second checks never freeze the page server it now hosts.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Built: <code>state.json</code>, which now holds the key, is written readable by its owner only.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Built: the live check passed through real quick tunnels: at the default 1280×577 with two blank tabs in front, <code>open</code> resized the page and brought the card page forward; an emulated iPhone 14 tapped the card box and typed <code>4111 1111 1111</code> through <i>Type here</i>; a desktop-sized viewer clicked and typed on the view; after <code>close</code> the link answered 530 and the page said the link had closed.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Distilled: no repeatable fact; the change has no memory facts, and the viewport quirk is handled in <code>hand-over.mjs</code>, whose header says why.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Archived and checkpointed for merge by <code>/ship</code> as 26.25.0, after merging <code>main</code> (26.24.0).</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>
@@ -112,7 +157,7 @@
 <div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
   <p class="where" id="editor-where"></p>
   <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
-  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <textarea aria-label="Note text" rows="3" placeholder="What should change here?"></textarea>
   <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
   <p class="copies">Saving a note copies all your notes.</p>
   <p class="session" hidden>Notes last for this session only.</p>
@@ -354,7 +399,7 @@
     closeEditor(true); persist();
     if (act === 'save') {
       const n = data.notes.length;
-      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat to update the plan.'); },
         function () { toast('Saved. Tap Copy notes to copy them.'); });
     }
   });
@@ -451,9 +496,9 @@
     el.scrollIntoView({ block: 'start' });
   }
 
-  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  // ── copy: saved notes only, as a plain request to update the plan ──
   function notesText() {
-    const lines = ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'];
+    const lines = ['Update the plan ' + CHANGE + ' with these notes from the review page. Don\'t build yet.'];
     data.notes.forEach(function (n) {
       const w = where(n.id);
       lines.push('- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' '));
@@ -481,7 +526,7 @@
   $('copy').addEventListener('click', function () {
     const n = data.notes.length;
     if (!n) { toast('No saved notes yet. Drafts are not copied.'); return; }
-    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat to update the plan.'); },
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 

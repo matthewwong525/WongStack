@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -8,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · 2026-09-28-ask-until-clear</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,17 +93,66 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="2026-09-28-ask-until-clear">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>2026-09-28-ask-until-clear</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">When you ask for a change, the assistant gets one set of questions before it writes the plan. If your answers raise a new question, it has to guess instead of asking, even though answering one more multiple-choice question takes you seconds. And an update from WongStack in an older install can stop halfway to ask <i>Plan it?</i> when the update should just go to a plan. And when a plan is ready, publishing it takes two answers even when you already know you want it live.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Follow-up questions are allowed.</b> Before a plan is written, whether you typed a verb or just asked, the assistant may ask another set of questions when your answers open a new choice. Every question stays multiple choice, with the recommended answer first and room for your own words. It still asks only what would make the plan wrong if guessed, never asks the same thing twice, and stops as soon as nothing is left open.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">   BEFORE               AFTER</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">questions           questions</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">    │                   │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">    ▼                   ▼</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">answers             answers</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">    │                   │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">    ▼             new choice? ──yes──┐</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">guess the rest          │ no         ▼</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">    │                   ▼       more questions</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">    ▼                 plan ◀─────────┘</span>
+<span class="ln" data-note="item-1-line-11" tabindex="0">  plan</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Updates go straight to a plan.</b> When an update finds new WongStack changes, it goes directly into planning, with no stop to ask <i>Plan it?</i> first. This holds for an older install too, whose own update steps still say to think it through first.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Build and publish in one pick.</b> When a plan is ready, the question under it adds <i>Build and publish</i>: the assistant builds the change, checks it, and makes it live with no second stop. <i>Build it now</i> stays first and still stops to show you the result before publishing.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">What next for this plan?</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">┌───────────────────────────────┐</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">│ 1. Build it now (Recommended) │</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">│ 2. Build and publish    (new) │</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0">│ 3. Review the plan            │</span>
+<span class="ln" data-note="item-3-line-6" tabindex="0">│ 4. Stop here                  │</span>
+<span class="ln" data-note="item-3-line-7" tabindex="0">└───────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>The upkeep check asks follow-ups too.</b> <code>/improve</code> may ask a second set of questions before it picks a fix, when your first answers leave a real choice open.</div></div></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Nothing changes when nobody can answer.</b> An unattended run still takes the recommended answers and marks them as assumed.</div></div></li>
+</ol>
+<p class="aside">Non-goals: no free-text questions in place of choices; no change to the one question about opening new workspaces, or to how review-page notes update a plan.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: &quot;immediately go into /plan&quot; means an update never stops at a standalone explore's <i>Plan it?</i> question, because today's <code>/wong-sync</code> already calls <code>/plan</code> while 16.x installs' own skill hands off to <code>/explore</code> (memory #382), and the person also asked for more questions, so skipping the questions is not the intent.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: old installs are reached through a new line in the payload manifest's <i>Planning an update</i>, because every sync reads that page from the source whatever its installed skill says.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: follow-up groups still pass the &quot;wrong, not merely different&quot; test and hold no more questions than the tool supports, because the person asked to lift the round limit, not the bar for a question; a standard over a quota matches their earlier choice (memory #52).</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: <code>/improve</code>'s one group before selecting gets the same freedom, because the person said &quot;ship, plan or whatever&quot;.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the heading <i>The exit round</i> keeps its text, because installed repos link <code>#the-exit-round</code> and the link check fails a missing anchor.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: one change, not two workspaces, because both parts are small edits to the same few pages about asking before a plan.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-28</p>Asked what next for the plan → chose to add a <i>Build and publish</i> option to the finished-plan question.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: <i>Build and publish</i> runs <code>/ship</code>, second in the list, with <i>Build it now</i> still recommended, because publishing unseen work should be a deliberate pick and the tool holds four options.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: prose only, no script, because the behavior lives in skill instructions.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the <code>AGENTS.md</code> rule reads &quot;build it now, or build and publish?&quot; and <i>The exit round</i> drops a line repeating the assumptions rule, because the build first failed CI's instruction-size check (2206 words against 2200, skill bytes grown).</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Wiki distillation: no repeatable fact beyond <code>wiki/development/the-change-loop.md</code>, which this change edits.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: merged <code>main</code> (26.26.0, review notes can be questions) as the union of both changes, and trimmed wording in <code>wong-sync</code>, <code>plan</code>, <code>improve</code>, and the ask format, because the combined skills ran 104 bytes over the instruction-size check.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Archive checkpoint: archived by <code>/ship</code> and saved for release 26.27.0.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>

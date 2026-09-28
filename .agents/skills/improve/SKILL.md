@@ -48,7 +48,7 @@ Rank a short candidate list in chat, each with `path:line` evidence, impact, pri
 
 ## Select with explicit execution context
 
-After the ranked list, before any edit, an interactive run asks one group of one to three material multiple-choice questions in [the ask format](../explore/references/asking-the-user.md): which candidate, or a behavior choice that changes the result. No filler.
+After the ranked list, before any edit, an interactive run asks a group of one to three material multiple-choice questions in [the ask format](../explore/references/asking-the-user.md): which candidate, or a behavior choice that changes the result. An answer opening another material choice gets a follow-up. No filler.
 
 A run is unattended only when the invocation or trusted host context says so explicitly, as [a scheduler's prompt](../../../wiki/development/repository-improvement.md#run-it-on-a-cadence) does. Never infer it from the clock, tool availability, or a missing reply. Unattended, take supported recommended defaults labeled `assumed`, defer unresolved product, authorization, or policy choices, and, before delivery begins, move to an independent eligible candidate when possible.
 

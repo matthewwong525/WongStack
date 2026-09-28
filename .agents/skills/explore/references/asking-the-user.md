@@ -55,7 +55,7 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 Before you finish, ask **what the user must decide for the work to continue**, in this format, through [the first callable tool](#which-tool-carries-it). Write the report and any link as chat text first; the tool carries only the question. Close with a numbered list only in a session with no such tool. Only the reply to *Review the plan* ends without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
-- Finished plan: [the plan's link](#print-the-plans-link), then *Build it now (Recommended)* / *Review the plan* / *Stop here*. The person types or pastes notes to change the plan.
+- Finished plan: [the plan's link](#print-the-plans-link), then *Build it now (Recommended)* / *Build and publish* / *Review the plan* / *Stop here*. *Build and publish* runs `/ship`. The person may paste notes.
 - Blocked task: the supported ways to clear it, below the intact blocker report.
 - Report or audit: the one fix worth taking next.
 - Finished task that will clearly come back: one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).

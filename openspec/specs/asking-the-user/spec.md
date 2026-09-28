@@ -136,19 +136,19 @@ A reply that returns control SHALL open with the outcome in plain words and, whe
 - **WHEN** the person pastes notes copied from a plan's review page
 - **THEN** `/plan` updates that plan without an explore pass or a question round
 
-### Requirement: One question round before planning
+### Requirement: Review notes change only what they ask to
 
-At the move into planning, `/explore` SHALL ask at most one round, holding only the choices a wrong guess would make the plan wrong, not merely different, and no more questions than the tool holds. A choice already settled SHALL NOT be asked again, and every gap left or found later, nested calls included, SHALL become a recorded assumption with its reason.
+Notes pasted from a plan's review page, under the current first line or the older `Update the plan <change-name> with these notes from the review page`, SHALL change the plan only for a note that asks for a change. A note that asks a question SHALL get its answer in chat and leave the plan, its Decision log, and its page unchanged; when the answer shows the plan should change, the closing question SHALL offer that edit rather than make it.
 
-#### Scenario: Everything is settled
+#### Scenario: A question and a change pasted together
 
-- **WHEN** the conversation already answered every material choice
-- **THEN** `/explore` asks nothing and moves to its summary
+- **WHEN** the person pastes one note asking why a step exists and one asking to rename a step
+- **THEN** the reply answers the question, and only the rename reaches the plan and its rebuilt page
 
-#### Scenario: A gap after the round
+#### Scenario: Notes from an older page
 
-- **WHEN** the round's answers reveal another open choice
-- **THEN** the workflow records a supported assumption instead of asking again
+- **WHEN** the pasted notes start `Update the plan <change-name> with these notes from the review page`
+- **THEN** they are handled the same way as notes with the current first line
 
 ### Requirement: Standalone explore asks in small groups
 
@@ -172,3 +172,17 @@ Before its first question, `/explore` SHALL search the memory store once for the
 
 - **WHEN** memory holds a live fact that the person wants one pull request for refactors
 - **THEN** `/explore` does not ask how to split the work, and names that fact as the reason
+
+### Requirement: Questions before planning continue while a choice is open
+
+At the move into planning, however planning was invoked, `/explore` SHALL ask only the choices a wrong guess would make the plan wrong, not merely different, as structured multiple-choice asks of no more questions than the tool holds per group. When the answers open another such choice, it SHALL ask a follow-up group rather than assume it, and SHALL stop asking once none is open. A choice already settled SHALL NOT be asked again, nested calls included, and a minor gap SHALL become a recorded assumption with its reason.
+
+#### Scenario: Everything is settled
+
+- **WHEN** the conversation already answered every material choice
+- **THEN** `/explore` asks nothing and moves to its summary
+
+#### Scenario: An answer opens a new choice
+
+- **WHEN** the first group's answers reveal another choice that would make the plan wrong if guessed
+- **THEN** `/explore` asks a follow-up multiple-choice group before the plan is drafted

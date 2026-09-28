@@ -56,6 +56,7 @@ The report gives paths, classes, and counts, never a body or diff. It returns `s
 
 Every `/wong-sync`, however old, reads this page from the source, so the plan's use of the report lives here, not in the installed skill. Whether the installed skill hands the report to `/explore` or `/plan`, add these lines to that description, in order, word for word:
 
+- Go straight into `/plan`: run any `/explore` as its bounded pass, never stopping at *Plan it?*.
 - When `catchUp.needed`, plan each reported move by [catching up an older install](catch-up.md).
 - Carry each applicable `updating` note as a task; post-publish steps come after the gate.
 - Before the install-record task, run `node <source path>/.claude/skills/wong-sync/scripts/merge-check.mjs --target <target root> --source <source path> --from <installed commit>`; take or name every missing hunk.

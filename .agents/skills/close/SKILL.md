@@ -6,7 +6,7 @@ user-invocable: true
 
 # /close
 
-Invoking `/close` authorizes every step below, `/save` and `/ship` included. It throws work away only when asked, as in *close and throw it away*.
+Invoking `/close` authorizes every step below, `/save` and `/ship` included; it throws work away only when asked (*close and throw it away*).
 
 ## 1. Write the wrap-up
 
@@ -14,9 +14,9 @@ From the conversation and any change's `tasks.md`, write through [the write gate
 
 ## 2. Pick a route
 
-Read `git status --porcelain`, `git log origin/main..HEAD --oneline`, and `gh pr view --json state,headRefOid,url`. A Paseo worktree has `PASEO_AGENT_ID` set and is not the main checkout.
+Read `git status --porcelain`, `git log origin/main..HEAD`, and `gh pr view --json state,headRefOid,url`. A Paseo worktree has `PASEO_AGENT_ID` set and is not the main checkout.
 
-- **discard**: asked to throw the work away, in a Paseo worktree. Save the facts by [the facts-only save](../save/references/facts-save.md); no wiki. Asked elsewhere → keep the work, and say the main checkout never throws work away.
+- **discard**: asked to throw the work away, in a Paseo worktree. Save the facts by [the facts-only save](../save/references/facts-save.md); no wiki. Asked elsewhere → keep it; the main checkout never throws work away.
 - **keep**: uncommitted edits, or commits not merged at `HEAD`. Invoke `/save` verbatim; go on unless the push failed, naming a red CI run in one line. The close after that work ships updates the wiki.
 - **wrap**: anything else. Save the facts by the facts-only save, then update the wiki.
 
@@ -41,7 +41,7 @@ node "$S/verify/scripts/hand-over.mjs" close # only when this chat's hand-over l
 node "$S/routine/scripts/tidy.mjs" close # --discard on that route
 ```
 
-When the reply ends, the workspace is archived and what runs from it stops, such as the app's server; the shared browser and other workspaces keep running.
+When the reply ends, the workspace is archived and what runs from it stops, such as the app's server; shared things like the browser keep running.
 
 - **Exit 0:** say you're closing this workspace, and end the reply. The chat stays readable in Paseo's archived list.
 - **Exit 2:** in the main checkout or outside Paseo, say there's no workspace to close; else give its `error` in plain words.
@@ -49,4 +49,4 @@ When the reply ends, the workspace is archived and what runs from it stops, such
 
 ## 4. Report
 
-In [plain words](../explore/references/asking-the-user.md#write-in-plain-words): facts recorded, wiki pages changed, work saved to GitHub (its pull request link) or thrown away, then the close line. Ask no next step: the chat is ending. After a failed close, end with the ways to clear it.
+In [plain words](../explore/references/asking-the-user.md#write-in-plain-words): facts recorded, wiki pages changed, work saved to GitHub (with its link) or thrown away, then the close line. Ask no next step: the chat is ending. After a failed close, end with the ways to clear it.
