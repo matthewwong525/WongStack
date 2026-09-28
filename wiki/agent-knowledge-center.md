@@ -58,7 +58,7 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
 - **The memory store** owns session context outside the repo: short typed facts that every session reads as a digest at start, and the raw transcripts behind them. [Session memory](development/memory.md) owns how it works.
-- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/verify`, `/wong-sync`.
+- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/wong-sync`.
 
 Claude Code is one way to run these. The durable part is the files: any agent that reads files, edits files, runs shell commands, and follows the skill runbooks can do the same work.
 
@@ -66,7 +66,7 @@ Claude Code is one way to run these. The durable part is the files: any agent th
 
 Knowledge capture happens through the work, not as a separate writing chore afterwards. The plan, the decision log, the archived change, and the session facts each write down one part of what the work taught while the work is happening.
 
-The split keeps it useful: the memory store is short-term memory, and the wiki is long-term memory. Change-specific knowledge stays with the active or archived change, and repeatable knowledge goes into the wiki when a session learns it. `/ship` is the catch-up: before it archives a change, it moves the change's remaining repeatable facts into the wiki, where a person reviews them in the ship pull request. A one-off decision does not clutter the wiki, and a reusable convention does not stay buried in a finished change. Each change therefore starts with more context than the last one.
+The split keeps it useful: the memory store is short-term memory, and the wiki is long-term memory. Change-specific knowledge stays with the active or archived change, and repeatable knowledge goes into the wiki when a session learns it. `/close` is the catch-up: when a chat wraps up, it moves the chat's and its change's remaining repeatable facts into the wiki, where a person reviews them in their own pull request. A one-off decision does not clutter the wiki, and a reusable convention does not stay buried in a finished change. Each change therefore starts with more context than the last one.
 
 ## Where to go next
 

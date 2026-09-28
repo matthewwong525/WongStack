@@ -2,19 +2,19 @@
 
 Every change to WongStack, and to any repo that installs it, moves through one loop from a rough idea to a shipped, archived spec. The durable handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: a folder `openspec/changes/<name>/` with a `proposal.md`, a `tasks.md`, and optional delta specs, committed with the code and listed in any clone by `openspec list`.
 
-A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
+A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
 
 ```
-/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship
- think      draft the  implement  push +    merge +
- (no git)   change     + host     PR +      archive
+/explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close
+ think      draft the  implement  push +    merge +   wiki +
+ (no git)   change     + host     PR +      archive   close
             (no git)   preview    CI
                           ▲
             /continue ────┘
             resume saved work later, on any machine
 ```
 
-Each verb is a WongStack skill that calls the OpenSpec CLI directly (setup runs `openspec init --tools none`). **OpenSpec owns the plan; the WongStack skills own all git**, and OpenSpec never runs git: `/explore`, `/plan`, and `/apply` run none, while `/save`, `/continue`, and `/ship` own every branch, PR, and merge. A finished `/apply` [uploads a preview from the agent host](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) and asks whether to publish; the work stays in the working tree until then.
+Each verb is a WongStack skill that calls the OpenSpec CLI directly (setup runs `openspec init --tools none`). **OpenSpec owns the plan; the WongStack skills own all git**, and OpenSpec never runs git: `/explore`, `/plan`, and `/apply` run none, while `/save`, `/continue`, `/ship`, and `/close` own every branch, PR, and merge. A finished `/apply` [uploads a preview from the agent host](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) and asks whether to publish; the work stays in the working tree until then.
 
 **A verb whose precondition is missing invokes the verb before it**, nested, so you can enter anywhere:
 
@@ -70,7 +70,8 @@ Each skill owns its own procedure; this list is what each stage is for.
 - **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper) so the build does not carry the planning talk, and ends with a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
 - **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, returns a preview URL, and records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`.
-- **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, invokes `/save` once, runs [`/verify`](#verifying-the-app) once, and squash-merges on [the gate](#the-gate): one checkpoint and one CI run before the walk. A failed walk is fixed in the same PR; an unfinished change is finished through `/apply`, never archived.
+- **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, invokes `/save` once, runs [`/verify`](#verifying-the-app) once, and squash-merges on [the gate](#the-gate): one checkpoint and one CI run before the walk. A failed walk is fixed in the same PR; an unfinished change is finished through `/apply`, never archived. It only puts code live; it writes no wiki.
+- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records what the chat set out to do and what is left, keeps unfinished work saved on GitHub (or throws it away when asked), and moves the chat's and its change's repeatable facts into the wiki in their own pull request. Then it closes the Paseo workspace. A workspace closed any other way gets no wiki update; its facts stay in memory.
 
 Loop back any time: each `/save` keeps the plan and Status current and **appends** to the Decision log, never rewriting it, so the change holds the story of the work. Re-`/plan` if the spec needs to change.
 

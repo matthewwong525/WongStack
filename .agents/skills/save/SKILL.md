@@ -1,6 +1,6 @@
 ---
 name: save
-description: Checkpoint work: commit, push, update the PR, wait for CI, return the preview, and record session facts. Never implements or merges.
+description: Checkpoint work: commit, push, update the PR, wait for CI, return the preview, record session facts. Never implements or merges.
 user-invocable: true
 ---
 

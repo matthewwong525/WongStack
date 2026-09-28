@@ -16,7 +16,7 @@ When a session starts or resumes, the `SessionStart` hook prints a **digest**: t
 
 When the machine records a [home](home.md), the digest ends with a short **From home** part: your page from home's wiki and your live `user` and `feedback` facts from home's store, fetched in parallel within the same budget and capped on their own. [Home](home.md#what-every-repo-reads-from-home) owns the details.
 
-A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/skills/explore/SKILL.md) searches before it asks a question, `/continue` reads the change's facts, and `/ship` distills them into the wiki.
+A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/skills/explore/SKILL.md) searches before it asks a question, `/continue` reads the change's facts, and [`/close`](../../.agents/skills/close/SKILL.md) distills them into the wiki.
 
 ## How facts are captured
 

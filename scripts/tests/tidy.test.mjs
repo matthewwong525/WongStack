@@ -336,6 +336,64 @@ test('close keeps a branch whose pull request merged at another commit, and one 
   assert.match(line.stdout, /left "Busy part" open: the chat never finished/);
 });
 
+const remoteHas = (s, branch) => git(s.primary, 'ls-remote', '--heads', 'origin', branch) !== '';
+
+test('close --discard closes the open pull request, deletes the branch online and here, and resets the tree', async t => {
+  const s = setup(t);
+  const wt = s.worktree('thrown');
+  commit(wt.dir, 'unpublished.md');
+  writeFileSync(path.join(wt.dir, 'draft.md'), 'wip\n');
+  writeFileSync(path.join(wt.dir, 'thrown.md'), 'edited\n');
+  const env = envFor(s, {
+    PASEO_AGENT_ID: 'agent-d', FAKE_GH_PR: JSON.stringify({ number: 7, state: 'OPEN', headRefOid: 'x' }),
+    FAKE_WORKSPACES: JSON.stringify([{ workspaceId: 'ws-d', name: 'Thrown part', isolation: 'worktree', cwd: wt.dir }]),
+  });
+  const plain = run(wt.dir, ['close'], env);
+  assert.equal(plain.status, 2, 'plain close still refuses unsaved work');
+  assert.match(plain.json.error, /unsaved work/);
+
+  const dry = run(wt.dir, ['close', '--discard', '--dry-run'], env);
+  assert.equal(dry.status, 0, dry.stdout);
+  assert.equal(dry.json.job.discard, true);
+  assert.equal(dry.json.job.deleteBranch, true);
+  assert.ok(existsSync(path.join(wt.dir, 'draft.md')), 'a dry run touches nothing');
+  assert.ok(remoteHas(s, 'thrown'));
+  assert.ok(!s.calls().some(call => call[0] === 'gh' && call[2] === 'close'));
+
+  const result = run(wt.dir, ['close', '--discard'], env);
+  assert.equal(result.status, 0, result.stdout);
+  assert.deepEqual(result.json.discarded, { pr: 7, remote: true });
+  assert.ok(s.calls().some(call => call.join(' ') === 'gh pr close thrown'));
+  assert.ok(!remoteHas(s, 'thrown'));
+  await waitFor(() => existsSync(reportFile(s)), 'the discard report');
+  assert.ok(!existsSync(wt.dir));
+  assert.equal(tryBranch(s.primary, 'thrown'), false);
+  const report = JSON.parse(readFileSync(reportFile(s), 'utf8'));
+  assert.deepEqual(report.closed, ['Thrown part']);
+  assert.deepEqual(report.notes, ['threw away the branch thrown']);
+});
+
+test('close --discard with no pull request or online branch, and never in the primary checkout', async t => {
+  const s = setup(t);
+  const primary = run(s.primary, ['close', '--discard'], envFor(s, { PASEO_AGENT_ID: 'a1' }));
+  assert.equal(primary.status, 2);
+  assert.match(primary.json.error, /main checkout/);
+  const wt = s.worktree('local-only', { push: false });
+  writeFileSync(path.join(wt.dir, 'local-only.md'), 'edited\n');
+  assert.equal(run(wt.dir, ['close', '--discard'], envFor(s)).status, 2, 'outside Paseo');
+  const env = envFor(s, {
+    PASEO_AGENT_ID: 'agent-e',
+    FAKE_WORKSPACES: JSON.stringify([{ workspaceId: 'ws-e', name: 'Local part', isolation: 'worktree', cwd: wt.dir }]),
+  });
+  const result = run(wt.dir, ['close', '--discard'], env);
+  assert.equal(result.status, 0, result.stdout);
+  assert.deepEqual(result.json.discarded, { pr: null, remote: false });
+  assert.ok(!s.calls().some(call => call[0] === 'gh' && call[2] === 'close'));
+  await waitFor(() => existsSync(reportFile(s)), 'the discard report');
+  assert.equal(tryBranch(s.primary, 'local-only'), false);
+  assert.equal(git(s.primary, 'status', '--porcelain'), '', 'the primary checkout is untouched');
+});
+
 // ---------------------------------------------------------------------------
 // sweep
 
@@ -490,6 +548,7 @@ test('usage, unknown commands and flags, and a folder outside git', t => {
   assert.match(run(dir, ['--help'], process.env).stdout, /usage: tidy\.mjs scratch/);
   assert.equal(run(dir, ['tidy-everything'], process.env).status, 2);
   assert.equal(run(dir, ['close', '--report'], process.env).status, 2);
+  assert.equal(run(dir, ['sweep', '--discard'], process.env).status, 2);
   const outside = run(dir, ['scratch'], process.env);
   assert.equal(outside.status, 2);
   assert.match(outside.json.error, /Not inside a git checkout/);

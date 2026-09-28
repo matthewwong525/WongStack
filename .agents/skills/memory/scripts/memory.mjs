@@ -348,6 +348,44 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
 
 // ---------- background-run commands ----------
 
+// Redact a transcript and upload it to the bucket, recording its size and key on `record`.
+// Returns why it was not kept (over the size limit), or ''.
+async function keepRaw(store, record, raw) {
+  const body = redact(raw, secretValues(store.env));
+  record.rawBytes = Buffer.byteLength(body);
+  if (record.rawBytes > MAX_TRANSCRIPT_BYTES) return `The full transcript is ${megabytes(record.rawBytes)}, over the ${megabytes(MAX_TRANSCRIPT_BYTES)} limit, so it is not kept`;
+  record.rawKey = `sessions/${store.email}/${record.agent}/${record.id.split(':')[1]}.jsonl`;
+  await store.putObject(record.rawKey, body);
+  return '';
+}
+
+// Keep a session's transcript now, as strip does, so a workspace that closes before the background run
+// loses none. The session's capture status and read_through stay as they are, so the run still captures it.
+// Every skip is one line and exit 0: this never blocks a close.
+async function keepTranscript(ctx, { positionals: [id] }) {
+  if (!id) throw new StoreError('usage: memory.mjs keep-transcript <session-id|current>');
+  const skip = why => console.log(`transcript not kept: ${why}`);
+  try {
+    if (id === 'current') id = currentSession(ctx);
+    const file = sessionFile(ctx, id);
+    if (!file) return skip(`no transcript found for ${id}`);
+    const raw = readFileSync(file, 'utf8');
+    const parsed = parseTranscriptText(raw);
+    const store = openStore(ctx);
+    if (!store.config.bucket) return skip('this store has no R2 bucket, so transcripts are not stored');
+    const [ledger] = await store.query('SELECT status, reason FROM sessions WHERE id = ?', [id]);
+    if (ledger?.status === 'private' || isPrivate(parsed.messages)) return skip(`${id} is private, so nothing was uploaded`);
+    const record = { ...recordFor(id, file, parsed), readThrough: null };
+    const tooLarge = await keepRaw(store, record, raw);
+    const status = ledger?.status || 'skipped';
+    await store.batch([sessionUpsert(record, status, { author: store.author, machine: ctx.machine, reason: ledger ? ledger.reason : 'not captured yet' })]);
+    console.log(tooLarge ? `transcript not kept: ${tooLarge}` : `kept: ${id}'s redacted transcript is in ${record.rawKey}`);
+  } catch (error) {
+    if (!(error instanceof StoreError || error instanceof FormatError)) throw error;
+    skip(error.message);
+  }
+}
+
 // Reduce a pending session for the model: private check, redaction, upload, and text after read_through.
 async function stripCommand(ctx, { positionals: [id], tally }) {
   if (!id) throw new StoreError('usage: memory.mjs strip <session-id>');
@@ -374,17 +412,9 @@ async function stripCommand(ctx, { positionals: [id], tally }) {
     return;
   }
   const secrets = secretValues(store.env);
-  let kept = '';
-  if (store.config.bucket) {
-    const body = redact(raw, secrets);
-    record.rawBytes = Buffer.byteLength(body);
-    // Over the limit, the session's facts are still captured; only its full transcript is not kept.
-    if (record.rawBytes > MAX_TRANSCRIPT_BYTES) kept = `The full transcript is ${megabytes(record.rawBytes)}, over the ${megabytes(MAX_TRANSCRIPT_BYTES)} limit, so it is not kept; capture its facts as usual.`;
-    else {
-      record.rawKey = `sessions/${store.email}/${parsed.meta.agent}/${id.split(':')[1]}.jsonl`;
-      await store.putObject(record.rawKey, body);
-    }
-  }
+  // Over the limit, the session's facts are still captured; only its full transcript is not kept.
+  const tooLarge = store.config.bucket ? await keepRaw(store, record, raw) : '';
+  const kept = tooLarge && `${tooLarge}; capture its facts as usual.`;
   writeJson(stripFile(ctx, id), record);
   const after = Number(ledger?.read_through) || 0;
   let text = redact(strip(parsed.messages, after), secrets);
@@ -526,6 +556,7 @@ const HOME_PAGE = 'wiki/development/home.md#the-machine-record';
 
 export const COMMANDS = {
   migrate, search, show, source, tags, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
+  'keep-transcript': keepTranscript,
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   'finish-run': finishRun,
@@ -549,6 +580,7 @@ const USAGE = `usage: memory.mjs <command>
   gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   pending [--limit n] [--exclude ids]   strip <session-id>   live [--everyone]   digest   stats   spool   due
+  keep-transcript <session-id|current>   upload the session's redacted transcript now; leaves its capture alone
                                (in a team, search, show, and live hide other people's personal and reader facts unless --everyone)
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
   migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)

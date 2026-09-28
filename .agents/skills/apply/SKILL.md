@@ -1,6 +1,6 @@
 ---
 name: apply
-description: Build the chosen change, planning first if needed, ending with a preview from this host; or work a non-code to-do.
+description: Build the chosen change, planning first if needed, then preview it from this host; or work a non-code to-do.
 user-invocable: true
 ---
 
@@ -43,7 +43,7 @@ When no helper can start, or this `/apply` already runs inside one, work inline 
 
 ## Finish with a preview
 
-Completion never saves; the work stays in this working tree until the person saves or publishes.
+The work stays in this working tree until the person saves or publishes.
 
 1. **Did the app change?** CI's own check:
 
@@ -81,6 +81,6 @@ Report the result without `/save`; nothing is committed. To stop halfway, the pe
 ## Boundaries
 
 - **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)): no commit, push, branch, PR, or CI step here. The preview upload is not git and gates nothing.
-- **Never save to stop; save to finish a gate task** ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). Paused, blocked, failed, or pending → no `/save`; report what remains and that `/save` can checkpoint it. A task whose done needs the gate (passing CI, a CI-published preview, pushed browser evidence) runs `/save`: tick it on a pass; otherwise leave it unchecked, report, and stop.
+- **Never save to stop; save to finish a gate task** ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)): report unfinished work for `/save` to checkpoint. A gate task runs `/save`: tick it on a pass; otherwise leave it unchecked, report, and stop.
 - **Resuming cold** → [`/continue <name>`](../continue/SKILL.md).
 - **Pause on ambiguity or blockers** (the proposal is the intent), ending with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ways to clear it, recommended first.

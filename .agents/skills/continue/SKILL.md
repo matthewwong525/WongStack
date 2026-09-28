@@ -1,12 +1,12 @@
 ---
 name: continue
-description: Resume saved work — a change by name, PR, or menu, or an open thread — and hand it to /apply.
+description: Resume saved work (a change by name, PR, or menu, or an open thread) and hand it to /apply.
 user-invocable: true
 ---
 
 # /continue
 
-Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context. Never reload the PR diff or review threads wholesale.
+Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context.
 
 This skill owns the checkout; `openspec` only reads ([the change loop](../../../wiki/development/the-change-loop.md)). The repo is whatever `gh` resolves; never hardcode owner/repo. Check [the preconditions](../save/references/preconditions.md) before the first `git` or `gh` command. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
@@ -53,9 +53,9 @@ A change with no PR yet is fine: load it.
 If there's a branch and it isn't checked out:
 
 ```bash
-git rev-parse --abbrev-ref HEAD     # where am I now
-git status --porcelain              # is the tree clean
-git fetch origin                    # a handed-off branch may exist only on the remote
+git rev-parse --abbrev-ref HEAD
+git status --porcelain
+git fetch origin   # a handed-off branch may exist only on the remote
 ```
 
 - Other unpublished work here — a dirty tree, or an active change on this branch other than the one asked for → **don't** switch. Ask: [open the change in a new workspace](../plan/references/new-workspace.md#pick-up-saved-work) *(Recommended when `paseo` is installed)*, `/save` the current work first, or recap it here and stop.

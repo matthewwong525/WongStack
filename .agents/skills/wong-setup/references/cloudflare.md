@@ -2,17 +2,7 @@
 
 This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
 
-```
-   the user's whole job                     everything below is this runbook
-   ─────────────────────────                ──────────────────────────────
-   1. sign up at Cloudflare                 widen the user token
-   2. create a token (two permission rows)  resolve the account
-   3. paste it when asked                   create the memory store
-                                            create prod + staging D1
-                                            write the wrangler config
-                                            mint the CI deploy token → GitHub
-                                            → hand back the URL after /save
-```
+The user's whole job: sign up at Cloudflare, create a token with two permission rows, and paste it when asked. This runbook does the rest.
 
 **Idempotent.** Every step checks first and reuses what exists, reporting the reuse as a success. A stopped run runs again from the top.
 
@@ -144,7 +134,7 @@ $P provision --repo <owner/name> --base <base>
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None is secret.
 5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retrying while the new store takes effect. On a new store, it also links the GitHub account `gh` is signed in as, making it the admin.
-6. **The admin key.** With no memory key in `.env`, it runs `memory.mjs member admin`: that links the GitHub account `gh` is signed in as as admin and writes a 30-day, self-renewing admin key, never printed, to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env`. No git email stops it with `repo`: ask the user to set one. A signed-out `gh` stops it with `cloudflare`: ask them to run `gh auth login`. Teammates [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once production is deployed. **Never** make the key a GitHub secret.
+6. **The admin key.** With no memory key in `.env`, it runs `memory.mjs member admin`, which writes a 30-day, self-renewing admin key, never printed, to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env`. No git email stops it with `repo`: ask the user to set one. A signed-out `gh` stops it with `cloudflare`: ask them to run `gh auth login`. Teammates [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once production is deployed. **Never** make the key a GitHub secret.
 
 Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
 

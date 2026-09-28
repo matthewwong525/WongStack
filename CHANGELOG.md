@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Close a workspace from any finished task
+
+- **A new `/close` wraps up a chat in one go.** It asks nothing. It saves what the chat learned, saves any unfinished work to GitHub, and otherwise updates the wiki. Then it closes the workspace; the chat stays readable in Paseo's archived list. [`/close`](.agents/skills/close/SKILL.md) owns the steps.
+- **Nothing planned is forgotten.** Before it closes, `/close` writes a wrap-up to memory: what the chat set out to do, what got done, and one open to-do for each piece left. The next session start shows them, and `/continue` picks them up.
+- **The whole conversation is kept.** `/close` uploads the chat's transcript, secrets blanked out, to the memory store's private storage right away, through the new `memory.mjs keep-transcript`. A chat marked `#private` is never uploaded, and a store without that storage skips it and says so.
+- **Unfinished work is never lost.** It is saved to its own branch with an open pull request, off the live site, for `/continue` to pick up on any computer. Only *close and throw it away* deletes it: that closes the pull request and deletes the branch, through the new `tidy.mjs close --discard`. Your project's main folder is never closed or thrown away.
+- **Only `/close` updates the wiki.** `/ship` now just puts code live. After a publish, `/close` writes the lasting facts into the wiki and publishes them as a small second update that changes only the wiki.
+- **Every finished task offers to close.** In a Paseo workspace, the last question after a publish, a research answer, an errand, or a declined publish offers *Close this workspace*, which runs `/close`. A plan waiting for review or a build in progress gets no close offer.
+- **Instructions got shorter to make room.** A few skill pages say the same rules in fewer words, so the new skill adds no reading to each session.
+
+**Updating.** Nothing to do by hand. After this update, pick *Close this workspace* or type `/close` when a chat is done; it now also updates the wiki, which publishing no longer does.
+
 ## 26.24.0 — Better drawings in plans and explore
 
 - **Plans draw more than a column of steps.** A short [drawing guide](.agents/skills/plan/references/drawings.md) gives five patterns to copy: a titled frame, a branch that splits and joins, options side by side with labels under, a comparison table, and a screen before and after.
