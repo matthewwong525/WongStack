@@ -40,7 +40,7 @@ Files live per journey in `$RUN_DIR/journeys/`, named alike and numbered in walk
 }
 ```
 
-**Browser journey → `<id>.batch.json`**: the ordered `agent-browser` commands as a JSON array. The driver feeds it **unread** to `agent-browser batch --bail --json`, so what you write is what runs:
+**Browser journey → `<id>.batch.json`**: the ordered `agent-browser` commands as a JSON array. The driver feeds it **unread** to `agent-browser batch --bail --json`, so what you write is what runs. Before you write it, run `agent-browser skills get core` (`--full` for the command reference): it serves the guide for the installed version, so the commands never go stale.
 
 ```json
 [
