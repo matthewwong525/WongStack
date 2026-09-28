@@ -79,3 +79,4 @@ None.
 - **2026-09-28** — Assumed: `server/README.md`'s end state says `cloudflared` runs only while a link is open, never as a service, because the host contract should promise what the design rules out.
 - **2026-09-28** — Distilled: no repeatable fact; the change and session wrote no live facts, and the measured sizes stay in this log.
 - **2026-09-28** — Archive checkpoint: tasks complete, specs synced into `install-onboarding` and `dependencies`, released as 26.23.0; two open threads recorded for the first real setup and the first new wongstack-cloud server.
+- **2026-09-28** — Assumed: CI's context check failed on instruction bytes (190845 → 191767), so `tools.md`'s helper text was cut and the `failure-map.md` row dropped: `tools.md` already says what to do when a helper fails, and one page should own it. Now 190673 bytes.
