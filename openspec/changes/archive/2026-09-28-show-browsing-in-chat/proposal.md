@@ -72,3 +72,4 @@ None.
 - **2026-09-28** — Assumed: the plan's "run /save" task is dropped, because `/ship`'s own checkpoint runs CI after the archive.
 - **2026-09-28** — Wiki distillation: no repeatable fact beyond `wiki/development/home.md`'s new *Show what the browser is doing*, which this change writes.
 - **2026-09-28** — Archive checkpoint: archived by `/ship` and saved for release 26.22.0.
+- **2026-09-28** — Assumed: fix a race in `hand-over.mjs close` inside this release, because it failed CI twice (3 of 16 local runs under load): a close sent before the watcher set its signal handlers recorded `error`.

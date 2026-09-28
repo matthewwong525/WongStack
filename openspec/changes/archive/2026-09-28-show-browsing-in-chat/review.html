@@ -152,6 +152,7 @@
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the plan's &quot;run /save&quot; task is dropped, because <code>/ship</code>'s own checkpoint runs CI after the archive.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Wiki distillation: no repeatable fact beyond <code>wiki/development/home.md</code>'s new <i>Show what the browser is doing</i>, which this change writes.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Archive checkpoint: archived by <code>/ship</code> and saved for release 26.22.0.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: fix a race in <code>hand-over.mjs close</code> inside this release, because it failed CI twice (3 of 16 local runs under load): a close sent before the watcher set its signal handlers recorded <code>error</code>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

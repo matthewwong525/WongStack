@@ -10,6 +10,7 @@
 - **App checks show theirs too.** When `/verify` checks your app before it goes live, it shows each step's picture in the chat as it grades that check, not only on GitHub afterwards. What it posts to GitHub doesn't change.
 - **Nothing while you have the browser.** During a hand-over, for a login or a captcha, the agent takes no pictures until you hand it back.
 - **Pictures stay out of your project.** They sit in agent-browser's temp folder, never in a repo file. The rule *Browse as the person* now names showing key moments.
+- **Closing a hand-over right after opening it no longer reports an error.** `hand-over.mjs close` could stop the background watcher before it was ready, so the link closed but the result read `error`. It now records `closed`.
 
 **Updating.** Nothing to do by hand. Pictures show in the chat in [Paseo](https://paseo.sh); a plain terminal shows a placeholder instead.
 
