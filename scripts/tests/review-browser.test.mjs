@@ -153,7 +153,7 @@ browserTest('on a touch screen, one tap on Note opens the editor and a tap on te
   await context.close();
 });
 
-browserTest('saving adds a pin and a list entry, and Copy notes writes a plain request to update the plan', async () => {
+browserTest('saving adds a pin and a list entry, and Copy notes writes notes on the plan', async () => {
   const { page, context } = await open(fixture().url);
   await note(page, 'why-1', 'Say who reads it.');
   await note(page, 'item-2', 'Name the reason.');
@@ -164,29 +164,30 @@ browserTest('saving adds a pin and a list entry, and Copy notes writes a plain r
   assert.equal(await page.locator('#note-list .entry').count(), 4);
   assert.equal(await page.locator('.bar .note-count').innerText(), '4 notes');
   assert.equal(await copied(page), [
-    'Update the plan review-fixture with these notes from the review page. Don\'t build yet.',
+    'Notes on the plan review-fixture from the review page. Don\'t build yet.',
     '- Why, paragraph 1 ("Reviewers read the plan on a phone."): Say who reads it.',
     '- Change #2 ("Item two links the reason and wraps onto a second line."): Name the reason.',
     '- Change #1, drawing line 3 ("done"): Show the end state.',
     '- Decision #2 ("Assumed: forty columns, because phones are narrow."): Check this one.',
   ].join('\n'));
   await page.waitForFunction(() => document.getElementById('toast').textContent.startsWith('Copied'));
-  assert.equal(await page.locator('#toast').textContent(), 'Copied 4 notes. Paste them into chat to update the plan.');
+  assert.equal(await page.locator('#toast').textContent(), 'Copied 4 notes. Paste them into chat.');
   await context.close();
 });
 
 browserTest('saving a note copies every saved note and says so', async () => {
   const { page, context, errors } = await open(fixture().url);
   await draft(page, 'why-1', 'Say who reads it.');
+  assert.equal(await page.locator('#editor textarea').getAttribute('placeholder'), 'A question or a change');
   assert.equal(await page.locator('#editor .copies').innerText(), 'Saving a note copies all your notes.');
   assert.match(await page.locator('header .hint').innerText(), /Saving a note copies all your notes\./);
   await page.locator('#editor [data-act="save"]').click();
   await page.waitForFunction(() => document.getElementById('toast').textContent.startsWith('Saved and copied 1 note.'));
   await note(page, 'item-2', 'Name the reason.');
   await page.waitForFunction(() => document.getElementById('toast').textContent.startsWith('Saved and copied 2'));
-  assert.equal(await page.locator('#toast').textContent(), 'Saved and copied 2 notes. Paste them into chat to update the plan.');
+  assert.equal(await page.locator('#toast').textContent(), 'Saved and copied 2 notes. Paste them into chat.');
   assert.equal(await page.locator('#copybuf').inputValue(), [
-    'Update the plan review-fixture with these notes from the review page. Don\'t build yet.',
+    'Notes on the plan review-fixture from the review page. Don\'t build yet.',
     '- Why, paragraph 1 ("Reviewers read the plan on a phone."): Say who reads it.',
     '- Change #2 ("Item two links the reason and wraps onto a second line."): Name the reason.',
   ].join('\n'));
