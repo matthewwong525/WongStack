@@ -98,7 +98,6 @@ async function getSigningKeys(teamDomain: string, forceRefresh = false): Promise
         "jwk",
         jwk,
         { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-        // Stryker disable next-line BooleanLiteral: nothing exports a verify-only key, so extractable is unobservable.
         false,
         ["verify"],
       ),
@@ -185,7 +184,6 @@ export async function getAccessIdentity(
       keys = await getSigningKeys(teamDomain, true);
       key = keys.get(kid);
     }
-    // Stryker disable next-line ConditionalExpression: verify() also rejects a missing key; this says so first.
     if (!key) return null;
 
     const verified = await crypto.subtle.verify(

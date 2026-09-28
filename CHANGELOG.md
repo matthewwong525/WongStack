@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.20.0 — Pushes skip mutation testing
+
+- **A push gets checked in a minute or two again.** `npm test` no longer ends in `stryker run`, so the Test check stops running mutation testing. In a busy repo it made each push wait 7 to 25 minutes.
+- **One pull request can't turn others red.** Stryker reused saved results its own diff could not see were stale, so a weak test passed on its branch, turned the main branch red after merging, then failed pull requests that never touched that code. With no saved results, that can't happen.
+- **No more nightly full run.** The Test workflow loses its daily `schedule` run, its 60-minute limit (every run gets 30), and the steps that saved and restored Stryker's results. `/ship` no longer mentions a red nightly run; it still stops on any red check on the main branch.
+- **Every other check stays.** Lint, 100% test coverage, dead-code and copied-code checks, and the check that a loosened test needs a written reason all still run on every push. The loosened-checks script still knows Stryker's skip comments and config, so a repo that adds it back is still checked.
+- **The scaffold drops Stryker.** `app/stryker.conf.json`, both `@stryker-mutator` packages, the `.stryker-tmp` ignore line, and the two `// Stryker disable` comments in `app/worker/access.ts` are gone.
+- **Vitest 5 is no longer held back by Stryker.** The next dependency update can take it.
+
+**Updating.** Nothing to do by hand. `/wong-sync` removes the config, the packages, and the workflow steps; Stryker's saved results in GitHub expire on their own after 7 unused days. The sync changes check files, so its plan needs a `Check:` bullet for each one CI names: `.github/workflows/test.yml`, `app/package.json`, and `app/stryker.conf.json`. Any `// Stryker disable` comments of your own now do nothing; delete them when you next touch the file.
+
 ## 26.19.0 — Saving a note copies all your notes
 
 - **Save copies every saved note, ready to paste.** On a plan's review page, each time you save a note, the page puts all your saved notes on the clipboard, in the same message Copy notes makes. It then says *Saved and copied 3 notes. Paste them into chat to update the plan.* Drafts still stay out.

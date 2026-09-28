@@ -14,7 +14,7 @@
     "secrets:push": "node ../scripts/cf-secrets.mjs push",
     "secrets:check": "node ../scripts/cf-secrets.mjs check",
     "lint": "oxlint",
-    "test": "npm run lint && vitest run --coverage && knip && jscpd && stryker run",
+    "test": "npm run lint && vitest run --coverage && knip && jscpd",
     "preview": "npm run build && vite preview",
     "deploy": "bash ../scripts/cf-deploy.sh",
     "cf-typegen": "wrangler types"
@@ -26,8 +26,6 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.60.2",
-    "@stryker-mutator/core": "^10.0.0",
-    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^22.20.4",
     "@types/react": "^19.3.0",
