@@ -41,31 +41,6 @@
 # step, just before the summary, fails the job when the change uses one and
 # its Decision log gives no reason, so a reason is always written where the
 # person reads it. wiki/development/the-change-loop.md#the-gate owns the rule.
-#
-# ---------------------------------------------------------------------------
-# Why Stryker's result file is cached
-#
-# Mutation testing is the slow gate, and it grows with the app: a full run
-# re-tests every mutant on every push. The scaffold's Stryker config turns on
-# incremental mode, which reuses a mutant's result when its code and the test
-# that killed it did not change. This job keeps that file between runs. Each
-# save gets a new key (entries are immutable); restore matches by prefix, which
-# searches this branch first, then the default branch. The key is only the
-# runner's OS, so a dependency or test-settings change keeps the saved results
-# and the next push still takes minutes. Stryker's own diff does not see those
-# files, so a push after one may reuse a stale result for up to a day.
-#
-# The nightly `schedule` run closes that gap. It skips the restore, so Stryker
-# tests every mutant from scratch on the default branch, then saves the fresh
-# file as the base later pushes restore. No push waits on it. When it finds a
-# weak test, its check on the head commit turns red, /ship stops, and the next
-# push that restores its file fails the same way until a test is fixed.
-#
-# The limits: a push gets 30 minutes, because one with no saved file (a new
-# repo, or a cache GitHub evicted after 7 unused days) tests everything, and at
-# 15 it was cut off before finishing. The nightly run always tests everything,
-# so it gets 60, with room to grow. A suite with no Stryker config runs no
-# cache step.
 
 name: Test
 
@@ -75,10 +50,6 @@ on:
   push:
     branches: ['**']
   pull_request:
-  # The nightly full mutation run: re-tests every mutant from scratch on the
-  # default branch. See "Why Stryker's result file is cached" above.
-  schedule:
-    - cron: '17 6 * * *'
 
 concurrency:
   group: test-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
@@ -86,9 +57,9 @@ concurrency:
 
 jobs:
   test:
-    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || github.event.pull_request.head.repo.full_name != github.repository }}
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ github.event_name == 'schedule' && 60 || 30 }}
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -143,14 +114,6 @@ jobs:
           fi
           echo "found=true" >> "$GITHUB_OUTPUT"
           echo "dir=$FOUND" >> "$GITHUB_OUTPUT"
-          # Cache paths and hashFiles() are workspace-relative: "" at the root, "app/" below it.
-          REL="${FOUND#"$PWD"}"; REL="${REL#/}"
-          echo "rel=${REL:+$REL/}" >> "$GITHUB_OUTPUT"
-          if compgen -G "$FOUND/stryker.conf.*" >/dev/null || compgen -G "$FOUND/stryker.config.*" >/dev/null; then
-            echo "stryker=true" >> "$GITHUB_OUTPUT"
-            # No input hash: the nightly run, not the key, catches what Stryker's own diff misses.
-            echo "stryker-key=stryker-$RUNNER_OS" >> "$GITHUB_OUTPUT"
-          fi
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: ${{ steps.suite.outputs.found == 'true' }}
@@ -164,28 +127,11 @@ jobs:
         working-directory: ${{ steps.suite.outputs.dir }}
         run: npm ci --no-audit --no-fund
 
-      # Skipped on the nightly run, so Stryker finds no file and tests every mutant.
-      - name: Restore mutation results
-        if: ${{ steps.suite.outputs.stryker == 'true' && github.event_name != 'schedule' }}
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.suite.outputs.rel }}reports/stryker-incremental.json
-          key: ${{ steps.suite.outputs.stryker-key }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ${{ steps.suite.outputs.stryker-key }}-
-
       - name: Test
         id: test
         if: ${{ steps.suite.outputs.found == 'true' }}
         working-directory: ${{ steps.suite.outputs.dir }}
         run: npm test
-
-      # Also after a red run, so the fixing push reuses what this one learned.
-      - name: Save mutation results
-        if: ${{ always() && !cancelled() && steps.suite.outputs.stryker == 'true' && hashFiles(format('{0}reports/stryker-incremental.json', steps.suite.outputs.rel)) != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.suite.outputs.rel }}reports/stryker-incremental.json
-          key: ${{ steps.suite.outputs.stryker-key }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       # Each changed mini app's own tests, with Node's built-in runner and no
       # install. They run whenever the change touches a mini app, so a failing

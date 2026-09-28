@@ -12,7 +12,6 @@ dist
 dist-ssr
 coverage
 reports
-.stryker-tmp
 *.local
 
 # Editor directories and files
