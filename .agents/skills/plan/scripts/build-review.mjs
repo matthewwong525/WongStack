@@ -229,7 +229,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
       const result = buildReview(root, { requireCurrent: args.values['require-current'] === true });
       for (const warning of result.warnings) console.error(`review: warning: ${warning}`);
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
-      if (result.kind !== 'no-page') console.log(`${planLink(resolve(root, 'review.html'))}\n${NEXT_STEP}`);
+      if (result.kind !== 'no-page') console.log(`${planLink(resolve(root, 'review.html'))}\n\n${NEXT_STEP}`);
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }
 }

@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.31.0 — A "See the preview" choice after a build
+
+- **See what was built, even when the link is hidden.** Some apps hide the text written just above a question, so the preview link never showed after a build. The last question now offers *See the preview* next to *Publish it*, *Change it more*, and *Save it*. Picking it shows the link on its own, with no question after it, and builds, saves, or publishes nothing; your next message decides.
+- **The link opens the page you changed.** A preview link now goes straight to the page that shows the change, such as a mini app's page or the settings page, not the home page. It shows on its own line as *Click here to see the preview:*, like the plan's link. Any reply that shows a preview link and then asks offers *See the preview*. [Print the preview's link](.agents/skills/explore/references/asking-the-user.md#print-the-previews-link) owns the rule.
+- **A gap under the plan's link.** A blank line now separates the plan's link from *When you're ready, type `/apply` to build it.*, so the chat no longer runs them together.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.30.0 — Fill a handed-over form from a list of its fields
 
 - **Every field in one list, dropdowns included.** When the agent hands you its browser, the page now lists the site's fields under the live view, each with its label: a box for each text field, a dropdown with the site's own choices, and a tick box. What you type or pick lands in that field as you go, so an expiry month or year dropdown works from a phone at last. You then tap the site's own *Pay* or *Sign in* button in the live view.
