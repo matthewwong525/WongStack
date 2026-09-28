@@ -31,4 +31,4 @@
 
 ## 5. Gate
 
-- [ ] 5.1 `/save`: CI passes, including the tidy tests, payload checks, and the context-size check
+- [x] 5.1 `/save`: CI passes, including the tidy tests, payload checks, and the context-size check

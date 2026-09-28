@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Close a workspace from any finished task
+## 26.28.0 — Close a workspace from any finished task
 
 - **A new `/close` wraps up a chat in one go.** It asks nothing. It saves what the chat learned, saves any unfinished work to GitHub, and otherwise updates the wiki. Then it closes the workspace; the chat stays readable in Paseo's archived list. [`/close`](.agents/skills/close/SKILL.md) owns the steps.
 - **Nothing planned is forgotten.** Before it closes, `/close` writes a wrap-up to memory: what the chat set out to do, what got done, and one open to-do for each piece left. The next session start shows them, and `/continue` picks them up.

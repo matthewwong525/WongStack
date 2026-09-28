@@ -136,20 +136,6 @@ After archiving, `/ship` SHALL invoke ordinary `/save` exactly once, so the comm
 - **WHEN** `/ship` runs on the default branch with a finished, uncommitted change
 - **THEN** it archives in place, saves once to a new branch, and CI runs once before the merge
 
-### Requirement: Ship distills the change's facts into the wiki
-
-Before archiving, `/ship` SHALL read the facts recorded on the change, on its branch, and by any session that wrote a fact on the change, so a renamed branch loses none. It SHALL keep only repeatable knowledge and write it into the owning wiki pages in the same pull request (`knowledge-center`), noting the pages or "no repeatable fact" in the Decision log. A private-life fact SHALL NOT move into the repo's wiki, and an unreachable store SHALL skip the step without blocking the ship.
-
-#### Scenario: A reusable convention
-
-- **WHEN** a change's facts record a convention for future work
-- **THEN** the ship pull request edits the wiki page that owns it
-
-#### Scenario: The branch was renamed mid-change
-
-- **WHEN** a session started on a branch that was later renamed, and wrote facts on the change and on another topic
-- **THEN** the distill step reads both facts
-
 ### Requirement: Ship deletes the branch only after a confirmed merge
 
 `/ship` SHALL merge exactly the gated commit, confirm the merge, and retarget every open pull request based on the branch to the default branch before deleting it. When the merge fails, or the dependent pull requests cannot be listed, it SHALL keep the branch; a branch the forge already deleted SHALL be reported as deleted at merge, not as an error.

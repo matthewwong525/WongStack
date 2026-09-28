@@ -1,6 +1,6 @@
 # Add /close to wrap up a session
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** close-skill
 **Open questions:** none
 
@@ -138,3 +138,6 @@ None.
 - **2026-09-28** — Asked (with `/ship`) that /close also saves the transcript to R2 → added: /close uploads the session's redacted transcript to the memory bucket before closing, through a new memory script command, because today the transcript is uploaded only by a later background capture that a closed workspace may never get.
 - **2026-09-28** — Assumed: the upload leaves the session uncaptured, so the background run still reads it for facts and re-uploads the final version with the last reply, because the upload happens before `/close`'s own final message.
 - **2026-09-28** — Built inside `/ship`: the `/close` skill, `tidy.mjs close --discard`, `memory.mjs keep-transcript`, `/ship`'s distill section removed, and the close offer moved to the next-step list. To stay under the size budget, prose was trimmed across about a dozen skill pages with no change in behavior; the start-up ceiling was not raised. The memory tests went into `memory-capture.test.mjs`, beside the transcript fixtures. Script tests, the context check, and the payload checks pass locally.
+- **2026-09-28** — Saved inside `/ship` as PR #189 after merging main (26.25.0 to 26.27.0): `AGENTS.md` takes main's wording plus `/close`, and `CHANGELOG.md` keeps this entry on top. The merge pushed instructions 45 bytes over the baseline, so `close/SKILL.md` was trimmed to fit. CI passed.
+- **2026-09-28** — No wiki update at ship: this change moves that step to `/close`, which runs it when this workspace closes.
+- **2026-09-28** — Archived at ship as 26.28.0; all tasks done and CI green on the branch.

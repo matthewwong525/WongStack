@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · add-close</title>
+<title>Review · 2026-09-28-add-close</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="add-close">
+<body data-change="2026-09-28-add-close">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>add-close</h1>
+  <h1>2026-09-28-add-close</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -201,6 +201,9 @@
 <li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-28</p>Asked (with <code>/ship</code>) that /close also saves the transcript to R2 → added: /close uploads the session's redacted transcript to the memory bucket before closing, through a new memory script command, because today the transcript is uploaded only by a later background capture that a closed workspace may never get.</li>
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the upload leaves the session uncaptured, so the background run still reads it for facts and re-uploads the final version with the last reply, because the upload happens before <code>/close</code>'s own final message.</li>
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Built inside <code>/ship</code>: the <code>/close</code> skill, <code>tidy.mjs close --discard</code>, <code>memory.mjs keep-transcript</code>, <code>/ship</code>'s distill section removed, and the close offer moved to the next-step list. To stay under the size budget, prose was trimmed across about a dozen skill pages with no change in behavior; the start-up ceiling was not raised. The memory tests went into <code>memory-capture.test.mjs</code>, beside the transcript fixtures. Script tests, the context check, and the payload checks pass locally.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Saved inside <code>/ship</code> as PR #189 after merging main (26.25.0 to 26.27.0): <code>AGENTS.md</code> takes main's wording plus <code>/close</code>, and <code>CHANGELOG.md</code> keeps this entry on top. The merge pushed instructions 45 bytes over the baseline, so <code>close/SKILL.md</code> was trimmed to fit. CI passed.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>No wiki update at ship: this change moves that step to <code>/close</code>, which runs it when this workspace closes.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Archived at ship as 26.28.0; all tasks done and CI green on the branch.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -212,7 +215,7 @@
 <div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
   <p class="where" id="editor-where"></p>
   <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
-  <textarea aria-label="Note text" rows="3" placeholder="What should change here?"></textarea>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
   <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
   <p class="copies">Saving a note copies all your notes.</p>
   <p class="session" hidden>Notes last for this session only.</p>
@@ -454,7 +457,7 @@
     closeEditor(true); persist();
     if (act === 'save') {
       const n = data.notes.length;
-      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat to update the plan.'); },
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
         function () { toast('Saved. Tap Copy notes to copy them.'); });
     }
   });
@@ -551,9 +554,9 @@
     el.scrollIntoView({ block: 'start' });
   }
 
-  // ── copy: saved notes only, as a plain request to update the plan ──
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
   function notesText() {
-    const lines = ['Update the plan ' + CHANGE + ' with these notes from the review page. Don\'t build yet.'];
+    const lines = ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'];
     data.notes.forEach(function (n) {
       const w = where(n.id);
       lines.push('- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' '));
@@ -581,7 +584,7 @@
   $('copy').addEventListener('click', function () {
     const n = data.notes.length;
     if (!n) { toast('No saved notes yet. Drafts are not copied.'); return; }
-    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat to update the plan.'); },
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 
