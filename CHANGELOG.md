@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Plans ask until they're clear, and publish in one pick
+
+- **Follow-up questions before a plan.** When your answers open a new choice, the assistant asks another short set of multiple-choice questions instead of guessing. It still asks only what would make the plan wrong, never asks the same thing twice, and stops once nothing is open. [The exit round](.agents/skills/explore/SKILL.md#the-exit-round) owns the rule.
+- **Build and publish in one pick.** The question under a finished plan adds *Build and publish*, second after *Build it now*. It builds, checks, and makes the change live with no stop at the preview.
+- **Updates go straight to a plan.** An update from WongStack goes directly into planning, with no *Plan it?* stop first, even when an older install's own update steps say to think it through first.
+- **The upkeep check asks follow-ups too.** `/improve` may ask another set of questions before it picks a fix, when your answers leave a real choice open.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.25.0 — Type into the agent's browser during a hand-over
 
 - **You can type from your phone.** A hand-over link now opens a page of our own: the live page, and a *Type here* box under it. Tap a field on the page, then tap the box, and your phone's keyboard types into that field. ⌫, Tab, and Enter sit under the box. On a laptop you can also click and type on the page itself. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the how.

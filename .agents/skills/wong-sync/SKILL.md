@@ -22,7 +22,7 @@ node "<source path>/.claude/skills/wong-sync/scripts/preflight.mjs" \
 It fetches and writes nothing. Follow exactly one route, by the `status` in its versioned JSON:
 
 - `current` — report the source version and commit, selected-unit count, and preflight time; stop. No `/plan` or `/explore`, no change, no record edit.
-- `update` — keep the whole report in context and invoke `/plan`. Start from `changes`; expand only for a named dependency or impact, never re-compare the full payload.
+- `update` — keep the whole report in context and invoke `/plan` directly, with no *Plan it?* stop. Start from `changes`; expand only for a named dependency or impact, never re-compare the full payload.
 - `error` — report every diagnostic and stop: no partial "current", no broad AI scan, no `/plan`.
 
 An unknown schema version or status, truncated output, failed command, or invalid JSON is an error; never infer missing fields.
@@ -33,4 +33,4 @@ Invoke `/plan` with this description, filled in, plus any user instructions:
 
 Pass prior user decisions as context, an old verdict record's too. Use installed skills by their recorded names, else the source's; resolve source resources in the source checkout while working in the target. Provision a missing part, such as moving a store off a Cloudflare memory token onto the production Worker, by setup's [provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) from the source checkout.
 
-`/plan` owns the artifacts and review; its bounded `/explore` owns investigation and the one question round. Ask in [the ask format](../explore/references/asking-the-user.md). A bare sync stops at the plan's `review.html` with the next step; a request to implement or ship continues through that verb ([just ask](../../../wiki/development/the-change-loop.md#just-ask)). Write no verdict file; prescribe no proposal format.
+`/plan` owns the artifacts and review; its bounded `/explore` owns investigation and asks by [the exit round](../explore/SKILL.md#the-exit-round). Ask in [the ask format](../explore/references/asking-the-user.md). A bare sync stops at the plan's `review.html` with the next step; a request to implement or ship continues through that verb ([just ask](../../../wiki/development/the-change-loop.md#just-ask)). Write no verdict file; prescribe no proposal format.

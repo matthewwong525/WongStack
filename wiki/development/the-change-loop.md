@@ -22,7 +22,7 @@ Each verb is a WongStack skill that calls the OpenSpec CLI directly (setup runs 
 /ship ─▶ /apply ─▶ /plan ─▶ /explore
 ```
 
-`/plan` always invokes `/explore` for its [question round](#asking-before-drafting). One `/ship` carries a task from idea to merge, whether you named the intent or the session established it; a **cold** `/ship`, with no intent and nothing in the session, never merges a lone entry in `openspec list` and reports the stop. The stages still run in order, the OpenSpec folder before any code. Invoke a verb yourself to stop and review its output.
+`/plan` always invokes `/explore` for its [questions](#asking-before-drafting). One `/ship` carries a task from idea to merge, whether you named the intent or the session established it; a **cold** `/ship`, with no intent and nothing in the session, never merges a lone entry in `openspec list` and reports the stop. The stages still run in order, the OpenSpec folder before any code. Invoke a verb yourself to stop and review its output.
 
 Entering late never skips a stop: **no verb merges as a way of stopping.** A paused `/plan`, an `/apply` with tasks pending, or a failing checkpoint in the chain reports the blocker and stops before the archive; a partial change is never archived or merged.
 
@@ -30,7 +30,7 @@ Entering late never skips a stop: **no verb merges as a way of stopping.** A pau
 
 A person need not know the verbs. Asked for a change to the repo's code or process with no verb, the agent runs the loop and stops twice:
 
-1. **`/plan`** ends with the review link and asks *build it now?* Picking *Review the plan* prints the link again and waits.
+1. **`/plan`** ends with the review link and asks *build it now?* Picking *Build and publish* runs `/ship` instead, with no stop at the preview; picking *Review the plan* prints the link again and waits.
 2. On yes, **`/apply`** builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent says so and still asks.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 
@@ -59,13 +59,13 @@ Before planning, the agent [checks for other work](../../.agents/skills/explore/
 
 ### Asking before drafting
 
-`/explore` owns clarification. Standalone, it asks small groups of questions as long as the thinking needs. Moving into `/plan`, however planning was invoked, it asks **at most one round**, only on decisions where a wrong guess makes the artifacts *wrong*, not merely *different*; later gaps become recorded assumptions. [The exit round](../../.agents/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` logs the answers in the Decision log.
+`/explore` owns clarification. Standalone, it asks small groups of questions as long as the thinking needs. Moving into `/plan`, however planning was invoked, it asks only where a wrong guess makes the artifacts *wrong*, not merely *different*, and asks a follow-up group when an answer opens another such choice. Minor gaps become recorded assumptions. [The exit round](../../.agents/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` logs the answers in the Decision log.
 
 ## The steps
 
 Each skill owns its own procedure; this list is what each stage is for.
 
-- **[`/explore`](../../.agents/skills/explore/SKILL.md)** thinks a problem through and owns the one [question round](#asking-before-drafting). It **always runs**, except for notes pasted from a review page, and writes nothing.
+- **[`/explore`](../../.agents/skills/explore/SKILL.md)** thinks a problem through and owns the [questions before a plan](#asking-before-drafting). It **always runs**, except for notes pasted from a review page, and writes nothing.
 - **[`/plan`](../../.agents/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page, with no git. **A change that touches behavior plans its tests**: `tasks.md` carries a coverage task that `/apply` writes and CI runs on every push. `/save` never authors tests; coverage grows where the context is richest.
 - **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper) so the build does not carry the planning talk, and ends with a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
 - **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, returns a preview URL, and records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so the git, PR, and CI logic exists once.
