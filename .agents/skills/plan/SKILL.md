@@ -26,7 +26,7 @@ Write Why and What Changes in [plain words](../explore/references/asking-the-use
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent or browser check. One What Changes bullet carries one drawing by default, plus a sketch of each new or restructured user-facing screen; draw more only where a bullet can not be understood without it. A drawing is a fenced `text` block indented inside its bullet, drawn by [the drawing guide](references/drawings.md): aim for 40 columns, the width of a phone, and up to 56 for options side by side, a table, or a before-and-after ([what a sketch holds](../../../wiki/ux-principles.md#the-review-file)).
+Draw as you write, with no second agent or browser check. One What Changes bullet carries one drawing by default, plus a sketch of each new or restructured user-facing screen; draw more only where a bullet can not be understood without it. A drawing is a fenced `text` block indented inside its bullet, drawn by [the drawing guide](references/drawings.md) ([what a sketch holds](../../../wiki/ux-principles.md#the-review-file)).
 
     - **Save goes through one gate.** …
       ```text
@@ -42,7 +42,7 @@ Build the page after drafting and after each later edit:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current
 ```
 
-It prints a status line, the plan's link line, and the next-step line, to copy as is; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the next-step line goes with it. Shorten any drawing line it warns is over 60 columns, and fix any box edge it warns is out of line. Keep no other copy of the proposal's text. A clean build proves form, not that a drawing explains its bullet.
+It prints a status line, the plan's link line, and the next-step line, to copy as is; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the next-step line goes with it. Fix each drawing it warns about. Keep no other copy of the proposal's text. A clean build proves form, not that a drawing explains its bullet.
 
 A change that adds or restructures a screen gets [a `## UX` design section](../../../wiki/ux-principles.md#the--ux-section-in-designmd); sketch phone work phone-first. UI-less changes omit it.
 

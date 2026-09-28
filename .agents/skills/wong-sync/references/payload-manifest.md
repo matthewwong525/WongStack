@@ -29,29 +29,24 @@ A skill installed under a local name keeps it: the record's `components.skills` 
 
 ## Deterministic sync preflight
 
-[`preflight.mjs`](../scripts/preflight.mjs) compares one target's selected payload at the record's `commit` and at the refreshed source `HEAD`. It expands the union of both commits' `payload-files.json`, so every addition, removal, folder entry, exclusion, and manifest edit shows. It always selects `core`, `ui`, `pack`, and `scaffold`, ignoring other `components` flags; `seededBySetup` is not payload.
+[`preflight.mjs`](../scripts/preflight.mjs) compares one target's payload at the record's `commit` and at the refreshed source `HEAD`, over the union of both commits' `payload-files.json`, so every addition, removal, folder entry, exclusion, and manifest edit shows. It always selects `core`, `ui`, `pack`, and `scaffold`; `seededBySetup` is not payload.
 
-The record's skill names map upstream `.claude/skills/<name>/` to local folders: a string array maps each to itself; an object, or array entries with source and local names, keeps renames. A new upstream core skill keeps its name until implementation records another. The report uses logical `.claude/` paths, even for a source stored under `.agents/`.
+The record's skill names map upstream `.claude/skills/<name>/` to local folders: a string array maps each to itself; an object, or source-and-local pairs, keeps renames. A new upstream skill keeps its name until implementation records another. Paths are logical `.claude/`, even from `.agents/`.
 
-A source symlink is read through its link, one hop by Git path, since a Git tree holds only the link text (this source's `CLAUDE.md` links to `AGENTS.md`). A link to a folder, another link, or nothing is no payload unit; a real file beats a link at the same logical path.
+A source symlink is read one hop by Git path (this source's `CLAUDE.md` links to `AGENTS.md`); a link to a folder, a link, or nothing is no unit, and a real file beats a link at the same path.
 
-Files compare by Git blob first. The `CLAUDE.md` unit is only the lines from `WONG-STACK:BEGIN` through `WONG-STACK:END`; prose outside is never drift. Each upstream-changed unit is `added`, `modified`, or `removed`, with one target state:
+Files compare by Git blob. The `CLAUDE.md` unit is only the `WONG-STACK:BEGIN`…`END` lines. Each upstream-changed unit is `added`, `modified`, or `removed`, and its target is `missing`, `installed-equivalent` (equals the recorded source), `latest-equivalent` (equals the refreshed source), or `locally-adapted` (neither; protected).
 
-- `missing` — the mapped target unit is absent;
-- `installed-equivalent` — it still equals the recorded source revision;
-- `latest-equivalent` — it already equals the refreshed source;
-- `locally-adapted` — it equals neither and stays protected.
+An install older than the inventory compares against an empty baseline: every unit is `added`. A missing inventory at source `HEAD` is an error.
 
-An installed commit older than the inventory has no `payload-files.json`. The preflight then compares against an empty baseline: every current unit is `added`, and one the target already has is `latest-equivalent` or `locally-adapted`. A missing inventory at the source `HEAD` is still an error.
+Two more fields, still `schemaVersion: 1`, so an old install's `/wong-sync` reads them:
 
-The report adds two fields, still `schemaVersion: 1`, so an old install's own `/wong-sync` reads it:
+- `catchUp` — `{ needed, reasons }`, each reason a fixed code with its paths, from the target's layout and record alone: `agent-folder`, `codex-folder`, `rules-file`, `rules-file-reversed`, `wiki-elsewhere`, `opted-out`, `generated-openspec`, `deploy-token`, `no-baseline`. `needed` is true for any reason or a version below 19.0.0. [Catching up an older install](catch-up.md) owns each.
+- `updating` — one `{ version, title, note }` per `CHANGELOG.md` entry above the installed version, newest first, `note` its `**Updating.**` or `**Moving an existing install.**` text or `null`. `updatingComplete` is `false`, never an error, when the changelog or installed version can't be read.
 
-- `catchUp` — `{ needed, reasons }`. Each reason is a fixed code with the paths it saw, read from the target's layout and install record alone: `agent-folder`, `codex-folder`, `rules-file`, `rules-file-reversed`, `wiki-elsewhere`, `opted-out`, `generated-openspec`, `deploy-token`, and `no-baseline`. `needed` is true for any reason, or an installed version below 19.0.0. [Catching up an older install](catch-up.md) owns what each asks of the plan.
-- `updating` — one `{ version, title, note }` per source `CHANGELOG.md` entry above the installed version, newest first, with its `**Updating.**` or `**Moving an existing install.**` text, or `null`. `updatingComplete` is `false` when the changelog is missing or unparsable, or the installed version is unknown; that is never an error, because the file changes are still proven.
+The report gives paths, classes, and counts, never a body or diff. It returns `status: error` on a bad or non-ancestor commit, invalid inventory, an unsafe path, missing markers, a read or Git error, or a change set over the safety limit; [`/wong-sync`](../SKILL.md) owns each status.
 
-The JSON report gives each changed unit's path and class, with counts, never a file body or diff. It returns `status: error` on a bad or non-ancestor commit, invalid inventory, an unsafe or escaping path, missing markers, a read or Git error, or a change set over the safety limit. [`/wong-sync`](../SKILL.md) owns what each status does.
-
-[`merge-check.mjs`](../scripts/merge-check.mjs) runs after the plan merges new text into edited files, before the install record advances. With the same arguments plus `--from <installed commit>`, it takes each unit the preflight calls `modified` and `locally-adapted`, and lists every upstream hunk with an added line the target no longer has: the file, the source line range, the count, and the first missing line. Only the text between the markers counts for the `CLAUDE.md` block. It exits 0 when nothing is missing, 1 when something is, and 2 on a usage or read error; with no baseline it reports `skipped`. A moved or reworded line passes, so it catches dropped sections, and the plan's review catches rewording.
+[`merge-check.mjs`](../scripts/merge-check.mjs) runs after the plan merges new text into edited files, before the record advances. With `--from <installed commit>`, it lists each upstream hunk whose added line a `modified`, `locally-adapted` unit no longer has: file, source lines, count, first missing line. It exits 0 when nothing is missing, 1 when something is, 2 on a usage or read error, and reports `skipped` with no baseline. A moved or reworded line passes; the plan's review catches rewording.
 
 **improve** ships its survey helper and references as one folder; the helper reads tracked text and Git history on OpenSpec's Node.js, adds no package, and calls no service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduling.
 
@@ -72,7 +67,7 @@ Every `/wong-sync`, however old, reads this page from the source, so the plan's 
 
 ## The Paseo project file
 
-`paseo.json` readies each new Paseo workspace and tells Paseo how to name things. Its `worktree.setup` copies the primary worktree's secrets files, and its `metadataGeneration` instructions match what `/save` and `/ship` write. A target with its own `paseo.json` gets a merge, never a replacement, like the hooks above: `worktree.setup` becomes a list with the seed command appended when absent, and each missing `metadataGeneration` entry is added. The target's own keys win. The agent presets are machine settings, not payload; [required tools](../../../../wiki/development/required-tools.md) says how they get added.
+`paseo.json` readies each new Paseo workspace: `worktree.setup` copies the primary worktree's secrets files, and `metadataGeneration` names things as `/save` and `/ship` do. A target's own `paseo.json` gets a merge, never a replacement: `worktree.setup` becomes a list with the seed command appended when absent, missing `metadataGeneration` entries are added, and the target's keys win. The agent presets are machine settings, not payload; [required tools](../../../../wiki/development/required-tools.md) says how they get added.
 
 ## The stack pack
 
@@ -82,11 +77,7 @@ Create live database IDs and secrets in the target; never copy them. No copied f
 
 ## The app scaffold
 
-A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module, so the route updates with the skill; only that import and branch sit in `app/`. The landing page opens with a tutorial, `app/src/pages/home/Tutorial.tsx`: a message to copy into the chat, asking the agent to remove the tutorial and explain each step; the mini apps are listed below it. Add or update `Tutorial.tsx`, `Tutorial.css`, and `Tutorial.test.tsx` only when the target's `app/src/pages/home/Home.tsx` still renders `<Tutorial />` (or, on the flat layout, its `app/src/App.tsx` does); otherwise the person finished it, so the plan leaves it out and says so in one line. The build writes no list page, and `/apps/` redirects to `/`; a target whose landing page does not read `/apps/apps.json` gets a plan task to list the apps there. The core test workflow finds `npm test` at the root or in an immediate subdirectory; with none, it reports that and succeeds. No root `package.json` is copied for a target.
-
-Add or update the landing page's [tutorial](../../../../wiki/stack/mini-apps.md), `app/src/Tutorial.tsx` and `Tutorial.test.tsx`, only while the target's `app/src/App.tsx` renders `<Tutorial />`; otherwise the person finished it; the plan skips them and says so in one line. The build writes no list page and `/apps/` redirects to `/`; a target whose landing page doesn't read `/apps/apps.json` gets a plan task to list the apps there.
-
-The core test workflow runs `npm test` at the root or one folder down; with none, it says so and passes. No root `package.json` is copied.
+A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module, so the route updates with the skill; only that import and branch sit in `app/`. The landing page opens with a [tutorial](../../../../wiki/stack/mini-apps.md), `app/src/pages/home/Tutorial.tsx`: a message to paste into the chat that removes it, explaining each step, above the mini apps. Update `Tutorial.tsx`, `.css`, and `.test.tsx` only while the target's `Home.tsx` (flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise the person finished it, and the plan says so in one line. `/apps/` redirects to `/`; a landing page that doesn't read `/apps/apps.json` gets a task to list the apps. The test workflow runs `npm test` at the root or one folder down, and passes with none. No root `package.json` is copied.
 
 The [mini apps](../../../../wiki/stack/mini-apps.md) route ships file by file: `router.mjs` and `routes.mjs` with their type declarations, and the example `mini-apps/apps/hello/`; `app/worker/index.ts` sends `/apps/` to it. Nothing else under `mini-apps/` ships, so apps made here stay here; list a new scaffold file by hand. App tests use Node's built-in runner, so the folder has no package manifest.
 
@@ -96,7 +87,7 @@ Fresh setup runs `openspec init --tools none`. The verbs call the CLI directly a
 
 ## Not copied
 
-Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's `.claude/.wong-stack.json` is written after agreed implementation and never copied upstream. Old verdict files may inform exploration; nothing writes new ones. An older install's leftover layout and record fields are caught up in place by [catching up an older install](catch-up.md).
+Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's install record never goes upstream. Old verdict files may inform exploration; nothing writes new ones.
 
 ## Install record
 
