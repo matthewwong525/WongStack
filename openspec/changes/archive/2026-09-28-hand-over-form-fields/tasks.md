@@ -22,4 +22,4 @@
 ## 4. Integration
 
 - [x] 4.1 Live check: serve a local card-form fixture (card number, expiry month and year selects with the year disabled until a month is picked, security code, a checkbox), run `hand-over.mjs open --local`, and drive the hand-over page from a second agent-browser session emulating an iPhone: fill the boxes, pick 03 and 2028, tick the box; then `close` and confirm with agent-browser that the fixture's fields hold those values and that no recorded agent-browser call held the typed card number. Repeat the page open over a real quick tunnel.
-- [ ] 4.2 Run `/save` so CI runs `npm test` on the branch; verify the gate passes, and record open memory threads for a real phone hand-over and a real 1Password fill of the list.
+- [x] 4.2 Run `/save` so CI runs `npm test` on the branch; verify the gate passes, and record open memory threads for a real phone hand-over and a real 1Password fill of the list.

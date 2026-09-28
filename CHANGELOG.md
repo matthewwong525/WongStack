@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Fill a handed-over form from a list of its fields
+## 26.30.0 — Fill a handed-over form from a list of its fields
 
 - **Every field in one list, dropdowns included.** When the agent hands you its browser, the page now lists the site's fields under the live view, each with its label: a box for each text field, a dropdown with the site's own choices, and a tick box. What you type or pick lands in that field as you go, so an expiry month or year dropdown works from a phone at last. You then tap the site's own *Pay* or *Sign in* button in the live view.
 - **Your password manager fills it in one tap.** Each box says what it holds (card number, expiry, security code, email, password, one-time code), worked out from the site's own marks or the field's name and label. So 1Password or your phone's autofill can fill the whole list at once.

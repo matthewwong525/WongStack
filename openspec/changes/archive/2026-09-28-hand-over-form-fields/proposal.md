@@ -1,6 +1,6 @@
 # Fill a handed-over form from a list of its fields
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** rigid-racoon
 **Open questions:** none
 
@@ -75,3 +75,4 @@ None.
 - **2026-09-28** — Assumed in the build: after the list changes, a box keeps its content by its kind, label, and place among fields that share both, not by `ref`, because the expiry year appearing after a month pick shifts every later `ref`, and the live check lost the security code that way.
 - **2026-09-28** — Built: a real hand-over over a quick tunnel paid Matthew's City of Markham ticket: the list filled the email boxes and the terms tick on the payment page, then the ekashu card page's number, expiry dropdowns, and security code, and the site confirmed the payment.
 - **2026-09-28** — Asked after the ticket test how the ready question should look → Matthew chose a multiple choice before the browser opens; the *Ask first* rule in `home.md` now names the shared ask format with *Ready, send the link / Not now*, folded into this change because it is the same hand-over.
+- **2026-09-28** — Archived and checkpointed for merge by `/ship` as 26.30.0; CI passed on the branch first.
