@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 26.18.1 — The browser tool reads its own current guide
+
+- **The agent loads the browser tool's guide before it drives the browser.** Before `/verify` writes a preview check's browser steps, and before a task uses your saved logins, the agent runs `agent-browser skills get core`. That guide comes with the installed tool, so it always matches its version and the steps never go stale. [The walkthrough](.agents/skills/verify/references/walkthrough.md) and [Saved browser logins](wiki/development/home.md#saved-browser-logins) each say so once.
+- **The browser skill file matches agent-browser 0.38.1.** It gains the one line the latest release added, a guide for Vercel's protected previews. It stays hidden, so it never shows in your menu.
+
+**Updating.** Nothing to do by hand.
+
 ## 26.18.0 — Installing WongStack is easy
 
 - **The Cloudflare key is one link.** [The credentials page](wiki/stack/cloudflare-credentials.md#create-the-token) now leads with a link that opens Cloudflare's token form already filled in: the two permissions, all accounts, and the name `WongStack`. You check the two rows, press Create, and copy the key. The four-menu route stays below it, in case the link ever fails. Setup asks for the key with the link first.
