@@ -17,7 +17,7 @@
   {"name": "mini-app-save.md", "replacement": "the normal `/save` route; see `wiki/stack/mini-apps.md`"},
   {"name": "mini-app-push.sh", "replacement": "the normal `/save` route"},
   {"name": "app/review/", "replacement": "`scripts/tests/review-browser.test.mjs`"},
-  {"name": "Review notes from review.html", "replacement": "the copied header `Update the plan <name> with these notes from the review page`"},
+  {"name": "Review notes from review.html", "replacement": "the copied header `Notes on the plan <name> from the review page`"},
   {"name": "apply-plan-handoff", "replacement": "the `apply` spec"},
   {"name": "apply-completion-handoff", "replacement": "the `apply` spec"},
   {"name": "wong-sync-adapt", "replacement": "the `wong-sync` spec"},

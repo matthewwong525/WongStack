@@ -12,6 +12,14 @@
 
 **Updating.** Nothing to do by hand.
 
+## 26.26.0 — Review notes can be questions
+
+- **Copied notes just say they are notes.** On a plan's review page, Copy notes now starts *Notes on the plan \<name\> from the review page. Don't build yet.*, not *Update the plan … with these notes*. Each note says for itself whether it asks or changes something. The bullets are unchanged.
+- **A question gets an answer, not an edit.** The assistant answers a question note in chat and leaves the plan, its decision log, and its page alone. It changes the plan only for a note that asks for a change. When an answer shows the plan should change, it offers that edit in its closing question.
+- **The page stops assuming a change.** The note box says *A question or a change*. After a copy, the page says *Paste them into chat.*
+
+**Updating.** Nothing to do by hand. Review pages built before this release still copy *Update the plan …*, and the assistant handles those notes the same way. Each page picks up the new words the next time its plan changes.
+
 ## 26.25.0 — Type into the agent's browser during a hand-over
 
 - **You can type from your phone.** A hand-over link now opens a page of our own: the live page, and a *Type here* box under it. Tap a field on the page, then tap the box, and your phone's keyboard types into that field. ⌫, Tab, and Enter sit under the box. On a laptop you can also click and type on the page itself. [Hand the browser over](wiki/development/home.md#hand-the-browser-over) owns the how.
