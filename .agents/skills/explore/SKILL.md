@@ -44,23 +44,24 @@ Skip it for work that changes no repo file, and when this conversation already r
 
 ## The exit round
 
-When the work's shape is clear, put the open material decisions in **at most one final group**, [like every other ask](references/asking-the-user.md):
+When the work's shape is clear, put the open material decisions in a final group, [like every other ask](references/asking-the-user.md):
 
-- **At most four questions, and no more than the tool supports:** those that most affect the artifacts. Mark the other recommended answers as assumptions.
+- **Ask only what passes [the 80/20 test](#questions-during-standalone-exploration)**, no more questions per group than the tool supports.
 - **Several separate parts?** Ask whether to open a new workspace for each other part ([how](../plan/references/new-workspace.md#ask-once)).
-- **Ask nothing already answered**; with nothing open, make no call and go to the summary. A bounded pass or nested call for the same work gets no second group.
-- **Then fill gaps with supported assumptions and reasons**, dependent questions and later UX layout choices included. Only an explicit return to standalone `/explore` reopens clarification.
+- **An answer opens another such choice?** Ask a follow-up group, not a guess; stop once none is open.
+- **Never re-ask a settled choice**, nested calls included; with nothing open, go to the summary.
+- **Fill minor gaps with supported assumptions and reasons.**
 
 This limits clarification, not action authorization or delivery gates. Then hand off:
 
 - **Bounded mode** returns to `/plan` by [the steps below](#when-plan-invokes-explore).
-- **Standalone**, summarize and end with [the next step](references/asking-the-user.md#end-every-reply-with-the-next-step). On *Plan it*, invoke `/plan`, whose bounded pass sees the round done and asks nothing; never start `/plan` without that answer.
+- **Standalone**, summarize and end with [the next step](references/asking-the-user.md#end-every-reply-with-the-next-step). On *Plan it*, invoke `/plan`, whose bounded pass asks only what is still open; never start `/plan` without that answer.
 
 ## When `/plan` invokes `/explore`
 
-`/plan` runs this skill in **bounded mode** before drafting, even via `/apply` or `/ship`, with one chance to ask:
+`/plan` runs this skill in **bounded mode** before drafting, even via `/apply` or `/ship`:
 
-1. **Read the conversation** for the intent, the answers, and whether this transition's exit round already ran.
+1. **Read the conversation** for the intent, the answers, and which choices are already settled.
 2. **Search memory, [check for other work](#check-for-other-work) unless it already ran for this work, then investigate only the gap**, which may be empty. `/plan` does not search again.
-3. **Run [the exit round](#the-exit-round) only if needed and not yet done.** Resolve pending answers before dependent planning; when nobody can answer, use [the fallback](references/asking-the-user.md#which-tool-carries-it).
+3. **Run [the exit round](#the-exit-round) only for choices still open.** Resolve pending answers before dependent planning; when nobody can answer, use [the fallback](references/asking-the-user.md#which-tool-carries-it).
 4. **Summarize** the answers and assumptions, then **return to `/plan`**.

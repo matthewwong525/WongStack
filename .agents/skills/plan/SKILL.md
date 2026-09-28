@@ -12,7 +12,7 @@ Create an apply-ready OpenSpec change and its required `review.html`, the review
 
 ## Explore first
 
-Run [`/explore`](../explore/SKILL.md) in bounded mode; [its exit round](../explore/SKILL.md#the-exit-round) is the plan's only question round. Log each decision in the Decision log: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every earlier answer and the exit round, `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one.
+Run [`/explore`](../explore/SKILL.md) in bounded mode; it asks by [the exit round](../explore/SKILL.md#the-exit-round). Log each decision in the Decision log: `**YYYY-MM-DD** — Asked <question> → chose <answer>.` for every answer, `**YYYY-MM-DD** — Assumed: <decision>, because <reason>.` for each inferred one.
 
 When the exit round chose new workspaces, [open one per other part](references/new-workspace.md) and report them before drafting; then plan only the part this chat keeps.
 

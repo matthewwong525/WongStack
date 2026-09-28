@@ -150,20 +150,6 @@ Notes pasted from a plan's review page, under the current first line or the olde
 - **WHEN** the pasted notes start `Update the plan <change-name> with these notes from the review page`
 - **THEN** they are handled the same way as notes with the current first line
 
-### Requirement: One question round before planning
-
-At the move into planning, `/explore` SHALL ask at most one round, holding only the choices a wrong guess would make the plan wrong, not merely different, and no more questions than the tool holds. A choice already settled SHALL NOT be asked again, and every gap left or found later, nested calls included, SHALL become a recorded assumption with its reason.
-
-#### Scenario: Everything is settled
-
-- **WHEN** the conversation already answered every material choice
-- **THEN** `/explore` asks nothing and moves to its summary
-
-#### Scenario: A gap after the round
-
-- **WHEN** the round's answers reveal another open choice
-- **THEN** the workflow records a supported assumption instead of asking again
-
 ### Requirement: Standalone explore asks in small groups
 
 Standalone `/explore` SHALL ask material questions in small groups of related questions that can be answered together, SHALL wait for answers before asking what depends on them, and MAY ask several groups as the thinking develops. It SHALL write no file. When the thinking is done, it SHALL end with a next-step question whose recommended option is to plan it, and SHALL NOT start `/plan` without that answer.
@@ -186,3 +172,17 @@ Before its first question, `/explore` SHALL search the memory store once for the
 
 - **WHEN** memory holds a live fact that the person wants one pull request for refactors
 - **THEN** `/explore` does not ask how to split the work, and names that fact as the reason
+
+### Requirement: Questions before planning continue while a choice is open
+
+At the move into planning, however planning was invoked, `/explore` SHALL ask only the choices a wrong guess would make the plan wrong, not merely different, as structured multiple-choice asks of no more questions than the tool holds per group. When the answers open another such choice, it SHALL ask a follow-up group rather than assume it, and SHALL stop asking once none is open. A choice already settled SHALL NOT be asked again, nested calls included, and a minor gap SHALL become a recorded assumption with its reason.
+
+#### Scenario: Everything is settled
+
+- **WHEN** the conversation already answered every material choice
+- **THEN** `/explore` asks nothing and moves to its summary
+
+#### Scenario: An answer opens a new choice
+
+- **WHEN** the first group's answers reveal another choice that would make the plan wrong if guessed
+- **THEN** `/explore` asks a follow-up multiple-choice group before the plan is drafted
