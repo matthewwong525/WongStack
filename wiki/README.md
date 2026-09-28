@@ -10,6 +10,7 @@ The rest is for people who shape how WongStack works. [AI knowledge centers](age
 
 - [AI knowledge centers](agent-knowledge-center.md) — the six working principles, and why WongStack keeps process knowledge in the repo and makes it runnable by agents.
 - [Contributing upstream](contributing.md) — how to send a workflow improvement back to WongStack by hand, and the generality bar it has to clear.
+- [People](people/README.md) — who is who, their emails, and how each likes work done.
 - [Development](development/README.md) — working on WongStack itself: editing the payload and cutting a release.
 
 > New section? Add a `wiki/<section>/README.md` hub, link it from the list above, and let
