@@ -1,3 +1,4 @@
+<!-- wong-review:3 -->
 <!doctype html>
 <!--
   WongStack review kit. build-review.mjs writes the proposal as static HTML at the
@@ -8,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · CHANGE-NAME</title>
+<title>Review · notes-can-be-questions</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -92,17 +93,71 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="CHANGE-NAME">
+<body data-change="notes-can-be-questions">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>CHANGE-NAME</h1>
+  <h1>notes-can-be-questions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
   <p id="script-error" role="alert" hidden></p>
 </header>
-<!-- review:content -->
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">When you copy notes from a plan's review page, the pasted text starts <i>Update the plan … with these notes</i>. A note that only asks a question still reads as a change request, so the assistant may edit the plan when you just wanted an answer.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>The copied text just says these are notes.</b> It starts <i>Notes on the plan \&lt;name\&gt; from the review page. Don't build yet.</i> Each note says for itself whether it asks or changes something. The rest of the copy stays the same: one line per note, with its place and a short quote.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">   BEFORE</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">Update the plan my-plan with these</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">notes from the review page. Don't</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">build yet.</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">- Change #2 (&quot;…&quot;): Why two steps?</span>
+
+<span class="ln" data-note="item-1-line-7" tabindex="0">   AFTER</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">Notes on the plan my-plan from the</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">review page. Don't build yet.</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">- Change #2 (&quot;…&quot;): Why two steps?</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>A question gets an answer, not an edit.</b> The assistant answers a question note in chat and leaves the plan alone. It changes the plan only for a note that asks for a change. When an answer shows the plan should change, it offers that in its closing question instead of editing.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">        pasted notes</span>
+<span class="ln" data-note="item-2-line-2" tabindex="0">             │</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">       ┌─────┴─────┐</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">       ▼           ▼</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">   a question   a change</span>
+<span class="ln" data-note="item-2-line-6" tabindex="0">       │           │</span>
+<span class="ln" data-note="item-2-line-7" tabindex="0">       ▼           ▼</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">  answered in   plan updated,</span>
+<span class="ln" data-note="item-2-line-9" tabindex="0">  chat, plan    page rebuilt</span>
+<span class="ln" data-note="item-2-line-10" tabindex="0">  unchanged</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The page's words stop assuming a change.</b> The note box says <i>A question or a change</i>, not <i>What should change here?</i> After a copy, the page says <i>Paste them into chat</i>, not <i>… to update the plan</i>.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">   BEFORE                 AFTER</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">┌──────────────────┐  ┌──────────────────┐</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">│ What should      │  │ A question or a  │</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">│ change here?     │  │ change           │</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0">│ [Save] Discard   │  │ [Save] Discard   │</span>
+<span class="ln" data-note="item-3-line-6" tabindex="0">└──────────────────┘  └──────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Older review pages keep working.</b> Notes copied from a page built before this change still start <i>Update the plan …</i>, and the assistant treats them the same way.</div></div></li>
+</ol>
+<p class="aside">Non-goals: no Question / Change switch on each note, no change to how notes are saved, placed, or quoted, and no new place to ask questions.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-28</p>Asked how the assistant tells a question note from a change note → chose neither a switch nor labels: the copied text just says these are notes, vaguer than now, and the details are in each note.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the new first line is <i>Notes on the plan \&lt;name\&gt; from the review page. Don't build yet.</i>, because it keeps the plan's name and the no-build guard while dropping <i>update</i>.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: a question note gets no Decision-log line and no page rebuild, because it changes nothing in the plan; a mix of questions and changes rebuilds for the changes.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: when an answer shows the plan should change, the assistant offers the edit in its closing question rather than making it, because the person asked, not told.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: <code>/plan</code> still recognizes the old <i>Update the plan …</i> line, because pages built before this change keep copying it until rebuilt.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: the note box placeholder reads <i>A question or a change</i>, and the toasts end <i>Paste them into chat.</i>, because the old words assumed a change; a reviewer can reword them cheaply.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: a minor release, because reviewers see new wording and the assistant answers questions differently.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: <code>/plan</code> still rebuilds the page after a question-only paste, a no-op, and names the old first line by its prefix, because the release must not grow the skills' instruction text past its measured baseline.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-28</p>Assumed: <code>asking-the-user.md</code>'s finished-plan line says the person may paste notes, not notes <i>to change the plan</i>, because a note may be a question.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Built: the review page copies <i>Notes on the plan …</i>, its note box and toasts no longer assume a change, and <code>/plan</code> answers question notes without editing. The browser tests' expectations are updated; the payload-link, OpenSpec-config, retired-name, and context-size checks pass.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-28</p>Checkpointed so CI runs the review browser tests (task 4.4); the spec deltas are reconciled into <code>ux-wireframes</code> and <code>asking-the-user</code>.</li>
+</ol>
+</section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>
