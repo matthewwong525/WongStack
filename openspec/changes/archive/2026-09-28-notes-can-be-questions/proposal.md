@@ -1,6 +1,6 @@
 # Review notes can be questions
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** copy-notes-for-questions
 **Open questions:** none
 
@@ -81,3 +81,5 @@ None.
 - **2026-09-28** — Assumed: `asking-the-user.md`'s finished-plan line says the person may paste notes, not notes *to change the plan*, because a note may be a question.
 - **2026-09-28** — Built: the review page copies *Notes on the plan …*, its note box and toasts no longer assume a change, and `/plan` answers question notes without editing. The browser tests' expectations are updated; the payload-link, OpenSpec-config, retired-name, and context-size checks pass.
 - **2026-09-28** — Checkpointed so CI runs the review browser tests (task 4.4); the spec deltas are reconciled into `ux-wireframes` and `asking-the-user`.
+- **2026-09-28** — Distilled: `.agents/rules/payload.md` now says to run `measure-context.mjs --check` when adding skill text; the other facts are a preference and an open thread, not repeatable.
+- **2026-09-28** — Archived and checkpointed for merge by `/ship` as 26.26.0.

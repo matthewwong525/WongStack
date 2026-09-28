@@ -18,4 +18,4 @@
 - [x] 4.1 Update `wiki/ux-principles.md` *The review file* so Copy notes produces notes on the plan that may ask or change, not an update request.
 - [x] 4.2 Add a `## Next (minor) — Review notes can be questions` entry to `CHANGELOG.md`, with an **Updating.** note that older review pages keep working and rebuild on the next plan edit.
 - [x] 4.3 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/check-retired-names.mjs`.
-- [ ] 4.4 Pass the browser review tests in CI through `/save`.
+- [x] 4.4 Pass the browser review tests in CI through `/save`.

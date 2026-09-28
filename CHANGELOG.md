@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Review notes can be questions
+## 26.26.0 — Review notes can be questions
 
 - **Copied notes just say they are notes.** On a plan's review page, Copy notes now starts *Notes on the plan \<name\> from the review page. Don't build yet.*, not *Update the plan … with these notes*. Each note says for itself whether it asks or changes something. The bullets are unchanged.
 - **A question gets an answer, not an edit.** The assistant answers a question note in chat and leaves the plan, its decision log, and its page alone. It changes the plan only for a note that asks for a change. When an answer shows the plan should change, it offers that edit in its closing question.
