@@ -35,6 +35,22 @@ The agent reaches your accounts (mail, calendar, banking) through [agent-browser
 
 **One personal browsing task at a time.** Chrome lets only one browser use a profile at a time, so a browsing task and a scheduled run must not use it at the same moment. A task that finds the profile busy waits or reports it; it never deletes the profile's lock. [`/verify`](staging-walkthrough.md) is not affected: each walk uses its own temporary profile, so a preview check never carries your logins.
 
+### Show what the browser is doing
+
+While the agent browses for you, it drops a picture of the page into the chat at each key moment, so you can catch a wrong page or a wrong field before it's too late.
+
+- **When.** Each new page, right before an action that sends, books, pays for, or deletes something, and the result. Not after every click or keystroke: a flood of pictures hides the one that matters.
+- **How.** The agent takes the picture into agent-browser's temp folder, then opens the path it prints with its own image tool (Claude's Read, Codex's image view). [Paseo](https://paseo.sh) shows an image a tool opens as a picture in the chat; a terminal shows a placeholder, which does no harm.
+
+  ```bash
+  agent-browser screenshot --if-changed   # prints a temp path, or none when the page hasn't changed
+  ```
+
+  No path means the page hasn't changed, so the agent shows nothing new.
+- **One line each.** Above each picture, one plain line says what it shows: *Filled in 7pm, 2 people. Booking now.*
+- **Never in the repo.** A picture can hold your mail or your bank balance, so it stays in the temp folder, never a repo file.
+- **None while you have the browser.** During a [hand-over](#hand-the-browser-over) the agent takes no pictures; it starts again once you hand the browser back.
+
 ### Hand the browser over
 
 When a step needs you, the agent sends you a private link that opens its browser on your phone or laptop, and the link closes itself.
