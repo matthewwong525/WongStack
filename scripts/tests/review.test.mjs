@@ -246,7 +246,7 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
     rmSync(join(root, 'review.html'), { force: true });
     const result = spawnSync(process.execPath, [resolve(here, `../../${alias}/skills/plan/scripts/build-review.mjs`), root, '--require-current'], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n${NEXT_STEP}\n`, 'the link line, then the next-step line, end the output');
+    assert.equal(result.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${NEXT_STEP}\n`, 'the link line, a blank line, then the next-step line, end the output');
   }
   writeFileSync(join(root, 'proposal.md'), proposal.replace('  c ─→ d', `  ${'y'.repeat(61)}`));
   const warned = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });

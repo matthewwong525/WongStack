@@ -15,7 +15,7 @@ user-invocable: true
 
 ## Resolve the plan first
 
-Resolve the change by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, `recorded-branch`, then `sole-active`. An argument naming no existing change is intent for a new plan. An unrelated `sole-active` entry never overrides work this conversation just explored. Unsure → ask, listing what each candidate would implement; never guess.
+Resolve the change by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, `recorded-branch`, then `sole-active`. An argument naming no existing change is intent for a new plan. An unrelated `sole-active` never overrides work this conversation explored. Unsure → ask, listing what each candidate would implement; never guess.
 
 Check `applyRequires` in `openspec status --change "<name>" --json`:
 
@@ -39,7 +39,7 @@ Act on each report's stop:
 - **A blocker** → report it and stop.
 - **All done** → check `tasks.md` has no unticked box, then handle **all-tasks-complete** above.
 
-When no helper can start, or this `/apply` already runs inside one, work inline by the brief's *Build* steps and handle each stop here. The parent owns the preview, the loosened checks, and the report.
+When no helper can start, or this `/apply` already runs inside one, work inline by the brief's *Build* steps and handle each stop here.
 
 ## Finish with a preview
 
@@ -65,7 +65,7 @@ The work stays in this working tree until the person saves or publishes.
    ```
 
    Fix each file marked *needs a reason* without asking: switch the check back on, or add [the `Check:` bullet](../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason). Rerun until it exits 0.
-4. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built, the preview URL (plus `/apps/<name>/` for a mini app), each `Check:` bullet under *Checks loosened* as one plain line (what is no longer checked, and why), and any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save it via [`/save`](../save/SKILL.md), which opens the pull request.
+4. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built, [the preview's link](../explore/references/asking-the-user.md#print-the-previews-link), each `Check:` bullet under *Checks loosened* as one plain line (what is no longer checked, and why), and any file you could not fix. End with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save it via [`/save`](../save/SKILL.md); plus *See the preview* after an upload.
 
 Each further change repeats these steps under the same alias. Make a small edit here; a change that adds tasks to `tasks.md` goes to a new helper.
 
