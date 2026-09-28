@@ -35,8 +35,8 @@ Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the
 - **CI is the gate when present, else PR review; nothing builds locally**: [the gate](wiki/development/the-change-loop.md#the-gate).
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
-- **Write repeatable knowledge to the wiki when you learn it**: what will help a future task that is not this one, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge). A change's specifics stay in its proposal and archive.
-- **Browse as the person, one task at a time; show each key moment in the chat; hand over what needs them**: [saved logins](wiki/development/home.md#saved-browser-logins), [key moments](wiki/development/home.md#show-what-the-browser-is-doing), [hand-over](wiki/development/home.md#hand-the-browser-over).
+- **Write repeatable knowledge to the wiki when you learn it**: what will help a different, future task, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge). A change's specifics stay in its proposal and archive.
+- **Browse as the person, one task at a time; show key moments; hand over what needs them**: [logins](wiki/development/home.md#saved-browser-logins), [pictures](wiki/development/home.md#show-what-the-browser-is-doing), [hand-over](wiki/development/home.md#hand-the-browser-over).
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads those whose `paths:` match its files.
 
 <!-- WONG-STACK:END -->
