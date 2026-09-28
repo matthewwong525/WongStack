@@ -28,9 +28,11 @@ rules:
       commands in the design, specs, and tasks. Capabilities and Impact may
       stay technical.
     - A What Changes bullet that needs a picture carries it as a fenced text
-      block indented inside the bullet, in plain characters, read top to bottom
-      and about 40 columns wide. One drawing carries the change by default;
-      sketch each new or restructured user-facing screen. Other bullets stay
+      block indented inside the bullet, drawn by
+      .claude/skills/plan/references/drawings.md - aim for 40 columns, and up
+      to 56 for options side by side, a table, or a before-and-after. One
+      drawing carries the change by default; sketch each new or restructured
+      user-facing screen, a changed one before and after. Other bullets stay
       text. Bullets carry no review anchors.
     - Each Decision log bullet holds one decision and starts after its date with
       Asked (a question the user answered) or Assumed (an inferred choice and

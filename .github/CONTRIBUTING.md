@@ -32,7 +32,7 @@ openspec validate --specs --strict --no-interactive
 node scripts/measure-context.mjs --check
 ```
 
-`measure-context.mjs --check` fails when the start-up load (the `WONG-STACK` block and the rest of `AGENTS.md`, the wiki style and voice pages, and every skill description) passes `startupCeiling` in [its baseline](../scripts/fixtures/context-baseline.json); raising the ceiling is a Decision log entry in the change that raises it. A change that trims instructions first runs `node scripts/measure-context.mjs --write-baseline`, before any text edit, so the report counts that change alone.
+`measure-context.mjs --check` fails when the start-up load (the `WONG-STACK` block and the rest of `AGENTS.md`, the wiki style and voice pages, and every skill description) passes `startupCeiling` in [its baseline](../scripts/fixtures/context-baseline.json); raising the ceiling is a Decision log entry in the change that raises it. It also fails unless skill instructions stay below the baseline's words and bytes, so a change that adds instruction text trims as much elsewhere; a line-drawing character such as `─` counts three bytes. A change that trims instructions first runs `node scripts/measure-context.mjs --write-baseline`, before any text edit, so the report counts that change alone.
 
 `npm test` in `app/` is the `test` check. The rest are the `payload` check. Outside CI, the review page tests skip without `npm ci` in `scripts/tests/`, and its browser tests skip unless Google Chrome is installed or `CHROME_PATH` names a Chromium; in CI both fail instead.
 

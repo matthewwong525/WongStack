@@ -12,7 +12,7 @@ user-invocable: true
 
 ## Questions during standalone exploration
 
-Ask material questions [the shared way](references/asking-the-user.md), in small groups answerable together: two or three, one when only one matters, within the tool's capacity. Wait for answers before dependent follow-ups. Skip settled questions; use as many groups as needed, with no fixed script. Keep findings in chat.
+Ask material questions [the shared way](references/asking-the-user.md), in small groups answerable together: two or three, one when only one matters, within the tool's capacity. Wait for answers before dependent follow-ups. Skip settled questions; use as many groups as needed, with no fixed script. Keep findings in chat, [drawn](../plan/references/drawings.md) where a picture shows the flow, options, or costs.
 
 **The 80/20 test:** ask only where a wrong guess makes the artifacts *wrong*, not merely *different*: scope, observable behavior, compatibility, acceptance criteria. Assume and record naming, placement, wording, and anything a reviewer can cheaply change later.
 

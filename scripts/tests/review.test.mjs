@@ -153,9 +153,42 @@ test('a wide drawing line warns with its item and line and still writes', () => 
   writeFileSync(join(root, 'proposal.md'), proposal.replace('  c ─→ d', `  ${wide}`));
   const result = buildReview(root, { requireCurrent: true });
   assert.equal(result.changed, true);
-  assert.deepEqual(result.warnings, ['proposal.md line 19: item 2, drawing line 3 is 72 columns; keep drawings under 60, aim for 40']);
+  assert.deepEqual(result.warnings, ['proposal.md line 19: item 2, drawing line 3 is 72 columns; keep drawings under 60: aim for 40, up to 56 side by side']);
   assert.ok(page(root).includes(wide));
 }));
+
+// Swap item 2's drawing (proposal lines 17-19) for these lines; the first lands on proposal line 17.
+function withDrawing(lines) {
+  return proposal.replace('  a ─→ b\n\n  c ─→ d', lines.map(line => `  ${line}`).join('\n'));
+}
+const boxWarnings = lines => fixture(root => {
+  writeFileSync(join(root, 'proposal.md'), withDrawing(lines));
+  const result = buildReview(root, { requireCurrent: true });
+  assert.equal(result.changed, true);
+  return result.warnings;
+});
+
+test('a box edge one column right of its corner warns once with the item and line', () => {
+  assert.deepEqual(boxWarnings(['┌─────────────┐', '│ lined up    │', '│ one too far  │', '│ and again    │', '└─────────────┘']),
+    ['proposal.md line 19: item 2, drawing line 3 has a box edge at column 16, but its corner is at column 15']);
+});
+
+test('a short bottom edge warns', () => {
+  assert.deepEqual(boxWarnings(['┌──────┐', '│ box  │', '└─────┘']),
+    ['proposal.md line 19: item 2, drawing line 3 has a box edge at column 7, but its corner is at column 8']);
+});
+
+test('lined-up nested, side-by-side, and split boxes do not warn', () => {
+  assert.deepEqual(boxWarnings([
+    '┌──────────────┐', '│ ┌──────────┐ │', '│ │  inside  │ │', '│ └──────────┘ │', '└──────────────┘',
+    '┌──────┐  ┌──────┐', '│ one  │  │ two  │', '├──────┤  └──────┘', '│ more │', '└──────┘',
+    '    ┌───┴───┐', '    ▼       ▼', ' cached   fresh',
+  ]), []);
+});
+
+test('plain-text boxes and a 56-column line do not warn', () => {
+  assert.deepEqual(boxWarnings(['+--------+', '| plain   |', '+-------+', 'x'.repeat(56)]), []);
+});
 
 // The base proposal holds one code span (item 3); these add spans to What Changes.
 function withSpans(count, inDrawing = 0) {
@@ -218,7 +251,7 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
   writeFileSync(join(root, 'proposal.md'), proposal.replace('  c ─→ d', `  ${'y'.repeat(61)}`));
   const warned = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });
   assert.equal(warned.status, 0);
-  assert.match(warned.stderr, /^review: warning: proposal\.md line 19: item 2, drawing line 3 is 61 columns/);
+  assert.match(warned.stderr, /^review: warning: proposal\.md line 19: item 2, drawing line 3 is 61 columns; keep drawings under 60: aim for 40, up to 56 side by side\n/);
   rmSync(join(root, 'proposal.md'));
   const failure = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root, '--require-current'], { encoding: 'utf8' });
   assert.equal(failure.status, 1);

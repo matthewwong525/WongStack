@@ -74,11 +74,33 @@ function blocks(section, noun) {
   return out.map(block => ({ ...block, text: block.text.join(' ') }));
 }
 
+// A box's right edge must sit under its ┐. Walk down from each ┐: │ ┤ ┼ continue the box and ┘ closes it.
+// A │ or ┘ within two columns means a miscounted line; anything else means the ┐ was no box's corner, as in ┌──┴──┐.
+// + and | are skipped: they show up in ordinary text.
+function crooked(rows) {
+  const found = [];
+  rows.forEach((row, top) => row.forEach((char, corner) => {
+    if (char !== '┐') return;
+    for (let i = top + 1; i < rows.length; i++) {
+      const here = rows[i][corner];
+      if (here === '┘') return;
+      if (here === '│' || here === '┤' || here === '┼') continue;
+      const edge = [corner - 1, corner + 1, corner - 2, corner + 2].find(c => rows[i][c] === '│' || rows[i][c] === '┘');
+      if (edge !== undefined) found.push([i, edge, corner]);
+      return;
+    }
+  }));
+  return found;
+}
+
 function drawing(item, fence, first, warnings) {
   const wide = fence.lines.map((line, i) => [i, [...line.trimEnd()].length]).filter(([, width]) => width > WIDE);
   if (wide.length) {
     const [i, width] = wide[0], more = wide.length > 1 ? ` (and ${wide.length - 1} more over ${WIDE})` : '';
-    warnings.push(`proposal.md line ${fence.at + i + 1}: item ${item.n}, drawing line ${i + 1} is ${width} columns${more}; keep drawings under ${WIDE}, aim for 40`);
+    warnings.push(`proposal.md line ${fence.at + i + 1}: item ${item.n}, drawing line ${i + 1} is ${width} columns${more}; keep drawings under ${WIDE}: aim for 40, up to 56 side by side`);
+  }
+  for (const [i, edge, corner] of crooked(fence.lines.map(line => [...line]))) {
+    warnings.push(`proposal.md line ${fence.at + i + 1}: item ${item.n}, drawing line ${i + 1} has a box edge at column ${edge + 1}, but its corner is at column ${corner + 1}`);
   }
   const lines = fence.lines.map((line, i) => (line.trim()
     ? `<span class="ln" data-note="item-${item.n}-line-${first + i}" tabindex="0">${esc(line)}</span>` : esc(line)));
