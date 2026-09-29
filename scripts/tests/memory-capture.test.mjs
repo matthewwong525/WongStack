@@ -238,7 +238,7 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   const marker = join(env.repo.home, 'claude-called');
   writeFileSync(join(bin, 'claude'), `#!/bin/sh\necho "$@" > "${marker}"\necho "RUN=$WONG_MEMORY_RUN" >> "${marker}"\n`);
   chmodSync(join(bin, 'claude'), 0o755);
-  const result = await hook(env, { PATH: `${bin}:${process.env.PATH}` });
+  const result = await hook(env, { PATH: `${bin}:${process.env.PATH}`, WONG_MEMORY_MODEL: '' });
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /# Memory digest\nFacts are dated context/);
   assert.match(result.stdout, /## Open threads on `add-po-search`\n- \[thread\] Should search rank by recency\?/);
@@ -246,7 +246,8 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   for (let i = 0; i < 100 && !existsSync(marker); i += 1) await new Promise(done => setTimeout(done, 100));
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
-  assert.match(called, /--model haiku --no-session-persistence --permission-mode dontAsk --allowedTools Bash\(node \.claude\/skills\/memory\/scripts\/memory\.mjs:\*\)/);
+  assert.match(called, /--no-session-persistence --permission-mode dontAsk --allowedTools Bash\(node \.claude\/skills\/memory\/scripts\/memory\.mjs:\*\)/);
+  assert.doesNotMatch(called, /(^|\s)--model(\s|$)/);
   assert.match(called, /Never capture session claude:live-1/);
   assert.match(called, /RUN=1/);
   const fallback = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
@@ -362,6 +363,23 @@ test('the background runbook runs only the granted script and writes files only 
   for (const sentence of fileWrites) assert.match(sentence, /input folder|\/tmp\/wong-memory-test/, `${sentence} writes outside the input folder`);
   const [, codex] = agentCommand('codex', prompt, '/state', dir);
   assert.ok(codex.includes(`sandbox_workspace_write.writable_roots=["/state","${dir}"]`));
+});
+
+test('background agent commands use the CLI default unless a memory model is explicitly set', () => {
+  const prompt = 'Capture pending sessions';
+  const argsFor = (agent, env) => agentCommand(agent, prompt, '/state', '/input', env)[1];
+  for (const env of [{}, { WONG_MEMORY_MODEL: '', WONG_MEMORY_CODEX_MODEL: '' },
+    { WONG_MEMORY_MODEL: '  ', WONG_MEMORY_CODEX_MODEL: '  ' }]) {
+    assert.equal(argsFor('claude', env).includes('--model'), false);
+    assert.equal(argsFor('codex', env).includes('-m'), false);
+  }
+  const env = { WONG_MEMORY_MODEL: 'claude-choice', WONG_MEMORY_CODEX_MODEL: 'codex-choice' };
+  const claude = argsFor('claude', env);
+  assert.deepEqual(claude.slice(claude.indexOf('--model'), claude.indexOf('--model') + 2), ['--model', 'claude-choice']);
+  const codex = argsFor('codex', env);
+  assert.deepEqual(codex.slice(codex.indexOf('-m'), codex.indexOf('-m') + 2), ['-m', 'codex-choice']);
+  assert.equal(argsFor('claude', { WONG_MEMORY_CODEX_MODEL: 'codex-choice' }).includes('--model'), false);
+  assert.equal(argsFor('codex', { WONG_MEMORY_MODEL: 'claude-choice' }).includes('-m'), false);
 });
 
 test('the input folder is outside the repo and is removed when the run fails', () => {

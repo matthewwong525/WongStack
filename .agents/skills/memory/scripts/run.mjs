@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The detached background run: one per clone at a time. It starts the calling agent's headless CLI
-// with a small model that may only run the memory script and write its JSON input into one temp folder.
+// with the agent's default model; it may only run the memory script and write its JSON input into one temp folder.
 import { spawnSync } from 'node:child_process';
 import { closeSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,13 +44,15 @@ export function withInputDir(fn) {
 // A `## heading` section of a markdown file, up to the next `## ` heading.
 const section = (text, heading) => text.match(new RegExp(`## ${heading}[\\s\\S]*?(?=\\n## |$)`))?.[0].trim() || '';
 
-export function agentCommand(agent, prompt, stateDir, inputDir) {
+export function agentCommand(agent, prompt, stateDir, inputDir, env = process.env) {
   if (agent === 'codex') {
-    return ['codex', ['exec', '--ephemeral', '--skip-git-repo-check', '-m', process.env.WONG_MEMORY_CODEX_MODEL || 'gpt-5.4-mini',
+    const model = env.WONG_MEMORY_CODEX_MODEL?.trim();
+    return ['codex', ['exec', '--ephemeral', '--skip-git-repo-check', ...(model ? ['-m', model] : []),
       '--sandbox', 'workspace-write', '-c', 'sandbox_workspace_write.network_access=true',
       '-c', `sandbox_workspace_write.writable_roots=[${JSON.stringify(stateDir)},${JSON.stringify(inputDir)}]`, '-c', 'approval_policy="never"', prompt]];
   }
-  return ['claude', ['-p', prompt, '--model', process.env.WONG_MEMORY_MODEL || 'haiku', '--no-session-persistence',
+  const model = env.WONG_MEMORY_MODEL?.trim();
+  return ['claude', ['-p', prompt, ...(model ? ['--model', model] : []), '--no-session-persistence',
     '--permission-mode', 'dontAsk', '--allowedTools', `Bash(${SCRIPT}:*)`, `Edit(/${inputDir}/**)`, '--add-dir', inputDir]];
 }
 

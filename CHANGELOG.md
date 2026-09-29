@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.6.0 — Memory uses your agent's model
+
+- **Background memory follows your agent.** Claude Code and Codex use their normal model for unattended memory capture. You can still choose a separate memory model with `WONG_MEMORY_MODEL` or `WONG_MEMORY_CODEX_MODEL`.
+- **Allow for a larger run.** Capture may use more of your model allowance when your normal model is larger than the old small model.
+
+**Updating.** Nothing to do by hand.
+
 ## 27.5.1 — How to quote a pasted key
 
 - **A pasted key reads back as pasted.** [The secrets page](wiki/development/secrets.md#receive-a-key-through-a-private-link) now says how the assistant quotes a pasted key in the private file, the same way the key link does, so a key with unusual characters still works.
