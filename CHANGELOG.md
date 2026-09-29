@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.3.1 — The wiki names the shared script helpers
+
+- **Where the shared pieces live, written down.** The deploy page's script table now says the wrangler-config helpers also decide which branch is live and hold the staging guards, and that the CLI helper is shared with the skills.
+
+**Updating.** Nothing to do by hand.
+
 ## 27.3.0 — Tidy the shared helpers, checks, and test fakes
 
 - **One copy of each shared piece.** Code about fifteen scripts repeated now lives in one place: the memory skill's `scripts/lib/cli.mjs`, and the routine skill's `scripts/lib/paseo.mjs`. Nothing you see changes; a later fix lands once.
