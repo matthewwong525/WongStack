@@ -303,8 +303,8 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 | `scripts/mini-dashboard.mjs` | `cf-build.sh`, after every build | Copy each [mini app](mini-apps.md) into the build and write `apps/apps.json` for the landing page. |
 | `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging` | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
 | `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load both Workers from `app/.dev.vars`, refusing `.env`; compare the two Workers' secret names and staging's bindings against production's. |
-| `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config" and "what is this environment's database name", so a build and its deploy can't resolve different apps. |
-| `scripts/lib-cli.mjs` | imported by the `.mjs` scripts | One CLI convention: `--help` prints usage and exits 0, and a usage error exits 2. |
+| `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config", "what is this environment's database name", "which branch is production", and the staging guards, so a build, its deploy, and a preview can't resolve different apps. |
+| `scripts/lib-cli.mjs` | imported by the `.mjs` scripts | One CLI convention: `--help` prints usage and exits 0, and a usage error exits 2. It passes on the memory skill's `scripts/lib/cli.mjs`, which skills share too. |
 
 Common operations:
 
