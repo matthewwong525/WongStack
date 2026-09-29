@@ -80,7 +80,7 @@ A fact about one person SHALL go on `wiki/people/<name>.md`, which lists every g
 
 ### Requirement: Facts are placed without false conflicts or leaks
 
-Different people's preferences SHALL each stay on their own page; newest-wins SHALL apply only between facts about the same person or the whole team. Health, family, and money SHALL NOT be written to any repo but the person's home.
+Different people's preferences SHALL each stay on their own page; newest-wins SHALL apply only between facts about the same person or the whole team. Health, family, and money SHALL NOT be written to the wiki of a repo anyone else can read.
 
 #### Scenario: Two people disagree
 

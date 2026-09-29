@@ -4,10 +4,10 @@
 // .env, so a branch that changes it can not send the key or a GitHub token anywhere else.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, hostname } from 'node:os';
-import { dirname, isAbsolute, join } from 'node:path';
+import { hostname } from 'node:os';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TEAM_HEADER } from '../../worker/memory-worker.mjs';
+import { ROLE_HEADER, TEAM_HEADER } from '../../worker/memory-worker.mjs';
 import { primaryRoot } from './primary-root.mjs';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
@@ -57,20 +57,6 @@ export function repoContext(cwd = process.cwd()) {
   };
 }
 
-// The machine record names the person's home repo: ~/.wong-stack/machine.json, {"home": "<absolute path>"}.
-export const machineFile = () => process.env.WONG_MACHINE_FILE || join(homedir(), '.wong-stack', 'machine.json');
-
-// Home's context, or null. A missing or unreadable record, or a path with no memory store, means no home.
-// `isCurrent` marks the case where this repo is home; home's own state folder never follows WONG_MEMORY_STATE_DIR.
-export function homeContext(ctx) {
-  const path = readJson(machineFile(), null)?.home;
-  if (typeof path !== 'string' || !isAbsolute(path) || !existsSync(path)) return null;
-  let home;
-  try { home = repoContext(path); loadConfig(home); } catch { return null; }
-  if (ctx && home.commonDir === ctx.commonDir) return Object.assign(Object.create(ctx), { isHome: true, isCurrent: true });
-  return Object.assign(home, { stateDir: join(home.commonDir, 'wong-memory'), isHome: true, isCurrent: false });
-}
-
 // Every checkout of this clone: the primary one plus each linked worktree that still exists.
 export function checkouts(ctx) {
   const dir = join(ctx.commonDir, 'worktrees');
@@ -111,13 +97,14 @@ export function loadConfig(ctx) {
   const memory = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).components?.memory : null;
   if (!memory?.accountId || !memory?.databaseId) throw new StoreError('no memory store is recorded in .claude/.wong-stack.json; run /wong-sync to plan it', { kind: 'unconfigured' });
   // A repo is a team when the install record says so, or when the memory Worker last said so (see openStore).
-  const team = memory.team === true || readJson(join(ctx.stateDir, 'team.json'), {}).team === true;
+  const said = readJson(join(ctx.stateDir, 'team.json'), {});
+  const team = memory.team === true || said.team === true;
   // In a linked worktree, only the primary checkout's address counts; the branch's is never a fallback.
   // With no confirmed primary, this checkout's record is the only one.
   const linked = Boolean(ctx.primaryRoot) && ctx.primaryRoot !== ctx.root;
   const worker = (linked ? readJson(configFile({ root: ctx.primaryRoot }), null)?.components?.memory?.worker : memory.worker) || null;
   const branchWorker = linked && memory.worker && memory.worker !== worker ? memory.worker : null;
-  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null, worker, branchWorker, team };
+  return { accountId: memory.accountId, databaseId: memory.databaseId, bucket: memory.bucket || null, worker, branchWorker, team, role: said.role || null };
 }
 
 // The admin's Cloudflare API: the provisioning token, straight to Cloudflare (the tests point it at a fake).
@@ -137,8 +124,7 @@ export function adminToken(ctx) {
 export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
-  // Another repo's store (home) uses its own .env token first, never this process's.
-  const token = admin ? adminToken(ctx) : ctx.isHome && !ctx.isCurrent ? env[TOKEN_VAR] || process.env[TOKEN_VAR] : process.env[TOKEN_VAR] || env[TOKEN_VAR];
+  const token = admin ? adminToken(ctx) : process.env[TOKEN_VAR] || env[TOKEN_VAR];
   if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env; \`${SCRIPT} join\` gets one through your GitHub access to this repo`, { kind: 'unconfigured', help: TOKEN_PAGE });
   if (!admin && keyEmail(token) && !config.worker && !process.env.WONG_MEMORY_API) {
     throw new StoreError(`${TOKEN_VAR} holds a memory key, but .claude/.wong-stack.json records no components.memory.worker; pull the latest main or ask the admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
@@ -147,6 +133,8 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   const api = admin ? cloudflareApi() : (process.env.WONG_MEMORY_API || (viaWorker ? config.worker : cloudflareApi())).replace(/\/$/, '');
   const base = `${api}/accounts/${config.accountId}`;
   const objectPath = key => `/r2/buckets/${config.bucket}/objects/${encodeURI(key)}`;
+  // The key's role, as the Worker last named it; a Cloudflare token reads the store whole, as the admin does.
+  let role = viaWorker ? config.role : 'admin';
 
   async function call(path, init = {}, budget = timeoutMs) {
     let response;
@@ -155,13 +143,14 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
     } catch (error) {
       throw new StoreError(`memory store unreachable (${error.name === 'TimeoutError' ? 'timeout' : 'network'})`, { kind: 'network' });
     }
-    if (viaWorker) recordTeam(ctx, response.headers.get(TEAM_HEADER));
+    if (viaWorker) role = recordTeam(ctx, response.headers.get(TEAM_HEADER), response.headers.get(ROLE_HEADER)) || role;
     if (response.status === 401 && (await response.clone().json().catch(() => ({}))).errors?.[0]?.code === 'key_expired') {
       throw Object.assign(new StoreError(`the memory key in ${TOKEN_VAR} expired; \`${SCRIPT} join\` renews it`, { kind: 'auth', help: TOKEN_PAGE }), { code: 'key_expired' });
     }
     if (response.status === 403) {
       const code = (await response.clone().json().catch(() => ({}))).errors?.[0]?.code;
       if (code === 'not_author') throw new StoreError('only the author and the admin can read this transcript', { kind: 'forbidden' });
+      if (code === 'member_read') throw new StoreError(`the memory store refused this read: ${(await response.clone().json()).errors[0].message}`, { kind: 'forbidden' });
     }
     if (response.status === 401 || response.status === 403) throw new StoreError(`the memory store rejected ${admin ? ADMIN_TOKEN_VAR : TOKEN_VAR} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
     if (response.status >= 500) throw new StoreError(`memory store error (HTTP ${response.status})`, { kind: 'server' });
@@ -197,17 +186,20 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   const email = keyEmail(token) || (ctx.author || '').toLowerCase() || 'unknown';
   // Facts are written under the key's email: the Worker refuses a member's write under any other name.
   const author = keyEmail(token) || ctx.author || null;
-  return { config, env, email, author, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
+  return { config, env, email, author, get role() { return role; }, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
 }
 
-// The memory Worker says on every answer whether more than one email holds a key; remember it for the
-// next session's digest and search. An unchanged answer writes nothing.
-function recordTeam(ctx, header) {
-  if (header !== '0' && header !== '1') return;
+// The memory Worker says on every answer whether more than one email holds a key, and the key's role; remember
+// both for the next session's digest and search. An unchanged answer writes nothing. Returns the role.
+const ROLES = new Set(['admin', 'member', 'reader']);
+function recordTeam(ctx, header, roleHeader) {
+  if (header !== '0' && header !== '1') return null;
   const file = join(ctx.stateDir, 'team.json');
-  const team = header === '1';
-  if (readJson(file, {}).team === team) return;
-  try { writeJson(statePath(ctx, 'team.json'), { team }); } catch { /* best effort */ }
+  const said = { team: header === '1', ...(ROLES.has(roleHeader) ? { role: roleHeader } : {}) };
+  const before = readJson(file, {});
+  if (before.team === said.team && before.role === said.role) return said.role;
+  try { writeJson(statePath(ctx, 'team.json'), said); } catch { /* best effort */ }
+  return said.role;
 }
 
 // ---------- local state, shared by every worktree of one clone ----------

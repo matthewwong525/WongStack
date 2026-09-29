@@ -1,29 +1,6 @@
-# Home
+# Browsing
 
-Home is the WongStack repo for one person's own life: an ordinary full install, recorded once per machine so that every other repo can reach it. It has no mode. It follows the [same rules](../../AGENTS.md#rules) as every repo — plain requests done directly, code through [the change loop](the-change-loop.md), [repeatable knowledge](../wiki-style.md#repeatable-knowledge) written when learned. Home differs only in what other repos read from it and send to it.
-
-## The machine record
-
-One person uses each computer, so each machine has at most one home. Its absolute path lives in `~/.wong-stack/machine.json`:
-
-```json
-{ "home": "/Users/ana/home" }
-```
-
-[`/wong-setup`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/SKILL.md) asks whether a new repo is your home, suggests `~/home`, and writes this file; it asks before it replaces another home. To make an existing repo home, write its path here yourself. The path must hold a WongStack install with a [memory store](memory.md); anything else counts as no home, and nothing fails. Delete the file, and every repo stops reading home.
-
-## What every repo reads from home
-
-When a session starts in any other repo, the digest gets a short **From home** part, built by code with no model:
-
-- **Your page:** the file under home's `wiki/people/` that lists home's `git config user.email`, up to 4 KB. Your work email can differ; list every email you use on that page ([people pages](../wiki-style.md#people)).
-- **Your facts:** the live `user` and `feedback` facts in home's store, up to 15 lines and 3 KB.
-
-It reads home's own install record and home's own `.env` token, so no token is copied and no database is added. When home's store does not answer, the part says so in one line; your page still shows, because it is read from disk. In home itself, the part holds only your page, because home's facts are already in the digest. With no home recorded, there is no part; with no page for you yet, it shows only your facts.
-
-## What every repo sends to home
-
-A fact about your private life — health, family, money, personal plans — never goes to another repo's store. Capture sends it to home's store with `memory.mjs put-facts --home` ([the memory skill](../../.agents/skills/memory/SKILL.md#write)). When home's store does not answer, the fact waits in home's local spool, and home's next session start sends it. With no home recorded, the fact is dropped. The same rule keeps private life out of every wiki but home's ([where a fact goes](../wiki-style.md#where-a-fact-goes)).
+Browsing is how the agent uses websites as you: it keeps your logins, shows you what it's doing, and hands you the browser when a step needs you. It works the same for every repo on the computer.
 
 ## Saved browser logins
 
@@ -35,7 +12,7 @@ The agent reaches your accounts (mail, calendar, banking) through [agent-browser
 
 **One personal browsing task at a time.** Chrome lets only one browser use a profile at a time, so a browsing task and a scheduled run must not use it at the same moment. A task that finds the profile busy waits or reports it; it never deletes the profile's lock. [`/verify`](staging-walkthrough.md) is not affected: each walk uses its own temporary profile, so a preview check never carries your logins.
 
-### Show what the browser is doing
+## Show what the browser is doing
 
 While the agent browses for you, it drops a picture of the page into the chat at each key moment, so you can catch a wrong page or a wrong field before it's too late.
 
@@ -52,7 +29,7 @@ While the agent browses for you, it drops a picture of the page into the chat at
 - **Never in the repo.** A picture can hold your mail or your bank balance, so it stays in the temp folder, never a repo file.
 - **None while you have the browser.** During a [hand-over](#hand-the-browser-over) the agent takes no pictures; it starts again once you hand the browser back.
 
-### Hand the browser over
+## Hand the browser over
 
 When a step needs you, the agent sends you a private link that opens its browser on your phone or laptop, and the link closes itself. The link opens a live view of the page, with the page's fields listed under it: a box per text field, a dropdown per dropdown, a tick box per tick box, each with the page's label. What you type or pick lands in that field on the page as you go; then tap the page's own button, such as *Pay* or *Sign in*, in the live view.
 

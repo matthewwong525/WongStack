@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
 import { handleMemory, hashKey, KEY_LIMIT, MAX_TRANSCRIPT_BYTES, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
-import { batchRefusal, memberRefusal, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
+import { batchRefusal, FTS_HITS, memberRefusal, readRefusal, shadowCtes, shadowRead, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { keyEmail } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { memory, node, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
@@ -305,7 +305,7 @@ test('in a team, user and feedback facts are only your own, matched on every ema
   const everyone = await memory(env.repo, env.fake, ['search', 'deploy', '--everyone'], viaWorker());
   assert.match(everyone.stdout, /short deploy notes/);
   const digest = await memory(env.repo, env.fake, ['digest'], viaWorker());
-  assert.match(digest.stdout, /only your own user and feedback facts/);
+  assert.match(digest.stdout, /only your own user and feedback facts\. See everyone's: .*--everyone/, 'the admin is told how to see everyone\'s');
   assert.doesNotMatch(digest.stdout, /short deploy notes/);
   assert.match(digest.stdout, /runs at noon/);
 });
@@ -992,7 +992,7 @@ test('the team filter adds the reader clause only when the store has the reader 
   assert.equal(await personalFilter(ctx, { ...store(1), config: { team: false } }), null);
 });
 
-test('a reader\'s fact is absent from a teammate\'s live and show, and present with --everyone and for the reader', async t => {
+test('a reader\'s fact is absent from a teammate\'s live and show, even with --everyone, and present for the admin\'s --everyone and the reader', async t => {
   const { env, url } = await joinable(t);
   const readerKey = await joinedKey(url, 'tok-ana');
   const memberKey = await joinedKey(url, 'tok-cy');
@@ -1006,7 +1006,151 @@ test('a reader\'s fact is absent from a teammate\'s live and show, and present w
       const result = await run(args, key);
       assert.equal(result.code, 0, result.stderr);
       assert.doesNotMatch(result.stdout, NOTE, `${args[0]} as a teammate`);
-      assert.match((await run([...args, '--everyone'], key)).stdout, NOTE, `${args[0]} --everyone`);
     }
+    assert.doesNotMatch((await run([...args, '--everyone'], memberKey)).stdout, NOTE, `${args[0]} --everyone as a member`);
+    assert.match((await run([...args, '--everyone'])).stdout, NOTE, `${args[0]} --everyone as the admin`);
   }
+});
+
+// ---------- the Worker's lock: a member or reader key reads only what it may see ----------
+
+test('the shadow CTEs keep a teammate\'s personal and unshared facts out, with or without the reader schema', () => {
+  assert.equal(shadowCtes('Ana@Example.com'),
+    "facts AS (SELECT * FROM main.facts WHERE (type NOT IN ('user', 'feedback') AND shared = 1) OR lower(author) = 'ana@example.com'), "
+    + 'fact_tags AS (SELECT * FROM main.fact_tags WHERE fact_id IN (SELECT id FROM facts))');
+  assert.match(shadowCtes('ana@example.com', { readerSchema: false }), /^facts AS \(SELECT \* FROM main\.facts WHERE type NOT IN \('user', 'feedback'\) OR lower/);
+  assert.match(shadowCtes("o'hara@example.com"), /lower\(author\) = 'o''hara@example\.com'/, 'a quote in the email stays inside its literal');
+  assert.match(shadowRead('SELECT 1', 'a@b.co'), /^WITH facts AS \(.*\), fact_tags AS \(.*\) SELECT 1$/);
+  assert.match(shadowRead('WITH x AS (SELECT 1) SELECT * FROM x', 'a@b.co'), /^WITH facts AS \(.*\), fact_tags AS \(.*\), x AS \(SELECT 1\) SELECT \* FROM x$/);
+  assert.match(shadowRead('with recursive x(n) AS (SELECT 1) SELECT n FROM x', 'a@b.co'), /^WITH RECURSIVE facts AS .*, x\(n\) AS \(SELECT 1\) SELECT n FROM x$/i);
+  assert.equal(FTS_HITS, '(SELECT rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND rowid IN (SELECT id FROM facts))');
+});
+
+test('a member read may not name a schema or raw pages, and reads the full-text index only through the fragment', () => {
+  for (const sql of ['SELECT body FROM main.facts', 'SELECT body FROM "main"."facts"', 'SELECT body FROM [MAIN].facts', 'SELECT body FROM main /* x */ . facts', 'SELECT * FROM temp.facts', 'SELECT * FROM sqlite_dbpage']) {
+    assert.match(readRefusal(sql), /plain names/, sql);
+  }
+  for (const sql of ['SELECT rowid FROM facts_fts', 'SELECT * FROM facts f JOIN facts_fts ON facts_fts.rowid = f.id WHERE facts_fts MATCH ?', `SELECT * FROM ${FTS_HITS} hits, facts_fts_data`, 'SELECT * FROM "FACTS_FTS"']) {
+    assert.match(readRefusal(sql), /update this branch from main to search memory/, sql);
+  }
+  for (const sql of ['SELECT count(*) AS n FROM facts', 'SELECT f.id AS fid FROM facts f', 'SELECT body FROM facts', `SELECT f.id FROM facts f JOIN ${FTS_HITS} hits ON hits.rowid = f.id ORDER BY hits.rank`, 'SELECT * FROM sessions WHERE branch = ?', "SELECT 'domain.com', maintain, attempt FROM facts"]) {
+    assert.equal(readRefusal(sql), null, sql);
+  }
+});
+
+// A team whose facts hold every kind the lock must hide from ana's member key: dev's user and feedback facts,
+// and an unshared fact a reader wrote. Each hidden body says "hidden"; each fact ana may see says "visible".
+async function lockedTeam(t) {
+  const base = await team(t);
+  const db = base.env.fake.db;
+  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('deploy', 'How deploys run.', 'now')").run();
+  const insert = (type, body, author, shared = 1) => {
+    const [{ id }] = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, shared) VALUES ('x', ?, ?, 'save', '2026-09-26T00:00:00Z', ?, ?) RETURNING id").all(type, body, author, shared);
+    db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'deploy')").run(id);
+    return id;
+  };
+  const hidden = [
+    insert('feedback', 'hidden: dev wants deploy logs', 'dev@example.com'),
+    insert('user', 'hidden: dev has a deploy call every Tuesday', 'Dev@Example.com'),
+    insert('project', 'hidden: rae keeps deploy notes', 'rae@example.com', 0),
+  ];
+  const visible = [
+    insert('project', 'visible: deploy runs at noon', 'dev@example.com'),
+    insert('feedback', 'visible: ana likes short deploy notes', 'ana@example.com'),
+    insert('thread', 'visible: does deploy need a tag', 'rae@example.com'),
+  ];
+  return { ...base, hidden, visible };
+}
+
+test('every read the script sends, under a member key, returns no teammate\'s personal or unshared fact; the admin sees all', async t => {
+  const { env, anaKey, hidden, visible } = await lockedTeam(t);
+  const gate = writeJsonFile(env.repo.home, 'gate.json', { source: 'save', slug: 'y', facts: [{ type: 'project', body: 'Deploy logs and notes every Tuesday.' }] });
+  const reads = [
+    ['search', 'deploy'], ['search', 'deploy', '--everyone'], ['search', '--tag', 'deploy', '--everyone', '--all'], ['search', '--author', 'dev', '--everyone'],
+    ['show', 'x'], ['show', 'x', '--everyone', '--all'], ['live'], ['live', '--everyone'], ['digest'], ['gate', '--file', gate],
+  ];
+  for (const args of reads) {
+    const result = await memory(env.repo, env.fake, args, viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+    assert.equal(result.code, 0, `${args.join(' ')}: ${result.stderr}`);
+    assert.doesNotMatch(result.stdout, /hidden:/, args.join(' '));
+  }
+  const everyone = await memory(env.repo, env.fake, ['search', 'deploy', '--everyone'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.equal(everyone.stdout.match(/visible:/g).length, visible.length, 'a member sees every fact it may');
+  const tags = await memory(env.repo, env.fake, ['tags'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.match(tags.stdout, new RegExp(`deploy \\(${visible.length}\\)`), 'tag counts leave hidden facts out');
+  const source = await memory(env.repo, env.fake, ['source', String(hidden[0])], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.match(source.stderr, new RegExp(`no fact #${hidden[0]}`));
+
+  const admin = await memory(env.repo, env.fake, ['search', 'deploy', '--everyone'], viaWorker());
+  assert.equal(admin.stdout.match(/hidden:|visible:/g).length, hidden.length + visible.length);
+});
+
+test('a member cannot get round the lock however it writes the read', async t => {
+  const { env, url, anaKey, hidden, visible } = await lockedTeam(t);
+  const read = async (sql, params = []) => {
+    const response = await call(url, anaKey, { sql, params });
+    return { status: response.status, body: await response.json() };
+  };
+  for (const sql of ['SELECT body FROM main.facts', 'SELECT body FROM "main".facts', 'SELECT body FROM main/**/.facts', 'SELECT body FROM temp.facts', 'SELECT data FROM sqlite_dbpage', 'SELECT rowid FROM facts_fts WHERE facts_fts MATCH ?']) {
+    const refused = await read(sql, sql.includes('?') ? ['hidden'] : []);
+    assert.deepEqual([refused.status, refused.body.errors[0].code], [403, 'member_read'], sql);
+  }
+  const old = await read("SELECT f.body FROM facts f JOIN facts_fts ON facts_fts.rowid = f.id WHERE facts_fts MATCH ? ORDER BY bm25(facts_fts)", ['deploy']);
+  assert.equal(old.status, 403);
+  assert.match(old.body.errors[0].message, /update this branch from main to search memory/);
+
+  const rowsOf = response => response.body.result[0].results;
+  const plain = await read('SELECT id, body FROM facts ORDER BY id');
+  assert.deepEqual(rowsOf(plain).map(row => row.id), visible);
+  const alias = await read(`SELECT hits.rowid AS id FROM (SELECT 1 AS id) f JOIN ${FTS_HITS} hits ON 1 = 1 ORDER BY hits.rowid`, ['hidden OR visible']);
+  assert.deepEqual(rowsOf(alias).map(row => row.id), visible, 'a fake alias joined to the fragment gets only visible ids');
+  const counted = await read(`SELECT count(*) AS n FROM ${FTS_HITS} hits`, ['hidden']);
+  assert.deepEqual(rowsOf(counted), [{ n: 0 }], 'count(*) over the fragment counts no hidden fact');
+  const tagged = await read("SELECT count(*) AS n FROM fact_tags WHERE tag = 'deploy'");
+  assert.deepEqual(rowsOf(tagged), [{ n: visible.length }]);
+  for (const sql of ['WITH facts AS (SELECT * FROM sessions) SELECT * FROM facts', `SELECT * FROM (WITH facts AS (SELECT ${hidden[0]} AS id) SELECT hits.rowid FROM ${FTS_HITS} hits)`, `SELECT * FROM (WITH "Facts"(id) AS MATERIALIZED (SELECT ${hidden[0]}) SELECT hits.rowid FROM ${FTS_HITS} hits)`, 'SELECT * FROM (WITH fact_tags AS (SELECT 1) SELECT * FROM fact_tags)']) {
+    const refused = await read(sql, sql.includes('?') ? ['hidden'] : []);
+    assert.deepEqual([refused.status, refused.body.errors[0].code], [403, 'member_read'], `a read with its own facts CTE is refused: ${sql}`);
+  }
+  const nested = await read('SELECT * FROM (WITH x AS (SELECT * FROM facts) SELECT * FROM x) ORDER BY id');
+  assert.deepEqual(rowsOf(nested).map(row => row.id), visible);
+
+  const admin = await call(url, envKey(env), { sql: 'SELECT count(*) AS n FROM main.facts' });
+  assert.deepEqual((await admin.json()).result[0].results, [{ n: hidden.length + visible.length }], 'the admin reads the store whole');
+});
+
+test('each answer names the key\'s role, and only the admin\'s digest offers everyone\'s facts', async t => {
+  const { env, url, anaKey } = await joinable(t);
+  const readerKey = await joinedKey(url, 'tok-ana');
+  const roleOf = async key => (await call(url, key, { sql: 'SELECT 1' })).headers.get('Wong-Memory-Role');
+  assert.deepEqual([await roleOf(envKey(env)), await roleOf(anaKey), await roleOf(readerKey)], ['admin', 'member', 'reader']);
+  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'project', 'deploy runs at noon', 'save', '2026-09-26T00:00:00Z', 'dev@example.com')").run();
+  const member = await memory(env.repo, env.fake, ['digest'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.match(member.stdout, /This team repo shows only your own user and feedback facts\.\n/);
+  assert.doesNotMatch(member.stdout, /See everyone's/);
+  assert.equal(JSON.parse(readFileSync(stateFile(env, 'team.json'), 'utf8')).role, 'member');
+  const admin = await memory(env.repo, env.fake, ['digest'], viaWorker());
+  assert.match(admin.stdout, /See everyone's: `.* --everyone`/);
+  assert.equal(JSON.parse(readFileSync(stateFile(env, 'team.json'), 'utf8')).role, 'admin');
+});
+
+test('on a store before the reader schema, a member still reads through the lock', async () => {
+  const db = new DatabaseSync(':memory:');
+  for (const file of ['0001_memory.sql', '0002_keys.sql', '0003_key_machines.sql']) db.exec(readFileSync(new URL(`../../.agents/skills/memory/migrations/${file}`, import.meta.url), 'utf8'));
+  const anaKey = keyFor('ana@example.com');
+  db.prepare("INSERT INTO memory_keys (hash, email, role, created_at) VALUES (?, 'ana@example.com', 'member', 'now'), ('h', 'dev@example.com', 'admin', 'now')").run(await hashKey(anaKey));
+  db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'feedback', 'dev wants logs', 'save', 'now', 'dev@example.com'), ('x', 'project', 'deploy at noon', 'save', 'now', 'dev@example.com')").run();
+  const response = await handleMemory(new Request('http://w/_memory/accounts/a/d1/database/db1/query', { method: 'POST', headers: { Authorization: `Bearer ${anaKey}` }, body: JSON.stringify({ sql: 'SELECT body FROM facts' }) }), { MEMORY_DB: d1(db) });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).result[0].results, [{ body: 'deploy at noon' }]);
+});
+
+test('outside a team, nothing is shadowed', async t => {
+  const env = await setup(t);
+  const url = await appWorker({ MEMORY_DB: d1(env.fake.db) });
+  const anaKey = await addKey(env.fake.db, 'ana@example.com', 'member');
+  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('x', 'feedback', 'someone prefers tabs', 'save', 'now', 'other@example.com')").run();
+  const response = await call(url, anaKey, { sql: 'SELECT f.body FROM facts f JOIN facts_fts ON facts_fts.rowid = f.id WHERE facts_fts MATCH ?', params: ['tabs'] });
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).result[0].results, [{ body: 'someone prefers tabs' }]);
 });

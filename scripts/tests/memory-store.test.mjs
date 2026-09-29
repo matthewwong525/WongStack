@@ -8,7 +8,7 @@ import { findCredential, redact, secretValues } from '../../.agents/skills/memor
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
 import { MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
-import { homeRows, memory, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
 
@@ -308,43 +308,14 @@ test('no command imports notes', async t => {
   assert.equal(env.fake.calls.length, before, 'nothing reaches the store');
 });
 
-const putHome = (env, input) => memory(env.repo, env.fake, ['put-facts', '--home', '--file', writeJsonFile(env.repo.home, `home-${Date.now()}-${Math.random()}.json`, input)]);
-const PRIVATE = { source: 'save', slug: 'family', session: 'current', facts: [{ action: 'add', type: 'user', body: "The person's daughter starts school on 2026-10-05." }] };
-
-test('--home with no machine record, or a record with no store, says so and writes nothing', async t => {
+test('--home is an unknown flag, and nothing reaches the store', async t => {
   const env = await setup(t);
-  const none = await putHome(env, PRIVATE);
-  assert.equal(none.code, 1);
-  assert.match(none.stderr, /no home recorded/);
-  writeFileSync(join(env.repo.home, 'machine.json'), JSON.stringify({ home: tempDir(t, 'not-a-home-') }));
-  const bare = await putHome(env, PRIVATE);
-  assert.match(bare.stderr, /no home recorded/);
-  const other = await memory(env.repo, env.fake, ['live', '--home']);
-  assert.match(other.stderr, /--home works with search, show, gate, put-facts/);
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0);
-});
-
-test("--home writes to home's store with no session id and home's git email", async t => {
-  const env = await setup(t);
-  await setupHome(t, env, { email: 'ana@mail.com' });
-  const result = await putHome(env, PRIVATE);
-  assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /added 1/);
-  assert.deepEqual(homeRows(env, 'SELECT slug, session_id, author FROM facts'), [{ slug: 'family', session_id: null, author: 'ana@mail.com' }]);
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0, 'the work store holds nothing');
-  const found = await memory(env.repo, env.fake, ['search', '--home', 'school']);
-  assert.match(found.stdout, /daughter starts school/);
-  const local = await memory(env.repo, env.fake, ['search', 'school']);
-  assert.match(local.stdout, /No matching facts/);
-});
-
-test("an offline home keeps the fact in home's spool, never in this repo's", async t => {
-  const env = await setup(t);
-  const home = await setupHome(t, env);
-  env.fake.setOffline(true, 'db-home');
-  const result = await putHome(env, PRIVATE);
-  assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /spooled: 1 facts wait in .*wong-memory/);
-  assert.equal(readdirSync(join(home.root, '.git', 'wong-memory', 'spool')).length, 1);
-  assert.throws(() => readdirSync(join(env.repo.stateDir, 'spool')), /ENOENT/);
+  const before = env.fake.calls.length;
+  const input = writeJsonFile(env.repo.home, 'home.json', { source: 'save', slug: 'family', facts: [{ action: 'add', type: 'user', body: 'A private-life fact.' }] });
+  for (const args of [['put-facts', '--home', '--file', input], ['search', '--home', 'school']]) {
+    const result = await memory(env.repo, env.fake, args);
+    assert.equal(result.code, 2, args.join(' '));
+    assert.match(result.stderr, /Unknown option '--home'/);
+  }
+  assert.equal(env.fake.calls.length, before);
 });

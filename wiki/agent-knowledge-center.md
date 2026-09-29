@@ -70,6 +70,6 @@ The split keeps it useful: the memory store is short-term memory, and the wiki i
 
 ## Where to go next
 
-Start with [the change loop](development/the-change-loop.md) to see how work moves from idea to shipped record. Use [the wiki rulebook](wiki-style.md) when you add or reorganize repeatable knowledge, and [home](development/home.md) to see how one person's memory reaches every repo.
+Start with [the change loop](development/the-change-loop.md) to see how work moves from idea to shipped record. Use [the wiki rulebook](wiki-style.md) when you add or reorganize repeatable knowledge, and [who sees what](development/memory.md#who-sees-what) to see who reads a repo's memory.
 
 Part of [the WongStack wiki](README.md).

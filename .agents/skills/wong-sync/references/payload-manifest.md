@@ -92,4 +92,4 @@ Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/`
 
 ## Install record
 
-`.claude/.wong-stack.json` records the source version and commit, memory store ids, actual local skill names, upstream, and install and update dates. Setup or sync advances it only after its agreed changes and any generated-layer migration, never on a proposal alone. It holds no mode: every install follows the same rules. The machine's [home](../../../../wiki/development/home.md) lives outside every repo, in `~/.wong-stack/machine.json`; setup and sync never copy it.
+`.claude/.wong-stack.json` records the source version and commit, memory store ids, actual local skill names, upstream, and install and update dates. Setup or sync advances it only after its agreed changes and any generated-layer migration, never on a proposal alone. It holds no mode: every install follows the same rules.

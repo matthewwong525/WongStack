@@ -8,9 +8,9 @@ import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUM
 import { JOIN_COMMANDS } from './lib/join.mjs';
 import { githubUser, linkAdmin, MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { homeContext, isMain, loadConfig, loadEnv, openStore, readJson, repoContext, RUN_TALLY, SCRIPT, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
-import { FormatError, inside, isPrivate, parseTranscriptText, pending, pruneRegistry, readRegistry, sessionFile, strip } from './lib/transcripts.mjs';
-import { supersedeSql, WRITES } from '../worker/statements.mjs';
+import { isMain, loadConfig, loadEnv, openStore, readJson, repoContext, RUN_TALLY, SCRIPT, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { FormatError, inside, parseTranscriptText, pending, pruneRegistry, readRegistry, sessionFile, strip } from './lib/transcripts.mjs';
+import { FTS_HITS, supersedeSql, WRITES } from '../worker/statements.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../worker/memory-worker.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -65,7 +65,7 @@ export function ftsQuery(text) {
 // The counts a run records come from what the store took, never from the model. run.mjs makes the tally file
 // and removes it; a command adds to it only inside a run (WONG_MEMORY_RUN=1) and only while the file exists,
 // so a hand-run command never writes one.
-const CAPTURE_KEYS = ['captured', 'skipped', 'private', 'unrecognized', 'added', 'superseded', 'dropped'];
+const CAPTURE_KEYS = ['captured', 'skipped', 'unrecognized', 'added', 'superseded', 'dropped'];
 const CONSOLIDATION_KEYS = { merged: 'merged', superseded: 'consolidationSuperseded' };
 
 function runTally(ctx) {
@@ -80,9 +80,8 @@ function addToTally(file, counts) {
   writeJson(file, tally);
 }
 
-// What a stored put-facts adds: a consolidation write counts its merged facts, a home write only what it dropped.
-function putFactsCounts(input, result, home) {
-  if (home) return { dropped: result.dropped };
+// What a stored put-facts adds: a consolidation write counts its merged facts.
+function putFactsCounts(input, result) {
   if (input.source === 'consolidation') return { merged: result.kept, consolidationSuperseded: result.superseded };
   return { ...(result.session ? { [result.status]: 1 } : {}), added: result.added, superseded: result.superseded, dropped: result.dropped };
 }
@@ -215,12 +214,10 @@ function currentSession(ctx) {
 
 async function putFactsCommand(ctx, { values, tally }) {
   const input = readInput(values.file);
-  // A session row lives in the store of the repo that ran it, so a fact sent to home carries none.
-  if (ctx.isHome && !ctx.isCurrent) delete input.session;
   if (input.session === 'current') input.session = currentSession(ctx);
   try {
     const result = await putFacts(ctx, input);
-    addToTally(tally, putFactsCounts(input, result, values.home));
+    addToTally(tally, putFactsCounts(input, result));
     if (values.spooled) spoolRemove(values.spooled);
     console.log(`stored: added ${result.added}, superseded ${result.superseded}, dropped ${result.dropped}${result.session ? ` (session ${result.session}, ${result.status})` : ''}`);
     for (const { id, author } of result.left) console.log(`left #${id} live: ${author ? `${author} wrote it, so only they or the admin` : 'it has no author, so only the admin'} can supersede it`);
@@ -239,7 +236,8 @@ async function search(ctx, { values, positionals }) {
   const where = [];
   const params = [];
   const match = ftsQuery(positionals.join(' '));
-  if (match) { joins.push('JOIN facts_fts ON facts_fts.rowid = f.id'); where.push('facts_fts MATCH ?'); params.push(match); }
+  // The full-text search goes through the one fragment the memory Worker lets every key run.
+  if (match) { joins.push(`JOIN ${FTS_HITS} hits ON hits.rowid = f.id`); params.push(match); }
   // The sessions a search reads: those that started on --branch, and those that wrote a fact on --change, so a
   // session whose branch was renamed still counts. Both together is one set, under one limit.
   const sessions = [];
@@ -263,7 +261,7 @@ async function search(ctx, { values, positionals }) {
   }
   const limit = Number(values.limit) || 30;
   const sql = `SELECT ${F_COLUMNS} FROM facts f ${joins.join(' ')} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY ${match ? 'bm25(facts_fts),' : ''} f.created_at DESC${values.state ? '' : ` LIMIT ${limit}`}`;
+    ORDER BY ${match ? 'hits.rank,' : ''} f.created_at DESC${values.state ? '' : ` LIMIT ${limit}`}`;
   const state = stateOf(ctx.root);
   // The state comes from this checkout's change folders, not the store, so it filters before the limit here.
   const facts = (await store.query(sql, params)).map(fact => ({ ...fact, state: state(fact.slug) }))
@@ -327,7 +325,7 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
     statements.push([`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL AND f.slug = ?${mine} ORDER BY f.created_at DESC LIMIT 40`, [fact.slug || '', ...mineParams]]);
     const match = ftsQuery(fact.body || '');
     statements.push(match
-      ? [`SELECT ${F_COLUMNS} FROM facts f JOIN facts_fts ON facts_fts.rowid = f.id WHERE facts_fts MATCH ? AND f.superseded_by IS NULL AND f.slug != ?${mine} ORDER BY bm25(facts_fts) LIMIT 5`, [match, fact.slug || '', ...mineParams]]
+      ? [`SELECT ${F_COLUMNS} FROM facts f JOIN ${FTS_HITS} hits ON hits.rowid = f.id WHERE f.superseded_by IS NULL AND f.slug != ?${mine} ORDER BY hits.rank LIMIT 5`, [match, fact.slug || '', ...mineParams]]
       : ['SELECT 1 WHERE 0']);
   }
   const [tagRows, ...results] = await store.batch(statements);
@@ -374,7 +372,7 @@ async function keepTranscript(ctx, { positionals: [id] }) {
     const store = openStore(ctx);
     if (!store.config.bucket) return skip('this store has no R2 bucket, so transcripts are not stored');
     const [ledger] = await store.query('SELECT status, reason FROM sessions WHERE id = ?', [id]);
-    if (ledger?.status === 'private' || isPrivate(parsed.messages)) return skip(`${id} is private, so nothing was uploaded`);
+    if (ledger?.status === 'private') return skip(`${id} was recorded as private, so nothing was uploaded`);
     const record = { ...recordFor(id, file, parsed), readThrough: null };
     const tooLarge = await keepRaw(store, record, raw);
     const status = ledger?.status || 'skipped';
@@ -386,7 +384,8 @@ async function keepTranscript(ctx, { positionals: [id] }) {
   }
 }
 
-// Reduce a pending session for the model: private check, redaction, upload, and text after read_through.
+// Reduce a pending session for the model: redaction, upload, and text after read_through. A session an earlier
+// version recorded as private stays private: nothing is uploaded or shown.
 async function stripCommand(ctx, { positionals: [id], tally }) {
   if (!id) throw new StoreError('usage: memory.mjs strip <session-id>');
   const file = sessionFile(ctx, id);
@@ -403,12 +402,9 @@ async function stripCommand(ctx, { positionals: [id], tally }) {
   const store = openStore(ctx);
   const [ledger] = await store.query('SELECT status, read_through FROM sessions WHERE id = ?', [id]);
   const record = recordFor(id, file, parsed);
-  const who = { author: store.author, machine: ctx.machine };
-  if (ledger?.status === 'private' || isPrivate(parsed.messages)) {
-    await store.batch([sessionUpsert(record, 'private', { ...who, reason: '#private' })]);
+  if (ledger?.status === 'private') {
     markSeen(ctx, record);
-    addToTally(tally, { private: 1 });
-    console.log(`private: ${id} is recorded as private. Nothing was uploaded, and no fact may be written for it.`);
+    console.log(`private: ${id} was recorded as private. Nothing was uploaded, and no fact may be written for it.`);
     return;
   }
   const secrets = secretValues(store.env);
@@ -551,9 +547,6 @@ async function linkRunningAdmin(ctx, store) {
   console.log(`linked GitHub account ${user.login || user.id} as this store's admin, for ${email}; your next session joins as admin.`);
 }
 
-const HOME_COMMANDS = new Set(['search', 'show', 'gate', 'put-facts']);
-const HOME_PAGE = 'wiki/development/home.md#the-machine-record';
-
 export const COMMANDS = {
   migrate, search, show, source, tags, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   'keep-transcript': keepTranscript,
@@ -566,14 +559,13 @@ export const COMMANDS = {
 
 const OPTIONS = Object.fromEntries([
   ...['file', 'spooled', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'home', 'everyone', 'background'].map(name => [name, { type: 'boolean' }]),
+  ...['all', 'json', 'help', 'everyone', 'background'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
-  (search, show, gate, and put-facts take --home: the machine's home store, from ~/.wong-stack/machine.json)
   search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n]
                                (--change: facts from sessions that wrote a fact on the change; with --branch, either)
-                               (in a team, user and feedback facts are only yours unless --everyone)
+                               (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
@@ -581,7 +573,7 @@ const USAGE = `usage: memory.mjs <command>
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   pending [--limit n] [--exclude ids]   strip <session-id>   live [--everyone]   digest   stats   spool   due
   keep-transcript <session-id|current>   upload the session's redacted transcript now; leaves its capture alone
-                               (in a team, search, show, and live hide other people's personal and reader facts unless --everyone)
+                               (in a team, search, show, and live hide other people's personal and reader facts; only the admin's --everyone shows them)
   finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
   migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)
   join [--background]          get or renew this machine's memory key through your GitHub access to the repo
@@ -598,20 +590,8 @@ if (isMain(import.meta.url)) {
   } catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
   if (args.values.help) { console.log(USAGE); process.exit(0); }
   try {
-    let ctx = repoContext();
-    // The tally lives in this clone's state folder, even when the write goes to home.
-    const tally = runTally(ctx);
-    if (args.values.home) {
-      if (!HOME_COMMANDS.has(command)) throw new StoreError(`--home works with ${[...HOME_COMMANDS].join(', ')}`);
-      const home = homeContext(ctx);
-      if (!home) {
-        // The runbook counts a private-life fact with no home to go to as dropped.
-        if (command === 'put-facts') addToTally(tally, { dropped: (readJson(args.values.file, {}).facts || []).length });
-        throw new StoreError('no home recorded', { kind: 'unconfigured', help: HOME_PAGE });
-      }
-      ctx = home;
-    }
-    await run(ctx, { ...args, tally });
+    const ctx = repoContext();
+    await run(ctx, { ...args, tally: runTally(ctx) });
   } catch (error) {
     console.error(error instanceof StoreError ? error.message : `memory: ${error.message}`);
     process.exitCode = 1;

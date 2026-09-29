@@ -4,10 +4,12 @@
 // code path. Each Worker serves one store, so the ids in the path are ignored. Key hashes live in the
 // store's memory_keys table, and the admin's GitHub account in memory_admins; no request may name either. The
 // admin's Cloudflare token manages keys, and the join route below makes a key for a person GitHub lets into this repo.
-import { batchRefusal, memberStatements, sessionIds } from './statements.mjs';
+import { batchRefusal, isWrite, memberStatements, readRefusal, sessionIds, shadowRead } from './statements.mjs';
 
 export const MEMORY_PREFIX = '/_memory/';
 export const TEAM_HEADER = 'Wong-Memory-Team';
+// The key's role: admin, member, or reader. The client shows "see everyone's" only to the admin.
+export const ROLE_HEADER = 'Wong-Memory-Role';
 export const KEY_DAYS = 30;
 // The most live keys one GitHub account holds: a join past it stops the key of the machine that joined longest ago.
 export const KEY_LIMIT = 10;
@@ -35,15 +37,16 @@ export const mayTouch = (grant, key) => grant.role === 'admin' || key.startsWith
 const KEYS_GUARD = /memory_keys|memory_admins|writable_schema/i;
 
 // The key's email, role, expiry, reader mark, and whether more than one email holds a key, in one query. A
-// store the admin has not migrated has fewer columns: before schema 4 no key is a reader, and before schema 3
-// no key expires. Its keys keep working until then.
+// store the admin has not migrated has fewer columns: before schema 4 no key is a reader and no fact is
+// unshared, and before schema 3 no key expires. Its keys keep working until then.
 const TEAM = '(SELECT count(DISTINCT email) FROM memory_keys) > 1 AS team';
 const GRANTS = ['expires_at, reader', 'expires_at, 0 AS reader', 'NULL AS expires_at, 0 AS reader']
   .map(columns => `SELECT email, role, ${columns}, ${TEAM} FROM memory_keys WHERE hash = ?`);
 async function findGrant(db, hash) {
   for (const [index, sql] of GRANTS.entries()) {
     try {
-      return await db.prepare(sql).bind(hash).first();
+      const grant = await db.prepare(sql).bind(hash).first();
+      return grant && { ...grant, readerSchema: index === 0 };
     } catch (error) {
       if (index === GRANTS.length - 1 || !/no such column/i.test(error.message)) throw error;
     }
@@ -70,6 +73,13 @@ async function query(db, grant, request) {
     const refusal = batchRefusal(statements, grant.email) || await othersSession(db, statements, grant.email);
     if (refusal) return fail(403, 'member_write', refusal);
     run = memberStatements(statements, grant);
+    if (grant.team) {
+      // In a team, every read sees only the facts this key may see, however it is written.
+      const reads = new Set(statements.filter(statement => !isWrite(statement)));
+      const refusal = [...reads].map(({ sql }) => readRefusal(sql)).find(Boolean);
+      if (refusal) return fail(403, 'member_read', refusal);
+      run = run.map((statement, index) => reads.has(statements[index]) ? { ...statement, sql: shadowRead(statement.sql, grant.email, grant) } : statement);
+    }
   }
   try {
     const result = await db.batch(run.map(({ sql, params = [] }) => db.prepare(sql).bind(...params)));
@@ -186,6 +196,7 @@ export async function handleMemory(request, env) {
   const response = await route(db, env, grant, request, pathname);
   const headers = new Headers(response.headers);
   headers.set(TEAM_HEADER, grant.team ? '1' : '0');
+  headers.set(ROLE_HEADER, grant.role === 'admin' ? 'admin' : grant.reader ? 'reader' : 'member');
   return new Response(response.body, { status: response.status, headers });
 }
 
