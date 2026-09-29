@@ -1,8 +1,8 @@
 # Cloudflare credentials
 
-One token gets everything running. Create it with **two permission rows** and save it in the primary worktree's `.env`. The agent then grants it only the permissions each step needs — [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall — and tells you what it granted. This user token stays on your computer. CI gets a [separate, smaller token](#the-ci-deploy-token).
+This page is the Cloudflare token screen in detail: where to click, what to tick, what the token can do afterward, and the security trade-off that design makes. One token gets everything running. Create it with **two permission rows** and save it in the primary worktree's `.env`. The agent then grants it only the permissions each step needs — [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall — and tells you what it granted. This user token stays on your computer. CI gets a [separate, smaller token](#the-ci-deploy-token).
 
-This page is the token screen in detail: where to click, what to tick, what it can do afterward, and the security trade-off that design makes. Values land in `.env` per the [secrets convention](../development/secrets.md); real values never touch git.
+Values land in `.env` per the [secrets convention](../development/secrets.md); real values never touch git.
 
 > Dashboard labels drift and vary by plan. The permission *names* below were read from the live API, so they're accurate as names — but if a menu path doesn't match what you see, match on the concept.
 

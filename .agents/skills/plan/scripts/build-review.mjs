@@ -194,7 +194,7 @@ function writeIfDifferent(path, next) {
   return true;
 }
 
-// The line under the link when the plan waits for the person; the rule, not the builder, decides when to copy it.
+// The line under the link on the *Review the plan* reply only; the rule, not the builder, decides when to copy it.
 export const NEXT_STEP = "When you're ready, type `/apply` to build it.";
 
 // The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the Markdown link still parses.

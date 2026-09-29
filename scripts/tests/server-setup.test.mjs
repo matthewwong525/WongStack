@@ -36,14 +36,6 @@ test('every OpenSpec pin matches the version CI checks the skills against', () =
   }
 });
 
-// A server runs the Node.js major CI tests; the update script moves .nvmrc.
-test('the server installs the Node.js major .nvmrc names', () => {
-  const server = readFileSync(script, 'utf8').match(/setup_(\d+)\.x/)?.[1];
-  const ci = readFileSync(resolve(repo, '.nvmrc'), 'utf8').trim().replace(/^v/, '').split('.')[0];
-  assert.ok(server, 'server/setup.sh names no nodesource setup_<major>.x');
-  assert.equal(server, ci, `server/setup.sh installs Node.js ${server}, but .nvmrc names ${ci}`);
-});
-
 // The final check and server/README.md's end state promise the same tools; a
 // host reads the README, so a tool on one side only breaks it silently.
 test('the final check names the tools the end state promises', () => {
@@ -56,4 +48,13 @@ test('the final check names the tools the end state promises', () => {
   const only = (a, b) => [...a].filter(t => !b.has(t));
   assert.deepEqual(only(checked, promised), [], 'checked by setup.sh but not in the end state');
   assert.deepEqual(only(promised, checked), [], 'in the end state but not checked by setup.sh');
+});
+
+// A new server gets the Node the rest of the repo uses; .nvmrc is the reference.
+test("the script installs .nvmrc's Node major", () => {
+  const nvmrc = readFileSync(resolve(repo, '.nvmrc'), 'utf8').trim().match(/^v?(\d+)/)?.[1];
+  const setup = readFileSync(script, 'utf8').match(/deb\.nodesource\.com\/setup_(\d+)\.x/)?.[1];
+  assert.ok(nvmrc, '.nvmrc names no Node major');
+  assert.ok(setup, 'server/setup.sh installs no NodeSource major');
+  assert.equal(setup, nvmrc, `server/setup.sh installs Node ${setup}, but .nvmrc says ${nvmrc}`);
 });

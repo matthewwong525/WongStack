@@ -43,7 +43,7 @@ A feature branch with work runs the ordinary runbook, intent or not; `/ship` res
 
 ## Step 2 — archive the change
 
-Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → apply `/save`'s authoring test to the branch diff. Code or a plan for code → author the change from the session and diff by [the new-plan fallback](../save/references/new-plan.md) and select it as `explicit`. Anything else needs no change: skip to Step 3 with no `CHANGE_NAME`.
+Resolve `CHANGE_NAME`, separate from `BRANCH`, by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit`, `session`, `changed-active`, then `recorded-branch`; `sole-active` never authorizes a cold merge. None selects → apply [`/save`'s route table](../save/SKILL.md#1-protect-credentials-and-select-the-route) to the branch diff. Code or a plan for code → author the change from the session and diff by [the new-plan fallback](../save/references/new-plan.md) and select it as `explicit`. Anything else needs no change: skip to Step 3 with no `CHANGE_NAME`.
 
 **Several active change folders** in the branch diff or tree → stop before archive, even with an explicit selection: the merge would carry them all. Ask [as options](../explore/references/asking-the-user.md), naming them: move the others off the branch *(Recommended)*, or ship all on purpose. Require `openspec/changes/$CHANGE_NAME/`; keep `CHANGE_NAME` fixed through archive and checkpoint.
 
@@ -112,4 +112,4 @@ Lead with the outcome in [plain words](../explore/references/asking-the-user.md#
 - **Walk** — verdict and evidence link; a merged-anyway `FAILURE` says the user chose it; an absent skill is one line.
 - **Secrets** — promoted, skipped, and unresolved key names (never values), or why it was skipped.
 
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): open the next work the person asked for in a new workspace *(Recommended)*, walk the merged app, or stop here; after a stop, the ways to clear the blocker. From a Paseo worktree, also offer *Close this workspace* ([`/close`](../close/SKILL.md)), which updates the wiki; [next work](../plan/references/new-workspace.md#next-work) owns the order.
+Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step), whose options and order [next work](../plan/references/new-workspace.md#next-work) owns; after a stop, the ways to clear the blocker.

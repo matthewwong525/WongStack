@@ -27,6 +27,8 @@ An install from before 19.0.0 may still have a real `.claude/` or `.codex/` fold
 
 A skill installed under a local name keeps it: the record's `components.skills` mapping beats defaults. The inventory limits copying, not how far exploration follows a named dependency or impact. Never copy target-owned notes, app code, business docs, or OpenSpec records. No install seeds `wiki/people/` or other knowledge sections; they grow from use.
 
+Setup also copies the source's values-blank `.env.example`. It is not in `payload-files.json`, so a sync never updates it.
+
 ## Deterministic sync preflight
 
 [`preflight.mjs`](../scripts/preflight.mjs) compares one target's payload at the record's `commit` and at the refreshed source `HEAD`, over the union of both commits' `payload-files.json`, so every addition, removal, folder entry, exclusion, and manifest edit shows. It always selects `core`, `ui`, `pack`, and `scaffold`; `seededBySetup` is not payload.
@@ -80,7 +82,7 @@ Create live database IDs and secrets in the target; never copy them. No copied f
 
 A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module, so the route updates with the skill; only that import and branch sit in `app/`. The landing page opens with a [tutorial](../../../../wiki/stack/mini-apps.md), `app/src/pages/home/Tutorial.tsx`: a message to paste into the chat that removes it, explaining each step, above the mini apps. Update `Tutorial.tsx`, `.css`, and `.test.tsx` only while the target's `Home.tsx` (flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise the person finished it, and the plan says so in one line. `/apps/` redirects to `/`; a landing page that doesn't read `/apps/apps.json` gets a task to list the apps. The test workflow runs `npm test` at the root or one folder down, and passes with none. No root `package.json` is copied.
 
-The [mini apps](../../../../wiki/stack/mini-apps.md) route ships file by file: `router.mjs` and `routes.mjs` with their type declarations, and the example `mini-apps/apps/hello/`; `app/worker/index.ts` sends `/apps/` to it. Nothing else under `mini-apps/` ships, so apps made here stay here; list a new scaffold file by hand. App tests use Node's built-in runner, so the folder has no package manifest.
+The [mini apps](../../../../wiki/stack/mini-apps.md) route ships file by file: `router.mjs` and `routes.mjs` with their type declarations, `is-test-file.mjs`, and the example `mini-apps/apps/hello/`; `app/worker/index.ts` sends `/apps/` to it. Nothing else under `mini-apps/` ships, so apps made here stay here; list a new scaffold file by hand. App tests use Node's built-in runner, so the folder has no package manifest.
 
 ## OpenSpec integration and migration
 

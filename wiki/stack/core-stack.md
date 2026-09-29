@@ -2,7 +2,7 @@
 
 The runtime the stack pack targets: a **React SPA on Cloudflare Workers with a D1 database**, built by Vite. One Worker serves the app and its APIs; D1 holds the data; migrations apply on deploy. Everything runs remote — there's no local server to babysit — and the [D1 pipeline](d1-pipeline.md) makes each merge a deploy.
 
-This is the [Cloudflare stack](README.md)'s answer to *what to build on*. It's a recommendation, not a requirement: take it whole, take a piece, or skip it. The pack's [scripts](d1-pipeline.md) and pipeline docs assume it; the rest of WongStack does not.
+This is the [Cloudflare stack](README.md)'s answer to *what to build on*. The pack's [scripts](d1-pipeline.md) and pipeline docs assume it; the rest of WongStack does not.
 
 ## The pieces
 

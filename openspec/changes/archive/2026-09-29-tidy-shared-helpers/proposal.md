@@ -1,6 +1,6 @@
 # Tidy the shared helpers, checks, and test fakes
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** naive-panther
 **Open questions:** none
 
@@ -24,7 +24,7 @@ The same small pieces of code are copied across many scripts, and some copies ha
 - **One set of safety checks before a test upload.** The checks that stop a test copy of your app from overwriting the live one run from one shared place, so the two upload paths can not disagree. A failed upload now shows its full error.
 - **One answer to "which branch is live".** Every upload script works out your live branch the same way.
 - **Less repetition in the automatic checks.** The step that works out what a change touched is written once and shared by the three check runs. An out-of-date note in one of them is corrected.
-- **New servers run the Node version the checks test.** New servers install Node 22, the version the automatic checks run, and a check now fails if the two ever differ. Servers already built keep what they have.
+- **New servers run the Node version the checks test.** Already true on main since 27.1.2, which moved new servers to Node 22 and added the check; this change only keeps the spec wording.
 - **Warnings in your app's code now fail its checks**, as they already do for WongStack's own code. A sync may surface warnings you then fix.
 - **One fake Cloudflare in the tests**, instead of two that copy each other's database part.
 - **Unused code removed**: the cost report nothing runs, and pieces of three scripts that nothing calls.
@@ -67,10 +67,12 @@ None.
 - **2026-09-29** — Assumed: the production branch rule is `CF_PRODUCTION_BRANCH`, then the remote's default branch, then `main`, because the preview script already uses it and it names the live branch correctly on Workers Builds when no variable is set.
 - **2026-09-29** — Assumed: `.github/scripts/app-untouched.sh` keeps its own default-branch lookup, because it answers a different question (what to compare with) and must report "unknown" rather than guess `main`; its core script also must not depend on a pack file.
 - **2026-09-29** — Assumed: the composite action shares only the "Check what the change touches" step and its summary line, because GitHub can not share a job's `if`, `concurrency`, or the checkout that must run before a local action loads.
-- **2026-09-29** — Assumed: the release is a patch, because no one sees new behavior; the lint change gets an **Updating.** note.
+- **2026-09-29** — Assumed: the release is a minor, because the release rule on main now calls new behavior minor and failing on a lint warning is new; the lint change gets an **Updating.** note.
 - **2026-09-29** — Assumed: the one-line `isMain` edit in `verify/scripts/hand-over.mjs` needs no coordination with the "phone-sized-hand-over" plan in another workspace, because that plan is unsaved and a rebase resolves one line.
 - **2026-09-29** — Assumed: the plan's own CI task is dropped and the lint task waits on no separate save, because `/ship`'s one checkpoint runs CI after the archive.
 - **2026-09-29** — Assumed: the build leaves `cf-preview.sh`'s current staging-database lines as they are and adds no database check to `cf-deploy.sh`, because the "Real bugs" part's `wong_config staging-database` is not on main yet; whichever part publishes second calls it beside `wong_refuse_production_worker`.
+- **2026-09-29** — Assumed: catching up with main after "Real bugs" shipped as 27.2.1, `cf-deploy.sh` and `cf-preview.sh` keep its `wong_config staging-database` call beside `wong_refuse_production_worker`, and the `stack-pack` spec keeps both new requirements.
+- **2026-09-29** — Assumed: this change's own Node-version test is dropped, because 27.1.2 already moved new servers to Node 22 and added the same test.
 - **2026-09-29** — Check: `.github/workflows/test.yml`, `.github/workflows/deploy.yml`, and `.github/workflows/payload.yml` move the scope step into a shared action; every check still runs as before.
 - **2026-09-29** — Check: `.github/scripts/loosened-checks.mjs` imports the shared `isMain`/`parseCli`; what it flags is unchanged.
 - **2026-09-29** — Check: `app/package.json` runs `oxlint --deny-warnings`, which is stricter.

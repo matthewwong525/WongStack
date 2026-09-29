@@ -140,8 +140,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # Run from inside each folder: Node's default patterns find the tests
-      # there, and Node 22 reads a directory argument as a file.
+      # mini-apps/is-test-file.mjs lists each app's test files by the one rule the
+      # build and the Worker use to keep them private, and Node runs exactly
+      # those, from inside the folder. An app with none is skipped.
       - name: Test the changed mini apps
         id: mini
         if: ${{ !cancelled() && steps.scope.outputs.mini_apps != '' }}
@@ -157,13 +158,14 @@ jobs:
               echo "$NAME: the folder was removed — nothing to test"
               continue
             fi
-            if [ -z "$(find "$DIR" -name node_modules -prune -o -type f \( -name '*.test.*' -o -name '*-test.*' -o -name '*_test.*' -o -name 'test.*' -o -name 'test-*' \) -print -quit)" ]; then
+            mapfile -t TESTS < <(node mini-apps/is-test-file.mjs "$DIR")
+            if [ "${#TESTS[@]}" -eq 0 ]; then
               echo "$NAME: no test files — skipped"
               SKIPPED="$SKIPPED $NAME"
               continue
             fi
             echo "::group::$NAME"
-            (cd "$DIR" && node --test) || STATUS=1
+            (cd "$DIR" && node --test "${TESTS[@]}") || STATUS=1
             echo "::endgroup::"
             TESTED="$TESTED $NAME"
           done

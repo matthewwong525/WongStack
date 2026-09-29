@@ -8,6 +8,7 @@ repo/
 └─ mini-apps/
    ├─ router.mjs      routes /apps/<name>/api/*
    ├─ routes.mjs      finds each apps/*/api.mjs
+   ├─ is-test-file.mjs  which files are tests
    └─ apps/
       └─ tips/
          ├─ index.html
@@ -25,7 +26,7 @@ The main app's Worker, `app/worker/index.ts`, sends every request under `/apps/`
 - **One folder per app**, `mini-apps/apps/<name>/`, with an `app.json` that holds a `title` and a one-line `description`. The folder name is the URL path: lowercase letters, digits, and hyphens. Copy the example app, `hello/`, to start.
 - **No build step of its own.** Pages are HTML, CSS, and plain JS modules. The optional handler, `api.mjs`, is plain JavaScript too. The main app's build bundles it into the main Worker.
 - **Grow it by file, not by size.** Markup goes in `index.html`, the page script in `app.js`, tested logic in named `.mjs` modules, and API routes in `api.mjs`'s route list. Link `/style.css` for the shared look, and put the app's own styles in `style.css`. [The code rule](../../.agents/rules/code.md#where-things-go) owns where each thing goes.
-- **Tests live with the app.** Write tests for its logic in the same folder, runnable with `node --test` from that folder. Plain JavaScript runs on any Node with no install and no type stripping.
+- **Tests live with the app.** Write tests for its logic in the same folder, runnable with `node --test` from that folder. Plain JavaScript runs on any Node with no install and no type stripping. One rule, in `mini-apps/is-test-file.mjs`, names the test files: CI runs them, and the build and the Worker keep them off the site.
 - **Data is shared on purpose.** A handler gets the app's D1 database, `DB`, and nothing else: staging for previews, production for published apps. It never gets the memory bindings, and the Worker's `disallow_importable_env` flag stops it importing them from the runtime. That stops a mistake, not code written to get around it: a handler runs in the same Worker as [the memory store](../development/memory.md#the-memory-key), so review its code before it publishes, like any Worker code. A table comes from a migration in the shared `schema/migrations/`, as [the data pipeline](d1-pipeline.md) says.
 - **One app never changes another.** A change to a shared file under `mini-apps/` outside `mini-apps/apps/`, such as `router.mjs`, is main-app code, so CI runs the main app's tests on it.
 
@@ -33,7 +34,7 @@ The main app's Worker, `app/worker/index.ts`, sends every request under `/apps/`
 
 A mini app goes through [the change loop](../development/the-change-loop.md) like any change. Only its folder is special.
 
-- **Plan.** [`/plan`](../../.agents/skills/plan/SKILL.md) writes the change, with a task for the app's tests, and asks *build it now?*
+- **Plan.** [`/plan`](../../.agents/skills/plan/SKILL.md) writes the change, with a task for the app's tests, and asks [the finished-plan question](../../.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step).
 - **Preview.** When [`/apply`](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) finishes, it uploads a preview of the whole main app from the agent host. Open the app at `/apps/<name>/` on that link. Each further change uploads again to the same link.
 - **Publish.** [`/ship`](../../.agents/skills/ship/SKILL.md) saves, waits for CI, and merges. CI runs only the changed app's tests when nothing else changed, as [the gate](../development/the-change-loop.md#the-gate) says, and still deploys the main Worker, because it serves the app.
 

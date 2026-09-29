@@ -177,6 +177,32 @@ export function databaseName(config, env) {
 }
 
 /**
+ * The staging database's name, or `null` when neither production nor staging
+ * binds an app D1. Every staging step reads it through here, before any
+ * wrangler call. Throws when staging binds none while production does, and
+ * when staging's entry names production's database by `database_name` or by
+ * `database_id`: a copied entry renamed by hand keeps production's id, and
+ * every staging write would then land on live data. Two missing ids are not a
+ * match.
+ */
+export function stagingDatabase(config) {
+  const [prod] = appDatabases(config);
+  if (!prod && !hasD1(config, "staging")) return null;
+  const name = databaseName(config, "staging");
+  if (!prod) return name;
+  const staging = appDatabases(config, "staging")[0];
+  const sameId = Boolean(staging.database_id && staging.database_id === prod.database_id);
+  if (name === prod.database_name || sameId) {
+    throw new WranglerConfigError(
+      `env.staging binds the production database '${prod.database_name}' (same ${sameId ? "database_id" : "database_name"}), ` +
+        "so a staging step would write real data. Give env.staging its own d1_databases entry, " +
+        "with its own database_name and database_id.",
+    );
+  }
+  return name;
+}
+
+/**
  * The Worker name wrangler will actually deploy.
  *
  * Production (no `env`) ALWAYS comes from the source config: it is the thing
@@ -220,7 +246,7 @@ export function assetsDirectory(configPath) {
   return resolve(dirname(from), directory);
 }
 
-/* ── CLI: `node lib-wrangler-config.mjs <config-path|worker-name|database-name|has-d1|assets-dir> [env]` ──
+/* ── CLI: `node lib-wrangler-config.mjs <config-path|worker-name|database-name|staging-database|has-d1|assets-dir> [env]` ──
  * `config-path` prints the config found from the repo root, or exits 3 when
  * there is none; `lib-wrangler-config.sh` finds it through this one lookup.
  * Every other answer reads the config named by $WRANGLER_CONFIG, else the one
@@ -231,6 +257,7 @@ const COMMANDS = {
   "config-path": () => findWranglerConfigOrNull() ?? process.exit(3),
   "worker-name": (path, env) => deployedWorkerName(path, env),
   "database-name": (path, env) => databaseName(parseConfig(path), env),
+  "staging-database": (path) => stagingDatabase(parseConfig(path)) ?? "",
   "has-d1": (path, env) => String(hasD1(parseConfig(path), env)),
   "assets-dir": (path) => assetsDirectory(path),
 };

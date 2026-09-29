@@ -11,10 +11,15 @@
  * JavaScript, so `node --test` runs this file with no build.
  */
 
+import { isTestFile } from "./is-test-file.mjs";
+
 export const MINI_PREFIX = "/apps/";
 
-/** Source files and tests. The build never copies them; this refuses them again. */
-const SOURCE = /\.[cm]?ts$|\.test\.[cm]?js$|\/api\.mjs$/i;
+/** Source files. The build never copies them or tests; this refuses both again. */
+const SOURCE = /\.[cm]?ts$|\/api\.mjs$/i;
+
+/** A source or test file, tested within its app's folder: an app named `test` is not a test folder. */
+const isPrivate = path => SOURCE.test(path) || isTestFile(path.replace(/^\/apps\/[^/]+\//, ""));
 
 const notFound = () => new Response("Not found", { status: 404 });
 
@@ -31,7 +36,7 @@ export function handleMiniApp(request, env, ctx, routes) {
 	} catch {
 		return notFound();
 	}
-	if (SOURCE.test(path)) return notFound();
+	if (isPrivate(path)) return notFound();
 	if (path === MINI_PREFIX) return Response.redirect(new URL("/", request.url), 302);
 
 	const name = /^\/apps\/([^/]+)\/api(?:\/|$)/.exec(path)?.[1];

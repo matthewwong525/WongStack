@@ -136,6 +136,14 @@ test('a skipped test in a mini app fails', t => {
   assertFails(f.check(), 'mini-apps/apps/tips/api.test.mjs');
 });
 
+// One rule names test files for CI, the build, and this check: Node runs
+// `foo_test.mjs`, so a skip there must not slip past.
+test('a skipped test in an underscore-named mini-app test fails', t => {
+  const f = fixture(t);
+  f.commit({ 'mini-apps/apps/tips/foo_test.mjs': `import test from 'node:test';\n${SKIPPED_TEST}('tips', () => {});\n` });
+  assertFails(f.check(), 'mini-apps/apps/tips/foo_test.mjs');
+});
+
 test('a test-skip word outside a test file is not a marker', t => {
   const f = fixture(t);
   f.commit({ 'app/src/list.ts': `export const page = ${SKIP_OPTION};\n` });

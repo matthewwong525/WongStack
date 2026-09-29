@@ -74,6 +74,7 @@ You do not have to type them. Ask for what you want, such as "add a sign-up page
 | `/save` | Commit, push, open or update the pull request, and wait for CI. A plain conversation saves only its facts. |
 | `/continue` | Pick up saved work later, from any machine or session. |
 | `/ship` | Finish the change, run CI once, walk the preview, merge, and keep the record of what shipped. |
+| `/verify` | Check the preview end to end, as a person would, and post what it saw to the pull request. It blocks nothing. |
 | `/close` | Wrap up a chat: save what it learned to memory and the wiki, keep unfinished work on GitHub, and close its workspace. `close and throw it away` deletes the unfinished work instead. |
 | `/improve [area]` | Review recent work and one area, then ship one maintenance fix. `--audit-only` reports findings with no edits. |
 | `/routine <when>: <prompt>` | Run a prompt or command on a schedule. Optional: it needs [Paseo](https://paseo.sh). |
@@ -140,7 +141,7 @@ A clone of this repository sends `/save` pushes to a repository you cannot write
 - [Wiki](wiki/README.md): the guide to WongStack's process, and [the terms the agent may use](wiki/README.md#terms-the-agent-may-use).
 - [AI knowledge centers](wiki/agent-knowledge-center.md): the six principles behind WongStack.
 - [The change loop](wiki/development/the-change-loop.md): how work moves from idea to shipped record.
-- [Working on WongStack](wiki/development/README.md): how to change the toolkit itself.
+- [Maintaining WongStack](wiki/maintaining/README.md): how to change the toolkit itself.
 - [Changelog](CHANGELOG.md): what changed between releases.
 
 ## License

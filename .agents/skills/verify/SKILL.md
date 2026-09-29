@@ -37,7 +37,7 @@ Pass `--no-browser` when the scout found **no browser journeys**. **`RESULT: REA
 
 **Follow [the walkthrough reference](references/walkthrough.md)** to write, run, and grade the journeys.
 
-Heal one block **once per invocation**, then walk again. **`BLOCK=access-challenge` (exit 3)** means Cloudflare Access with no stored service token. With a Cloudflare API token, mint a service token named for this repo through the Access API (widening into the Access groups first if needed), confirm the policy accepts it, and store the pair in the **primary worktree's** durable `.env` ([secrets](../../../wiki/development/secrets.md); stack-pack repos: [Access](../../../wiki/stack/cloudflare-access.md), [credentials](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). The heal is pre-authorized and covers request probes too. **No Cloudflare token** → `UNKNOWN`, naming the Access wall and the missing credential. Say what you minted; never print or commit a credential value, or store it anywhere else.
+Heal one block **once per invocation**, then walk again. **`BLOCK=access-challenge` (exit 3)** means Cloudflare Access with no stored service token. With a Cloudflare API token, mint a service token named for this repo through the Access API (widening into the Access groups first if needed), confirm the policy accepts it, and store the pair in the **primary worktree's** durable `.env` ([secrets](../../../wiki/development/secrets.md); [Access](../../../wiki/stack/cloudflare-access.md), [credentials](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). The heal is pre-authorized and covers request probes too. **No Cloudflare token** → `UNKNOWN`, naming the Access wall and the missing credential. Say what you minted; never print or commit a credential value, or store it anywhere else.
 
 **A block that survives its retry → `UNKNOWN`**, naming what you tried and what still failed.
 
@@ -50,7 +50,7 @@ Post one comment **whatever the verdict**, shaped by [§ f](references/walkthrou
 In a stack-pack repo, reset staging first:
 
 ```bash
-npm run db:reset:staging
+node "$ROOT/scripts/reset-staging-d1.mjs"
 ```
 
 Then judge scope by [§ e](references/walkthrough.md#e--after-a-failure), and **report which way you judged**:

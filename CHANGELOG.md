@@ -3,17 +3,60 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Tidy the shared helpers, checks, and test fakes
+## Next (minor) — Tidy the shared helpers, checks, and test fakes
 
 - **One copy of each shared piece.** Code about fifteen scripts repeated now lives in one place: the memory skill's `scripts/lib/cli.mjs`, and the routine skill's `scripts/lib/paseo.mjs`. Nothing you see changes; a later fix lands once.
 - **One set of safety checks before a test upload.** The checks that stop a test copy of your app from overwriting the live one now run from one shared place, so the two upload paths can't disagree. A failed upload now keeps its full error in the log.
 - **One answer to "which branch is live".** Every upload script now picks your live branch the same way: the one you set, else the default branch your code host names, else `main`.
 - **Less repetition in the automatic checks.** The step that works out what a change touched is written once, in `.github/actions/change-scope/`, and shared by the three check runs.
-- **New servers run the Node version the checks test.** `server/setup.sh` now installs Node 22, the version the automatic checks run, and a test fails if the two ever differ. Servers already built keep what they have.
 - **Warnings in your app's code now fail its checks**, as they already do for WongStack's own code.
 - **Unused code removed:** the usage-cost report nothing ran, and parts of three scripts that nothing called.
 
 **Updating.** Your app's checks now fail on a lint warning, not only on an error. If the first check run after this update goes red, fix each warning it names.
+
+## 27.2.2 — The deploy page names the test database's id rule
+
+- **Why a test database needs its own id, written down.** The deploy page's table of test-copy resources now says the test database needs its own id as well as its own name, and that every test step stops when either matches the live database's. [Twin every stateful binding](wiki/stack/d1-pipeline.md#twin-every-stateful-binding) owns it.
+
+**Updating.** Nothing to do by hand.
+
+## 27.2.1 — Four bug fixes from a repo audit
+
+- **A test branch can never touch the live app's data.** If the test copy of the app points at the live database, every test step now stops before it touches it: each branch push, each test deploy, each preview, and each staging reset. Before, only the preview and the reset checked, and only by the database's name, so a copied entry renamed by hand got past all of them. It now matches by name or by id.
+- **A mini app's test files stay private.** One rule, in `mini-apps/is-test-file.mjs`, now decides which files are tests. CI runs them, the build leaves them off the site, the app refuses to serve them, and the check for switched-off tests reads them. Before, a file named like `foo_test.mjs` ran as a test and was also published under `/apps/`.
+- **`/verify`'s staging reset runs.** After a failed check, it resets staging with a command that works wherever the app's folder is.
+- **Setup keeps your keys in the right place.** When setup can't find the main copy of the repo, it now stops and says why, instead of saving the keys in a copy that may be deleted.
+
+**Updating.** Nothing to do by hand. If a branch build now stops and says your test copy uses the live database, give the test copy its own database in the app's settings file, `wrangler.jsonc`, as the message says.
+
+## 27.2.0 — Save your passwords for the agent's browser
+
+- **The agent logs in for you.** When a site logs you out and you saved a login for it, the agent fills it in and carries on, with no link to open. If the login fails, or the site asks for a code sent to you, it hands you the browser as before. With two saved accounts for one site, it asks you which to use.
+- **A private link to save logins.** Say *save my passwords* or *add my Netflix login*, and the agent sends a private link like the hand-over link. It closes when you tap *Done*, or after 10 minutes.
+- **Upload an export, then tick what the agent may use.** Export your passwords as a CSV file from Chrome, Apple Passwords, LastPass, Bitwarden, 1Password, Dashlane, or Firefox, and pick it on the page. Your phone or laptop reads the file itself and lists every site, none ticked. Only the logins you tick leave your device.
+- **Or add one login.** A small form takes the website, username, and password, filled from your password manager or typed.
+- **The agent never sees a password.** It learns only which sites you saved, and it still never asks for a password in the chat. Say *forget my Netflix login* to remove one, or *which logins do you have?* to list them.
+- **Where they're kept.** On the computer the agent runs on, in the browser tool's own locked store, never in your repo. The key to that store sits on the same computer, so it stops a copied file from exposing your logins, but not someone with full access to that computer. Keep bank and email out unless you trust the agent with them. [Save your passwords](wiki/development/browsing.md#save-your-passwords) owns the details.
+
+**Updating.** Nothing to do by hand. Say *save my passwords* to start.
+
+## 27.1.2 — Each rule has one home
+
+- **Each rule is written once.** Where a page repeated a rule, it now links the one page that owns it, so the copies stop disagreeing: what an install gets, which commands save and publish, what to ask after a plan or a publish, and the choices when a request splits into parts.
+- **After a plan, one way on.** *When you're ready, type `/apply` to build it.* now shows only after you pick *Review the plan*, where no question follows. Elsewhere the closing question already offers *Build it now*.
+- **The Cloudflare setup is no longer called optional.** Every install takes it, so pages that said "if you took the stack" now just say what it does.
+- **The record of what shipped matches the tools.** Pasted review notes that only ask a question get an answer, not a plan edit. `/verify` blocks nothing on its own run; inside `/ship`, a failed walk puts the choice in front of you. Plain words and link checks each have one owner.
+- **Small mismatches fixed.** A new server gets Node 22, like everything else. The README's command list gains `/verify`, and the knowledge-center page gains `/improve` and `/routine`. `curl` joins the required tools, and the payload manifest says setup also copies the blank `.env.example`.
+
+**Updating.** Nothing to do by hand.
+
+## 27.1.1 — The wiki keeps WongStack upkeep apart, and database fixes on their own page
+
+- **Database fixes have their own page.** The three guides for when your live database breaks (undo a bad update, never change it by hand, repair its record of updates) moved off the deploy page onto [Fix a broken production database](wiki/stack/d1-recovery.md), unchanged. The deploy page links it.
+- **Each how-to lives in one place.** Sending an improvement to WongStack now points to [WongStack's contributing guide](.github/CONTRIBUTING.md) for the steps and keeps only what matters from an install. The release steps, and what *patch*, *minor*, and *major* mean, live in one rule the other pages link.
+- **Pages say what they are.** The wiki's front page, the Cloudflare token page, and the login-wall page now open with what they cover. The wiki rulebook's *Adding a page* is a short numbered list.
+
+**Updating.** If one of your own pages links the recovery sections at the bottom of the deploy page (`d1-pipeline.md`), point it at the new database fixes page, `wiki/stack/d1-recovery.md`, instead.
 
 ## 27.1.0 — A handed-over page fits your phone
 

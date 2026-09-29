@@ -12,18 +12,17 @@
  * block in wrangler.jsonc, so every repo ships this file byte-for-byte
  * identical.
  *
- * Usage: npm run db:reset:staging
+ * Usage: node scripts/reset-staging-d1.mjs  (from any folder: it finds the config itself)
  */
 
 import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 
 import {
-  databaseName,
   findWranglerConfig,
-  hasD1,
   parseConfig,
   repoRoot,
+  stagingDatabase as sharedStagingDatabase,
   WranglerConfigError,
 } from "./lib-wrangler-config.mjs";
 import { parseCli } from "./lib-cli.mjs";
@@ -41,18 +40,14 @@ const wranglerCwd = dirname(wranglerPath);
 
 /**
  * The staging database's name. Stops, before any wrangler call, when the config
- * cannot be read or when staging names the production database: `--env staging`
- * would then point every DROP below at production.
+ * cannot be read, when staging binds no database (nothing to reset), or when
+ * staging names the production database: `--env staging` would then point
+ * every DROP below at production.
  */
 function stagingDatabase(configPath) {
   try {
-    const config = parseConfig(configPath);
-    const name = databaseName(config, STAGING_ENV);
-    if (hasD1(config) && name === databaseName(config)) {
-      throw new WranglerConfigError(
-        `env.${STAGING_ENV} names the production database '${name}'. Give staging its own d1_databases entry.`,
-      );
-    }
+    const name = sharedStagingDatabase(parseConfig(configPath));
+    if (!name) throw new WranglerConfigError(`env.${STAGING_ENV} binds no D1 database, so there is nothing to reset.`);
     return name;
   } catch (error) {
     if (!(error instanceof WranglerConfigError)) throw error;

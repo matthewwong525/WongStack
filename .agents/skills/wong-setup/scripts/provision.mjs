@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { parseEnv } from '../../memory/scripts/lib/store.mjs';
+import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-fragments.md');
@@ -190,10 +191,17 @@ async function recordedBase(dir, exec) {
   return typeof database === 'string' && database.endsWith('-memory') ? database.slice(0, -'-memory'.length) : null;
 }
 
-/** The primary checkout's .env: where the durable secrets and the admin memory key live. */
-async function durableEnv(dir, exec) {
-  const common = await commonDir(dir, exec);
-  return common.endsWith('/.git') ? join(dirname(common), '.env') : join(dir, '.env');
+/**
+ * The primary checkout's .env: where the durable secrets and the admin memory key live. Stops when the
+ * primary is unknown, rather than write the keys into a worktree that may be deleted.
+ */
+function durableEnv(dir) {
+  try {
+    return join(primaryRoot(dir).primary, '.env');
+  } catch (error) {
+    if (!(error instanceof PrimaryRootError)) throw error;
+    throw new ProvisionError('repo', `could not find the main copy of this repo to keep the keys in: ${error.message}`);
+  }
 }
 
 // ── the widen ───────────────────────────────────────────────────────────────
@@ -455,7 +463,7 @@ export async function provision({ token, api, fetch, account, repo, base, dir = 
   const report = { base, names: n, r2: false, created: [], reused: [], updated: [], todo: [] };
   const note = (list, what) => report[list].push(what);
   const git = (args) => exec('git', ['-C', dir, ...args], { env });
-  const envFile = await step('repo', () => durableEnv(dir, exec));
+  const envFile = durableEnv(dir);
   const needsKey = !hasKey(readEnv(envFile));
   const email = needsKey ? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout.trim() : null;
   if (needsKey && !email) throw new ProvisionError('repo', 'git has no user.email here, and the admin memory key is made for it; set it with `git config --global user.email <your email>` and run again');

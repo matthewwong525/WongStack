@@ -2,7 +2,7 @@
 
 ## Purpose
 
-What loads into every session (CLAUDE.md, the WONG-STACK block, skill descriptions, the memory digest) is a shared budget. This bounds each always-loaded surface and lets the meta-repo measure the spend.
+What loads into every session (AGENTS.md, the WONG-STACK block, skill descriptions, the memory digest) is a shared budget. This bounds each always-loaded surface and lets the meta-repo measure the spend.
 
 ## Requirements
 
@@ -17,7 +17,7 @@ The WONG-STACK block SHALL carry only what an agent needs before touching a file
 
 ### Requirement: Payload conventions load only when needed
 
-The meta-repo half of `CLAUDE.md` SHALL identify the repo and point into the wiki. The conventions for working on the payload SHALL live in a meta-only rule that loads when a payload file is touched.
+The meta-repo half of `AGENTS.md` SHALL identify the repo and point into the wiki. The conventions for working on the payload SHALL live in a meta-only rule that loads when a payload file is touched.
 
 #### Scenario: A session that touches no payload file
 
@@ -53,7 +53,7 @@ A vendored skill that only a WongStack verb calls SHALL NOT be offered for autom
 
 ### Requirement: Instruction size is measured as source text
 
-The meta-repo SHALL measure the words and bytes of the start-up load (the `WONG-STACK` block and the rest of `CLAUDE.md`, the pages it always imports, and every skill description) and of every WongStack-authored skill's instructions, against a baseline recorded at the measuring change's own starting commit. A reduction SHALL be reported as source text, never as runtime token savings, and text moved into a new file SHALL still count.
+The meta-repo SHALL measure the words and bytes of the start-up load (the `WONG-STACK` block and the rest of `AGENTS.md`, the pages it always imports, and every skill description) and of every WongStack-authored skill's instructions, against a baseline recorded at the measuring change's own starting commit. A reduction SHALL be reported as source text, never as runtime token savings, and text moved into a new file SHALL still count.
 
 #### Scenario: A procedure moves to a reference
 

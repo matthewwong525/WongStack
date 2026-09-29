@@ -91,33 +91,29 @@ echo "cf-build: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
 if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   WHICH="production"
-  CONFIG_ENV=""
   WRANGLER_ENV=()
 else
   WHICH="staging"
-  CONFIG_ENV="staging"
   WRANGLER_ENV=(--env staging)
 fi
 
 # Which database to migrate. No name is baked into this script, so every repo's
 # copy is identical: `wong_config` reads the top-level `d1_databases` for
-# production and the `staging` environment's own entry for staging. Each read is
-# an assignment, so a config the parser refuses stops the build under `set -e`.
-# `$CONFIG_ENV` is unquoted on purpose: empty means no argument (production).
-HAS_D1=$(wong_config has-d1 $CONFIG_ENV)
-PROD_HAS_D1=$(wong_config has-d1)
-
-# Only staging can differ from production here. An environment inherits no
-# binding, so staging code would run against no database.
-if [ "$HAS_D1" = false ] && [ "$PROD_HAS_D1" = true ]; then
-  echo "cf-build: ERROR — could not read the staging database_name from $WRANGLER_CONFIG" >&2
-  echo "cf-build: the \`staging\` environment needs its own d1_databases entry." >&2
-  exit 1
+# production, and `staging-database` reads the `staging` environment's own
+# entry. That read refuses a staging entry missing while production binds one,
+# or naming production's database by name or id, so a branch never migrates
+# live data. Each read is an assignment, so a refusal stops the build under
+# `set -e`, before any wrangler call. Empty means no D1 to migrate.
+if [ "$WHICH" = "production" ]; then
+  DB_NAME=""
+  HAS_D1=$(wong_config has-d1)
+  if [ "$HAS_D1" = true ]; then DB_NAME=$(wong_config database-name); fi
+else
+  DB_NAME=$(wong_config staging-database)
 fi
 
 # A Worker that binds no D1 database has nothing to migrate.
-if [ "$HAS_D1" = true ]; then
-  DB_NAME=$(wong_config database-name $CONFIG_ENV)
+if [ -n "$DB_NAME" ]; then
   echo "cf-build: $WHICH branch — applying migrations to the $WHICH D1 ($DB_NAME)"
   # wrangler resolves config-relative paths (migrations_dir, assets) from the
   # config's own directory, so run it from there.

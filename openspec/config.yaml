@@ -3,8 +3,8 @@ schema: spec-driven
 # Project context shown to the AI when it drafts change artifacts.
 context: |
   WongStack is a stack-agnostic Claude Code workflow toolkit, shipped as a
-  template you clone and work from. The payload is markdown: skills under
-  .claude/skills/, the wiki/ progressive-disclosure wiki, CLAUDE.md, VERSION,
+  template you clone and work from. The payload is skills under
+  .agents/skills/, the wiki/ progressive-disclosure wiki, AGENTS.md, VERSION,
   CHANGELOG.md. This meta-repo has app and payload checks in CI. CI is the
   gate when checks exist, else PR review is; nothing builds locally either way.
 
@@ -23,13 +23,13 @@ rules:
   proposal:
     - Keep it tight — what changes and why, plus a Non-goals line.
     - Write Why and What Changes in plain words, by "Write in plain words" in
-      .claude/skills/explore/references/asking-the-user.md - say what the
+      .agents/skills/explore/references/asking-the-user.md - say what the
       person will see, get, or be able to do, and put file names, code, and
       commands in the design, specs, and tasks. Capabilities and Impact may
       stay technical.
     - A What Changes bullet that needs a picture carries it as a fenced text
       block indented inside the bullet, drawn by
-      .claude/skills/plan/references/drawings.md - aim for 40 columns, and up
+      .agents/skills/plan/references/drawings.md - aim for 40 columns, and up
       to 56 for options side by side, a table, or a before-and-after. One
       drawing carries the change by default; sketch each new or restructured
       user-facing screen, a changed one before and after. Other bullets stay
@@ -39,7 +39,7 @@ rules:
       its reason), so the review page can label it.
   design:
     - Every change gets a standalone review page at openspec/changes/<name>/review.html,
-      built by .claude/skills/plan/scripts/build-review.mjs from the proposal and
+      built by .agents/skills/plan/scripts/build-review.mjs from the proposal and
       the fixed review kit. The page shows Why, What Changes with their text
       drawings, and the Decision log. Never hand-edit the generated page. Do not
       rewrite historical archives.
@@ -55,7 +55,7 @@ rules:
       layout first. A UI-less change (worker, CLI, library) skips this section and
       still gets the review page.
   tasks:
-    - Group tasks by the surface they touch (skill, script, docs, CLAUDE.md).
+    - Group tasks by the surface they touch (skill, script, docs, AGENTS.md).
     - A payload change is not done until CHANGELOG.md has its "## Next (level)" entry; /ship numbers VERSION, so no task raises it.
   specs:
-    - Write each requirement as a promise, not a procedure, by the spec bar in .claude/rules/openspec.md - one or two scenarios each, and the steps left to the skill.
+    - Write each requirement as a promise, not a procedure, by the spec bar in .agents/rules/openspec.md - one or two scenarios each, and the steps left to the skill.

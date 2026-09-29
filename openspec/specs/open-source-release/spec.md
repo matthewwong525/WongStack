@@ -15,15 +15,6 @@ The repository SHALL hold an MIT `LICENSE` and a `SECURITY.md` that says how to 
 - **WHEN** a reader opens `SECURITY.md`
 - **THEN** it names each token, where it lives, and which one can mint others
 
-### Requirement: Links resolve on GitHub
-
-No live Markdown link and no README `raw.githubusercontent.com` URL SHALL pass through a symbolic link, because GitHub returns a 404 for it.
-
-#### Scenario: The setup prompt
-
-- **WHEN** a person pastes the README's setup prompt into a coding agent
-- **THEN** the agent fetches the `wong-setup` runbook with HTTP `200`
-
 ### Requirement: No secret or private name is published
 
 The full history SHALL be scanned for credentials before a public release; a real match SHALL stop it until rotated, reported without its value. No live file outside `openspec/changes/` and `CHANGELOG.md` SHALL name a private downstream repository or service. A public company name that is not itself a private repository or service SHALL be allowed.

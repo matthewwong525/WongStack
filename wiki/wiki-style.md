@@ -60,9 +60,11 @@ When a person asks for more detail than [plain words](../.agents/skills/explore/
 3. **Private life goes only in a repo no one else reads.** Health, family, and money never go in a shared wiki; a work preference may.
 4. **A shared repo merges wiki edits through git**, like code.
 
-## Adding a page — the checklist
+## Adding a page
 
-**Prefer extending an existing page.** Otherwise place it at the right layer, linked from its parent's step, held to the rules above.
+1. **Prefer extending an existing page.**
+2. Otherwise place it at the right layer, linked from its parent's step.
+3. Follow the rules above.
 
 ## Keeping it tidy
 
