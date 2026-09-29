@@ -50,7 +50,7 @@ Post one comment **whatever the verdict**, shaped by [§ f](references/walkthrou
 In a stack-pack repo, reset staging first:
 
 ```bash
-npm run db:reset:staging
+node "$ROOT/scripts/reset-staging-d1.mjs"
 ```
 
 Then judge scope by [§ e](references/walkthrough.md#e--after-a-failure), and **report which way you judged**:

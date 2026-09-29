@@ -69,11 +69,13 @@ wong_resolve_wrangler_config() {
 # `database_name`, or a comment from a key. Call wong_resolve_wrangler_config
 # first; the parser reads the same file.
 #
-# Usage: wong_config <worker-name|database-name|has-d1|assets-dir> [environment]
+# Usage: wong_config <worker-name|database-name|staging-database|has-d1|assets-dir> [environment]
 #   worker-name    the Worker wrangler will deploy. Production always comes from
 #                  the source config; an environment reads the build's generated
 #                  config when a plugin build redirected wrangler at one.
 #   database-name  the first D1 `database_name` of production or the environment
+#   staging-database  the staging D1 name, or an empty line when no D1 is bound;
+#                  fails when staging binds production's database by name or id
 #   has-d1         `true` or `false`
 #   assets-dir     the static-assets folder of the last build (after a build only)
 #

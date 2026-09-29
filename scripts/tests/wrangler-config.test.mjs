@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
-  assetsDirectory, databaseName, deployedWorkerName, hasD1, parseConfig, workerName, WranglerConfigError,
+  assetsDirectory, databaseName, deployedWorkerName, hasD1, parseConfig, stagingDatabase, workerName, WranglerConfigError,
 } from '../lib-wrangler-config.mjs';
 import { logger, pack, REPO as repo } from './fixtures/pack.mjs';
 
@@ -36,6 +36,8 @@ const pointsAtProduction = `{
   "d1_databases": [{ "binding": "DB", "database_name": "demo-db" }],
   "env": { "staging": { "d1_databases": [{ "binding": "DB", "database_name": "demo-db" }], "name": "demo" } }
 }`;
+// A copied production entry renamed by hand: its own name, production's id.
+const sameIdRenamed = tricky.replace('"database_id": "staging-id"', '"database_id": "prod-id"');
 
 // The same shape as the stack-pack wrangler.jsonc fragment.
 const deployConfig = `{
@@ -135,6 +137,21 @@ test('a config with no D1 reports none and names no database', () => {
   assert.throws(() => databaseName(config, 'staging'), WranglerConfigError);
 });
 
+test('the staging database is refused when it names production by name or by id', () => {
+  const config = staging => ({
+    name: 'demo',
+    d1_databases: [{ binding: 'DB', database_name: 'demo-db', database_id: 'prod-id' }],
+    env: { staging: { d1_databases: [{ binding: 'DB', ...staging }] } },
+  });
+  assert.equal(stagingDatabase(config({ database_name: 'demo-db-staging', database_id: 'staging-id' })), 'demo-db-staging');
+  assert.throws(() => stagingDatabase(config({ database_name: 'demo-db', database_id: 'staging-id' })), /binds the production database 'demo-db' \(same database_name\)/);
+  assert.throws(() => stagingDatabase(config({ database_name: 'renamed', database_id: 'prod-id' })), /binds the production database 'demo-db' \(same database_id\)/);
+  assert.equal(stagingDatabase({ name: 'demo', d1_databases: [{ database_name: 'demo-db' }], env: { staging: { d1_databases: [{ database_name: 'other' }] } } }), 'other',
+    'two missing ids are not a match');
+  assert.equal(stagingDatabase(JSON.parse(noD1)), null);
+  assert.throws(() => stagingDatabase(JSON.parse(stagingWithoutD1)), /needs its own d1_databases entry/);
+});
+
 test('a TOML config is refused with the supported names', t => {
   assert.throws(() => parseConfig(configFile(t, 'name = "demo"\n', 'wrangler.toml')), /wrangler\.jsonc or wrangler\.json/);
 });
@@ -216,6 +233,14 @@ test('a failed staging deploy stops before any alias upload or published URL', t
 
 // Both ways staging can land on production: the source config names it, or the
 // build's generated config does.
+test('cf-deploy refuses a staging entry that names the production database by id', t => {
+  const result = deploy(t, { branch: 'feature/x', config: sameIdRenamed });
+  assert.equal(result.status, 1, result.out);
+  assert.match(result.out, /binds the production database 'demo-db' \(same database_id\)/);
+  assert.deepEqual(result.calls, [], 'nothing may be deployed or uploaded');
+  assert.equal(result.github, '');
+});
+
 test('cf-deploy refuses a staging environment that names the production Worker', t => {
   for (const [name, options] of [['source config', { config: pointsAtProduction }], ['build', { generated: 'demo' }]]) {
     const result = deploy(t, { branch: 'feature/x', ...options });
@@ -230,6 +255,15 @@ test('cf-build migrates the staging database read from the real staging block', 
   const result = runIn(t, tricky, 'cf-build.sh', 'feature/x');
   assert.equal(result.status, 0, result.out);
   assert.deepEqual(result.calls, ['npx wrangler d1 migrations apply demo-db-staging --remote --env staging', 'npm run build:app']);
+});
+
+test('cf-build stops before migrating a staging entry that names production by id', t => {
+  const result = runIn(t, sameIdRenamed, 'cf-build.sh', 'feature/x');
+  assert.equal(result.status, 1, result.out);
+  assert.match(result.out, /binds the production database 'demo-db' \(same database_id\)/);
+  assert.deepEqual(result.calls, [], 'no wrangler call and no build may run');
+  const production = runIn(t, sameIdRenamed, 'cf-build.sh', 'main');
+  assert.deepEqual(production.calls, ['npx wrangler d1 migrations apply demo-db --remote', 'npm run build:app'], 'the production branch is untouched');
 });
 
 test('cf-build builds a Worker with no D1 without a migration', t => {
@@ -247,11 +281,20 @@ test('cf-build stops when production binds D1 and staging does not', t => {
   assert.deepEqual(result.calls, []);
 });
 
-test('the staging reset refuses the production database and drops nothing', t => {
-  const result = runIn(t, pointsAtProduction, 'reset-staging-d1.mjs');
+test('the staging reset refuses the production database, by name or id, and drops nothing', t => {
+  for (const [config, by] of [[pointsAtProduction, 'database_name'], [sameIdRenamed, 'database_id']]) {
+    const result = runIn(t, config, 'reset-staging-d1.mjs');
+    assert.equal(result.status, 1, result.out);
+    assert.match(result.out, new RegExp(`Refusing to reset staging: .*binds the production database 'demo-db' \\(same ${by}\\)`));
+    assert.deepEqual(result.calls, [], `${by}: no wrangler call may run`);
+  }
+});
+
+test('the staging reset refuses a staging environment with no database', t => {
+  const result = runIn(t, noD1, 'reset-staging-d1.mjs');
   assert.equal(result.status, 1, result.out);
-  assert.match(result.out, /names the production database 'demo-db'/);
-  assert.deepEqual(result.calls, [], 'no wrangler call may run');
+  assert.match(result.out, /Refusing to reset staging: .*nothing to reset/);
+  assert.deepEqual(result.calls, []);
 });
 
 test('the assets folder comes from the redirected build config, else the source config', t => {

@@ -102,7 +102,8 @@
       "mini-apps/router.mjs",
       "mini-apps/router.d.mts",
       "mini-apps/routes.mjs",
-      "mini-apps/routes.d.mts"
+      "mini-apps/routes.d.mts",
+      "mini-apps/is-test-file.mjs"
     ],
     "exclude": [
       "app/wrangler.jsonc"
