@@ -31,6 +31,7 @@ const scripts = {
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/wong-sync/scripts/merge-check.mjs': [],
   '.agents/skills/wong-setup/scripts/provision.mjs': [],
+  '.agents/skills/update-dependencies/scripts/update.mjs': [],
   '.agents/skills/routine/scripts/routine.mjs': ['ls'],
   '.agents/skills/routine/scripts/tidy.mjs': ['sweep'],
   '.agents/skills/routine/scripts/presets.mjs': ['add'],
