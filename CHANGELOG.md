@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 27.4.0 — Give API keys through a private link
+## Next (minor) — Give API keys through a private link
 
 - **A private link for keys.** When a task needs a key the assistant doesn't have, it asks first, then sends a private link. You paste the key there and tap *Save*, so it never sits in the chat's history. You can also ask for it: *send me the key link*. The link is new each time and closes once every key is saved, when you tap *Done*, or after 10 minutes.
 - **One box per key.** The page names each key and says where to get it, and says when a new key replaces one saved now. A tick shows by each saved key.
@@ -12,6 +12,15 @@
 - **The guides say so.** [API keys](wiki/stack/api-keys.md) now leads with the link; the developer page has [how the assistant sends it](wiki/development/secrets.md#receive-a-key-through-a-private-link).
 
 **Updating.** Nothing to do by hand. From now on, the assistant sends you a private link when it needs a key.
+
+## 27.4.0 — The password link is one screen
+
+- **No choice to make first.** The password link opens straight onto one page: a box for your export file, the list of logins, and a small form to add one by hand, with *Save* and *Done* at the bottom. *Back* and *Add another* are gone.
+- **Drop the file or tap to pick it.** On a laptop, drag your export onto the page. On a phone, tap the box and pick the file. A second file adds to the same list, skipping logins already there.
+- **Typed logins join the same list, ticked.** Fill the form and tap *Add*. A form you filled but didn't add is saved too, so one login is still one tap.
+- **One Save for everything ticked.** Saved logins show *Saved*. One that fails stays ticked, so tapping *Save* again retries it. Tapping *Done* with ticked logins not yet saved asks you to tap again.
+
+**Updating.** Nothing to do by hand.
 
 ## 27.3.1 — The wiki names the shared script helpers
 
