@@ -154,7 +154,7 @@ So: twin by default; a prefix only where a twin genuinely isn't available.
 
 | Binding | In staging | Note |
 |---|---|---|
-| D1 | twin database | must declare its own `database_name` — the scripts read it from inside the environment |
+| D1 | twin database | must declare its own `database_name` and `database_id` — the scripts read them from inside the environment, and every staging step stops when either matches production's, since an entry copied from production and renamed by hand still points at live data |
 | Queues | twin queue | **producer and consumer both**, or staging messages land on the production consumer |
 | R2 | twin bucket | not a `staging/` key prefix |
 | KV | twin namespace | |
