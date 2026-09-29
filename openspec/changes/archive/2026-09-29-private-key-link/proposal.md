@@ -88,4 +88,4 @@ None.
 - **2026-09-29** — Assumed: a minor release, because it adds a feature and breaks nothing.
 - **2026-09-29** — Assumed while building: a value is quoted with a mark it lacks, not escaped, and `~` is never bare, because dotenv and the memory parser don't unescape `\"` or `\\`, and a shell expands `~`; the rare value holding both quote marks plus `\`, `$`, or a backtick is refused.
 - **2026-09-29** — Assumed: tasks 3.1 and 3.2 are done at ship time, because `/ship`'s one checkpoint must pass CI before it merges, and a real phone link needs the person, so it is kept as a memory thread.
-- **2026-09-29** — Archive checkpoint: archived with its tasks complete, released as its numbered version.
+- **2026-09-29** — Archive checkpoint: archived with its tasks complete, released as 27.5.0.
