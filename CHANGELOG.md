@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.2.2 — The deploy page names the test database's id rule
+
+- **Why a test database needs its own id, written down.** The deploy page's table of test-copy resources now says the test database needs its own id as well as its own name, and that every test step stops when either matches the live database's. [Twin every stateful binding](wiki/stack/d1-pipeline.md#twin-every-stateful-binding) owns it.
+
+**Updating.** Nothing to do by hand.
+
 ## 27.2.1 — Four bug fixes from a repo audit
 
 - **A test branch can never touch the live app's data.** If the test copy of the app points at the live database, every test step now stops before it touches it: each branch push, each test deploy, each preview, and each staging reset. Before, only the preview and the reset checked, and only by the database's name, so a copied entry renamed by hand got past all of them. It now matches by name or by id.
