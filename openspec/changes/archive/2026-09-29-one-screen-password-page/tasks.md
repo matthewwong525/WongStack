@@ -1,0 +1,10 @@
+## 1. Password page
+
+- [x] 1.1 Rebuild `.agents/skills/verify/scripts/passwords-page.html` as one screen by the design's UX: title, the drop box (a button over the hidden file input) with its error line and the two hint lines, the list with search and its error and saved-status lines, the add-a-login form (`autocomplete` attributes kept) with an *Add* submit, the sticky *Save N logins* and *Done* bar, and the `closed` section. Drop the `start`, `list`, `add`, and `saved` sections and *Back* and *Add another*. Verify by a local `hand-over.mjs open --passwords --local` walk at 390 and 1280 wide, screenshots kept for the PR.
+- [x] 1.2 Rewrite `start()` in `passwords-page.mjs` by the design's Decisions: the keyed list model and merge rules, drop anywhere, Save with a filled form, saved and failed rows, the Done guard, search shown past eight rows. Keep `parseExport` and `siteUrl` exported and unchanged, and the header comment true. Verify with 1.3's tests and the existing `parseExport` tests in `scripts/tests/passwords.test.mjs`.
+- [x] 1.3 Add `scripts/tests/passwords-page.test.mjs` (jsdom, fake `fetch`): a picked file lists unticked; a dropped file does the same and a drop outside the box is taken, not navigated; a second file merges without repeats; *Add* appends ticked and replaces a same-site-and-username row; *Save* with a filled form adds and sends it, sending only ticked rows' `url`, `username`, `password`; a partial failure keeps the failed row ticked and names it; a `403` on a closed link shows the closed screen; *Done* with unsaved ticks needs two taps. Verify the file passes with `node --test`.
+
+## 2. Docs and release
+
+- [x] 2.1 Rewrite the *Upload an export* and *Or add one login* bullets in `wiki/development/browsing.md`'s *Save your passwords* section as one bullet for the one screen (drop or tap the file, add by hand, one Save), in the voice rules. Verify its links and anchors still resolve.
+- [x] 2.2 Add a `## Next (minor) — The password link is one screen` entry at the top of `CHANGELOG.md` in plain words, with an **Updating.** line. Verify the payload checks' changelog rule by reading `.agents/rules/payload.md`.
