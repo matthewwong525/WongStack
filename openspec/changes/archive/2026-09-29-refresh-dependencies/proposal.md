@@ -2,7 +2,7 @@
 
 **Status:** ready-to-ship
 **Branch:** check-repo-updates
-**Open questions:** none for the repository update. Host Node and GitHub CLI installation remains a separate decision; their configured system repositories offer only the installed versions.
+**Open questions:** none.
 
 ## Why
 
@@ -34,7 +34,7 @@ None. This dependency refresh preserves the app-scaffold and dependency-workflow
 
 `app/package.json`, `app/package-lock.json`, and the test-tool manifests under `scripts/tests/`. The starter-app payload changes require a patch release entry. No application behavior or public API change is intended.
 
-**Non-goals:** Publishing the release, changing the app's screens, closing existing dependency pull requests, or installing host tools without the requested consent.
+**Non-goals:** Changing the app's screens or closing existing dependency pull requests by hand.
 
 ## Decision log
 
@@ -45,3 +45,5 @@ None. This dependency refresh preserves the app-scaffold and dependency-workflow
 - **2026-09-29** — Assumed: leave host Node 22.22.1 and GitHub CLI 2.46.0 pending consent, because the updater reports a manual host step and the configured apt sources offer no newer versions. Upstream versions are Node 22.23.3 and GitHub CLI 2.101.0.
 - **2026-09-29** — Assumed: rerun the updater before checkpointing because installation resolved a newer Wrangler than the initial registry survey. The rerun moved its manifest range to 4.144.0 and skipped the current stages. Session facts could not be saved: the memory script reports no registered session in this checkout.
 - **2026-09-29** — Assumed: mark the repository update ready to publish after the saved change passed Test, Deploy, and Payload checks. Vitest 5.0.2 passed all 43 tests with all four coverage measures at 100%; lint, unused-code, and duplicate-code checks passed. `npm audit --json --omit=optional` reported zero vulnerabilities. No migration edits or held packages were needed. The preview was discovered from the commit's deployment metadata. Publishing and the separate host-tool installation are still pending the user's choice.
+- **2026-09-29** — Asked whether to publish the checked update and upgrade the host tools → the user chose both. Archived this completed change and numbered its patch release 27.6.1 from 27.6.0 for the publication checkpoint.
+- **2026-09-29** — Assumed: install Node's official 22.23.3 distribution under `/opt/node-v22.23.3-linux-x64`, with default command links in `/usr/local/bin`, because the simulated NodeSource package replacement would remove unrelated distro development packages. Verified the archive against Node's published SHA256 checksum and preserved the existing `/usr/local` npm global prefix. Node, npm 10.9.9, OpenSpec, and agent-browser commands work. Installed GitHub CLI 2.101.0 through its signed apt repository with no package removals. The temporary NodeSource repository was removed; OS-managed Node remains alongside the new default runtime.

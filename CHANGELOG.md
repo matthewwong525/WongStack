@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Refresh the app and test tools
+## 27.6.1 — Refresh the app and test tools
 
 - **The test tools update together.** The starter app uses matching Vitest and coverage versions, plus newer Cloudflare development tools, linting, and duplicate-code checks. Its HTTP client includes the available security fixes.
 - **The repository's test linter is current.** WongStack's own script checks use the newer linter too.

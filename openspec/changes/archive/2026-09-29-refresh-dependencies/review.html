@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · refresh-dependencies</title>
+<title>Review · 2026-09-29-refresh-dependencies</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="refresh-dependencies">
+<body data-change="2026-09-29-refresh-dependencies">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>refresh-dependencies</h1>
+  <h1>2026-09-29-refresh-dependencies</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -127,6 +127,8 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: leave host Node 22.22.1 and GitHub CLI 2.46.0 pending consent, because the updater reports a manual host step and the configured apt sources offer no newer versions. Upstream versions are Node 22.23.3 and GitHub CLI 2.101.0.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: rerun the updater before checkpointing because installation resolved a newer Wrangler than the initial registry survey. The rerun moved its manifest range to 4.144.0 and skipped the current stages. Session facts could not be saved: the memory script reports no registered session in this checkout.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: mark the repository update ready to publish after the saved change passed Test, Deploy, and Payload checks. Vitest 5.0.2 passed all 43 tests with all four coverage measures at 100%; lint, unused-code, and duplicate-code checks passed. <code>npm audit --json --omit=optional</code> reported zero vulnerabilities. No migration edits or held packages were needed. The preview was discovered from the commit's deployment metadata. Publishing and the separate host-tool installation are still pending the user's choice.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-09-29</p>Asked whether to publish the checked update and upgrade the host tools → the user chose both. Archived this completed change and numbered its patch release 27.6.1 from 27.6.0 for the publication checkpoint.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: install Node's official 22.23.3 distribution under <code>/opt/node-v22.23.3-linux-x64</code>, with default command links in <code>/usr/local/bin</code>, because the simulated NodeSource package replacement would remove unrelated distro development packages. Verified the archive against Node's published SHA256 checksum and preserved the existing <code>/usr/local</code> npm global prefix. Node, npm 10.9.9, OpenSpec, and agent-browser commands work. Installed GitHub CLI 2.101.0 through its signed apt repository with no package removals. The temporary NodeSource repository was removed; OS-managed Node remains alongside the new default runtime.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
