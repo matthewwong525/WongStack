@@ -77,3 +77,4 @@ None.
 - **2026-09-29** — Check: `.github/scripts/loosened-checks.mjs` imports the shared `isMain`/`parseCli`; what it flags is unchanged.
 - **2026-09-29** — Check: `app/package.json` runs `oxlint --deny-warnings`, which is stricter.
 - **2026-09-29** — Check: `scripts/tests/usage-measurement.test.mjs` is deleted with the script it tested.
+- **2026-09-29** — Archive checkpoint: archived by `/ship` and saved as release 27.3.0, after catching up with main (27.2.2), where "Real bugs" had shipped.

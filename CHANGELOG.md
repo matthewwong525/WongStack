@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Tidy the shared helpers, checks, and test fakes
+## 27.3.0 — Tidy the shared helpers, checks, and test fakes
 
 - **One copy of each shared piece.** Code about fifteen scripts repeated now lives in one place: the memory skill's `scripts/lib/cli.mjs`, and the routine skill's `scripts/lib/paseo.mjs`. Nothing you see changes; a later fix lands once.
 - **One set of safety checks before a test upload.** The checks that stop a test copy of your app from overwriting the live one now run from one shared place, so the two upload paths can't disagree. A failed upload now keeps its full error in the log.
