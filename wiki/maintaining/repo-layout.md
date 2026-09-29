@@ -47,11 +47,6 @@ if you specifically want the `.claude/` names in the output.
 
 ## Why it's this way
 
-`.agents/` and `AGENTS.md` are the tool-neutral names; `.claude/` and `CLAUDE.md` are what Claude Code
-looks for, and `.codex/` is what Codex looks for. The symlinks let one payload serve every agent
-without a copy step, which matters because [editing the payload is a release](README.md) — two copies
-would mean two chances to ship half a change. Every install keeps the same layout: a real `.agents/`
-folder with `.claude` and `.codex` links to it, and a real `AGENTS.md` with `CLAUDE.md` linking to
-it ([the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder)).
+The links let one payload serve Claude Code and Codex with no copy to drift, and every install keeps the same layout: [the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder) owns it.
 
-Part of [working on WongStack](README.md).
+Part of [maintaining WongStack](README.md).

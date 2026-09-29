@@ -11,7 +11,7 @@
 // WHY CHECK 1 CANNOT BE A PLAIN LINK CHECK IN THIS REPO
 //
 // Every link in the payload resolves here, because this repo contains the whole
-// payload plus everything around it. A page that cites `wiki/development/
+// payload plus everything around it. A page that cites `wiki/maintaining/
 // adding-a-skill.md` looks fine in the source and dangles in a target, because
 // that page is not in the manifest. So the check has to build the set of files a
 // target would actually receive, and resolve links against THAT — not against

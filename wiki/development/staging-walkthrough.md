@@ -84,4 +84,4 @@ Then `/verify` fixes the failure only when it is [in scope](../../.agents/skills
 - [Cloudflare Access](../stack/cloudflare-access.md) — the login wall, and the service token the heal produces.
 - [Deploy and data pipeline](../stack/d1-pipeline.md) — what publishes the preview URL, and where `db:reset:staging` comes from.
 
-Part of [working on WongStack](README.md).
+Part of [development](README.md).

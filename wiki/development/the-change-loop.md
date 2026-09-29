@@ -146,4 +146,4 @@ Both work `tasks.md` and end the same way; `/continue` orients you first and han
 
 To add a verb of your own, write a `SKILL.md` under `.agents/skills/<name>/` and point to it from this page: the loop is a convention, not a hardcoded list.
 
-Part of [working on WongStack](README.md).
+Part of [development](README.md).

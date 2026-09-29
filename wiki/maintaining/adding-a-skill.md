@@ -10,10 +10,10 @@ A skill that stays in WongStack, like [`update-dependencies`](../../.agents/skil
 
 2. **Wire it into the payload inventory.** Add the directory name to `core.skillDirs` in [`payload-files.json`](../../.agents/skills/wong-sync/references/payload-files.json). That machine-readable file is the one source of truth for fresh setup, sync, and payload link checks; its companion [manifest guide](../../.agents/skills/wong-sync/references/payload-manifest.md) owns the rules. The installer copies the whole skill directory, including `references/` and `scripts/`. A target's install record maps upstream names to local names, so setup and sync preserve a target-owned skill with the same name instead of silently replacing it. Update a setup surface only when that surface separately names the skill; do not create a second copy-list.
 
-3. **Cut the release.** Add a `## Next (minor) — <Title>` entry to [`CHANGELOG.md`](../../CHANGELOG.md) describing it — a new skill is additive, so **minor** — and leave [`VERSION`](../../VERSION) alone; `/ship` numbers it. `/wong-sync` reads every entry newer than a repo's installed version to walk the user through what changed, so a skill with no entry is invisible to existing installs. [The payload rule](../../.agents/rules/payload.md) owns the release steps.
+3. **Cut a minor release** by [the payload rule](../../.agents/rules/payload.md): a new skill is additive, and without a changelog entry existing installs never hear of it.
 
-4. **Update the user-facing surfaces.** Add the skill to the command table or related discovery text in [`README.md`](../../README.md). Add its operating rule to the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../AGENTS.md) when every installed repo must know it. Link its owning workflow page from the [development hub](README.md). These are what a reader and a freshly installed repo see.
+4. **Update the user-facing surfaces.** Add the skill to the command table or related discovery text in [`README.md`](../../README.md). Add its operating rule to the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../AGENTS.md) when every installed repo must know it. Link its owning workflow page from the [development hub](../development/README.md). These are what a reader and a freshly installed repo see.
 
 5. **Carry attribution for adapted work.** If the skill adapts external, licensed work, keep the required license material with the skill and record a `license:` field and source metadata in the SKILL frontmatter.
 
-Part of [working on WongStack](README.md).
+Part of [maintaining WongStack](README.md).
