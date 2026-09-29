@@ -1,7 +1,7 @@
 # WongStack
 
 [![Test](https://img.shields.io/github/actions/workflow/status/matthewwong525/WongStack/test.yml?branch=main&label=test)](https://github.com/matthewwong525/WongStack/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/github/license/matthewwong525/WongStack)](LICENSE)
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmatthewwong525%2FWongStack%2Frefs%2Fheads%2Fmain%2FVERSION&query=%24&label=version)](VERSION)
 
 **My opinionated way of using AI. Now yours.** I'm Matt. I run Claymoo, a clay-kit company, with a small team, and I use AI for almost everything: the business, the tools my team uses every day, and my own errands. WongStack is how I do it, set up for you to copy and change. Ask in plain words, the way you'd message a coworker. It does the work, builds the tools, and remembers how you work. Everything it builds and learns lives in accounts you own.
@@ -120,7 +120,7 @@ Checked against each project's README in September 2026.
 | [`scripts/`](scripts/) | The deploy pipeline, the payload checks, and the tests. |
 | [`.github/`](.github/) | CI workflows, issue and PR templates, and [the contributing guide](.github/CONTRIBUTING.md). |
 | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md) | The current release, and what changed in each release. |
-| [`LICENSE`](LICENSE), [`SECURITY.md`](SECURITY.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | MIT terms, how to report a vulnerability, and community rules. |
+| [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), [`SECURITY.md`](SECURITY.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Apache 2.0 terms, how to report a vulnerability, and community rules. |
 | [`.env.example`](.env.example), [`app/.dev.vars.example`](app/.dev.vars.example) | The names of the local and Worker secrets, with no values. |
 | [`paseo.json`](paseo.json) | Copies `.env` into each new [Paseo](https://paseo.sh) worktree. |
 | [`.nvmrc`](.nvmrc) | The Node.js version. |
@@ -146,4 +146,4 @@ A clone of this repository sends `/save` pushes to a repository you cannot write
 
 ## License
 
-WongStack is released under the [MIT License](LICENSE).
+WongStack is released under the [Apache License 2.0](LICENSE).
