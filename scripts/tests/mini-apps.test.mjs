@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { handleMiniApp, MINI_PREFIX } from '../../mini-apps/router.mjs';
+import { isTestFile } from '../../mini-apps/is-test-file.mjs';
 import { pack, REPO as repo } from './fixtures/pack.mjs';
 
 const bash = spawnSync('bash', ['--version']);
@@ -81,9 +82,12 @@ function miniRepo(t, { branch = 'mini/tips', apps = {}, config = mainConfig(), i
   const mini = join(root, 'mini-apps');
   mkdirSync(join(mini, 'apps'), { recursive: true });
   cpSync(join(repo, 'mini-apps/apps/hello'), join(mini, 'apps/hello'), { recursive: true });
+  cpSync(join(repo, 'mini-apps/is-test-file.mjs'), join(mini, 'is-test-file.mjs'));
   for (const [name, files] of Object.entries(apps)) {
-    mkdirSync(join(mini, 'apps', name), { recursive: true });
-    for (const [file, text] of Object.entries(files)) writeFileSync(join(mini, 'apps', name, file), text);
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(mini, 'apps', name, file)), { recursive: true });
+      writeFileSync(join(mini, 'apps', name, file), text);
+    }
   }
 
   execFileSync('git', ['init', '-q', '-b', branch], { cwd: root, env: { PATH: process.env.PATH, HOME: root, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' } });
@@ -156,11 +160,47 @@ test('every other /apps/ path is a static asset', async () => {
 });
 
 test('source files and a bad path are never served', async () => {
-  for (const path of ['/apps/tips/api.mjs', '/apps/tips/tip.test.mjs', '/apps/tips/worker.ts', '/apps/%E0%A4%A']) {
+  for (const path of ['/apps/tips/api.mjs', '/apps/tips/tip.test.mjs', '/apps/tips/foo_test.mjs', '/apps/tips/test/x.mjs', '/apps/tips/worker.ts', '/apps/%E0%A4%A']) {
     const response = await call(path);
     assert.equal(response.status, 404, path);
     assert.equal(await response.text(), 'Not found', path);
   }
+});
+
+test('an app named test is served, and only files within an app are judged as tests', async () => {
+  for (const path of ['/apps/test/', '/apps/test/index.html', '/apps/test-kit/app.js']) {
+    assert.equal(await (await call(path)).text(), `asset ${path}`, path);
+  }
+  assert.equal((await call('/apps/test/test/x.mjs')).status, 404);
+});
+
+// ── The one test-file rule ──────────────────────────────────────────────────
+
+test('the rule names every file Node runs by default, plus spec and test_ names', () => {
+  for (const path of ['a.test.mjs', 'a-test.js', 'a_test.mjs', 'test-a.mjs', 'test.mjs', 'test_a.py', 'a.spec.ts', 'test/x.mjs', 'lib/test/x.json']) {
+    assert.equal(isTestFile(path), true, path);
+  }
+  for (const path of ['app.js', 'api.mjs', 'latest.mjs', 'attest.mjs', 'testing.mjs', 'tests/x.mjs', 'index.html']) {
+    assert.equal(isTestFile(path), false, path);
+  }
+});
+
+test('the test-file CLI lists the tests Node can run, skips node_modules, and misses an app with none', t => {
+  const root = miniRepo(t, {
+    apps: {
+      tips: app('Tips', 'Split a bill', { 'foo_test.mjs': '', 'test/x.mjs': '', 'test/fixture.json': '', 'tip.mjs': '', 'node_modules/dep/dep.test.mjs': '' }),
+      plain: app('Plain', 'No tests', { 'index.html': '<p>plain</p>', 'node_modules/dep/dep.test.mjs': '' }),
+    },
+  });
+  const cli = args => spawnSync(process.execPath, [join(repo, 'mini-apps/is-test-file.mjs'), ...args], { cwd: root, encoding: 'utf8' });
+  const found = cli(['mini-apps/apps/tips']);
+  assert.equal(found.status, 0, found.stderr);
+  assert.deepEqual(found.stdout.trim().split('\n'), ['foo_test.mjs', 'test/x.mjs']);
+  const none = cli(['mini-apps/apps/plain']);
+  assert.equal(none.status, 1, none.stderr);
+  assert.equal(none.stdout, '');
+  assert.equal(cli(['mini-apps/apps/missing']).status, 2, 'a folder that is not there is a usage error');
+  assert.equal(cli([]).status, 2);
 });
 
 // ── The copy into the build ─────────────────────────────────────────────────
@@ -196,6 +236,8 @@ test('the copy takes the pages and leaves every handler, test, and source file o
         'index.html': '<p>tips</p>',
         'tip.mjs': 'export const tip = 1;\n',
         'tip.test.mjs': 'test();\n',
+        'foo_test.mjs': 'test();\n',
+        'test/x.mjs': 'test();\n',
         'api.mjs': 'export default {};\n',
         'types.ts': 'export type T = 1;\n',
         '.env': 'SECRET=1\n',
@@ -351,6 +393,12 @@ test('preview fails closed when staging points at production', t => {
   assert.equal(sharedDb.status, 1, sharedDb.out);
   assert.match(sharedDb.out, /binds the production database 'demo-db'/);
   assert.deepEqual(sharedDb.calls, []);
+
+  const sameId = mainConfig({ d1_databases: [{ binding: 'DB', database_name: 'renamed', database_id: 'demo-db-id' }] });
+  const sharedId = preview(miniRepo(t, { config: sameId, stagingExists: true }), []);
+  assert.equal(sharedId.status, 1, sharedId.out);
+  assert.match(sharedId.out, /binds the production database 'demo-db' \(same database_id\)/);
+  assert.deepEqual(sharedId.calls, [], 'a renamed entry with production\'s id migrates, builds, and uploads nothing');
 
   const built = preview(miniRepo(t, { stagingExists: true }), [], { FAKE_BUILD_NAME: 'demo' });
   assert.equal(built.status, 1, built.out);

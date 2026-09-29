@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.2.1 — Four bug fixes from a repo audit
+
+- **A test branch can never touch the live app's data.** If the test copy of the app points at the live database, every test step now stops before it touches it: each branch push, each test deploy, each preview, and each staging reset. Before, only the preview and the reset checked, and only by the database's name, so a copied entry renamed by hand got past all of them. It now matches by name or by id.
+- **A mini app's test files stay private.** One rule, in `mini-apps/is-test-file.mjs`, now decides which files are tests. CI runs them, the build leaves them off the site, the app refuses to serve them, and the check for switched-off tests reads them. Before, a file named like `foo_test.mjs` ran as a test and was also published under `/apps/`.
+- **`/verify`'s staging reset runs.** After a failed check, it resets staging with a command that works wherever the app's folder is.
+- **Setup keeps your keys in the right place.** When setup can't find the main copy of the repo, it now stops and says why, instead of saving the keys in a copy that may be deleted.
+
+**Updating.** Nothing to do by hand. If a branch build now stops and says your test copy uses the live database, give the test copy its own database in the app's settings file, `wrangler.jsonc`, as the message says.
+
 ## 27.2.0 — Save your passwords for the agent's browser
 
 - **The agent logs in for you.** When a site logs you out and you saved a login for it, the agent fills it in and carries on, with no link to open. If the login fails, or the site asks for a code sent to you, it hands you the browser as before. With two saved accounts for one site, it asks you which to use.

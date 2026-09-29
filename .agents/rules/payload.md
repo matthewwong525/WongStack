@@ -17,6 +17,7 @@ paths:
   - "wiki/ux-principles.md"
   - "mini-apps/router*"
   - "mini-apps/routes*"
+  - "mini-apps/is-test-file*"
   - "mini-apps/apps/hello/**"
   - "schema/**"
   - "paseo.json"

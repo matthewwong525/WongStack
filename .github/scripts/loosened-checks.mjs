@@ -36,6 +36,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+// The one rule for which files are tests: the ones CI runs are the ones read here.
+import { TEST_FILE } from '../../mini-apps/is-test-file.mjs';
 
 const USAGE = `usage: node .github/scripts/loosened-checks.mjs --base <sha>
        node .github/scripts/loosened-checks.mjs --worktree
@@ -64,8 +66,6 @@ const SKIP_TESTS = [
   /\bt\.(skip|todo)\(/,
   /\b(skip|only|todo)\s*:\s*(true|['"`])/,
 ];
-
-const TEST_FILE = /(^|\/)([^/]*\.(test|spec)\.[^/]+|test_[^/]+)$/;
 
 const SETTINGS_FILE = [
   /^vitest\.config\./,

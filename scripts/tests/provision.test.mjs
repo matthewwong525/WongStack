@@ -294,6 +294,39 @@ test('with R2 off the store has no bucket, the config binds none, and the deploy
   assert.ok(!deploy.policies[0].permission_groups.some((g) => g.id === groupId('Workers R2 Storage Write')));
 });
 
+// The key lives in the primary checkout's .env, never in a worktree that may be deleted. The primary
+// records the memory Worker, as an installed primary does, so the worktree's memory script can reach it.
+test('provisioning from a linked worktree keeps the key in the primary checkout\'s .env', async (t) => {
+  const env = await setup(t);
+  const git = (...args) => execFileSync('git', ['-C', env.dir, '-c', 'user.name=Ada', ...args], { env: env.env });
+  writeFileSync(join(env.dir, '.gitignore'), '.env\n');
+  writeFileSync(join(env.dir, '.claude/.wong-stack.json'), JSON.stringify({ components: { memory: { worker: 'https://recipe-box.ada.workers.dev/_memory' } } }));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'install');
+  const worktree = join(env.root, 'recipe-box-wt');
+  git('worktree', 'add', '-q', '-b', 'wt', worktree);
+
+  const report = await env.provision({ dir: worktree });
+  assert.ok(report.created.includes(`admin memory key for ${EMAIL}, in .env`), JSON.stringify(report));
+  assert.match(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
+  assert.equal(existsSync(join(worktree, '.env')), false, 'no key is written into the worktree');
+});
+
+// A bare repository's worktree has no primary checkout; setup once saved the keys in the worktree itself.
+test('provisioning stops, naming why, when the main copy of the repo is unknown', async (t) => {
+  const env = await setup(t);
+  const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, '-c', 'user.name=Ada', '-c', `user.email=${EMAIL}`, ...args], { env: env.env });
+  const bare = join(env.root, 'bare.git');
+  git(env.root, 'init', '-q', '--bare', '-b', 'main', bare);
+  git(env.dir, 'commit', '-q', '--allow-empty', '-m', 'start');
+  git(env.dir, 'push', '-q', bare, 'main');
+  const worktree = join(env.root, 'bare-wt');
+  git(bare, 'worktree', 'add', '-q', worktree, 'main');
+  await assert.rejects(env.provision({ dir: worktree }), { reason: 'repo', message: /could not find the main copy of this repo.*primary worktree is unknown/ });
+  assert.equal(existsSync(join(worktree, '.env')), false);
+  assert.deepEqual(env.fake.state.databases, [], 'nothing was made on Cloudflare');
+});
+
 test('a second run creates nothing, keeps the key, and leaves the secrets alone', async (t) => {
   const env = await setup(t);
   await env.provision();

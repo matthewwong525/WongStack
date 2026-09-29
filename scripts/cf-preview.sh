@@ -98,17 +98,8 @@ fi
 ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
 [ -n "$ALIAS" ] || fail "the staging Worker name '$STAGING_NAME' leaves no room for a preview alias"
 
-HAS_D1=$(wong_config has-d1 staging)
-PROD_HAS_D1=$(wong_config has-d1)
-if [ "$HAS_D1" = false ] && [ "$PROD_HAS_D1" = true ]; then
-  fail "env.staging in $WRANGLER_CONFIG needs its own d1_databases entry"
-fi
-if [ "$HAS_D1" = true ]; then
-  STAGING_DB=$(wong_config database-name staging)
-  if [ "$PROD_HAS_D1" = true ] && [ "$STAGING_DB" = "$(wong_config database-name)" ]; then
-    fail "the staging environment binds the production database '$STAGING_DB' — a preview would write real data"
-  fi
-fi
+# Empty when no D1 is bound; refuses staging binding production's database.
+STAGING_DB=$(wong_config staging-database)
 
 [ -n "${CLOUDFLARE_API_TOKEN:-}" ] \
   || not_here "no CLOUDFLARE_API_TOKEN; source the primary worktree's .env, or push and let CI make the preview"
@@ -119,7 +110,7 @@ if [ ! -d "$BUILD_DIR/node_modules" ]; then
   (cd "$BUILD_DIR" && npm ci --no-audit --no-fund)
 fi
 
-if [ "$HAS_D1" = true ]; then
+if [ -n "$STAGING_DB" ]; then
   say "applying pending migrations to the staging database ($STAGING_DB)"
   (cd "$APP_DIR" && npx wrangler d1 migrations apply "$STAGING_DB" --remote --env staging)
 fi

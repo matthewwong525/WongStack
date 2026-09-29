@@ -17,6 +17,7 @@ const scripts = {
   'scripts/reset-staging-d1.mjs': [],
   'scripts/cf-secrets.mjs': [],
   'scripts/mini-dashboard.mjs': [],
+  'mini-apps/is-test-file.mjs': [],
   'scripts/lib-wrangler-config.mjs': [],
   'scripts/tag-releases.mjs': [],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],

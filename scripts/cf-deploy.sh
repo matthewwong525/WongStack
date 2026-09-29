@@ -147,6 +147,11 @@ if [ "$STAGING_NAME" = "$PROD_NAME" ]; then
   exit 1
 fi
 
+# A staging Worker bound to production's database writes real data even when
+# the build migrated nothing, so refuse that too. Only the check matters here,
+# and a refusal stops the deploy under `set -e`.
+wong_config staging-database >/dev/null
+
 # The alias shares one URL label with the staging Worker's name; cut it to fit.
 ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
 [ -n "$ALIAS" ] || { echo "cf-deploy: ERROR — the staging Worker name '$STAGING_NAME' leaves no room for a preview alias" >&2; exit 1; }

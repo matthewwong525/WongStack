@@ -17,8 +17,9 @@
  */
 
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isTestFile } from "../mini-apps/is-test-file.mjs";
 import { isMain, parseCli } from "./lib-cli.mjs";
 
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
@@ -62,12 +63,17 @@ export function appsJson(apps) {
   return `${JSON.stringify(list, null, 2)}\n`;
 }
 
-/** Never copied: the Worker bundles each handler, and the pages need no test or source. */
-const PRIVATE = /\.[cm]?ts$|\.test\.|^api\.mjs$/i;
+/** Never copied: the Worker bundles each handler, and the pages need no source or test. */
+const SOURCE = /\.[cm]?ts$|^api\.mjs$/i;
 
-const copyable = source => {
+/**
+ * The copy filter for one app. Tests are judged by the path within the app,
+ * and each path is also tried as a folder, so a `test/` folder is dropped whole.
+ */
+const copyable = appDir => source => {
   const name = basename(source);
-  return !name.startsWith(".") && !PRIVATE.test(name);
+  const path = relative(appDir, source).split("\\").join("/");
+  return !name.startsWith(".") && !SOURCE.test(name) && !isTestFile(`${path}/`) && !isTestFile(path);
 };
 
 /**
@@ -79,7 +85,10 @@ export function writeInto(appsDir, assetsDir, apps) {
   const out = join(assetsDir, "apps");
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
-  for (const app of apps) cpSync(join(appsDir, app.name), join(out, app.name), { recursive: true, filter: copyable });
+  for (const app of apps) {
+    const appDir = join(appsDir, app.name);
+    cpSync(appDir, join(out, app.name), { recursive: true, filter: copyable(appDir) });
+  }
   writeFileSync(join(out, "apps.json"), appsJson(apps));
 }
 
