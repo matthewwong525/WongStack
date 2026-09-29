@@ -1,8 +1,9 @@
-// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). The person
-// either picks a CSV password export, which this device reads and lists with none ticked, or fills one
-// login. Only the ticked or filled logins go to `POST /save`; the file itself is never sent. `Done`
-// posts `/done`, which closes the link. The pure `parseExport` and `siteUrl` are exported for the
-// tests; the rest runs only in a browser.
+// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). One screen
+// holds one list: a CSV password export, dropped anywhere on the page or picked, is read on this
+// device and joins the list with none ticked; a login typed or filled into the form joins it ticked.
+// *Save* sends only the ticked logins, plus a filled form not yet added, to `POST /save`; the file
+// itself is never sent. *Done* posts `/done`, which closes the link. The pure `parseExport` and
+// `siteUrl` are exported for the tests; the rest runs only in a browser.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
 const USER = ['username', 'login_username', 'login', 'email', 'user name'];
@@ -83,14 +84,22 @@ export function parseExport(text) {
 }
 
 const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
+const byHost = (a, b) => a.host.localeCompare(b.host) || a.username.localeCompare(b.username);
+const SEARCH_FROM = 9;
 
 function start() {
   const $ = selector => document.querySelector(selector);
   const key = new URLSearchParams(location.hash.slice(1)).get('key') ?? '';
   history.replaceState(null, '', location.pathname);
+  // Rows are `{url, host, username, password, label, source: 'file' | 'typed', state: 'open' | 'saved'}`,
+  // one per `id`: host and username. Ticks are kept by id, so sorting and merging never move them.
   let logins = [];
   const ticked = new Set();
+  const savedHosts = new Set();
+  let saving = false;
+  let doneArmed = false;
 
+  const idOf = login => `${login.host}\n${login.username}`;
   const show = id => { for (const section of document.querySelectorAll('section')) section.hidden = section.id !== id; };
   const note = (id, text) => { const line = $(id); line.textContent = text ?? ''; line.hidden = !text; };
   const post = (path, body) => fetch(path, {
@@ -110,97 +119,166 @@ function start() {
     return response.status === 413 ? MESSAGES.tooMany : MESSAGES.failed;
   }
 
-  function showSaved(saved, fromFile) {
-    $('#saved-title').textContent = `Saved ${plural(saved.length, 'login')}:`;
-    $('#saved-sites').textContent = [...new Set(saved.map(login => login.host))].join(', ');
-    $('#delete-file').hidden = !fromFile;
-    show('saved');
+  /** The form's login when all three fields hold text and the site parses; null otherwise. */
+  function formLogin() {
+    const url = siteUrl($('#site').value);
+    const username = $('#username').value.trim();
+    const password = $('#password').value;
+    const host = hostOf(url);
+    return host && username && password ? { url, host, username, password, label: '' } : null;
+  }
+  const pending = () => logins.filter(login => login.state === 'open' && ticked.has(idOf(login)));
+  const disarmDone = () => { doneArmed = false; note('#done-note'); };
+
+  function drawCount() {
+    const ids = new Set(pending().map(idOf));
+    const typed = formLogin();
+    if (typed) ids.add(idOf(typed));
+    const button = $('#save');
+    button.textContent = `Save ${plural(ids.size, 'login')}`;
+    button.disabled = saving || !ids.size;
   }
 
-  // The export: read here, listed with none ticked, searched by site, username, or name.
-  function drawList() {
-    const button = $('#save-ticked');
-    button.textContent = `Save ${plural(ticked.size, 'login')}`;
-    button.disabled = !ticked.size;
+  function filter() {
+    const words = $('#search').value.trim().toLowerCase();
+    for (const item of $('#logins').children) item.hidden = !item.dataset.words.includes(words);
   }
-  function listLogins() {
-    ticked.clear();
-    $('#list-title').textContent = `${plural(logins.length, 'login')} in your file`;
-    $('#search').value = '';
+
+  function draw() {
+    $('#list').hidden = !logins.length;
+    $('#list-title').textContent = plural(logins.length, 'login');
+    const search = $('#search');
+    search.hidden = logins.length < SEARCH_FROM;
+    if (search.hidden) search.value = '';
+    const scroll = $('#logins').scrollTop;
     $('#logins').replaceChildren(...logins.map((login, index) => {
-      const box = Object.assign(document.createElement('input'), { type: 'checkbox', id: `login-${index}` });
-      box.addEventListener('change', () => { if (box.checked) ticked.add(index); else ticked.delete(index); drawList(); });
+      const id = idOf(login);
+      const saved = login.state === 'saved';
+      const box = Object.assign(document.createElement('input'), { type: 'checkbox', id: `login-${index}`, checked: !saved && ticked.has(id), disabled: saved });
+      box.addEventListener('change', () => {
+        if (box.checked) ticked.add(id); else ticked.delete(id);
+        disarmDone();
+        drawCount();
+      });
       const host = Object.assign(document.createElement('span'), { className: 'host', textContent: login.host });
       const user = Object.assign(document.createElement('span'), { className: 'user', textContent: login.username });
       const label = Object.assign(document.createElement('label'), { htmlFor: box.id });
       label.append(box, host, user);
+      if (saved) label.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Saved' }));
       const item = document.createElement('li');
       item.dataset.words = `${login.host} ${login.username} ${login.label}`.toLowerCase();
       item.append(label);
       return item;
     }));
-    note('#list-error');
-    drawList();
-    show('list');
+    $('#logins').scrollTop = scroll;
+    filter();
+    drawCount();
   }
-  $('#search').addEventListener('input', () => {
-    const words = $('#search').value.trim().toLowerCase();
-    for (const item of $('#logins').children) item.hidden = !item.dataset.words.includes(words);
-  });
-  $('#pick-file').addEventListener('click', () => $('#file').click());
-  $('#file').addEventListener('change', async () => {
-    const file = $('#file').files[0];
-    $('#file').value = '';
+
+  // A file's logins join unticked, skipping any already listed.
+  function mergeFile(found) {
+    const ids = new Set(logins.map(idOf));
+    for (const login of found) if (!ids.has(idOf(login))) logins.push({ ...login, source: 'file', state: 'open' });
+    logins.sort(byHost);
+    draw();
+  }
+
+  // A typed login joins ticked; one already listed takes its site and password, and opens again if saved.
+  function addTyped(typed) {
+    const id = idOf(typed);
+    const row = logins.find(login => idOf(login) === id);
+    if (row) Object.assign(row, { url: typed.url, password: typed.password, source: 'typed', state: 'open' });
+    else logins.push({ ...typed, source: 'typed', state: 'open' });
+    logins.sort(byHost);
+    ticked.add(id);
+    $('#add-form').reset();
+    note('#add-error');
+    disarmDone();
+    draw();
+  }
+
+  async function readFile(file) {
     if (!file) return;
     const found = parseExport(await file.text().catch(() => ''));
     note('#file-error', !found ? MESSAGES.unreadable : !found.length ? MESSAGES.empty : '');
-    if (found?.length) {
-      logins = found;
-      listLogins();
-    }
+    if (found?.length) mergeFile(found);
+  }
+
+  // The file: tapped to pick, or dropped anywhere, so a near miss never opens it in the tab.
+  $('#drop').addEventListener('click', () => $('#file').click());
+  $('#file').addEventListener('change', () => {
+    const file = $('#file').files[0];
+    $('#file').value = '';
+    return readFile(file);
   });
-  $('#save-ticked').addEventListener('click', async () => {
-    const indexes = [...ticked].sort((a, b) => a - b);
-    $('#save-ticked').disabled = true;
-    const result = await save(indexes.map(index => logins[index]));
+  const hasFiles = event => [...(event.dataTransfer?.types ?? [])].includes('Files');
+  for (const type of ['dragenter', 'dragover']) {
+    document.addEventListener(type, event => {
+      event.preventDefault();
+      if (hasFiles(event)) $('#drop').classList.add('over');
+    });
+  }
+  document.addEventListener('dragleave', event => { if (!event.relatedTarget) $('#drop').classList.remove('over'); });
+  document.addEventListener('drop', event => {
+    event.preventDefault();
+    $('#drop').classList.remove('over');
+    return readFile(event.dataTransfer?.files?.[0]);
+  });
+
+  $('#search').addEventListener('input', filter);
+
+  // One login, typed or filled by a password manager.
+  $('#add-form').addEventListener('input', drawCount);
+  $('#add-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const typed = formLogin();
+    if (!typed) return note('#add-error', hostOf(siteUrl($('#site').value)) ? '' : MESSAGES.badSite);
+    addTyped(typed);
+  });
+
+  // One Save for every ticked login, and a filled form not yet added.
+  $('#save').addEventListener('click', async () => {
+    const typed = formLogin();
+    if (typed) addTyped(typed);
+    const list = pending();
+    if (!list.length || saving) return;
+    saving = true;
+    disarmDone();
+    drawCount();
+    const result = await save(list);
+    saving = false;
     if (result === null) return closed();
     if (typeof result === 'string') {
       note('#list-error', result);
-      return drawList();
+      return drawCount();
     }
-    const failed = new Set(result.failed.map(at => indexes[at]));
-    for (const index of indexes) {
-      if (failed.has(index)) continue;
-      ticked.delete(index);
-      $(`#login-${index}`).checked = false;
+    const failed = new Set(result.failed.map(at => idOf(list[at])));
+    for (const login of list) {
+      if (failed.has(idOf(login))) continue;
+      login.state = 'saved';
+      ticked.delete(idOf(login));
+      if (login.source === 'file') $('#delete-file').hidden = false;
     }
-    drawList();
-    if (!failed.size) return showSaved(result.saved, true);
-    const sites = [...failed].map(index => logins[index].host).join(', ');
-    note('#list-error', `${result.saved.length ? `Saved ${plural(result.saved.length, 'login')}. ` : ''}Couldn't save ${sites}. Try again.`);
+    for (const { host } of result.saved) savedHosts.add(host);
+    note('#status', savedHosts.size ? `Saved: ${[...savedHosts].join(', ')}` : '');
+    const sites = list.filter(login => failed.has(idOf(login))).map(login => login.host);
+    note('#list-error', sites.length ? `Couldn't save ${[...new Set(sites)].join(', ')}. Try again.` : '');
+    draw();
   });
 
-  // One login, typed or filled by a password manager.
-  $('#add-one').addEventListener('click', () => { note('#add-error'); show('add'); $('#site').focus(); });
-  $('#add-form').addEventListener('submit', async event => {
-    event.preventDefault();
-    const url = siteUrl($('#site').value);
-    if (!hostOf(url)) return note('#add-error', MESSAGES.badSite);
-    const result = await save([{ url, username: $('#username').value.trim(), password: $('#password').value }]);
-    if (result === null) return closed();
-    if (typeof result === 'string' || result.failed.length) return note('#add-error', typeof result === 'string' ? result : MESSAGES.failed);
-    $('#add-form').reset();
-    showSaved(result.saved, false);
-  });
-
-  for (const back of document.querySelectorAll('[data-back]')) back.addEventListener('click', () => { note('#file-error'); show('start'); });
-  $('#another').addEventListener('click', () => { note('#file-error'); show('start'); });
+  // Done closes the link; with ticked logins not yet saved, it asks for a second tap.
   $('#done').addEventListener('click', async () => {
+    const left = pending().length;
+    if (left && !doneArmed) {
+      doneArmed = true;
+      return note('#done-note', `${plural(left, 'ticked login')} ${left === 1 ? 'isn\'t' : 'aren\'t'} saved. Tap Done again to leave without ${left === 1 ? 'it' : 'them'}.`);
+    }
     $('#done').disabled = true;
     await post('done');
     closed();
   });
 
+  draw();
   if (!key) closed();
 }
 
