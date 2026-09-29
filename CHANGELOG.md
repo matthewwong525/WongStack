@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.1.2 — Each rule has one home
+
+- **Each rule is written once.** Where a page repeated a rule, it now links the one page that owns it, so the copies stop disagreeing: what an install gets, which commands save and publish, what to ask after a plan or a publish, and the choices when a request splits into parts.
+- **After a plan, one way on.** *When you're ready, type `/apply` to build it.* now shows only after you pick *Review the plan*, where no question follows. Elsewhere the closing question already offers *Build it now*.
+- **The Cloudflare setup is no longer called optional.** Every install takes it, so pages that said "if you took the stack" now just say what it does.
+- **The record of what shipped matches the tools.** Pasted review notes that only ask a question get an answer, not a plan edit. `/verify` blocks nothing on its own run; inside `/ship`, a failed walk puts the choice in front of you. Plain words and link checks each have one owner.
+- **Small mismatches fixed.** A new server gets Node 22, like everything else. The README's command list gains `/verify`, and the knowledge-center page gains `/improve` and `/routine`. `curl` joins the required tools, and the payload manifest says setup also copies the blank `.env.example`.
+
+**Updating.** Nothing to do by hand.
+
 ## 27.1.1 — The wiki keeps WongStack upkeep apart, and database fixes on their own page
 
 - **Database fixes have their own page.** The three guides for when your live database breaks (undo a bad update, never change it by hand, repair its record of updates) moved off the deploy page onto [Fix a broken production database](wiki/stack/d1-recovery.md), unchanged. The deploy page links it.

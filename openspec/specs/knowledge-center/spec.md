@@ -91,17 +91,3 @@ Different people's preferences SHALL each stay on their own page; newest-wins SH
 
 - **WHEN** a work-repo session learns the person has a medical appointment every Tuesday
 - **THEN** no page in the work repo records it
-
-### Requirement: Messages are short and plain
-
-The agent SHALL write user-facing messages in the voice `wiki/voice.md` owns: the point first, a few lines, everyday words, and more detail only when asked. It SHALL name git, OpenSpec, or CI only when the person asks or must act, and SHALL keep code, commands, identifiers, and quotations exact.
-
-#### Scenario: A save is reported
-
-- **WHEN** the agent reports a save to a person who did not ask about git
-- **THEN** the reply says the work is saved and gives the preview link, without naming commits or branches
-
-#### Scenario: The person asks for the detail
-
-- **WHEN** the person asks which branch holds the work
-- **THEN** the agent names it exactly

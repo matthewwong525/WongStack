@@ -8,7 +8,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
 - [Repository improvement](repository-improvement.md) — run or schedule the bounded `/improve` spot check without creating a second delivery workflow.
 - [Scheduled routines](../../.agents/skills/routine/SKILL.md) — `/routine` puts any prompt or verb on a Paseo schedule, each run in its own worktree.
-- [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, and `openspec`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
+- [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
 - [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, and handing the browser over.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, consolidation, and the memory key.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: blank declarations stay on the active branch, while real values persist outside git in the primary worktree across linked checkouts.

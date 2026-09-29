@@ -2,17 +2,17 @@
 
 ## Purpose
 
-`/verify` exercises a change's own OpenSpec scenarios against its deployed preview, each with the strongest probe that can observe it, grades the evidence against each scenario's `THEN`, and posts it on the pull request. It works in any repo on any stack, leaves the repo untouched, and gates nothing.
+`/verify` exercises a change's own OpenSpec scenarios against its deployed preview, each with the strongest probe that can observe it, grades the evidence against each scenario's `THEN`, and posts it on the pull request. It works in any repo on any stack, leaves the repo untouched, and gates nothing on its own run.
 
 ## Requirements
 
 ### Requirement: Verify is a verb that gates nothing
 
-The walk SHALL run only when a person invokes `/verify`, or once inside `/ship` as evidence before the merge; `/save`, `/apply`, and `/continue` SHALL NOT walk. `/verify` SHALL run at any point in a change and any number of times, and SHALL block, delay, or condition nothing.
+The walk SHALL run only when a person invokes `/verify`, or once inside `/ship` as evidence before the merge; `/save`, `/apply`, and `/continue` SHALL NOT walk. `/verify` SHALL run at any point in a change and any number of times, and its own run SHALL block, delay, or condition nothing. What a failed walk does inside `/ship` SHALL be `delivery-gate`'s rule, not this one.
 
 #### Scenario: A failing walk
 
-- **WHEN** a walk returns `FAILURE`
+- **WHEN** a walk that a person invoked returns `FAILURE`
 - **THEN** the failure is reported and posted, and `/verify` stops no push, merge, or other skill
 
 #### Scenario: Mid-change and repeated

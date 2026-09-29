@@ -4,7 +4,7 @@ What [`/verify`](../../.agents/skills/verify/SKILL.md) does: the change's own Op
 
 It exists because CI answers *did it build and did the checks pass*. It doesn't answer *does this do what it promised*. The promise is already written down — every requirement in a change's delta specs is a `#### Scenario:` with a `WHEN` and a `THEN` — and any branch that publishes a preview URL already puts the change somewhere a probe can reach. The walkthrough is the wire between the two.
 
-**It gates nothing** ([the gate](the-change-loop.md#the-gate) owns the rule), so run it whenever it helps: halfway through a change, twice in a row, or right before shipping.
+**Its own run gates nothing** ([the gate](the-change-loop.md#the-gate) owns the rule), so run it whenever it helps: halfway through a change, twice in a row, or right before shipping.
 
 **It works in any repo, on any stack.** The browser is a standalone CLI on your machine, not a project dependency ([required tools](required-tools.md)), and request probes ride on `curl`. There is no opt-in to perform and no flag to set.
 
@@ -48,7 +48,7 @@ The same fact read the other way is why request probes work: a non-navigation re
 
 ## The verdicts
 
-[The skill's verdict table](../../.agents/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything. An un-runnable walk is `UNKNOWN`, never `NONE`, [the same rule as the git gate](../../.agents/skills/save/references/git-gate.md): a comment that reads like a pass because a login page rendered is the outcome worth preventing.
+[The skill's verdict table](../../.agents/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything on `/verify`'s own run; [`/ship`'s walk step](../../.agents/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate) owns what a failed walk does there. An un-runnable walk is `UNKNOWN`, never `NONE`, [the same rule as the git gate](../../.agents/skills/save/references/git-gate.md): a comment that reads like a pass because a login page rendered is the outcome worth preventing.
 
 ## When the walk can't get in
 
@@ -81,7 +81,7 @@ Then `/verify` fixes the failure only when it is [in scope](../../.agents/skills
 - [The change loop](the-change-loop.md) — the loop `/verify` sits beside, and the gate ladder it is deliberately not part of.
 - [Required tools](required-tools.md) — what the toolkit needs, and what `/verify` adds to that.
 - [Secrets](secrets.md) — where the optional variables above live.
-- [Cloudflare Access](../stack/cloudflare-access.md) *(stack-pack repos)* — the login wall, and the service token the heal produces.
-- [Deploy and data pipeline](../stack/d1-pipeline.md) *(stack-pack repos)* — what publishes the preview URL, and where `db:reset:staging` comes from.
+- [Cloudflare Access](../stack/cloudflare-access.md) — the login wall, and the service token the heal produces.
+- [Deploy and data pipeline](../stack/d1-pipeline.md) — what publishes the preview URL, and where `db:reset:staging` comes from.
 
 Part of [development](README.md).

@@ -51,7 +51,7 @@ No skill SHALL compile, run a test suite, lint, or type-check as a condition of 
 
 ### Requirement: The gate doctrine has one owner
 
-`wiki/development/the-change-loop.md` SHALL state the gate and the ladder (CI when present, then merge, a skipped rung never a failure); other surfaces SHALL link to it, except one summary line in `CLAUDE.md`. No surface SHALL call CI required, present the walkthrough as a condition of the merge, or describe a save route that depends on which paths changed.
+`wiki/development/the-change-loop.md` SHALL state the gate and the ladder (CI when present, then merge, a skipped rung never a failure); other surfaces SHALL link to it, except one summary line in `AGENTS.md`. No surface SHALL call CI required, present the walkthrough as a condition of the merge, or describe a save route that depends on which paths changed.
 
 #### Scenario: A surface restates the gate differently
 

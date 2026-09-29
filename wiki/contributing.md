@@ -13,7 +13,7 @@ If it doesn't clear the bar, keep it local. A repo that diverges from upstream o
 
 ## What's in scope
 
-Only files on the [payload manifest](../.agents/skills/wong-sync/references/payload-manifest.md): the workflow skills, the convention pages at this wiki's root, and the `WONG-STACK` block of `CLAUDE.md`. Your app code, app skills, and business docs aren't WongStack's to carry.
+Only what ships: the [payload manifest](../.agents/skills/wong-sync/references/payload-manifest.md) lists it. Your app code, app skills, and business docs aren't WongStack's to carry.
 
 ## The route
 
