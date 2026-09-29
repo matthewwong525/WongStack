@@ -63,3 +63,4 @@ None.
 - **2026-09-29** — Assumed: the rule's file is named `is-test-file.mjs`, not `test-files.mjs`, because a `test-` name matches the rule itself, so the loosened-check guard and `node --test` would treat it as a test.
 - **2026-09-29** — Assumed: the plan's "run /save" task is dropped, because `/ship`'s own checkpoint runs CI after the archive.
 - **2026-09-29** — Archived and checkpointed for /ship as 27.1.3, after merging main at 27.1.2 (Docs that disagree, Reshape the wiki).
+- **2026-09-29** — Renumbered 27.2.1 at merge, because main reached 27.2.0 (save your passwords for the agent's browser) first.
