@@ -27,7 +27,7 @@ OpenSpec never runs git; see [the change loop](../../../../wiki/development/the-
 
 ## Reconcile deltas
 
-CLI 1.13.2 has no `sync` command, so `/save` reconciles deltas at each checkpoint, in the same root and store. `openspec status` lists them in `artifactPaths.specs.existingOutputPaths`; none means no sync.
+The CLI has no `sync` command, so `/save` reconciles deltas at each checkpoint, in the same root and store. `openspec status` lists them in `artifactPaths.specs.existingOutputPaths`; none means no sync.
 
 For each delta, read the main spec and `openspec instructions specs --change "<name>" --json`. Apply only its ADDED, MODIFIED, REMOVED, or RENAMED requirements to the main capability path; keep the rest.
 

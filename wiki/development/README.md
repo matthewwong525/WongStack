@@ -2,7 +2,7 @@
 
 Working on WongStack means editing the toolkit itself — this repo is the meta-repo that *ships* WongStack and *dogfoods* it at once. This section covers how to change what downstream repos receive without breaking their next install or update.
 
-The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) brings into other repos and keeps current — a fresh install (fronted by [`/wong-setup`](../../.agents/skills/wong-setup/SKILL.md)) is the same manifest-driven sync in the case where every payload file happens to be absent: the workflow skills under [`.claude/skills/`](../../.agents/skills/), the [OpenSpec](https://github.com/Fission-AI/OpenSpec) planning layer (`openspec/`, driven through the CLI), this [`wiki/`](../README.md) wiki, [`VERSION`](../../VERSION), [`CHANGELOG.md`](../../CHANGELOG.md), and the `WONG-STACK:BEGIN/END` block in [`CLAUDE.md`](../../AGENTS.md). The canonical file-by-file list lives in one place: the [payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md) inside `wong-sync`. Everything else in the repo is scaffolding around it.
+The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) brings into other repos and keeps current — a fresh install (fronted by [`/wong-setup`](../../.agents/skills/wong-setup/SKILL.md)) is the same manifest-driven sync in the case where every payload file happens to be absent. The [payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md) lists what ships. Everything else in the repo is scaffolding around it.
 
 **Editing the payload is a release**, cut by the steps in [the payload rule](../../.agents/rules/payload.md), or the installer's updater can't detect it.
 
@@ -14,7 +14,7 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 - [Repository improvement](repository-improvement.md) — run or schedule the bounded `/improve` spot check without creating a second delivery workflow.
 - [Scheduled routines](../../.agents/skills/routine/SKILL.md) — `/routine` puts any prompt or verb on a Paseo schedule, each run in its own worktree.
 - [Repo layout](repo-layout.md) — `.claude` and `.codex` are symlinks to `.agents`, and `CLAUDE.md` to `AGENTS.md`: which path to edit and to link, and why a repo-wide `grep` under-counts.
-- [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, and `openspec`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
+- [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
 - [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, and handing the browser over.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, consolidation, and the memory key.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: blank declarations stay on the active branch, while real values persist outside git in the primary worktree across linked checkouts.

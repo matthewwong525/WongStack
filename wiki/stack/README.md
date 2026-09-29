@@ -8,7 +8,7 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 
 ## Pages
 
-- [Getting started](getting-started.md) — the whole path in five steps, written for the person doing it; start here if you're setting this up for the first time.
+- [Getting started](getting-started.md) — what installing costs, what you do by hand, and what to do when something goes wrong; start here if you're setting this up for the first time.
 - [Core stack](core-stack.md) — *what* you build on: React + Vite on Cloudflare Workers with D1, and why the combo suits AI-driven dev.
 - [Deploy and data pipeline](d1-pipeline.md) — *how* code and data ship: the `env.staging` model, twin-every-binding, auto-applied migrations, seeded staging, CI, and the prod-recovery runbooks.
 - [Mini apps](mini-apps.md) — small apps from one request, served by the main app under `/apps/`: the same loop as any change, tests per app, and a generated app list on the home page.
@@ -20,5 +20,3 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 Every install takes the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack in an empty folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown).
 
 > Session memory is not part of this pack: every repo gets it, and [its page](../development/memory.md) lives with the core process docs.
->
-> **This section installs with the stack pack** — see [the payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md#the-stack-pack).

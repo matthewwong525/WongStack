@@ -182,11 +182,11 @@ Every control SHALL work by keyboard and touch with visible labels and focus, an
 
 ### Requirement: Pasted notes update the plan and stop
 
-Pasted notes SHALL update that change's artifacts with no question round, log what each note changed or why it was declined, rebuild the page, and end with the plan's link and whether to build now. They SHALL build nothing, and SHALL change nothing when the change is not in this checkout.
+Pasted notes SHALL update that change's artifacts with no question round, only for notes that ask for a change, and log what each such note changed or why it was declined; a note that asks a question SHALL be answered as `asking-the-user` requires, with no edit. The reply SHALL rebuild the page when anything changed and end with the plan's link and whether to build now. Notes SHALL build nothing, and SHALL change nothing when the change is not in this checkout.
 
 #### Scenario: Notes pasted
 
-- **WHEN** a reviewer pastes copied notes for a change
+- **WHEN** a reviewer pastes notes asking for changes to a change
 - **THEN** the proposal, design, specs, and tasks reflect them, and no task is implemented
 
 #### Scenario: The change is not here
