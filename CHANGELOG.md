@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Four bug fixes from a repo audit
+## 27.1.3 — Four bug fixes from a repo audit
 
 - **A test branch can never touch the live app's data.** If the test copy of the app points at the live database, every test step now stops before it touches it: each branch push, each test deploy, each preview, and each staging reset. Before, only the preview and the reset checked, and only by the database's name, so a copied entry renamed by hand got past all of them. It now matches by name or by id.
 - **A mini app's test files stay private.** One rule, in `mini-apps/is-test-file.mjs`, now decides which files are tests. CI runs them, the build leaves them off the site, the app refuses to serve them, and the check for switched-off tests reads them. Before, a file named like `foo_test.mjs` ran as a test and was also published under `/apps/`.

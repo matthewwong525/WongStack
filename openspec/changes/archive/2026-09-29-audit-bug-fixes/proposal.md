@@ -1,6 +1,6 @@
 # Fix four bugs a repo audit found
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** discrepancies-elegance
 **Open questions:** none
 
@@ -62,3 +62,4 @@ None.
 - **2026-09-29** — Assumed: the test-file CLI prints the files it finds and CI passes them to `node --test`, because Node's default patterns skip `.spec.` and `test_` names, and the spec says CI runs every file the rule names.
 - **2026-09-29** — Assumed: the rule's file is named `is-test-file.mjs`, not `test-files.mjs`, because a `test-` name matches the rule itself, so the loosened-check guard and `node --test` would treat it as a test.
 - **2026-09-29** — Assumed: the plan's "run /save" task is dropped, because `/ship`'s own checkpoint runs CI after the archive.
+- **2026-09-29** — Archived and checkpointed for /ship as 27.1.3, after merging main at 27.1.2 (Docs that disagree, Reshape the wiki).
