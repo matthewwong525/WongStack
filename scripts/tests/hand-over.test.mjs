@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { autofillToken, FIELD_SCAN, fieldBox, finished, globToRegExp, keyMatches, tidyTabs, tunnelOrigin } from '../../.agents/skills/verify/scripts/hand-over.mjs';
-import { sendPlan, toPage, typedKeys } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
+import { autofillToken, clampViewport, FIELD_SCAN, fieldBox, finished, globToRegExp, keyMatches, tidyTabs, tunnelOrigin } from '../../.agents/skills/verify/scripts/hand-over.mjs';
+import { sendPlan, toPage, typedKeys, wantedSize } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
@@ -182,7 +182,8 @@ test('reaching the named address gives done and tears down, the watcher having r
   assert.deepEqual(f.result(), { result: 'done' });
   assert.doesNotMatch(readFileSync(join(f.state, 'result.json'), 'utf8'), new RegExp(`http|mail|secret|${key}`));
   const watcherCalls = f.calls().slice(before).filter(line => line.startsWith('agent-browser'));
-  for (const line of watcherCalls) assert.match(line, /^agent-browser (get url|get count .+)$/);
+  assert.equal(watcherCalls.at(-1), 'agent-browser set viewport 1280 720', 'the page size is put back last');
+  for (const line of watcherCalls.slice(0, -1)) assert.match(line, /^agent-browser (get url|get count .+)$/);
   assert.ok(watcherCalls.includes('agent-browser get url'));
 });
 
@@ -465,4 +466,40 @@ test('sendPlan presses only new letters at the end of a focused field, else refo
   assert.deepEqual(sendPlan('41', '4111', false), { focus: true, keys: keys('4111') }, 'another field was focused since');
   assert.deepEqual(sendPlan('abc', 'xbc', true), { focus: true, keys: keys('xbc') }, 'a change before the end');
   assert.deepEqual(sendPlan('abc', '', true), { focus: true, keys: [] }, 'emptied: cleared, nothing pressed');
+});
+
+test('POST /viewport needs the key and whole numbers, clamps the size, and sets it', async t => {
+  const f = fixture(t, { cloudflared: false });
+  const { port, key } = opened(f, '--local');
+  const before = f.calls().length;
+  assert.equal((await route(port, null, 'viewport', { width: 390, height: 600 })).status, 403);
+  for (const bad of ['{', '[390, 600]', {}, { width: 390 }, { width: '390', height: 600 }, { width: 390.5, height: 600 }]) assert.equal((await route(port, key, 'viewport', bad)).status, 400, JSON.stringify(bad));
+  assert.equal((await route(port, key, 'viewport')).status, 405);
+  assert.equal(f.calls().length, before, 'no refused request reached agent-browser');
+  assert.deepEqual(await route(port, key, 'viewport', { width: 390, height: 600 }), { status: 200, json: { width: 390, height: 600 } });
+  assert.deepEqual(await route(port, key, 'viewport', { width: 200, height: 90000 }), { status: 200, json: { width: 320, height: 1280 } });
+  assert.deepEqual(f.calls().slice(before), ['agent-browser set viewport 390 600', 'agent-browser set viewport 320 1280']);
+});
+
+test('every ending puts the page back to 1280×720 after a phone size, before the result', async t => {
+  for (const [ending, args] of [['done', ['--until', '**/inbox']], ['timeout', ['--minutes', '0.02']], ['closed', []]]) {
+    const f = fixture(t, { cloudflared: false });
+    const { port, key } = opened(f, '--local', ...args);
+    assert.equal((await route(port, key, 'viewport', { width: 390, height: 600 })).status, 200);
+    if (ending === 'done') f.set('url', 'https://mail.example.com/inbox');
+    const out = f.run(ending === 'closed' ? 'close' : 'wait');
+    assert.equal(out.stdout.trim(), `HANDOVER_RESULT=${ending}`);
+    const sizes = f.calls().filter(line => line.startsWith('agent-browser set viewport'));
+    assert.deepEqual(sizes.slice(-2), ['agent-browser set viewport 390 600', 'agent-browser set viewport 1280 720'], ending);
+  }
+});
+
+test('wantedSize gives a narrow window its own width and a wide one 1280×720', () => {
+  assert.deepEqual(wantedSize({ boxWidth: 390, innerHeight: 844 }), { width: 390, height: 506 });
+  assert.deepEqual(wantedSize({ boxWidth: 799, innerHeight: 1000 }), { width: 799, height: 600 });
+  assert.deepEqual(wantedSize({ boxWidth: 800, innerHeight: 400 }), { width: 1280, height: 720 });
+  assert.deepEqual(wantedSize({ boxWidth: 1264, innerHeight: 900 }), { width: 1280, height: 720 });
+  assert.deepEqual(wantedSize({ boxWidth: 390, innerHeight: 500 }), { width: 390, height: 400 }, 'at least 400 tall on a short window');
+  assert.deepEqual(clampViewport({ width: 200, height: 90000 }), { width: 320, height: 1280 });
+  assert.equal(clampViewport({ width: 390 }), null);
 });
