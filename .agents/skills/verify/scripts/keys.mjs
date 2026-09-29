@@ -21,7 +21,7 @@ import { basename, dirname, join } from 'node:path';
 import { ENTRY, isIgnored, loadBase } from '../../ship/scripts/worktree-secrets.mjs';
 
 export const LIMITS = { names: 20, body: 16 * 1024, value: 4096, hint: 200 };
-export const KEY_ROUTES = new Set(['/keys', '/save', '/done']);
+export const KEY_ROUTES = new Set(['/keys', '/save', '/continue', '/done']);
 export const NAME = /^[A-Z_][A-Z0-9_]*$/;
 /** Where each example file's names are written. */
 export const DESTINATIONS = [
@@ -212,39 +212,46 @@ export function checkKeys(body, asked) {
  * hears each saved name; `onDone()` runs once the reply has gone, on `/done` or when a save leaves no
  * asked-for key unsaved.
  */
-export function keyRoutes(config, { onSaved = () => {}, onDone = () => {} } = {}) {
+export function keyRoutes(config, { onSaved = () => {}, onDone = () => {}, onContinue = async () => null, isOpen = () => true } = {}) {
   const asked = new Map(config.keys.map(key => [key.name, key]));
   const saved = new Set();
+  let terminal = false;
   let queue = Promise.resolve();
   const serial = job => {
     const run = queue.then(job);
     queue = run.catch(() => {});
     return run;
   };
-  return async (pathname, request, response) => {
+  const route = async (pathname, request, response) => {
     if (pathname === '/keys') return request.method === 'GET' ? reply(response, 200, { keys: describeKeys(config) }) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
-    if (pathname === '/done') {
-      response.once('finish', onDone);
-      return reply(response, 200, { ok: true });
-    }
-    const body = await readBody(request);
-    const pairs = typeof body === 'number' ? body : checkKeys(body, asked);
-    if (typeof pairs === 'number') return reply(response, pairs);
-    const result = await serial(() => {
-      const outcome = { saved: [], failed: [] };
+    const body = pathname === '/done' ? null : await readBody(request);
+    const outcome = await serial(() => {
+      if (terminal || !isOpen()) return { status: 410 };
+      if (pathname === '/done') { terminal = true; return { cancelled: true }; }
+      const pairs = typeof body === 'number' ? body : (pathname === '/continue' && isObject(body?.keys) && !Object.keys(body.keys).length ? [] : checkKeys(body, asked));
+      if (typeof pairs === 'number') return { status: pairs };
+      const result = { saved: [], failed: [] };
       for (const [name, value] of pairs) {
         const clean = cleanValue(value);
         const ok = clean !== null && writeKey(config, asked.get(name), clean);
-        outcome[ok ? 'saved' : 'failed'].push(name);
-        if (ok) {
-          saved.add(name);
-          onSaved(name);
-        }
+        result[ok ? 'saved' : 'failed'].push(name);
+        if (ok) { saved.add(name); onSaved(name); }
       }
-      return outcome;
+      const missing = [...asked.keys()].filter(name => !saved.has(name));
+      const ready = !missing.length && !result.failed.length;
+      if (ready) terminal = true;
+      return { result, ready, missing };
     });
-    if ([...asked.keys()].every(name => saved.has(name))) response.once('finish', onDone);
-    return reply(response, 200, result);
+    if (outcome.status) return reply(response, outcome.status);
+    if (outcome.cancelled) {
+      response.once('finish', () => onDone(false));
+      return reply(response, 200, { ok: true });
+    }
+    const receipt = outcome.ready && pathname === '/continue' ? await onContinue() : null;
+    if (outcome.ready && pathname === '/save') response.once('finish', () => onDone(true));
+    reply(response, 200, { ...outcome.result, ...(pathname === '/continue' && { ready: outcome.ready, missing: outcome.missing, ...(receipt && { receipt }) }) });
   };
+  route.drain = () => queue;
+  return route;
 }

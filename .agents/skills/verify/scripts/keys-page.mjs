@@ -1,8 +1,8 @@
 // The key page's script (see hand-over.mjs `open --keys` and keys.mjs). It lists the keys the agent
 // asked for from `GET /keys`, one hidden box each with its hint, and says when a key would replace one
-// saved now. *Save* sends the filled boxes to `POST /save` once; a saved box is cleared and locked, and
-// a refused one stays open to fix. The link closes itself once every key is saved; *Done* posts
-// `/done`. The pure `filledKeys` is exported for the tests; the rest runs only in a browser.
+// saved now. Save and continue posts filled boxes to `/continue`; partial successes are cleared and
+// locked, with missing/failed rows left editable. Its completion receipt names the notification
+// outcome. Close without continuing cancels through `/done`. `filledKeys` is exported for tests.
 
 const MESSAGES = {
   empty: 'Paste a key first.',
@@ -26,6 +26,8 @@ function start() {
   const key = new URLSearchParams(location.hash.slice(1)).get('key') ?? '';
   history.replaceState(null, '', location.pathname);
   const rows = new Map();
+  let saving = false;
+  const savedNames = new Set();
 
   const status = text => { $('#status').textContent = text ?? ''; };
   const call = (path, body) => fetch(path, {
@@ -40,9 +42,20 @@ function start() {
     $('#closed').hidden = false;
     $('#form').hidden = true;
   };
+  const completed = receipt => {
+    closed();
+    $('#closed h1').textContent = receipt?.notification === 'notified' ? 'Your assistant was notified' : 'Saved; return to your chat';
+    $('#closed .hint').textContent = receipt?.notification === 'notified' ? 'You can return to the chat.' : "Your entries are saved. Return to chat and say continue.";
+  };
+  const update = () => {
+    $('#save').textContent = saving ? 'Saving…' : 'Save and continue';
+    $('#save').disabled = saving || ![...rows.values()].some(row => !savedNames.has(row.input.name) && row.input.value.trim());
+    $('#done').disabled = saving;
+    for (const [name, row] of rows) { row.input.disabled = saving || savedNames.has(name); row.toggle.disabled = saving || savedNames.has(name); }
+  };
   const stillOpen = () => fetch('page.mjs', { cache: 'no-store' }).then(response => response.ok, () => false);
   /** A refused call means a closed link, unless the page still answers. */
-  const refused = async response => (!response || response.status === 403) && !(await stillOpen());
+  const refused = async response => response?.status === 410 || ((!response || response.status === 403) && !(await stillOpen()));
 
   function note(row, text, className = 'miss') {
     row.note.textContent = text ?? '';
@@ -58,6 +71,7 @@ function start() {
     if (hint) item.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: hint }));
     if (set) item.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'This replaces the one saved now.' }));
     const input = Object.assign(document.createElement('input'), { id, name, type: 'password', autocomplete: 'off', spellcheck: false });
+    input.addEventListener('input', update);
     input.setAttribute('autocapitalize', 'off');
     input.setAttribute('autocorrect', 'off');
     const toggle = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Show' });
@@ -76,6 +90,7 @@ function start() {
   }
 
   function markSaved(name) {
+    savedNames.add(name);
     const row = rows.get(name);
     row.input.value = '';
     row.input.type = 'password';
@@ -87,26 +102,28 @@ function start() {
 
   $('#keys-form').addEventListener('submit', async event => {
     event.preventDefault();
+    if (saving) return;
     const keys = filledKeys([...rows.values()].map(({ input }) => input));
     if (!Object.keys(keys).length) return status(MESSAGES.empty);
-    $('#save').disabled = true;
+    saving = true;
+    update();
     status('Saving…');
-    const response = await call('save', { keys });
-    $('#save').disabled = false;
+    const response = await call('continue', { keys });
+    saving = false;
+    update();
     if (await refused(response)) return closed();
     if (!response?.ok) return status(response?.status === 413 ? MESSAGES.tooLong : MESSAGES.failed);
-    const { saved, failed } = await response.json();
+    const { saved, failed, missing = [], ready, receipt } = await response.json();
     for (const name of saved) markSaved(name);
     for (const name of failed) note(rows.get(name), MESSAGES.failedRow);
-    if ([...rows.values()].every(row => row.input.disabled)) {
-      status(MESSAGES.allSaved);
-      for (const button of document.querySelectorAll('.actions button')) button.disabled = true;
-      return;
-    }
-    status(saved.length ? `Saved ${plural(saved.length, 'key')}.` : '');
+    for (const name of missing) if (!failed.includes(name)) note(rows.get(name), 'Paste this key before continuing.');
+    update();
+    if (ready && receipt) return completed(receipt);
+    status(saved.length ? `Saved ${plural(saved.length, 'key')}. Complete the remaining keys.` : '');
   });
 
   $('#done').addEventListener('click', async () => {
+    if (saving) return;
     $('#done').disabled = true;
     await call('done', {});
     closed();
@@ -117,6 +134,7 @@ function start() {
     const response = await call('keys');
     if (!response?.ok) return (await refused(response)) ? closed() : status(MESSAGES.failed);
     for (const each of (await response.json()).keys) addRow(each);
+    update();
     rows.values().next().value?.input.focus();
   })();
 }

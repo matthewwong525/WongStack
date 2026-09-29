@@ -11,7 +11,7 @@
 import { execFile } from 'node:child_process';
 
 export const LIMITS = { logins: 500, body: 256 * 1024, field: 1024 };
-export const PASSWORD_ROUTES = new Set(['/save', '/done']);
+export const PASSWORD_ROUTES = new Set(['/save', '/continue', '/done']);
 const TOOL_TIMEOUT_MS = 15_000;
 
 /** A URL's host, lowercased, with `www.` stripped; '' when it isn't an http(s) URL. */
@@ -80,9 +80,14 @@ function reply(response, status, body) {
 }
 
 /** Runs agent-browser with `input` on stdin; resolves to stdout, or null when it fails. */
+const children = new Set();
+const abortTools = () => { for (const child of children) child.kill('SIGKILL'); };
+
 function tool(args, input = '') {
   return new Promise(done => {
     const child = execFile('agent-browser', args, { encoding: 'utf8', timeout: TOOL_TIMEOUT_MS }, (error, stdout) => done(error ? null : stdout));
+    children.add(child);
+    child.once('close', () => children.delete(child));
     child.stdin.on('error', () => {});
     child.stdin.end(input);
   });
@@ -99,12 +104,13 @@ async function profiles() {
 }
 
 /** Saves each login in order, so a second account in one request sees the first's name taken. */
-async function saveAll(logins, onSaved) {
+async function saveAll(logins, onSaved, isOpen) {
   const vault = await profiles();
   if (!vault) return null;
   const saved = [];
   const failed = [];
   for (const [index, { url, username, password, host }] of logins.entries()) {
+    if (!isOpen()) { failed.push(...logins.slice(index).map((_, at) => at + index)); break; }
     const name = chooseName(vault, { host, username });
     if ((await tool(['auth', 'save', name, '--url', url, '--username', username, '--password-stdin'], password)) === null) {
       failed.push(index);
@@ -121,23 +127,41 @@ async function saveAll(logins, onSaved) {
  * The password routes. `onSaved(name)` hears each saved name; `onDone()` runs once `/done`'s reply
  * has gone. Saves run one request at a time.
  */
-export function passwordRoutes({ onSaved = () => {}, onDone = () => {} } = {}) {
+export function passwordRoutes({ onSaved = () => {}, onDone = () => {}, onContinue = async () => null, isOpen = () => true } = {}) {
   let queue = Promise.resolve();
+  let terminal = false;
+  const savedNames = new Set();
   const serial = job => {
     const run = queue.then(job);
     queue = run.catch(() => {});
     return run;
   };
-  return async (pathname, request, response) => {
+  const route = async (pathname, request, response) => {
     if (request.method !== 'POST') return reply(response, 405);
-    if (pathname === '/done') {
-      response.once('finish', onDone);
+    const body = pathname === '/done' ? null : await readBody(request);
+    const outcome = await serial(async () => {
+      if (terminal || !isOpen()) return { status: 410 };
+      if (pathname === '/done') {
+        terminal = true;
+        return { cancelled: true };
+      }
+      const logins = typeof body === 'number' ? body : (pathname === '/continue' && Array.isArray(body?.logins) && !body.logins.length ? [] : checkLogins(body));
+      if (typeof logins === 'number') return { status: logins };
+      const result = logins.length ? await saveAll(logins, name => { savedNames.add(name); onSaved(name); }, isOpen) : { saved: [], failed: [] };
+      if (!result) return { status: 503 };
+      const ready = pathname === '/continue' && !result.failed.length && savedNames.size > 0;
+      if (ready) terminal = true;
+      return { result, ready };
+    });
+    if (outcome.status) return reply(response, outcome.status);
+    if (outcome.cancelled) {
+      response.once('finish', () => onDone(false));
       return reply(response, 200, { ok: true });
     }
-    const body = await readBody(request);
-    const logins = typeof body === 'number' ? body : checkLogins(body);
-    if (typeof logins === 'number') return reply(response, logins);
-    const result = await serial(() => saveAll(logins, onSaved));
-    return result ? reply(response, 200, result) : reply(response, 503);
+    const receipt = outcome.ready ? await onContinue() : null;
+    reply(response, 200, { ...outcome.result, ...(pathname === '/continue' && { ready: outcome.ready, ...(receipt && { receipt }) }) });
   };
+  route.drain = () => queue;
+  route.abort = abortTools;
+  return route;
 }

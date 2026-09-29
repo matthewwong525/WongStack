@@ -112,8 +112,8 @@ function start() {
   let polling = null;
 
   const say = text => { status.textContent = text; };
-  const send = message => { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message)); };
-  const press = (step, modifiers) => keyEvents(step, modifiers).forEach(send);
+  const send = message => { if (socket?.readyState !== WebSocket.OPEN || closed) return false; socket.send(JSON.stringify(message)); return true; };
+  const press = (step, modifiers) => keyEvents(step, modifiers).every(send);
   const clearBox = () => { box.value = ''; typed = ''; };
 
   async function draw() {
@@ -138,7 +138,7 @@ function start() {
     box.disabled = true;
     clearInterval(polling);
     for (const control of form.elements) control.disabled = true;
-    say('This link has closed.');
+    say('Link closed; return to chat. Ask for a new link if needed.');
   }
 
   function connect() {
@@ -152,6 +152,13 @@ function start() {
       draw();
     };
     socket.onclose = async () => {
+      for (let attempt = 0; attempt < 30 && !closed; attempt++) {
+        const response = await fetch('receipt', { headers: { 'x-hand-over-key': key }, cache: 'no-store' }).catch(() => null);
+        const receipt = response?.status === 200 && await response.json().catch(() => null);
+        if (receipt) { giveUp(); say(receipt.notification === 'notified' ? 'Your assistant was notified. You can return to the chat.' : receipt.result === 'done' ? 'Finished; chat was not notified. Return to chat and say continue.' : 'Link closed; return to chat.'); return; }
+        if (response?.status !== 202 || !(await response.json().catch(() => null))?.finishing) break;
+        await new Promise(done => setTimeout(done, 200));
+      }
       if (closed) return;
       failures++;
       const up = await fetch('page.mjs', { cache: 'no-store' }).then(response => response.ok, () => false);
@@ -248,6 +255,10 @@ function start() {
   const sentText = new Map();
   let focusedRef = null;
   let signature = null;
+  let revision = null;
+  let submitting = false;
+  const failedFields = new Set();
+  const fieldPlaces = new Map();
   let listEmpty = true;
   let queue = Promise.resolve();
   const later = job => { queue = queue.then(job).catch(() => {}); };
@@ -264,17 +275,20 @@ function start() {
     for (let tries = 0; tries < 2; tries++) {
       const response = await call(path, body);
       if (response?.ok) {
+        failedFields.delete(body.ref);
         showMiss(body.ref, false);
         return true;
       }
       if (response?.status !== 409) break;
       await refresh();
     }
+    failedFields.add(body.ref);
     showMiss(body.ref, true);
     return false;
   }
 
   const syncBox = (input, ref) => later(async () => {
+    if (closed || socket?.readyState !== WebSocket.OPEN) { failedFields.add(ref); return; }
     const now = input.value;
     const plan = sendPlan(sentText.get(ref) ?? '', now, focusedRef === ref);
     if (plan.focus) {
@@ -282,8 +296,9 @@ function start() {
       if (!(await act('focus', { ref }))) return;
       focusedRef = ref;
     }
-    plan.keys.forEach(text => press({ text }));
+    if (!plan.keys.every(text => press({ text }))) { failedFields.add(ref); return; }
     sentText.set(ref, now);
+    failedFields.delete(ref);
   });
   const pick = (path, body) => later(async () => {
     focusedRef = null;
@@ -337,21 +352,66 @@ function start() {
 
   /** Redraws the list when its signature changes; the next edit in a box retypes it whole. */
   function drawFields(list) {
+    if (submitting || closed) return;
+    revision = list.revision;
     if (list.signature === signature) return;
     signature = list.signature;
     // A row is known by its kind, label, and which of that pair it is: a new field shifts the refs.
     const old = new Map(Array.from(form.elements, control => [control.dataset.place, control]));
     const active = form.contains(document.activeElement) ? document.activeElement.dataset.place : null;
     const count = new Map();
-    form.replaceChildren(...list.fields.flatMap(field => {
-      const pair = `${field.kind}|${field.label}`;
-      count.set(pair, (count.get(pair) ?? 0) + 1);
-      return fieldRow(field, `${pair}|${count.get(pair)}`, old);
-    }));
+    const failedPlaces = new Set([...failedFields].map(ref => fieldPlaces.get(ref)));
+    failedFields.clear();
+    fieldPlaces.clear();
+    const children = [];
+    const forms = [...new Set([...list.fields.map(field => field.form), ...(list.actions ?? []).map(action => action.form)])];
+    for (const formId of forms) {
+      for (const field of list.fields.filter(field => field.form === formId)) {
+        const pair = `${field.kind}|${field.label}`;
+        count.set(pair, (count.get(pair) ?? 0) + 1);
+        const place = `${pair}|${count.get(pair)}`;
+        fieldPlaces.set(field.ref, place);
+        if (failedPlaces.has(place)) failedFields.add(field.ref);
+        children.push(...fieldRow(field, place, old));
+      }
+      const group = Object.assign(document.createElement('div'), { className: 'actions' });
+      for (const action of (list.actions ?? []).filter(action => action.form === formId)) {
+        const button = Object.assign(document.createElement('button'), { type: 'button', textContent: action.label, disabled: action.disabled || submitting });
+        button.dataset.submit = 'true';
+        button.dataset.disabled = String(Boolean(action.disabled));
+        const actionRevision = revision;
+        button.addEventListener('click', async () => {
+          if (submitting || closed || action.disabled) return;
+          submitting = true;
+          for (const control of form.elements) control.disabled = true;
+          try {
+            // Include autofill/change events and immediately typed final characters before resolving.
+            for (const input of form.querySelectorAll('input:not([type=checkbox])')) if (sentText.get(Number(input.id.slice(2))) !== input.value) syncBox(input, Number(input.id.slice(2)));
+            await queue;
+            if (closed || failedFields.size || socket?.readyState !== WebSocket.OPEN) throw new Error('unavailable');
+            const response = await call('action', { ref: action.ref, revision: actionRevision });
+            const point = response?.ok && await response.json();
+            if (!point || closed || socket?.readyState !== WebSocket.OPEN) throw new Error('stale');
+            click(point);
+            focusedRef = null;
+            say('Sent. Continue on the next page if it asks for more.');
+          } catch { if (!closed) say('Tap the button on the page. This action was not resent.'); }
+          finally {
+            submitting = false;
+            for (const control of form.elements) control.disabled = closed || control.dataset.disabled === 'true';
+            await refresh();
+          }
+        });
+        group.append(button);
+      }
+      if (group.children.length) children.push(group);
+    }
+    children.push(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'For a button not listed here, tap the button on the page.' }));
+    form.replaceChildren(...children);
     sentText.clear();
     focusedRef = null;
     if (active) Array.from(form.elements).find(control => control.dataset.place === active)?.focus({ preventScroll: true });
-    const empty = !list.fields.length;
+    const empty = !list.fields.length && !(list.actions ?? []).length;
     form.hidden = empty;
     otherHint.textContent = HINTS[empty ? 'none' : 'some'];
     if (empty !== listEmpty) other.open = empty;
@@ -359,7 +419,7 @@ function start() {
   }
 
   async function refresh() {
-    if (closed) return;
+    if (closed || submitting) return;
     const response = await call('fields');
     const list = response?.ok && await response.json().catch(() => null);
     if (list) drawFields(list);
@@ -379,6 +439,7 @@ function start() {
     resizing = setTimeout(fit, RESIZE_WAIT_MS);
   });
 
+  form.addEventListener('submit', event => event.preventDefault());
   if (!key) return giveUp();
   say('Connecting…');
   fit();
