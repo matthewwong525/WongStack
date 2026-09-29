@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Save your passwords for the agent's browser
+## 27.2.0 — Save your passwords for the agent's browser
 
 - **The agent logs in for you.** When a site logs you out and you saved a login for it, the agent fills it in and carries on, with no link to open. If the login fails, or the site asks for a code sent to you, it hands you the browser as before. With two saved accounts for one site, it asks you which to use.
 - **A private link to save logins.** Say *save my passwords* or *add my Netflix login*, and the agent sends a private link like the hand-over link. It closes when you tap *Done*, or after 10 minutes.

@@ -6,7 +6,7 @@
 - [x] 1.2 Write `passwords.mjs`: the keyed `POST /save` and `POST /done`, the name choice (`slug(host)`, reuse on the same host and username, `-2` for a second account), the limits (500 logins, 256 KB, 1,024 characters a field), and `auth save` through `execFile` with the password on stdin. Verify with tests using a fake `agent-browser` on `PATH`: a wrong key gets 403, the password reaches only stdin and never argv or the log, an over-limit body is refused, a repeat replaces, and a second account gets `-2`.
 - [x] 1.3 Record the saved names: `teardown` writes `saved` to `result.json`, and `wait` prints `HANDOVER_SAVED=`. Verify with a test that `wait` prints the names and nothing else from the request.
 - [x] 1.4 Write `passwords-page.html` and `passwords-page.mjs`: the start screen, the file reading with an exported `parseExport`, the tick list with search and none ticked, the add-one form with `autocomplete` marks, the saved screen, and the unreadable-file and failed-save states, mirroring the hand-over page. Verify with `parseExport` tests on sample exports from Chrome, Apple Passwords, LastPass, Bitwarden, 1Password, Dashlane, and Firefox, plus quoted commas, a newline inside quotes, a BOM, an `android://` row, and a non-export file.
-- [ ] 1.5 Add `hand-over.mjs`'s new flag to `scripts/tests/cli-conventions.test.mjs` if its conventions list needs it, and verify the test suite passes in CI with `/save`.
+- [x] 1.5 Add `hand-over.mjs`'s new flag to `scripts/tests/cli-conventions.test.mjs` if its conventions list needs it, and verify the test suite passes in CI with `/save`.
 
 ## 2. Docs
 
@@ -16,5 +16,5 @@
 
 ## 3. Integration
 
-- [ ] 3.1 Run `openspec validate saved-passwords --strict --no-interactive` and `node scripts/measure-context.mjs --check`, and pass CI through `/save`.
+- [x] 3.1 Run `openspec validate saved-passwords --strict --no-interactive` and `node scripts/measure-context.mjs --check`, and pass CI through `/save`.
 - [x] 3.2 Try a real password link on a phone, with the add-one form filled from saved passwords, then a task that logs in with the saved login. Record the result, or a memory `thread` fact if it can't be tried before publishing. Recorded as a memory thread on 2026-09-29; a local phone-size walk with a fake store passed.

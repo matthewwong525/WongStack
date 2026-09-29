@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · saved-passwords</title>
+<title>Review · 2026-09-29-saved-passwords</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="saved-passwords">
+<body data-change="2026-09-29-saved-passwords">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>saved-passwords</h1>
+  <h1>2026-09-29-saved-passwords</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -191,6 +191,8 @@
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: a minor release, because it adds a feature and breaks nothing.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: <code>POST /save</code> reports failed logins by their place in the request, and the page skips rows the server would refuse, because the page must name the failed sites and keep them ticked.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: after the phone-sized hand-over shipped first, closing a password link skips its page resize, because a password link never touched the browser, and the deadline test got a 3-second limit instead of 0.6, because the shorter one could expire before the page started.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-29</p>Assumed: tasks 1.5 and 3.1 are done, because CI passed on PR #200 with no edit to the CLI conventions test, which already lists <code>hand-over.mjs</code>.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-09-29</p>Archive checkpoint: archived with its tasks complete, released as 27.2.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

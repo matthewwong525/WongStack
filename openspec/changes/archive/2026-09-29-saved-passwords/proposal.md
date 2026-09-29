@@ -1,6 +1,6 @@
 # Save your passwords for the agent's browser
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** agent-password-autofill
 **Open questions:** none
 
@@ -122,3 +122,5 @@ None.
 - **2026-09-29** — Assumed: a minor release, because it adds a feature and breaks nothing.
 - **2026-09-29** — Assumed: `POST /save` reports failed logins by their place in the request, and the page skips rows the server would refuse, because the page must name the failed sites and keep them ticked.
 - **2026-09-29** — Assumed: after the phone-sized hand-over shipped first, closing a password link skips its page resize, because a password link never touched the browser, and the deadline test got a 3-second limit instead of 0.6, because the shorter one could expire before the page started.
+- **2026-09-29** — Assumed: tasks 1.5 and 3.1 are done, because CI passed on PR #200 with no edit to the CLI conventions test, which already lists `hand-over.mjs`.
+- **2026-09-29** — Archive checkpoint: archived with its tasks complete, released as 27.2.0.
