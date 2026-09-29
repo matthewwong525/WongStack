@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PIN_FILES } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
 // server/setup.sh. A host embeds the script in first-boot data, so its size
 // is part of the contract in server/README.md.
@@ -21,18 +22,14 @@ test('the script parses as bash', () => {
   assert.equal(run.status, 0, run.stderr);
 });
 
-// Every place that names the OpenSpec version moves together; CI's pin is the reference.
-const PINS = [
-  'server/setup.sh',
-  '.agents/skills/save/references/preconditions.md',
-  '.github/CONTRIBUTING.md',
-];
-
+// Every place that names the OpenSpec version moves together; CI's pin, the first, is the reference.
 test('every OpenSpec pin matches the version CI checks the skills against', () => {
   const pinned = file => readFileSync(resolve(repo, file), 'utf8').match(/@fission-ai\/openspec@([\w.-]+)/)?.[1];
-  const ci = pinned('.github/workflows/payload.yml');
+  const [reference, ...pins] = PIN_FILES;
+  assert.equal(reference, '.github/workflows/payload.yml');
+  const ci = pinned(reference);
   assert.ok(ci, '.github/workflows/payload.yml installs an unpinned OpenSpec');
-  for (const file of PINS) {
+  for (const file of pins) {
     const pin = pinned(file);
     assert.ok(pin, `${file} names no pinned OpenSpec version`);
     assert.equal(pin, ci, `${file} pins OpenSpec ${pin}, but .github/workflows/payload.yml pins ${ci}`);

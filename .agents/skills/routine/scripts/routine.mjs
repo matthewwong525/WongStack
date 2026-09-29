@@ -16,9 +16,10 @@
 
 import { realpathSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
-import { EXIT, PaseoError as RoutineError, findPaseo as findPaseoBin, paseo } from './lib/paseo.mjs';
+import { EXIT, PaseoError as RoutineError, findPaseo as findPaseoBin, paseo, parseCommand } from './lib/paseo.mjs';
 const USAGE = `usage: routine.mjs create --cron <expr> --prompt <text> --agent claude|codex
                           [--name <n>] [--timezone <iana>] [--model <m>] [--dry-run]
        routine.mjs ls
@@ -247,24 +248,6 @@ async function createThroughClient(bin, request) {
 // ---------------------------------------------------------------------------
 // Commands
 
-function parseArgs(argv) {
-  const [command, ...rest] = argv;
-  const flags = {};
-  const positional = [];
-  for (let i = 0; i < rest.length; i++) {
-    const a = rest[i];
-    if (a === '--dry-run') flags.dryRun = true;
-    else if (a.startsWith('--')) {
-      if (!VALUE_FLAGS.includes(a.slice(2))) throw new RoutineError(EXIT.input, `Unknown flag ${a}.`);
-      const value = rest[i + 1];
-      if (value === undefined) throw new RoutineError(EXIT.input, `${a} needs a value.`);
-      flags[a.slice(2)] = value;
-      i++;
-    } else positional.push(a);
-  }
-  return { command, flags, positional };
-}
-
 async function create(flags, env) {
   const primary = primaryWorktree();
   const timezone = flags.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -304,7 +287,9 @@ async function change(bin, routine, flags) {
 const ACTIONS = { pause: 'pause', resume: 'resume', run: 'run-once', logs: 'logs', delete: 'delete' };
 
 async function run(argv, env) {
-  const { command = 'ls', flags, positional } = parseArgs(argv);
+  const { command = 'ls', flags, positional } = parseCommand(argv, {
+    values: VALUE_FLAGS, booleans: { '--dry-run': 'dryRun' }, positional: true, unknown: arg => `Unknown flag ${arg}.`,
+  });
   if (command === 'create') return create(flags, env);
   if (command !== 'ls' && command !== 'change' && !ACTIONS[command]) {
     throw new RoutineError(EXIT.input, `Unknown command "${command}". Use create, ls, pause, resume, run, logs, change, or delete.`);
@@ -331,8 +316,4 @@ async function main(argv = process.argv.slice(2), env = process.env) {
   }
 }
 
-function isMain() {
-  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
-}
-
-if (isMain()) process.exitCode = await main();
+if (isMain(import.meta.url)) process.exitCode = await main();

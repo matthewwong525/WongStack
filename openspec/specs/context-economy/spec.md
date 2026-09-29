@@ -65,20 +65,6 @@ The meta-repo SHALL measure the words and bytes of the start-up load (the `WONG-
 - **WHEN** a change reports its before-and-after count
 - **THEN** the before is its own starting commit, so an earlier change's savings are not counted as its own
 
-### Requirement: Billed usage is measurable per task
-
-The meta-repo SHALL report billed cost per task (a main session plus its subagents) from local transcripts, by skill, model, and thread, counting each request once. A model with no known price SHALL be listed, not guessed. The report SHALL write no file and contact no service.
-
-#### Scenario: A request recorded in parts
-
-- **WHEN** several transcript records share one request id
-- **THEN** that request is counted once
-
-#### Scenario: An unknown model
-
-- **WHEN** a request names a model with no price
-- **THEN** the report lists the model and adds no invented cost
-
 ### Requirement: The memory digest stays bounded
 
 The session-start memory digest SHALL stay within the `memory` capability's limits and SHALL NOT restate a fact another surface owns; consolidation, not a larger limit, keeps it there.

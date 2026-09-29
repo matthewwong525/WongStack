@@ -319,6 +319,20 @@ test('preview refuses the default branch and uploads nothing', t => {
   assert.deepEqual(result.calls, []);
 });
 
+test('preview names the default branch by CF_PRODUCTION_BRANCH, else the remote\'s default', t => {
+  const root = miniRepo(t, { branch: 'trunk', stagingExists: true });
+  const env = { PATH: process.env.PATH, HOME: root, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
+  execFileSync('git', ['-C', root, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk'], { env });
+  const refused = preview(root, []);
+  assert.equal(refused.status, 1, refused.out);
+  assert.match(refused.out, /'trunk' is the default branch/);
+  assert.deepEqual(refused.calls, []);
+
+  const named = preview(root, [], { CF_PRODUCTION_BRANCH: 'main' });
+  assert.equal(named.status, 0, `the variable wins: ${named.out}`);
+  assert.equal(named.calls.at(-1), 'npx wrangler versions upload --preview-alias trunk');
+});
+
 test('preview with --alias uploads under that alias, even on the default branch', t => {
   const root = miniRepo(t, { branch: 'main', stagingExists: true });
   const result = preview(root, ['--alias', 'Mini/Tips']);
@@ -386,6 +400,7 @@ test('preview fails closed when staging points at production', t => {
   const sameWorker = preview(miniRepo(t, { config: mainConfig({ name: 'demo' }) }), []);
   assert.equal(sameWorker.status, 1, sameWorker.out);
   assert.match(sameWorker.out, /resolves to the production Worker 'demo'/);
+  assert.match(sameWorker.out, /env\.staging needs its own "name"[\s\S]*CLOUDFLARE_ENV=staging/, 'both fixes');
   assert.deepEqual(sameWorker.calls, []);
 
   const sameDb = mainConfig({ d1_databases: [{ binding: 'DB', database_name: 'demo-db', database_id: 'x' }] });

@@ -15,11 +15,12 @@
 //
 // Node built-ins only. PRESETS_PASEO_BIN overrides the `paseo` found on PATH.
 
-import { accessSync, constants, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync, chmodSync } from 'node:fs';
+import { accessSync, constants, readFileSync, renameSync, rmSync, statSync, writeFileSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EXIT, PaseoError, findPaseo, runPaseo } from './lib/paseo.mjs';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { EXIT, PaseoError, findPaseo, parseCommand, runPaseo } from './lib/paseo.mjs';
 
 const USAGE = 'usage: presets.mjs add [--dry-run] [--home <paseo home>]';
 const PRESETS = fileURLToPath(new URL('paseo-presets.json', import.meta.url));
@@ -109,19 +110,6 @@ function writeAtomic(file, text) {
 // ---------------------------------------------------------------------------
 // Command
 
-function parseArgs(argv) {
-  const [command, ...rest] = argv;
-  const flags = {};
-  for (let i = 0; i < rest.length; i++) {
-    const a = rest[i];
-    if (a === '--dry-run') { flags.dryRun = true; continue; }
-    if (a !== '--home') throw new PaseoError(EXIT.input, `Unknown argument ${a}.`);
-    if (rest[i + 1] === undefined) throw new PaseoError(EXIT.input, '--home needs a value.');
-    flags.home = rest[++i];
-  }
-  return { command, flags };
-}
-
 async function add(flags, env) {
   const bin = findPaseo(env, 'PRESETS_PASEO_BIN');
   const home = paseoHome(flags, env);
@@ -150,7 +138,7 @@ async function add(flags, env) {
 async function main(argv = process.argv.slice(2), env = process.env) {
   if (argv.length === 0 || argv.includes('--help')) { process.stdout.write(`${USAGE}\n`); return EXIT.ok; }
   try {
-    const { command, flags } = parseArgs(argv);
+    const { command, flags } = parseCommand(argv, { values: ['home'], booleans: { '--dry-run': 'dryRun' }, unknown: arg => `Unknown argument ${arg}.` });
     if (command !== 'add') throw new PaseoError(EXIT.input, `Unknown command "${command}". Use add.`);
     process.stdout.write(`${JSON.stringify(await add(flags, env), null, 2)}\n`);
     return EXIT.ok;
@@ -161,8 +149,4 @@ async function main(argv = process.argv.slice(2), env = process.env) {
   }
 }
 
-function isMain() {
-  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
-}
-
-if (isMain()) process.exitCode = await main();
+if (isMain(import.meta.url)) process.exitCode = await main();

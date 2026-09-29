@@ -39,8 +39,9 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
-import { EXIT, PaseoError, findPaseo, paseo } from './lib/paseo.mjs';
+import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand } from './lib/paseo.mjs';
 
 const USAGE = `usage: tidy.mjs scratch [--dry-run]         make .scratch/ here and print its path
        tidy.mjs close [--discard] [--dry-run] close this workspace once this reply ends;
@@ -170,10 +171,6 @@ export function reportLine(report) {
 
 // ---------------------------------------------------------------------------
 // Git, files, and processes
-
-function git(cwd, ...args) {
-  return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trimEnd();
-}
 
 function tryGit(cwd, ...args) {
   try { return git(cwd, ...args); } catch { return null; }
@@ -567,15 +564,12 @@ async function sweep({ dryRun, report: printReport }, env) {
   }
 }
 
+// Flags only one command takes.
+const COMMAND_FLAGS = { close: { '--discard': 'discard' }, sweep: { '--report': 'report' } };
+
 function parseArgs(argv) {
-  const [command, ...rest] = argv;
-  const flags = {};
-  for (const arg of rest) {
-    if (arg === '--dry-run') flags.dryRun = true;
-    else if (arg === '--discard' && command === 'close') flags.discard = true;
-    else if (arg === '--report' && command === 'sweep') flags.report = true;
-    else throw new PaseoError(EXIT.input, `Unknown argument ${arg}.\n${USAGE}`);
-  }
+  const booleans = { '--dry-run': 'dryRun', ...(Object.hasOwn(COMMAND_FLAGS, argv[0]) ? COMMAND_FLAGS[argv[0]] : {}) };
+  const { command, flags } = parseCommand(argv, { booleans, unknown: arg => `Unknown argument ${arg}.\n${USAGE}` });
   if (!COMMANDS.includes(command)) throw new PaseoError(EXIT.input, `Unknown command "${command}". Use scratch, close, or sweep.`);
   return { command, flags };
 }
@@ -599,8 +593,4 @@ async function main(argv = process.argv.slice(2), env = process.env) {
   }
 }
 
-function isMain() {
-  try { return realpathSync(process.argv[1]) === realpathSync(SELF); } catch { return false; }
-}
-
-if (isMain()) process.exitCode = await main();
+if (isMain(import.meta.url)) process.exitCode = await main();

@@ -42,13 +42,14 @@
 
 import { execFile, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { connect, createServer as createTcpServer } from 'node:net';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
 
 const USAGE = `usage: hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
@@ -635,8 +636,7 @@ function parse(args) {
   return { command, values: { ...parsed.values, minutes } };
 }
 
-const isMain = () => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } };
-if (isMain()) {
+if (isMain(import.meta.url)) {
   const { command, values } = parse(process.argv.slice(2));
   const run = { open: () => open(values), watch, wait, close }[command];
   process.exitCode = await run();

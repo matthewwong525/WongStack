@@ -1,0 +1,64 @@
+# What does this change touch? The one "Check what the change touches" step that
+# test.yml, deploy.yml, and payload.yml share. It runs
+# .github/scripts/app-untouched.sh, which owns what each answer means, and maps
+# its five lines to outputs. The calling job checks out first, with
+# `fetch-depth: 0`: the comparison needs the whole branch, and a local action
+# loads only from a checkout.
+#
+# With `skip-when`, it also writes one line to the run page: `skipped-note`
+# when every `key=value` line in it matches the answer, else `ran-note`.
+
+name: Change scope
+description: Report which parts of the repo the change touches.
+
+inputs:
+  skip-when:
+    description: Newline-separated key=value answers that must all match for the skipped note.
+    required: false
+    default: ''
+  skipped-note:
+    description: The run-page line when every skip-when answer matches.
+    required: false
+    default: ''
+  ran-note:
+    description: The run-page line otherwise.
+    required: false
+    default: ''
+
+outputs:
+  untouched:
+    description: true only when every changed path is docs or a mini app.
+    value: ${{ steps.scope.outputs.untouched }}
+  mini_apps:
+    description: The mini apps the change touches, space-separated.
+    value: ${{ steps.scope.outputs.mini_apps }}
+  mini_changed:
+    description: Whether any mini app changed.
+    value: ${{ steps.scope.outputs.mini_changed }}
+  docs_only:
+    description: true only when every changed path is under wiki/ or openspec/.
+    value: ${{ steps.scope.outputs.docs_only }}
+  base:
+    description: The commit the change is compared with, or empty.
+    value: ${{ steps.scope.outputs.base }}
+
+runs:
+  using: composite
+  steps:
+    - id: scope
+      shell: bash
+      env:
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        BEFORE_SHA: ${{ github.event.before }}
+        SKIP_WHEN: ${{ inputs.skip-when }}
+        SKIPPED_NOTE: ${{ inputs.skipped-note }}
+        RAN_NOTE: ${{ inputs.ran-note }}
+      run: |
+        SCOPE=$(bash "$GITHUB_WORKSPACE/.github/scripts/app-untouched.sh")
+        echo "$SCOPE" | tee -a "$GITHUB_OUTPUT"
+        [ -n "$SKIP_WHEN" ] || exit 0
+        NOTE=$SKIPPED_NOTE
+        while IFS= read -r PAIR; do
+          if [ -n "$PAIR" ] && ! grep -qxF "$PAIR" <<< "$SCOPE"; then NOTE=$RAN_NOTE; fi
+        done <<< "$SKIP_WHEN"
+        if [ -n "$NOTE" ]; then echo "$NOTE" >> "$GITHUB_STEP_SUMMARY"; fi

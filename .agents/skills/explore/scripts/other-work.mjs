@@ -19,7 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
 import { EXIT, findPaseo, paseo } from '../../routine/scripts/lib/paseo.mjs';
 
@@ -260,8 +260,4 @@ async function main(argv = process.argv.slice(2), env = process.env) {
   }
 }
 
-function isMain() {
-  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
-}
-
-if (isMain()) process.exitCode = await main();
+if (isMain(import.meta.url)) process.exitCode = await main();

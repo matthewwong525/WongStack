@@ -10,8 +10,8 @@ import {
   realpathSync,
 } from 'node:fs';
 import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 const SCHEMA_VERSION = 1;
 const DEFAULT_MAX_CHANGES = 10_000;
@@ -610,18 +610,9 @@ function errorReport(error, started) {
   };
 }
 
-function isDirectRun() {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
-  }
-}
-
-if (isDirectRun() && process.argv.includes('--help')) {
+if (isMain(import.meta.url) && process.argv.includes('--help')) {
   process.stdout.write(`${USAGE}\n`);
-} else if (isDirectRun()) {
+} else if (isMain(import.meta.url)) {
   const started = performance.now();
   try {
     const options = parseArgs(process.argv.slice(2));

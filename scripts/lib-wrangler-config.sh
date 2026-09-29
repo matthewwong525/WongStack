@@ -8,43 +8,29 @@
 # identically or a build and its deploy would target different apps. One copy of
 # each rule, sourced by all three.
 #
-# The .mjs scripts get the same rule from `lib-wrangler-config.mjs`; keep the
-# two in step if the resolution order ever changes. Reading the config itself
-# goes through that module's parser (wong_config below).
+# Finding and reading the config both go through `lib-wrangler-config.mjs`, the
+# module the .mjs scripts use, so the two can not disagree.
 #
 # Sourced, never executed:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib-wrangler-config.sh"
 #
 # Sets: WRANGLER_CONFIG, APP_DIR, BUILD_DIR (see wong_resolve_wrangler_config);
-# BRANCH, PRODUCTION_BRANCH (see wong_ci_branch).
+# BRANCH, PRODUCTION_BRANCH (see wong_ci_branch); STAGING_ENV (see
+# wong_staging_env_args); PROD_NAME, STAGING_NAME (see
+# wong_refuse_production_worker).
 
 _WONG_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Find the wrangler config: repo root first, then each immediate subdirectory.
-# Keeps every repo's copy identical whether the Worker sits at the repo root or
-# in an `app/` subdirectory.
+# Find the wrangler config: repo root first, then each immediate subdirectory,
+# through `lib-wrangler-config.mjs config-path`. Keeps every repo's copy
+# identical whether the Worker sits at the repo root or in an `app/` subdirectory.
 #
 # Usage: wong_resolve_wrangler_config <repo-root>
 wong_resolve_wrangler_config() {
   local root="$1"
-  local dir base name
 
-  WRANGLER_CONFIG=""
-  for name in wrangler.jsonc wrangler.json wrangler.toml; do
-    if [ -f "$root/$name" ]; then WRANGLER_CONFIG="$root/$name"; break; fi
-  done
-  if [ -z "$WRANGLER_CONFIG" ]; then
-    for dir in "$root"/*/; do
-      base=$(basename "$dir")
-      # Skip node_modules and dotted directories — match on the basename only,
-      # since the repo's own absolute path may contain a dotted component.
-      case "$base" in node_modules|.*) continue ;; esac
-      for name in wrangler.jsonc wrangler.json wrangler.toml; do
-        if [ -f "$dir$name" ]; then WRANGLER_CONFIG="$dir$name"; break 2; fi
-      done
-    done
-  fi
-  if [ -z "$WRANGLER_CONFIG" ]; then
+  if ! WRANGLER_CONFIG=$(node "$_WONG_LIB_DIR/lib-wrangler-config.mjs" config-path); then
+    WRANGLER_CONFIG=""
     # An unprovisioned repo is the expected state right after setup: the pack is
     # adopted before it is configured. Name the remedy — the file this is looking
     # for means nothing to whoever reads the CI log. Exit status is unchanged.
@@ -85,15 +71,79 @@ wong_config() {
   WRANGLER_CONFIG="$WRANGLER_CONFIG" node "$_WONG_LIB_DIR/lib-wrangler-config.mjs" "$@"
 }
 
+# The production branch, by one rule for every pack script: CF_PRODUCTION_BRANCH
+# when set, else the remote's default branch when Git knows it, else `main`.
+#
+# Usage: wong_production_branch <repo-root>
+wong_production_branch() {
+  local head
+  if [ -n "${CF_PRODUCTION_BRANCH:-}" ]; then
+    printf '%s\n' "$CF_PRODUCTION_BRANCH"
+    return 0
+  fi
+  head=$(git -C "$1" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)
+  head="${head#origin/}"
+  printf '%s\n' "${head:-main}"
+}
+
 # The branch in CI. `CF_BRANCH` is the CI-neutral name the pack's GitHub Actions
 # workflow sets; `WORKERS_CI_BRANCH` is what Cloudflare Workers Builds sets on
 # its own. Either backend works, and a repo can run both while it migrates.
-# BRANCH is empty outside CI. The production branch defaults to `main`.
+# BRANCH is empty outside CI. PRODUCTION_BRANCH follows wong_production_branch.
 #
-# Usage: wong_ci_branch
+# Usage: wong_ci_branch <repo-root>
 wong_ci_branch() {
   BRANCH="${CF_BRANCH:-${WORKERS_CI_BRANCH:-}}"
-  PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-main}"
+  PRODUCTION_BRANCH=$(wong_production_branch "$1")
+}
+
+# The environment flag for every staging wrangler call, built once so the calls
+# can not drift apart: `--env staging`, unless the build already chose it.
+#
+# @cloudflare/vite-plugin flattens the selected environment into a generated
+# `dist/**/wrangler.json` and writes `.wrangler/deploy/config.json` to redirect
+# wrangler at it. From that point the environment is BAKED IN, and Cloudflare's
+# docs state plainly that `--env` on `wrangler deploy` "will have no effect".
+#
+# Passing `--env staging` anyway is not merely redundant — it reads as though
+# isolation is happening when it isn't. `cf-build.sh` sets `CLOUDFLARE_ENV` so
+# the generated config *is* staging; the flag must not re-specify it.
+#
+# The redirect file is the signal, so this works for both layouts: a plain
+# wrangler build has no redirect and still needs the flag. Expand it as
+# ${STAGING_ENV[@]+"${STAGING_ENV[@]}"}: an empty array is unset to older bash.
+#
+# Usage: wong_staging_env_args   (after wong_resolve_wrangler_config)
+wong_staging_env_args() {
+  STAGING_ENV=(--env staging)
+  if [ -f "$APP_DIR/.wrangler/deploy/config.json" ]; then
+    STAGING_ENV=()
+  fi
+}
+
+# Fail closed: refuse when the staging Worker wrangler will use is production's.
+#
+# `wong_config worker-name staging` reads the name wrangler resolves — the
+# generated config when the build redirected, the source config otherwise. If
+# it equals production's, the staging environment did not take effect and a
+# deploy or upload would overwrite production. Sets PROD_NAME and STAGING_NAME;
+# on a match prints why under `<prefix>:` and returns 1. A config the parser can
+# not read returns 1 too, after the parser's own message.
+#
+# Usage: wong_refuse_production_worker <prefix>   (after wong_resolve_wrangler_config)
+wong_refuse_production_worker() {
+  local p="$1"
+  PROD_NAME=$(wong_config worker-name) || return 1
+  STAGING_NAME=$(wong_config worker-name staging) || return 1
+  [ "$STAGING_NAME" != "$PROD_NAME" ] && return 0
+  {
+    echo "$p: ERROR — the staging environment resolves to the production Worker '$PROD_NAME'."
+    echo "$p: Deploying or uploading would overwrite production. Fix one of these in $WRANGLER_CONFIG:"
+    echo "$p:   • env.staging needs its own \"name\" (e.g. \"$PROD_NAME-staging\")"
+    echo "$p:   • the build must select it — cf-build.sh exports CLOUDFLARE_ENV=staging"
+    echo "$p:     for @cloudflare/vite-plugin builds"
+  } >&2
+  return 1
 }
 
 # The preview alias for a branch or a name. An alias must be lowercase

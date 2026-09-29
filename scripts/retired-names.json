@@ -46,5 +46,6 @@
   {"name": "#recovery-never-hand-apply-schema-to-production", "replacement": "`wiki/stack/d1-recovery.md#never-hand-apply-schema-to-production`"},
   {"name": "#recovery-production-schema-drifted-from-d1_migrations", "replacement": "`wiki/stack/d1-recovery.md#production-schema-drifted-from-d1_migrations`"},
   {"name": "development/adding-a-skill.md", "replacement": "`wiki/maintaining/adding-a-skill.md`"},
-  {"name": "development/repo-layout.md", "replacement": "`wiki/maintaining/repo-layout.md`"}
+  {"name": "development/repo-layout.md", "replacement": "`wiki/maintaining/repo-layout.md`"},
+  {"name": "measure-usage.mjs", "replacement": "nothing: the billed-usage report is removed; recover it from Git history if needed"}
 ]

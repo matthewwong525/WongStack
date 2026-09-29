@@ -202,11 +202,6 @@ export function stagingDatabase(config) {
   return name;
 }
 
-/** `databaseName` read straight from a config file. */
-export function readDatabaseName(configPath, env) {
-  return databaseName(parseConfig(configPath), env);
-}
-
 /**
  * The Worker name wrangler will actually deploy.
  *
@@ -251,13 +246,17 @@ export function assetsDirectory(configPath) {
   return resolve(dirname(from), directory);
 }
 
-/* ── CLI: `node lib-wrangler-config.mjs <worker-name|database-name|staging-database|has-d1|assets-dir> [env]` ──
- * Reads the config named by $WRANGLER_CONFIG, else the one found from the repo
- * root. Prints the answer; on a config error prints it and exits 1. */
+/* ── CLI: `node lib-wrangler-config.mjs <config-path|worker-name|database-name|staging-database|has-d1|assets-dir> [env]` ──
+ * `config-path` prints the config found from the repo root, or exits 3 when
+ * there is none; `lib-wrangler-config.sh` finds it through this one lookup.
+ * Every other answer reads the config named by $WRANGLER_CONFIG, else the one
+ * found from the repo root. Prints the answer; on a config error prints it and
+ * exits 1. */
 
 const COMMANDS = {
+  "config-path": () => findWranglerConfigOrNull() ?? process.exit(3),
   "worker-name": (path, env) => deployedWorkerName(path, env),
-  "database-name": (path, env) => readDatabaseName(path, env),
+  "database-name": (path, env) => databaseName(parseConfig(path), env),
   "staging-database": (path) => stagingDatabase(parseConfig(path)) ?? "",
   "has-d1": (path, env) => String(hasD1(parseConfig(path), env)),
   "assets-dir": (path) => assetsDirectory(path),
@@ -267,8 +266,8 @@ if (isMain(import.meta.url)) {
   const usage = `usage: node lib-wrangler-config.mjs <${Object.keys(COMMANDS).join("|")}> [env]`;
   const [command, env, ...extra] = parseCli({ usage, allowPositionals: true }).positionals;
   const run = COMMANDS[command];
-  if (!run || extra.length) usageError(usage);
-  const configPath = process.env.WRANGLER_CONFIG || findWranglerConfig();
+  if (!run || extra.length || (command === "config-path" && env)) usageError(usage);
+  const configPath = command === "config-path" ? null : process.env.WRANGLER_CONFIG || findWranglerConfig();
   try {
     console.log(run(configPath, env));
   } catch (error) {

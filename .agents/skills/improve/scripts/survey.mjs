@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 const LIMIT = 20;
 const MAX_BYTES = 1024 * 1024;
@@ -281,18 +281,9 @@ export function survey(directory = process.cwd(), area = '.', options = {}) {
   };
 }
 
-function isDirectEntry() {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return false;
-  }
-}
-
 const USAGE = 'usage: node survey.mjs [literal-area-path]';
 
-if (isDirectEntry()) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   if (args[0] === '--help') { console.log(USAGE); process.exit(0); }
   if (args.length > 1 || args[0]?.startsWith('-')) { console.error(USAGE); process.exit(2); }

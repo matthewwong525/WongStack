@@ -65,9 +65,7 @@ if $HAVE_ALIAS; then
 else
   BRANCH=$(git -C "$ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null) \
     || fail "not on a branch — check out a branch, or pass --alias <name>"
-  ORIGIN_HEAD=$(git -C "$ROOT" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)
-  PRODUCTION_BRANCH="${CF_PRODUCTION_BRANCH:-${ORIGIN_HEAD#origin/}}"
-  PRODUCTION_BRANCH="${PRODUCTION_BRANCH:-main}"
+  PRODUCTION_BRANCH=$(wong_production_branch "$ROOT")
   if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
     fail "'$BRANCH' is the default branch — preview from a branch, or pass --alias <name>; nothing uploaded"
   fi
@@ -78,21 +76,13 @@ fi
 # ── The config, and the guards that run before any wrangler call ─────────────
 wong_resolve_wrangler_config "$ROOT" 2>/dev/null || not_here "this repo is not set up for Cloudflare yet"
 
-# Each read is an assignment, so a config the parser refuses stops here. The
-# source config decides, so drop any redirect an earlier build left behind.
+# The source config decides, so drop any redirect an earlier build left behind.
+# The guard reads both Worker names; a config the parser refuses stops here.
 rm -f "$APP_DIR/.wrangler/deploy/config.json"
-PROD_NAME=$(wong_config worker-name)
-STAGING_NAME=$(wong_config worker-name staging)
+wong_refuse_production_worker cf-preview
 case "$PROD_NAME $STAGING_NAME" in
   *'<'*|*'>'*) not_here "the wrangler config still holds <placeholders>; run /wong-sync to plan provisioning" ;;
 esac
-
-if [ "$STAGING_NAME" = "$PROD_NAME" ]; then
-  echo "cf-preview: ERROR — the staging environment resolves to the production Worker '$PROD_NAME'." >&2
-  echo "cf-preview: Uploading would overwrite production. Give env.staging its own \"name\"" >&2
-  echo "cf-preview: (e.g. \"$PROD_NAME-staging\") in $WRANGLER_CONFIG." >&2
-  exit 1
-fi
 
 # The alias shares one URL label with the staging Worker's name; cut it to fit.
 ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
@@ -120,10 +110,7 @@ fi
 say "building the app for staging"
 CLOUDFLARE_ENV=staging bash "$SCRIPT_DIR/cf-build.sh"
 
-STAGING_ENV=(--env staging)
-if [ -f "$APP_DIR/.wrangler/deploy/config.json" ]; then
-  STAGING_ENV=()
-fi
+wong_staging_env_args
 BUILT_NAME=$(wong_config worker-name staging)
 [ "$BUILT_NAME" != "$PROD_NAME" ] \
   || fail "the build produced the production Worker's config ('$PROD_NAME'); nothing uploaded"

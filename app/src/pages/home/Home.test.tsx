@@ -21,7 +21,7 @@ const apps = [
 ];
 
 it("lists each mini app with its title, description, and link", async () => {
-  let finish = (_: unknown) => {};
+  let finish: (value: unknown) => void = () => {};
   const fetchMock = serve({ ok: true, json: () => new Promise((resolve) => (finish = resolve)) });
 
   await act(async () => {

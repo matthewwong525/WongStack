@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.3.0 — Tidy the shared helpers, checks, and test fakes
+
+- **One copy of each shared piece.** Code about fifteen scripts repeated now lives in one place: the memory skill's `scripts/lib/cli.mjs`, and the routine skill's `scripts/lib/paseo.mjs`. Nothing you see changes; a later fix lands once.
+- **One set of safety checks before a test upload.** The checks that stop a test copy of your app from overwriting the live one now run from one shared place, so the two upload paths can't disagree. A failed upload now keeps its full error in the log.
+- **One answer to "which branch is live".** Every upload script now picks your live branch the same way: the one you set, else the default branch your code host names, else `main`.
+- **Less repetition in the automatic checks.** The step that works out what a change touched is written once, in `.github/actions/change-scope/`, and shared by the three check runs.
+- **Warnings in your app's code now fail its checks**, as they already do for WongStack's own code.
+- **Unused code removed:** the usage-cost report nothing ran, and parts of three scripts that nothing called.
+
+**Updating.** Your app's checks now fail on a lint warning, not only on an error. If the first check run after this update goes red, fix each warning it names.
+
 ## 27.2.2 — The deploy page names the test database's id rule
 
 - **Why a test database needs its own id, written down.** The deploy page's table of test-copy resources now says the test database needs its own id as well as its own name, and that every test step stops when either matches the live database's. [Twin every stateful binding](wiki/stack/d1-pipeline.md#twin-every-stateful-binding) owns it.

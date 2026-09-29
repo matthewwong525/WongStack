@@ -5,6 +5,7 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, wr
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { d1Query } from './d1.mjs';
 
 export const TOKEN = 'cf-user-secret-value';
 export const ACCOUNT = '0123456789abcdef0123456789abcdef';
@@ -31,8 +32,6 @@ export const startingPolicies = () => [
   { id: 'p1', effect: 'allow', resources: { 'com.cloudflare.api.user.u1': '*' }, permission_groups: [{ id: groupId('API Tokens Write') }] },
   { id: 'p2', effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: [{ id: groupId('Account API Tokens Write') }] },
 ];
-
-const run = (db, sql, params = []) => (params.length === 0 && /;\s*\S/.test(sql.trim().replace(/;\s*$/, '')) ? (db.exec(sql), []) : db.prepare(sql).all(...params));
 
 /**
  * The fake. `state` is live: tests read and change it between runs. `refuse` holds `METHOD /path`
@@ -100,17 +99,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
         return no(500, 7500, 'try again');
       }
       if (!sqlite.has(d1[1])) sqlite.set(d1[1], new DatabaseSync(':memory:'));
-      const db = sqlite.get(d1[1]);
-      const statements = body.batch || [body];
-      try {
-        db.exec('BEGIN');
-        const result = statements.map(({ sql, params }) => ({ success: true, results: run(db, sql, params || []).map((row) => ({ ...row })), meta: {} }));
-        db.exec('COMMIT');
-        return ok(result);
-      } catch (error) {
-        db.exec('ROLLBACK');
-        return no(400, 7500, error.message);
-      }
+      return d1Query(sqlite.get(d1[1]), body);
     }
     if (route === `GET ${account}/workers/scripts`) return ok(state.workers.map((id) => ({ id })));
     if (route === `GET ${account}/r2/buckets`) return state.r2 ? ok({ buckets: state.buckets.map((name) => ({ name })) }) : no(403, 10042, 'Please enable R2 through the Cloudflare Dashboard.');

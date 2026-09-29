@@ -3,12 +3,13 @@
 // the Cloudflare REST API. The requests are the same. The Worker's address comes from the main checkout, like
 // .env, so a branch that changes it can not send the key or a GitHub token anywhere else.
 import { execFileSync } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { ROLE_HEADER, TEAM_HEADER } from '../../worker/memory-worker.mjs';
 import { primaryRoot } from './primary-root.mjs';
+
+export { isMain } from './cli.mjs';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
 const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
@@ -35,8 +36,6 @@ export class StoreError extends Error {
   // A memory key past its expiry: `memory.mjs join` renews it.
   get expired() { return this.code === 'key_expired'; }
 }
-
-export const isMain = url => Boolean(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(url);
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const tryGit = (cwd, ...args) => { try { return git(cwd, ...args); } catch { return ''; } };

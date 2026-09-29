@@ -12,7 +12,8 @@
 # for the build.
 #
 # Behavior:
-#   - production branch (default `main`, override with CF_PRODUCTION_BRANCH)
+#   - production branch (CF_PRODUCTION_BRANCH, else the remote's default
+#     branch, else `main`: wong_production_branch)
 #       → `wrangler deploy`  — the production Worker.
 #   - any other branch
 #       → `wrangler deploy --env staging`
@@ -41,10 +42,11 @@
 #     `wrangler deploy` "will have no effect" once that redirect exists.
 #
 # So the flag is conditional, decided by whether the build left a redirect, and
-# it is built once and reused so the two commands below cannot drift apart.
-# Whichever path ran, the guard after them re-reads the name wrangler actually
-# deployed and aborts if it is production's. That check is the real safety net:
-# it catches this whole class of mistake rather than any one instance of it.
+# it is built once and reused so the two commands below cannot drift apart
+# (wong_staging_env_args). Whichever path ran, the guard before them reads the
+# name wrangler will deploy and aborts if it is production's
+# (wong_refuse_production_worker). That check is the real safety net: it
+# catches this whole class of mistake rather than any one instance of it.
 #
 # Why two commands rather than one: they produce two URLs with different
 # capabilities. The version alias serves HTTP for that specific commit; only
@@ -65,7 +67,7 @@ ROOT=$(dirname "$SCRIPT_DIR")
 # shellcheck source=lib-wrangler-config.sh
 source "$SCRIPT_DIR/lib-wrangler-config.sh"
 
-wong_ci_branch
+wong_ci_branch "$ROOT"
 
 # Local (non-CI) runs: deploy nothing.
 if [ -z "$BRANCH" ]; then
@@ -95,7 +97,7 @@ if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   if [ -n "$REPO_SLUG" ]; then
     REPO_VAR=(--var "GITHUB_REPOSITORY:$REPO_SLUG")
   fi
-  (cd "$APP_DIR" && npx wrangler deploy "${REPO_VAR[@]}")
+  (cd "$APP_DIR" && npx wrangler deploy ${REPO_VAR[@]+"${REPO_VAR[@]}"})
   exit 0
 fi
 
@@ -106,46 +108,14 @@ if [ -z "$ALIAS" ]; then
 fi
 
 # Built once, used by both commands below. See the warning in the header.
-STAGING_ENV=(--env staging)
-
-# ...unless the build already chose the environment for us.
-#
-# @cloudflare/vite-plugin flattens the selected environment into a generated
-# `dist/**/wrangler.json` and writes `.wrangler/deploy/config.json` to redirect
-# wrangler at it. From that point the environment is BAKED IN, and Cloudflare's
-# docs state plainly that `--env` on `wrangler deploy` "will have no effect".
-#
-# Passing `--env staging` anyway is not merely redundant — it reads as though
-# isolation is happening when it isn't. `cf-build.sh` sets `CLOUDFLARE_ENV` so
-# the generated config *is* staging; here we must not re-specify it.
-#
-# The redirect file is the signal, so this works for both layouts: a plain
-# wrangler build has no redirect and still needs the flag.
-if [ -f "$APP_DIR/.wrangler/deploy/config.json" ]; then
-  STAGING_ENV=()
+wong_staging_env_args
+if [ ${#STAGING_ENV[@]} -eq 0 ]; then
   echo "cf-deploy: build redirected wrangler to its generated config — environment already selected"
 fi
 
-# Fail closed: confirm the config wrangler will actually use names a Worker
-# other than production's, BEFORE anything is deployed.
-#
-# `wong_config worker-name` reads the name wrangler resolves — the generated
-# config when the build redirected, the source config otherwise. If that equals
-# the production name on a non-production branch, the staging environment did
-# not take effect and deploying would overwrite production. Refuse. A config
-# the parser cannot read stops here too: the assignment fails under `set -e`.
-PROD_NAME=$(wong_config worker-name)
-STAGING_NAME=$(wong_config worker-name staging)
-if [ "$STAGING_NAME" = "$PROD_NAME" ]; then
-  echo "cf-deploy: ERROR — on branch '$BRANCH' the staging environment resolves to the" >&2
-  echo "cf-deploy: production Worker '$PROD_NAME'. Deploying would overwrite production." >&2
-  echo "cf-deploy:" >&2
-  echo "cf-deploy: Fix one of these in $WRANGLER_CONFIG:" >&2
-  echo "cf-deploy:   • env.staging needs its own \"name\" (e.g. \"$PROD_NAME-staging\")" >&2
-  echo "cf-deploy:   • the build must select it — cf-build.sh exports CLOUDFLARE_ENV=staging" >&2
-  echo "cf-deploy:     for @cloudflare/vite-plugin builds" >&2
-  exit 1
-fi
+# Fail closed, BEFORE anything is deployed: the name wrangler will use must not
+# be production's. Returns 1 under `set -e`, a config the parser can not read too.
+wong_refuse_production_worker cf-deploy
 
 # A staging Worker bound to production's database writes real data even when
 # the build migrated nothing, so refuse that too. Only the check matters here,
@@ -157,13 +127,13 @@ ALIAS=$(wong_preview_alias "$ALIAS" "$STAGING_NAME")
 [ -n "$ALIAS" ] || { echo "cf-deploy: ERROR — the staging Worker name '$STAGING_NAME' leaves no room for a preview alias" >&2; exit 1; }
 
 echo "cf-deploy: preview branch — deploying the staging Worker ($STAGING_NAME)"
-(cd "$APP_DIR" && npx wrangler deploy "${STAGING_ENV[@]}")
+(cd "$APP_DIR" && npx wrangler deploy ${STAGING_ENV[@]+"${STAGING_ENV[@]}"})
 
 # Must come *after* the deploy — see the header. A version can only be uploaded
 # against a Worker that already exists.
 echo "cf-deploy: uploading a staging version (alias: $ALIAS)"
 UPLOAD_LOG=$(mktemp)
-(cd "$APP_DIR" && npx wrangler versions upload "${STAGING_ENV[@]}" --preview-alias "$ALIAS") \
+(cd "$APP_DIR" && npx wrangler versions upload ${STAGING_ENV[@]+"${STAGING_ENV[@]}"} --preview-alias "$ALIAS") 2>&1 \
   | tee "$UPLOAD_LOG"
 
 # ── Publish the alias URL so something downstream can find it ─────────────────

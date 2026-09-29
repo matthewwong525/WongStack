@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Build a portable review page: parse proposal.md into static, escaped HTML inside the shared kit.
-import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 const FORMAT = '<!-- wong-review:3 -->';
 const SLOT = '<!-- review:content -->';
@@ -216,7 +217,7 @@ export function buildReview(changeRoot, { requireCurrent = false } = {}) {
   return { kind: 'current', changed: writeIfDifferent(reviewPath, next), warnings };
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   let args;
   try {
     args = parseArgs({ options: { 'require-current': { type: 'boolean' }, help: { type: 'boolean' } }, allowPositionals: true, strict: true });

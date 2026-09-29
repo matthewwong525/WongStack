@@ -45,7 +45,7 @@ function readApp(appsDir, name) {
 }
 
 /** Every app folder, sorted by name, or the list of failures. */
-export function readApps(appsDir) {
+function readApps(appsDir) {
   const names = existsSync(appsDir)
     ? readdirSync(appsDir, { withFileTypes: true })
         .filter(entry => entry.isDirectory() && !entry.name.startsWith("."))
@@ -58,7 +58,7 @@ export function readApps(appsDir) {
 }
 
 /** The list as data: what the landing page reads from `/apps/apps.json`. */
-export function appsJson(apps) {
+function appsJson(apps) {
   const list = apps.map(({ name, title, description }) => ({ name, title, description, href: `/apps/${name}/` }));
   return `${JSON.stringify(list, null, 2)}\n`;
 }
@@ -81,7 +81,7 @@ const copyable = appDir => source => {
  * There is no list page: the router sends `/apps/` to the landing page, which
  * shows the list. `/apps/` belongs to the mini apps, so an older copy goes first.
  */
-export function writeInto(appsDir, assetsDir, apps) {
+function writeInto(appsDir, assetsDir, apps) {
   const out = join(assetsDir, "apps");
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });

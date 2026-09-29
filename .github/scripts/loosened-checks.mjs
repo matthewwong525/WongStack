@@ -35,7 +35,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
+import { parseCli, usageError } from '../../.claude/skills/memory/scripts/lib/cli.mjs';
 // The one rule for which files are tests: the ones CI runs are the ones read here.
 import { TEST_FILE } from '../../mini-apps/is-test-file.mjs';
 
@@ -252,24 +252,8 @@ function worktreeBase() {
 }
 
 function main() {
-  let values;
-  try {
-    ({ values } = parseArgs({
-      options: { base: { type: 'string' }, worktree: { type: 'boolean' }, help: { type: 'boolean' } },
-      strict: true,
-    }));
-  } catch (error) {
-    console.error(`${error.message}\n${USAGE}`);
-    process.exit(2);
-  }
-  if (values.help) {
-    console.log(USAGE);
-    process.exit(0);
-  }
-  if ((values.base === undefined) === !values.worktree) {
-    console.error(`give exactly one of --base and --worktree\n${USAGE}`);
-    process.exit(2);
-  }
+  const { values } = parseCli({ usage: USAGE, options: { base: { type: 'string' }, worktree: { type: 'boolean' } } });
+  if ((values.base === undefined) === !values.worktree) usageError(USAGE, 'give exactly one of --base and --worktree');
   process.chdir(git(['rev-parse', '--show-toplevel']).trim());
   const worktree = Boolean(values.worktree);
   const base = worktree ? worktreeBase() : values.base.trim();

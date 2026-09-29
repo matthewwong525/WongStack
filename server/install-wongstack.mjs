@@ -7,10 +7,11 @@
 // Cloudflare call that stopped it comes on the line before, when it matches CLOUDFLARE_CALL.
 // Every step checks before it acts, so a second run finishes a first run that stopped.
 // No token value goes into an argument, an error, the output, or a commit. server/README.md is the contract.
-import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { isMain } from '../.agents/skills/memory/scripts/lib/cli.mjs';
 import { ProvisionError, names, provision, run, widen } from '../.agents/skills/wong-setup/scripts/provision.mjs';
 
 export { run };
@@ -262,15 +263,7 @@ export async function main({ stdin, env = process.env, fetch, sleep, now = () =>
   }
 }
 
-const isMain = () => {
-  try {
-    return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return false;
-  }
-};
-
-if (isMain()) {
+if (isMain(import.meta.url)) {
   let stdin = '';
   for await (const chunk of process.stdin) stdin += chunk;
   process.exitCode = await main({ stdin });

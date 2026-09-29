@@ -1,16 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 // Each script, and the arguments that reach its flag parser with an unknown flag.
 const scripts = {
-  'scripts/measure-usage.mjs': [],
   'scripts/measure-context.mjs': [],
   'scripts/check-openspec-config.mjs': [],
   'scripts/check-payload-links.mjs': [],
@@ -69,3 +68,17 @@ for (const [script, prefix] of Object.entries(scripts)) {
     assert.equal(called(), '', 'a live tool was called');
   });
 }
+
+// A script that prints isMain for itself and for the shared module it imports.
+test('isMain is true through a symlinked path and false for an imported module', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-test-is-main-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const cli = pathToFileURL(join(repo, '.agents/skills/memory/scripts/lib/cli.mjs')).href;
+  const script = join(dir, 'probe.mjs');
+  writeFileSync(script, `import { isMain } from '${cli}';\nconsole.log(JSON.stringify([isMain(import.meta.url), isMain('${cli}')]));\n`);
+  symlinkSync(dir, join(dir, 'linked'));
+  for (const path of [script, join(dir, 'linked', 'probe.mjs')]) {
+    const result = spawnSync(process.execPath, [path], { encoding: 'utf8' });
+    assert.deepEqual(JSON.parse(result.stdout), [true, false], `${path}: ${result.stderr}`);
+  }
+});
