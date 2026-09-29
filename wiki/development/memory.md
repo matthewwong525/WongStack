@@ -115,4 +115,4 @@ R2 needs a payment method on file, even inside its free tier. Without it, the st
 
 Search is keyword search (FTS5) with tags. That is enough at hundreds to low thousands of facts, because the write gate asks a model about paraphrases, and consolidation merges what the gate missed. Add embeddings when `memory.mjs stats` reports the trigger as met: more than 2,000 live facts, or merged duplicates growing across three consolidations. Search stays behind the one script, so nothing else changes.
 
-Back to [Working on WongStack](README.md).
+Back to [development](README.md).

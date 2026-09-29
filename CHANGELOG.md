@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — The wiki keeps WongStack upkeep apart, and database fixes on their own page
+
+- **Database fixes have their own page.** The three guides for when your live database breaks (undo a bad update, never change it by hand, repair its record of updates) moved off the deploy page onto [Fix a broken production database](wiki/stack/d1-recovery.md), unchanged. The deploy page links it.
+- **Each how-to lives in one place.** Sending an improvement to WongStack now points to [WongStack's contributing guide](.github/CONTRIBUTING.md) for the steps and keeps only what matters from an install. The release steps, and what *patch*, *minor*, and *major* mean, live in one rule the other pages link.
+- **Pages say what they are.** The wiki's front page, the Cloudflare token page, and the login-wall page now open with what they cover. The wiki rulebook's *Adding a page* is a short numbered list.
+
+**Updating.** If one of your own pages links the recovery sections at the bottom of the deploy page (`d1-pipeline.md`), point it at the new database fixes page, `wiki/stack/d1-recovery.md`, instead.
+
 ## 27.0.0 — Memory stays in its own repo
 
 - **Each repo's memory is its own.** Nothing is sent to another repo, and nothing loads from one when a chat starts. Home becomes an ordinary repo you happen to use alone: setup no longer asks whether a repo is your home, and nothing records one on your computer.

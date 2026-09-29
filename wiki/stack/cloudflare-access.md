@@ -1,6 +1,6 @@
 # Cloudflare Access
 
-Put a login wall in front of your app without writing a line of auth code. Cloudflare Access (the Zero Trust product) sits at the edge, authenticates the visitor against an identity provider you choose, and only then forwards the request to your Worker — carrying a **signed assertion** the Worker verifies. This page stands up Access for the [Cloudflare stack](README.md): the org, an identity provider, one application, and the two policies that gate the admin surface while leaving the public one open.
+This page puts a login wall in front of your app with Cloudflare Access, without a line of auth code: the org, an identity provider, one application, and the two policies that gate the admin surface of the [Cloudflare stack](README.md) while leaving the public one open. Access (the Zero Trust product) sits at the edge, authenticates the visitor against an identity provider you choose, and only then forwards the request to your Worker — carrying a **signed assertion** the Worker verifies.
 
 > **Read this before you start: Access needs a custom domain.** You cannot reliably gate a `workers.dev` hostname, and the way it fails is the dangerous kind — [every terminal check passes](#why-workersdev-cannot-be-gated) while a logged-in browser gets Cloudflare's *"There is nothing here yet"* placeholder. If you set Access up on `workers.dev` following an earlier version of this page, **go verify it in a browser now.**
 
