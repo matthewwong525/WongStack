@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The wiki keeps WongStack upkeep apart, and database fixes on their own page
+## 27.1.1 — The wiki keeps WongStack upkeep apart, and database fixes on their own page
 
 - **Database fixes have their own page.** The three guides for when your live database breaks (undo a bad update, never change it by hand, repair its record of updates) moved off the deploy page onto [Fix a broken production database](wiki/stack/d1-recovery.md), unchanged. The deploy page links it.
 - **Each how-to lives in one place.** Sending an improvement to WongStack now points to [WongStack's contributing guide](.github/CONTRIBUTING.md) for the steps and keeps only what matters from an install. The release steps, and what *patch*, *minor*, and *major* mean, live in one rule the other pages link.

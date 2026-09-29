@@ -1,6 +1,6 @@
 # Reshape the wiki: its own section for WongStack upkeep, and a page for database fixes
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** soft-skunk
 **Open questions:** none
 
@@ -64,3 +64,4 @@ None. The `stack-pack` requirement that `wiki/stack/` hold the recovery runbooks
 - **2026-09-29** — Assumed: `development/adding-a-skill.md` and `development/repo-layout.md` are retired names too, because the payload rule retires a moved page's old path.
 - **2026-09-29** — Assumed: the footers of four shipped Development pages now say "development", not "working on WongStack", because the hub they link is titled Development in every install.
 - **2026-09-29** — Assumed: checkpoint inside /ship for task 5.3; all other tasks built and the four release checks pass locally.
+- **2026-09-29** — Assumed: archived and numbered 27.1.1 after merging 27.1.0 from main, because /ship numbers the release from main at its checkpoint.
