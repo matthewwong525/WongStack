@@ -21,7 +21,7 @@ Before a non-trivial change, **read the owning doc, not a guess**: start at [`wi
 
 `openspec list` shows active changes; `openspec show <name>` reads one.
 
-Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. Don't ask for a token or stub a call: [the secrets convention](wiki/development/secrets.md).
+Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. Don't stub a call or ask for a key in the chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
 
 ## Rules
 

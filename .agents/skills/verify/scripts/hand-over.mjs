@@ -3,6 +3,7 @@
 //
 //     node .claude/skills/verify/scripts/hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
 //     node .claude/skills/verify/scripts/hand-over.mjs open --passwords [--local] [--minutes N]
+//     node .claude/skills/verify/scripts/hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
 //     node .claude/skills/verify/scripts/hand-over.mjs wait
 //     node .claude/skills/verify/scripts/hand-over.mjs close
 //
@@ -36,6 +37,14 @@
 // the deadline. `result.json` then also holds `saved`, the vault names saved, and `wait` prints
 // `HANDOVER_SAVED=<name>,<name>` after the result: never a host, username, or password.
 //
+// `open --keys NAME[,NAME]` opens the key link the same way, also touching no browser page. Before any
+// tunnel, keys.mjs resolves each name against the example files: one declared in neither exits 2 with
+// `KEYS_UNDECLARED=<name>,<name>`, one in both with `KEYS_AMBIGUOUS=`, and a destination not git-ignored
+// exits 1. It serves keys-page.html and .mjs and mounts keys.mjs's keyed `GET /keys`, `POST /save`, and
+// `POST /done`; it ends on `/done`, on the save that leaves no asked-for key unsaved, `close`, or the
+// deadline. `wait` prints `HANDOVER_SAVED=` the key names saved, then `HANDOVER_APP_KEYS=` those that went
+// to app/.dev.vars, which the agent then loads with `npm run secrets:push`: never a value.
+//
 // State lives in ~/.wong-stack/hand-over/; one link at a time. Exit codes: 0 ok · 1 failed or a
 // link is already open · 2 usage · 3 `cloudflared` is missing (prints HANDOVER_NEEDS=cloudflared).
 // Node built-ins only. HANDOVER_POLL_MS overrides the 2-second poll, for tests.
@@ -50,15 +59,21 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
+import { APP_FILE, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
 import { PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
 
 const USAGE = `usage: hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
        hand-over.mjs open --passwords [--local] [--minutes N]
+       hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
        hand-over.mjs wait | close
   open    start the private link, print HANDOVER_LINK=<url>, and watch for the finish
           --passwords: the password link instead, to save logins; it ends on Done
+          --keys: the key link instead, one box per declared name; it ends on Done or
+          once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=)
   wait    block until the link closes; print HANDOVER_RESULT=done|timeout|closed|error,
-          then HANDOVER_SAVED=<name>,<name> for a password link
+          then HANDOVER_SAVED=<name>,<name> for a password or key link, and
+          HANDOVER_APP_KEYS=<name>,<name> for a key link
   close   close an open link (the person said done)`;
 const TUNNEL_WAIT_MS = 30_000;
 const PAGE_WAIT_MS = 10_000;
@@ -71,7 +86,7 @@ const pages = name => ({
   '/': { file: join(HERE, `${name}.html`), type: 'text/html; charset=utf-8' },
   '/page.mjs': { file: join(HERE, `${name}.mjs`), type: 'text/javascript; charset=utf-8' },
 });
-const PAGES = { handOver: pages('hand-over-page'), passwords: pages('passwords-page') };
+const PAGES = { handOver: pages('hand-over-page'), passwords: pages('passwords-page'), keys: pages('keys-page') };
 const BLANK_URLS = new Set(['', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/']);
 const BODY_LIMIT = 4096;
 const VIEWPORT_LIMITS = { width: [320, 1280], height: [400, 1280] };
@@ -259,15 +274,18 @@ async function killTunnel(pid) {
   if (alive(pid)) signal(pid, 'SIGKILL');
 }
 
+/** The link's mode from its state or options: the browser hand-over, the password link, or the key link. */
+const modeOf = ({ passwords, keys } = {}) => (passwords ? 'passwords' : keys ? 'keys' : 'handOver');
+
 /**
- * Kills the tunnel, puts the page back to 1280×720 after any phone size (a password link touched no
- * page, so it skips that), records the result and any saved names, and clears the rest; the watcher
- * closes its page first.
+ * Kills the tunnel, puts the page back to 1280×720 after any phone size (a password or key link
+ * touched no page, so it skips that), records the result and any saved names, and clears the rest;
+ * the watcher closes its page first.
  */
-async function teardown(result, tunnelPid, { passwords = false, saved } = {}) {
+async function teardown(result, tunnelPid, { browserless = false, saved, appKeys } = {}) {
   await killTunnel(tunnelPid);
-  if (!passwords) await browser(['set', 'viewport', '1280', '720']);
-  writeFileSync(FILES.result, `${JSON.stringify({ result, ...(saved && { saved }) })}
+  if (!browserless) await browser(['set', 'viewport', '1280', '720']);
+  writeFileSync(FILES.result, `${JSON.stringify({ result, ...(saved && { saved }), ...(appKeys && { appKeys }) })}
 `);
   for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
 }
@@ -275,7 +293,7 @@ async function teardown(result, tunnelPid, { passwords = false, saved } = {}) {
 /** Tears down a hand-over whose watcher died without finishing. */
 async function recoverStale(result) {
   const state = readJson(FILES.state);
-  await teardown(result, state?.tunnelPid, { passwords: Boolean(state?.passwords) });
+  await teardown(result, state?.tunnelPid, { browserless: modeOf(state ?? {}) !== 'handOver' });
 }
 
 // ---------------------------------------------------------------------------
@@ -386,15 +404,17 @@ function fieldRoutes() {
 /**
  * Serves the page on 127.0.0.1:`port` and pipes `/stream?key=<key>` to the live feed on
  * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes and
- * `/viewport` need the key in an `x-hand-over-key` header. With `passwords` it serves the password
- * page and routes instead, passing `hooks` to them, and has no feed. Resolves to a close().
+ * `/viewport` need the key in an `x-hand-over-key` header. With `passwords` or `keys` it serves that
+ * link's page and routes instead, passing `hooks` to them, and has no feed. Resolves to a close().
  */
-export function servePage({ port, streamPort, key, passwords = false }, hooks = {}) {
+export function servePage({ port, streamPort, key, passwords = false, keys = null }, hooks = {}) {
   const sockets = new Set();
   const track = socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); return socket; };
-  const routes = passwords ? passwordRoutes(hooks) : fieldRoutes();
-  const isRoute = pathname => (passwords ? PASSWORD_ROUTES.has(pathname) : pathname === '/fields' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
-  const served = passwords ? PAGES.passwords : PAGES.handOver;
+  const mode = modeOf({ passwords, keys });
+  const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, hooks), handOver: fieldRoutes }[mode]();
+  const ROUTES = { passwords: PASSWORD_ROUTES, keys: KEY_ROUTES };
+  const isRoute = pathname => (ROUTES[mode] ? ROUTES[mode].has(pathname) : pathname === '/fields' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
+  const served = PAGES[mode];
   const server = createServer((request, response) => {
     const { pathname } = new URL(request.url, 'http://page');
     if (isRoute(pathname)) {
@@ -412,7 +432,7 @@ export function servePage({ port, streamPort, key, passwords = false }, hooks = 
   server.on('connection', track);
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url, 'http://page');
-    if (passwords || url.pathname !== '/stream') return refuse(socket, '404 Not Found');
+    if (mode !== 'handOver' || url.pathname !== '/stream') return refuse(socket, '404 Not Found');
     if (!keyMatches(url.searchParams.get('key'), key)) return refuse(socket, '403 Forbidden');
     const upstream = track(connect(streamPort, '127.0.0.1'));
     const lines = ['GET / HTTP/1.1', `Host: 127.0.0.1:${streamPort}`, 'Upgrade: websocket', 'Connection: Upgrade'];
@@ -497,7 +517,37 @@ async function streamPort() {
   return status?.enabled && status.port ? status.port : null;
 }
 
+/**
+ * The key link's config, `{root, primary, linked, gitDir, keys}`, or an exit code once it has said why
+ * not: 2 for a name declared in neither example file or in both, 1 for a destination not git-ignored.
+ */
+function keyConfig(names) {
+  let ctx;
+  try {
+    ctx = primaryRoot();
+  } catch (error) {
+    console.error(`The key link needs a Git checkout: ${error.message}`);
+    return 1;
+  }
+  const { keys, undeclared, ambiguous, unignored } = resolveKeys(names, ctx);
+  if (undeclared.length) console.log(`KEYS_UNDECLARED=${undeclared.join(',')}`);
+  if (ambiguous.length) console.log(`KEYS_AMBIGUOUS=${ambiguous.join(',')}`);
+  if (undeclared.length || ambiguous.length) {
+    console.error('Declare each key, blank and with a comment on where to get it, in exactly one of .env.example and app/.dev.vars.example first.');
+    return 2;
+  }
+  if (unignored.length) {
+    console.error(`Not git-ignored, so no key is written there: ${unignored.join(', ')}`);
+    return 1;
+  }
+  const { root, primary, linked, gitDir } = ctx;
+  return { root, primary, linked, gitDir, keys };
+}
+
 async function open(values) {
+  const keys = values.keys ? keyConfig(values.keys) : null;
+  if (typeof keys === 'number') return keys;
+  const browserless = Boolean(values.passwords || keys);
   mkdirSync(DIR, { recursive: true });
   if (alive(watcherPid())) {
     console.error('A hand-over link is already open. Run `hand-over.mjs close` first.');
@@ -516,11 +566,11 @@ async function open(values) {
   const fail = async message => {
     console.error(message);
     if (watcher) signal(watcher, 'SIGKILL');
-    await teardown('error', tunnelPid, { passwords: Boolean(values.passwords) });
+    await teardown('error', tunnelPid, { browserless });
     return 1;
   };
   let feed = null;
-  if (!values.passwords) {
+  if (!browserless) {
     await prepareBrowser();
     feed = await streamPort();
     if (!feed) return fail('agent-browser reported no live feed for this browser session.');
@@ -534,7 +584,7 @@ async function open(values) {
     if (!tunnel.origin) return fail('The Cloudflare tunnel did not come up within 30 seconds; try again in a minute.');
     origin = tunnel.origin;
   }
-  writeFileSync(FILES.state, `${JSON.stringify({ tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
+  writeFileSync(FILES.state, `${JSON.stringify({ tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), keys, until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore' });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);
@@ -550,12 +600,14 @@ async function watch() {
   if (!state) return 1;
   let done = false;
   let closePage = null;
-  const saved = state.passwords ? [] : undefined;
+  const mode = modeOf(state);
+  const saved = mode === 'handOver' ? undefined : [];
   const finish = async result => {
     if (done) return;
     done = true;
     await closePage?.();
-    await teardown(result, state.tunnelPid, { passwords: Boolean(state.passwords), saved });
+    const appKeys = state.keys && saved.filter(name => state.keys.keys.some(key => key.name === name && key.file === APP_FILE));
+    await teardown(result, state.tunnelPid, { browserless: mode !== 'handOver', saved, appKeys });
     process.exit(0);
   };
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => finish('closed'));
@@ -578,10 +630,11 @@ async function watch() {
 /** Blocks until the watcher records a result; recovers a watcher that died without one. */
 async function wait() {
   for (;;) {
-    const { result, saved } = readJson(FILES.result) ?? {};
+    const { result, saved, appKeys } = readJson(FILES.result) ?? {};
     if (result) {
       console.log(`HANDOVER_RESULT=${result}`);
       if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
+      if (Array.isArray(appKeys)) console.log(`HANDOVER_APP_KEYS=${appKeys.join(',')}`);
       return 0;
     }
     if (!existsSync(FILES.pid)) {
@@ -620,7 +673,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, keys: { type: 'string' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -633,7 +686,18 @@ function parse(args) {
   const minutes = Number(parsed.values.minutes ?? 10);
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
   if (parsed.values.passwords && (parsed.values.until || parsed.values['until-gone'])) usageError('--passwords ends on Done; it takes no --until or --until-gone');
-  return { command, values: { ...parsed.values, minutes } };
+  if (parsed.values.keys === undefined) return { command, values: { ...parsed.values, minutes } };
+  if (parsed.values.passwords || parsed.values.until || parsed.values['until-gone']) usageError('--keys ends on Done or once every key is saved; it takes no --passwords, --until, or --until-gone');
+  return { command, values: { ...parsed.values, minutes, keys: keyNames(parsed.values.keys) } };
+}
+
+/** `--keys`' comma-separated names, each once, or a usage error. */
+function keyNames(list) {
+  const names = [...new Set(list.split(',').map(name => name.trim()))];
+  const bad = names.filter(name => !KEY_NAME.test(name));
+  if (bad.length || !names.length) usageError(`--keys takes names like STRIPE_SECRET_KEY: ${bad.map(name => `'${name}'`).join(', ')}`);
+  if (names.length > KEY_LIMITS.names) usageError(`--keys takes at most ${KEY_LIMITS.names} names`);
+  return names;
 }
 
 if (isMain(import.meta.url)) {
