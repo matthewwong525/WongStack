@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.1.0 — A handed-over page fits your phone
+
+- **Readable on a phone.** When the agent hands you its browser and you open the link on a phone, the site now shows its own phone layout at full size: text you can read and buttons you can tap, not a tiny desktop page squeezed into your screen.
+- **It goes by the window's width.** A window narrower than 800 points gets the phone size, so a laptop window dragged narrow gets it too; a wider one keeps the desktop size. Turning the phone sideways re-fits the page, and opening the keyboard doesn't, so the page never jumps while you type.
+- **The agent gets its desktop page back.** However the link closes, the page returns to its desktop size before the agent carries on. [Hand the browser over](wiki/development/browsing.md#hand-the-browser-over) owns the details.
+
+**Updating.** Nothing to do by hand.
+
 ## 27.0.0 — Memory stays in its own repo
 
 - **Each repo's memory is its own.** Nothing is sent to another repo, and nothing loads from one when a chat starts. Home becomes an ordinary repo you happen to use alone: setup no longer asks whether a repo is your home, and nothing records one on your computer.
