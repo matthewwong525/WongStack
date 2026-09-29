@@ -140,7 +140,7 @@ A clone of this repository sends `/save` pushes to a repository you cannot write
 - [Wiki](wiki/README.md): the guide to WongStack's process, and [the terms the agent may use](wiki/README.md#terms-the-agent-may-use).
 - [AI knowledge centers](wiki/agent-knowledge-center.md): the six principles behind WongStack.
 - [The change loop](wiki/development/the-change-loop.md): how work moves from idea to shipped record.
-- [Working on WongStack](wiki/development/README.md): how to change the toolkit itself.
+- [Maintaining WongStack](wiki/maintaining/README.md): how to change the toolkit itself.
 - [Changelog](CHANGELOG.md): what changed between releases.
 
 ## License

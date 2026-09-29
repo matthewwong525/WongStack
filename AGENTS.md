@@ -6,7 +6,7 @@ This repo is **WongStack**: an AI assistant and knowledge center a business owne
 
 This **meta-repo** ships WongStack *and* dogfoods it, so the block below applies here too. Don't run [`/wong-setup`](.agents/skills/wong-setup/SKILL.md) or [`/wong-sync`](.agents/skills/wong-sync/SKILL.md) here; both stop.
 
-A payload edit loads [the release rules](.agents/rules/payload.md); the full process: [wiki/development/](wiki/development/README.md).
+A payload edit loads [the release rules](.agents/rules/payload.md); the full process: [wiki/maintaining/](wiki/maintaining/README.md).
 
 <!-- WONG-STACK:BEGIN — generic conventions, copied verbatim into each install: no repo-specifics. -->
 
