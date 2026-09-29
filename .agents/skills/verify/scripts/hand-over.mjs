@@ -2,6 +2,7 @@
 // Hands the agent's browser to the person through a private link that closes itself.
 //
 //     node .claude/skills/verify/scripts/hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
+//     node .claude/skills/verify/scripts/hand-over.mjs open --passwords [--local] [--minutes N]
 //     node .claude/skills/verify/scripts/hand-over.mjs wait
 //     node .claude/skills/verify/scripts/hand-over.mjs close
 //
@@ -29,6 +30,12 @@
 // tunnel, puts the page back to 1280×720, and writes `result.json` with no address or key in it.
 // `wait` blocks for that result and prints `HANDOVER_RESULT=done|timeout|closed|error`.
 //
+// `open --passwords` opens the password link on the same key, tunnel, lock, and deadline, and touches
+// no browser page: no viewport, tabs, live feed, or field routes. It serves passwords-page.html and
+// .mjs and mounts passwords.mjs's keyed `POST /save` and `POST /done`; it ends on `/done`, `close`, or
+// the deadline. `result.json` then also holds `saved`, the vault names saved, and `wait` prints
+// `HANDOVER_SAVED=<name>,<name>` after the result: never a host, username, or password.
+//
 // State lives in ~/.wong-stack/hand-over/; one link at a time. Exit codes: 0 ok · 1 failed or a
 // link is already open · 2 usage · 3 `cloudflared` is missing (prints HANDOVER_NEEDS=cloudflared).
 // Node built-ins only. HANDOVER_POLL_MS overrides the 2-second poll, for tests.
@@ -42,11 +49,15 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
+import { PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
 
 const USAGE = `usage: hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
+       hand-over.mjs open --passwords [--local] [--minutes N]
        hand-over.mjs wait | close
   open    start the private link, print HANDOVER_LINK=<url>, and watch for the finish
-  wait    block until the link closes; print HANDOVER_RESULT=done|timeout|closed|error
+          --passwords: the password link instead, to save logins; it ends on Done
+  wait    block until the link closes; print HANDOVER_RESULT=done|timeout|closed|error,
+          then HANDOVER_SAVED=<name>,<name> for a password link
   close   close an open link (the person said done)`;
 const TUNNEL_WAIT_MS = 30_000;
 const PAGE_WAIT_MS = 10_000;
@@ -55,10 +66,11 @@ const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
 const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml') };
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PAGES = {
-  '/': { file: join(HERE, 'hand-over-page.html'), type: 'text/html; charset=utf-8' },
-  '/page.mjs': { file: join(HERE, 'hand-over-page.mjs'), type: 'text/javascript; charset=utf-8' },
-};
+const pages = name => ({
+  '/': { file: join(HERE, `${name}.html`), type: 'text/html; charset=utf-8' },
+  '/page.mjs': { file: join(HERE, `${name}.mjs`), type: 'text/javascript; charset=utf-8' },
+});
+const PAGES = { handOver: pages('hand-over-page'), passwords: pages('passwords-page') };
 const BLANK_URLS = new Set(['', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/']);
 const BODY_LIMIT = 4096;
 const VIEWPORT_LIMITS = { width: [320, 1280], height: [400, 1280] };
@@ -247,19 +259,22 @@ async function killTunnel(pid) {
 }
 
 /**
- * Kills the tunnel, puts the page back to 1280×720 after any phone size, records the result, and
- * clears the rest; the watcher closes its page first.
+ * Kills the tunnel, puts the page back to 1280×720 after any phone size (a password link touched no
+ * page, so it skips that), records the result and any saved names, and clears the rest; the watcher
+ * closes its page first.
  */
-async function teardown(result, tunnelPid) {
+async function teardown(result, tunnelPid, { passwords = false, saved } = {}) {
   await killTunnel(tunnelPid);
-  await browser(['set', 'viewport', '1280', '720']);
-  writeFileSync(FILES.result, `${JSON.stringify({ result })}\n`);
+  if (!passwords) await browser(['set', 'viewport', '1280', '720']);
+  writeFileSync(FILES.result, `${JSON.stringify({ result, ...(saved && { saved }) })}
+`);
   for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
 }
 
 /** Tears down a hand-over whose watcher died without finishing. */
 async function recoverStale(result) {
-  await teardown(result, readJson(FILES.state)?.tunnelPid);
+  const state = readJson(FILES.state);
+  await teardown(result, state?.tunnelPid, { passwords: Boolean(state?.passwords) });
 }
 
 // ---------------------------------------------------------------------------
@@ -370,19 +385,22 @@ function fieldRoutes() {
 /**
  * Serves the page on 127.0.0.1:`port` and pipes `/stream?key=<key>` to the live feed on
  * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes and
- * `/viewport` need the key in an `x-hand-over-key` header. Resolves to a close().
+ * `/viewport` need the key in an `x-hand-over-key` header. With `passwords` it serves the password
+ * page and routes instead, passing `hooks` to them, and has no feed. Resolves to a close().
  */
-export function servePage({ port, streamPort, key }) {
+export function servePage({ port, streamPort, key, passwords = false }, hooks = {}) {
   const sockets = new Set();
   const track = socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); return socket; };
-  const fields = fieldRoutes();
+  const routes = passwords ? passwordRoutes(hooks) : fieldRoutes();
+  const isRoute = pathname => (passwords ? PASSWORD_ROUTES.has(pathname) : pathname === '/fields' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
+  const served = passwords ? PAGES.passwords : PAGES.handOver;
   const server = createServer((request, response) => {
     const { pathname } = new URL(request.url, 'http://page');
-    if (pathname === '/fields' || pathname === '/viewport' || FIELD_ACTIONS[pathname]) {
+    if (isRoute(pathname)) {
       if (!keyMatches(request.headers['x-hand-over-key'], key)) return reply(response, 403);
-      return void fields(pathname, request, response).catch(() => reply(response, 500));
+      return void routes(pathname, request, response).catch(() => reply(response, 500));
     }
-    const page = request.method === 'GET' && PAGES[pathname];
+    const page = request.method === 'GET' && Object.hasOwn(served, pathname) && served[pathname];
     if (!page) {
       response.writeHead(404, { 'content-length': 0 }).end();
       return;
@@ -393,7 +411,7 @@ export function servePage({ port, streamPort, key }) {
   server.on('connection', track);
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url, 'http://page');
-    if (url.pathname !== '/stream') return refuse(socket, '404 Not Found');
+    if (passwords || url.pathname !== '/stream') return refuse(socket, '404 Not Found');
     if (!keyMatches(url.searchParams.get('key'), key)) return refuse(socket, '403 Forbidden');
     const upstream = track(connect(streamPort, '127.0.0.1'));
     const lines = ['GET / HTTP/1.1', `Host: 127.0.0.1:${streamPort}`, 'Upgrade: websocket', 'Connection: Upgrade'];
@@ -497,12 +515,15 @@ async function open(values) {
   const fail = async message => {
     console.error(message);
     if (watcher) signal(watcher, 'SIGKILL');
-    await teardown('error', tunnelPid);
+    await teardown('error', tunnelPid, { passwords: Boolean(values.passwords) });
     return 1;
   };
-  await prepareBrowser();
-  const feed = await streamPort();
-  if (!feed) return fail('agent-browser reported no live feed for this browser session.');
+  let feed = null;
+  if (!values.passwords) {
+    await prepareBrowser();
+    feed = await streamPort();
+    if (!feed) return fail('agent-browser reported no live feed for this browser session.');
+  }
   const port = await freePort();
   const key = randomBytes(32).toString('hex');
   let origin = `http://127.0.0.1:${port}`;
@@ -512,7 +533,7 @@ async function open(values) {
     if (!tunnel.origin) return fail('The Cloudflare tunnel did not come up within 30 seconds; try again in a minute.');
     origin = tunnel.origin;
   }
-  writeFileSync(FILES.state, `${JSON.stringify({ tunnelPid, port, streamPort: feed, key, until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
+  writeFileSync(FILES.state, `${JSON.stringify({ tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore' });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);
@@ -528,16 +549,18 @@ async function watch() {
   if (!state) return 1;
   let done = false;
   let closePage = null;
+  const saved = state.passwords ? [] : undefined;
   const finish = async result => {
     if (done) return;
     done = true;
     await closePage?.();
-    await teardown(result, state.tunnelPid);
+    await teardown(result, state.tunnelPid, { passwords: Boolean(state.passwords), saved });
     process.exit(0);
   };
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => finish('closed'));
+  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: () => finish('done') };
   try {
-    closePage = await servePage(state);
+    closePage = await servePage(state, hooks);
   } catch {
     return finish('error');
   }
@@ -554,9 +577,10 @@ async function watch() {
 /** Blocks until the watcher records a result; recovers a watcher that died without one. */
 async function wait() {
   for (;;) {
-    const result = readJson(FILES.result)?.result;
+    const { result, saved } = readJson(FILES.result) ?? {};
     if (result) {
       console.log(`HANDOVER_RESULT=${result}`);
+      if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
       return 0;
     }
     if (!existsSync(FILES.pid)) {
@@ -595,7 +619,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -607,6 +631,7 @@ function parse(args) {
   if (!['open', 'watch', 'wait', 'close'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const minutes = Number(parsed.values.minutes ?? 10);
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
+  if (parsed.values.passwords && (parsed.values.until || parsed.values['until-gone'])) usageError('--passwords ends on Done; it takes no --until or --until-gone');
   return { command, values: { ...parsed.values, minutes } };
 }
 

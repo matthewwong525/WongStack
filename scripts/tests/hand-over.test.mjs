@@ -219,7 +219,7 @@ test('a takeover with no finish ends only on close, and close gives closed', asy
 
 test('the deadline gives timeout and tears down', async t => {
   const f = fixture(t);
-  const { port } = opened(f, '--minutes', '0.01');
+  const { port } = opened(f, '--minutes', '0.05');
   const tunnel = f.tunnelPid();
   assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=timeout');
   assert.ok(!(await answers(port)));
