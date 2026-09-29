@@ -108,7 +108,7 @@ export function shadowRead(sql, email, options) {
 const SCHEMA_NAME = /(?<![\w$])(?:main|temp)(?![\w$])|sqlite_dbpage/i;
 
 // A CTE of its own named `facts` or `fact_tags`, at any depth: a nested one would stand in for the shadow inside FTS_HITS.
-const OWN_SHADOW = /(?<![\w$.])["`\[]?(?:facts|fact_tags)["`\]]?\s*(?:\([^)]*\)\s*)?AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(/i;
+const OWN_SHADOW = /(?<![\w$.])["`[]?(?:facts|fact_tags)["`\]]?\s*(?:\([^)]*\)\s*)?AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(/i;
 
 // Why a member or reader key in a team may not run this read, or null when it may: it names no schema, defines
 // no `facts` or `fact_tags` of its own, and reads the full-text index only through FTS_HITS. Checked before the
