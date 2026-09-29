@@ -13,7 +13,7 @@
     "db:reset:staging": "node ../scripts/reset-staging-d1.mjs",
     "secrets:push": "node ../scripts/cf-secrets.mjs push",
     "secrets:check": "node ../scripts/cf-secrets.mjs check",
-    "lint": "oxlint",
+    "lint": "oxlint --deny-warnings",
     "test": "npm run lint && vitest run --coverage && knip && jscpd",
     "preview": "npm run build && vite preview",
     "deploy": "bash ../scripts/cf-deploy.sh",

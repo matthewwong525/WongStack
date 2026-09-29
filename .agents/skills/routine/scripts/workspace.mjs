@@ -21,11 +21,11 @@
 // Node built-ins only. WORKSPACE_PASEO_BIN overrides the `paseo` found on PATH.
 
 import { execFile } from 'node:child_process';
-import { readFileSync, realpathSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { fileURLToPath } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
-import { EXIT, PaseoError, findPaseo, paseo, runPaseo } from './lib/paseo.mjs';
+import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo } from './lib/paseo.mjs';
 
 const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
                          [--checkout <branch>] [--agent claude|codex] [--dry-run]`;
@@ -120,13 +120,8 @@ function primaryWorktree() {
   }
 }
 
-async function git(cwd, args) {
-  const { stdout } = await promisify(execFile)('git', ['-C', cwd, ...args], { encoding: 'utf8' });
-  return stdout.trim();
-}
-
 async function hasRef(cwd, ref) {
-  try { await git(cwd, ['rev-parse', '--verify', '--quiet', ref]); return true; } catch { return false; }
+  try { git(cwd, 'rev-parse', '--verify', '--quiet', ref); return true; } catch { return false; }
 }
 
 /** `main`, unless it exists neither locally nor on origin; then the forge's default branch. */
@@ -145,7 +140,7 @@ async function freshBase(cwd, branch, { fetch }) {
   let warning = null;
   if (fetch) {
     try {
-      await git(cwd, ['fetch', '--quiet', 'origin', branch]);
+      git(cwd, 'fetch', '--quiet', 'origin', branch);
     } catch (error) {
       warning = `Could not fetch origin/${branch}, so the workspace starts from the last fetched copy: ${String(error.stderr ?? error.message).trim()}`;
     }
@@ -169,23 +164,6 @@ async function nameWorkspace(bin, created, title, env) {
 
 // ---------------------------------------------------------------------------
 // Command
-
-function parseArgs(argv) {
-  const [command, ...rest] = argv;
-  const flags = {};
-  for (let i = 0; i < rest.length; i++) {
-    const a = rest[i];
-    if (a === '--dry-run') { flags.dryRun = true; continue; }
-    if (!a.startsWith('--') || !VALUE_FLAGS.includes(a.slice(2))) {
-      throw new PaseoError(EXIT.input, `Unknown argument ${a}.`);
-    }
-    const value = rest[i + 1];
-    if (value === undefined) throw new PaseoError(EXIT.input, `${a} needs a value.`);
-    flags[a.slice(2)] = value;
-    i++;
-  }
-  return { command, flags };
-}
 
 function readBrief(file) {
   if (!file) throw new PaseoError(EXIT.input, 'Pass --brief <file>: the new agent\'s first message.');
@@ -250,7 +228,7 @@ async function open(flags, env) {
 async function main(argv = process.argv.slice(2), env = process.env) {
   if (argv.length === 0 || argv.includes('--help')) { process.stdout.write(`${USAGE}\n`); return EXIT.ok; }
   try {
-    const { command, flags } = parseArgs(argv);
+    const { command, flags } = parseCommand(argv, { values: VALUE_FLAGS, booleans: { '--dry-run': 'dryRun' }, unknown: arg => `Unknown argument ${arg}.` });
     if (command !== 'open') throw new PaseoError(EXIT.input, `Unknown command "${command}". Use open.`);
     process.stdout.write(`${JSON.stringify(await open(flags, env), null, 2)}\n`);
     return EXIT.ok;
@@ -261,8 +239,4 @@ async function main(argv = process.argv.slice(2), env = process.env) {
   }
 }
 
-function isMain() {
-  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
-}
-
-if (isMain()) process.exitCode = await main();
+if (isMain(import.meta.url)) process.exitCode = await main();

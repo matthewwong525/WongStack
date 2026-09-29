@@ -7,13 +7,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
+import { d1Query } from '../d1.mjs';
 
 const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
 const SCRIPTS = join(REPO, '.agents/skills/memory/scripts');
 const TOKEN = 'test-memory-token-value';
 export const SECRET = 'super-secret-value-123';
-
-const run = (db, sql, params = []) => (params.length === 0 && /;\s*\S/.test(sql.trim().replace(/;\s*$/, ''))) ? (db.exec(sql), []) : db.prepare(sql).all(...params);
 
 async function fakeCloudflare({ bucket = true } = {}) {
   const db = new DatabaseSync(':memory:');
@@ -30,19 +29,7 @@ async function fakeCloudflare({ bucket = true } = {}) {
     if (offline) { res.socket.destroy(); return; }
     if (req.headers.authorization !== `Bearer ${TOKEN}`) return send(401, { success: false, errors: [{ code: 10000, message: 'Authentication error' }] });
     const d1 = req.url.match(/\/d1\/database\/([^/]+)\/query$/);
-    if (d1) {
-      const input = JSON.parse(body.toString('utf8'));
-      const statements = input.batch || [input];
-      try {
-        db.exec('BEGIN');
-        const result = statements.map(({ sql, params }) => ({ success: true, results: run(db, sql, params || []).map(row => ({ ...row })), meta: {} }));
-        db.exec('COMMIT');
-        return send(200, { success: true, errors: [], result });
-      } catch (error) {
-        try { db.exec('ROLLBACK'); } catch { /* none open */ }
-        return send(400, { success: false, errors: [{ code: 7500, message: error.message }] });
-      }
-    }
+    if (d1) return send(...d1Query(db, JSON.parse(body.toString('utf8'))));
     const object = req.url.match(/\/r2\/buckets\/([^/]+)\/objects\/(.+)$/);
     if (object) {
       if (!bucket) return send(404, { success: false, errors: [{ code: 10006, message: 'bucket not found' }] });

@@ -29,10 +29,12 @@ export function pack(t, { scripts = [], config, tools = {}, subdir, prefix = 'pa
 
   mkdirSync(join(root, 'scripts'), { recursive: true });
   for (const name of scripts) copyFileSync(join(REPO, 'scripts', name), join(root, 'scripts', name));
-  // cf-secrets.mjs finds the primary worktree through the memory skill's shared lookup.
-  const lookup = '.claude/skills/memory/scripts/lib/primary-root.mjs';
-  mkdirSync(dirname(join(root, lookup)), { recursive: true });
-  copyFileSync(join(REPO, lookup), join(root, lookup));
+  // The pack imports the memory skill's shared primary-worktree lookup and CLI convention.
+  for (const shared of ['primary-root.mjs', 'cli.mjs']) {
+    const path = `.claude/skills/memory/scripts/lib/${shared}`;
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    copyFileSync(join(REPO, path), join(root, path));
+  }
   mkdirSync(join(root, 'app'));
   if (config != null) write('app/wrangler.jsonc', config);
 

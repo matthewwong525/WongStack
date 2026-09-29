@@ -8,10 +8,12 @@
 // environment or the target's .env. WONG_CLOUDFLARE_API points every call at another API base, for tests.
 // Every step checks before it acts, so a run that stopped runs again from the top.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { parseEnv } from '../../memory/scripts/lib/store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-fragments.md');
@@ -147,19 +149,8 @@ export function safeName(name) {
   return safe || 'wongstack';
 }
 
-/** `KEY=value` lines, with `export`, quotes, and comments handled like the memory scripts' parser. */
-export function readEnv(file) {
-  if (!existsSync(file)) return {};
-  const env = {};
-  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/);
-    if (!match) continue;
-    const value = match[2].trim();
-    const quoted = value.match(/^(['"])(.*)\1(?:\s+#.*)?$/);
-    env[match[1]] = quoted ? quoted[2] : value.replace(/\s+#.*$/, '');
-  }
-  return env;
-}
+/** A `.env` file's `KEY=value` lines, read by the memory scripts' parser; `{}` when it is missing. */
+export const readEnv = file => (existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {});
 
 const readJson = (file, fallback = null) => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : fallback);
 const writeJson = (file, value) => {
@@ -604,12 +595,4 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   }
 }
 
-const isMain = () => {
-  try {
-    return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return false;
-  }
-};
-
-if (isMain()) process.exitCode = await cli(process.argv.slice(2));
+if (isMain(import.meta.url)) process.exitCode = await cli(process.argv.slice(2));

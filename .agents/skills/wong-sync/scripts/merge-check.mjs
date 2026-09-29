@@ -6,9 +6,7 @@
 // section does not. The report names where to look, never file bodies.
 
 import { spawnSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 import { compareSelection, targetValue } from './preflight.mjs';
 
@@ -111,16 +109,7 @@ export function mergeCheck({ target, source, from, record }) {
   return { schemaVersion: SCHEMA_VERSION, status: files.length ? 'missing' : 'clean', checked, files };
 }
 
-function isDirectRun() {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
-  }
-}
-
-if (isDirectRun()) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   if (argv.includes('--help')) {
     process.stdout.write(`${USAGE}\n`);

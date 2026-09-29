@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PIN_FILES } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
 // server/setup.sh. A host embeds the script in first-boot data, so its size
 // is part of the contract in server/README.md.
@@ -21,22 +22,26 @@ test('the script parses as bash', () => {
   assert.equal(run.status, 0, run.stderr);
 });
 
-// Every place that names the OpenSpec version moves together; CI's pin is the reference.
-const PINS = [
-  'server/setup.sh',
-  '.agents/skills/save/references/preconditions.md',
-  '.github/CONTRIBUTING.md',
-];
-
+// Every place that names the OpenSpec version moves together; CI's pin, the first, is the reference.
 test('every OpenSpec pin matches the version CI checks the skills against', () => {
   const pinned = file => readFileSync(resolve(repo, file), 'utf8').match(/@fission-ai\/openspec@([\w.-]+)/)?.[1];
-  const ci = pinned('.github/workflows/payload.yml');
+  const [reference, ...pins] = PIN_FILES;
+  assert.equal(reference, '.github/workflows/payload.yml');
+  const ci = pinned(reference);
   assert.ok(ci, '.github/workflows/payload.yml installs an unpinned OpenSpec');
-  for (const file of PINS) {
+  for (const file of pins) {
     const pin = pinned(file);
     assert.ok(pin, `${file} names no pinned OpenSpec version`);
     assert.equal(pin, ci, `${file} pins OpenSpec ${pin}, but .github/workflows/payload.yml pins ${ci}`);
   }
+});
+
+// A server runs the Node.js major CI tests; the update script moves .nvmrc.
+test('the server installs the Node.js major .nvmrc names', () => {
+  const server = readFileSync(script, 'utf8').match(/setup_(\d+)\.x/)?.[1];
+  const ci = readFileSync(resolve(repo, '.nvmrc'), 'utf8').trim().replace(/^v/, '').split('.')[0];
+  assert.ok(server, 'server/setup.sh names no nodesource setup_<major>.x');
+  assert.equal(server, ci, `server/setup.sh installs Node.js ${server}, but .nvmrc names ${ci}`);
 });
 
 // The final check and server/README.md's end state promise the same tools; a

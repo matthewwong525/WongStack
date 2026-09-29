@@ -7,10 +7,8 @@
 // common dir, and Git must agree that it is a checkout's top level; a bare repo's worktree fails that check.
 // Skills are copied whole, so another skill imports this file by path; callers decide what a failure means.
 import { execFileSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
+import { isMain, parseCli } from './cli.mjs';
 
 export class PrimaryRootError extends Error {}
 
@@ -34,18 +32,8 @@ export function primaryRoot(cwd = process.cwd()) {
 
 const USAGE = 'usage: primary-root.mjs [dir]  prints the primary checkout of dir (default: the current directory)';
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  let parsed;
-  try {
-    parsed = parseArgs({ options: { help: { type: 'boolean' } }, allowPositionals: true, strict: true });
-  } catch (error) {
-    console.error(`${error.message}\n${USAGE}`);
-    process.exit(2);
-  }
-  if (parsed.values.help) {
-    console.log(USAGE);
-    process.exit(0);
-  }
+if (isMain(import.meta.url)) {
+  const parsed = parseCli({ usage: USAGE, allowPositionals: true });
   try {
     console.log(primaryRoot(parsed.positionals[0] || process.cwd()).primary);
   } catch (error) {

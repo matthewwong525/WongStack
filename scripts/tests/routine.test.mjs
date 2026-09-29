@@ -10,6 +10,7 @@ import test from 'node:test';
 import {
   buildCreateRequest, defaultName, invalidCronField, matchRoutine, modeFor,
 } from '../../.agents/skills/routine/scripts/routine.mjs';
+import { EXIT, PaseoError, parseCommand } from '../../.agents/skills/routine/scripts/lib/paseo.mjs';
 
 const cli = new URL('../../.agents/skills/routine/scripts/routine.mjs', import.meta.url).pathname;
 const CREATE = ['create', '--cron', '0 9 * * 1', '--prompt', '/improve', '--agent', 'claude'];
@@ -100,6 +101,18 @@ const schedule = (id, name, cwd) => ({
   cadence: { type: 'cron', expression: '0 9 * * 1', timezone: 'UTC' },
   target: { type: 'new-agent', config: { provider: 'claude', cwd, isolation: 'worktree' } },
   runs: [],
+});
+
+test('parseCommand reads values, booleans, and bare words, and refuses the rest with exit 2', () => {
+  const options = { values: ['name'], booleans: { '--dry-run': 'dryRun' }, positional: true, unknown: arg => `Unknown flag ${arg}.` };
+  assert.deepEqual(parseCommand(['pause', 'daily', '--name', '--odd', '--dry-run'], options),
+    { command: 'pause', flags: { name: '--odd', dryRun: true }, positional: ['daily'] });
+  const refused = (argv, message, extra = {}) => assert.throws(() => parseCommand(argv, { ...options, ...extra }),
+    error => error instanceof PaseoError && error.code === EXIT.input && error.message === message);
+  refused(['ls', '--nope'], 'Unknown flag --nope.');
+  refused(['ls', '--name'], '--name needs a value.');
+  refused(['ls', 'daily'], 'Unknown flag daily.', { positional: false });
+  refused(['ls', 'constructor'], 'Unknown flag constructor.', { positional: false });
 });
 
 test('checks each cron field and names the first bad one', () => {

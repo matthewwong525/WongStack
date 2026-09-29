@@ -502,8 +502,9 @@ function check(appDir, configPath) {
     );
     for (const problem of problems) console.error(`cf-secrets:   • ${problem}`);
     console.error("cf-secrets:");
+    const source = relative(repoRoot, resolve(secretsDir(appDir), SOURCE));
     console.error(
-      "cf-secrets: Run `npm run secrets:push` to load both Workers from app/.dev.vars,",
+      `cf-secrets: Run \`npm run secrets:push\` to load both Workers from ${source},`,
     );
     console.error(
       `cf-secrets: or redeclare the missing binding inside env.${STAGING_ENV}.`,

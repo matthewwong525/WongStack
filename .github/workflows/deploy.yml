@@ -18,7 +18,7 @@
 #                         any other      → the staging Worker + a preview alias
 #
 # The main app deploys only when the change touches it. The first step,
-# `.github/scripts/app-untouched.sh` (the same check test.yml runs), compares
+# `.github/actions/change-scope` (the same check test.yml runs), compares
 # the whole branch — or, on the default branch, the whole push — with its base.
 # When every changed path is docs, every main-app step skips and the job says
 # so: a docs branch never redeploys the main app. A change under
@@ -79,23 +79,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
 
 jobs:
-  # The app's own test suite, running BESIDE the build rather than in front of
-  # it. Two deliberate properties:
-  #
-  #   - No `needs:` edge. A staging deploy of red code is harmless — staging is
-  #     a seeded fixture and /verify observes it — and red code cannot reach
-  #     production anyway, because merging needs green checks. Gating the deploy
-  #     on tests would slow every push to buy something the merge gate already
-  #     guarantees.
-  #   - No test script is GREEN, not red. A repo that hasn't written tests yet
-  #     gets a real check that says so, exactly as an unprovisioned repo gets a
-  #     real check from the build job. A permanently red check teaches everyone
-  #     to ignore it.
-  #
-  # /save already waits on every check and auto-fixes failures, so the moment
-  # this job exists the suite is enforced on every save with no skill logic
-  # anywhere. It keys on the `test` script, not on vitest specifically — any
-  # runner behind `npm test` satisfies it.
+  # Migrate, build, and deploy the branch's Worker. It waits on no test run:
+  # test.yml tests the same commit beside it (see the header).
   build:
     # Same-repo pull requests are already covered by their push event; only a
     # fork PR, which fires no push here, needs the pull_request trigger.
@@ -132,15 +117,12 @@ jobs:
 
       - name: Check what the change touches
         id: scope
-        env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          SCOPE=$(bash .github/scripts/app-untouched.sh)
-          echo "$SCOPE" | tee -a "$GITHUB_OUTPUT"
-          if grep -qx 'untouched=true' <<< "$SCOPE" && grep -qx 'mini_changed=false' <<< "$SCOPE"; then
-            echo "The main app is untouched (only docs changed), so no main-app migration, build, or deploy ran." >> "$GITHUB_STEP_SUMMARY"
-          fi
+        uses: ./.github/actions/change-scope
+        with:
+          skip-when: |
+            untouched=true
+            mini_changed=false
+          skipped-note: The main app is untouched (only docs changed), so no main-app migration, build, or deploy ran.
 
       # Skipped when the main app is untouched and no mini app changed. Every
       # main-app step below —

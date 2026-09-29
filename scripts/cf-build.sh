@@ -65,7 +65,7 @@ fi
 
 wong_resolve_wrangler_config "$ROOT"
 
-wong_ci_branch
+wong_ci_branch "$ROOT"
 
 # Build the app, then copy the mini apps into its static assets under /apps/.
 # The copy reads the assets folder from the config the build just wrote, so it

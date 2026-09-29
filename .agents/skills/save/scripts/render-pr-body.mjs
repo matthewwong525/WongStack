@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Assemble a body file. The save skill owns summary judgment and publication.
-import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 function webUrl(value) {
   const url = new URL(value);
@@ -53,7 +53,7 @@ export function writePrBody(options, outputFile) {
   return true;
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const keys = { '--repo-root': 'repoRoot', '--change-root': 'changeRoot', '--mode': 'mode', '--repo-url': 'repoUrl', '--branch': 'branch', '--summary-file': 'summaryFile', '--preview-url': 'previewUrl', '--output': 'output' };
   const usage = `usage: render-pr-body.mjs ${Object.keys(keys).map(key => `${key} <value>`).join(' ')}`;
   const args = process.argv.slice(2);

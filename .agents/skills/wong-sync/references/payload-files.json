@@ -54,6 +54,7 @@
       "wiki/development/memory.md",
       "wiki/development/browsing.md",
       ".github/workflows/test.yml",
+      ".github/actions/change-scope/action.yml",
       ".github/scripts/app-untouched.sh",
       ".github/scripts/loosened-checks.mjs"
     ],

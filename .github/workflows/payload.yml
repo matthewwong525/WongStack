@@ -35,17 +35,11 @@ jobs:
           fetch-depth: 0
       - name: Check what the change touches
         id: scope
-        env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          SCOPE=$(bash .github/scripts/app-untouched.sh)
-          echo "$SCOPE" | tee -a "$GITHUB_OUTPUT"
-          if grep -qx 'docs_only=true' <<< "$SCOPE"; then
-            echo "Only wiki/ or openspec/ changed: lint, shell checks, and the script suite skipped; the private-names test and release checks ran." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Code or skill text changed, or no base to compare: every check ran." >> "$GITHUB_STEP_SUMMARY"
-          fi
+        uses: ./.github/actions/change-scope
+        with:
+          skip-when: docs_only=true
+          skipped-note: 'Only wiki/ or openspec/ changed: lint, shell checks, and the script suite skipped; the private-names test and release checks ran.'
+          ran-note: 'Code or skill text changed, or no base to compare: every check ran.'
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc

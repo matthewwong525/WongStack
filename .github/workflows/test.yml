@@ -12,13 +12,14 @@
 # itself and passes, never a permanently red one.
 #
 # A change that leaves the main app untouched runs no suite. The first step,
-# `.github/scripts/app-untouched.sh`, compares the whole branch (or, on the
-# default branch, the whole push) with its base: when every changed path is
-# docs or under `mini-apps/apps/`, the main app's steps skip, and only the
-# changed mini apps' own tests run. The rest of `mini-apps/` is the main
-# Worker's code, so a change there runs the suite. The skip is inside the job, never a `paths-ignore`,
-# so the required `test` check still reports. When the comparison can not be
-# made, the suite runs. The last step writes one summary line either way.
+# `.github/actions/change-scope` (it runs `.github/scripts/app-untouched.sh`),
+# compares the whole branch (or, on the default branch, the whole push) with
+# its base: when every changed path is docs or under `mini-apps/apps/`, the
+# main app's steps skip, and only the changed mini apps' own tests run. The
+# rest of `mini-apps/` is the main Worker's code, so a change there runs the
+# suite. The skip is inside the job, never a `paths-ignore`, so the required
+# `test` check still reports. When the comparison can not be made, the suite
+# runs. The last step writes one summary line either way.
 #
 # ---------------------------------------------------------------------------
 # Why one commit does not test twice
@@ -70,10 +71,7 @@ jobs:
 
       - name: Check what the change touches
         id: scope
-        env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: bash .github/scripts/app-untouched.sh | tee -a "$GITHUB_OUTPUT"
+        uses: ./.github/actions/change-scope
 
       # Resolve the app by its test script, never by a stack's config file: a
       # repo can have tests long before it is provisioned, or instead of ever

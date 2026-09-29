@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Tidy the shared helpers, checks, and test fakes
+
+- **One copy of each shared piece.** Code about fifteen scripts repeated now lives in one place: the memory skill's `scripts/lib/cli.mjs`, and the routine skill's `scripts/lib/paseo.mjs`. Nothing you see changes; a later fix lands once.
+- **One set of safety checks before a test upload.** The checks that stop a test copy of your app from overwriting the live one now run from one shared place, so the two upload paths can't disagree. A failed upload now keeps its full error in the log.
+- **One answer to "which branch is live".** Every upload script now picks your live branch the same way: the one you set, else the default branch your code host names, else `main`.
+- **Less repetition in the automatic checks.** The step that works out what a change touched is written once, in `.github/actions/change-scope/`, and shared by the three check runs.
+- **New servers run the Node version the checks test.** `server/setup.sh` now installs Node 22, the version the automatic checks run, and a test fails if the two ever differ. Servers already built keep what they have.
+- **Warnings in your app's code now fail its checks**, as they already do for WongStack's own code.
+- **Unused code removed:** the usage-cost report nothing ran, and parts of three scripts that nothing called.
+
+**Updating.** Your app's checks now fail on a lint warning, not only on an error. If the first check run after this update goes red, fix each warning it names.
+
 ## 27.1.0 — A handed-over page fits your phone
 
 - **Readable on a phone.** When the agent hands you its browser and you open the link on a phone, the site now shows its own phone layout at full size: text you can read and buttons you can tap, not a tiny desktop page squeezed into your screen.

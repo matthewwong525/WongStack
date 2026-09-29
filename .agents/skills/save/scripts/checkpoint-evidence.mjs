@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Local evidence only. The calling skill owns selection and every mutation.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 const USAGE = 'usage: checkpoint-evidence.mjs (active|archive [ref] | --json) [--repo DIR] [--ref REF] [--base REF] [--changes-dir DIR] [--branch NAME]';
 const usageError = message => Object.assign(new Error(message), { usage: true });
@@ -104,7 +104,7 @@ function parseArgs(args) {
   return { options, mode, json };
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   try {
     const { help, options, mode, json } = parseArgs(process.argv.slice(2));
     if (help) { console.log(USAGE); process.exit(0); }

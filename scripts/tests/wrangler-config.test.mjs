@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -61,11 +61,12 @@ const loggers = { npx: logger('npx '), npm: logger('npm ') };
 
 // A fake `npx` for cf-deploy logs one line per call. For `wrangler versions
 // upload` it prints a version URL first and the alias URL second, like real
-// wrangler. DEPLOY_FAIL makes `wrangler deploy` fail.
+// wrangler. DEPLOY_FAIL makes `wrangler deploy` fail, and UPLOAD_FAIL the upload.
 const deployNpx = `#!/usr/bin/env bash
 echo "$*" >> "$FAKE_LOG"
 case "$1 $2 $3" in
   "wrangler versions upload")
+    [ -n "\${UPLOAD_FAIL:-}" ] && { echo "Upload refused: script too large" >&2; exit 1; }
     echo "Uploaded demo-staging"
     echo "Version Preview URL: https://0a1b2c3d-demo-staging.example.workers.dev"
     echo "Version Preview Alias URL: https://feature-x-demo-staging.example.workers.dev"
@@ -86,11 +87,20 @@ function runIn(t, config, script, branch) {
     .run(script, [], { env: { CF_BRANCH: branch, CF_PRODUCTION_BRANCH: 'main' } });
 }
 
+// Makes `root` a Git repo whose remote's default branch is `branch`.
+function originHead(root, branch) {
+  const env = { PATH: process.env.PATH, HOME: root, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
+  execFileSync('git', ['init', '-q', root], { env });
+  execFileSync('git', ['-C', root, 'symbolic-ref', 'refs/remotes/origin/HEAD', `refs/remotes/origin/${branch}`], { env });
+}
+
 // Runs cf-deploy on `branch` and returns the exit status, output, recorded npx
 // calls, and GITHUB_OUTPUT. `generated` fakes a plugin build that named that
-// Worker. `env` adds to the script's environment.
-function deploy(t, { branch, generated, config = deployConfig, env = {} } = {}) {
+// Worker; `remoteDefault` names the remote's default branch. `env` adds to or,
+// with `undefined`, removes from the script's environment.
+function deploy(t, { branch, generated, remoteDefault, config = deployConfig, env = {} } = {}) {
   const fixture = pack(t, { scripts: ['cf-deploy.sh', ...LIB], config, tools: { npx: deployNpx }, prefix: 'cf-deploy-' });
+  if (remoteDefault) originHead(fixture.root, remoteDefault);
   if (generated) {
     // What @cloudflare/vite-plugin leaves behind: a redirect to a flattened config.
     fixture.write('app/.wrangler/deploy/config.json', '{ "configPath": "../../dist/demo/wrangler.json" }');
@@ -220,10 +230,61 @@ test('cf-deploy refuses a staging environment that names the production Worker',
   for (const [name, options] of [['source config', { config: pointsAtProduction }], ['build', { generated: 'demo' }]]) {
     const result = deploy(t, { branch: 'feature/x', ...options });
     assert.equal(result.status, 1, `${name}: ${result.out}`);
-    assert.match(result.out, /resolves to the[\s\S]*production Worker 'demo'/, name);
+    assert.match(result.out, /resolves to the production Worker 'demo'/, name);
+    assert.match(result.out, /env\.staging needs its own "name"[\s\S]*CLOUDFLARE_ENV=staging/, `${name}: both fixes`);
     assert.deepEqual(result.calls, [], `${name}: nothing may be deployed or uploaded`);
     assert.equal(result.github, '', name);
   }
+});
+
+test('the production branch is CF_PRODUCTION_BRANCH, else the remote\'s default, else main', t => {
+  const quiet = { GITHUB_REPOSITORY: '', CF_PRODUCTION_BRANCH: undefined };
+  const trunk = deploy(t, { branch: 'trunk', remoteDefault: 'trunk', env: quiet });
+  assert.equal(trunk.status, 0, trunk.out);
+  assert.match(trunk.out, /production branch: trunk/);
+  assert.deepEqual(trunk.calls, ['wrangler deploy'], 'the remote\'s default deploys production');
+
+  const named = deploy(t, { branch: 'trunk', remoteDefault: 'trunk', env: { ...quiet, CF_PRODUCTION_BRANCH: 'main' } });
+  assert.equal(named.status, 0, named.out);
+  assert.ok(named.calls.includes('wrangler deploy --env staging'), `the variable wins: ${named.calls.join('\n')}`);
+
+  const fallback = deploy(t, { branch: 'main', env: quiet });
+  assert.equal(fallback.status, 0, fallback.out);
+  assert.deepEqual(fallback.calls, ['wrangler deploy'], 'no variable and no remote: main');
+});
+
+test('a failed upload stops the deploy and keeps wrangler\'s error in the upload log', t => {
+  const run = deploy(t, { branch: 'feature/x', env: { UPLOAD_FAIL: '1' } });
+  assert.notEqual(run.status, 0, run.out);
+  // Through tee, like the preview script: the error reaches stdout and the log.
+  assert.match(run.out, /Upload refused: script too large/);
+  assert.doesNotMatch(run.stderr, /Upload refused/);
+  assert.equal(run.github, '');
+});
+
+// Runs the shell lookup and the CLI answer in a repo with `files` ({ path: text }).
+function lookup(t, files) {
+  const fixture = pack(t, { scripts: LIB, prefix: 'config-lookup-' });
+  for (const [path, text] of Object.entries(files)) fixture.write(path, text);
+  fixture.write('scripts/probe.sh', 'source "$(dirname "$0")/lib-wrangler-config.sh"\nwong_resolve_wrangler_config "$(dirname "$0")/.." && echo "found $WRANGLER_CONFIG"\n');
+  return { root: fixture.root, shell: fixture.run('probe.sh'), cli: fixture.run('lib-wrangler-config.mjs', ['config-path']) };
+}
+
+test('the config is found at the root, else in a subfolder, through one lookup', t => {
+  const config = '{ "name": "demo" }';
+  const atRoot = lookup(t, { 'wrangler.jsonc': config, 'app/wrangler.jsonc': config });
+  assert.equal(atRoot.cli.out.trim(), join(atRoot.root, 'wrangler.jsonc'));
+  assert.match(atRoot.shell.out, new RegExp(`found ${atRoot.root}/wrangler\\.jsonc`));
+
+  const inApp = lookup(t, { '.cache/wrangler.jsonc': config, 'node_modules/wrangler.json': config, 'app/wrangler.json': config });
+  assert.equal(inApp.cli.out.trim(), join(inApp.root, 'app/wrangler.json'));
+  assert.match(inApp.shell.out, /found .*\/app\/wrangler\.json$/m);
+
+  const none = lookup(t, {});
+  assert.equal(none.cli.status, 3, none.cli.out);
+  assert.equal(none.cli.out, '');
+  assert.equal(none.shell.status, 1, none.shell.out);
+  assert.match(none.shell.out, /no wrangler config found/);
 });
 
 test('cf-build migrates the staging database read from the real staging block', t => {

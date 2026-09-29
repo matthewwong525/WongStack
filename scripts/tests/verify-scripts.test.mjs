@@ -18,7 +18,7 @@ function fixture(t) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const work = join(root, 'work');
   mkdirSync(join(work, '.claude/skills/memory/scripts/lib'), { recursive: true });
-  for (const lib of ['store.mjs', 'primary-root.mjs']) symlinkSync(join(repo, '.agents/skills/memory/scripts/lib', lib), join(work, '.claude/skills/memory/scripts/lib', lib));
+  for (const lib of ['store.mjs', 'primary-root.mjs', 'cli.mjs']) symlinkSync(join(repo, '.agents/skills/memory/scripts/lib', lib), join(work, '.claude/skills/memory/scripts/lib', lib));
   execFileSync('git', ['init', '-q'], { cwd: work });
   writeFileSync(join(work, '.env'), ['# Access', 'export CF_ACCESS_CLIENT_ID="client-id.access"', `CF_ACCESS_CLIENT_SECRET='${SECRET}'`, 'CLOUDFLARE_API_TOKEN=tok=en== # api', ''].join('\r\n'));
   const bin = join(root, 'bin');
