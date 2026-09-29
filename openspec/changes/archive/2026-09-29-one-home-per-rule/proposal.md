@@ -73,3 +73,4 @@ None.
 - **2026-09-29** — Assumed: the plan's "run `/save`" task is dropped, because `/ship`'s own checkpoint runs CI after the archive.
 - **2026-09-29** — Assumed: `verify/SKILL.md`'s "stack-pack repos:" tag and the walkthrough page's opening "It gates nothing" get the same fixes, because the build found them saying what the change removes elsewhere.
 - **2026-09-29** — Assumed: archived and checkpointed by `/ship` as 27.1.1, after merging main's 27.1.0 release; the build tasks all passed the payload link, config, retired-name, and context-size checks.
+- **2026-09-29** — Assumed: after "Reshape the wiki" shipped as 27.1.1 first, this release is renumbered 27.1.2; its payload paragraph moved to `wiki/maintaining/README.md`, so the "manifest lists what ships" fix went there, and the development hub keeps main's new opening.
