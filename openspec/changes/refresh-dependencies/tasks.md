@@ -13,4 +13,4 @@
 
 ## 3. Integration checks
 
-- [ ] 3.1 Use `/save` to commit and push the update, then verify app Test (including the existing 100% coverage floor), Deploy, and Payload checks pass; fix any migration failures in the same change.
+- [x] 3.1 Use `/save` to commit and push the update, then verify app Test (including the existing 100% coverage floor), Deploy, and Payload checks pass; fix any migration failures in the same change.

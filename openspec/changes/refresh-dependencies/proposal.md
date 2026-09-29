@@ -1,8 +1,8 @@
 # Refresh the app and test dependencies
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** check-repo-updates
-**Open questions:** Whether to update this host's Node and GitHub CLI; their configured system repositories offer only the installed versions.
+**Open questions:** none for the repository update. Host Node and GitHub CLI installation remains a separate decision; their configured system repositories offer only the installed versions.
 
 ## Why
 
@@ -44,3 +44,4 @@ None. This dependency refresh preserves the app-scaffold and dependency-workflow
 - **2026-09-29** — Assumed: keep OpenSpec 1.13.2 and agent-browser 0.38.1, because they are current. The updater skipped the OpenSpec contract test because its version did not move.
 - **2026-09-29** — Assumed: leave host Node 22.22.1 and GitHub CLI 2.46.0 pending consent, because the updater reports a manual host step and the configured apt sources offer no newer versions. Upstream versions are Node 22.23.3 and GitHub CLI 2.101.0.
 - **2026-09-29** — Assumed: rerun the updater before checkpointing because installation resolved a newer Wrangler than the initial registry survey. The rerun moved its manifest range to 4.144.0 and skipped the current stages. Session facts could not be saved: the memory script reports no registered session in this checkout.
+- **2026-09-29** — Assumed: mark the repository update ready to publish after the saved change passed Test, Deploy, and Payload checks. Vitest 5.0.2 passed all 43 tests with all four coverage measures at 100%; lint, unused-code, and duplicate-code checks passed. `npm audit --json --omit=optional` reported zero vulnerabilities. No migration edits or held packages were needed. The preview was discovered from the commit's deployment metadata. Publishing and the separate host-tool installation are still pending the user's choice.
