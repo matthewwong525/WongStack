@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Save your passwords for the agent's browser
+
+- **The agent logs in for you.** When a site logs you out and you saved a login for it, the agent fills it in and carries on, with no link to open. If the login fails, or the site asks for a code sent to you, it hands you the browser as before. With two saved accounts for one site, it asks you which to use.
+- **A private link to save logins.** Say *save my passwords* or *add my Netflix login*, and the agent sends a private link like the hand-over link. It closes when you tap *Done*, or after 10 minutes.
+- **Upload an export, then tick what the agent may use.** Export your passwords as a CSV file from Chrome, Apple Passwords, LastPass, Bitwarden, 1Password, Dashlane, or Firefox, and pick it on the page. Your phone or laptop reads the file itself and lists every site, none ticked. Only the logins you tick leave your device.
+- **Or add one login.** A small form takes the website, username, and password, filled from your password manager or typed.
+- **The agent never sees a password.** It learns only which sites you saved, and it still never asks for a password in the chat. Say *forget my Netflix login* to remove one, or *which logins do you have?* to list them.
+- **Where they're kept.** On the computer the agent runs on, in the browser tool's own locked store, never in your repo. The key to that store sits on the same computer, so it stops a copied file from exposing your logins, but not someone with full access to that computer. Keep bank and email out unless you trust the agent with them. [Save your passwords](wiki/development/browsing.md#save-your-passwords) owns the details.
+
+**Updating.** Nothing to do by hand. Say *save my passwords* to start.
+
 ## 27.0.0 — Memory stays in its own repo
 
 - **Each repo's memory is its own.** Nothing is sent to another repo, and nothing loads from one when a chat starts. Home becomes an ordinary repo you happen to use alone: setup no longer asks whether a repo is your home, and nothing records one on your computer.
