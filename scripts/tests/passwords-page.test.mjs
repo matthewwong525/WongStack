@@ -86,7 +86,7 @@ function page({ reply, open = true } = {}) {
     box.dispatchEvent(new window.Event('change'));
   };
   const click = async selector => { $(selector).click(); await settle(); };
-  const saves = () => calls.filter(call => call.path === 'save').map(call => call.body.logins);
+  const saves = () => calls.filter(call => call.path === 'continue').map(call => call.body.logins);
   return { window, document, $, rows, pick, drop, type, add, tick, click, saves, calls, errors };
 }
 
@@ -100,7 +100,7 @@ test('the page opens on one screen with the list hidden and Save off', needsDom,
   assert.equal(p.$('#closed').hidden, true);
   assert.equal(p.$('#list').hidden, true);
   assert.equal(p.$('#save').disabled, true);
-  assert.equal(p.$('#save').textContent, 'Save 0 logins');
+  assert.equal(p.$('#save').textContent, 'Save and continue');
   assert.equal(p.window.location.hash, '', 'the key leaves the address bar');
   assert.deepEqual(p.errors, []);
 });
@@ -168,7 +168,7 @@ test('Add appends a ticked row, and replaces a same-site-and-username row', need
   p.add('hulu.com', 'me@x.com', 'pw-hulu');
   assert.deepEqual(p.rows().find(row => row.host === 'hulu.com'), { host: 'hulu.com', user: 'me@x.com', ticked: true, saved: false });
   assert.equal(p.$('#site').value, '', 'the form clears');
-  assert.equal(p.$('#save').textContent, 'Save 1 login');
+  assert.equal(p.$('#save').textContent, 'Save and continue');
 
   p.add('www.netflix.com', 'me@x.com', 'pw-new');
   assert.equal(p.rows().filter(row => row.host === 'netflix.com').length, 1);
@@ -190,18 +190,18 @@ test('Save takes a filled form and sends only ticked rows\' url, username, and p
   await p.pick(CHROME);
   p.tick('costco.com');
   p.type('hulu.com', 'me@x.com', 'pw-hulu');
-  assert.equal(p.$('#save').textContent, 'Save 2 logins', 'the count includes a filled form');
+  assert.equal(p.$('#save').textContent, 'Save and continue', 'the count includes a filled form');
   await p.click('#save');
   assert.deepEqual(p.saves(), [[
     { url: 'https://costco.com/', username: 'me@x.com', password: 'pw-costco' },
     { url: 'https://hulu.com', username: 'me@x.com', password: 'pw-hulu' },
   ]]);
-  assert.equal(p.calls.find(call => call.path === 'save').key, 'abc');
+  assert.equal(p.calls.find(call => call.path === 'continue').key, 'abc');
   assert.deepEqual(p.rows().filter(row => row.saved).map(row => row.host), ['costco.com', 'hulu.com']);
   assert.ok(p.rows().every(row => !row.ticked));
   assert.equal(p.$('#status').textContent, 'Saved: costco.com, hulu.com');
   assert.equal(p.$('#delete-file').hidden, false, 'a saved file row reminds you to delete the export');
-  assert.equal(p.$('#save').disabled, true);
+  assert.equal(p.$('#save').disabled, false);
 });
 
 test('one typed login is one Save, with no delete-the-file hint', needsDom, async () => {
@@ -226,7 +226,7 @@ test('a partial failure keeps the failed row ticked and names it', needsDom, asy
     ['amazon.com', false, true], ['costco.com', true, false], ['netflix.com', false, false],
   ]);
   assert.equal(p.$('#list-error').textContent, 'Couldn\'t save costco.com. Try again.');
-  assert.equal(p.$('#save').textContent, 'Save 1 login');
+  assert.equal(p.$('#save').textContent, 'Save and continue');
 });
 
 test('a 403 on a closed link shows the closed screen', needsDom, async () => {
@@ -243,7 +243,7 @@ test('Done with unsaved ticks needs two taps', needsDom, async () => {
   await p.pick(CHROME);
   p.tick('costco.com');
   await p.click('#done');
-  assert.equal(p.$('#done-note').textContent, '1 ticked login isn\'t saved. Tap Done again to leave without it.');
+  assert.equal(p.$('#done-note').textContent, '1 ticked login isn\'t saved. Tap Close without continuing again to leave without it.');
   assert.equal(p.calls.some(call => call.path === 'done'), false);
   p.tick('netflix.com');
   assert.equal(p.$('#done-note').hidden, true, 'a tick change disarms Done');
@@ -259,4 +259,20 @@ test('Done with nothing unsaved closes on one tap', needsDom, async () => {
   await p.click('#done');
   assert.deepEqual(p.calls.map(call => call.path), ['done']);
   assert.equal(p.$('#closed').hidden, false);
+});
+
+for (const notification of ['notified','unconfirmed']) test(`password continue receipt reports ${notification} and clears private input`,needsDom,async()=>{
+  const p=page({reply:(body,answer)=>answer(200,{saved:body.logins.map(_login=>({name:'netflix-com',host:'netflix.com'})),failed:[],ready:true,receipt:{notification}})});
+  p.type('netflix.com','me','private');await p.click('#save');
+  assert.equal(p.$('#page').hidden,true);assert.equal(p.$('#password').value,'');
+  assert.match(p.$('#closed h1').textContent,notification==='notified'?/notified/:/return to your chat/);
+});
+
+test('an incomplete typed login blocks a selected export and saving blocks all competing actions',needsDom,async()=>{
+  let finish;const p=page({reply:()=>new Promise(done=>{finish=done;})});
+  await p.pick(CHROME);p.tick('netflix.com');p.type('hulu.com','','private');await p.click('#save');
+  assert.equal(p.saves().length,0);assert.match(p.$('#add-error').textContent,/Complete/);
+  p.type('','','');p.$('#save').click();await settle();assert.equal(p.$('#done').disabled,true);assert.equal(p.$('#add').disabled,true);assert.equal(p.$('#drop').disabled,true);
+  p.$('#save').click();assert.equal(p.saves().length,1);
+  finish({ok:true,status:200,json:async()=>({saved:[],failed:[0],ready:false})});await settle();assert.equal(p.$('#done').disabled,false);
 });

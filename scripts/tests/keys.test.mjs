@@ -9,6 +9,8 @@ import { cleanValue, declarations, firstSentence, formatLine, LIMITS, setKey } f
 import { filledKeys } from '../../.agents/skills/verify/scripts/keys-page.mjs';
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 
+const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
+const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
 const seedScript = join(repo, '.agents/skills/ship/scripts/worktree-secrets.mjs');
@@ -65,6 +67,8 @@ function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
   const run = (cwd, ...args) => {
     const out = spawnSync(process.execPath, [script, ...args], { cwd, env: environment, encoding: 'utf8', timeout: 30_000 });
     outputs.push(out.stdout, out.stderr);
+    out.rawStdout = out.stdout;
+    out.stdout = legacyOutput(out.stdout);
     return out;
   };
   const state = join(root, '.wong-stack/hand-over');
@@ -182,7 +186,7 @@ test('Done ends the link, and wait prints only the saved names and those for the
   const out = f.run('wait');
   assert.equal(out.stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=STRIPE_SECRET_KEY\nHANDOVER_APP_KEYS=STRIPE_SECRET_KEY\n');
   const result = readFileSync(join(f.state, 'result.json'), 'utf8');
-  assert.deepEqual(JSON.parse(result), { result: 'done', saved: ['STRIPE_SECRET_KEY'], appKeys: ['STRIPE_SECRET_KEY'] });
+  assert.deepEqual(legacyResult(JSON.parse(result)), { result: 'done', saved: ['STRIPE_SECRET_KEY'], appKeys: ['STRIPE_SECRET_KEY'] });
   assert.ok(!f.outputs().includes(SECRET), 'no value in stdout or stderr');
   assert.ok(!(result + f.stateFiles()).includes(SECRET), 'no value in state.json or result.json');
   assert.ok(!f.calls().some(line => line.includes(SECRET)), 'no value in argv');
@@ -275,4 +279,19 @@ test('filledKeys sends only the trimmed, filled, open boxes', () => {
     { name: 'B', value: '   ', disabled: false },
     { name: 'C', value: 'c', disabled: true },
   ]), { A: 'a1' });
+});
+
+
+test('continue keeps successful keys while missing and failed keys prevent readiness, then delivers one receipt', async t => {
+  const f=fixture(t); const {port,key}=opened(f,'MAPS_API_KEY,STRIPE_SECRET_KEY');
+  const partial=await route(port,key,'continue',{keys:{MAPS_API_KEY:SECRET,STRIPE_SECRET_KEY:''}});
+  assert.equal(partial.json.ready,false); assert.deepEqual(partial.json.missing,['STRIPE_SECRET_KEY']);
+  assert.deepEqual(partial.json.saved,['MAPS_API_KEY']);
+  assert.equal((await route(port,key,'continue',{keys:{}})).json.ready,false);
+  const complete=await route(port,key,'continue',{keys:{STRIPE_SECRET_KEY:SECRET}});
+  assert.equal(complete.json.ready,true); assert.equal(complete.json.receipt.notification,'unavailable');
+  assert.deepEqual(complete.json.receipt.appKeys,['STRIPE_SECRET_KEY']);
+  assert.equal((await route(port,key,'continue',{keys:{STRIPE_SECRET_KEY:'replacement'}})).status,410);
+  assert.equal((await route(port,key,'done',{})).status,410);
+  f.run('wait');
 });

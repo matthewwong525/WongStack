@@ -1,8 +1,8 @@
 // The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). One screen
 // holds one list: a CSV password export, dropped anywhere on the page or picked, is read on this
 // device and joins the list with none ticked; a login typed or filled into the form joins it ticked.
-// *Save* sends only the ticked logins, plus a filled form not yet added, to `POST /save`; the file
-// itself is never sent. *Done* posts `/done`, which closes the link. The pure `parseExport` and
+// Save and continue sends selected logins and a filled form to `POST /continue`; the file
+// stays local. Close without continuing posts `/done` and cancels without readiness. The pure `parseExport` and
 // `siteUrl` are exported for the tests; the rest runs only in a browser.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
@@ -108,14 +108,19 @@ function start() {
     headers: { 'x-hand-over-key': key, 'content-type': 'application/json' },
     body: JSON.stringify(body ?? {}),
   }).catch(() => null);
-  const closed = () => { logins = []; ticked.clear(); $('#add-form').reset(); show('closed'); };
+  const closed = () => { logins = []; ticked.clear(); $('#add-form').reset(); $('#logins').replaceChildren(); show('closed'); $('#closed .hint').textContent = 'Return to chat. Ask for a new link if you still need it.'; };
+  const completed = receipt => {
+    closed();
+    $('#closed h1').textContent = receipt?.notification === 'notified' ? 'Your assistant was notified' : 'Saved; return to your chat';
+    $('#closed .hint').textContent = receipt?.notification === 'notified' ? 'You can return to the chat.' : "Your entries are saved. Return to chat and say continue.";
+  };
   const stillOpen = () => fetch('page.mjs', { cache: 'no-store' }).then(response => response.ok, () => false);
 
   /** Saves the logins; resolves to `{saved, failed}`, or an error message, or null once the link has closed. */
   async function save(list) {
-    const response = await post('save', { logins: list.map(({ url, username, password }) => ({ url, username, password })) });
+    const response = await post('continue', { logins: list.map(({ url, username, password }) => ({ url, username, password })) });
     if (response?.ok) return response.json();
-    if (!response || response.status === 403) return (await stillOpen()) ? MESSAGES.failed : null;
+    if (!response || [403, 410].includes(response.status)) return response?.status === 410 ? null : (await stillOpen()) ? MESSAGES.failed : null;
     return response.status === 413 ? MESSAGES.tooMany : MESSAGES.failed;
   }
 
@@ -135,8 +140,13 @@ function start() {
     const typed = formLogin();
     if (typed) ids.add(idOf(typed));
     const button = $('#save');
-    button.textContent = `Save ${plural(ids.size, 'login')}`;
-    button.disabled = saving || !ids.size;
+    button.textContent = saving ? 'Saving…' : 'Save and continue';
+    button.disabled = saving || (!ids.size && !savedHosts.size);
+    for (const control of document.querySelectorAll('#page input, #page button')) {
+      if (control.id === 'save') continue;
+      const savedRow = control.closest('#logins li')?.querySelector('.tag');
+      control.disabled = saving || Boolean(savedRow);
+    }
   }
 
   function filter() {
@@ -198,8 +208,9 @@ function start() {
   }
 
   async function readFile(file) {
-    if (!file) return;
+    if (!file || saving) return;
     const found = parseExport(await file.text().catch(() => ''));
+    if (saving) return;
     note('#file-error', !found ? MESSAGES.unreadable : !found.length ? MESSAGES.empty : '');
     if (found?.length) mergeFile(found);
   }
@@ -231,6 +242,7 @@ function start() {
   $('#add-form').addEventListener('input', drawCount);
   $('#add-form').addEventListener('submit', event => {
     event.preventDefault();
+    if (saving) return;
     const typed = formLogin();
     if (!typed) return note('#add-error', hostOf(siteUrl($('#site').value)) ? '' : MESSAGES.badSite);
     addTyped(typed);
@@ -238,10 +250,13 @@ function start() {
 
   // One Save for every ticked login, and a filled form not yet added.
   $('#save').addEventListener('click', async () => {
+    if (saving) return;
     const typed = formLogin();
+    const hasTyped = ['#site', '#username', '#password'].some(id => $(id).value);
+    if (hasTyped && (!typed || [typed.url, typed.username, typed.password].some(long) || /[\r\n]/.test(typed.username))) return note('#add-error', 'Complete the website, username, and password before continuing.');
     if (typed) addTyped(typed);
     const list = pending();
-    if (!list.length || saving) return;
+    if (!list.length && !savedHosts.size) return;
     saving = true;
     disarmDone();
     drawCount();
@@ -256,6 +271,7 @@ function start() {
     for (const login of list) {
       if (failed.has(idOf(login))) continue;
       login.state = 'saved';
+      login.password = '';
       ticked.delete(idOf(login));
       if (login.source === 'file') $('#delete-file').hidden = false;
     }
@@ -264,14 +280,16 @@ function start() {
     const sites = list.filter(login => failed.has(idOf(login))).map(login => login.host);
     note('#list-error', sites.length ? `Couldn't save ${[...new Set(sites)].join(', ')}. Try again.` : '');
     draw();
+    if (result.ready && result.receipt) completed(result.receipt);
   });
 
   // Done closes the link; with ticked logins not yet saved, it asks for a second tap.
   $('#done').addEventListener('click', async () => {
+    if (saving) return;
     const left = pending().length;
     if (left && !doneArmed) {
       doneArmed = true;
-      return note('#done-note', `${plural(left, 'ticked login')} ${left === 1 ? 'isn\'t' : 'aren\'t'} saved. Tap Done again to leave without ${left === 1 ? 'it' : 'them'}.`);
+      return note('#done-note', `${plural(left, 'ticked login')} ${left === 1 ? 'isn\'t' : 'aren\'t'} saved. Tap Close without continuing again to leave without ${left === 1 ? 'it' : 'them'}.`);
     }
     $('#done').disabled = true;
     await post('done');

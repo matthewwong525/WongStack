@@ -22,7 +22,7 @@
   button.main { background: #3478f6; border-color: #3478f6; color: #fff; }
   button:disabled { opacity: 0.5; }
   .row button { font-size: 0.95rem; padding: 12px; flex: none; }
-  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 8px; }
+  .actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 16px 0 8px; }
 </style>
 </head>
 <body>
@@ -32,8 +32,8 @@
     <ul id="keys"></ul>
     <p class="hint">Each key goes straight to a private file on your assistant's computer, never into the chat.</p>
     <div class="actions">
-      <button type="submit" class="main" id="save">Save</button>
-      <button type="button" id="done">Done</button>
+      <button type="submit" class="main" id="save" disabled>Save and continue</button>
+      <button type="button" id="done">Close without continuing</button>
     </div>
   </form>
 </section>

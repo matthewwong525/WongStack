@@ -6,9 +6,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { autofillToken, clampViewport, FIELD_SCAN, fieldBox, finished, globToRegExp, keyMatches, tidyTabs, tunnelOrigin } from '../../.agents/skills/verify/scripts/hand-over.mjs';
+import { autofillToken, clampViewport, FIELD_SCAN, actionScan, fieldBox, finished, globToRegExp, keyMatches, tidyTabs, tunnelOrigin } from '../../.agents/skills/verify/scripts/hand-over.mjs';
 import { sendPlan, toPage, typedKeys, wantedSize } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
 
+const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
+const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
 const ORIGIN = 'https://quiet-fox-lamp.trycloudflare.com';
@@ -20,7 +22,7 @@ const BLANK = { active: true, label: null, tabId: 't2', title: 'about:blank', ty
 // file in order. The fakes print the real shapes recorded from cloudflared 2026.9.3 and
 // agent-browser 0.38.1. The test sets the tabs, the live-feed port, the page address, the
 // element count, and the scanned fields through files; a `fail` file fails each field command.
-function fixture(t, { cloudflared = true } = {}) {
+function fixture(t, { cloudflared = true, paseo = null, agentId } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
@@ -59,8 +61,16 @@ exec sleep 600
   writeFileSync(file('fields'), '[]\n');
   // Without cloudflared, PATH is the fake bin alone, so it carries the two tools the fake uses.
   if (!cloudflared) for (const tool of ['cat', 'rm']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
-  const env = { ...process.env, HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50' };
-  const run = (...args) => spawnSync(process.execPath, [script, ...args], { env, encoding: 'utf8', timeout: 30_000 });
+  if (paseo) {
+    writeFileSync(join(bin, 'paseo'), `#!${process.execPath}
+const fs = require('node:fs');
+fs.appendFileSync(${JSON.stringify(file('sent.jsonl'))}, JSON.stringify(process.argv.slice(2)) + '\\n');
+${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() => {}, 10000);' : paseo === 'invalid' ? "console.log('{}');" : "console.log(JSON.stringify({agentId: process.argv[3], status: 'sent'}));"}
+`);
+    chmodSync(join(bin, 'paseo'), 0o755);
+  }
+  const env = { ...process.env, PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50' };
+  const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
   const state = join(root, '.wong-stack/hand-over');
   t.after(() => {
     run('close');
@@ -71,10 +81,11 @@ exec sleep 600
   return {
     run,
     state,
+    sent: () => existsSync(file('sent.jsonl')) ? readFileSync(file('sent.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [],
     set: (name, value) => writeFileSync(file(name), `${value}\n`),
     calls: () => (existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n') : []),
     tunnelPid: () => Number(readFileSync(file('tunnel.pid'), 'utf8')),
-    result: () => JSON.parse(readFileSync(join(state, 'result.json'), 'utf8')),
+    result: () => legacyResult(JSON.parse(readFileSync(join(state, 'result.json'), 'utf8'))),
   };
 }
 
@@ -502,4 +513,100 @@ test('wantedSize gives a narrow window its own width and a wide one 1280×720', 
   assert.deepEqual(wantedSize({ boxWidth: 390, innerHeight: 500 }), { width: 390, height: 400 }, 'at least 400 tall on a short window');
   assert.deepEqual(clampViewport({ width: 200, height: 90000 }), { width: 320, height: 1280 });
   assert.equal(clampViewport({ width: 390 }), null);
+});
+
+async function eventually(job) {
+  const end = Date.now() + 5000;
+  while (Date.now() < end) { const value = await job(); if (value) return value; await new Promise(done => setTimeout(done, 25)); }
+  assert.fail('condition did not complete');
+}
+
+test('automatic completion notifies the full originating workspace without wait; receipt revokes replay and dispatches once', async t => {
+  const f = fixture(t, { paseo: 'ok' });
+  const { port, key } = opened(f, '--local', '--until', '**/inbox');
+  const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
+  assert.equal(state.agentId, 'a-full-workspace-id');
+  assert.match(state.completionId, /^[a-f0-9]{32}$/);
+  f.set('url', 'https://mail.example.com/inbox');
+  const receipt = await eventually(async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/receipt`, { headers: { 'x-hand-over-key': key } }).catch(() => null);
+    return response?.status === 200 && await response.json();
+  });
+  assert.equal(receipt.notification, 'notified');
+  assert.equal(receipt.ready, true);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/receipt`)).status, 403);
+  const replay = await fetch(`http://127.0.0.1:${port}/viewport`, { method: 'POST', headers: { 'x-hand-over-key': key }, body: JSON.stringify({width:400,height:600}) });
+  assert.equal(replay.status, 410);
+  assert.match(await raw(port, upgrade(`/stream?key=${key}`)), /^HTTP\/1.1 410/);
+  const [send] = f.sent();
+  assert.equal(send[0], 'send'); assert.equal(send[1], state.agentId);
+  assert.ok(send.includes('--no-wait')); assert.ok(send.includes('--json'));
+  assert.ok(send[2].includes(state.completionId));
+  assert.doesNotMatch(send[2], /https?:|inbox|selector|username|password|trycloudflare/);
+  f.run('close'); // duplicate finish callback while the receipt window is open
+  const output = f.run('wait');
+  assert.match(output.rawStdout, /HANDOVER_COMPLETION=[a-f0-9]{32}/);
+  assert.match(output.rawStdout, /HANDOVER_NOTIFICATION=notified/);
+  f.run('close');
+  assert.equal(f.sent().length, 1);
+});
+
+for (const [paseo, notification] of [['fail', 'unconfirmed'], ['timeout', 'unconfirmed'], ['invalid', 'unconfirmed'], [null, 'unavailable']]) {
+  test(`completion keeps result when notification is ${paseo ?? 'missing'}`, async t => {
+    const f = fixture(t, { paseo });
+    opened(f, '--local', '--until', '**/inbox');
+    f.set('url', 'https://mail.example.com/inbox');
+    f.run('wait');
+    const result = JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8'));
+    assert.equal(result.result, 'done'); assert.equal(result.notification, notification);
+    assert.equal(f.sent().length, paseo ? 1 : 0);
+  });
+}
+
+test('fixed metadata scan and resolver retain native identity without reading private values', async () => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM(`<form id="one"><input aria-label="Email"><button>Sign in<input value="private"></button><button disabled>Disabled</button><input type="submit" value="Verify"></form><form id="two"><button>Send</button><button type="reset">Reset</button></form><div role="button">Custom</div><iframe></iframe>`, { runScripts: 'outside-only' });
+  const win = dom.window;
+  win.CSS = { escape: text => text };
+  win.HTMLElement.prototype.getClientRects = function () { return [{}]; };
+  win.HTMLElement.prototype.getBoundingClientRect = () => ({left:10,top:10,width:100,height:40});
+  win.HTMLElement.prototype.scrollIntoView = () => {};
+  const list = win.eval(FIELD_SCAN);
+  assert.deepEqual(Array.from(list.actions, a => a.label), ['Sign in','Disabled','Verify','Send']);
+  assert.equal(list.actions[1].disabled, true);
+  assert.notEqual(list.actions[0].form, list.actions[3].form);
+  const button = win.document.querySelector('button');
+  win.document.elementFromPoint = () => button;
+  assert.deepEqual(JSON.parse(JSON.stringify(win.eval(actionScan(list.actions[0].id,list.revision)))), {x:60,y:30});
+  assert.equal(win.eval(FIELD_SCAN).revision, list.revision, 'unchanged scan preserves revision');
+  button.replaceWith(button.cloneNode(true));
+  assert.equal(win.eval(actionScan(list.actions[0].id,list.revision)), null, 'replacement is refused');
+  assert.equal(win.eval(actionScan(list.actions[1].id,list.revision)), null, 'disabled submit is refused');
+  dom.window.close();
+});
+
+test('keyed native action route refuses stale/disabled refs and accepts only server refs', async t => {
+  const f = fixture(t);
+  f.set('fields', JSON.stringify({fields: [], revision:'1', actions:[{id:'one', form:'form',label:'Sign in',disabled:false},{id:'two',form:'form',label:'Disabled',disabled:true}]}));
+  const { port,key } = opened(f,'--local');
+  const call = (path,body,auth=key) => fetch(`http://127.0.0.1:${port}/${path}`, {method:body?'POST':'GET', headers:{'x-hand-over-key':auth},body:body&&JSON.stringify(body)});
+  const list = await (await call('fields')).json();
+  const again = await (await call('fields')).json();
+  assert.equal(list.actions[0].ref, again.actions[0].ref);
+  assert.equal((await call('action',{ref:list.actions[0].ref,revision:'1'},'wrong')).status,403);
+  assert.equal((await call('action',{selector:'button'})).status,400);
+  assert.equal((await call('action',{ref:list.actions[1].ref,revision:'1'})).status,409);
+  assert.equal((await call('action',{ref:list.actions[0].ref,revision:'obsolete'})).status,409);
+  f.set('fields',JSON.stringify({x:60,y:30}));
+  assert.deepEqual(await (await call('action',{ref:list.actions[0].ref,revision:'1'})).json(),{x:60,y:30});
+  f.set('fields','null');
+  assert.equal((await call('action',{ref:list.actions[0].ref,revision:'1'})).status,409);
+});
+
+
+test('a CLI without originating identity never infers a target or opens another workspace', async t => {
+  const f=fixture(t,{paseo:'ok',agentId:''});opened(f,'--local','--until','**/inbox');
+  f.set('url','https://mail.example.com/inbox');f.run('wait');
+  assert.equal(f.sent().length,0);
+  assert.equal(JSON.parse(readFileSync(join(f.state,'result.json'),'utf8')).notification,'unavailable');
 });

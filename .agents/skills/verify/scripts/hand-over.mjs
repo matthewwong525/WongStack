@@ -61,6 +61,7 @@ import { parseArgs, promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { APP_FILE, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
+import { findPaseo } from '../../routine/scripts/lib/paseo.mjs';
 import { PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
 
 const USAGE = `usage: hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
@@ -68,8 +69,8 @@ const USAGE = `usage: hand-over.mjs open [--until <glob>] [--until-gone <selecto
        hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
        hand-over.mjs wait | close
   open    start the private link, print HANDOVER_LINK=<url>, and watch for the finish
-          --passwords: the password link instead, to save logins; it ends on Done
-          --keys: the key link instead, one box per declared name; it ends on Done or
+          --passwords: save logins and continue, or cancel
+          --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=)
   wait    block until the link closes; print HANDOVER_RESULT=done|timeout|closed|error,
           then HANDOVER_SAVED=<name>,<name> for a password or key link, and
@@ -118,11 +119,16 @@ export const FIELD_SCAN = `(() => {
     return 'body > ' + steps.join(' > ');
   };
   const selectorOf = field => field.id && document.querySelectorAll('#' + CSS.escape(field.id)).length === 1 ? '#' + CSS.escape(field.id) : path(field);
+  const registry = window.__wongHandOverActions ??= { ids: new WeakMap(), nodes: new Map(), sequence: 0, revision: 0 };
+  const identity = node => { if (!registry.ids.has(node)) registry.ids.set(node, String(++registry.sequence)); return registry.ids.get(node); };
+  const formOf = node => node.form ? identity(node.form) : null;
+  const visible = node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden' && getComputedStyle(node).display !== 'none';
   const fields = [];
   for (const field of document.querySelectorAll('input, select, textarea')) {
     const type = field.localName === 'input' ? field.type : field.localName;
     if (SKIP.has(type) || field.disabled || field.readOnly || !field.getClientRects().length) continue;
     fields.push({
+      form: formOf(field),
       kind: type === 'select' ? 'select' : type === 'checkbox' ? 'checkbox' : 'text',
       type,
       label: labelOf(field),
@@ -136,8 +142,36 @@ export const FIELD_SCAN = `(() => {
     });
     if (fields.length === 40) break;
   }
-  return fields;
+  const actions = [];
+  for (const node of document.querySelectorAll('button, input[type=submit]')) {
+    if (!node.form || node.type !== 'submit' || !visible(node)) continue;
+    const id = identity(node);
+    registry.nodes.set(id, { node, form: node.form });
+    actions.push({ id, form: formOf(node), label: clean(node.getAttribute('aria-label')) || clean(byIds(node.getAttribute('aria-labelledby') ?? '')) || clean(node.localName === 'input' ? node.getAttribute('value') : textOf(node)) || 'Submit', disabled: node.matches(':disabled'), visible: true });
+    if (actions.length === 40) break;
+  }
+  const signature = JSON.stringify({ fields, actions });
+  if (signature !== registry.signature) { registry.signature = signature; registry.revision++; }
+  const revision = String(registry.revision);
+  registry.current = new Set(actions.map(action => action.id));
+  return { fields, actions, revision };
 })()`;
+
+/** Resolve only a previously scanned native element, never a selector supplied by the client. */
+export function actionScan(id, revision) {
+  return `(() => {
+    const registry = window.__wongHandOverActions;
+    const entry = registry?.nodes.get(${JSON.stringify(id)});
+    if (!entry || String(registry.revision) !== ${JSON.stringify(revision)} || !registry.current.has(${JSON.stringify(id)})) return null;
+    const { node, form } = entry;
+    if (!node.isConnected || node.ownerDocument !== document || node.form !== form || !form.isConnected || node.type !== 'submit' || node.matches(':disabled') || !node.getClientRects().length || getComputedStyle(node).visibility === 'hidden') return null;
+    node.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+    const rect = node.getBoundingClientRect();
+    const x = Math.round(rect.left + rect.width / 2), y = Math.round(rect.top + rect.height / 2);
+    const top = document.elementFromPoint(x, y);
+    return top && (top === node || node.contains(top)) ? { x, y } : null;
+  })()`;
+}
 
 /** The HTML autofill field names a page's own `autocomplete` may end in. */
 const AUTOFILL_TOKENS = new Set(['name', 'honorific-prefix', 'given-name', 'additional-name', 'family-name', 'honorific-suffix', 'nickname', 'username', 'new-password', 'current-password', 'one-time-code', 'organization-title', 'organization', 'street-address', 'address-line1', 'address-line2', 'address-line3', 'address-level4', 'address-level3', 'address-level2', 'address-level1', 'country', 'country-name', 'postal-code', 'cc-name', 'cc-given-name', 'cc-additional-name', 'cc-family-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc', 'cc-type', 'transaction-currency', 'transaction-amount', 'language', 'bday', 'bday-day', 'bday-month', 'bday-year', 'sex', 'url', 'photo', 'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-extension', 'email', 'impp']);
@@ -247,11 +281,16 @@ function alive(pid) {
 const watcherPid = () => Number(readText(FILES.pid).trim()) || null;
 
 const execFileAsync = promisify(execFile);
+const browserChildren = new Set();
+const abortBrowser = () => { for (const child of browserChildren) child.kill('SIGKILL'); };
 
 /** Runs agent-browser without blocking the page server; resolves to trimmed stdout, or null when it fails. */
 async function browser(args) {
   try {
-    return (await execFileAsync('agent-browser', args, { encoding: 'utf8', timeout: TOOL_TIMEOUT_MS })).stdout.trim();
+    const call = execFileAsync('agent-browser', args, { encoding: 'utf8', timeout: TOOL_TIMEOUT_MS });
+    browserChildren.add(call.child);
+    call.child.once('close', () => browserChildren.delete(call.child));
+    return (await call).stdout.trim();
   } catch {
     return null;
   }
@@ -288,6 +327,27 @@ async function teardown(result, tunnelPid, { browserless = false, saved, appKeys
   writeFileSync(FILES.result, `${JSON.stringify({ result, ...(saved && { saved }), ...(appKeys && { appKeys }) })}
 `);
   for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
+}
+
+/** Result-only completion message; routing and private input are never taken from the page. */
+export function completionMessage(state, result) {
+  const names = list => (list ?? []).filter(name => typeof name === 'string' && /^[a-zA-Z0-9_-]{1,200}$/.test(name));
+  return `Private input ended. Resume the existing task once for this completion; if wait already reported it, consume the duplicate without repeating the task. ${JSON.stringify({ completionId: state.completionId, mode: modeOf(state), result: result.result, saved: names(result.saved), appKeys: names(result.appKeys) })}${result.appKeys?.length ? ' Push the saved Worker keys to both Workers as the secrets guide requires.' : ''}`;
+}
+
+export async function notifyWorkspace(state, result) {
+  if (!state.agentId) return 'unavailable';
+  let bin;
+  try { bin = findPaseo(process.env, 'HANDOVER_PASEO_BIN'); } catch { return 'unavailable'; }
+  try {
+    const context = state.paseoHost ? ['--host', state.paseoHost] : state.paseoHome ? ['--home', state.paseoHome] : [];
+    const { stdout } = await promisify(execFile)(bin, ['send', state.agentId, completionMessage(state, result), '--no-wait', '--json', ...context], {
+      cwd: state.cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024,
+    });
+    const output = JSON.parse(stdout);
+    const ack = output.data ?? output;
+    return ack.status === 'sent' && ack.agentId === state.agentId ? 'notified' : 'unconfirmed';
+  } catch { return 'unconfirmed'; }
 }
 
 /** Tears down a hand-over whose watcher died without finishing. */
@@ -346,21 +406,26 @@ export function clampViewport(body) {
  * field only by its `ref`, an index into that scan. Every agent-browser call, `/viewport`'s too, runs
  * through one queue.
  */
-function fieldRoutes() {
+function fieldRoutes({ isOpen = () => true } = {}) {
   let scanned = [];
+  let actions = new Map();
+  let revision = null;
   let queue = Promise.resolve();
   let scanning = null;
   const serial = job => {
-    const run = queue.then(job);
+    const run = queue.then(() => isOpen() ? job() : null);
     queue = run.catch(() => {});
     return run;
   };
   const readFields = async () => {
     const found = (await browserData(['eval', '-b', Buffer.from(FIELD_SCAN).toString('base64')]))?.result;
-    if (!Array.isArray(found)) return null;
-    scanned = found;
-    const fields = found.map((field, ref) => ({ ref, kind: field.kind, label: field.label, ...fieldBox(field), options: field.options.map(({ value, text }) => ({ value, text })) }));
-    return { signature: createHash('sha256').update(JSON.stringify(fields)).digest('hex'), fields };
+    if (!Array.isArray(found) && !Array.isArray(found?.fields)) return null;
+    scanned = Array.isArray(found) ? found : found.fields;
+    revision = found.revision ?? null;
+    actions = new Map((found.actions ?? []).map(action => [action.id, { ...action, ref: actions.get(action.id)?.ref ?? randomBytes(16).toString('hex') }]));
+    const exposed = [...actions.values()].map(({ ref, label, form, disabled }) => ({ ref, label, form, disabled }));
+    const fields = scanned.map((field, ref) => ({ ref, form: field.form ?? null, kind: field.kind, label: field.label, ...fieldBox(field), options: field.options.map(({ value, text }) => ({ value, text })) }));
+    return { signature: createHash('sha256').update(JSON.stringify({ fields, actions: found.actions ?? [] })).digest('hex'), fields, actions: exposed, revision };
   };
   // A request joins a scan already waiting, unless a command was queued since: a pick can show a new field.
   const scan = () => {
@@ -372,7 +437,7 @@ function fieldRoutes() {
     return scanning;
   };
 
-  return async (pathname, request, response) => {
+  const route = async (pathname, request, response) => {
     if (pathname === '/fields') {
       if (request.method !== 'GET') return reply(response, 405);
       const list = await scan();
@@ -380,6 +445,16 @@ function fieldRoutes() {
     }
     if (request.method !== 'POST') return reply(response, 405);
     const body = await readBody(request);
+    if (pathname === '/action') {
+      if (!body || typeof body.ref !== 'string' || typeof body.revision !== 'string') return reply(response, 400);
+      const target = [...actions.values()].find(action => action.ref === body.ref);
+      if (!target || body.revision !== revision || target.disabled) return reply(response, 409);
+      const point = await serial(async () => {
+        if (body.revision !== revision) return null;
+        return (await browserData(['eval', '-b', Buffer.from(actionScan(target.id, body.revision)).toString('base64')]))?.result;
+      });
+      return point && Number.isInteger(point.x) && Number.isInteger(point.y) ? reply(response, 200, point) : reply(response, 409);
+    }
     if (pathname === '/viewport') {
       const size = clampViewport(body);
       if (!size) return reply(response, 400);
@@ -399,6 +474,9 @@ function fieldRoutes() {
     });
     return ok ? reply(response, 200, { ok }) : reply(response, 409);
   };
+  route.drain = () => queue;
+  route.abort = abortBrowser;
+  return route;
 }
 
 /**
@@ -409,16 +487,26 @@ function fieldRoutes() {
  */
 export function servePage({ port, streamPort, key, passwords = false, keys = null }, hooks = {}) {
   const sockets = new Set();
+  const streams = new Set();
+  let finishing = false;
+  let receipt = null;
   const track = socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); return socket; };
   const mode = modeOf({ passwords, keys });
-  const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, hooks), handOver: fieldRoutes }[mode]();
+  hooks = { ...hooks, isOpen: () => !finishing };
+  const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, hooks), handOver: () => fieldRoutes(hooks) }[mode]();
   const ROUTES = { passwords: PASSWORD_ROUTES, keys: KEY_ROUTES };
-  const isRoute = pathname => (ROUTES[mode] ? ROUTES[mode].has(pathname) : pathname === '/fields' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
+  const isRoute = pathname => (ROUTES[mode] ? ROUTES[mode].has(pathname) : pathname === '/fields' || pathname === '/action' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
   const served = PAGES[mode];
   const server = createServer((request, response) => {
     const { pathname } = new URL(request.url, 'http://page');
+    if (pathname === '/receipt') {
+      if (!keyMatches(request.headers['x-hand-over-key'], key)) return reply(response, 403);
+      if (request.method !== 'GET') return reply(response, 405);
+      return reply(response, receipt ? 200 : 202, receipt ?? { finishing });
+    }
     if (isRoute(pathname)) {
       if (!keyMatches(request.headers['x-hand-over-key'], key)) return reply(response, 403);
+      if (finishing) return reply(response, 410);
       return void routes(pathname, request, response).catch(() => reply(response, 500));
     }
     const page = request.method === 'GET' && Object.hasOwn(served, pathname) && served[pathname];
@@ -434,7 +522,10 @@ export function servePage({ port, streamPort, key, passwords = false, keys = nul
     const url = new URL(request.url, 'http://page');
     if (mode !== 'handOver' || url.pathname !== '/stream') return refuse(socket, '404 Not Found');
     if (!keyMatches(url.searchParams.get('key'), key)) return refuse(socket, '403 Forbidden');
+    if (finishing) return refuse(socket, '410 Gone');
+    streams.add(socket);
     const upstream = track(connect(streamPort, '127.0.0.1'));
+    streams.add(upstream);
     const lines = ['GET / HTTP/1.1', `Host: 127.0.0.1:${streamPort}`, 'Upgrade: websocket', 'Connection: Upgrade'];
     for (const name of ['sec-websocket-key', 'sec-websocket-version', 'sec-websocket-extensions']) if (request.headers[name]) lines.push(`${name}: ${request.headers[name]}`);
     upstream.write(`${lines.join('\r\n')}\r\n\r\n`);
@@ -444,10 +535,20 @@ export function servePage({ port, streamPort, key, passwords = false, keys = nul
   });
   return new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(port, '127.0.0.1', () => resolve(() => new Promise(done => {
-      server.close(() => done());
-      for (const socket of sockets) socket.destroy();
-    })));
+    server.listen(port, '127.0.0.1', () => {
+      const close = () => new Promise(done => {
+        server.close(() => done());
+        for (const socket of sockets) socket.destroy();
+      });
+      close.stopInput = async () => {
+        finishing = true;
+        for (const socket of streams) socket.destroy();
+        const drained = await Promise.race([Promise.resolve(routes.drain?.()).then(() => true), sleep(1000).then(() => false)]);
+        if (!drained) { routes.abort?.(); await Promise.race([routes.drain?.(), sleep(100)]); }
+      };
+      close.setReceipt = value => { receipt = value; };
+      resolve(close);
+    });
   });
 }
 
@@ -584,7 +685,7 @@ async function open(values) {
     if (!tunnel.origin) return fail('The Cloudflare tunnel did not come up within 30 seconds; try again in a minute.');
     origin = tunnel.origin;
   }
-  writeFileSync(FILES.state, `${JSON.stringify({ tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), keys, until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
+  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), agentId: process.env.PASEO_AGENT_ID?.trim() || null, cwd: process.cwd(), paseoHome: process.env.PASEO_HOME || null, paseoHost: process.env.PASEO_HOST || null, tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), keys, until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore' });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);
@@ -602,16 +703,32 @@ async function watch() {
   let closePage = null;
   const mode = modeOf(state);
   const saved = mode === 'handOver' ? undefined : [];
-  const finish = async result => {
-    if (done) return;
+  let finishingPromise = null;
+  const finish = (result, ready = result === 'done') => {
+    if (finishingPromise) return finishingPromise;
     done = true;
-    await closePage?.();
-    const appKeys = state.keys && saved.filter(name => state.keys.keys.some(key => key.name === name && key.file === APP_FILE));
-    await teardown(result, state.tunnelPid, { browserless: mode !== 'handOver', saved, appKeys });
-    process.exit(0);
+    finishingPromise = (async () => {
+      await closePage?.stopInput();
+      if (mode === 'handOver') await browser(['set', 'viewport', '1280', '720']);
+      const appKeys = state.keys && saved.filter(name => state.keys.keys.some(key => key.name === name && key.file === APP_FILE));
+      const outcome = { result, ready, ...(saved && { saved }), ...(appKeys && { appKeys }), completionId: state.completionId, notification: ready ? 'pending' : 'not-requested' };
+      writeFileSync(FILES.result, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
+      outcome.notification = ready ? await notifyWorkspace(state, outcome) : 'not-requested';
+      writeFileSync(FILES.result, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
+      closePage?.setReceipt(outcome);
+      // Receipt delivery is independent of the client: even a vanished client cannot retain input.
+      setTimeout(async () => {
+        await closePage?.();
+        await killTunnel(state.tunnelPid);
+        for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
+        process.exit(0);
+      }, 1200);
+      return outcome;
+    })();
+    return finishingPromise;
   };
-  for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => finish('closed'));
-  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: () => finish('done') };
+  for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => finish('closed', false));
+  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', ready), onContinue: () => finish('done', true) };
   try {
     closePage = await servePage(state, hooks);
   } catch {
@@ -630,11 +747,13 @@ async function watch() {
 /** Blocks until the watcher records a result; recovers a watcher that died without one. */
 async function wait() {
   for (;;) {
-    const { result, saved, appKeys } = readJson(FILES.result) ?? {};
-    if (result) {
+    const { result, saved, appKeys, completionId, notification } = readJson(FILES.result) ?? {};
+    if (result && notification !== 'pending' && !existsSync(FILES.pid)) {
       console.log(`HANDOVER_RESULT=${result}`);
       if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
       if (Array.isArray(appKeys)) console.log(`HANDOVER_APP_KEYS=${appKeys.join(',')}`);
+      if (completionId) console.log(`HANDOVER_COMPLETION=${completionId}`);
+      if (notification) console.log(`HANDOVER_NOTIFICATION=${notification}`);
       return 0;
     }
     if (!existsSync(FILES.pid)) {
@@ -685,9 +804,9 @@ function parse(args) {
   if (!['open', 'watch', 'wait', 'close'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const minutes = Number(parsed.values.minutes ?? 10);
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
-  if (parsed.values.passwords && (parsed.values.until || parsed.values['until-gone'])) usageError('--passwords ends on Done; it takes no --until or --until-gone');
+  if (parsed.values.passwords && (parsed.values.until || parsed.values['until-gone'])) usageError('--passwords takes no --until or --until-gone');
   if (parsed.values.keys === undefined) return { command, values: { ...parsed.values, minutes } };
-  if (parsed.values.passwords || parsed.values.until || parsed.values['until-gone']) usageError('--keys ends on Done or once every key is saved; it takes no --passwords, --until, or --until-gone');
+  if (parsed.values.passwords || parsed.values.until || parsed.values['until-gone']) usageError('--keys takes no --passwords, --until, or --until-gone');
   return { command, values: { ...parsed.values, minutes, keys: keyNames(parsed.values.keys) } };
 }
 
@@ -703,5 +822,6 @@ function keyNames(list) {
 if (isMain(import.meta.url)) {
   const { command, values } = parse(process.argv.slice(2));
   const run = { open: () => open(values), watch, wait, close }[command];
-  process.exitCode = await run();
+  const code = await run();
+  process.exitCode = typeof code === 'number' ? code : 0;
 }

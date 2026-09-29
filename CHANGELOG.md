@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.7.0 — Forms return to the workspace
+
+Password and token pages save and continue in one tap, keeping partial successes for correction. Completed private input wakes its requesting workspace with a result-only message and shows whether the chat was notified. Website hand-over pages mirror native form buttons below their fields, preserving the site's labels, validation, and code steps.
+
+**Updating.** Let existing private links finish or expire before opening another with the updated scripts. Saved credentials need no migration.
+
 ## 27.6.1 — Refresh the app and test tools
 
 - **The test tools update together.** The starter app uses matching Vitest and coverage versions, plus newer Cloudflare development tools, linting, and duplicate-code checks. Its HTTP client includes the available security fixes.

@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { checkLogins, chooseName, hostOf, LIMITS, slug } from '../../.agents/skills/verify/scripts/passwords.mjs';
 import { parseExport, siteUrl } from '../../.agents/skills/verify/scripts/passwords-page.mjs';
 
+const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
+const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
@@ -37,6 +39,7 @@ switch (args.slice(0, 2).join(' ')) {
     break;
   case 'auth save': {
     const password = readFileSync(0, 'utf8');
+    if (password === 'blocked') Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);
     if (password === 'fail') { console.error('✗ Failed to save'); process.exit(1); }
     writeFileSync(vaultFile, JSON.stringify([...vault.filter(p => p.name !== args[2]), { name: args[2], url: flag('--url'), username: flag('--username'), password }]));
     console.log('✓ Saved ' + args[2]);
@@ -48,7 +51,7 @@ switch (args.slice(0, 2).join(' ')) {
 `);
   chmodSync(join(bin, 'agent-browser'), 0o755);
   const env = { ...process.env, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
-  const run = (...args) => spawnSync(process.execPath, [script, ...args], { env, encoding: 'utf8', timeout: 30_000 });
+  const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
   const state = join(root, '.wong-stack/hand-over');
   t.after(() => {
     run('close');
@@ -185,7 +188,7 @@ test('Done ends the link, and wait prints the saved names and nothing else from 
   const out = f.run('wait');
   assert.equal(out.stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=netflix-com,costco-com\n');
   const result = readFileSync(join(f.state, 'result.json'), 'utf8');
-  assert.deepEqual(JSON.parse(result), { result: 'done', saved: ['netflix-com', 'costco-com'] });
+  assert.deepEqual(legacyResult(JSON.parse(result)), { result: 'done', saved: ['netflix-com', 'costco-com'] });
   assert.doesNotMatch(result + out.stdout + out.stderr, /mail|http|www|again|hunter|netflix\.com/);
   assert.ok(!existsSync(join(f.state, 'watcher.pid')), 'the watcher is gone');
 });
@@ -260,4 +263,50 @@ test('parseExport gives null for a file that is not an export, and none for an e
   assert.equal(siteUrl('http://intranet.local/login'), 'http://intranet.local/login');
   assert.equal(siteUrl('android://x@com.app/'), 'android://x@com.app/');
   assert.equal(siteUrl('localhost'), 'localhost');
+});
+
+
+test('continue persists only submitted selection, retains partial successes, and returns a terminal receipt once', async t => {
+  const f = fixture(t); const {port,key} = opened(f,'--passwords');
+  const partial = await route(port,key,'continue',{logins:[login('https://a.example.com','me'),login('https://b.example.com','me','fail')]});
+  assert.equal(partial.json.ready,false); assert.deepEqual(partial.json.failed,[1]);
+  assert.deepEqual(f.vault().map(p=>p.name),['a-example-com']);
+  const complete = await route(port,key,'continue',{logins:[login('https://b.example.com','me')]});
+  assert.equal(complete.json.ready,true); assert.equal(complete.json.receipt.notification,'unavailable');
+  assert.deepEqual(complete.json.receipt.saved,['a-example-com','b-example-com']);
+  assert.equal((await route(port,key,'continue',{logins:[]})).status,410);
+  assert.equal((await route(port,key,'done',{})).status,410);
+  assert.equal((await route(port,key,'receipt')).json.completionId,complete.json.receipt.completionId);
+  f.run('wait');
+});
+
+test('empty continuation needs a prior saved selection; legacy cancellation never declares readiness', async t => {
+  const f=fixture(t); const {port,key}=opened(f,'--passwords');
+  assert.equal((await route(port,key,'continue',{logins:[]})).json.ready,false);
+  await route(port,key,'save',{logins:[login('https://a.example.com','me')]});
+  await route(port,key,'done',{}); f.run('wait');
+  const result=JSON.parse(readFileSync(join(f.state,'result.json'),'utf8'));
+  assert.equal(result.ready,false); assert.equal(result.notification,'not-requested');
+});
+
+test('continue drains an earlier legacy save and close racing completion cannot cancel the receipt', async t => {
+  const f=fixture(t); const {port,key}=opened(f,'--passwords');
+  const saved = route(port,key,'save',{logins:[login('https://a.example.com','me')]});
+  await saved;
+  const [complete,closed]=await Promise.all([route(port,key,'continue',{logins:[]}),route(port,key,'done',{})]);
+  assert.equal(complete.json.ready,true); assert.equal(closed.status,410);
+  assert.equal(f.calls().filter(call=>call.includes('auth save')).length,1);
+});
+
+
+test('cancellation aborts a blocked save and refuses queued completion within a bounded cleanup window', async t => {
+  const f=fixture(t); const {port,key}=opened(f,'--passwords');
+  const saving=route(port,key,'save',{logins:[login('https://slow.example.com','me','blocked')]}).catch(()=>null);
+  for(let i=0;i<100&&!f.calls().some(call=>call.includes('auth save'));i++) await new Promise(done=>setTimeout(done,10));
+  assert.ok(f.calls().some(call=>call.includes('auth save')));
+  const start=Date.now();f.run('close');assert.ok(Date.now()-start<5000);
+  await saving;
+  const result=JSON.parse(readFileSync(join(f.state,'result.json'),'utf8'));
+  assert.equal(result.result,'closed');assert.equal(result.ready,false);assert.equal(result.notification,'not-requested');
+  assert.deepEqual(f.vault(),[]);
 });
