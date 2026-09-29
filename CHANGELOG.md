@@ -12,6 +12,32 @@
 
 **Updating.** Nothing to do by hand. If a branch build now stops and says your test copy uses the live database, give the test copy its own database in the app's settings file, `wrangler.jsonc`, as the message says.
 
+## 27.1.2 — Each rule has one home
+
+- **Each rule is written once.** Where a page repeated a rule, it now links the one page that owns it, so the copies stop disagreeing: what an install gets, which commands save and publish, what to ask after a plan or a publish, and the choices when a request splits into parts.
+- **After a plan, one way on.** *When you're ready, type `/apply` to build it.* now shows only after you pick *Review the plan*, where no question follows. Elsewhere the closing question already offers *Build it now*.
+- **The Cloudflare setup is no longer called optional.** Every install takes it, so pages that said "if you took the stack" now just say what it does.
+- **The record of what shipped matches the tools.** Pasted review notes that only ask a question get an answer, not a plan edit. `/verify` blocks nothing on its own run; inside `/ship`, a failed walk puts the choice in front of you. Plain words and link checks each have one owner.
+- **Small mismatches fixed.** A new server gets Node 22, like everything else. The README's command list gains `/verify`, and the knowledge-center page gains `/improve` and `/routine`. `curl` joins the required tools, and the payload manifest says setup also copies the blank `.env.example`.
+
+**Updating.** Nothing to do by hand.
+
+## 27.1.1 — The wiki keeps WongStack upkeep apart, and database fixes on their own page
+
+- **Database fixes have their own page.** The three guides for when your live database breaks (undo a bad update, never change it by hand, repair its record of updates) moved off the deploy page onto [Fix a broken production database](wiki/stack/d1-recovery.md), unchanged. The deploy page links it.
+- **Each how-to lives in one place.** Sending an improvement to WongStack now points to [WongStack's contributing guide](.github/CONTRIBUTING.md) for the steps and keeps only what matters from an install. The release steps, and what *patch*, *minor*, and *major* mean, live in one rule the other pages link.
+- **Pages say what they are.** The wiki's front page, the Cloudflare token page, and the login-wall page now open with what they cover. The wiki rulebook's *Adding a page* is a short numbered list.
+
+**Updating.** If one of your own pages links the recovery sections at the bottom of the deploy page (`d1-pipeline.md`), point it at the new database fixes page, `wiki/stack/d1-recovery.md`, instead.
+
+## 27.1.0 — A handed-over page fits your phone
+
+- **Readable on a phone.** When the agent hands you its browser and you open the link on a phone, the site now shows its own phone layout at full size: text you can read and buttons you can tap, not a tiny desktop page squeezed into your screen.
+- **It goes by the window's width.** A window narrower than 800 points gets the phone size, so a laptop window dragged narrow gets it too; a wider one keeps the desktop size. Turning the phone sideways re-fits the page, and opening the keyboard doesn't, so the page never jumps while you type.
+- **The agent gets its desktop page back.** However the link closes, the page returns to its desktop size before the agent carries on. [Hand the browser over](wiki/development/browsing.md#hand-the-browser-over) owns the details.
+
+**Updating.** Nothing to do by hand.
+
 ## 27.0.0 — Memory stays in its own repo
 
 - **Each repo's memory is its own.** Nothing is sent to another repo, and nothing loads from one when a chat starts. Home becomes an ordinary repo you happen to use alone: setup no longer asks whether a repo is your home, and nothing records one on your computer.

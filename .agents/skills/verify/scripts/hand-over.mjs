@@ -23,10 +23,11 @@
 // the page gets them with a `ref` per field and never sees a selector. `POST /focus` clears and
 // focuses a field (`fill <sel> ""`, `focus <sel>`), `POST /select` picks a scanned choice, and
 // `POST /check` ticks or unticks a box. Typed text never reaches the watcher: the page sends it as key
-// presses over the live feed. The routes run one at a time and log nothing. On finish,
-// deadline, `close`, or a signal it closes the page, kills the tunnel, and writes `result.json` with
-// no address or key in it. `wait` blocks for that result and prints
-// `HANDOVER_RESULT=done|timeout|closed|error`.
+// presses over the live feed. `POST /viewport`, keyed the same way, sets the page to the size the
+// hand-over page asks for (a phone's width), clamped to 320–1280 × 400–1280. The routes run one at a
+// time and log nothing. On finish, deadline, `close`, or a signal it closes the page, kills the
+// tunnel, puts the page back to 1280×720, and writes `result.json` with no address or key in it.
+// `wait` blocks for that result and prints `HANDOVER_RESULT=done|timeout|closed|error`.
 //
 // State lives in ~/.wong-stack/hand-over/; one link at a time. Exit codes: 0 ok · 1 failed or a
 // link is already open · 2 usage · 3 `cloudflared` is missing (prints HANDOVER_NEEDS=cloudflared).
@@ -60,6 +61,7 @@ const PAGES = {
 };
 const BLANK_URLS = new Set(['', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/']);
 const BODY_LIMIT = 4096;
+const VIEWPORT_LIMITS = { width: [320, 1280], height: [400, 1280] };
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 
 /**
@@ -244,9 +246,13 @@ async function killTunnel(pid) {
   if (alive(pid)) signal(pid, 'SIGKILL');
 }
 
-/** Kills the tunnel, records the result, and clears the rest; the watcher closes its page first. */
+/**
+ * Kills the tunnel, puts the page back to 1280×720 after any phone size, records the result, and
+ * clears the rest; the watcher closes its page first.
+ */
 async function teardown(result, tunnelPid) {
   await killTunnel(tunnelPid);
+  await browser(['set', 'viewport', '1280', '720']);
   writeFileSync(FILES.result, `${JSON.stringify({ result })}\n`);
   for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
 }
@@ -294,9 +300,17 @@ const FIELD_ACTIONS = {
   '/check': { kind: 'checkbox', calls: (field, { checked }) => (typeof checked === 'boolean' ? [[checked ? 'check' : 'uncheck', field.selector]] : null) },
 };
 
+/** A `/viewport` body's size clamped to VIEWPORT_LIMITS, or null unless width and height are integers. */
+export function clampViewport(body) {
+  if (!Number.isInteger(body?.width) || !Number.isInteger(body?.height)) return null;
+  const clamp = (value, [low, high]) => Math.min(high, Math.max(low, value));
+  return { width: clamp(body.width, VIEWPORT_LIMITS.width), height: clamp(body.height, VIEWPORT_LIMITS.height) };
+}
+
 /**
  * The field list's routes. The last scan's fields, selectors included, stay here; the page names a
- * field only by its `ref`, an index into that scan. Every agent-browser call runs through one queue.
+ * field only by its `ref`, an index into that scan. Every agent-browser call, `/viewport`'s too, runs
+ * through one queue.
  */
 function fieldRoutes() {
   let scanned = [];
@@ -332,6 +346,12 @@ function fieldRoutes() {
     }
     if (request.method !== 'POST') return reply(response, 405);
     const body = await readBody(request);
+    if (pathname === '/viewport') {
+      const size = clampViewport(body);
+      if (!size) return reply(response, 400);
+      const ok = await serial(() => browser(['set', 'viewport', String(size.width), String(size.height)]));
+      return ok === null ? reply(response, 502) : reply(response, 200, size);
+    }
     const action = FIELD_ACTIONS[pathname];
     if (!body || !Number.isInteger(body.ref) || body.ref < 0) return reply(response, 400);
     const field = scanned[body.ref];
@@ -349,8 +369,8 @@ function fieldRoutes() {
 
 /**
  * Serves the page on 127.0.0.1:`port` and pipes `/stream?key=<key>` to the live feed on
- * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes need
- * the key in an `x-hand-over-key` header. Resolves to a close().
+ * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes and
+ * `/viewport` need the key in an `x-hand-over-key` header. Resolves to a close().
  */
 export function servePage({ port, streamPort, key }) {
   const sockets = new Set();
@@ -358,7 +378,7 @@ export function servePage({ port, streamPort, key }) {
   const fields = fieldRoutes();
   const server = createServer((request, response) => {
     const { pathname } = new URL(request.url, 'http://page');
-    if (pathname === '/fields' || FIELD_ACTIONS[pathname]) {
+    if (pathname === '/fields' || pathname === '/viewport' || FIELD_ACTIONS[pathname]) {
       if (!keyMatches(request.headers['x-hand-over-key'], key)) return reply(response, 403);
       return void fields(pathname, request, response).catch(() => reply(response, 500));
     }

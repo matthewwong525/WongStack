@@ -4,8 +4,11 @@
 // Under the picture it lists the page's fields from the watcher's `/fields`. A box's typing goes out
 // only as key presses over the stream, after `/focus` clears and focuses its field; a dropdown goes
 // to `/select` and a tick box to `/check`. The list refreshes every 3 seconds and after each pick.
-// The pure helpers `toPage`, `typedKeys`, and `sendPlan` are exported for the tests; the rest runs
-// only in a browser.
+// It posts the page size it wants to `/viewport`: the picture's width in a window under 800 wide, so
+// the site shows its phone layout, else 1280×720. It posts on load and when the width changes, never
+// on a height-only change such as a phone's keyboard opening.
+// The pure helpers `toPage`, `typedKeys`, `sendPlan`, and `wantedSize` are exported for the tests; the
+// rest runs only in a browser.
 
 /** Key names the page sends with their Windows key code and the text they insert, as the dashboard does. */
 const SPECIAL_KEYS = {
@@ -26,6 +29,9 @@ const SPECIAL_KEYS = {
 const DRAG_PX = 8;
 const GIVE_UP_AFTER = 8;
 const FIELDS_EVERY_MS = 3000;
+const RESIZE_WAIT_MS = 300;
+const NARROW_BELOW = 800;
+const DESKTOP = { width: 1280, height: 720 };
 const HINTS = {
   some: 'For a field not in the list, tap it on the page above, then type here. On a computer you can also click and type on the page itself.',
   none: 'No fields found on this page. Tap one above and type here.',
@@ -64,6 +70,15 @@ export function typedKeys(before, after) {
  */
 export function sendPlan(sent, now, focused) {
   return focused && now.startsWith(sent) ? { focus: false, keys: Array.from(now.slice(sent.length)) } : { focus: true, keys: Array.from(now) };
+}
+
+/**
+ * The page size to ask for: under 800 wide, the picture's box width by 60% of the window's height,
+ * at least 400 tall, so the site shows its narrow layout at full size; else 1280×720.
+ */
+export function wantedSize({ boxWidth, innerHeight }) {
+  if (!(boxWidth < NARROW_BELOW)) return { ...DESKTOP };
+  return { width: Math.round(boxWidth), height: Math.max(400, Math.round(0.6 * innerHeight)) };
 }
 
 /** The `input_keyboard` pair for one key name or one typed character. */
@@ -350,8 +365,23 @@ function start() {
     if (list) drawFields(list);
   }
 
+  // The page size: asked for on load, and again when the width changes, after resizing settles.
+  let sentWidth = null;
+  let resizing = null;
+  const fit = () => {
+    const width = canvas.clientWidth;
+    if (closed || width === sentWidth) return;
+    sentWidth = width;
+    call('viewport', wantedSize({ boxWidth: width, innerHeight: window.innerHeight }));
+  };
+  window.addEventListener('resize', () => {
+    clearTimeout(resizing);
+    resizing = setTimeout(fit, RESIZE_WAIT_MS);
+  });
+
   if (!key) return giveUp();
   say('Connecting…');
+  fit();
   connect();
   refresh();
   polling = setInterval(() => { if (!document.hidden && !closed) refresh(); }, FIELDS_EVERY_MS);

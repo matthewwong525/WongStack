@@ -1,13 +1,14 @@
 # Required tools
 
-WongStack runs on a deliberately small toolchain. A repo that has installed the payload needs exactly four commands on PATH, plus a resolving `origin` remote:
+WongStack runs on a deliberately small toolchain. A repo that has installed the payload needs exactly five commands on PATH, plus a resolving `origin` remote:
 
 | Tool | Why |
 |---|---|
-| `git` | Everything lives in the repo; `/save`, `/continue`, and `/ship` own all git. |
+| `git` | Everything lives in the repo; [the change loop](the-change-loop.md) says which verbs run git. |
 | `gh` | PRs, checks, and the GitHub API — the delivery gate. Must be authenticated. (`/wong-sync` doesn't need it: its clone refresh is plain `git`, and it opens no PRs. [Contributing](../contributing.md) upstream is a manual PR, where you'd use `gh` yourself.) |
 | `node` | [Node.js](https://nodejs.org/) runs OpenSpec, the session hooks, and the payload's dependency-free scripts (memory, `/improve`'s survey, the review builder). They use only Node's built-in modules. |
 | `openspec` | The planning layer the workflow verbs front. It is distributed only as an npm package, so it runs on Node. |
+| `curl` | [Setup's provisioning](#the-cloudflare-stack-pack) drives the Cloudflare API with it, and `/verify`'s request and state probes use it. |
 
 Beyond them, no core payload script or skill invokes another runtime: **no `jq`, no `python`, and no project-language toolchain**, and no script adds a package or lockfile. WongStack installs into repos of every stack, so every added dependency is a repo it cannot serve.
 
@@ -18,7 +19,7 @@ Beyond them, no core payload script or skill invokes another runtime: **no `jq`,
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 | `cloudflared` | Cloudflare's free tunnel tool, which puts the agent's browser behind a private link when it [hands you the browser](browsing.md#hand-the-browser-over) on your phone or another computer. Setup offers it up front, in the same question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time such a hand-over needs it. A hand-over at this computer never needs it. |
 
-Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and every other core verb still needs only the four commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
+Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
 **Paseo is where you chat.** [Paseo](https://paseo.sh) runs Claude Code or Codex on your own computer and reaches it from your phone; [the README's steps](https://github.com/matthewwong525/WongStack#start-in-three-steps) start there, and setup points to it when it's missing ([the check](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#paseo-point-to-it-never-install-it)). No verb needs it except two: [`/routine`](../../.agents/skills/routine/SKILL.md) schedules recurring runs through it, and a request with several separate parts can [open a new workspace per part](the-change-loop.md#several-parts-several-workspaces). WongStack still never installs Paseo on your computer, because it is a desktop download with its own window; the one place it installs Paseo is the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md), for a server you give to agents. Without Paseo, `/routine` says so and changes nothing, the parts of a request are done one at a time, and every other verb works as before. The script uses Paseo's own daemon client, because `paseo schedule create` cannot set worktree isolation. A Paseo update that changes that client makes `/routine` stop and give the steps for the Paseo app.
 
@@ -33,11 +34,9 @@ Each is a **tool, not a toolchain**: nothing is added to your repository — no 
 | The memory key, `CLOUDFLARE_MEMORY_TOKEN` | Opens this repo's store through the production Worker's memory route. [The memory page](memory.md#the-memory-key) owns its name and what it reaches. |
 | R2, optional | Keeps raw transcripts. It needs a payment method on file; without it, memory works and keeps no transcripts. |
 
-`curl` drives the rest of provisioning.
-
 ## Symbolic links in the agent folder
 
-Every install keeps its agent files in one real `.agents/` folder, with `.claude` and `.codex` as symbolic links to it ([the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder)). Git stores a link as a link, and macOS and Linux check it out as one. **On Windows, turn on `core.symlinks`** before you clone (`git config --global core.symlinks true`, with Developer Mode on). Without it, Git writes each link as a small text file that holds the path, and neither agent finds its skills. Setup tests this before it makes the links and walks you through Developer Mode ([Windows folder links](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#4-windows-folder-links)); a clone you make yourself still needs the setting first.
+`.claude` and `.codex` link to one `.agents/` folder ([the agent folder](../../.agents/skills/wong-sync/references/payload-manifest.md#the-agent-folder)). **On Windows, turn on `core.symlinks`** before you clone (`git config --global core.symlinks true`, with Developer Mode on). Without it, Git writes each link as a small text file that holds the path, and neither agent finds its skills. Setup tests this before it makes the links and walks you through Developer Mode ([Windows folder links](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#4-windows-folder-links)); a clone you make yourself still needs the setting first.
 
 To check that Codex reads the shared folder, run `codex features list` (the Default-mode question flag shows `true`) and `codex debug prompt-input "hi"` (each skill appears once). Neither calls a model. Run them in a trusted checkout: Codex ignores the project `config.toml` in an untrusted one, whatever the layout.
 
@@ -49,7 +48,7 @@ To check that Codex reads the shared folder, run `codex features list` (the Defa
 refusing to allow an OAuth App to create or update workflow
 ```
 
-The pack's deploy workflow is the file that trips this, so any repo taking (or on) the stack pack needs the scope. The plain-language reason, for when you're asking a user: *"GitHub wants your permission before a tool can add an automated deploy step. This is that permission."*
+The pack's deploy workflow is the file that trips this, so every install needs the scope. The plain-language reason, for when you're asking a user: *"GitHub wants your permission before a tool can add an automated deploy step. This is that permission."*
 
 - **Authenticating fresh:** request it up front — `gh auth login --web --git-protocol https --scopes workflow,user:email`. It costs nothing in the browser visit the login already requires. Setup does this for you, in [one sign-in](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#2-the-github-sign-in).
 - **Already authenticated:** check `gh auth status` for `workflow` in the token scopes; missing → `gh auth refresh --scopes workflow`.
@@ -86,13 +85,13 @@ One exception, and its tools stay in CI. Every new install takes the Cloudflare 
 
 **`curl` is a provisioning dependency.** [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) drives the Cloudflare REST API with `curl` rather than `wrangler`, so provisioning needs no app dependency installed.
 
-**Pack-gated scripts may use `node`** where it's the better tool — JSON assembly, editing `wrangler.jsonc` — because a pack repo already requires it at its build boundary. The governing rule:
+**The pack's scripts may use `node`** where it's the better tool — JSON assembly, editing `wrangler.jsonc` — because the app's build already requires it. The governing rule:
 
 > Use a tool where it is already required. A skill may install a **tool** it needs at the point of need and say so; never let a WongStack skill be the reason a **runtime** gets installed without asking.
 
 That's why provisioning is `curl`-first even though `npx wrangler` would be shorter: reaching for it would add an app dependency to the one flow that has to work on a fresh computer.
 
-So the core four-tool guarantee stays literally true for every repo: the pack adds tools to *its* repo's deploy pipeline, not to WongStack.
+So the five-command guarantee stays literally true for every repo: the pack adds tools to *its* repo's deploy pipeline, not to WongStack.
 
 ## Working with JSON
 

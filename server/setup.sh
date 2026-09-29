@@ -23,8 +23,8 @@ step "base packages"
 apt-get update
 apt-get install -y ca-certificates curl git gnupg
 
-step "Node.js 24"
-curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+step "Node.js 22"
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 
 step "GitHub CLI"
