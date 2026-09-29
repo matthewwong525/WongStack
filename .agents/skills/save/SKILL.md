@@ -8,7 +8,7 @@ user-invocable: true
 
 Invoking `/save` authorizes, unasked, branch creation, record upkeep, spec reconciliation, commit, push, PR updates, and CI fixes; [ask](../explore/references/asking-the-user.md) before anything else. Never force push, bypass hooks, amend merged commits, or merge a PR: `/ship` owns archive and merge. Nothing builds locally; [the change loop](../../../wiki/development/the-change-loop.md) owns git and delivery.
 
-Input: `/save [note]`. A status note sets `in-progress`, `blocked (<reason>)`, `ready-to-ship`, or `parked`; any other note seeds the Decision-log entry. Facts a cold resume needs go in pushed repo files, with repo-relative paths.
+Input: `/save [note]`. A status note sets one of [the Status values](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan); any other note seeds the Decision-log entry. Facts a cold resume needs go in pushed repo files, with repo-relative paths.
 
 ## 1. Protect credentials and select the route
 

@@ -97,6 +97,11 @@ The brief is `/continue <change name>`, plus the person's instruction if any. Wh
 
 ## Next work
 
-When `/ship` finishes, look for more asked-for work in this conversation, then with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Offer the next part with no workspace yet: open it in a new workspace *(Recommended)*, or stop here. Name a part already open elsewhere; never open it twice.
+When `/ship` finishes, look for more asked-for work in this conversation, then with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Name a part already open elsewhere; never open it twice. The closing question offers, in this order:
 
-In a Paseo worktree, the question also offers *Close this workspace*, which runs [`/close`](../../close/SKILL.md). It comes first, recommended, when no next work waits; else the next part stays first. Keep the question to three options, dropping the walk first.
+1. **The next part with no workspace yet:** open it in a new workspace *(Recommended)*.
+2. **Walk the merged app** with [`/verify`](../../verify/SKILL.md).
+3. **Close this workspace**, in a Paseo worktree only: runs [`/close`](../../close/SKILL.md), which updates the wiki. It comes first, recommended, when no next work waits.
+4. **Stop here.**
+
+Keep the question to three options, dropping the walk first.

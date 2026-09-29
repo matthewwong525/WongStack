@@ -47,6 +47,7 @@ When a step needs you, the agent sends you a private link that opens its browser
 - **Fill it in one tap.** Each box says what it holds (card number, expiry, security code, email, password, one-time code), so 1Password or your phone's autofill can fill the whole list at once.
 - **A field that isn't listed**, such as one inside a payment provider's embedded box: open *Other typing*, tap the field on the page, and type in its box. It opens by itself when the page has no fields to list. On a laptop you can also click and type on the page itself.
 - **The list follows the page.** It refreshes when the page moves on, say from the password to a code page, and when a pick shows a new field, such as the year once you choose a month.
+- **On a phone, the page fits your screen.** A window narrower than 800 points gets the site's own phone layout at full size, not a tiny desktop page; turning the phone re-fits it. The page goes back to desktop size when the link closes.
 
 - **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. The agent never tries to get past one itself: no retries, no disguised browser, no solving service. A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
 - **Ask first.** Before it sends a link, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *I need you to log in to your bank.* `Ready, send the link / Not now`. It sends the link only once you reply, so the 10 minutes start when you're there, not while you're away. A question waits for you; a link dies. If your last message was *let me take over*, you're there, so the link comes straight away.
@@ -86,4 +87,4 @@ Give the agent the logins you choose through a private link, so it logs in for y
 
 The link has [the hand-over link's safety](#hand-the-browser-over): a new address and secret key each time, closed on *Done* or after 10 minutes. Each password travels once, from your device to the store, and never lands in the chat, a log, a command line, or a file in the repo.
 
-Back to [Working on WongStack](README.md).
+Back to [development](README.md).

@@ -17,12 +17,17 @@ When a task first needs a login and agent-browser has no `profile`, the agent SH
 
 ### Requirement: The person does each login once
 
-The agent SHALL hand the browser to the person to log in, then reuse the session. It SHALL NOT ask for or store a password.
+The agent SHALL hand the browser to the person to log in, then reuse the session. It SHALL NOT ask for a password in the chat, and SHALL NOT read, show, or write a password anywhere but the browser tool's encrypted login store, which only the person fills through the password link.
 
 #### Scenario: A later visit
 
 - **WHEN** a later task opens a site the person logged in to
 - **THEN** no login step is needed
+
+#### Scenario: A password offered in the chat
+
+- **WHEN** the person starts typing a password into the chat
+- **THEN** the agent does not use or save it, and offers the password link instead
 
 ### Requirement: Personal browsing runs one task at a time
 
@@ -110,7 +115,7 @@ During a browsing task, the agent SHALL show the person a picture of the page in
 
 ### Requirement: The person can click and type in a handed-over browser
 
-A hand-over link SHALL open the page the task was using, never a blank tab, and SHALL let the person click any spot on it and type into the field they chose, from a phone's on-screen keyboard or a computer's keyboard. The link SHALL show only that task's browser, not other browser sessions on the computer.
+A hand-over link SHALL open the page the task was using, never a blank tab, and SHALL let the person click any spot on it and type into the field they chose, from a phone's on-screen keyboard or a computer's keyboard. The link SHALL show only that task's browser, not other browser sessions on the computer. When the link is open in a window narrower than 800 CSS pixels, the handed page SHALL take that window's width, so the site shows its own narrow layout at full size; a wider window SHALL get 1280×720. When the link closes, however it closes, the page SHALL return to 1280×720 before the agent carries on.
 
 #### Scenario: A card number from a phone
 
@@ -121,6 +126,12 @@ A hand-over link SHALL open the page the task was using, never a blank tab, and 
 
 - **WHEN** the browser has a blank tab in front of the task's page at hand-over
 - **THEN** the link opens on the task's page
+
+#### Scenario: A link opened on a phone
+
+- **WHEN** the person opens the link on a phone 390 points wide
+- **THEN** the handed page is 390 wide or less, shows the site's phone layout, and a tap lands on the spot tapped
+- **AND** after the link closes, the page is 1280×720 again
 
 ### Requirement: The person can fill a handed-over form from a list of its fields
 
@@ -144,3 +155,31 @@ Before a browsing task publishes, sends, books, pays for, or deletes something, 
 
 - **WHEN** the agent has a website ready and the next click publishes it
 - **THEN** the chat asks whether to publish it now, the question waits however long the person takes, and the agent clicks publish only after a yes
+
+### Requirement: The person saves logins through a private password link
+
+When the person asks to save logins, the agent SHALL ask whether they are ready, then send a private link with the hand-over link's safety: a new address and secret key each time, closing on *Done* or after 10 minutes. The link's page SHALL take a CSV password export or one login typed or autofilled. For an export, the person's device SHALL read the file and list its sites with none ticked, and only the ticked logins SHALL leave the device. The agent SHALL learn only the names of the saved sites.
+
+#### Scenario: An export with many sites
+
+- **WHEN** the person picks a Chrome export of 200 logins and ticks two
+- **THEN** only those two are saved, the other 198 never leave their device, and the agent names the two sites in the chat
+
+#### Scenario: One login from a phone
+
+- **WHEN** the person fills the page's add-one form from their phone's saved passwords and taps *Save*
+- **THEN** that login is saved, and no command, log, file in the repo, or chat message holds its password
+
+### Requirement: The agent logs in with a saved login
+
+When a site asks for a login and a saved login matches the site, the agent SHALL use it without asking. When it fails, or the site then asks for a code, the agent SHALL hand the browser over as for any login. When two saved logins match, it SHALL ask in the chat which to use.
+
+#### Scenario: A site logged the person out
+
+- **WHEN** a task finds a login page for a site with one saved login
+- **THEN** the agent logs in with it and carries on, with no hand-over
+
+#### Scenario: A wrong saved password
+
+- **WHEN** the saved login is rejected
+- **THEN** the agent asks whether the person is ready and hands the browser over

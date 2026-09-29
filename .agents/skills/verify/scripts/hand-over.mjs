@@ -24,10 +24,11 @@
 // the page gets them with a `ref` per field and never sees a selector. `POST /focus` clears and
 // focuses a field (`fill <sel> ""`, `focus <sel>`), `POST /select` picks a scanned choice, and
 // `POST /check` ticks or unticks a box. Typed text never reaches the watcher: the page sends it as key
-// presses over the live feed. The routes run one at a time and log nothing. On finish,
-// deadline, `close`, or a signal it closes the page, kills the tunnel, and writes `result.json` with
-// no address or key in it. `wait` blocks for that result and prints
-// `HANDOVER_RESULT=done|timeout|closed|error`.
+// presses over the live feed. `POST /viewport`, keyed the same way, sets the page to the size the
+// hand-over page asks for (a phone's width), clamped to 320–1280 × 400–1280. The routes run one at a
+// time and log nothing. On finish, deadline, `close`, or a signal it closes the page, kills the
+// tunnel, puts the page back to 1280×720, and writes `result.json` with no address or key in it.
+// `wait` blocks for that result and prints `HANDOVER_RESULT=done|timeout|closed|error`.
 //
 // `open --passwords` opens the password link on the same key, tunnel, lock, and deadline, and touches
 // no browser page: no viewport, tabs, live feed, or field routes. It serves passwords-page.html and
@@ -72,6 +73,7 @@ const pages = name => ({
 const PAGES = { handOver: pages('hand-over-page'), passwords: pages('passwords-page') };
 const BLANK_URLS = new Set(['', 'about:blank', 'chrome://newtab/', 'chrome://new-tab-page/']);
 const BODY_LIMIT = 4096;
+const VIEWPORT_LIMITS = { width: [320, 1280], height: [400, 1280] };
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 
 /**
@@ -256,16 +258,23 @@ async function killTunnel(pid) {
   if (alive(pid)) signal(pid, 'SIGKILL');
 }
 
-/** Kills the tunnel, records the result and any saved names, and clears the rest; the watcher closes its page first. */
-async function teardown(result, tunnelPid, saved) {
+/**
+ * Kills the tunnel, puts the page back to 1280×720 after any phone size (a password link touched no
+ * page, so it skips that), records the result and any saved names, and clears the rest; the watcher
+ * closes its page first.
+ */
+async function teardown(result, tunnelPid, { passwords = false, saved } = {}) {
   await killTunnel(tunnelPid);
-  writeFileSync(FILES.result, `${JSON.stringify({ result, ...(saved && { saved }) })}\n`);
+  if (!passwords) await browser(['set', 'viewport', '1280', '720']);
+  writeFileSync(FILES.result, `${JSON.stringify({ result, ...(saved && { saved }) })}
+`);
   for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
 }
 
 /** Tears down a hand-over whose watcher died without finishing. */
 async function recoverStale(result) {
-  await teardown(result, readJson(FILES.state)?.tunnelPid);
+  const state = readJson(FILES.state);
+  await teardown(result, state?.tunnelPid, { passwords: Boolean(state?.passwords) });
 }
 
 // ---------------------------------------------------------------------------
@@ -306,9 +315,17 @@ const FIELD_ACTIONS = {
   '/check': { kind: 'checkbox', calls: (field, { checked }) => (typeof checked === 'boolean' ? [[checked ? 'check' : 'uncheck', field.selector]] : null) },
 };
 
+/** A `/viewport` body's size clamped to VIEWPORT_LIMITS, or null unless width and height are integers. */
+export function clampViewport(body) {
+  if (!Number.isInteger(body?.width) || !Number.isInteger(body?.height)) return null;
+  const clamp = (value, [low, high]) => Math.min(high, Math.max(low, value));
+  return { width: clamp(body.width, VIEWPORT_LIMITS.width), height: clamp(body.height, VIEWPORT_LIMITS.height) };
+}
+
 /**
  * The field list's routes. The last scan's fields, selectors included, stay here; the page names a
- * field only by its `ref`, an index into that scan. Every agent-browser call runs through one queue.
+ * field only by its `ref`, an index into that scan. Every agent-browser call, `/viewport`'s too, runs
+ * through one queue.
  */
 function fieldRoutes() {
   let scanned = [];
@@ -344,6 +361,12 @@ function fieldRoutes() {
     }
     if (request.method !== 'POST') return reply(response, 405);
     const body = await readBody(request);
+    if (pathname === '/viewport') {
+      const size = clampViewport(body);
+      if (!size) return reply(response, 400);
+      const ok = await serial(() => browser(['set', 'viewport', String(size.width), String(size.height)]));
+      return ok === null ? reply(response, 502) : reply(response, 200, size);
+    }
     const action = FIELD_ACTIONS[pathname];
     if (!body || !Number.isInteger(body.ref) || body.ref < 0) return reply(response, 400);
     const field = scanned[body.ref];
@@ -361,15 +384,15 @@ function fieldRoutes() {
 
 /**
  * Serves the page on 127.0.0.1:`port` and pipes `/stream?key=<key>` to the live feed on
- * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes need
- * the key in an `x-hand-over-key` header. With `passwords` it serves the password page and routes
- * instead, passing `hooks` to them, and has no feed. Resolves to a close().
+ * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes and
+ * `/viewport` need the key in an `x-hand-over-key` header. With `passwords` it serves the password
+ * page and routes instead, passing `hooks` to them, and has no feed. Resolves to a close().
  */
 export function servePage({ port, streamPort, key, passwords = false }, hooks = {}) {
   const sockets = new Set();
   const track = socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); return socket; };
   const routes = passwords ? passwordRoutes(hooks) : fieldRoutes();
-  const isRoute = pathname => (passwords ? PASSWORD_ROUTES.has(pathname) : pathname === '/fields' || Boolean(FIELD_ACTIONS[pathname]));
+  const isRoute = pathname => (passwords ? PASSWORD_ROUTES.has(pathname) : pathname === '/fields' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
   const served = passwords ? PAGES.passwords : PAGES.handOver;
   const server = createServer((request, response) => {
     const { pathname } = new URL(request.url, 'http://page');
@@ -492,7 +515,7 @@ async function open(values) {
   const fail = async message => {
     console.error(message);
     if (watcher) signal(watcher, 'SIGKILL');
-    await teardown('error', tunnelPid);
+    await teardown('error', tunnelPid, { passwords: Boolean(values.passwords) });
     return 1;
   };
   let feed = null;
@@ -531,7 +554,7 @@ async function watch() {
     if (done) return;
     done = true;
     await closePage?.();
-    await teardown(result, state.tunnelPid, saved);
+    await teardown(result, state.tunnelPid, { passwords: Boolean(state.passwords), saved });
     process.exit(0);
   };
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => finish('closed'));

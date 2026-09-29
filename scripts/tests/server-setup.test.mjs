@@ -52,3 +52,12 @@ test('the final check names the tools the end state promises', () => {
   assert.deepEqual(only(checked, promised), [], 'checked by setup.sh but not in the end state');
   assert.deepEqual(only(promised, checked), [], 'in the end state but not checked by setup.sh');
 });
+
+// A new server gets the Node the rest of the repo uses; .nvmrc is the reference.
+test("the script installs .nvmrc's Node major", () => {
+  const nvmrc = readFileSync(resolve(repo, '.nvmrc'), 'utf8').trim().match(/^v?(\d+)/)?.[1];
+  const setup = readFileSync(script, 'utf8').match(/deb\.nodesource\.com\/setup_(\d+)\.x/)?.[1];
+  assert.ok(nvmrc, '.nvmrc names no Node major');
+  assert.ok(setup, 'server/setup.sh installs no NodeSource major');
+  assert.equal(setup, nvmrc, `server/setup.sh installs Node ${setup}, but .nvmrc says ${nvmrc}`);
+});

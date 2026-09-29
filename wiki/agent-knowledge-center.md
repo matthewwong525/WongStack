@@ -48,7 +48,7 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 - **Read the plan before it runs.** `/plan` writes the change and its review page and stops; `/apply` implements only what you approved. Work outside the repo gets the same check at a smaller size: `/apply` asks before each action that leaves the conversation.
 - **Review the pull request.** Every code change arrives as a reviewable package.
 - **Let tests and CI catch what review misses.**
-- **Put the app behind a login wall.** [Cloudflare Access](stack/cloudflare-access.md) keeps a preview private if you took that stack, and [secrets stay out of the repo](development/secrets.md) either way.
+- **Put the app behind a login wall.** [Cloudflare Access](stack/cloudflare-access.md) keeps a preview private, and [secrets stay out of the repo](development/secrets.md) either way.
 
 ## What each surface owns
 
@@ -58,7 +58,7 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
 - **The memory store** owns session context outside the repo: short typed facts that every session reads as a digest at start, and the raw transcripts behind them. [Session memory](development/memory.md) owns how it works.
-- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/wong-sync`.
+- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/continue`, `/ship`, `/close`, `/verify`, `/improve`, `/routine`, `/wong-sync`.
 
 Claude Code is one way to run these. The durable part is the files: any agent that reads files, edits files, runs shell commands, and follows the skill runbooks can do the same work.
 

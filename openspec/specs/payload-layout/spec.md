@@ -51,20 +51,6 @@ Payload prose SHALL describe files an external tool generates as that tool's sup
 - **WHEN** a reader in a freshly set-up repo runs a command the payload says is available
 - **THEN** the command exists
 
-### Requirement: Payload links resolve in a fresh install
-
-Every internal link in a payload file SHALL resolve in a fresh install, so every page a skill cites as an owner SHALL itself ship. The check SHALL run against the target's file set, not this repo, and SHALL treat a path as present only when setup writes it.
-
-#### Scenario: A skill cites a wiki page
-
-- **WHEN** a payload skill links a wiki page that owns a fact
-- **THEN** a repo that installed the payload has that page
-
-#### Scenario: A link resolves only in the source
-
-- **WHEN** a payload page links a page only WongStack's own wiki has
-- **THEN** the release check fails until the example is generalized or dropped
-
 ### Requirement: The manifest carries one machine-readable file list
 
 The payload manifest SHALL carry one machine-readable list of payload paths beside the prose that explains them, and install, update, and the link check SHALL all read that list.

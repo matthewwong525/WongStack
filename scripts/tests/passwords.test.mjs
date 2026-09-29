@@ -113,10 +113,11 @@ test('a password link refuses to open while a hand-over is open, and the reverse
   assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
 
   opened(f, '--passwords');
+  const before = f.calls().length;
   const handOver = f.run('open', '--local');
   assert.equal(handOver.status, 1);
   assert.match(handOver.stderr, /already open/);
-  assert.equal(f.calls().filter(line => line.startsWith('agent-browser set viewport')).length, 1, 'the refused hand-over touched nothing');
+  assert.deepEqual(f.calls().slice(before), [], 'the refused hand-over touched nothing');
 });
 
 test('--passwords takes no --until or --until-gone', t => {

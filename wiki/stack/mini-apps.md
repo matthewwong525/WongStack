@@ -33,7 +33,7 @@ The main app's Worker, `app/worker/index.ts`, sends every request under `/apps/`
 
 A mini app goes through [the change loop](../development/the-change-loop.md) like any change. Only its folder is special.
 
-- **Plan.** [`/plan`](../../.agents/skills/plan/SKILL.md) writes the change, with a task for the app's tests, and asks *build it now?*
+- **Plan.** [`/plan`](../../.agents/skills/plan/SKILL.md) writes the change, with a task for the app's tests, and asks [the finished-plan question](../../.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step).
 - **Preview.** When [`/apply`](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) finishes, it uploads a preview of the whole main app from the agent host. Open the app at `/apps/<name>/` on that link. Each further change uploads again to the same link.
 - **Publish.** [`/ship`](../../.agents/skills/ship/SKILL.md) saves, waits for CI, and merges. CI runs only the changed app's tests when nothing else changed, as [the gate](../development/the-change-loop.md#the-gate) says, and still deploys the main Worker, because it serves the app.
 

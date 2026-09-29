@@ -41,5 +41,10 @@
   {"name": "app/src/index.css", "replacement": "`app/public/style.css`, served at `/style.css`"},
   {"name": "development/home.md", "replacement": "`wiki/development/browsing.md` for the browser, and `wiki/development/memory.md#who-sees-what` for memory"},
   {"name": "machine.json", "replacement": "nothing: each repo's memory is its own (`wiki/development/memory.md#who-sees-what`)"},
-  {"name": "#private", "replacement": "a repo only you use (`wiki/development/memory.md#who-sees-what`)", "allow": ["openspec/specs/memory/spec.md", "scripts/tests/memory-capture.test.mjs"], "why": "the spec's scenario and the test prove a message saying #private is captured like any other"}
+  {"name": "#private", "replacement": "a repo only you use (`wiki/development/memory.md#who-sees-what`)", "allow": ["openspec/specs/memory/spec.md", "scripts/tests/memory-capture.test.mjs"], "why": "the spec's scenario and the test prove a message saying #private is captured like any other"},
+  {"name": "#recovery-a-bad-migration-reached-production", "replacement": "`wiki/stack/d1-recovery.md#a-bad-migration-reached-production`"},
+  {"name": "#recovery-never-hand-apply-schema-to-production", "replacement": "`wiki/stack/d1-recovery.md#never-hand-apply-schema-to-production`"},
+  {"name": "#recovery-production-schema-drifted-from-d1_migrations", "replacement": "`wiki/stack/d1-recovery.md#production-schema-drifted-from-d1_migrations`"},
+  {"name": "development/adding-a-skill.md", "replacement": "`wiki/maintaining/adding-a-skill.md`"},
+  {"name": "development/repo-layout.md", "replacement": "`wiki/maintaining/repo-layout.md`"}
 ]

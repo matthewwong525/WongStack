@@ -121,3 +121,4 @@ None.
 - **2026-09-29** — Assumed: the password link reuses the hand-over link's safety: a new private address and secret key each time, the same ready question first, one link at a time, and a close on *Done* or after 10 minutes.
 - **2026-09-29** — Assumed: a minor release, because it adds a feature and breaks nothing.
 - **2026-09-29** — Assumed: `POST /save` reports failed logins by their place in the request, and the page skips rows the server would refuse, because the page must name the failed sites and keep them ticked.
+- **2026-09-29** — Assumed: after the phone-sized hand-over shipped first, closing a password link skips its page resize, because a password link never touched the browser, and the deadline test got a 3-second limit instead of 0.6, because the shorter one could expire before the page started.
