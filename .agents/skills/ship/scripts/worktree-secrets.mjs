@@ -22,14 +22,16 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { isMain } from "../../memory/scripts/lib/cli.mjs";
 import { primaryRoot } from "../../memory/scripts/lib/primary-root.mjs";
 
 const LIVE_FILE = /^(\.env|\.dev\.vars)(\..+)?$/;
-const ENTRY = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
+/** One `KEY=value` line of a live file; the key link (verify's keys.mjs) reads lines by it too. */
+export const ENTRY = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
 const BASE_FILE = "wongstack-secrets-base.json";
 const KINDS = ["add", "remove", "change", "conflict", "unresolved"];
 
-function isIgnored(root, rel) {
+export function isIgnored(root, rel) {
   try {
     execFileSync("git", ["check-ignore", "-q", rel], { cwd: root, stdio: "ignore" });
     return true;
@@ -72,7 +74,8 @@ function readEntries(path) {
 
 const hashes = (entries) => Object.fromEntries([...(entries ?? [])].map(([key, { value }]) => [key, hash(value)]));
 
-function loadBase(ctx) {
+/** The baseline `seed` recorded, `{files: {rel: {KEY: hash}}}`, or null; a file in it is a seeded branch copy. */
+export function loadBase(ctx) {
   const path = join(ctx.gitDir, BASE_FILE);
   return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null;
 }
@@ -211,19 +214,24 @@ function promote(ctx) {
 /* ── main ──────────────────────────────────────────────────────────────────── */
 
 const COMMANDS = { seed, status, promote };
-const command = COMMANDS[process.argv[2]];
-if (!command) {
-  console.error("usage: worktree-secrets.mjs seed|status|promote");
-  process.exit(2);
+
+function main() {
+  const command = COMMANDS[process.argv[2]];
+  if (!command) {
+    console.error("usage: worktree-secrets.mjs seed|status|promote");
+    process.exit(2);
+  }
+
+  let ctx;
+  try {
+    ctx = context();
+  } catch (error) {
+    console.error(`worktree-secrets: ${error.stderr ? "not inside a Git checkout" : error.message}`);
+    process.exit(1);
+  }
+
+  const output = ctx.linked ? command(ctx) : { primary: true, message: "primary checkout; nothing to do" };
+  console.log(JSON.stringify(output, null, 2));
 }
 
-let ctx;
-try {
-  ctx = context();
-} catch (error) {
-  console.error(`worktree-secrets: ${error.stderr ? "not inside a Git checkout" : error.message}`);
-  process.exit(1);
-}
-
-const output = ctx.linked ? command(ctx) : { primary: true, message: "primary checkout; nothing to do" };
-console.log(JSON.stringify(output, null, 2));
+if (isMain(import.meta.url)) main();

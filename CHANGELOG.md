@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.5.0 — Give API keys through a private link
+
+- **A private link for keys.** When a task needs a key the assistant doesn't have, it asks first, then sends a private link. You paste the key there and tap *Save*, so it never sits in the chat's history. You can also ask for it: *send me the key link*. The link is new each time and closes once every key is saved, when you tap *Done*, or after 10 minutes.
+- **One box per key.** The page names each key and says where to get it, and says when a new key replaces one saved now. A tick shows by each saved key.
+- **The chat names keys, never shows them.** The key goes to the same private file as before, and to your live site and its test copy when the site uses it.
+- **Pasting still works.** A key pasted into the chat is still saved, and the assistant says the link is safer next time.
+- **The guides say so.** [API keys](wiki/stack/api-keys.md) now leads with the link; the developer page has [how the assistant sends it](wiki/development/secrets.md#receive-a-key-through-a-private-link).
+
+**Updating.** Nothing to do by hand. From now on, the assistant sends you a private link when it needs a key.
+
 ## 27.4.0 — The password link is one screen
 
 - **No choice to make first.** The password link opens straight onto one page: a box for your export file, the list of logins, and a small form to add one by hand, with *Save* and *Done* at the bottom. *Back* and *Add another* are gone.
