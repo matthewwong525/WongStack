@@ -27,4 +27,4 @@
 
 - [x] 5.1 Add a `## Next (patch) — The wiki keeps WongStack upkeep apart, and database fixes on their own page` entry to `CHANGELOG.md`, with an **Updating.** note in plain words: a page of yours that links the deploy page's recovery sections should link the new database fixes page.
 - [x] 5.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-retired-names.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/measure-context.mjs --check`; fix each failure.
-- [ ] 5.3 Run `/save` and confirm the `payload` and `test` checks pass in CI.
+- [x] 5.3 Run `/save` and confirm the `payload` and `test` checks pass in CI.
