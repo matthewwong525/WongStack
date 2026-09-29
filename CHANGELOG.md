@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.5.1 — How to quote a pasted key
+
+- **A pasted key reads back as pasted.** [The secrets page](wiki/development/secrets.md#receive-a-key-through-a-private-link) now says how the assistant quotes a pasted key in the private file, the same way the key link does, so a key with unusual characters still works.
+
+**Updating.** Nothing to do by hand.
+
 ## 27.5.0 — Give API keys through a private link
 
 - **A private link for keys.** When a task needs a key the assistant doesn't have, it asks first, then sends a private link. You paste the key there and tap *Save*, so it never sits in the chat's history. You can also ask for it: *send me the key link*. The link is new each time and closes once every key is saved, when you tap *Done*, or after 10 minutes.

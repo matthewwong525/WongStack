@@ -56,7 +56,7 @@ When a task needs a key the live files lack, or the person asks for *the key lin
 
 The page shows one box per asked-for key, with its hint, and says when a key would replace one saved now. Each save writes the primary worktree's file and, in a linked worktree, its seeded branch copy, like any [add or rotation](#worktrees-and-branch-copies). The link closes once every key is saved, on *Done*, or after 10 minutes, and has [the hand-over link's safety](browsing.md#hand-the-browser-over). No value reaches a command line, a log, the link's own files, or the chat. Keys spread over several lines, such as a private-key file, aren't taken.
 
-**A key pasted into the chat is still saved**, under the name the person gave, by the same routing. In the same reply, say the link is safer next time, never showing the key: *Saved MAPS_API_KEY. Next time I'll send a private link, so the key stays out of the chat.*
+**A key pasted into the chat is still saved**, under the name the person gave, by the same routing. Write a value that isn't plain letters, digits, and `_ - . : / + = @` in single quotes, or in double quotes when it holds a `'`: never escape inside the quotes, because dotenv and wrangler read `\"` back as two characters, and a shell sourcing `.env` expands a bare `~`. In the same reply, say the link is safer next time, never showing the key: *Saved MAPS_API_KEY. Next time I'll send a private link, so the key stays out of the chat.*
 
 ## Worktrees and branch copies
 
