@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Refresh the app and test tools
+
+- **The test tools update together.** The starter app uses matching Vitest and coverage versions, plus newer Cloudflare development tools, linting, and duplicate-code checks. Its HTTP client includes the available security fixes.
+- **The repository's test linter is current.** WongStack's own script checks use the newer linter too.
+
+**Updating.** Nothing to do by hand. Existing apps adapt their dependency files through the reviewed update plan.
+
 ## 27.6.0 — Memory uses your agent's model
 
 - **Background memory follows your agent.** Claude Code and Codex use their normal model for unattended memory capture. You can still choose a separate memory model with `WONG_MEMORY_MODEL` or `WONG_MEMORY_CODEX_MODEL`.
