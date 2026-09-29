@@ -15,15 +15,11 @@ export const SECRET = 'super-secret-value-123';
 
 const run = (db, sql, params = []) => (params.length === 0 && /;\s*\S/.test(sql.trim().replace(/;\s*$/, ''))) ? (db.exec(sql), []) : db.prepare(sql).all(...params);
 
-// One in-memory database per D1 id, so a work repo and its home can share one fake API.
 async function fakeCloudflare({ bucket = true } = {}) {
-  const dbs = new Map();
-  const dbFor = id => { if (!dbs.has(id)) dbs.set(id, new DatabaseSync(':memory:')); return dbs.get(id); };
-  const db = dbFor('db1');
+  const db = new DatabaseSync(':memory:');
   const objects = new Map();
   const calls = [];
   let offline = false;
-  const offlineDbs = new Set();
   const server = createServer(async (req, res) => {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -34,9 +30,7 @@ async function fakeCloudflare({ bucket = true } = {}) {
     if (offline) { res.socket.destroy(); return; }
     if (req.headers.authorization !== `Bearer ${TOKEN}`) return send(401, { success: false, errors: [{ code: 10000, message: 'Authentication error' }] });
     const d1 = req.url.match(/\/d1\/database\/([^/]+)\/query$/);
-    if (d1 && offlineDbs.has(d1[1])) { res.socket.destroy(); return; }
     if (d1) {
-      const db = dbFor(d1[1]);
       const input = JSON.parse(body.toString('utf8'));
       const statements = input.batch || [input];
       try {
@@ -61,9 +55,9 @@ async function fakeCloudflare({ bucket = true } = {}) {
   await new Promise(done => server.listen(0, '127.0.0.1', done));
   const api = `http://127.0.0.1:${server.address().port}/client/v4`;
   return {
-    db, dbFor, objects, calls, api,
+    db, objects, calls, api,
     // true drops each connection; 'hang' never answers, so the caller's timeout fires.
-    setOffline: (value, databaseId) => { if (!databaseId) offline = value; else if (value) offlineDbs.add(databaseId); else offlineDbs.delete(databaseId); },
+    setOffline: value => { offline = value; },
     close: () => new Promise(done => { server.closeAllConnections(); server.close(done); }),
   };
 }
@@ -77,15 +71,15 @@ export function tempDir(t, prefix) {
   return dir;
 }
 
-function makeRepo(t, { bucket = true, envExtra = '', databaseId = 'db1', email = 'dev@example.com' } = {}) {
+function makeRepo(t, { bucket = true } = {}) {
   const root = tempDir(t, 'memory-repo-');
   git(root, 'init', '-q', '-b', 'main');
-  git(root, 'config', 'user.email', email);
+  git(root, 'config', 'user.email', 'dev@example.com');
   git(root, 'config', 'user.name', 'Dev');
   mkdirSync(join(root, '.claude'), { recursive: true });
-  const memory = { accountId: 'acct', databaseId, database: 'repo-memory', ...(bucket ? { bucket: 'repo-memory' } : {}) };
+  const memory = { accountId: 'acct', databaseId: 'db1', database: 'repo-memory', ...(bucket ? { bucket: 'repo-memory' } : {}) };
   writeFileSync(join(root, '.claude', '.wong-stack.json'), JSON.stringify({ components: { memory } }));
-  writeFileSync(join(root, '.env'), `CLOUDFLARE_MEMORY_TOKEN=${TOKEN}\nSERVICE_TOKEN=${SECRET}\n${envExtra}`);
+  writeFileSync(join(root, '.env'), `CLOUDFLARE_MEMORY_TOKEN=${TOKEN}\nSERVICE_TOKEN=${SECRET}\n`);
   writeFileSync(join(root, 'README.md'), 'test\n');
   git(root, 'add', 'README.md');
   git(root, 'commit', '-q', '-m', 'init');
@@ -101,7 +95,6 @@ function envFor(repo, fake, extra = {}) {
     WONG_MEMORY_CLAUDE_HOME: repo.claudeHome,
     WONG_MEMORY_CODEX_HOME: repo.codexHome,
     CLOUDFLARE_MEMORY_TOKEN: '',
-    WONG_MACHINE_FILE: join(repo.home, 'machine.json'),
     NODE_NO_WARNINGS: '1',
     // The hook's tidy-up sweeps this machine's temp folder; a test that wants it turns it on.
     WONG_TIDY: '0',
@@ -135,16 +128,5 @@ export async function setup(t, { bucket = true } = {}) {
   if (result.code !== 0) throw new Error(`migrate failed: ${result.stderr}`);
   return { fake, repo };
 }
-
-// A home repo on its own database in the same fake, recorded in the work repo's machine file.
-export async function setupHome(t, env, { email = 'dev@example.com' } = {}) {
-  const home = makeRepo(t, { databaseId: 'db-home', email });
-  const result = await memory(home, env.fake, ['migrate'], { env: { WONG_MEMORY_STATE_DIR: home.stateDir } });
-  if (result.code !== 0) throw new Error(`home migrate failed: ${result.stderr}`);
-  writeFileSync(join(env.repo.home, 'machine.json'), JSON.stringify({ home: home.root }));
-  return home;
-}
-
-export const homeRows = (env, sql, ...params) => env.fake.dbFor('db-home').prepare(sql).all(...params).map(row => ({ ...row }));
 
 export const rows = (env, sql, ...params) => env.fake.db.prepare(sql).all(...params).map(row => ({ ...row }));

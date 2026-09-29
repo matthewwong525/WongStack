@@ -11,7 +11,7 @@ import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
-import { memory, node, rows, SECRET, setup, setupHome, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, node, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
 const age = (file, ms) => { const time = new Date(Date.now() - ms); utimesSync(file, time, time); };
@@ -113,14 +113,32 @@ test('a session over 50 MB keeps its facts but not its transcript, and source sa
   assert.match(source.stdout, /the transcript was 51 MB, over the 50 MB limit, so it was not kept\./);
 });
 
-test('#private records the session and uploads and prints nothing', async t => {
+// A session an earlier version recorded as private, before #private was retired.
+const recordedPrivate = (env, id) => rows(env, "INSERT INTO sessions (id, agent, status, reason, updated_at) VALUES (?, 'claude', 'private', '#private', '2026-09-01T00:00:00Z')", id);
+
+test('a message saying #private is captured and its transcript uploaded like any other', async t => {
   const env = await setup(t);
-  const session = claudeSession(env, 1, [['user', 'Secret plans.'], ['assistant', 'OK.'], ['user', 'Keep this one #private please.']]);
+  const session = claudeSession(env, 1, [['user', 'Plans for the launch.'], ['assistant', 'OK.'], ['user', 'Keep this one #private please.']]);
+  const result = await memory(env.repo, env.fake, ['strip', session.id]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, /^private:/m);
+  assert.match(result.stdout, /Plans for the launch/);
+  assert.equal(env.fake.objects.size, 1);
+  const kept = await memory(env.repo, env.fake, ['keep-transcript', session.id]);
+  assert.match(kept.stdout, /kept: /);
+});
+
+test('a session recorded as private before stays private: strip uploads and prints nothing, and it is not pending again', async t => {
+  const env = await setup(t);
+  const session = claudeSession(env, 1, [['user', 'Secret plans.'], ['assistant', 'OK.']]);
+  recordedPrivate(env, session.id);
   const result = await memory(env.repo, env.fake, ['strip', session.id]);
   assert.match(result.stdout, /private: .* recorded as private/);
   assert.doesNotMatch(result.stdout, /Secret plans/);
   assert.equal(env.fake.objects.size, 0);
   assert.deepEqual(rows(env, 'SELECT status, raw_key FROM sessions'), [{ status: 'private', raw_key: null }]);
+  const pendingNow = JSON.parse((await memory(env.repo, env.fake, ['pending', '--json'])).stdout);
+  assert.equal(pendingNow.some(item => item.id === session.id), false);
 });
 
 test('keep-transcript uploads the redacted transcript and sets raw_key without touching capture', async t => {
@@ -149,17 +167,18 @@ test('keep-transcript uploads the redacted transcript and sets raw_key without t
 
 test('keep-transcript skips a private session, a store with no bucket, and one over 50 MB, with exit 0', async t => {
   const env = await setup(t);
-  const secret = claudeSession(env, 1, [['user', 'Keep this #private.']]);
+  const secret = claudeSession(env, 1, [['user', 'Secret plans.']]);
+  recordedPrivate(env, secret.id);
   const priv = await memory(env.repo, env.fake, ['keep-transcript', secret.id]);
   assert.equal(priv.code, 0, priv.stderr);
-  assert.match(priv.stdout, /transcript not kept: .* is private/);
+  assert.match(priv.stdout, /transcript not kept: .* was recorded as private/);
   const big = claudeSession(env, 2, [['user', 'Load the export.'], ['assistant', [{ type: 'tool_use', id: 't', name: 'Read', input: { data: 'x'.repeat(MAX_TRANSCRIPT_BYTES) } }]]]);
   const large = await memory(env.repo, env.fake, ['keep-transcript', big.id]);
   assert.equal(large.code, 0, large.stderr);
   assert.match(large.stdout, /transcript not kept: The full transcript is 51 MB, over the 50 MB limit/);
   assert.equal(env.fake.objects.size, 0);
   assert.equal(rows(env, 'SELECT raw_key FROM sessions WHERE id = ?', big.id)[0].raw_key, null);
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM sessions WHERE id = ?', secret.id)[0].n, 0);
+  assert.deepEqual(rows(env, 'SELECT status, raw_key FROM sessions WHERE id = ?', secret.id), [{ status: 'private', raw_key: null }]);
 
   const bare = await setup(t, { bucket: false });
   const plain = claudeSession(bare, 3, [['user', 'Hello.']]);
@@ -395,58 +414,13 @@ test('the session that started a background run can never be listed or stripped 
   assert.match(refused.stderr, /no transcript found/);
 });
 
-async function homeWithPerson(t, env) {
-  const home = await setupHome(t, env, { email: 'ana@mail.com' });
-  mkdirSync(join(home.root, 'wiki', 'people'), { recursive: true });
-  writeFileSync(join(home.root, 'wiki', 'people', 'hana.md'), '# Hana\n\nGit email: hana@mail.com\n');
-  writeFileSync(join(home.root, 'wiki', 'people', 'ana.md'), `# Ana\n\nGit emails: ana@corp.com, ana@mail.com\n\nPrefers short replies.\n\n${'More notes. '.repeat(500)}\n`);
-  const facts = Array.from({ length: 20 }, (_, i) => ({ action: 'add', type: i % 2 ? 'user' : 'feedback', body: `Personal preference number ${i} that the person stated at home, kept here as a longer line of text.` }));
-  await memory(env.repo, env.fake, ['put-facts', '--home', '--file', writeJsonFile(env.repo.home, 'hf.json', { source: 'save', slug: 'personal', facts })]);
-  return home;
-}
-
-const homePart = stdout => stdout.slice(stdout.indexOf('## From home'));
-
-test("the hook adds the person's page and personal facts from home, within their own caps", async t => {
+test('the hook loads only this repo\'s memory: no part comes from another repo', async t => {
   const env = await setup(t);
-  await homeWithPerson(t, env);
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'user', body: 'Prefers short replies.' }] })]);
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0, result.stderr);
-  const part = homePart(result.stdout);
-  assert.match(part, /^## From home \(/);
-  assert.match(part, /### Your page: wiki\/people\/ana\.md\n# Ana/, 'the page that lists the email, not a near match');
-  assert.match(part, /Cut at 4 KB/);
-  const facts = part.slice(part.indexOf('### Your facts')).split('\n').filter(line => line.startsWith('- ['));
-  assert.ok(facts.length > 0 && facts.length <= 15, `${facts.length} fact lines`);
-  assert.ok(Buffer.byteLength(facts.join('\n')) <= 3 * 1024);
-});
-
-test('an offline home gives one line and still shows the page', async t => {
-  const env = await setup(t);
-  await homeWithPerson(t, env);
-  env.fake.setOffline(true, 'db-home');
-  const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
-  assert.equal(result.code, 0);
-  const part = homePart(result.stdout);
-  assert.match(part, /### Your page: wiki\/people\/ana\.md/);
-  assert.match(part, /Home's facts were not loaded \(memory store unreachable/);
-  assert.doesNotMatch(part, /### Your facts/);
-});
-
-test('with no home recorded the hook adds no home part, and in home itself only the page', async t => {
-  const env = await setup(t);
-  const none = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
-  assert.doesNotMatch(none.stdout, /From home/);
-  const home = await homeWithPerson(t, env);
-  const inHome = await node(home, env.fake, 'session-start.mjs', ['--agent', 'claude'], {
-    input: JSON.stringify({ session_id: 'home-1', transcript_path: null, cwd: home.root }),
-    env: { WONG_MEMORY_NO_HEADLESS: '1', WONG_MEMORY_STATE_DIR: home.stateDir, WONG_MACHINE_FILE: join(env.repo.home, 'machine.json') },
-  });
-  assert.equal(inHome.code, 0, inHome.stderr);
-  const part = homePart(inHome.stdout);
-  assert.match(part, /### Your page: wiki\/people\/ana\.md/);
-  assert.doesNotMatch(part, /### Your facts/, "home's facts are already in its own digest");
-  assert.match(inHome.stdout, /# Memory digest/);
+  assert.match(result.stdout, /# Memory digest[\s\S]*Prefers short replies/);
+  assert.doesNotMatch(result.stdout, /From home|--home/);
 });
 
 // A fake headless agent: a shell script whose lines call the memory script as "$M", the way the model would.
@@ -465,13 +439,13 @@ test('a run keeps its tally only while it runs, and records what was stored, not
   const marker = join(env.repo.home, 'tally-seen');
   const bin = fakeAgent(env, [
     `test -f "${tally}" && echo yes > "${marker}"`,
-    `$M finish-run --kind capture --status ok --counts '{"private":4}'`,
+    `$M finish-run --kind capture --status ok --counts '{"captured":4}'`,
   ]);
   const result = await node(env.repo, env.fake, 'run.mjs', ['--agent', 'claude'], { env: { PATH: `${bin}:${process.env.PATH}` } });
   assert.equal(result.code, 0, result.stderr);
   assert.equal(readFileSync(marker, 'utf8'), 'yes\n', 'the tally exists while the agent runs');
   assert.equal(existsSync(tally), false, 'the tally is gone after the run');
-  assert.deepEqual(rows(env, 'SELECT status, counts, reason FROM runs'), [{ status: 'ok', counts: '{}', reason: 'model reported other counts: private' }]);
+  assert.deepEqual(rows(env, 'SELECT status, counts, reason FROM runs'), [{ status: 'ok', counts: '{}', reason: 'model reported other counts: captured' }]);
   const digest = await memory(env.repo, env.fake, ['digest']);
   assert.match(digest.stdout, /Last background capture run \(.*\): nothing to do \(the run's own report differed\)/);
 });
@@ -484,27 +458,24 @@ test('inside a run, put-facts and strip add what they stored to the tally, and f
   const inRun = { env: { WONG_MEMORY_RUN: '1' } };
   const kept = claudeSession(env, 1, [['user', 'Plan the search.'], ['assistant', 'Done.']]);
   const empty = claudeSession(env, 2, [['user', 'Hello.']]);
-  const secret = claudeSession(env, 3, [['user', 'Keep this #private.']]);
   const weird = join(env.repo.home, 'weird.jsonl');
   writeFileSync(weird, '{"hello":"world"}\n');
   register(env, { id: 'claude:weird', agent: 'claude', transcript: weird });
-  for (const id of [kept.id, empty.id, secret.id, 'claude:weird']) await memory(env.repo, env.fake, ['strip', id], inRun);
+  for (const id of [kept.id, empty.id, 'claude:weird']) await memory(env.repo, env.fake, ['strip', id], inRun);
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'a.json', { session: kept.id, source: 'backfill', slug: 's', facts: [
     { action: 'add', type: 'project', body: 'Search ranks by recency.' }, { action: 'drop', type: 'project', body: 'Already known.' }] })], inRun);
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'b.json', { session: empty.id, source: 'backfill', slug: 's', facts: [], reason: 'nothing new' })], inRun);
   const failed = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'c.json', { session: empty.id, source: 'backfill', slug: 's', facts: [{ action: 'add', type: 'nope', body: 'x' }] })], inRun);
   assert.equal(failed.code, 1, 'a refused write adds nothing');
-  const home = await memory(env.repo, env.fake, ['put-facts', '--home', '--file', writeJsonFile(env.repo.home, 'h.json', { source: 'backfill', slug: 'p', facts: [{ action: 'add', type: 'user', body: 'Private life.' }] })], inRun);
-  assert.match(home.stderr, /no home recorded/);
-  assert.deepEqual(JSON.parse(readFileSync(tally, 'utf8')), { private: 1, unrecognized: 1, captured: 1, added: 1, dropped: 2, skipped: 1 });
+  assert.deepEqual(JSON.parse(readFileSync(tally, 'utf8')), { unrecognized: 1, captured: 1, added: 1, dropped: 1, skipped: 1 });
   const merged = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'm.json', { source: 'consolidation', slug: 's', facts: [
     { action: 'supersede', supersedes: [1], type: 'project', body: 'Search ranks by recency, newest first.' }] })], inRun);
   assert.equal(merged.code, 0, merged.stderr);
   await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'ok', '--counts', '{"merged":1,"superseded":1}'], inRun);
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', JSON.stringify({ captured: 1, skipped: 1, private: 1, unrecognized: 1, added: 1, superseded: 0, dropped: 2 })], inRun);
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', JSON.stringify({ captured: 1, skipped: 1, unrecognized: 1, added: 1, superseded: 0, dropped: 1 })], inRun);
   assert.deepEqual(rows(env, 'SELECT kind, counts, reason FROM runs ORDER BY id').map(run => ({ ...run, counts: JSON.parse(run.counts) })), [
     { kind: 'consolidation', counts: { merged: 1, superseded: 1 }, reason: null },
-    { kind: 'capture', counts: { captured: 1, skipped: 1, private: 1, unrecognized: 1, added: 1, dropped: 2 }, reason: null },
+    { kind: 'capture', counts: { captured: 1, skipped: 1, unrecognized: 1, added: 1, dropped: 1 }, reason: null },
   ]);
 });
 
@@ -518,13 +489,13 @@ test('a hand run writes no tally, and finish-run with no tally records --counts 
   await memory(env.repo, env.fake, facts('b.json'));
   assert.equal(readFileSync(tally, 'utf8'), '{}\n', 'outside a run, the tally is untouched');
   rmSync(tally);
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', '{"private":4}'], { env: { WONG_MEMORY_RUN: '1' } });
-  assert.deepEqual(rows(env, 'SELECT counts, reason FROM runs'), [{ counts: '{"private":4}', reason: null }]);
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', '{"captured":4}'], { env: { WONG_MEMORY_RUN: '1' } });
+  assert.deepEqual(rows(env, 'SELECT counts, reason FROM runs'), [{ counts: '{"captured":4}', reason: null }]);
 });
 
 test("the digest's run line says when the run's own report differed", () => {
   const run = { kind: 'capture', host: 'box', finished_at: '2026-09-27T10:00:00Z', status: 'ok', counts: '{"captured":2}' };
   assert.equal(formatRun(run), 'Last background capture run (2026-09-27 10:00 UTC on box): captured 2');
-  assert.equal(formatRun({ ...run, reason: 'model reported other counts: private' }), "Last background capture run (2026-09-27 10:00 UTC on box): captured 2 (the run's own report differed)");
-  assert.equal(formatRun({ ...run, status: 'failed', reason: 'claude exited with code 1; model reported other counts: private' }), 'Last background capture run failed (2026-09-27 10:00 UTC on box): claude exited with code 1; model reported other counts: private');
+  assert.equal(formatRun({ ...run, reason: 'model reported other counts: skipped' }), "Last background capture run (2026-09-27 10:00 UTC on box): captured 2 (the run's own report differed)");
+  assert.equal(formatRun({ ...run, status: 'failed', reason: 'claude exited with code 1; model reported other counts: skipped' }), 'Last background capture run failed (2026-09-27 10:00 UTC on box): claude exited with code 1; model reported other counts: skipped');
 });

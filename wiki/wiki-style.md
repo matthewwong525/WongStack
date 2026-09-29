@@ -47,7 +47,7 @@ The wiki is long-term memory for **repeatable knowledge**: facts that stay true 
 
 ### People
 
-`wiki/people/README.md` is the hub: who is who. Each person gets `wiki/people/<name>.md` with **every git email they use**, their preferences, and how they like work done: in [home](development/home.md), the owner and the people in their life; in a work repo, each teammate and the customers and contacts who matter.
+`wiki/people/README.md` is the hub: who is who. Each person gets `wiki/people/<name>.md` with **every git email they use**, their preferences, and how they like work done: in a repo only you use, you and the people in your life; in a work repo, each teammate and the customers and contacts who matter.
 
 Find the current person by `git config user.email`. When no page lists it, write a short one (name and email) in the next wiki save, without asking; the first page also makes the hub and links it from [the wiki's root](README.md).
 
@@ -57,7 +57,7 @@ When a person asks for more detail than [plain words](../.agents/skills/explore/
 
 1. **About one person → their page. About everyone → a topic page.**
 2. **Different preferences are not contradictions:** keep each on its own page. Newest wins only between facts about the same person, or the whole team.
-3. **Private life stays home.** Health, family, and money go only in the person's [home](development/home.md); a work preference may go in a work repo.
+3. **Private life goes only in a repo no one else reads.** Health, family, and money never go in a shared wiki; a work preference may.
 4. **A shared repo merges wiki edits through git**, like code.
 
 ## Adding a page — the checklist

@@ -44,7 +44,6 @@ You end with a working assistant, a starter site online, memory that carries ove
 - **Tools that fit your business, from one request.** A [mini app](wiki/stack/mini-apps.md) gets a plan and a link to try, and goes live at `/apps/<name>/` when you publish it.
 - **Your own site, online for free.** Every change gets its own link to look at before it goes live.
 - **A notebook that grows.** What the assistant learns — how your business runs, who is who — goes into [a wiki](wiki/README.md) it reads next time.
-- **Your home base.** Your [home](wiki/development/home.md) folder carries who you are into every other project.
 - **No lock-in.** It is plain files in a folder you own. Switch agents, and the knowledge comes with you.
 
 ## For developers

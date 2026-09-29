@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.0.0 — Memory stays in its own repo
+
+- **Each repo's memory is its own.** Nothing is sent to another repo, and nothing loads from one when a chat starts. Home becomes an ordinary repo you happen to use alone: setup no longer asks whether a repo is your home, and nothing records one on your computer.
+- **One table says who sees what.** Inside a repo there are two levels: the team, or only you. Facts about you, a reader's facts, and your chats are only yours; the admin sees everything. [Who sees what](wiki/development/memory.md#who-sees-what) owns the table, and every other page links to it.
+- **"Only you" is now a real lock.** Before, your computer hid a teammate's personal facts, and one flag showed them. Now the memory store itself holds them back, however a teammate asks. Only the admin's `--everyone` shows everyone's; in a repo only you use, you are the admin.
+- **`#private` is gone.** Typing it no longer keeps a chat from being saved. Chats already marked private stay unsaved.
+- **The cost.** Your likes no longer follow you from one repo to another: each repo learns them on its own. Something personal you say in a work chat stays in that work repo, where the admin can read it. For anything no one else should see, use a repo only you use.
+- **The browser pages moved.** Saved logins, pictures of the browser, and handing it over now live on [Browsing](wiki/development/browsing.md), unchanged.
+
+**Updating.** `#private` no longer keeps a chat out of memory, so leave anything no one else should see out of a shared repo's chats. Your likes and habits stop following you from your home repo into this one; each repo learns them again. You can delete `~/.wong-stack/machine.json`, the file that named your home: nothing reads it now. Your home repo's facts stay in home, where its own chats still see them. A teammate whose branch predates this update gets a refusal when they search memory, until they update that branch from main.
+
 ## 26.31.0 — A "See the preview" choice after a build
 
 - **See what was built, even when the link is hidden.** Some apps hide the text written just above a question, so the preview link never showed after a build. The last question now offers *See the preview* next to *Publish it*, *Change it more*, and *Save it*. Picking it shows the link on its own, with no question after it, and builds, saves, or publishes nothing; your next message decides.

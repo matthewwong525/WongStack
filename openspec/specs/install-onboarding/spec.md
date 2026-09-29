@@ -104,15 +104,6 @@ A completed install SHALL leave the payload in a real `.agents/` folder with `.c
 - **WHEN** `/apply` finishes the install tasks with a token in `.env`
 - **THEN** the repo has its install record, including the memory store, and the `/save` checkpoint follows
 
-### Requirement: Setup records the person's home once per machine
-
-When the person says the new repo is their home, setup SHALL record its absolute path in `~/.wong-stack/machine.json`, asking before it replaces a different recorded home; the install itself SHALL be the same as any other.
-
-#### Scenario: A second home
-
-- **WHEN** the machine already records another home
-- **THEN** setup asks before it changes the record
-
 ### Requirement: The default branch is main
 
 The workflow SHALL assume `main` as the default branch, resolving another name only when `main` does not exist.

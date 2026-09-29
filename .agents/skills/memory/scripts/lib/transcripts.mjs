@@ -125,8 +125,6 @@ export function parseTranscriptText(text) {
   return { meta, messages, lastLine };
 }
 
-export const isPrivate = messages => messages.some(message => message.role === 'user' && message.text.includes('#private'));
-
 export const strip = (messages, readThrough = 0) => messages
   .filter(message => message.line > readThrough).map(message => `[${message.role}] ${message.text}`).join('\n\n');
 

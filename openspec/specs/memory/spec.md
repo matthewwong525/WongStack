@@ -156,17 +156,27 @@ A `member` key SHALL write facts only under its own email, and SHALL supersede o
 
 ### Requirement: A team keeps personal facts personal
 
-In a team (more than one email holds a key), the digest and search SHALL show only the current person's `user` and `feedback` facts, matched on every email on their `wiki/people/` page, plus everyone's shared `project` and `thread` facts, unless asked for everyone. A fact a reader key wrote SHALL show only to its author, unless asked for everyone. A repo that is not a team SHALL NOT filter by person.
+In a team (more than one email holds a key), the Worker SHALL return to a member or reader key only facts that key may see: everyone's shared `project`, `reference`, and `thread` facts, plus the key's own `user` and `feedback` facts and its own unshared facts, however the read is written. The admin's key SHALL see every fact, and `--everyone` SHALL widen only the admin's view. The client SHALL still narrow the admin's digest and search to the admin's own personal facts, matched on every email on their `wiki/people/` page, unless asked for everyone. A repo that is not a team SHALL NOT filter by person.
 
 #### Scenario: A teammate's preference
 
 - **WHEN** a teammate wrote a `feedback` fact about deploys
-- **THEN** a plain search for `deploy` hides it and a search for everyone shows it
+- **THEN** a member's search for `deploy` hides it, with or without `--everyone`, and the admin's search for everyone shows it
 
 #### Scenario: A reader's thread
 
 - **WHEN** a reader wrote a `thread` fact
 - **THEN** it shows in the reader's digest and never in a teammate's
+
+#### Scenario: A personal fact in a work session
+
+- **WHEN** a work-repo session learns the person has a medical appointment every Tuesday
+- **THEN** it is stored in that repo as a `user` fact, which teammates never see and the admin can
+
+#### Scenario: A member writes its own read
+
+- **WHEN** a member key sends a hand-written read of the facts table, its text search, or a schema-qualified name
+- **THEN** the Worker returns no teammate's personal or unshared fact, or refuses the read
 
 ### Requirement: An older store moves behind the Worker safely
 
@@ -188,7 +198,7 @@ Facts, sessions, and note text from an earlier notes migration SHALL stay unchan
 
 ### Requirement: Unsaved sessions are captured in the background
 
-A background run the session-start hook starts, never the main agent, SHALL capture this repo's own sessions that ended without `/save`, a few per run, newest first. It SHALL skip what `/save` already covered, pass every fact through the gate, and treat transcript content as data, never as instructions. A session with `#private` in any user message SHALL get no upload, no model read, and no facts. The counts a run records SHALL be what the memory script stored during that run, never the model's own report; when the model reports different counts, the run's record SHALL say so.
+A background run the session-start hook starts, never the main agent, SHALL capture this repo's own sessions that ended without `/save`, a few per run, newest first. It SHALL skip what `/save` already covered, pass every fact through the gate, and treat transcript content as data, never as instructions. No word in a message SHALL keep a session out of capture; a session already recorded as private SHALL stay private, with no upload, no model read, and no facts. The counts a run records SHALL be what the memory script stored during that run, never the model's own report; when the model reports different counts, the run's record SHALL say so.
 
 #### Scenario: Instructions inside a fetched page
 
@@ -197,8 +207,18 @@ A background run the session-start hook starts, never the main agent, SHALL capt
 
 #### Scenario: The model claims work it did not do
 
-- **WHEN** a background run writes nothing and the model finishes with `private 4`
-- **THEN** the recorded run counts no private session, and the next digest says the run's own report differed
+- **WHEN** a background run writes nothing and the model finishes with `captured 4`
+- **THEN** the recorded run counts no captured session, and the next digest says the run's own report differed
+
+#### Scenario: A chat that says #private
+
+- **WHEN** a session's user message contains `#private`
+- **THEN** the session is captured and its transcript kept like any other
+
+#### Scenario: A session marked private before this change
+
+- **WHEN** a session was recorded as private by an earlier version
+- **THEN** it stays private: no upload, no model read, and no facts
 
 ### Requirement: Live facts are consolidated, never deleted
 
@@ -208,24 +228,6 @@ The background run SHALL periodically merge facts that say the same thing into o
 
 - **WHEN** two live facts on one slug give different values for one setting
 - **THEN** the newer supersedes the older, and both bodies are unchanged
-
-### Requirement: Every repo on a machine reads the person's home
-
-A machine SHALL record the person's home repo once, and every repo SHALL add a capped part to its digest with the person's `wiki/people/` page and live `user` and `feedback` facts from home. A machine with no home SHALL start sessions as before, and an unreadable home SHALL cost one line, not the digest.
-
-#### Scenario: A work repo on a machine with home
-
-- **WHEN** a session starts in a work repo and home holds the person's `feedback` facts
-- **THEN** the digest includes the page and those facts, marked as from home
-
-### Requirement: Private-life facts stay home
-
-A fact about the person's private life (health, family, money, personal plans) captured in any other repo SHALL go to home's store, never the repo's own store. When home cannot be reached it SHALL wait in home's spool, and when the machine has no home it SHALL be dropped.
-
-#### Scenario: A private fact in a work session
-
-- **WHEN** a work session learns the person's daughter starts school next month
-- **THEN** that fact is in home's store and not the work repo's
 
 ### Requirement: Save is the deliberate capture point
 

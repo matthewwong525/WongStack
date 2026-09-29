@@ -2,6 +2,7 @@
 // MEMORY_DB, MEMORY_BUCKET, and GITHUB_REPOSITORY from it, and answers 404 when the Worker binds no memory store.
 export const MEMORY_PREFIX: string;
 export const TEAM_HEADER: string;
+export const ROLE_HEADER: string;
 export const KEY_DAYS: number;
 export const KEY_LIMIT: number;
 export const MAX_TRANSCRIPT_BYTES: number;
