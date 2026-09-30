@@ -1,4 +1,6 @@
 // Read-only deployment contract; configuration alone is not proof of a real email login.
+const ACCESS_VARS = ['CF_ACCESS_TEAM_DOMAIN', 'CF_ACCESS_AUD', 'CF_ACCESS_APP_ID', 'CF_ACCESS_WORKER_ID'];
+
 export function privateDeployment(config, environment = 'production') {
   if (!['production', 'staging'].includes(environment)) throw new Error('only protected production or staging may deploy');
   const selected = environment === 'staging' && config.env?.staging ? config.env.staging : config;
@@ -6,11 +8,19 @@ export function privateDeployment(config, environment = 'production') {
   const assets = selected.assets ?? config.assets;
   if (assets?.run_worker_first !== true) throw new Error('every asset must run through the authentication Worker before deployment');
   if ('SKIP_AUTH' in vars || vars.WONG_ENVIRONMENT !== environment) throw new Error('local authentication substitution cannot deploy');
-  if (!/^[a-z0-9-]+\.cloudflareaccess\.com$/i.test(vars.CF_ACCESS_TEAM_DOMAIN ?? '') || !vars.CF_ACCESS_AUD || !vars.CF_ACCESS_APP_ID || !/^[a-f0-9]{32}$/i.test(vars.CF_ACCESS_WORKER_ID ?? '')) {
-    throw new Error('private Access identifiers are incomplete; finish setup or the reviewed privacy migration');
-  }
   if (environment === 'staging' && [...(selected.d1_databases ?? []), ...(selected.r2_buckets ?? [])].some(binding => binding.binding?.startsWith('MEMORY_'))) {
     throw new Error('staging and previews must not bind production memory');
+  }
+  // The committed open-without-login switch, for an account without Zero Trust
+  // yet. The Worker ignores it once an Access identifier is set, so a config
+  // carrying both is inconsistent: wiki/stack/cloudflare-access.md#open-until-the-card
+  if ('WORKSPACE_LOGIN' in vars) {
+    if (ACCESS_VARS.some(key => vars[key])) throw new Error('WORKSPACE_LOGIN sits beside Access identifiers; remove the open-without-login switch');
+    if (vars.WORKSPACE_LOGIN !== 'off') throw new Error('WORKSPACE_LOGIN may only be "off"');
+    return { name: selected.name ?? config.name, environment, open: true };
+  }
+  if (!/^[a-z0-9-]+\.cloudflareaccess\.com$/i.test(vars.CF_ACCESS_TEAM_DOMAIN ?? '') || !vars.CF_ACCESS_AUD || !vars.CF_ACCESS_APP_ID || !/^[a-f0-9]{32}$/i.test(vars.CF_ACCESS_WORKER_ID ?? '')) {
+    throw new Error('private Access identifiers are incomplete; finish setup or the reviewed privacy migration');
   }
   return {
     name: selected.name ?? config.name, appId: vars.CF_ACCESS_APP_ID, audience: vars.CF_ACCESS_AUD,

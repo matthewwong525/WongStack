@@ -108,16 +108,18 @@ Apply the id-free fragments now (the `package.json` scripts, `.env.example` vari
 After the one ask, one command runs 4b through 4d:
 
 ```bash
-$P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email>
+$P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email> --open-without-login
 ```
 
-Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. A dashboard onboarding failure stays closed and is resumable. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
+Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
+
+**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly, then go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key. I'll show you how to add the card at the end."* Any other Access stop still stops setup, and a site that is already private never opens. Only this runbook passes the flag; the server installer doesn't, so it stops.
 
 ### 4b. The memory store
 
 [The memory convention](../../../../wiki/development/memory.md#the-memory-key) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
 
-1. **Is R2 on?** An error listing R2 buckets that says to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so give the dashboard step (**Storage & databases → R2 → Overview → add the R2 subscription**) and continue without a bucket: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
+1. **Is R2 on?** An error listing R2 buckets that says to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
 2. **The database.** It reuses or creates `<repo>-memory`.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None is secret.
@@ -139,7 +141,7 @@ If the check fails, put the old token back in `.env` and stop. Teammates who hel
 
 Create/reuse distinct production and staging databases; branch deploys never write real data.
 
-With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket; plan privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
+With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs; an open site gets blank Access IDs and `WORKSPACE_LOGIN: "off"` instead. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket and [adding the card later](#adding-the-card-later); plan other privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
 
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`; they need no Worker or config of their own.
 
@@ -171,7 +173,12 @@ Use the report's production URL. Treat preview URLs as patterns until CI returns
 
 After `/save` reports the first deploy, fetch the production URL once; never report a URL you did not fetch.
 
-Expect anonymous Access denial, then independently verify machine access using `scripts/probe-private-access.mjs`. Retry propagation; name a real failure. Follow [the browser verification](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) for allowed email login on production, staging, and previews. A machine `200` alone leaves human login unverified.
+The check runs itself; never ask the person to sign in by email code on each site:
+
+- **Private site:** run `node scripts/probe-private-access.mjs --url <url>` on production and on one preview. Expect the anonymous request closed and the machine request `2xx`.
+- **Open site** (`access.mode` is `open`): fetch production and expect `200`.
+
+Retry propagation; name a real failure. Human login stays unverified until Step 5's human check. The [browser runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) is for `/verify` and later changes, not setup.
 
 Once production has deployed, check memory with `$M digest`, through the production Worker with 4b's admin key; before, it reports the Worker does not answer.
 
@@ -184,7 +191,31 @@ State, in plain words:
 - What was created, and what was reused
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)
 - That CI publishes with its own small key, `<repo>-deploy`
-- Private coverage, machine access, and human login as separate outcomes; pending onboarding or a missing browser check remains unverified.
+- Private coverage, machine access, and human login as separate outcomes. An open site says instead: *"Anyone with the link can see your site."*
 - When `command -v paseo` answers: how to chat from a phone, *"In Paseo, open Settings → your host → Pair Device."*
+- The optional card list below, when the site is open or `r2` is `false`.
 
-End on the URL and the one next step. With the starter app: open the URL, complete email login, and copy the message in the box at the top into this chat; it walks the person through their first change.
+End on the URL and the one next step. With the starter app: open the URL (on a private site, sign in once with the email code), and copy the message in the box at the top into this chat; it walks the person through their first change. **That paste is the human check**: once it arrives from the production link, report human login verified, with no sign-in on staging or previews.
+
+### The card list
+
+One list owns these steps; [without R2](../../../../wiki/development/memory.md#without-r2) and [open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card) link here. Fill in the account id, and show only the steps still missing: the storage step when `r2` is `false`, the login step when the site is open, and the card step with either.
+
+```text
+Optional: add a card to Cloudflare
+Free plans; light use costs nothing. Without it, anyone with
+the link can see your site, and memory keeps no full chat
+transcripts.
+1. Add a card        https://dash.cloudflare.com/<account>/billing/payment-info
+2. Turn on storage   https://dash.cloudflare.com/<account>/r2/overview
+3. Pick Free plan    https://one.dash.cloudflare.com/<account>/
+Tell me when it's done.
+```
+
+Name only what the missing steps cost: an account with R2 but an open site loses no transcripts. The person opens the links in their own browser; never enter the card for them.
+
+## Adding the card later
+
+When the person says the card is on, run [Step 4](#step-4--provision)'s `provision` command again, flags and all. It turns on what the card unlocked: the private login, when Zero Trust now answers, and the memory bucket, when R2 is on. It edits `app/wrangler.jsonc` in place: it fills the `CF_ACCESS_*` ids, removes `WORKSPACE_LOGIN`, and adds `MEMORY_BUCKET`. Make by hand any edit its `todo` lists.
+
+Then publish through `/save`, and once it deploys, run 4g's private check. If the report still says `open`, Zero Trust still wants its plan picked: send the list's step 3 again.

@@ -15,6 +15,7 @@ import {
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
 import { ACCOUNT, GROUPS, TOKEN, fakeCloudflare, fakeGh, groupId, startingPolicies } from './fixtures/cloudflare.mjs';
 import { humanEmails } from '../../.agents/skills/wong-setup/scripts/private-access.mjs';
+import { privateDeployment } from '../lib-access-config.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SCRIPT = join(repoRoot, '.agents/skills/wong-setup/scripts/provision.mjs');
@@ -64,6 +65,99 @@ test('an onboarding refusal stays closed and the widen uses account-scoped Acces
   assert.deepEqual(env.fake.state.workers, []);
   assert.deepEqual(env.fake.state.databases, []);
   assert.deepEqual(env.gh.secrets(), {});
+});
+
+/** An account whose Zero Trust organization Cloudflare refuses until onboarding (a card) is done. */
+const needsOnboarding = (env) => {
+  env.fake.state.organization = null;
+  env.fake.state.needsOnboarding = true;
+};
+
+test('an outage on the Zero Trust step stops even with --open-without-login', async (t) => {
+  const env = await setup(t);
+  env.fake.state.organization = null;
+  env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/organizations`];
+  await assert.rejects(env.provision({ openWithoutLogin: true }), { reason: 'access' });
+  assert.equal(existsSync(join(env.dir, 'app/wrangler.jsonc')), false);
+  assert.deepEqual(env.gh.secrets(), {});
+});
+
+test('with --open-without-login an onboarding refusal finishes open; without it, setup stops', async (t) => {
+  const env = await setup(t);
+  needsOnboarding(env);
+  await assert.rejects(env.provision(), { reason: 'access', message: /finish Zero Trust onboarding/ });
+  const report = await env.provision({ openWithoutLogin: true });
+  assert.deepEqual(report.access, { mode: 'open', reason: 'zero-trust-onboarding', onboardingUrl: `https://one.dash.cloudflare.com/${ACCOUNT}/`, ownerEmail: EMAIL, humanLogin: 'none' });
+  assert.deepEqual(env.fake.state.workers, [], 'no bootstrap Workers: the first deploy makes them');
+  assert.deepEqual(env.fake.state.accessApps, []);
+  assert.deepEqual(env.fake.state.serviceTokens, []);
+  assert.equal(env.fake.state.databases.length, 3);
+  assert.ok(env.gh.secrets().CLOUDFLARE_API_TOKEN);
+  assert.deepEqual(env.record().components.access, report.access);
+  const config = env.config();
+  for (const environment of ['production', 'staging']) {
+    assert.deepEqual(privateDeployment(config, environment), { name: environment === 'production' ? 'recipe-box' : 'recipe-box-staging', environment, open: true });
+  }
+  assert.equal(config.vars.WORKSPACE_LOGIN, 'off');
+  assert.equal(config.env.staging.vars.WORKSPACE_LOGIN, 'off');
+  assert.equal(config.env.local.vars.WORKSPACE_LOGIN, undefined);
+  const again = await env.provision({ openWithoutLogin: true });
+  assert.equal(again.access.mode, 'open');
+  assert.deepEqual(again.updated, []);
+});
+
+test('a later Access error stops even with --open-without-login, and a private site never opens', async (t) => {
+  const env = await setup(t);
+  env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/apps`];
+  await assert.rejects(env.provision({ openWithoutLogin: true }), /Cloudflare POST/);
+  assert.equal(existsSync(join(env.dir, 'app/wrangler.jsonc')), false);
+  assert.deepEqual(env.gh.secrets(), {});
+  env.fake.state.refuse = [];
+  const report = await env.provision({ openWithoutLogin: true });
+  const before = readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8');
+  env.fake.state.refuse = [`GET /accounts/${ACCOUNT}/access/organizations`];
+  await assert.rejects(env.provision({ openWithoutLogin: true }), { reason: 'access' });
+  assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), before);
+  assert.deepEqual(env.record().components.access, report.access);
+});
+
+test('a rerun after the card turns an open site private in its committed config', async (t) => {
+  const env = await setup(t);
+  needsOnboarding(env);
+  await env.provision({ openWithoutLogin: true });
+  // The first CI deploy made both Workers, open.
+  env.fake.state.workers.push('recipe-box', 'recipe-box-staging');
+  env.fake.state.needsOnboarding = false;
+  const report = await env.provision({ openWithoutLogin: true });
+  assert.equal(report.access.mode, undefined);
+  assert.equal(env.fake.state.accessApps.length, 1);
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 0, 'the deployed Workers are adopted, not replaced');
+  assert.ok(report.updated.includes('app/wrangler.jsonc: private login on, WORKSPACE_LOGIN removed'));
+  const text = readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8');
+  assert.ok(!text.includes('WORKSPACE_LOGIN'));
+  assert.match(text, /\/\/ Session memory, production only/);
+  const config = env.config();
+  const [production, staging] = ['production', 'staging'].map(environment => privateDeployment(config, environment));
+  assert.equal(production.appId, env.fake.state.accessApps[0].id);
+  assert.deepEqual([production.workerId, staging.workerId], report.access.workers.map(worker => worker.id));
+  assert.equal(production.teamDomain, report.access.teamDomain);
+  assert.equal(env.record().components.access.appId, production.appId);
+  assert.equal(env.record().components.access.mode, undefined);
+  assert.deepEqual(report.todo, []);
+});
+
+test('an open config provisioning cannot edit goes to todo, unchanged', async (t) => {
+  const env = await setup(t);
+  needsOnboarding(env);
+  await env.provision({ openWithoutLogin: true });
+  const file = join(env.dir, 'app/wrangler.jsonc');
+  const edited = readFileSync(file, 'utf8').replace('"local": {', '"extra": { "vars": { "CF_ACCESS_AUD": "" } },\n    "local": {');
+  writeFileSync(file, edited);
+  env.fake.state.needsOnboarding = false;
+  const report = await env.provision({ openWithoutLogin: true });
+  assert.equal(readFileSync(file, 'utf8'), edited);
+  assert.deepEqual(report.todo, ['fill the CF_ACCESS_* vars from components.access and remove WORKSPACE_LOGIN in app/wrangler.jsonc']);
+  assert.ok(report.access.appId);
 });
 
 test('private bootstrap precedes app publication and records real Worker IDs', async (t) => {
@@ -777,6 +871,10 @@ test('the wrangler config fills every placeholder, and a new placeholder fails',
   assert.equal(config.assets.binding, 'ASSETS');
   assert.equal(config.main, 'worker/index.ts');
   assert.deepEqual(config.env.staging.d1_databases[0], { binding: 'DB', database_name: 'demo-db-staging', database_id: 'id-staging', migrations_dir: '../schema/migrations' });
+  assert.equal(config.vars.WORKSPACE_LOGIN, undefined);
+  const open = JSON.parse(stripJsonc(wranglerConfig({ base: 'demo', ids, bucket: null, today: TODAY, access: { mode: 'open' } })));
+  assert.deepEqual([open.vars.WORKSPACE_LOGIN, open.env.staging.vars.WORKSPACE_LOGIN, open.env.local.vars.WORKSPACE_LOGIN], ['off', 'off', undefined]);
+  assert.equal(open.vars.CF_ACCESS_AUD, '');
   assert.throws(() => wranglerConfig({ base: 'demo', ids, bucket: null, today: TODAY }, `${wranglerFragment()}// <your-new-thing>\n`), { reason: 'repo', message: /<your-new-thing>/ });
   const other = join(mkdtempSync(join(tmpdir(), 'wong-test-fragment-')), 'none.md');
   writeFileSync(other, '# Nothing here\n');
@@ -848,6 +946,18 @@ test('the command line reads the token from the target .env and prints one JSON 
   assert.equal(await cli(['widen', '--dir', env.dir], { ...refused.io, env: { WONG_CLOUDFLARE_API: env.fake.api }, sleep: noSleep }), 1);
   assert.equal(JSON.parse(refused.out[0]).error.reason, 'token');
   assert.equal(refused.err[0], 'provision: Cloudflare GET /user/tokens/verify: HTTP 500 1000');
+});
+
+test('the command line passes --open-without-login to provision', async (t) => {
+  const env = await setup(t);
+  needsOnboarding(env);
+  const argv = ['provision', '--repo', REPO, '--base', 'recipe-box', '--dir', env.dir];
+  const stopped = lines();
+  assert.equal(await cli(argv, { ...stopped.io, env: env.env, sleep: noSleep }), 1);
+  assert.equal(JSON.parse(stopped.out[0]).error.reason, 'access');
+  const open = lines();
+  assert.equal(await cli([...argv, '--open-without-login'], { ...open.io, env: env.env, sleep: noSleep }), 0, open.err.join('\n'));
+  assert.equal(JSON.parse(open.out[0]).access.mode, 'open');
 });
 
 test('the script runs end to end as a process, and prints no secret', async (t) => {

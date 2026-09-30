@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 28.7.0 — Setup finishes without a card
+
+Cloudflare turns on the private email login only once your account has a card on file. Setup used to stop there and had to run again. Now it finishes in one pass.
+
+- **Your site goes live without the card.** When Cloudflare wants a card first, the site goes live without the email login: anyone with the link can see it. Your memory stays private behind its own key.
+- **The card is an optional last step.** The closing message lists three links to open in your own browser (add a card, turn on storage, pick the free login plan) and says what you miss without them. Tell the assistant when it's done: it turns the login on and publishes the change.
+- **The final checks run themselves.** Setup checks your site with its own machine key instead of asking you to sign in by email code on every site. Opening your link and seeing your app is the human check.
+
+**Updating.** Nothing to do by hand. A site that already has the private login keeps it, and the server installer still stops until the login is on.
+
 ## 28.6.0 — Get past sites that block the assistant's browser
 
 Some sites show a *Verify you are human* check to the assistant's browser, or turn it away, and tapping the check yourself doesn't help. Now the assistant says so in one line and carries on in Cloudflare's own cloud browser, which many of those sites let in, such as Uber Eats and SkipTheDishes.

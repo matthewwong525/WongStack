@@ -51,6 +51,12 @@ export interface AccessEnv {
   /** The application's Audience (AUD) tag — public identifier, not a secret. */
   CF_ACCESS_AUD?: string;
   /**
+   * "off" while the account has no Zero Trust login yet: a committed switch,
+   * honored only when both Access identifiers above are blank.
+   * wiki/stack/cloudflare-access.md#open-until-the-card
+   */
+  WORKSPACE_LOGIN?: string;
+  /**
    * Local development only. Read from env, never from the request, so no caller
    * can turn off the wall by sending a header.
    */
