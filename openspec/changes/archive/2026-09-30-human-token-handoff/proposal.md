@@ -50,3 +50,4 @@ Update the shared entry rule in `AGENTS.md`, the owning procedure in `wiki/devel
 - **2026-09-30** — Assumed: Existing authorized API provisioning stays unchanged, because the request concerns browser access and says everything else continues as usual.
 - **2026-09-30** — Assumed: Keep the procedure on the secrets page and link from the browsing and API-key pages, so the vendored browser skill and other workspaces' setup changes remain untouched.
 - **2026-09-30** — Asked: Publish the finished change? → chose: Run `/ship`; all five tasks are complete, the change is archived, and release 28.1.0 includes the latest published changes before this checkpoint.
+- **2026-09-30** — Assumed: Shorten the shared entry rule and keep the full procedure on the secrets page, because the first check run passed all 746 tests but exceeded the 2,200-word startup limit. The limit stays unchanged.

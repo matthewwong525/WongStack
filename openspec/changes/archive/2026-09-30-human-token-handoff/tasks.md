@@ -20,4 +20,4 @@
 - `node scripts/check-openspec-config.mjs` passed: the configuration parses and its artifact rules apply.
 - `openspec validate human-token-handoff --strict --no-interactive` passed.
 - Reviewed the edits against missing-token, rotation, permission-edit, revocation, and mid-task cases. The own-browser rule precedes generic browsing guidance; new values use private input and changes without new values await confirmation. Ordinary browsing and authorized API operations retain their existing procedures.
-- The edits cover the shared rule, three owning or linked wiki pages, the release note, and task tracking. `VERSION` remains `27.10.0`; no application or browser-tool code changed.
+- The edits cover the shared rule, three owning or linked wiki pages, the release note, and task tracking. Implementation left `VERSION` at `27.10.0`; publishing numbered the release `28.1.0` after integrating `28.0.0`. No application or browser-tool code changed.
