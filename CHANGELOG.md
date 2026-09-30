@@ -9,6 +9,13 @@ Browser hand-over links separate the live website from its fields: switch betwee
 
 **Updating.** Let existing private links finish or expire before opening another with the updated scripts. Saved logins need no migration.
 
+## 27.9.0 — Improve toward an outcome
+
+- **Ask for a useful result.** `/improve` finds and ships one supported improvement that makes the project more useful, reliable, or easier to maintain. Focus on an area or a desired outcome; the agent chooses its investigation using project goals, remembered problems, and current work.
+- **Use the normal delivery process.** Invoking `/improve` authorizes one improvement through `/ship`, with its existing checks. The fixed scan, weekly rotation, and separate maintenance records are removed. Findings-only and no-change results remain available.
+
+**Updating.** Nothing to do by hand. Existing area prompts and scheduled runs remain usable; no schedule migration is needed.
+
 ## 27.8.0 — A welcoming starter workspace
 
 - **Make the workspace yours.** The starter home page has a permanent heading and one request to name it and remove the welcome guide, with explanations and a preview before publishing.

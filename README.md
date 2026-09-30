@@ -76,7 +76,7 @@ You do not have to type them. Ask for what you want, such as "add a sign-up page
 | `/ship` | Finish the change, run CI once, walk the preview, merge, and keep the record of what shipped. |
 | `/verify` | Check the preview end to end, as a person would, and post what it saw to the pull request. It blocks nothing. |
 | `/close` | Wrap up a chat: save what it learned to memory and the wiki, keep unfinished work on GitHub, and close its workspace. `close and throw it away` deletes the unfinished work instead. |
-| `/improve [area]` | Review recent work and one area, then ship one maintenance fix. `--audit-only` reports findings with no edits. |
+| `/improve [focus]` | Find and ship one useful improvement; focus on an area or desired outcome. `--audit-only` reports findings with no edits. |
 | `/routine <when>: <prompt>` | Run a prompt or command on a schedule. Optional: it needs [Paseo](https://paseo.sh). |
 | `/wong-sync` | Get the latest WongStack and plan the update, up to a review page. |
 
