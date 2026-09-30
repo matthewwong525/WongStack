@@ -456,7 +456,7 @@ function fieldRoutes({ isOpen = () => true, startUrl = null } = {}) {
     actions = new Map((found.actions ?? []).map(action => [action.id, { ...action, ref: actions.get(action.id)?.ref ?? randomBytes(16).toString('hex') }]));
     const exposed = [...actions.values()].map(({ ref, label, form, disabled }) => ({ ref, label, form, disabled }));
     const fields = scanned.map((field, ref) => ({ ref, identity: field.identity, geometry: field.geometry, hit: field.hit, form: field.form ?? null, kind: field.kind, label: field.label, ...fieldBox(field), options: field.options.map(({ value, text }) => ({ value, text })) }));
-    return { signature: createHash('sha256').update(JSON.stringify({ fields: fields.map(({ geometry, hit, ...metadata }) => metadata), actions: found.actions ?? [] })).digest('hex'), fields, actions: exposed, revision, formWidth: found.formWidth ?? 0, viewport: found.viewport ?? null };
+    return { signature: createHash('sha256').update(JSON.stringify({ fields: fields.map(({ geometry: _geometry, hit: _hit, ...metadata }) => metadata), actions: found.actions ?? [] })).digest('hex'), fields, actions: exposed, revision, formWidth: found.formWidth ?? 0, viewport: found.viewport ?? null };
   };
   // A request joins a scan already waiting, unless a command was queued since: a pick can show a new field.
   const scan = () => {

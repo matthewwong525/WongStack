@@ -138,7 +138,7 @@ const pointer=(p,type,x,y,extra={})=>{
   const event=new p.window.Event(type,{bubbles:true,cancelable:true});
   const {target,...props}=extra;
   Object.assign(event,{pointerType:'touch',pointerId:1,clientX:x,clientY:y,...props});
-  (extra.target??p.$('#view')).dispatchEvent(event);return event;
+  (target??p.$('#view')).dispatchEvent(event);return event;
 };
 const giveFrame=async p=>{p.socket().onmessage({data:JSON.stringify({type:'frame',data:'AA=='})});await settle();};
 

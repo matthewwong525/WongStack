@@ -85,3 +85,5 @@ WongStack's hand-over page HTML and script, browser-page tests, browsing guide, 
 - **2026-09-30** — Asked to remove Home, use arrow/icons in the bottom row, and return to the original link instead → replace Home with Return to start, remembering the handed-over page address once as this link opens. Preserve its path, query and fragment; never follow a client-supplied URL or recalculate from a later website. Use familiar arrow/reload icons and a distinct return-to-start icon with accessible names and tooltips. Keep the keyboard hiding and existing history behavior.
 
 - **2026-09-30** — Invoked `/ship` → all22 tasks are checked and the change is archived for the single release checkpoint. Keep the tested icon toolbar, original-page return, two-axis swiping and keyboard space; publish as27.9.0 after the required checks.
+
+- **2026-09-30** — Release checks found three unused-variable warnings → mark excluded geometry bindings as unused and use the destructured pointer target in the test helper. Keep the lint rule and every assertion enabled; navigation and gesture behavior are unchanged.
