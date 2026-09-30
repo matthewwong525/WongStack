@@ -8,7 +8,7 @@
 ## 2. Tests
 
 - [x] 2.1 Move the agent's tests to `scripts/tests/server-agent.test.mjs`, `server-agent-roll.test.mjs`, `server-agent-copy.test.mjs`, `server-agent-management.test.mjs`, and `server-agent-source.test.mjs`; change the poll expectations to `{ contract: 1, commit, paseo }`, and add cases for a missing `SOURCE_COMMIT`, an install job missing `ownerEmail` (`failed`/`access`), and a noreply `ownerEmail` (`rejected`); verify `node --test scripts/tests/server-agent*.test.mjs` passes.
-- [ ] 2.2 Add `server/agent/*.mjs` to `scripts/tests/.c8rc.json`'s `include`; verify the c8 run in CI stays above its thresholds, via `/save`.
+- [x] 2.2 Add `server/agent/*.mjs` to `scripts/tests/.c8rc.json`'s `include`; verify the c8 run in CI stays above its thresholds, via `/save`.
 - [x] 2.3 Drop the size-budget test from `scripts/tests/server-setup.test.mjs` and its comment; verify that file passes.
 
 ## 3. The contract in server/README.md
@@ -19,4 +19,4 @@
 ## 4. Release
 
 - [x] 4.1 Add a `## Next (minor) — The server's helper lives in WongStack` entry to `CHANGELOG.md` with an **Updating.** note saying installed repos need nothing; verify the entry sits at the top of the entries.
-- [ ] 4.2 After `/save`, check CI passes on the PR; then send the wongstack.com chat (large-lion) the shipped release's commit and the final README section, so `agent-from-source` task 1.1 can reconcile.
+- [x] 4.2 After `/save`, check CI passes on the PR; then send the wongstack.com chat (large-lion) the PR and the final README section, so `agent-from-source` task 1.1 can reconcile; the release commit follows once it merges.
