@@ -90,6 +90,7 @@ const login = (url, username, password = SECRET) => ({ url, username, password }
 test('open --passwords serves the password page and touches no browser page', async t => {
   const f = fixture(t);
   const { port, key } = opened(f, '--passwords');
+  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).startUrl, null);
   assert.match(key, /^[0-9a-f]{64}$/);
   assert.deepEqual(f.calls(), [], 'no viewport, tabs, or live feed');
   const page = await fetch(`http://127.0.0.1:${port}/`);
