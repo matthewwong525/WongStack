@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · tidy-open-threads</title>
+<title>Review · 2026-09-30-tidy-open-threads</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="tidy-open-threads">
+<body data-change="2026-09-30-tidy-open-threads">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>tidy-open-threads</h1>
+  <h1>2026-09-30-tidy-open-threads</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -140,6 +140,7 @@
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: the live-briefing check moves out of the task list into a memory thread written at save, because it can only run after the release is live, and /ship never archives an unticked task.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: the CI checks for tasks 1.2 and 2.2 run in one /save once both tests are written, because one CI run covers both and saves a round.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: the build is complete apart from CI for tasks 1.2 and 2.2; this save runs it. The helper also made the digest print when its only facts are the current change's threads, a case the split queries would otherwise have left empty.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: archive checkpoint: CI passed on PR #220 for tasks 1.2 and 2.2, all tasks are ticked, and the spec deltas were already copied into the main memory spec at the earlier save.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

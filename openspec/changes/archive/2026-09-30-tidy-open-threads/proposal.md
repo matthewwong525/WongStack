@@ -1,6 +1,6 @@
 # Keep open questions from crowding the session briefing
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** memanto-integration
 
@@ -63,3 +63,4 @@ None.
 - **2026-09-30** — Assumed: the live-briefing check moves out of the task list into a memory thread written at save, because it can only run after the release is live, and /ship never archives an unticked task.
 - **2026-09-30** — Assumed: the CI checks for tasks 1.2 and 2.2 run in one /save once both tests are written, because one CI run covers both and saves a round.
 - **2026-09-30** — Assumed: the build is complete apart from CI for tasks 1.2 and 2.2; this save runs it. The helper also made the digest print when its only facts are the current change's threads, a case the split queries would otherwise have left empty.
+- **2026-09-30** — Assumed: archive checkpoint: CI passed on PR #220 for tasks 1.2 and 2.2, all tasks are ticked, and the spec deltas were already copied into the main memory spec at the earlier save.
