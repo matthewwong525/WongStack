@@ -22,10 +22,10 @@ export function AppList({ apps }: { apps: Promise<MiniApp[] | null> }) {
         <li className="app-list-item" key={app.name}>
           <a className="app-list-link" href={app.href}>
             <span className="app-list-card-heading">
-              <strong className="app-list-title">{app.title}</strong>
+              <strong className="app-list-title">{app.title}</strong>{' '}
               {app.name === 'hello' && <span className="app-list-example">Example</span>}
               <span className="app-list-arrow" aria-hidden="true">→</span>
-            </span>
+            </span>{' '}
             <span className="app-list-description">{app.description}</span>
           </a>
         </li>
