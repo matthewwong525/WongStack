@@ -90,7 +90,7 @@ Fresh setup runs `openspec init --tools none`. The verbs call the CLI directly a
 
 ## Not copied
 
-Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's install record never goes upstream. Old verdict files may inform exploration; nothing writes new ones.
+Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/` setup script and agent, `VERSION`, `CHANGELOG.md`, this repo's install record, and the meta-only release checks and payload CI. A target's install record never goes upstream. Old verdict files may inform exploration; nothing writes new ones.
 
 ## Install record
 

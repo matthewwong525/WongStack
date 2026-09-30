@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The server's helper lives in WongStack
+
+The helper each wongstack.com server runs, which pairs devices, connects GitHub, installs WongStack, and copies a server, moves into WongStack's `server/agent/`, beside the setup script. A server built from WongStack or your fork runs the helper from that same copy, so a fork decides what its servers run. A running server keeps its helper until it is rebuilt.
+
+- **A written agreement, version 1.** [`server/README.md`](server/README.md#the-agent) spells out every message between the helper and wongstack.com. Each check-in names that version and the commit the server was built from, so wongstack.com can check a fork before building from it.
+- **No size limit on the setup script.** wongstack.com now downloads it, so a fork's setup script can grow freely.
+
+**Updating.** Nothing to do by hand: installed repos never receive the server folder.
+
 ## 28.3.0 — Give the private links their own home
 
 The tools behind the three private links (handing the browser to you, receiving a key, saving passwords) move out of `/verify`'s folder into their own hidden skill, `hand-over`. It stays out of your list of commands; the browsing and keys guides point the agent to it. The links look and work as before, and each session reads no more words at startup.
