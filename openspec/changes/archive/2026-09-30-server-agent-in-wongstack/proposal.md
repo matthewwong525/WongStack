@@ -73,3 +73,4 @@ Each wongstack.com server runs a small helper that takes wongstack.com's request
 - **2026-09-30** — Check: `server/agent/agent.mjs` keeps its `c8 ignore` on the process entry point, moved unchanged from wongstack-cloud, because only systemd runs that block and the tests call `main` directly.
 - **2026-09-30** — Assumed: task 4.2 sends the PR and README section before merge and the release commit right after it, because a task must be ticked before the archive and the commit exists only after merge.
 - **2026-09-30** — Assumed: archived for shipping as release 28.4.0, because every task is ticked and the PR's checks passed.
+- **2026-09-30** — Assumed: renumbered to release 28.5.0 after merging main, because 28.4.0 shipped first as tidy-open-threads.

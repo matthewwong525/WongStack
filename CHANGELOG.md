@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The server's helper lives in WongStack
+## 28.5.0 — The server's helper lives in WongStack
 
 The helper each wongstack.com server runs, which pairs devices, connects GitHub, installs WongStack, and copies a server, moves into WongStack's `server/agent/`, beside the setup script. A server built from WongStack or your fork runs the helper from that same copy, so a fork decides what its servers run. A running server keeps its helper until it is rebuilt.
 
