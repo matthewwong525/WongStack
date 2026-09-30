@@ -4,16 +4,28 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Hello</title>
+	<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 	<link rel="stylesheet" href="/style.css">
+	<link rel="stylesheet" href="style.css">
 	<script type="module" src="app.js"></script>
 </head>
 <body>
-	<p><a href="/">Home</a></p>
-	<h1>Hello</h1>
-	<form id="form">
-		<label>Your name <input id="name" autocomplete="given-name"></label>
-		<button>Say hello</button>
-	</form>
-	<p id="message" aria-live="polite"></p>
+	<header class="site-header">
+		<a class="site-brand" href="/">
+			<img class="site-logo" src="/favicon.svg" alt="">
+			<span>WongStack</span>
+		</a>
+	</header>
+	<main>
+		<p class="hello-example">Example app</p>
+		<h1 class="hello-title">Hello</h1>
+		<p class="hello-description">A small example you can make yours.</p>
+		<form id="form" class="hello-form">
+			<label class="hello-label" for="name">Your name</label>
+			<input class="hello-input" id="name" autocomplete="given-name" placeholder="e.g. Sam">
+			<button class="hello-submit" type="submit">Say hello</button>
+			<p class="hello-message" id="message" aria-live="polite">Your greeting will appear here.</p>
+		</form>
+	</main>
 </body>
 </html>

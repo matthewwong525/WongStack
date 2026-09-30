@@ -1,30 +1,40 @@
-/* The tutorial box. Remove this file with Tutorial.tsx. */
+/* The welcome guide. Remove this file with Tutorial.tsx. */
 .tutorial {
   margin-bottom: 2rem;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.tutorial-heading {
+  margin: 0 0 0.75rem;
+}
+
+.tutorial-description {
+  margin: 0;
+  color: var(--muted-text);
+}
+
+.tutorial-message {
+  margin: 1.5rem 0;
   padding: 1rem;
-  border: 1px solid;
+  border-inline-start: 3px solid var(--accent);
   border-radius: 0.5rem;
-}
-
-.tutorial h2 {
-  margin-top: 0;
-  font-size: 1.25rem;
-}
-
-.tutorial blockquote {
-  margin: 1rem 0;
-  padding: 0.75rem 1rem;
-  border: 1px dashed GrayText;
-  border-radius: 0.4rem;
+  background: var(--canvas);
+  overflow-wrap: anywhere;
   user-select: all;
 }
 
-.tutorial button {
-  font: inherit;
-  padding: 0.5rem 1rem;
-  border: 1px solid;
-  border-radius: 0.4rem;
-  background: CanvasText;
-  color: Canvas;
-  cursor: pointer;
+.tutorial-copy {
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.tutorial-paste {
+  margin: 0.75rem 0 0;
+  color: var(--muted-text);
 }

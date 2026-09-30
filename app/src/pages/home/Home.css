@@ -1,0 +1,17 @@
+.home-heading {
+  margin-bottom: 2rem;
+}
+
+.home-title {
+  margin: 0 0 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.home-description {
+  margin: 0;
+  color: var(--muted-text);
+}
+
+.home-apps-heading {
+  margin: 0 0 1rem;
+}

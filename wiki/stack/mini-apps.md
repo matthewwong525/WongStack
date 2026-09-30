@@ -47,9 +47,13 @@ A mini app goes through [the change loop](../development/the-change-loop.md) lik
 - `/apps/<name>/` — each app's pages. It never copies `api.mjs`, tests, TypeScript files, or dotfiles.
 - `/apps/apps.json` — the list as data: each app's title, description, and link.
 
-There is no separate list page: the home page is the list, and each app's *Home* link goes back to it.
+There is no separate list page: the home page is the list, and each app's brand link goes back to it.
 
-The starter landing page, `app/src/pages/home/Home.tsx`, opens with a tutorial, *Learn the development loop*: a message to copy into the chat. The message asks the agent to remove the tutorial and explain each step, so your first change teaches you the whole loop. Below it, the page reads `/apps/apps.json` and lists the apps. It links the shared look, `/style.css` (`app/public/style.css`), as every mini app does: the device's font, light or dark to match the device, and a narrow column. So moving between them feels like one site.
+The starter landing page, `app/src/pages/home/Home.tsx`, has a workspace heading and a removable welcome, *Make it yours*. Copy its one request into your chat to name the workspace, update the heading, and remove the guide, with an explanation and a preview before publishing. The heading stays above the apps when the guide is gone. Update the tutorial files only while the target's `Home.tsx` still renders `<Tutorial />`; a finished guide stays removed.
+
+Below the welcome, the page reads `/apps/apps.json` and lists the apps. It links the shared look, `/style.css` (`app/public/style.css`), as every mini app does: the device's font, light or dark to match the device, a narrow column, neutral surfaces, black or white primary actions, and visible keyboard focus. So moving between them feels like one site.
+
+The starter and Hello example share an editable WongStack name and colored W mark. Tap the mark or name to return home; the brand is the only home link. Ask in chat to change this default identity. A reviewed update preserves or explicitly adapts your own branding. Hello keeps its form styles beside its page, with the name label above the field and the greeting below the action.
 
 On production the list shows every published app; on a preview it also shows the app that you preview. A bad folder name, or a missing title or description, stops the build and names the folder.
 

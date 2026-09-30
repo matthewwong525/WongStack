@@ -1,10 +1,18 @@
-import { Outlet } from 'react-router'
+import { Link, Outlet } from 'react-router'
 
-// The frame around every page. A header or nav goes here once a second page needs one.
+// The frame and editable starter identity shared by every page.
 export function Layout() {
   return (
-    <main>
-      <Outlet />
-    </main>
+    <>
+      <header className="site-header">
+        <Link className="site-brand" to="/">
+          <img className="site-logo" src="/favicon.svg" alt="" />
+          <span>WongStack</span>
+        </Link>
+      </header>
+      <main>
+        <Outlet />
+      </main>
+    </>
   )
 }

@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 const message =
-  "Remove the tutorial from my home page. Walk me through each step and explain what it does.";
+  "Help me make this home page my own. Ask me what to call it, update the heading, and remove this welcome guide. Explain each step and show me a preview before publishing.";
 
 const press = async () => {
   await act(async () => {
@@ -19,18 +19,21 @@ const press = async () => {
   return screen.getByRole("button");
 };
 
-it("shows one message to paste, with a Copy button and no step list", () => {
+it("offers one first request and explains the preview and existing chat", () => {
   render(<Tutorial />);
 
-  const tutorial = screen.getByRole("region", { name: "Learn the development loop" });
-  expect(tutorial.querySelector("p")?.textContent).toBe(
-    "Your first change removes this box. Copy this message into your chat with the agent:",
+  const tutorial = screen.getByRole("region", { name: "Make it yours" });
+  expect(screen.getByRole("heading", { level: 2, name: "Make it yours" })).toBeTruthy();
+  expect(screen.getByText(/Want something different/).textContent).toBe(
+    "Want something different? Just ask in your chat. You’ll see a preview before anything goes live.",
   );
   expect(tutorial.querySelector("blockquote")?.textContent).toBe(message);
+  expect(tutorial.querySelectorAll("blockquote")).toHaveLength(1);
+  expect(screen.getByText("Paste it into your chat to start.")).toBeTruthy();
   expect(screen.queryByRole("list")).toBeNull();
 
   const button = screen.getByRole("button");
-  expect(button.textContent).toBe("Copy");
+  expect(button.textContent).toBe("Copy your first request");
   expect(button.getAttribute("type")).toBe("button");
   expect(button.getAttribute("aria-live")).toBe("polite");
 });
@@ -42,6 +45,7 @@ it("copies the message and says so", async () => {
 
   expect((await press()).textContent).toBe("Copied");
   expect(writeText).toHaveBeenCalledWith(message);
+  expect(screen.getByText("Paste it into your chat to start.")).toBeTruthy();
 });
 
 it("asks for a copy by hand when the browser refuses", async () => {
@@ -49,6 +53,7 @@ it("asks for a copy by hand when the browser refuses", async () => {
   render(<Tutorial />);
 
   expect((await press()).textContent).toBe("Select the message and copy it");
+  expect(screen.getByText(message).tagName).toBe("BLOCKQUOTE");
 });
 
 it("asks for a copy by hand when the browser has no clipboard", async () => {
@@ -56,4 +61,5 @@ it("asks for a copy by hand when the browser has no clipboard", async () => {
   render(<Tutorial />);
 
   expect((await press()).textContent).toBe("Select the message and copy it");
+  expect(screen.getByText(message).tagName).toBe("BLOCKQUOTE");
 });
