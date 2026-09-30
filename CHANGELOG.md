@@ -12,6 +12,18 @@ Standalone installs also receive the Node version file their test and publishing
 The protected login address works for a first preview before business pages are published.
 
 **Updating.** Review existing public pages, webhooks, protocols, and overlapping protection before the first updated push. Keep local business code and data; merge the signed login check instead of replacing handlers. Confirm the owner's reachable email and real team, attach protection to both existing Workers without a gap, and give the publishing key read permission to check it. Keep old versions protected. Managed workspaces also need their new encrypted management connection; report reconnection or failed membership/revocation work as pending until confirmed. Verify real email login, independent machine access, and memory before reporting the workspace private.
+## 27.10.0 — Room to use the browser
+
+Browser hand-over links separate the live website from its fields: switch between Page and Fill fields on a phone, or see both beside each other on a computer. Phone previews let you swipe up, down, left, or right through a readable login screen, then keep scrolling the website at its edges. Tap a supported text field on the page to open the phone keyboard; typing is shared with Fill fields. Wider forms expand the browser within its limits. Back and Forward arrows, a Reload icon, and a Return to start icon stay at the bottom so you can recover from an accidental click. Each has an accessible name and tooltip. Return to start opens the exact page where the private link began, even after visiting another website; when there is no browser history, Back and Forward explain that and preserve your typing and preview position. While the phone keyboard is open, the header, view tabs and navigation hide to give the selected field more room; they return when it closes, keeping your typing and the website's size.
+
+**Updating.** Let existing private links finish or expire before opening another with the updated scripts. Saved logins need no migration.
+
+## 27.9.0 — Improve toward an outcome
+
+- **Ask for a useful result.** `/improve` finds and ships one supported improvement that makes the project more useful, reliable, or easier to maintain. Focus on an area or a desired outcome; the agent chooses its investigation using project goals, remembered problems, and current work.
+- **Use the normal delivery process.** Invoking `/improve` authorizes one improvement through `/ship`, with its existing checks. The fixed scan, weekly rotation, and separate maintenance records are removed. Findings-only and no-change results remain available.
+
+**Updating.** Nothing to do by hand. Existing area prompts and scheduled runs remain usable; no schedule migration is needed.
 
 ## 27.8.0 — A welcoming starter workspace
 

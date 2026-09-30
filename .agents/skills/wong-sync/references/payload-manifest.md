@@ -6,7 +6,7 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the `/improve` spot check, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, scripts and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, scripts and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
@@ -50,7 +50,7 @@ The report gives paths, classes, and counts, never a body or diff. It returns `s
 
 [`merge-check.mjs`](../scripts/merge-check.mjs) runs after the plan merges new text into edited files, before the record advances. With `--from <installed commit>`, it lists each upstream hunk whose added line a `modified`, `locally-adapted` unit no longer has: file, source lines, count, first missing line. It exits 0 when nothing is missing, 1 when something is, 2 on a usage or read error, and reports `skipped` with no baseline. A moved or reworded line passes; the plan's review catches rewording.
 
-**improve** ships its survey helper and references as one folder; the helper reads tracked text and Git history on OpenSpec's Node.js, adds no package, and calls no service. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduling.
+**improve** ships an outcome brief for finding one supported improvement through the normal delivery skills, with an optional area or desired outcome and a findings-only mode. The [repository improvement guide](../../../../wiki/development/repository-improvement.md) owns cadence and scheduling.
 
 **plan** ships the [review kit](../../plan/references/review-kit.html), the [CLI contract](../../plan/references/openspec-cli.md), the [drawing guide](../../plan/references/drawings.md), and the builder as one folder. Each change's standalone `review.html` is built from its `proposal.md` alone, viewer bundled; `/save` rebuilds it the same way. A cited owner page ships too: `scripts/check-payload-links.mjs` enforces link closure in a target.
 
