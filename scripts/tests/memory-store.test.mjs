@@ -85,6 +85,38 @@ test('the gate shows live facts on the slug and close keyword matches elsewhere'
   assert.match(gated.stdout, /Closest matches on other slugs:\n  - \[feedback\] User prefers one bundled pull request/);
 });
 
+test('the gate lists an open thread on another slug that the fact may answer, and a supersede closes it', async t => {
+  const env = await setup(t);
+  await put(env, { source: 'save', slug: 'setup-flow', facts: [{ action: 'add', type: 'thread', body: 'Next time, try a real setup from one token.' }] });
+  const thread = rows(env, "SELECT id FROM facts WHERE type = 'thread'")[0].id;
+  await put(env, { source: 'save', slug: 'noise', facts: Array.from({ length: 5 }, (_, i) => ({ action: 'add', type: 'project', body: `A real setup run from one token worked end to end on host ${i}.` })) });
+  const gate = async () => {
+    const result = await memory(env.repo, env.fake, ['gate', '--file', writeJsonFile(env.repo.home, `gate-${Math.random()}.json`, { slug: 'release', facts: [{ type: 'project', body: 'A real setup run from one token worked end to end.' }] })]);
+    assert.equal(result.code, 0, result.stderr);
+    return result.stdout;
+  };
+  const before = await gate();
+  assert.match(before, /Closest matches on other slugs:\n(  - \[project\] A real setup run .*\n){5}  Open threads this may answer:\n  - \[thread\] Next time, try a real setup from one token\. \(setup-flow,/);
+  assert.match(before, /A fact that answers an open thread supersedes it/);
+  const closed = await put(env, { source: 'save', slug: 'release', facts: [{ action: 'supersede', supersedes: [thread], type: 'project', body: 'A real setup run from one token worked end to end.' }] });
+  assert.match(closed.stdout, /superseded 1/);
+  assert.notEqual(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', thread)[0].superseded_by, null);
+  assert.doesNotMatch(await gate(), /Open threads this may answer|Next time, try/);
+});
+
+test("the gate never lists a teammate's thread that only its author sees", async t => {
+  const env = await setup(t);
+  mkdirSync(env.repo.stateDir, { recursive: true });
+  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, shared) VALUES ('setup-flow', 'thread', ?, 'save', '2026-09-01T00:00:00Z', 'ana@example.com', ?)");
+  insert.run('Ana asks: does a real setup from one token work?', 0);
+  insert.run('Ana also asks: does a real setup from one token finish quickly?', 1);
+  const result = await memory(env.repo, env.fake, ['gate', '--file', writeJsonFile(env.repo.home, 'team-gate.json', { slug: 'release', facts: [{ type: 'project', body: 'A real setup from one token worked.' }] })]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /Ana also asks/, 'a shared thread shows');
+  assert.doesNotMatch(result.stdout, /Ana asks: does/);
+});
+
 test('length, type, and credential checks reject a fact without echoing a secret', async t => {
   const env = await setup(t);
   const long = await put(env, { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'x'.repeat(401) }] });
@@ -141,6 +173,67 @@ test('two authors who share the part before the @ never read as one person, and 
   const found = (await memory(env.repo, env.fake, ['search', 'release', '--limit', '60'])).stdout;
   const authors = new Set(found.match(/operations@[\w.]+(?=, #)/g));
   assert.deepEqual([...authors].sort(), ['operations@example.com', 'operations@example.org']);
+});
+
+const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+const insertFact = env => {
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES (?, ?, ?, 'save', ?, 'dev@example.com')");
+  return (slug, type, body, days) => insert.run(slug, type, body, daysAgo(days));
+};
+const digestOf = async env => {
+  const result = await memory(env.repo, env.fake, ['digest']);
+  assert.equal(result.code, 0, result.stderr);
+  const text = result.stdout.trimEnd();
+  assert.ok(text.split('\n').length <= MAX_LINES, `${text.split('\n').length} lines`);
+  assert.ok(Buffer.byteLength(text) <= MAX_BYTES, `${Buffer.byteLength(text)} bytes`);
+  return text;
+};
+
+test('other changes\' open threads show at most 8 under 30 days, and a line says how many more a search finds', async t => {
+  const env = await setup(t);
+  const insert = insertFact(env);
+  for (let i = 0; i < 80; i += 1) insert(`change-${i % 10}`, 'thread', `Open question ${i}.`, i < 75 ? i * 0.3 : 31 + i);
+  for (let i = 0; i < 100; i += 1) insert('ops', i % 5 ? 'project' : 'feedback', `Settled fact ${i}.`, 1);
+  const lines = (await digestOf(env)).split('\n');
+  const threads = lines.filter(line => line.startsWith('- [thread]'));
+  assert.deepEqual(threads.map(line => line.match(/Open question (\d+)\./)[1]), ['0', '1', '2', '3', '4', '5', '6', '7'], 'the 8 newest');
+  const held = lines.indexOf(threads.at(-1)) + 1;
+  assert.equal(lines[held], '72 more open threads are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search --type thread`.');
+  assert.match(lines[held + 1], /^- \[feedback\] Settled fact/);
+  assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts still show');
+  const shown = lines.filter(line => line.startsWith('- [')).length;
+  assert.equal(lines.at(-1), `${180 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
+  const old = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--limit', '100']);
+  assert.match(old.stdout, /Open question 79\./, 'an aged-out thread stays live and searchable');
+});
+
+test("the current change's open threads all show first, old ones too", async t => {
+  const env = await setup(t);
+  const dir = join(env.repo.root, 'openspec', 'changes', 'add-po-search');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'proposal.md'), '# Add PO search\n\n**Branch:** po-search\n');
+  execFileSync('git', ['checkout', '-q', '-b', 'po-search'], { cwd: env.repo.root });
+  const insert = insertFact(env);
+  for (let i = 0; i < 12; i += 1) insert('add-po-search', 'thread', `Current question ${i}.`, i === 11 ? 45 : i);
+  for (let i = 0; i < 20; i += 1) insert('other', 'thread', `Other question ${i}.`, i);
+  for (let i = 0; i < 50; i += 1) insert('ops', 'project', `Settled fact ${i}.`, 1);
+  const lines = (await digestOf(env)).split('\n');
+  const start = lines.indexOf('## Open threads on `add-po-search`');
+  assert.ok(start > 0, 'the current change has its own section');
+  assert.deepEqual(lines.slice(start + 1, start + 13).map(line => line.match(/^- \[thread\] Current question (\d+)\./)?.[1]), Array.from({ length: 12 }, (_, i) => String(i)));
+  assert.equal(lines[start + 13], '## Live facts');
+  assert.equal(lines.filter(line => line.startsWith('- [thread] Other question')).length, 8);
+  assert.ok(lines.includes('12 more open threads are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search --type thread`.'));
+});
+
+test('a store of 400 live facts keeps the digest within its caps and says how many it left out', async t => {
+  const env = await setup(t);
+  const insert = insertFact(env);
+  for (let i = 0; i < 400; i += 1) insert(`s${i % 7}`, ['thread', 'feedback', 'project', 'reference', 'user'][i % 5], `Fact ${i} ${'about the release window '.repeat(4)}`.trim(), i % 40);
+  const lines = (await digestOf(env)).split('\n');
+  const shown = lines.filter(line => line.startsWith('- [')).length;
+  assert.ok(lines.filter(line => line.startsWith('- [thread]')).length <= 8);
+  assert.equal(lines.at(-1), `${400 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
 });
 
 // A session's facts, with the branch the session started on.
