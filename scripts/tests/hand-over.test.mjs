@@ -39,7 +39,8 @@ case "$1 $2" in
   "get url") [ -e "${file('fail-url')}" ] && exit 1; cat "${file('url')}" ;;
   "get count") cat "${file('count')}" ;;
   "eval -b") if [ "$3" = "${Buffer.from(HISTORY_SCAN).toString("base64")}" ]; then printf '{"success":true,"data":{"result":{"historyLength":%s}}}\\n' "$(cat "${file('history')}")"; exit 0; fi; printf '{"success":true,"data":{"origin":"https://pay.example.com/card","result":%s},"error":null}\n' "$(cat "${file('fields')}")" ;;
-  "fill "*|"focus "*|"select "*|"check "*|"uncheck "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
+  "fill "*) [ -e "${file('fail')}" ] && exit 1; while [ -e "${file('hold-fill')}" ]; do sleep 0.01; done; echo '✓ Done' ;;
+  "focus "*|"select "*|"check "*|"uncheck "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
   "open "*|"back "*|"forward "*|"reload "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
 esac
 `);
@@ -62,7 +63,7 @@ exec sleep 600
   writeFileSync(file('fields'), '[]\n');
   writeFileSync(file('history'), '2\n');
   // Without cloudflared, PATH is the fake bin alone, so it carries the two tools the fake uses.
-  if (!cloudflared) for (const tool of ['cat', 'rm']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
+  if (!cloudflared) for (const tool of ['cat', 'rm', 'sleep']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
   if (paseo) {
     writeFileSync(join(bin, 'paseo'), `#!${process.execPath}
 const fs = require('node:fs');
@@ -85,6 +86,7 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     state,
     sent: () => existsSync(file('sent.jsonl')) ? readFileSync(file('sent.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [],
     set: (name, value) => writeFileSync(file(name), `${value}\n`),
+    unset: name => rmSync(file(name), { force: true }),
     calls: () => (existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n') : []),
     tunnelPid: () => Number(readFileSync(file('tunnel.pid'), 'utf8')),
     result: () => legacyResult(JSON.parse(readFileSync(join(state, 'result.json'), 'utf8'))),
@@ -377,6 +379,55 @@ test('navigation permits only keyed Return to start, Back, Forward, and Reload a
   f.set('fail', '');
   assert.equal((await route(port, key, 'navigate', { action: 'back' })).status, 502);
   assert.deepEqual(f.calls().slice(before), ['agent-browser open https://accounts.example.com/login', ...['back', 'forward'].flatMap(action => [`agent-browser eval -b ${Buffer.from(HISTORY_SCAN).toString('base64')} --json`, `agent-browser ${action}`]), 'agent-browser reload', `agent-browser eval -b ${Buffer.from(HISTORY_SCAN).toString('base64')} --json`, 'agent-browser back']);
+});
+
+async function waitForCall(f, matches) {
+  const deadline = Date.now() + 2000;
+  while (!f.calls().some(matches) && Date.now() < deadline) await new Promise(done => setTimeout(done, 10));
+  assert.ok(f.calls().some(matches), 'the held field command started');
+}
+
+test('Return to start waits for the active field operation and navigates exactly once', async t => {
+  const f = fixture(t, { cloudflared: false });
+  f.set('fields', JSON.stringify(CARD_FORM));
+  const { port, key } = opened(f, '--local');
+  await route(port, key, 'fields');
+  f.set('hold-fill', ''); t.after(() => f.unset('hold-fill'));
+  const before = f.calls().length;
+  const focused = route(port, key, 'focus', { ref: 0 });
+  await waitForCall(f, line => line.startsWith('agent-browser fill '));
+  let finished = false;
+  const navigation = route(port, key, 'navigate', { action: 'start' }).then(result => { finished = true; return result; });
+  await new Promise(done => setTimeout(done, 50));
+  assert.equal(finished, false);
+  assert.ok(!f.calls().slice(before).some(line => line.startsWith('agent-browser open ')));
+  f.unset('hold-fill');
+  assert.equal((await focused).status, 200);
+  assert.equal((await navigation).status, 200);
+  assert.deepEqual(f.calls().slice(before), ['agent-browser fill #ekashu_card_number ', 'agent-browser focus #ekashu_card_number', 'agent-browser open https://accounts.example.com/login']);
+});
+
+test('closing a link aborts active field work and never runs queued navigation', async t => {
+  const f = fixture(t, { cloudflared: false });
+  f.set('fields', JSON.stringify(CARD_FORM));
+  const { port, key } = opened(f, '--local');
+  await route(port, key, 'fields');
+  f.set('hold-fill', ''); t.after(() => f.unset('hold-fill'));
+  const before = f.calls().length;
+  const focused = route(port, key, 'focus', { ref: 0 });
+  await waitForCall(f, line => line.startsWith('agent-browser fill '));
+  const navigation = route(port, key, 'navigate', { action: 'start' });
+  await new Promise(done => setTimeout(done, 50));
+  const closed = f.run('close');
+  assert.equal(closed.status, 0, closed.stderr);
+  assert.equal(closed.stdout.trim(), 'HANDOVER_RESULT=closed');
+  assert.equal((await focused).status, 409);
+  assert.equal((await navigation).status, 502);
+  f.unset('hold-fill');
+  const calls = f.calls().slice(before);
+  assert.ok(!calls.some(line => line.startsWith('agent-browser open ') || line.startsWith('agent-browser focus ')));
+  assert.equal(calls.filter(line => line.startsWith('agent-browser fill ')).length, 1);
+  assert.equal(calls.at(-1), 'agent-browser set viewport 1280 720');
 });
 
 test('a closed private link refuses navigation before invoking the browser', async t => {

@@ -1,16 +1,20 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
 import { revealOffset } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
 const scripts=new URL('../../.agents/skills/verify/scripts/',import.meta.url);
-const source=readFileSync(new URL('hand-over-page.mjs',scripts),'utf8').replace(/^export /gm,'');
-const html=readFileSync(new URL('hand-over-page.html',scripts),'utf8').replace('<script type="module" src="page.mjs"></script>',()=>`<script>${source}</script>`);
+const sourcePath=fileURLToPath(new URL('hand-over-page.mjs',scripts));
+// Keep byte offsets and the real filename so V8 records coverage for the browser code exercised.
+const source=readFileSync(sourcePath,'utf8').replace(/^export /gm,'       ');
+const html=readFileSync(new URL('hand-over-page.html',scripts),'utf8').replace('<script type="module" src="page.mjs"></script>','');
 const settle=async()=>{for(let i=0;i<10;i++)await new Promise(done=>setTimeout(done,0));};
 function page(t,{stale=false,receipt=null,failedFirst=false,resolveAction,navigationStatus=200,navigationReason=null,width=1024,height=400,pannable=false,metadata=false,horizontal=false,responsive=false,visualViewport=false,fieldX=30,fieldY=20}={}){
   const events=[];const calls=[];const order=[];let socket;let stage=0;let moved=0;let changed=false;let poll;
   const list=()=>({viewport:metadata?(responsive?calls.findLast(c=>c.path==='viewport')?.body:{width:400,height:pannable?720:400}):null,formWidth:metadata?(responsive?calls.findLast(c=>c.path==='viewport')?.body.width:400):0,signature:`page-${stage}-${changed}`,revision:`${stage+1}`,fields:[...(failedFirst ? [{ref:1,form:'f',kind:'text',label:'Email',type:'email',options:[]}] : []),{ref:0,form:'f',kind:'text',label:stage?'Code':'Password',type:stage?'text':'password',autocomplete:'current-password',inputmode:'text',...(metadata?{identity:`field-${stage}`,geometry:{x:fieldX,y:fieldY+moved,width:150,height:24},hit:{x:fieldX-10,y:fieldY-10+moved,width:170,height:44}}:{}),options:[]}],actions:[{ref:`action-${stage}`,form:'f',label:stage?'Verify':'Sign in',disabled:false}]});
-  const dom=new JSDOM(html,{url:'https://private.test/#key=secret',runScripts:'dangerously',beforeParse(win){
+  const dom=new JSDOM(html,{url:'https://private.test/#key=secret',runScripts:'outside-only',beforeParse(win){
     Object.defineProperty(win.Document.prototype,'hidden',{get:()=>false});
     win.setInterval=callback=>{poll=callback;return 1;};
     Object.defineProperty(win,'innerWidth',{value:width,writable:true});
@@ -40,6 +44,7 @@ function page(t,{stale=false,receipt=null,failedFirst=false,resolveAction,naviga
       return answer(200,{ok:true});
     };
   }});
+  runInContext(source,dom.getInternalVMContext(),{filename:sourcePath});
   t.after(()=>dom.window.close());
   return {events,calls,order,$:selector=>dom.window.document.querySelector(selector),window:dom.window,socket:()=>socket,refresh:()=>poll(),move:()=>{moved+=10;},change:()=>{changed=true;}};
 }
