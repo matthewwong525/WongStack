@@ -87,3 +87,5 @@ WongStack's hand-over page HTML and script, browser-page tests, browsing guide, 
 - **2026-09-30** — Invoked `/ship` → all22 tasks are checked and the change is archived for the single release checkpoint. Keep the tested icon toolbar, original-page return, two-axis swiping and keyboard space; publish as27.9.0 after the required checks.
 
 - **2026-09-30** — Release checks found three unused-variable warnings → mark excluded geometry bindings as unused and use the destructured pointer target in the test helper. Keep the lint rule and every assertion enabled; navigation and gesture behavior are unchanged.
+
+- **2026-09-30** — Another release took27.9.0 after the checkpoint passed → merge the latest main, retain both changelog entries and all incoming changes, and number this browser release27.10.0. Repeat the ordinary save gate before merging; the preview walk remains NONE because these are host-side browser routes.
