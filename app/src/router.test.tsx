@@ -26,9 +26,13 @@ it("shows the home page at /, inside the page frame", async () => {
   await open("/");
 
   const heading = screen.getByRole("heading", { level: 1 });
-  expect(heading.textContent).toBe("Your apps");
+  expect(heading.textContent).toBe("Your workspace, shaped around you");
   expect(heading.closest("main")).not.toBeNull();
   expect(screen.queryByText("Page not found")).toBeNull();
+  const brand = screen.getByRole("link", { name: "WongStack" });
+  expect(brand.getAttribute("href")).toBe("/");
+  expect(brand.closest("header")).not.toBeNull();
+  expect(brand.querySelector("img")?.getAttribute("alt")).toBe("");
 });
 
 it("says a page is not found, inside the page frame, and links home", async () => {
@@ -46,11 +50,16 @@ it("says a page is not found, inside the page frame, and links home", async () =
     fireEvent.click(home);
   });
   expect(router.state.location.pathname).toBe("/");
-  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your apps");
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your workspace, shaped around you");
 });
 
 it("says a deeper unknown address is not found too", async () => {
-  await open("/nothing/here");
+  const router = await open("/nothing/here");
 
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Page not found");
+  await act(async () => {
+    fireEvent.click(screen.getByRole("link", { name: "WongStack" }));
+  });
+  expect(router.state.location.pathname).toBe("/");
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your workspace, shaped around you");
 });

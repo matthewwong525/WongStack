@@ -247,7 +247,7 @@ test('the copy takes the pages and leaves every handler, test, and source file o
   });
   assert.equal(copyInto(root).status, 0);
   assert.deepEqual(files(join(root, 'out/apps')), [
-    'apps.json', 'hello/app.js', 'hello/app.json', 'hello/index.html', 'tips/app.json', 'tips/index.html', 'tips/tip.mjs',
+    'apps.json', 'hello/app.js', 'hello/app.json', 'hello/index.html', 'hello/style.css', 'tips/app.json', 'tips/index.html', 'tips/tip.mjs',
   ]);
 });
 
@@ -283,7 +283,7 @@ test('a second copy replaces the first, so a removed app is gone', t => {
   assert.equal(copyInto(root).status, 0);
   rmSync(join(root, 'mini-apps/apps/tips'), { recursive: true });
   assert.equal(copyInto(root).status, 0);
-  assert.deepEqual(files(join(root, 'out/apps')), ['apps.json', 'hello/app.js', 'hello/app.json', 'hello/index.html']);
+  assert.deepEqual(files(join(root, 'out/apps')), ['apps.json', 'hello/app.js', 'hello/app.json', 'hello/index.html', 'hello/style.css']);
 });
 
 test('the copy script follows the CLI conventions', t => {
@@ -302,7 +302,7 @@ test('cf-build copies the mini apps into the assets folder the build wrote', t =
   const result = run(root, 'cf-build.sh');
   assert.equal(result.status, 0, result.out);
   assert.deepEqual(result.calls, ['npm run build:app']);
-  assert.deepEqual(files(join(root, 'app/dist/client/apps')), ['apps.json', 'hello/app.js', 'hello/app.json', 'hello/index.html']);
+  assert.deepEqual(files(join(root, 'app/dist/client/apps')), ['apps.json', 'hello/app.js', 'hello/app.json', 'hello/index.html', 'hello/style.css']);
 
   rmSync(join(root, 'mini-apps'), { recursive: true });
   rmSync(join(root, 'app/dist'), { recursive: true });
