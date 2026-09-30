@@ -1,6 +1,6 @@
 # Staging walkthrough
 
-What [`/verify`](../../.agents/skills/verify/SKILL.md) does: the change's own OpenSpec scenarios exercised end to end against the deployed preview and graded against what those scenarios said would happen. Each scenario gets the strongest probe that can observe it — a real browser where the scenario is about UI, a direct HTTP request where it is about the request path, an existing command reading deployed state where the effect lands somewhere else — and the evidence and verdict land as a comment on the pull request.
+What [`/verify`](../../.agents/skills/verify/SKILL.md) does: the change's own OpenSpec scenarios exercised end to end against the deployed preview and graded against what those scenarios said would happen. The evidence and verdict land as a comment on the pull request.
 
 It exists because CI answers *did it build and did the checks pass*. It doesn't answer *does this do what it promised*. The promise is already written down — every requirement in a change's delta specs is a `#### Scenario:` with a `WHEN` and a `THEN` — and any branch that publishes a preview URL already puts the change somewhere a probe can reach. The walkthrough is the wire between the two.
 
@@ -12,7 +12,7 @@ This page owns the reasons. [The walkthrough reference](../../.agents/skills/ver
 
 ## The probe ladder
 
-The scout matches each scenario to the **strongest probe that can observe it end to end**: a browser journey for something rendered, a request probe for the request path, or a state probe where an existing command reads deployed state. The browser is one probe among three, so an API-only change still gets evidence.
+[The scout](../../.agents/skills/verify/references/walkthrough.md#a--scout-the-scenarios) gives each scenario the strongest probe that can observe it, and the browser is one probe among three, so an API-only change still gets evidence.
 
 A scenario **no probe reaches** is **listed by name as unverified**, never silently dropped: excluding it silently is how an unchecked assumption starts to look checked. Its e2e home is a CI test; the walk exercises what CI deployed, and only that.
 
@@ -28,10 +28,11 @@ A scenario **no probe reaches** is **listed by name as unverified**, never silen
 
 - **The scout runs first, so having nothing to verify costs nothing.** A change with no deployed surface reaches `NONE` after a few file reads: no push, no CI wait, no browser.
 - **`/verify` runs `/save` before it walks,** because the preview exists only once CI has published *this* commit. Verifying earlier verifies the previous commit, or nothing.
-- **Journeys come from scenarios, not routes.** The `WHEN` becomes the steps, and the `THEN` is the pass criterion, word for word.
-- **Journeys hold no assertions.** An assertion written moments before it is deleted encodes a guess at correctness, and "nothing errored" is not "the thing worked".
-- **Every navigating step waits before its screenshot.** A screenshot taken before the page paints captures the page you left: one two-step journey produced two byte-identical screenshots of it. It is the easiest way to get a confidently wrong walk, so it is a rule, not a tip.
+- **Journeys come from scenarios, not routes,** because the scenarios are what the change promised.
+- **Journeys hold no assertions,** because an assertion written moments before it is deleted encodes a guess at correctness, and "nothing errored" is not "the thing worked".
+- **Every navigating step waits before its screenshot,** because a screenshot taken before the page paints captures the page you left: one two-step journey produced two byte-identical screenshots of it.
 - **Every report names each journey's probe and where it ran.** A walk driven on one machine depended on that machine, and a reader comparing two walks needs to know.
+- **A plain check posts nothing unless you ask.** A screenshot or a click-through with no change behind it has no promise to grade, and a pull-request comment reports a change's verdict.
 
 ### Walk the app the way a person does
 
@@ -52,17 +53,17 @@ The same fact read the other way is why request probes work: a non-navigation re
 
 ## When the walk can't get in
 
-An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` mints a service token, stores it, and retries once, rather than sending you on an errand ([the heal step](../../.agents/skills/verify/SKILL.md#step-4--verify-healing-the-block-you-can-fix)). The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, the verdict is `UNKNOWN` naming the wall, never a graded login page.
+An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` [heals it itself](../../.agents/skills/verify/SKILL.md#when-a-block-stops-the-walk) rather than sending you on an errand. The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, the verdict is `UNKNOWN` naming the wall, never a graded login page.
 
-**One heal and one retry**, never a loop. A block that survives its repair is `UNKNOWN` with the attempt named, so an unverified walk never looks like an untried one. A walkthrough that reports success against a login page is worse than none: it turns an unchecked assumption into a checked-looking one.
+**One heal and one retry**, never a loop. A block that survives its repair is `UNKNOWN` with the attempt named, so an unverified walk never looks like an untried one.
 
 ## When a walk fails
 
-The evidence is posted first, because a failing walk's evidence is the whole point. Then staging is reset where the repo has that command.
+[`/verify`](../../.agents/skills/verify/SKILL.md#order) posts the evidence before it resets staging, because a failing walk's evidence is the whole point.
 
 The reset isn't housekeeping. A walk that starts against the half-mutated database a failed walk left behind produces a *different* failure than the first run, and you end up debugging leftovers instead of the bug. A **passing** walk's data is left alone — staging is a fixture, not something to preserve.
 
-Then `/verify` fixes the failure only when it is [in scope](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure), at most twice. The report states which way it judged, so you can disagree. The two-attempt bound is what keeps the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug is how a walk quietly turns into a different change.
+It fixes only an [in-scope](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) failure, and says which way it judged, so you can disagree. The two-attempt bound is what keeps the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug is how a walk quietly turns into a different change.
 
 ## What it is not
 

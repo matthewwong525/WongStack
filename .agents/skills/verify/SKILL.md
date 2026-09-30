@@ -6,63 +6,35 @@ user-invocable: true
 
 # /verify
 
-Invoking `/verify` authorizes, without a prompt: Step 2's `/save` with its commit, push, and PR; Step 3's machine-level browser install; Step 4's Access service-token mint; and Step 6's staging reset. Confirm anything else in [the shared ask format](../explore/references/asking-the-user.md).
+Show, with evidence from this commit's deployed preview, **whether the change does what its scenarios promise**, and name what you could not check. You choose how to probe each scenario: [the walkthrough reference](references/walkthrough.md) holds the tools and the grading bar, and [the staging walkthrough](../../../wiki/development/staging-walkthrough.md) the reasons. `/verify` runs any time, in any repo, and gates nothing.
 
-`/verify` produces **evidence, on request**, any time, and gates nothing. [The staging walkthrough](../../../wiki/development/staging-walkthrough.md) owns why; [the walkthrough reference](references/walkthrough.md) owns how.
+Invoking `/verify` authorizes, without a prompt: `/save` with its commit, push, and PR; the machine-level browser install; the Access service-token mint; and the staging reset after a failure. Confirm anything else in [the shared ask format](../explore/references/asking-the-user.md).
 
-## Step 1 — scout first, before spending anything
+## Order
 
-Select the change by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit` (including the exact archive path `/ship` hands off), `session`, `changed-active`, `recorded-branch`, then `changed-archive` for a manual walk after archive. If you ask, list each candidate's scenarios.
+Keep this order, so an empty walk costs nothing and the walk sees this commit:
 
 ```bash
 ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" scout-check
+bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" preflight   # --no-browser with no browser journey
 ```
 
-**`RESULT: READY`** → scout the scenarios into journeys by [§ a](references/walkthrough.md#a--scout-the-scenarios), reading local files only. **No scenario reachable by any probe** → verdict `NONE`: say in one line what was there instead, and stop.
+1. **Scout.** Pick the change by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs) `explicit` (including the archive path `/ship` passes), `session`, `changed-active`, `recorded-branch`, then `changed-archive`; if you ask, list each candidate's scenarios. On `scout-check`'s `READY`, match the scenarios to probes by [§ a](references/walkthrough.md#a--scout-the-scenarios), reading local files only. Nothing reachable → `NONE` in one line saying what was there instead; stop.
+2. **Save, then preflight.** Invoke the `save` skill and let it finish; then `preflight`. `UNKNOWN` → report **unverified** with its remedy; stop.
+3. **Walk, grade, and post** by [§§ b–f](references/walkthrough.md#b--write-the-journeys): one comment on every verdict.
+4. **On `FAILURE`**, reset staging in a stack-pack repo (`node "$ROOT/scripts/reset-staging-d1.mjs"`), then judge scope by [§ e](references/walkthrough.md#e--after-a-failure). In scope → fix, `/save`, and walk again, **at most twice**. Out of scope → report what failed and stop.
+5. **Report** the verdict, each journey's probe and **where it ran**, the comment link, anything **installed**, **healed**, or **fixed** (each fix commit), your scope judgement, and each **unverifiable** scenario with why. On `UNKNOWN`, say it was **not verified** and what would make it runnable. Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ship it, fix what the walk found, or walk again. Inside `/ship`, return the verdict instead.
 
-## Step 2 — /save
-
-**Invoke the `save` skill** and let it finish; it returns the per-commit preview URL. [Git stays with the git verbs](../../../wiki/development/the-change-loop.md).
-
-## Step 3 — preflight
-
-```bash
-bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" preflight
-```
-
-Pass `--no-browser` when the scout found **no browser journeys**. **`RESULT: READY`** → Step 4. **`RESULT: UNKNOWN`** → report **unverified** with the script's remedy, and stop.
-
-## Step 4 — verify, healing the block you can fix
-
-**Follow [the walkthrough reference](references/walkthrough.md)** to write, run, and grade the journeys.
+## When a block stops the walk
 
 Heal one block **once per invocation**, then walk again. **`BLOCK=access-challenge` (exit 3)** means Cloudflare Access with no stored service token. With a Cloudflare API token, mint a service token named for this repo through the Access API (widening into the Access groups first if needed), confirm the policy accepts it, and store the pair in the **primary worktree's** durable `.env` ([secrets](../../../wiki/development/secrets.md); [Access](../../../wiki/stack/cloudflare-access.md), [credentials](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). The heal is pre-authorized and covers request probes too. **No Cloudflare token** → `UNKNOWN`, naming the Access wall and the missing credential. Say what you minted; never print or commit a credential value, or store it anywhere else.
 
-**A block that survives its retry → `UNKNOWN`**, naming what you tried and what still failed.
+A block that survives its retry → `UNKNOWN`, naming what you tried.
 
-## Step 5 — post the evidence, on every verdict
+## Plain checks
 
-Post one comment **whatever the verdict**, shaped by [§ f](references/walkthrough.md#f--post-the-evidence-then-clean-up).
-
-## Step 6 — on FAILURE: reset, then fix in scope or stop
-
-In a stack-pack repo, reset staging first:
-
-```bash
-node "$ROOT/scripts/reset-staging-d1.mjs"
-```
-
-Then judge scope by [§ e](references/walkthrough.md#e--after-a-failure), and **report which way you judged**:
-
-- **In scope** → fix the code, invoke `/save`, and verify again; **at most two fix attempts** per invocation, then report and stop.
-- **Out of scope** → report what failed and what to look at, and stop: no fix, re-push, or re-verify.
-
-## Step 7 — report
-
-Give the **verdict**, journeys run by probe, **where the browser and probes ran**, the **PR comment link**, anything **installed**, **healed**, or **fixed** (each fix commit), and each **unverifiable** scenario by name with why. On `UNKNOWN`, say plainly the walk was **not verified**, and what would make it runnable.
-
-Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) the verdict calls for: ship it, fix what the walk found, or walk again after a change. Inside `/ship`, return the verdict instead.
+A screenshot, a request, or a click through the app with no change behind it skips the scout. Probe the address the person names, in a run folder from `mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX"`; with none, save and `preflight`, and report a missing preview as not checked. Show the evidence in the chat, post nothing unless asked, and run `cleanup`.
 
 ## Verdicts
 
@@ -74,11 +46,11 @@ Close with [the next step](../explore/references/asking-the-user.md#end-every-re
 | **UNKNOWN** | the walk could not run or be trusted, after any heal | **unverified**, and why |
 | **TIMEOUT** | the walk exceeded its budget | **unverified**: what completed, where it stopped |
 
-[`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure): report it as *unverified*, naming any heal that did not take ([why](../../../wiki/development/staging-walkthrough.md#the-verdicts)).
+[`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure) ([why](../../../wiki/development/staging-walkthrough.md#the-verdicts)).
 
 ## Hard rules
 
-- **Install the tool, never a repo dependency.** [`agent-browser`](../agent-browser/SKILL.md) and its Chrome install on the machine, only for a browser journey; nothing goes into `package.json` or a lockfile. A **language runtime** still asks first.
+- **Install the tool, never a repo dependency**: [`agent-browser`](../agent-browser/SKILL.md) and its Chrome go on the machine, only for a browser journey. A **language runtime** asks first.
 - **Exercise the deployment, never the working tree**: [no local execution, no invented tooling](../../../wiki/development/staging-walkthrough.md#what-it-is-not).
-- **Never write inside the repo**; journeys and evidence live in the temp run directory. Run `cleanup` on **every** exit path, including a stop on `UNKNOWN` and a pause to ask.
+- **Never write inside the repo.** Run `cleanup` on **every** exit, including a stop on `UNKNOWN` and a pause to ask.
 - **Never merge or archive**: that's `/ship`.
