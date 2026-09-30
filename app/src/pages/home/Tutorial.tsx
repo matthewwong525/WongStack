@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import './Tutorial.css'
 
-// The first change a person makes: pasting this message walks them through the whole loop,
-// and the agent explains each step on the way. Removing the tutorial means deleting this file,
-// Tutorial.test.tsx, Tutorial.css, and its one line in Home.tsx.
+// The first request names the workspace and walks through the change loop.
+// Remove this file, Tutorial.test.tsx, Tutorial.css, and the Tutorial import/render in Home.tsx.
 const message =
-  'Remove the tutorial from my home page. Walk me through each step and explain what it does.'
+  'Help me make this home page my own. Ask me what to call it, update the heading, and remove this welcome guide. Explain each step and show me a preview before publishing.'
 
-const labels = { ready: 'Copy', copied: 'Copied', failed: 'Select the message and copy it' }
+const labels = { ready: 'Copy your first request', copied: 'Copied', failed: 'Select the message and copy it' }
 
 export function Tutorial() {
   const [state, setState] = useState<keyof typeof labels>('ready')
@@ -22,13 +21,16 @@ export function Tutorial() {
       )
 
   return (
-    <section className="tutorial" aria-labelledby="learn-the-loop">
-      <h2 id="learn-the-loop">Learn the development loop</h2>
-      <p>Your first change removes this box. Copy this message into your chat with the agent:</p>
-      <blockquote>{message}</blockquote>
-      <button type="button" aria-live="polite" onClick={copy}>
+    <section className="tutorial" aria-labelledby="make-it-yours">
+      <h2 className="tutorial-heading" id="make-it-yours">Make it yours</h2>
+      <p className="tutorial-description">
+        Want something different? Just ask in your chat. You’ll see a preview before anything goes live.
+      </p>
+      <blockquote className="tutorial-message">{message}</blockquote>
+      <button className="tutorial-copy" type="button" aria-live="polite" onClick={copy}>
         {labels[state]}
       </button>
+      <p className="tutorial-paste">Paste it into your chat to start.</p>
     </section>
   )
 }

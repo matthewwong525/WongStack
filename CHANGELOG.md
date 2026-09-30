@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.8.0 — A welcoming starter workspace
+
+- **Make the workspace yours.** The starter home page has a permanent heading and one request to name it and remove the welcome guide, with explanations and a preview before publishing.
+- **A familiar shared look.** Neutral light and dark colors, the colored WongStack mark, clear keyboard focus, and inviting app cards give the starter and Hello example one identity. Its name and logo are defaults you can change by asking in chat.
+- **A finished little example.** Tap Hello's logo or WongStack name to return home. Its name field sits above its main action, with the greeting beneath it. It is labeled as an example, and an empty app list explains how to ask for a tool.
+
+**Updating.** Adapt the welcome, shared look, and Hello example through the reviewed update plan, keeping your own heading and branding or explicitly agreeing how to adapt them. Keep a finished welcome guide removed.
+
 ## 27.7.0 — Forms return to the workspace
 
 Password and token pages save and continue in one tap, keeping partial successes for correction. Completed private input wakes its requesting workspace with a result-only message and shows whether the chat was notified. Website hand-over pages mirror native form buttons below their fields, preserving the site's labels, validation, and code steps.

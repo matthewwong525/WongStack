@@ -6,22 +6,27 @@ export function AppList({ apps }: { apps: Promise<MiniApp[] | null> }) {
   const list = use(apps)
 
   if (list === null) {
-    return <p>The list did not load. Reload the page to try again.</p>
+    return <p className="app-list-state">Your apps could not load. Reload the page to try again.</p>
   }
   if (list.length === 0) {
     return (
-      <p>
-        No mini apps yet. Ask the agent: <code>make me a tip calculator</code>
-      </p>
+      <div className="app-list-state">
+        <p className="app-list-empty-heading">Your next tool starts with a request.</p>
+        <p className="app-list-empty-request">Ask in your chat: <q>Make me a tip calculator.</q></p>
+      </div>
     )
   }
   return (
     <ul className="app-list">
       {list.map((app) => (
-        <li key={app.name}>
-          <a href={app.href}>
-            <strong>{app.title}</strong>
-            <span>{app.description}</span>
+        <li className="app-list-item" key={app.name}>
+          <a className="app-list-link" href={app.href}>
+            <span className="app-list-card-heading">
+              <strong className="app-list-title">{app.title}</strong>
+              {app.name === 'hello' && <span className="app-list-example">Example</span>}
+              <span className="app-list-arrow" aria-hidden="true">→</span>
+            </span>
+            <span className="app-list-description">{app.description}</span>
           </a>
         </li>
       ))}
