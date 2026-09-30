@@ -22,7 +22,7 @@ The server installation contract SHALL accept the cloud owner's verified, reacha
 
 ### Requirement: Cloud team emails determine human permissions
 
-For a managed workspace, human access SHALL comprise its verified owner and current real-person team emails, normalized and deduplicated. A person added through wongstack-cloud SHALL receive permission to authenticate to the workspace and all its previews. Removal or invitation cancellation SHALL withdraw that email while preserving the owner and remaining team. Synthetic extra-workspace identities SHALL NOT receive permissions. All managed add, legacy join, and removal paths SHALL converge on this behavior.
+For a managed workspace, human access SHALL comprise its verified owner and current real-person team emails, normalized and deduplicated. A person added through the hosted control plane SHALL receive permission to authenticate to the workspace and all its previews. Removal or invitation cancellation SHALL withdraw that email while preserving the owner and remaining team. Synthetic extra-workspace identities SHALL NOT receive permissions. All managed add, legacy join, and removal paths SHALL converge on this behavior.
 
 #### Scenario: Add and remove a teammate
 
