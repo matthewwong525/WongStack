@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 28.8.0 — Hosted setup finishes without a card
+
+A wongstack.com server now finishes setting up your app even when your Cloudflare account has no card, the same way setup on your own computer already does.
+
+- **Your site goes live with the login off.** When Cloudflare wants a card before it turns on the email login, the server install carries on instead of stopping, and your dashboard shows the login is off. Your memory stays private behind its own key.
+- **Add the card later, then turn the login on.** Choose *Turn on the login* on your dashboard: the server turns it on and leaves the change for your assistant to publish. It never overwrites your work.
+- **Older servers work as before.** A server built before this version still stops until the login is on.
+
+**Updating.** Nothing to do by hand: installed repos never receive the server folder, and a site that already has the login keeps it.
+
 ## 28.7.0 — Setup finishes without a card
 
 Cloudflare turns on the private email login only once your account has a card on file. Setup used to stop there and had to run again. Now it finishes in one pass.

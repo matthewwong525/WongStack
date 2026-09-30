@@ -6,7 +6,7 @@
 // dependencies: the host unpacks this source at the build's commit and runs
 // this file as root under systemd; it shares the command runner and job check
 // of the installer beside it, and never changes itself. server/README.md holds
-// contract 1, the messages it and the control plane agree on.
+// the contract, the messages it and the control plane agree on.
 // After the clone it sets up Paseo: a sign-in workspace per AI and "Start here".
 // On an owner's server, `team-add` and `team-remove` give a teammate's GitHub
 // login push access to the owner's repo and take it away, with the owner's gh.
@@ -25,7 +25,7 @@ import { createManagementStore } from "./management.mjs";
 const managementStore = createManagementStore();
 
 /** The contract this agent follows with the control plane: server/README.md#the-agent. A changed message shape raises it. */
-export const CONTRACT = 1;
+export const CONTRACT = 2;
 const PASEO_HOME = "/home/wong/.paseo";
 /** The installer beside this agent, in the same unpacked source, which wong can read. */
 const INSTALLER = fileURLToPath(new URL("../install-wongstack.mjs", import.meta.url));
@@ -220,7 +220,7 @@ export async function installWongStack(job, exec, fetchFn) {
   try { installer = await sourceInstaller(job, (args) => asWong(exec, args)); }
   catch { return { status: "failed", reason: "access" }; }
   try {
-    await asWong(exec, ["env", "-u", "AGENT_TOKEN", "node", installer], { input: JSON.stringify({ token, accountId, repo, ownerEmail, managementResult }), timeout: INSTALL_TIMEOUT_MS });
+    await asWong(exec, ["env", "-u", "AGENT_TOKEN", "node", installer], { input: JSON.stringify({ token, accountId, repo, ownerEmail, managementResult, openWithoutLogin: true }), timeout: INSTALL_TIMEOUT_MS });
   } catch (error) {
     const lines = String(error.stdout ?? "").trim().split("\n");
     const reason = lines.at(-1);
