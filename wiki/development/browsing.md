@@ -2,6 +2,8 @@
 
 Browsing is how the agent uses websites as you: it keeps your logins, logs in with the passwords you save for it, shows you what it's doing, and hands you the browser when a step needs you. It works the same for every repo on the computer.
 
+**API key and token website steps use your own browser.** Before opening or interacting with a token page, follow [the token website procedure](secrets.md#api-token-website-steps), including when ordinary browsing reaches such a step. It takes precedence over saved logins, pictures, and remote hand-over below; the agent gives you the service link and short steps.
+
 ## Saved browser logins
 
 The agent reaches your accounts (mail, calendar, banking) through [agent-browser](https://github.com/vercel-labs/agent-browser), not through connectors. A persistent Chrome profile keeps your logins across restarts, for every repo on the machine. Before a task's first `agent-browser` command, the agent runs `agent-browser skills get core` to load the guide for the installed version.
@@ -53,7 +55,7 @@ When a step needs you, the agent sends you a private link that opens its browser
 - **Room above the phone keyboard.** While the on-screen keyboard is open, the hand-over header, view tabs and navigation hide, and the selected field comes into view. Dismissing the keyboard brings the controls back, keeping your typing. The website keeps its size and readable writing; a hardware keyboard leaves the controls visible. Your phone browser's own bars stay under its control.
 - **On a phone, the page fits your screen.** A window narrower than 800 points gets the site's own phone layout, with enough height to see a whole login screen by swiping. A wider visible form expands the browser width within its limits, and you can drag sideways to reach both edges without shrinking the writing. Turning the phone re-fits it; opening the keyboard keeps the remote page steady. Successful navigation returns the preview to the top. The page goes back to desktop size when the link closes.
 
-- **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. The agent never tries to get past one itself: no retries, no disguised browser, no solving service. A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
+- **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. API key and token website steps follow [the own-browser procedure](secrets.md#api-token-website-steps). The agent never tries to get past a login or check itself: no retries, no disguised browser, no solving service. A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
 - **Ask first.** Before it sends a link, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *I need you to log in to your bank.* `Ready, send the link / Not now`. It sends the link only once you reply, so the 10 minutes start when you're there, not while you're away. A question waits for you; a link dies. If your last message was *let me take over*, you're there, so the link comes straight away.
 - **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/verify/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. `open` closes blank tabs and brings the task's page to the front, so the link never opens on an empty page:
 

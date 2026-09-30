@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 28.2.0 — You handle token websites
+
+When a task needs a service's website to get or change an API key or token, the assistant gives you the service link and short steps for your own browser. It waits for new or replacement values through the private key link, or your confirmation for a change with no new value. Saved website logins, ordinary browsing, and existing authorized token management through APIs continue as usual.
+
+**Updating.** Nothing to do by hand. Existing credentials and private key links need no migration.
+
 ## 28.1.0 — Check the preview toward a goal
 
 - **One goal, not a script.** `/verify` states what a check must prove and what it may do on its own, and chooses how to check each promise. You still get pictures and answers from the live preview, a verdict, and one comment on the pull request, with the same limits: it fixes a failure in this change at most twice and never merges.
