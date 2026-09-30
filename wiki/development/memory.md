@@ -45,6 +45,8 @@ The same background run tidies the live facts once 24 hours and five captured se
 
 ## The memory key
 
+The private app has one narrow exception: production `/_memory/*` reaches this route without an app login. Its memory key and GitHub checks still apply. Staging and previews bind no production memory and receive no public exception. See [Access](../stack/cloudflare-access.md#4-bypass-the-public-surface).
+
 `CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**: it opens this repo's store and nothing else. **This page owns that name.** It lives in the ignored `.env` under [the secrets convention](secrets.md). It is **never** a GitHub secret, so CI cannot read transcripts, and never committed: a repo can be public, and git history keeps a key forever.
 
 Every memory call goes through your app's **production Worker**, under `/_memory/`. It binds the memory database as `MEMORY_DB` and the bucket as `MEMORY_BUCKET`; the staging Worker and previews bind neither, and answer 404. CI deploys the route with the app on each merge to `main`, so no one deploys memory by hand. The route's code lives in [the memory skill](../../.agents/skills/memory/SKILL.md), so [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps it current; `app/worker/index.ts` only imports it. A `memory_keys` table in the memory database holds a hash of each key, and `memory_admins` holds the admin's GitHub account. The route refuses any statement that names either table, so no key can read or change them. No person holds a Cloudflare token for memory, because Cloudflare's D1 permissions reach every database in the account, the app's too.

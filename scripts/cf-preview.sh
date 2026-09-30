@@ -94,6 +94,8 @@ STAGING_DB=$(wong_config staging-database)
 [ -n "${CLOUDFLARE_API_TOKEN:-}" ] \
   || not_here "no CLOUDFLARE_API_TOKEN; source the primary worktree's .env, or push and let CI make the preview"
 
+node "$SCRIPT_DIR/check-private-access.mjs" --environment staging --source-only
+
 # ── Install, migrate, build ──────────────────────────────────────────────────
 if [ ! -d "$BUILD_DIR/node_modules" ]; then
   say "installing the app's dependencies (once per checkout)"
@@ -114,6 +116,8 @@ wong_staging_env_args
 BUILT_NAME=$(wong_config worker-name staging)
 [ "$BUILT_NAME" != "$PROD_NAME" ] \
   || fail "the build produced the production Worker's config ('$PROD_NAME'); nothing uploaded"
+
+node "$SCRIPT_DIR/check-private-access.mjs" --environment staging
 
 # ── Upload ────────────────────────────────────────────────────────────────────
 UPLOAD_LOG=$(mktemp)

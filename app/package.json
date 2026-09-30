@@ -7,7 +7,7 @@
     "node": ">=22.22.2"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "CLOUDFLARE_ENV=local vite",
     "build": "bash ../scripts/cf-build.sh",
     "build:app": "tsc -b && vite build",
     "db:reset:staging": "node ../scripts/reset-staging-d1.mjs",

@@ -6,7 +6,7 @@ It assumes you know nothing about Cloudflare, databases, or deployment: where a 
 
 ## What you'll end up with
 
-- A live address anyone can open, like `https://recipe-box.yourname.workers.dev`
+- A private address you and allowed teammates can open after email login, like `https://recipe-box.yourname.workers.dev`
 - A separate address for every version you're still working on, so you can look at a change before it's real
 - A place your data lives, and a practice copy of it that test versions use
 - Automatic publishing: when a change is approved, it goes live
@@ -49,13 +49,13 @@ Nothing here can be automated. Each needs you, and the ones marked *browser* ope
 5. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
 6. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
 
-The first two happen before the chat exists; the rest happen in one sitting, while the agent waits. There's no "connect your repository" step and no dashboard configuration: those are avoided by design.
+The first two happen before the chat exists; the rest happen in one sitting, while the agent waits. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
 
 ## If you want a login wall
 
-By default your site is **public** — anyone with the link can open it. Plenty of projects want that.
+Your business site and previews require email login automatically. Setup needs a reachable owner email; git’s private author address is a separate setting.
 
-If you'd rather people sign in first, say so and the agent sets it up. It needs no extra permissions from you up front, which is why it isn't part of setup. See [Cloudflare Access](cloudflare-access.md).
+Setup creates the login wall; [Cloudflare Access](cloudflare-access.md) explains teammate and machine access.
 
 ## When something goes wrong
 

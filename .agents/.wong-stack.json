@@ -7,6 +7,30 @@
       "database": "wongstack-memory",
       "bucket": "wongstack-memory",
       "worker": "https://wongstack.matthewwong525.workers.dev/_memory"
+    },
+    "access": {
+      "teamDomain": "startuptemplate.cloudflareaccess.com",
+      "identityProviderId": "702068bd-5d11-47e9-8c52-bf0238edd315",
+      "ownerEmail": "matthewwong525@gmail.com",
+      "humanLogin": "unverified",
+      "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+      "appId": "10a98858-5fe3-4650-a57f-a02786a1e851",
+      "audience": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
+      "humanPolicyId": "bcd7dbd7-0906-4793-b28d-0d945f7daa4c",
+      "machinePolicyId": "2d042e45-ba2b-458c-93be-63a3f93db921",
+      "workers": [
+        {
+          "name": "wongstack",
+          "id": "37236d316a9d49028048b9217deae927"
+        },
+        {
+          "name": "wongstack-staging",
+          "id": "bc809703c01f47528ff4e5449cf36e12"
+        }
+      ],
+      "coverage": "configured",
+      "serviceTokenId": "e7866263-6e83-4ceb-b59c-b3b8db765947",
+      "sessionDuration": "720h"
     }
   }
 }

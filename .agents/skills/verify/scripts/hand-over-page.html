@@ -7,39 +7,96 @@
 <title>Your turn in the browser</title>
 <style>
   :root { color-scheme: light dark; font-family: system-ui, -apple-system, sans-serif; }
-  body { margin: 0 auto; max-width: 1280px; padding: 8px; }
-  #view { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; background: #8882; border-radius: 6px; touch-action: pinch-zoom; outline: none; }
-  #view:focus-visible { outline: 2px solid Highlight; }
-  .hint, #status { font-size: 0.85rem; opacity: 0.65; margin: 6px 2px; }
-  #type, #fields input:not([type=checkbox]), #fields select { box-sizing: border-box; width: 100%; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
-  #fields { display: grid; gap: 12px; margin: 10px 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100vh; height: 100dvh; overflow: hidden; }
+  .shell { height: 100%; max-width: 1600px; margin: auto; display: flex; flex-direction: column; padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); gap: 10px; }
+  header { display: flex; align-items: baseline; gap: 16px; flex-shrink: 0; }
+  h1 { font-size: 1.05rem; margin: 0; }
+  .hint, #status { font-size: 0.85rem; opacity: 0.7; margin: 6px 0; }
+  #status { margin: 0; }
+  .tabs { display: flex; gap: 8px; flex-shrink: 0; }
+  .navigation { display: flex; gap: 8px; flex-shrink: 0; }
+  .navigation button { min-width: 44px; display: grid; place-items: center; }
+  .navigation svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  button { min-height: 44px; font: inherit; padding: 8px 14px; border: 1px solid #8886; border-radius: 8px; background: none; color: inherit; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button:focus-visible, summary:focus-visible, #view:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+  .tabs button { flex: 1; }
+  .tabs [aria-selected=true] { background: #3478f61c; border-color: #3478f6; font-weight: 600; }
+  .workspace { display: flex; flex: 1; min-height: 0; min-width: 0; }
+  #page-panel { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; gap: 8px; }
+  #stage { flex: 1; min-height: 0; position: relative; background: #8882; border-radius: 8px; overflow: hidden; }
+  #preview { position: relative; width: 100%; height: 100%; }
+  #targets { position: absolute; inset: 0; pointer-events: none; overflow: clip; }
+  #targets input { position: absolute; pointer-events: auto; touch-action: none; border: 0; padding: 0; margin: 0; background: transparent; color: transparent; caret-color: transparent; font-size: 16px; opacity: 0.01; }
+  #view { display: block; width: 100%; height: 100%; object-fit: contain; touch-action: none; outline: none; }
+  #fields-panel { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 2px 4px 12px; }
+  #fields-panel h2 { font-size: 1rem; margin: 0 0 14px; }
+  #type, #fields input:not([type=checkbox]), #fields select { width: 100%; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
+  #fields { display: grid; gap: 12px; margin: 0 0 18px; }
+  #fields[hidden] { display: none; }
   #fields label { display: block; font-size: 0.95rem; margin: 0 2px 4px; }
-  #fields .check { display: flex; gap: 10px; align-items: center; }
+  #fields .check { display: flex; gap: 10px; align-items: center; min-height: 44px; }
   #fields .check label { margin: 0; }
   #fields .check input { width: 1.4rem; height: 1.4rem; }
   #fields .actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  #fields .actions button { font-size: 1.05rem; padding: 12px 16px; border-radius: 8px; background: #3478f6; color: white; border: 0; }
-  #fields .actions button:disabled { opacity: 0.5; }
+  #fields .actions button { font-size: 1.05rem; padding: 12px 16px; background: #3478f6; color: white; border: 0; }
   .miss { font-size: 0.85rem; color: #d33; margin: 4px 2px 0; }
-  #other summary { margin: 10px 2px; cursor: pointer; }
+  #other summary { min-height: 44px; padding: 12px 0; cursor: pointer; }
   .keys { display: flex; gap: 8px; margin-top: 8px; }
-  .keys button { font-size: 0.95rem; padding: 6px 14px; border: 1px solid #8886; border-radius: 6px; background: none; color: inherit; }
+  .keys button { flex: 1; }
+  @media (max-width: 799px) {
+    .shell { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    .shell.keyboard-open { padding-bottom: 10px; }
+    .shell.keyboard-open > header, .shell.keyboard-open > .tabs, .shell.keyboard-open > .navigation { display: none; }
+    .navigation button { flex: 1 1 44px; min-width: 44px; padding: 8px 6px; }
+    .workspace > [inert] { display: none !important; }
+    #fields-panel h2 { display: none; }
+    #stage { overflow: auto; overscroll-behavior: contain; }
+    #preview { height: auto; }
+    #view { height: auto; }
+  }
+  @media (min-width: 800px) {
+    .tabs { display: none; }
+    .workspace { gap: 20px; }
+    #fields-panel { flex: 0 0 340px; padding: 4px 8px 16px; }
+
+  }
 </style>
 </head>
 <body>
-<canvas id="view" tabindex="0" aria-label="The agent's browser. Click a field, then type."></canvas>
-<p id="status" role="status">Connecting…</p>
-<form id="fields" autocomplete="on" hidden></form>
-<details id="other" open>
-  <summary>Other typing</summary>
-  <p class="hint" id="other-hint">Tap a field above, then type here. On a computer you can also click and type on the page itself.</p>
-  <input id="type" type="text" placeholder="Type here…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" aria-label="Type here">
-  <div class="keys">
-    <button type="button" data-key="Backspace" aria-label="Backspace">⌫</button>
-    <button type="button" data-key="Tab">Tab</button>
-    <button type="button" data-key="Enter">Enter</button>
+<main class="shell">
+  <header><h1>Your turn</h1><p id="status" role="status">Connecting…</p></header>
+  <nav class="tabs" role="tablist" aria-label="Browser views">
+    <button type="button" id="page-tab" role="tab" aria-controls="page-panel" aria-selected="true">Page</button>
+    <button type="button" id="fields-tab" role="tab" aria-controls="fields-panel" aria-selected="false" tabindex="-1">Fill fields</button>
+  </nav>
+  <div class="workspace">
+    <section id="page-panel" aria-label="Live page">
+      <div id="stage"><div id="preview"><canvas id="view" tabindex="0" aria-label="The agent's browser. Tap to click; swipe to scroll."></canvas><div id="targets"></div></div></div>
+    </section>
+    <section id="fields-panel" aria-label="Fill fields">
+      <h2>Fill fields</h2>
+      <form id="fields" autocomplete="on" hidden></form>
+      <details id="other" open>
+        <summary>Other typing</summary>
+        <p class="hint" id="other-hint">Tap a field on Page, then type here. On a computer you can also click and type on the page itself.</p>
+        <input id="type" type="text" placeholder="Type here…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" aria-label="Type here">
+        <div class="keys">
+          <button type="button" data-key="Backspace" aria-label="Backspace">⌫</button>
+          <button type="button" data-key="Tab">Tab</button>
+          <button type="button" data-key="Enter">Enter</button>
+        </div>
+      </details>
+    </section>
   </div>
-</details>
+  <nav class="navigation" aria-label="Website navigation">
+    <button type="button" data-navigate="back" aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button>
+    <button type="button" data-navigate="forward" aria-label="Forward" title="Forward"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button>
+    <button type="button" data-navigate="reload" aria-label="Reload" title="Reload"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5"/></svg></button>
+    <button type="button" data-navigate="start" aria-label="Return to start" title="Return to start"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4v16m16-8H8m6-6-6 6 6 6"/></svg></button>
+  </nav>
+</main>
 <script type="module" src="page.mjs"></script>
 </body>
 </html>

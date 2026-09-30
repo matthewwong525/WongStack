@@ -38,7 +38,7 @@ A mini app goes through [the change loop](../development/the-change-loop.md) lik
 - **Preview.** When [`/apply`](../../.agents/skills/apply/SKILL.md#finish-with-a-preview) finishes, it uploads a preview of the whole main app from the agent host. Open the app at `/apps/<name>/` on that link. Each further change uploads again to the same link.
 - **Publish.** [`/ship`](../../.agents/skills/ship/SKILL.md) saves, waits for CI, and merges. CI runs only the changed app's tests when nothing else changed, as [the gate](../development/the-change-loop.md#the-gate) says, and still deploys the main Worker, because it serves the app.
 
-**A preview builds the whole app, so the first one in a worktree waits for the install.** It uses staging data. A preview link on `workers.dev` is public but unlisted, because [Cloudflare Access can not gate `workers.dev`](cloudflare-access.md#why-workersdev-cannot-be-gated). Keep private data out of staging.
+**A preview builds the whole app, so the first one in a worktree waits for the install.** It uses staging data. Preview links use the same [native Worker Access protection](cloudflare-access.md#the-hostnames-to-add) as the main app. Use allowed email login or the saved machine credential, and keep staging data separate from production.
 
 ## The app list
 

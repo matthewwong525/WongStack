@@ -2,7 +2,7 @@
 // Installs WongStack into a person's empty GitHub repo on their own server, with no question: what
 // /wong-setup does for an empty folder, with every choice made ahead. A host clones this source at a
 // pinned commit into ~/.cache/wong-stack/WongStack and runs this file from there, as the workspace user,
-// with {token, accountId, repo} on stdin. It installs this clone: its payload, VERSION, and commit.
+// with {token, accountId, repo, ownerEmail, managementResult?} on stdin. It installs this clone.
 // It prints one last line: `done`, or why it stopped (`token`, `repo`, `cloudflare`, or `push`); a refused
 // Cloudflare call that stopped it comes on the line before, when it matches CLOUDFLARE_CALL.
 // Every step checks before it acts, so a second run finishes a first run that stopped.
@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 import { isMain } from '../.agents/skills/memory/scripts/lib/cli.mjs';
 import { ProvisionError, names, provision, run, widen } from '../.agents/skills/wong-setup/scripts/provision.mjs';
+import { ownerIdentity } from '../.agents/skills/wong-setup/scripts/private-access.mjs';
+import { checkedOutSource, managementDestination, validateExistingManagementResult, writeManagementResult } from './access-result.mjs';
 
 export { run };
 
@@ -45,7 +47,12 @@ export function repoFolder(repo) {
 }
 
 /** The folder an install job works in, or null when the job is not a valid one. */
-export const jobFolder = (job) => (job?.token && ACCOUNT.test(String(job.accountId)) ? repoFolder(job.repo) : null);
+export const jobFolder = (job) => {
+  try {
+    ownerIdentity(job?.ownerEmail);
+    return job?.token && ACCOUNT.test(String(job.accountId)) ? repoFolder(job.repo) : null;
+  } catch { return null; }
+};
 
 /** Replaces each key's own line, or adds it; every other line stays. Only the workspace user can read it. */
 export function setEnv(file, values) {
@@ -206,8 +213,12 @@ async function addPresets(dir, exec, log) {
 // ── the whole install ───────────────────────────────────────────────────────
 
 /** Installs, provisions, commits, pushes, then adds the Paseo presets. Throws a ProvisionError with the reason. */
-export async function install({ token, accountId, repo }, { dir, env = process.env, fetch, sleep, today, exec = run, log = () => {} }) {
+export async function install({ token, accountId, repo, ownerEmail, managementResult }, { dir, env = process.env, fetch, sleep, today, exec = run, log = () => {} }) {
   const quiet = (file, args, options = {}) => exec(file, args, { env, ...options });
+  const loginEmail = await step('repo', () => ownerIdentity(ownerEmail));
+  const destination = managementDestination(managementResult, { home: env.HOME, repoDir: dir, sourceDir: SOURCE });
+  const source = destination ? await step('repo', () => checkedOutSource(SOURCE, quiet)) : null;
+  validateExistingManagementResult(destination, { accountId, repo, ownerEmail: loginEmail, source });
   const git = (args) => quiet('git', ['-C', dir, ...args]);
   const mode = await step('repo', () => checkRepo(dir, git));
   await step('repo', () => protectSecrets(dir, { token, accountId }));
@@ -221,7 +232,8 @@ export async function install({ token, accountId, repo }, { dir, env = process.e
   }
   const { base } = await names(cloudflare);
   if (record) writeJson(join(dir, '.claude', '.wong-stack.json'), record);
-  await provision({ ...cloudflare, base, today, keepConfig: mode === 'installed' });
+  const report = await step('cloudflare', () => provision({ ...cloudflare, base, today, ownerEmail: loginEmail, keepConfig: mode === 'installed' }));
+  await step('cloudflare', () => writeManagementResult({ destination, source, report, ownerEmail: loginEmail, repo, token, api: env.WONG_CLOUDFLARE_API, fetch, dir, exec: quiet }));
 
   await step('push', async () => {
     if (mode === 'fresh') {
@@ -247,7 +259,7 @@ export async function main({ stdin, env = process.env, fetch, sleep, now = () =>
   }
   const folder = jobFolder(job);
   if (!folder) {
-    err('install-wongstack: the job needs a token, a 32-character account id, and an owner/name repo');
+    err('install-wongstack: the job needs a token, a 32-character account id, an owner/name repo, and a reachable verified ownerEmail; reconnect with an updated host for older jobs');
     out('repo');
     return 1;
   }

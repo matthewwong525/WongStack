@@ -3,7 +3,7 @@
 // from the installer's own reading, so a payload file the installer misses fails and is named.
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,11 +14,12 @@ import { CLOUDFLARE_CALL, jobFolder, main, payloadFiles, repoFolder, run, setEnv
 import { readEnv } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { databaseName, parseConfig, workerName } from '../lib-wrangler-config.mjs';
 import { ACCOUNT, TOKEN, fakeCloudflare, fakeGh } from './fixtures/cloudflare.mjs';
+import { checkedOutSource } from '../../server/access-result.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const INSTALLER = join(repoRoot, 'server/install-wongstack.mjs');
 const REPO = 'ada/recipe-box';
-const JOB = { token: TOKEN, accountId: ACCOUNT, repo: REPO };
+const JOB = { token: TOKEN, accountId: ACCOUNT, repo: REPO, ownerEmail: 'ada@example.com' };
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const tryGit = (...args) => {
   try {
@@ -82,7 +83,126 @@ async function setup(t, { email = 'ada@example.com' } = {}) {
 }
 
 /** Every secret the run knows: the user token, each deploy token value, and the admin memory key. */
-const secretsOf = (s) => [TOKEN, ...s.fake.state.minted, readEnv(join(s.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN].filter(Boolean);
+const secretsOf = (s) => [TOKEN, ...s.fake.state.minted, ...s.fake.state.serviceTokens.map(item => item.client_secret), readEnv(join(s.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN].filter(Boolean);
+
+const managedJob = (s, { generation = 1, jobId = `job-${generation}`, cleanupTokenIds = [] } = {}) => ({
+  ...JOB,
+  managementResult: {
+    version: 1,
+    recipient: { ownerId: 'owner-1', vmId: 'vm-1', jobId, connectionId: 'connection-1', generation },
+    path: join(s.home, '.local/state/wongstack/access-results', `${jobId}.json`),
+    cleanupTokenIds,
+  },
+});
+
+test('old jobs missing a reachable verified owner email stop before provider calls', async (t) => {
+  const s = await setup(t);
+  for (const ownerEmail of [undefined, '', 'bad', 'extra@workspace.invalid', '123+ada@users.noreply.github.com']) {
+    const result = await s.install({ ...JOB, ownerEmail });
+    assert.equal(result.last, 'repo');
+    assert.match(result.err[0], /reachable verified ownerEmail.*updated host/);
+    assert.equal(s.fake.calls.length, 0);
+  }
+});
+
+test('managed jobs keep verified login email separate from git authorship', async (t) => {
+  const s = await setup(t, { email: '123+ada@users.noreply.github.com' });
+  const result = await s.install();
+  assert.equal(result.last, 'done', result.err.join('\n'));
+  assert.deepEqual(s.fake.state.accessApps[0].policies.find(policy => policy.decision === 'allow').include, [{ email: { email: JOB.ownerEmail } }]);
+  assert.equal(git('-C', s.dir, 'log', '-1', '--format=%ae'), '123+ada@users.noreply.github.com');
+});
+
+test('management handoff is private, restricted, bound to the actual source, and idempotent', async (t) => {
+  const s = await setup(t);
+  const job = managedJob(s);
+  const first = await s.install(job);
+  assert.equal(first.last, 'done', first.err.join('\n'));
+  const file = job.managementResult.path;
+  const value = JSON.parse(readFileSync(file, 'utf8'));
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+  assert.equal(statSync(dirname(file)).mode & 0o777, 0o700);
+  assert.deepEqual(value.recipient, job.managementResult.recipient);
+  assert.equal(value.ownerEmail, JOB.ownerEmail);
+  assert.equal(value.repo, REPO);
+  assert.equal(value.accountId, ACCOUNT);
+  assert.deepEqual(value.source, await checkedOutSource(repoRoot, run));
+  assert.equal(value.source.commit, git('-C', repoRoot, 'rev-parse', 'HEAD'));
+  assert.equal(value.anchorHostname, 'recipe-box.ada.workers.dev');
+  assert.equal(value.sessionDuration, '720h');
+  assert.deepEqual(value.workers.production, JSON.parse(readFileSync(join(s.dir, '.claude/.wong-stack.json'), 'utf8')).components.access.workers[0]);
+  const management = s.fake.state.accountTokens.find(token => token.id === value.tokenId);
+  assert.deepEqual(management.policies, [{ effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' }, permission_groups: [{ id: '1e13c5124ca64b72b1969a67e8829049' }] }]);
+  for (const forbidden of [TOKEN, readEnv(join(s.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, ...s.fake.state.serviceTokens.map(token => token.client_secret)]) {
+    assert.ok(!readFileSync(file, 'utf8').includes(forbidden));
+  }
+  for (const text of [...first.out, ...first.err, ...s.calls, s.gh.calls(), readFileSync(join(s.dir, '.git/wong-stack-management.json'), 'utf8')]) assert.ok(!text.includes(value.token));
+  assert.equal(tryGit('--git-dir', s.origin, 'grep', '-q', '-F', '-e', value.token, 'main'), null);
+  assert.equal((await s.install(job)).last, 'done');
+  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), value);
+  assert.equal(s.fake.state.accountTokens.length, 2, 'CI and one management token only');
+});
+
+test('unsafe or mismatched management recipients and paths fail before provisioning', async (t) => {
+  const s = await setup(t);
+  const valid = managedJob(s);
+  for (const change of [
+    { version: 2 },
+    { recipient: { ...valid.managementResult.recipient, generation: '1' } },
+    { recipient: { ...valid.managementResult.recipient, ownerId: '' } },
+    { path: join(s.dir, 'private.json') },
+    { cleanupTokenIds: ['not-an-account-token'] },
+  ]) {
+    const result = await s.install({ ...valid, managementResult: { ...valid.managementResult, ...change } });
+    assert.equal(result.last, 'repo', JSON.stringify(change));
+    assert.equal(s.fake.calls.length, 0);
+  }
+  const directory = dirname(valid.managementResult.path);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const elsewhere = join(s.root, 'elsewhere');
+  writeFileSync(elsewhere, 'private');
+  symlinkSync(elsewhere, valid.managementResult.path);
+  assert.equal((await s.install(valid)).last, 'repo');
+  assert.equal(s.fake.calls.length, 0);
+  rmSync(valid.managementResult.path);
+  writeFileSync(valid.managementResult.path, JSON.stringify({ recipient: { ...valid.managementResult.recipient, vmId: 'another-vm' } }), { mode: 0o600 });
+  assert.equal((await s.install(valid)).last, 'repo');
+  assert.equal(s.fake.calls.length, 0);
+  rmSync(valid.managementResult.path);
+  symlinkSync(join(s.root, 'missing-private-target'), valid.managementResult.path);
+  assert.equal((await s.install(valid)).last, 'repo');
+  assert.equal(s.fake.calls.length, 0);
+
+});
+
+test('management reconnect cleans up recorded account tokens and persists failed cleanup for retry', async (t) => {
+  const s = await setup(t);
+  const first = managedJob(s);
+  assert.equal((await s.install(first)).last, 'done');
+  const old = JSON.parse(readFileSync(first.managementResult.path, 'utf8'));
+  const second = managedJob(s, { generation: 2, cleanupTokenIds: [old.tokenId] });
+  s.fake.state.refuse = [`DELETE /accounts/${ACCOUNT}/tokens/${old.tokenId}`];
+  assert.equal((await s.install(second)).last, 'done');
+  const pending = JSON.parse(readFileSync(second.managementResult.path, 'utf8'));
+  assert.deepEqual(pending.cleanup, { revokedTokenIds: [], pendingTokenIds: [old.tokenId] });
+  assert.ok(s.fake.state.accountTokens.some(token => token.id === old.tokenId));
+  s.fake.state.refuse = [];
+  assert.equal((await s.install(second)).last, 'done');
+  const cleaned = JSON.parse(readFileSync(second.managementResult.path, 'utf8'));
+  assert.deepEqual(cleaned.cleanup, { revokedTokenIds: [old.tokenId], pendingTokenIds: [] });
+  assert.equal(cleaned.token, pending.token);
+  assert.ok(!s.fake.state.accountTokens.some(token => token.id === old.tokenId));
+  assert.equal(s.fake.state.accessApps.length, 1, 'cleanup retains the login wall');
+  assert.ok(!s.fake.calls.some(call => call.method === 'DELETE' && !call.path.startsWith(`/accounts/${ACCOUNT}/tokens/`)));
+});
+
+test('the managed result reports the actual GitHub source for SSH and HTTPS origins', async () => {
+  for (const remote of ['https://github.com/Business/Template.git', 'git@github.com:Business/Template.git', 'ssh://git@github.com/Business/Template.git']) {
+    const exec = async (_file, args) => ({ stdout: args.includes('HEAD') ? 'a'.repeat(40) : remote });
+    assert.deepEqual(await checkedOutSource('/source', exec), { repo: 'Business/Template', commit: 'a'.repeat(40) });
+  }
+  await assert.rejects(checkedOutSource('/source', async () => ({ stdout: 'file:///arbitrary' })), /actual pinned GitHub source/);
+});
 
 // ── a fresh repo ────────────────────────────────────────────────────────────
 
@@ -134,7 +254,7 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
 
   // No secret in an argument, a printed line, or the commit.
   const secrets = secretsOf(s);
-  assert.equal(secrets.length, 3);
+  assert.equal(secrets.length, 4);
   for (const secret of secrets) {
     for (const text of [...s.calls, s.gh.calls(), ...result.out, ...result.err]) assert.ok(!text.includes(secret), `a secret leaked into: ${text.slice(0, 100)}`);
     assert.equal(tryGit('--git-dir', s.origin, 'grep', '-q', '-F', '-e', secret, 'main'), null, 'a secret was committed');
@@ -212,7 +332,7 @@ test('a name another project holds moves every name to the next free suffix', as
   const config = parseConfig(join(s.dir, 'app/wrangler.jsonc'));
   assert.equal(workerName(config), 'recipe-box-2');
   assert.equal(JSON.parse(readFileSync(join(s.dir, '.claude/.wong-stack.json'), 'utf8')).components.memory.database, 'recipe-box-2-memory');
-  assert.deepEqual(s.fake.state.workers, ['recipe-box']);
+  assert.deepEqual(s.fake.state.workers, ['recipe-box', 'recipe-box-2', 'recipe-box-2-staging']);
 });
 
 test('no Paseo never stops the install; once Paseo is set up, a rerun adds the presets', async (t) => {

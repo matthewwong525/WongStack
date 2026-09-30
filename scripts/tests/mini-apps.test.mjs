@@ -74,6 +74,7 @@ const fixtures = new Map();
 
 function miniRepo(t, { branch = 'mini/tips', apps = {}, config = mainConfig(), installed = true, stagingExists = false } = {}) {
   const fixture = pack(t, { scripts: PACK, config, tools: { npm: fakeNpm, npx: fakeNpx }, prefix: 'mini-apps-' });
+  fixture.write('scripts/check-private-access.mjs', '// Preview mechanics fixture: provider coverage has separate integration tests.\n');
   const { root } = fixture;
   fixture.write('app/package.json', '{ "scripts": { "build:app": "node fake-build.mjs" } }\n');
   fixture.write('app/fake-build.mjs', fakeBuild);

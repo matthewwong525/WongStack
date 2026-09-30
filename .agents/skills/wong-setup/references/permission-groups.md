@@ -55,12 +55,18 @@ The whole ask on the token screen; the runbook grants itself every other group b
 | `User Details Read` | user | self-verification | `8acbe5bb0d54464ab867149d7f7cf8ac` |
 | `Workers R2 Storage Write` | account | checking whether R2 is on, and the memory bucket | `bf7481a1826f439697cb59a20b22293e` |
 
+| `Access: Apps and Policies Write` | account | private application and policies | `1e13c5124ca64b72b1969a67e8829049` |
+| `Access: Organizations, Identity Providers, and Groups Write` | account | organization and email login | `bfe0d8686a584fa680f4c53b5eb0de6d` |
+| `Access: Service Tokens Write` | account | separate machine authentication | `a1c0fec57cf94af79479a6d827fa518c` |
+| `Zero Trust Write` | account | private workspace setup | `b33f02c6f7284e05a6f20741c0bb0567` |
+
 ### The CI deploy token
 
 The GitHub secret gets its own token, never the user token. [The provisioning runbook](cloudflare.md#4d-the-ci-deploy-token) mints it with only these groups, on the one account; it cannot mint or edit tokens, so a leak from CI cannot widen itself. This table is the one list: `scripts/tests/downstream-contract.test.mjs` pins it for hosted setups, and `scripts/tests/provision.test.mjs` holds the script to it.
 
 | Name | Scope | When | Id |
 |---|---|---|---|
+| `Access: Apps and Policies Read` | account | always | `7ea222f6d5064cfa89ea366d7c1fee89` |
 | `Workers Scripts Write` | account | always | `e086da7e2179491d91ee5f35b3ca210a` |
 | `D1 Write` | account | always | `09b2857d1c31407795e75e3fed8617a1` |
 | `Account Settings Read` | account | always | `c1fde68c7bcc44588cbb6ddbc16d6480` |
@@ -68,17 +74,6 @@ The GitHub secret gets its own token, never the user token. [The provisioning ru
 | `Workers Routes Write` | zone | only when the wrangler config has `routes` on a custom domain | `28f4b596e7d643029c524985477ae49a` |
 
 `Workers Routes Write` is zone-scoped: its `resources` entry names the zone, not the account.
-
-### The opt-in Access branch
-
-Added only when a user asks for a login wall; droppable afterward.
-
-| Name | Scope | Id |
-|---|---|---|
-| `Access: Apps and Policies Write` | account | `1e13c5124ca64b72b1969a67e8829049` |
-| `Access: Organizations, Identity Providers, and Groups Write` | account | `bfe0d8686a584fa680f4c53b5eb0de6d` |
-| `Access: Service Tokens Write` | account | `a1c0fec57cf94af79479a6d827fa518c` |
-| `Zero Trust Write` | account | `b33f02c6f7284e05a6f20741c0bb0567` |
 
 ## The two traps
 

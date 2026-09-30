@@ -6,7 +6,7 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, the test workflow with its scripts and its shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, scripts and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
@@ -60,7 +60,7 @@ Every `/wong-sync`, however old, reads this page from the source, so the plan's 
 
 - Go straight into `/plan`: run any `/explore` as its bounded pass, never stopping at *Plan it?*.
 - When `catchUp.needed`, plan each reported move by [catching up an older install](catch-up.md).
-- Carry each applicable `updating` note as a task; post-publish steps come after the gate.
+- Carry each applicable `updating` note as a task; post-publish steps come after the gate. For the private-default release, follow [the privacy migration](catch-up.md#privacy-migration).
 - Before the install-record task, run `node <source path>/.claude/skills/wong-sync/scripts/merge-check.mjs --target <target root> --source <source path> --from <installed commit>`; take or name every missing hunk.
 - Write Why and What Changes for the person, not an engineer, as five groups: what they get, what changes in how they work, what of theirs stays, what is left out and why, and what they do themselves. Name a file, skill, or command there only when they must type it, and keep to 12 code spans or fewer; counts, paths, and commands go in the design and tasks.
 

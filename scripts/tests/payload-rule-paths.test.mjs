@@ -50,3 +50,29 @@ test('a path outside the rule is named in the failure', () => {
   assert.deepEqual(missing, ['mini-apps/other.mjs', 'wiki/new.md']);
   assert.match(message(missing), /miss mini-apps\/other\.mjs, wiki\/new\.md/);
 });
+
+test('shipped workflows and their local action receive every static file dependency', () => {
+  const manifest = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
+  const groups = ['core', 'ui', 'pack', 'scaffold'].map(name => manifest[name]);
+  const files = new Set(groups.flatMap(group => group.files ?? []));
+  const dirs = groups.flatMap(group => group.dirs ?? []);
+  const excluded = groups.flatMap(group => group.exclude ?? []);
+  const shipped = path => !excluded.some(item => path === item || path.startsWith(`${item}/`)) &&
+    (files.has(path) || dirs.some(dir => path.startsWith(`${dir}/`)));
+  const workflows = [...files].filter(path => path.startsWith('.github/workflows/'));
+  assert.deepEqual(workflows.sort(), ['.github/workflows/deploy.yml', '.github/workflows/test.yml']);
+  const checked = new Set();
+  const check = path => {
+    assert.ok(shipped(path), `${path} is referenced by installed CI but absent from the full payload`);
+    if (checked.has(path)) return;
+    checked.add(path);
+    const text = read(path).replace(/^\s*#.*$/gm, '');
+    for (const match of text.matchAll(/node-version-file:\s*([^\s#]+)/g)) check(match[1]);
+    for (const match of text.matchAll(/uses:\s*\.\/([^\s#]+)/g)) check(`${match[1]}/action.yml`);
+    for (const match of text.matchAll(/(?:node|bash)\s+["']?(?:\$GITHUB_WORKSPACE\/)?((?:scripts|mini-apps|\.github)\/[\w./-]+\.(?:mjs|sh))/g)) check(match[1]);
+  };
+  workflows.forEach(check);
+  assert.ok(checked.has('.nvmrc'));
+  assert.ok(checked.has('.github/scripts/app-untouched.sh'));
+  assert.ok(checked.has('mini-apps/is-test-file.mjs'));
+});
