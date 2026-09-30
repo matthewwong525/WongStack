@@ -1,0 +1,29 @@
+{
+  "$comment": "Title and first visible text of real pages, read with agent-browser get title and get text body on 2026-09-30, trimmed. cloud-browser.test.mjs classifies each.",
+  "pages": [
+    {
+      "name": "Cloudflare's challenge",
+      "expect": "check",
+      "title": "Just a moment...",
+      "text": "www.ubereats.com\nPerforming security verification\nThis website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot.\nVerify you are human\nRay ID: 8c1f0e2b9a7d4c3e\nPerformance and Security by Cloudflare"
+    },
+    {
+      "name": "Cloudflare's block page",
+      "expect": "block",
+      "title": "Attention Required! | Cloudflare",
+      "text": "Please enable cookies.\nSorry, you have been blocked\nYou are unable to access skipthedishes.com\nWhy have I been blocked?\nThis website is using a security service to protect itself from online attacks."
+    },
+    {
+      "name": "Cloudflare error 1020",
+      "expect": "block",
+      "title": "Access denied | order.online used Cloudflare to restrict access",
+      "text": "Error 1020\nRay ID: 8c1f0e2b9a7d4c3f\nAccess denied\nWhat happened?\nThis website is using a security service to protect itself from online attacks."
+    },
+    {
+      "name": "An ordinary page",
+      "expect": "none",
+      "title": "Order Grillies Delivery Online | Menu & Prices | Uber Eats",
+      "text": "Skip to content\nUber Eats Home\nDeliver now\nGrillies\n4.7 (500+) Burgers • $$\nPickup\nDelivery\nFeatured items\nThe Classic Burger\n$14.99"
+    }
+  ]
+}

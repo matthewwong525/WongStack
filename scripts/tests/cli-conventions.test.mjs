@@ -26,6 +26,7 @@ const scripts = {
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
   '.agents/skills/explore/scripts/other-work.mjs': [],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
+  '.agents/skills/browser/scripts/cloud-browser.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/wong-sync/scripts/merge-check.mjs': [],

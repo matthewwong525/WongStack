@@ -1,6 +1,6 @@
 # Browsing
 
-Browsing is how the agent uses websites as you: it keeps your logins, logs in with the passwords you save for it, shows you what it's doing, and hands you the browser when a step needs you. It works the same for every repo on the computer.
+Browsing is how the agent uses websites as you: it keeps your logins, logs in with the passwords you save for it, shows you what it's doing, moves to Cloudflare's browser when a site blocks its own, and hands you the browser when a step needs you. It works the same for every repo on the computer.
 
 **API key and token website steps use your own browser.** Before opening or interacting with a token page, follow [the token website procedure](secrets.md#api-token-website-steps), including when ordinary browsing reaches such a step. It takes precedence over saved logins, pictures, and remote hand-over below; the agent gives you the service link and short steps.
 
@@ -55,7 +55,7 @@ When a step needs you, the agent sends you a private link that opens its browser
 - **Room above the phone keyboard.** While the on-screen keyboard is open, the hand-over header, view tabs and navigation hide, and the selected field comes into view. Dismissing the keyboard brings the controls back, keeping your typing. The website keeps its size and readable writing; a hardware keyboard leaves the controls visible. Your phone browser's own bars stay under its control.
 - **On a phone, the page fits your screen.** A window narrower than 800 points gets the site's own phone layout, with enough height to see a whole login screen by swiping. A wider visible form expands the browser width within its limits, and you can drag sideways to reach both edges without shrinking the writing. Turning the phone re-fits it; opening the keyboard keeps the remote page steady. Successful navigation returns the preview to the top. The page goes back to desktop size when the link closes.
 
-- **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. API key and token website steps follow [the own-browser procedure](secrets.md#api-token-website-steps). The agent never tries to get past a login or check itself: no retries, no disguised browser, no solving service. A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
+- **When.** A login, a captcha, a code sent to you, any input only you can give, or you saying *let me take over*. A bot check or block that stops the agent's own browser, such as Cloudflare's *Verify you are human*, moves the site to [Cloudflare's browser](#when-a-site-blocks-the-agents-browser) instead: a link can't help, because the site judges the browser, not your tap. API key and token website steps follow [the own-browser procedure](secrets.md#api-token-website-steps). The agent never tries to get past a login or check itself, and [nothing is disguised](#nothing-is-disguised). A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
 - **Ask first.** Before it sends a link, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *I need you to log in to your bank.* `Ready, send the link / Not now`. It sends the link only once you reply, so the 10 minutes start when you're there, not while you're away. A question waits for you; a link dies. If your last message was *let me take over*, you're there, so the link comes straight away.
 - **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. `open` closes blank tabs and brings the task's page to the front, so the link never opens on an empty page:
 
@@ -71,6 +71,52 @@ When a step needs you, the agent sends you a private link that opens its browser
 - **After it closes.** A successful requested finish wakes the chat that opened the link, even if it stopped waiting. The watcher closes private input first and makes one bounded notification attempt through the installed Paseo CLI. It sends only completion identity, mode, result, saved login/key names, and Worker-key names; never a private address, page content, or credential. `HANDOVER_COMPLETION` identifies the same event in `wait` and the notification: handle that identity once, resume the original task, and consume a duplicate without doing the task again. `HANDOVER_NOTIFICATION=notified` means dispatch was acknowledged, not that the task has finished. Missing workspace identity or CLI gives `unavailable`; a failed or ambiguous send gives `unconfirmed`, with no automatic resend. The page tells you to return to chat and say *continue*; saved inputs stay saved. Cancellation, expiry, and incomplete input never announce readiness (`ready: false` and `not-requested`). With no browser finish supplied, keep the explicit *done* in chat followed by `close`. On `done`, the agent takes a fresh snapshot, because you may have moved the page, and carries on. On `timeout`, it says so and offers a new link. On `HANDOVER_NEEDS=cloudflared`, it asks, installs [Cloudflare's tunnel tool](required-tools.md), and tries again.
 
 **Is the link safe?** Each link gets a new random address plus a secret key that only the link carries, and it dies once you're past the step, when you say *done*, or after 10 minutes, even if the chat stops. A copy left in the chat is dead too. Anyone who sees it while it's open, say over your shoulder, can use the browser until it closes. Cloudflare carries the connection, so like any site it hosts, it could in principle see what you type; your app already runs on Cloudflare, so this adds no new company to trust. To list the fields, the page reads each one's label, kind, position and size, a visible form's width, a dropdown's choices, native form actions' labels, association, geometry, and visible/enabled state, and navigation details limited to the browser history length and the original page address, never what's in the fields; what you type goes to the page as key presses and is never read back or saved. The agent reads only the page's address, or whether the box it waits on is still there: never the page, the list, what you type, or a picture of it. The page shows only this task's browser, never the agent's other browser sessions. The browser runs with no window, so Chrome can't offer to save your password; only the login itself is kept, as before.
+
+## When a site blocks the agent's browser
+
+Some sites put a *Verify you are human* check in front of the agent's browser, or turn it away. The agent then carries on in Cloudflare's cloud browser, which tells sites it's an agent working for a person, and many let it in. [`cloud-browser.mjs`](../../.agents/skills/browser/scripts/cloud-browser.mjs) runs it with the same `agent-browser` commands.
+
+1. **Spot it.** On a site's first page, the agent reads only its title and first lines:
+
+   ```bash
+   node .claude/skills/browser/scripts/cloud-browser.mjs check   # BROWSER_BLOCKED=check|block|none
+   ```
+
+   `check` means Cloudflare's check held about 15 seconds; `block` means its block page or error 1020. Another site's plain refusal, such as one naming the server's address, counts as `block`. It never runs during a hand-over.
+2. **Switch, and say so in one line.** *Uber Eats blocked my browser, so I'm using Cloudflare's.* No retry in its own browser, and no question: a switch costs cents.
+
+   ```bash
+   node .claude/skills/browser/scripts/cloud-browser.mjs open   # CLOUD_BROWSER_CDP=ws://127.0.0.1:<port>/<secret>, CLOUD_BROWSER_SESSION=cloud-1
+   agent-browser --session cloud-1 --cdp "<CLOUD_BROWSER_CDP>" open https://www.ubereats.com/
+   ```
+
+   Every command for that session names both `--session` and `--cdp`: one without `--cdp` starts the agent's own browser instead. `CLOUD_BROWSER_GRANTED=` names a permission your Cloudflare key just gave itself: report it. `CLOUD_BROWSER_NEEDS=` names one to add by hand. `CLOUD_BROWSER_QUOTA=used-up` (exit 3) means the account's cloud browser time is used up: say so plainly, and give the site's link and the steps for your own device.
+3. **Bring the login.** Before opening the site, the agent copies just that site's login in, naming each host it logs in on (Uber Eats signs in on `uber.com`):
+
+   ```bash
+   node .claude/skills/browser/scripts/cloud-browser.mjs carry-in --site ubereats.com --site uber.com   # CARRY=done|none|busy
+   ```
+
+   Only those sites' cookies and storage move, never another site's login or a check's pass, and the copy is deleted straight after. `busy` means another task holds the personal browser: carry on without the login. A site with nothing to copy, or one that rejects the copy, gets [a saved login or a hand-over](#saved-browser-logins), as for any login.
+4. **Hand over the same way.** A code or login in the cloud browser gets [the same private link](#hand-the-browser-over), naming the session: `AGENT_BROWSER_SESSION=cloud-1 AGENT_BROWSER_CDP="<CLOUD_BROWSER_CDP>" node .claude/skills/hand-over/scripts/hand-over.mjs open …`.
+5. **Finish.** The agent copies any refreshed login back, then closes the session:
+
+   ```bash
+   node .claude/skills/browser/scripts/cloud-browser.mjs carry-back --site ubereats.com --site uber.com
+   agent-browser --session cloud-1 --cdp "<CLOUD_BROWSER_CDP>" close
+   node .claude/skills/browser/scripts/cloud-browser.mjs close
+   ```
+
+   A session also closes by itself once `agent-browser` lets go of it, or after 30 minutes (`open --minutes N` raises that), even if the chat stops. Cloudflare closes one idle for 10 minutes, say while you think over *Pay now?*: reopen, carry the login in again, and go on, since the cart lives in the account.
+6. **Both refused.** When Cloudflare's browser is turned away too, as DoorDash does, the agent stops browsing that site. It gives you the site's link and the steps to do on your own phone, not a hand-over link.
+
+**Cloud first.** Say *use the cloud browser first* and the agent runs `cloud-browser.mjs first cloud`: tasks in every repo on this computer then start there, and a site that refuses it moves to the agent's own browser. `first local` switches back; `first` alone prints `BROWSER_FIRST=`.
+
+### Nothing is disguised
+
+The agent never hides that its browser is automated, changes the browser's identity to pass a check, sends its traffic through someone else's or a hired address, uses a check-solving service, or moves a check's pass from one browser to another. That holds even when you ask, and when you do the tapping: it offers Cloudflare's browser, or the step on your own device.
+
+**What it costs.** The Workers Paid plan includes 10 cloud browser hours a month, then $0.09 an hour; the free plan gives 10 minutes a day. Cloudflare can see the pages in its browser, as it already carries your app and the hand-over link.
 
 ## Save your passwords
 
