@@ -69,3 +69,5 @@ Each wongstack.com server runs a small helper that takes wongstack.com's request
 - **2026-09-30** — Assumed: this ships as a minor release with a changelog entry, because past `server/` changes did and wongstack.com pins a release.
 - **2026-09-30** — Assumed: this does not wait for wongstack-cloud PR #47, because #47 changes only the dashboard's first message; the only order is that this ships before wongstack.com's `agent-from-source`.
 - **2026-09-30** — Assumed: the README says the agent opens no inbound port except `copy-send`'s one-time listener for the job's peer, instead of a flat "never", because that job does listen; and `payload-manifest.md`'s not-copied list names the `server/` agent, because it is source-only like `setup.sh`.
+- **2026-09-30** — Check: `scripts/tests/.c8rc.json` adds `server/agent/*.mjs` to coverage, because the moved agent must count toward the coverage floor; this tightens the check.
+- **2026-09-30** — Check: `server/agent/agent.mjs` keeps its `c8 ignore` on the process entry point, moved unchanged from wongstack-cloud, because only systemd runs that block and the tests call `main` directly.
