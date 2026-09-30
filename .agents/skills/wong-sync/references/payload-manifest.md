@@ -60,7 +60,7 @@ Every `/wong-sync`, however old, reads this page from the source, so the plan's 
 
 - Go straight into `/plan`: run any `/explore` as its bounded pass, never stopping at *Plan it?*.
 - When `catchUp.needed`, plan each reported move by [catching up an older install](catch-up.md).
-- Carry each applicable `updating` note as a task; post-publish steps come after the gate.
+- Carry each applicable `updating` note as a task; post-publish steps come after the gate. For the private-default release, follow [the privacy migration](catch-up.md#privacy-migration).
 - Before the install-record task, run `node <source path>/.claude/skills/wong-sync/scripts/merge-check.mjs --target <target root> --source <source path> --from <installed commit>`; take or name every missing hunk.
 - Write Why and What Changes for the person, not an engineer, as five groups: what they get, what changes in how they work, what of theirs stays, what is left out and why, and what they do themselves. Name a file, skill, or command there only when they must type it, and keep to 12 code spans or fewer; counts, paths, and commands go in the design and tasks.
 

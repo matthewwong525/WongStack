@@ -41,13 +41,18 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
   // disallow_importable_env: code reaches a binding only through the env a
   // route hands it, so a mini app can not import the memory store.
   "compatibility_flags": ["nodejs_compat", "disallow_importable_env"],
-  // The Worker runs first for every path it serves. Once this list exists,
-  // any path NOT in it gets the single-page fallback, even a POST (which gets
-  // 405), so each Worker route must be here — add your own prefixes too.
+  // Signed Access identity is checked before every page, asset, API, and mini app.
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/_memory/*", "/apps/*"]
+    "run_worker_first": true
+  },
+  "vars": {
+    "WONG_ENVIRONMENT": "production",
+    "CF_ACCESS_TEAM_DOMAIN": "<access team domain>",
+    "CF_ACCESS_AUD": "<access audience>",
+    "CF_ACCESS_APP_ID": "<access app id>",
+    "CF_ACCESS_WORKER_ID": "<production Worker id>"
   },
   "d1_databases": [
     {
@@ -70,6 +75,13 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
   "env": {
     "staging": {
       "name": "<your-worker>-staging",
+      "vars": {
+        "WONG_ENVIRONMENT": "staging",
+        "CF_ACCESS_TEAM_DOMAIN": "<access team domain>",
+        "CF_ACCESS_AUD": "<access audience>",
+        "CF_ACCESS_APP_ID": "<access app id>",
+        "CF_ACCESS_WORKER_ID": "<staging Worker id>"
+      },
       "d1_databases": [
         {
           "binding": "DB",
@@ -80,6 +92,11 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
       ],
       // Only if production declares crons — see the fifth rule below.
       "triggers": { "crons": [] }
+    },
+    "local": {
+      "name": "<your-worker>-local",
+      "vars": { "WONG_ENVIRONMENT": "local", "SKIP_AUTH": "true" },
+      "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-local", "database_id": "<production database_id>", "remote": false, "migrations_dir": "../schema/migrations" }]
     }
   }
 }
@@ -120,7 +137,7 @@ Add these blank, commented lines. The [credentials page](../../../../wiki/stack/
 CLOUDFLARE_API_TOKEN=
 # Your Cloudflare account ID (dashboard → any domain → Overview, or the URL).
 CLOUDFLARE_ACCOUNT_ID=
-# Cloudflare Access service token — lets CI reach Access-gated preview URLs.
+# Separate verification credential, provisioned into ignored .env; never a human login token.
 CF_ACCESS_CLIENT_ID=
 CF_ACCESS_CLIENT_SECRET=
 ```

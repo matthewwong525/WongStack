@@ -14,6 +14,7 @@ import {
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
 import { ACCOUNT, GROUPS, TOKEN, fakeCloudflare, fakeGh, groupId, startingPolicies } from './fixtures/cloudflare.mjs';
+import { humanEmails } from '../../.agents/skills/wong-setup/scripts/private-access.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SCRIPT = join(repoRoot, '.agents/skills/wong-setup/scripts/provision.mjs');
@@ -21,6 +22,211 @@ const REPO = 'ada/recipe-box';
 const TODAY = '2026-09-27';
 const EMAIL = 'ada@example.com';
 const noSleep = async () => {};
+
+test('private setup rejects unreachable owner identities before any provider mutation', async (t) => {
+  const env = await setup(t);
+  for (const ownerEmail of ['', 'bad', 'user@workspace.invalid', '42+ada@users.noreply.github.com']) {
+    await assert.rejects(env.provision({ ownerEmail }), { reason: 'access', message: /reachable owner email/ });
+  }
+  assert.equal(env.fake.calls.length, 0);
+  const report = await env.provision({ ownerEmail: ' ADA@Example.COM ' });
+  assert.equal(report.access.ownerEmail, EMAIL);
+  assert.equal(report.access.humanLogin, 'unverified');
+});
+
+test('organization and PIN setup recover after an interruption without changing existing settings', async (t) => {
+  const env = await setup(t);
+  env.fake.state.organization = null;
+  env.fake.state.identityProviders = [{ id: 'keep-oidc', type: 'oidc' }];
+  env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/identity_providers`];
+  await assert.rejects(env.provision(), { reason: 'access', message: /finish Zero Trust onboarding/ });
+  assert.deepEqual(env.fake.state.databases, []);
+  assert.equal(existsSync(join(env.dir, 'app/wrangler.jsonc')), false);
+  const organization = structuredClone(env.fake.state.organization);
+  env.fake.state.refuse = [];
+  await env.provision();
+  await env.provision();
+  assert.deepEqual(env.fake.state.organization, organization);
+  assert.equal(env.fake.count(`POST /accounts/${ACCOUNT}/access/organizations`), 1);
+  assert.equal(env.fake.state.identityProviders.filter(p => p.type === 'onetimepin').length, 1);
+  assert.deepEqual(env.fake.state.identityProviders[0], { id: 'keep-oidc', type: 'oidc' });
+});
+
+test('an onboarding refusal stays closed and the widen uses account-scoped Access groups', async (t) => {
+  const env = await setup(t);
+  await env.widen();
+  const held = env.fake.state.policies.flatMap(p => p.permission_groups.map(g => g.id));
+  assert.ok(held.includes(groupId('Access: Apps and Policies Write')));
+  assert.ok(!held.includes('959972745952452f8be2452be8cbb9f2'));
+  env.fake.state.organization = null;
+  env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/organizations`];
+  await assert.rejects(env.provision(), { reason: 'access', message: /no business content was published/ });
+  assert.deepEqual(env.fake.state.workers, []);
+  assert.deepEqual(env.fake.state.databases, []);
+  assert.deepEqual(env.gh.secrets(), {});
+});
+
+test('private bootstrap precedes app publication and records real Worker IDs', async (t) => {
+  const env = await setup(t);
+  const report = await env.provision();
+  assert.deepEqual(report.access.workers.map(w => w.name), ['recipe-box', 'recipe-box-staging']);
+  assert.ok(report.access.workers.every(w => /^[a-f0-9]{32}$/.test(w.id) && w.id !== w.name));
+  assert.deepEqual(env.fake.state.workerSubdomains, {
+    'recipe-box': { enabled: false, previews_enabled: false },
+    'recipe-box-staging': { enabled: false, previews_enabled: false },
+  });
+  const uploads = env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/'));
+  assert.equal(uploads.length, 2);
+  for (const upload of uploads) {
+    assert.match(upload.body, /status:503/);
+    assert.ok(!upload.body.includes('assets'));
+  }
+  const [app] = env.fake.state.accessApps;
+  assert.equal(app.domain, 'recipe-box.ada.workers.dev');
+  assert.deepEqual(app.destinations.filter(d => d.type === 'worker').map(d => d.worker_id), report.access.workers.map(w => w.id));
+  assert.equal(env.record().components.access.appId, app.id);
+  await env.provision();
+  assert.equal(env.fake.state.accessApps.length, 1);
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+});
+
+test('interrupted bootstrap reuses owned Workers without opening preview publication', async (t) => {
+  const env = await setup(t);
+  env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/apps`];
+  await assert.rejects(env.provision(), /Cloudflare POST/);
+  assert.equal(existsSync(join(env.dir, 'app/wrangler.jsonc')), false);
+  assert.deepEqual(env.gh.secrets(), {});
+  env.fake.state.refuse = [];
+  await env.provision();
+  assert.equal(env.fake.state.workers.length, 2);
+  assert.equal(env.fake.state.accessApps.length, 1);
+});
+
+test('unowned Workers and higher-precedence apps are untouched and block protected success', async (t) => {
+  const env = await setup(t);
+  env.fake.state.workers.push('recipe-box');
+  await assert.rejects(env.provision(), { reason: 'access', message: /not owned/ });
+  assert.equal(env.fake.count(`PUT /accounts/${ACCOUNT}/workers/scripts/recipe-box`), 0);
+  env.fake.state.workers = [];
+  await env.provision();
+  const workerId = env.record().components.access.workers[0].id;
+  env.fake.state.workerDetails['recipe-box'] = {
+    id: workerId, name: 'recipe-box',
+    routes: [{ pattern: 'https://*.business.example.com/path/*' }],
+    references: { domains: [{ hostname: 'private.example.com' }] },
+  };
+  for (const destination of [
+    { type: 'preview_worker', worker_id: workerId },
+    { type: 'public', uri: 'old-version-recipe-box.ada.workers.dev/private' },
+    { type: 'public', uri: '*.ada.workers.dev/private' },
+    { type: 'public', uri: 'private.example.com/private' },
+    { type: 'public', uri: 'app.business.example.com/path' },
+  ]) {
+    const conflict = { id: 'unowned-conflict', destinations: [destination], policies: [{ decision: 'bypass' }] };
+    env.fake.state.accessApps.push(conflict);
+    await assert.rejects(env.provision(), { reason: 'access', message: /hostname\/path\/preview precedence/ });
+    assert.deepEqual(env.fake.state.accessApps.at(-1), conflict);
+    env.fake.state.accessApps.pop();
+  }
+  env.fake.state.accessApps.push({ id: 'other-app', destinations: [{ type: 'worker', worker_id: 'f'.repeat(32) }] });
+  await env.provision();
+  assert.equal(env.fake.state.accessApps.length, 2);
+});
+
+test('exact human emails retain the owner and exclude synthetic workspace identities', () => {
+  assert.deepEqual(humanEmails(' ADA@Example.COM ', ['Friend@example.com', ' friend@EXAMPLE.com ', 'extra@workspace.invalid', 'ada@example.com']), ['ada@example.com', 'friend@example.com']);
+  assert.deepEqual(humanEmails(EMAIL, []), [EMAIL]);
+  assert.throws(() => humanEmails('extra@workspace.invalid', []), /reachable owner email/);
+  assert.throws(() => humanEmails(EMAIL, ['not-an-email']), /reachable owner email/);
+});
+
+test('human membership changes preserve separate machine permissions and only production memory is exempt', async (t) => {
+  const env = await setup(t);
+  const first = await env.provision({ teammateEmails: ['Friend@Example.com', 'extra@workspace.invalid'] });
+  const [app] = env.fake.state.accessApps;
+  const machine = structuredClone(app.policies.find(p => p.decision === 'non_identity'));
+  assert.deepEqual(app.policies.find(p => p.decision === 'allow').include, [{ email: { email: EMAIL } }, { email: { email: 'friend@example.com' } }]);
+  const override = [{ behavior: 'public', path_pattern: '/_memory/*' }];
+  assert.deepEqual(app.destinations[0].overrides, override);
+  assert.equal(app.destinations[1].overrides, undefined);
+  assert.deepEqual(app.destinations[2].overrides, override);
+  assert.ok(!JSON.stringify(app.destinations).includes('/public'));
+  const saved = readEnv(join(env.dir, '.env'));
+  assert.equal(saved.CF_ACCESS_CLIENT_SECRET, env.fake.state.serviceTokens[0].client_secret);
+  assert.equal(first.access.serviceTokenId, env.fake.state.serviceTokens[0].id);
+  assertNoSecret(env, JSON.stringify(first));
+  await env.provision();
+  assert.equal(app.policies.find(p => p.decision === 'allow').include.length, 2, 'an installer rerun retains the managed roster');
+  await env.provision({ teammateEmails: [] });
+  assert.deepEqual(app.policies.find(p => p.decision === 'allow').include, [{ email: { email: EMAIL } }]);
+  assert.deepEqual(app.policies.find(p => p.decision === 'non_identity'), machine);
+  assert.equal(env.fake.state.serviceTokens.length, 1);
+  assert.equal(readEnv(join(env.dir, '.env')).CF_ACCESS_CLIENT_SECRET, saved.CF_ACCESS_CLIENT_SECRET);
+});
+
+test('generated environments share the owned app and keep authentication substitution local', async (t) => {
+  const env = await setup(t);
+  const report = await env.provision();
+  const config = env.config();
+  assert.equal(config.assets.run_worker_first, true);
+  for (const [vars, worker] of [[config.vars, report.access.workers[0]], [config.env.staging.vars, report.access.workers[1]]]) {
+    assert.equal(vars.CF_ACCESS_APP_ID, report.access.appId);
+    assert.equal(vars.CF_ACCESS_AUD, report.access.audience);
+    assert.equal(vars.CF_ACCESS_TEAM_DOMAIN, report.access.teamDomain);
+    assert.equal(vars.CF_ACCESS_WORKER_ID, worker.id);
+    assert.equal(vars.SKIP_AUTH, undefined);
+  }
+  assert.deepEqual(config.env.local.vars, { WONG_ENVIRONMENT: 'local', SKIP_AUTH: 'true' });
+  assert.equal(config.env.local.d1_databases[0].remote, false);
+  assert.equal(config.env.local.d1_databases.some(db => db.binding.startsWith('MEMORY')), false);
+});
+
+test('provider object-key reordering does not invalidate semantic coverage', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  const [app] = env.fake.state.accessApps;
+  app.destinations = app.destinations.map(destination => ({
+    ...(destination.overrides && { overrides: destination.overrides.map(({ behavior, path_pattern }) => ({ path_pattern, behavior })) }),
+    ...(destination.worker_id && { worker_id: destination.worker_id }),
+    ...(destination.uri && { uri: destination.uri }), type: destination.type,
+  }));
+  for (const policy of app.policies) policy.include = policy.include.map(rule => Object.fromEntries(Object.entries(rule).reverse()));
+  const updatedBefore = env.fake.count(`PUT /accounts/${ACCOUNT}/access/apps/`);
+  await env.provision();
+  assert.equal(env.fake.count(`PUT /accounts/${ACCOUNT}/access/apps/`), updatedBefore, 'reordering requires no provider mutation');
+});
+
+test('human sessions default to thirty days while reviewed shorter settings and machine lifetimes persist', async (t) => {
+  const env = await setup(t);
+  const first = await env.provision();
+  const [app] = env.fake.state.accessApps;
+  const human = app.policies.find(policy => policy.decision === 'allow');
+  const machine = structuredClone(env.fake.state.serviceTokens[0]);
+  assert.equal(first.access.sessionDuration, '720h');
+  assert.equal(human.session_duration, '720h');
+  assert.equal(machine.duration, '8760h');
+  app.session_duration = '168h';
+  human.session_duration = '30m';
+  const updated = await env.provision({ teammateEmails: ['friend@example.com'] });
+  assert.equal(updated.access.sessionDuration, '168h');
+  assert.equal(human.session_duration, '30m');
+  assert.deepEqual(env.fake.state.serviceTokens[0], machine);
+});
+
+test('an interrupted one-time machine secret handoff recovers only the owned service token', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  const secretFile = join(env.dir, '.env');
+  writeFileSync(secretFile, readFileSync(secretFile, 'utf8').split('\n').filter(line => !line.startsWith('CF_ACCESS_CLIENT_SECRET=')).join('\n'));
+  env.fake.state.serviceTokens.push({ id: 'unrelated-service', name: 'Other app verification', client_id: 'other.access', client_secret: 'other-secret' });
+  const unrelated = structuredClone(env.fake.state.serviceTokens[1]);
+  const recovered = await env.provision();
+  assert.equal(env.fake.state.serviceTokens.length, 2);
+  assert.deepEqual(env.fake.state.serviceTokens[1], unrelated);
+  assert.equal(readEnv(secretFile).CF_ACCESS_CLIENT_SECRET, env.fake.state.serviceTokens[0].client_secret);
+  assert.ok(recovered.updated.includes('workspace verification service secret recovered in .env'));
+  assertNoSecret(env, JSON.stringify(recovered));
+});
 
 // ── a target repo, a fake Cloudflare, a fake gh ─────────────────────────────
 
@@ -31,6 +237,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
   const dir = join(root, 'recipe-box');
   mkdirSync(join(dir, '.agents', 'skills'), { recursive: true });
   execFileSync('git', ['init', '-q', '-b', 'main', dir]);
+  writeFileSync(join(dir, '.git/info/exclude'), '.env*\n');
   if (email) execFileSync('git', ['-C', dir, 'config', 'user.email', email]);
   cpSync(join(repoRoot, '.agents/skills/memory'), join(dir, '.agents/skills/memory'), { recursive: true });
   symlinkSync('.agents', join(dir, '.claude'));
@@ -58,7 +265,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
 
 /** Asserts no secret reached gh's arguments, a report, or a file the repo would commit. */
 function assertNoSecret(env, ...texts) {
-  const secrets = [TOKEN, ...env.fake.state.minted, readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN].filter(Boolean);
+  const secrets = [TOKEN, ...env.fake.state.minted, ...env.fake.state.serviceTokens.map(token => token.client_secret), readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN].filter(Boolean);
   const files = ['.claude/.wong-stack.json', 'app/wrangler.jsonc', 'app/package.json'].map((path) => join(env.dir, path)).filter(existsSync);
   for (const text of [env.gh.calls(), ...texts, ...files.map((file) => readFileSync(file, 'utf8'))]) {
     for (const secret of secrets) assert.ok(!text.includes(secret), `a secret leaked into: ${text.slice(0, 120)}`);
@@ -273,13 +480,13 @@ test('a fresh provision with R2 on makes the memory store, the key, both databas
   const deploy = env.fake.state.accountTokens.find((token) => token.name === 'recipe-box-deploy');
   assert.deepEqual(deploy.policies, [{
     effect: 'allow', resources: { [`com.cloudflare.api.account.${ACCOUNT}`]: '*' },
-    permission_groups: ['Workers Scripts Write', 'D1 Write', 'Account Settings Read', 'Workers R2 Storage Write'].map((name) => ({ id: groupId(name) })),
+    permission_groups: ['Access: Apps and Policies Read', 'Workers Scripts Write', 'D1 Write', 'Account Settings Read', 'Workers R2 Storage Write'].map((name) => ({ id: groupId(name) })),
   }]);
   assert.deepEqual(env.gh.secrets(), { CLOUDFLARE_API_TOKEN: env.fake.state.minted[0], CLOUDFLARE_ACCOUNT_ID: ACCOUNT });
 
   assert.deepEqual(report.urls, { production: 'https://recipe-box.ada.workers.dev', previews: 'https://<branch>-recipe-box-staging.ada.workers.dev' });
   assert.ok(report.created.includes('deploy token recipe-box-deploy'));
-  assert.deepEqual(report.reused, []);
+  assert.deepEqual(report.reused, ['Zero Trust organization', 'one-time PIN identity provider']);
   assertNoSecret(env, JSON.stringify(report));
 });
 
@@ -309,7 +516,10 @@ test('provisioning from a linked worktree keeps the key in the primary checkout\
   const report = await env.provision({ dir: worktree });
   assert.ok(report.created.includes(`admin memory key for ${EMAIL}, in .env`), JSON.stringify(report));
   assert.match(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
-  assert.equal(existsSync(join(worktree, '.env')), false, 'no key is written into the worktree');
+  const branchEnv = readEnv(join(worktree, '.env'));
+  assert.equal(branchEnv.CLOUDFLARE_MEMORY_TOKEN, undefined, 'the admin memory key stays in the primary checkout');
+  assert.equal(branchEnv.CLOUDFLARE_API_TOKEN, undefined, 'the user token is not copied');
+  assert.equal(branchEnv.CF_ACCESS_CLIENT_SECRET, readEnv(join(env.dir, '.env')).CF_ACCESS_CLIENT_SECRET, 'verification credentials follow the branch-copy convention');
 });
 
 // A bare repository's worktree has no primary checkout; setup once saved the keys in the worktree itself.

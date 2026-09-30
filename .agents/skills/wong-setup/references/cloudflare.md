@@ -2,9 +2,7 @@
 
 This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
 
-The user's whole job: sign up at Cloudflare, create a token with two permission rows, and paste it when asked. This runbook does the rest.
-
-**Idempotent.** Every step checks first and reuses what exists, reporting the reuse as a success. A stopped run runs again from the top.
+**Idempotent.** Reuse existing owned resources; resume a stopped run from the top.
 
 **Write for someone who does not know what a database is**, in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): name outcomes and the one fix, and explain `D1`, `binding`, or `9109` instead of saying them.
 
@@ -47,11 +45,9 @@ A non-zero exit → stop **before** asking for the token, saying the primary wor
 
 Confirm Git ignores the destination: `git -C "$PRIMARY_ROOT" check-ignore -q .env`. In a fresh folder, first add the `.env*` / `!.env.example` and `.dev.vars*` / `!.dev.vars.example` pairs to the file `git rev-parse --path-format=absolute --git-path info/exclude` returns, then re-check; the install still commits the `.gitignore` fragment. A failed re-check → stop before accepting a secret.
 
-No `DURABLE_ENV` → create it with the blank `CLOUDFLARE_*` lines from the source's [`.env.example`](../../../../.env.example) and say: *"I made a private `.env` file. Git ignores it, so its values stay on this machine."* An existing one stays as it is.
+No `DURABLE_ENV` → create it with the blank `CLOUDFLARE_*` lines from the source's [`.env.example`](../../../../.env.example) and say: *"I made a private `.env` file. Git ignores it, so its values stay on this machine."* When `ACTIVE_ROOT` is not `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file, not a symlink, [leave both files untouched](../../../../wiki/development/secrets.md#unseeded-linked-worktree-copies): never read its values to compare, or merge one into the other. Say: *"This linked worktree also has its own `.env`. I am using the durable primary-worktree copy and left the duplicate untouched."*
 
-When `ACTIVE_ROOT` is not `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file, not a symlink, [leave both files untouched](../../../../wiki/development/secrets.md#unseeded-linked-worktree-copies): never read its values to compare, or merge one into the other. Say: *"This linked worktree also has its own `.env`. I am using the durable primary-worktree copy and left the duplicate untouched."*
-
-Every later `.env` means `DURABLE_ENV`. Write a variable by replacing only its exact `KEY=` line or appending that one line; keep every other line.
+Later `.env` means `DURABLE_ENV`; replace or append only the exact `KEY=` line.
 
 ### 1c. Ask for the token
 
@@ -77,7 +73,7 @@ P="node <source checkout>/.agents/skills/wong-setup/scripts/provision.mjs"
 $P widen
 ```
 
-It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what the report's `granted` list names. Grant the Access groups only when a user asks for a login wall.
+It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what the report's `granted` list names. Access permissions are part of normal private setup.
 
 If it stops, **provision nothing**: give the cause, and list the permission names for the user to add by hand.
 
@@ -105,16 +101,6 @@ The script derives every name from the repository name and checks it against the
 $P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 ```
 
-```
-   repo "recipe-box"  →  database   recipe-box-db
-                         staging    recipe-box-db-staging
-                         worker     recipe-box
-                         staging    recipe-box-staging  (the env.staging name)
-                         memory     recipe-box-memory   (database and bucket, bound
-                                                         to the production Worker only)
-                         CI token   recipe-box-deploy
-```
-
 The report's `checked` list marks each name `free`, `ours` (made by this repo earlier), or `taken`. Name any `taken` one and offer the report's `base`, the first suffix that frees every name, such as `recipe-box-2`; the server installer takes it unasked.
 
 Apply the id-free fragments now (the `package.json` scripts, `.env.example` variables, and `.gitignore` entries) from [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md). No copied payload file may carry a database name, so the script fills `db:migrate:staging` and `db:migrate:prod` with the literal names in 4c.
@@ -122,8 +108,10 @@ Apply the id-free fragments now (the `package.json` scripts, `.env.example` vari
 After the one ask, one command runs 4b through 4d:
 
 ```bash
-$P provision --repo <owner/name> --base <base>
+$P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email>
 ```
+
+Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. A dashboard onboarding failure stays closed and is resumable. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
 
 ### 4b. The memory store
 
@@ -149,18 +137,13 @@ If the check fails, put the old token back in `.env` and stop. Teammates who hel
 
 ### 4c. The two app databases and the config
 
-The script reuses or creates production and a staging copy for branch deploys, so a branch never writes real data. Say: *"Two databases: the real one, and a practice one your test versions use."*
+Create/reuse distinct production and staging databases; branch deploys never write real data.
 
-With no `app/wrangler.jsonc`, the script creates it from the `wrangler.jsonc` fragment in [`stack-pack-fragments.md`](../../wong-sync/references/stack-pack-fragments.md), comments kept, with the **real ids**: production's in the top-level `d1_databases`, staging's in `env.staging`'s own `d1_databases`, and the 4b memory store at the top level only (`MEMORY_DB`, plus `MEMORY_BUCKET` with a bucket). Only the fragment creates this file, so its `main`, `assets`, `compatibility_date`, and `compatibility_flags` stay. It also writes the two `db:migrate:*` scripts into `app/package.json`. An existing config stays, apart from a new bucket's binding (4b's re-runs). The [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) brought `worker/index.ts` and the site; never ask the user to write a Worker.
+With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket; plan privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
 
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`; they need no Worker or config of their own.
 
-**Moving older mini apps.** An install with `mini-apps/wrangler.jsonc` runs mini apps on their own Workers, `<repo>-mini` and `<repo>-mini-staging`. They move to the main Worker:
-1. In the sync change: the `/apps/` route in `app/worker/index.ts` (the [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold)'s import and branch), `assets.binding` and `run_worker_first` from the `wrangler.jsonc` fragment, and deletion of `mini-apps/wrangler.jsonc`, `mini-apps/worker.ts`, `mini-apps/tsconfig.json`, `mini-apps/.gitignore`, and `mini-apps/apps/.assetsignore`.
-2. Once that change merges and production deploys, open `/apps/` and each saved app's `/apps/<name>/` on the production address.
-3. Only when they answer, delete both Workers: `DELETE /accounts/{account_id}/workers/scripts/<repo>-mini`, then `<repo>-mini-staging`. Then delete the `staging-mini` GitHub environment, if any.
-
-If an app does not answer, keep the old Workers and stop.
+**Moving older mini apps.** Merge `/apps/` routing and Worker-first assets into the main Worker. Remove the obsolete mini-app config, Worker, tsconfig, ignore files, and assetsignore only as reviewed changes. After production deploys, verify `/apps/` and every saved app; only then delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` GitHub environment. Keep them on failure.
 
 ### 4d. The CI deploy token
 
@@ -170,38 +153,25 @@ CI gets its own narrow token, never the user token ([why](../../../../wiki/stack
 - **Token and `CLOUDFLARE_API_TOKEN` secret both exist** (`gh secret list`) → current; it only adds a row the token now needs.
 - **The token exists, the secret doesn't** → it rolls the value and sets the secret. To rotate on request, run `gh secret delete CLOUDFLARE_API_TOKEN`, then the script again.
 
-It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. Say what the token can do: *"Automatic publishing uses its own small key. It can update your site and its databases, and nothing else."*
+It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. It can publish app/data changes and inspect private coverage; it cannot write Access policies.
 
 ### 4e. The workflow
 
 Confirm the payload's `.github/workflows/deploy.yml` exists; [the pipeline scripts own every deploy decision](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions).
 
-Check `gh auth status` for the `workflow` scope; missing → offer `gh auth refresh --scopes workflow` ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
+Missing `workflow` scope → offer `gh auth refresh --scopes workflow` ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
 
 ### 4f. First deploy
 
 The workflow deploys on push, so the first deploy comes when `/save` pushes; never push from here. Diagnose a red build with `gh run view --log-failed`; it needs no Cloudflare credential.
 
-Take both patterns from the `provision` report's `urls`; don't ask:
-
-```
-   production   https://<worker>.<subdomain>.workers.dev
-   previews     https://<branch>-<worker>-staging.<subdomain>.workers.dev
-```
-
-The preview line is a **pattern**; CI harvests each commit's real URL from the deploy output ([how](../../../../wiki/stack/d1-pipeline.md#how-the-alias-url-reaches-the-tooling)).
-
-**Warn that the URL may not work for a minute or two**: a new `workers.dev` hostname briefly serves a `404` or Cloudflare's *"There is nothing here yet"* page, and the user would think the deploy failed.
+Use the report's production URL. Treat preview URLs as patterns until CI returns an actual deployed URL ([discovery](../../../../wiki/stack/d1-pipeline.md#how-the-alias-url-reaches-the-tooling)). A new hostname may need a propagation retry.
 
 ### 4g. Smoke-test what you built
 
 After `/save` reports the first deploy, fetch the production URL once; never report a URL you did not fetch.
 
-```bash
-curl -s -o /dev/null -w '%{http_code}' "https://<worker>.<subdomain>.workers.dev/"
-```
-
-A public app returns `200`. Retry across the propagation window before calling it a failure; on a real mismatch, name the request and answer. [The Access runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser), not this step, checks an app behind a login wall.
+Expect anonymous Access denial, then independently verify machine access using `scripts/probe-private-access.mjs`. Retry propagation; name a real failure. Follow [the browser verification](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) for allowed email login on production, staging, and previews. A machine `200` alone leaves human login unverified.
 
 Once production has deployed, check memory with `$M digest`, through the production Worker with 4b's admin key; before, it reports the Worker does not answer.
 
@@ -214,7 +184,7 @@ State, in plain words:
 - What was created, and what was reused
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)
 - That CI publishes with its own small key, `<repo>-deploy`
-- That the app is **public**: anyone with the link can open it. A login wall is [the Access runbook](../../../../wiki/stack/cloudflare-access.md).
+- Private coverage, machine access, and human login as separate outcomes; pending onboarding or a missing browser check remains unverified.
 - When `command -v paseo` answers: how to chat from a phone, *"In Paseo, open Settings → your host → Pair Device."*
 
-End on the URL and the one next step. With the starter app: open the URL and copy the message in the box at the top into this chat; it walks the person through their first change.
+End on the URL and the one next step. With the starter app: open the URL, complete email login, and copy the message in the box at the top into this chat; it walks the person through their first change.

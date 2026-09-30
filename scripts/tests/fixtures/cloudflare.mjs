@@ -3,6 +3,7 @@
 // would block the event loop this server answers on.
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { d1Query } from './d1.mjs';
@@ -22,6 +23,12 @@ export const GROUPS = [
   ['User Details Read', 'user', '8acbe5bb0d54464ab867149d7f7cf8ac'],
   ['Workers R2 Storage Write', 'account', 'bf7481a1826f439697cb59a20b22293e'],
   ['Workers Routes Write', 'account.zone', '28f4b596e7d643029c524985477ae49a'],
+  ['Access: Apps and Policies Read', 'account', '7ea222f6d5064cfa89ea366d7c1fee89'],
+  ['Access: Apps and Policies Write', 'account', '1e13c5124ca64b72b1969a67e8829049'],
+  ['Access: Organizations, Identity Providers, and Groups Write', 'account', 'bfe0d8686a584fa680f4c53b5eb0de6d'],
+  ['Access: Service Tokens Write', 'account', 'a1c0fec57cf94af79479a6d827fa518c'],
+  ['Zero Trust Write', 'account', 'b33f02c6f7284e05a6f20741c0bb0567'],
+  ['Access: Apps and Policies Write', 'account.zone', '959972745952452f8be2452be8cbb9f2'],
   ['D1 Write', 'account.zone', 'zone0000000000000000000000000d1w'],
 ].map(([name, scope, id]) => ({ id, name, scopes: [`com.cloudflare.api.${scope}`] }));
 
@@ -56,6 +63,12 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     d1Failures: 0,
     minted: [],
     puts: [],
+    organization: { auth_domain: 'ada.cloudflareaccess.com', name: 'Existing organization', session_duration: '24h' },
+    identityProviders: [{ id: 'pin-existing', type: 'onetimepin' }, { id: 'oidc-existing', type: 'oidc' }],
+    accessApps: [],
+    serviceTokens: [],
+    workerDetails: {},
+    workerSubdomains: {},
   };
   const sqlite = new Map();
   const calls = [];
@@ -78,6 +91,66 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       return ok({ id: 'tok1' });
     }
     if (route === 'GET /accounts') return ok(state.accounts);
+    if (route === `GET ${account}/access/organizations`) return state.organization ? ok(state.organization) : no(404);
+    if (route === `POST ${account}/access/organizations`) {
+      state.organization = body;
+      return ok(body);
+    }
+    if (route === `GET ${account}/access/identity_providers`) return ok(state.identityProviders);
+    if (route === `POST ${account}/access/identity_providers`) {
+      const provider = { ...body, id: `provider-${++serial}` };
+      state.identityProviders.push(provider);
+      return ok(provider);
+    }
+    if (route === `GET ${account}/access/apps`) {
+      const page = Number(query.get('page') ?? 1);
+      const size = Number(query.get('per_page') ?? 1000);
+      return ok(state.accessApps.slice((page - 1) * size, page * size));
+    }
+    if (route === `POST ${account}/access/apps`) {
+      const app = { ...body, id: `app-${++serial}`, aud: `aud-${serial}` };
+      state.accessApps.push(app);
+      return ok(app);
+    }
+    if (route === `GET ${account}/access/service_tokens`) return ok(state.serviceTokens.map(({ client_secret: _clientSecret, ...token }) => token));
+    if (route === `POST ${account}/access/service_tokens`) {
+      const token = { ...body, id: `service-${++serial}`, client_id: `client-${serial}.access`, client_secret: `service-secret-${serial}` };
+      state.serviceTokens.push(token);
+      return ok(token);
+    }
+    const rotateService = url.pathname.match(new RegExp(`^${account}/access/service_tokens/([^/]+)/rotate$`));
+    if (method === 'POST' && rotateService) {
+      const token = state.serviceTokens.find(item => item.id === rotateService[1]);
+      if (!token) return no(404);
+      token.client_secret = `service-secret-${++serial}`;
+      return ok(token);
+    }
+    const accessApp = url.pathname.match(new RegExp(`^${account}/access/apps/([^/]+)(/policies(?:/([^/]+))?)?$`));
+    if (accessApp) {
+      const app = state.accessApps.find(item => item.id === accessApp[1]);
+      if (!app) return no(404);
+      if (!accessApp[2]) {
+        if (method === 'GET') return ok(app);
+        if (method === 'PUT') {
+          const previous = app.policies;
+          Object.assign(app, body);
+          app.policies = body.policies.map(ref => previous.find(policy => policy.id === ref.id));
+          return ok(app);
+        }
+      } else {
+        if (method === 'GET') return ok(app.policies);
+        if (method === 'POST') {
+          const policy = { ...body, id: `policy-${++serial}` };
+          app.policies.push(policy);
+          return ok(policy);
+        }
+        if (method === 'PUT') {
+          const policy = app.policies.find(item => item.id === accessApp[3]);
+          Object.assign(policy, body);
+          return ok(policy);
+        }
+      }
+    }
     if (route === `GET ${account}/d1/database`) {
       if (query.get('per_page') === '1' && state.refusedPolls > 0) {
         state.refusedPolls--;
@@ -101,7 +174,22 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       if (!sqlite.has(d1[1])) sqlite.set(d1[1], new DatabaseSync(':memory:'));
       return d1Query(sqlite.get(d1[1]), body);
     }
-    if (route === `GET ${account}/workers/scripts`) return ok(state.workers.map((id) => ({ id })));
+    if (route === `GET ${account}/workers/scripts`) return ok(state.workers.map((id) => ({ id, routes: state.workerDetails[id]?.routes ?? [] })));
+    const workerLookup = url.pathname.match(new RegExp(`^${account}/workers/workers/([^/]+)$`));
+    if (method === 'GET' && workerLookup) {
+      const name = workerLookup[1];
+      if (!state.workers.includes(name)) return no(404);
+      return ok(state.workerDetails[name] ?? { id: createHash('md5').update(name).digest('hex'), name, references: { domains: [] } });
+    }
+    const workerScript = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)(/subdomain)?$`));
+    if (workerScript && method === 'PUT' && !workerScript[2]) {
+      if (!state.workers.includes(workerScript[1])) state.workers.push(workerScript[1]);
+      return ok({ id: workerScript[1] });
+    }
+    if (workerScript && method === 'POST' && workerScript[2]) {
+      state.workerSubdomains[workerScript[1]] = body;
+      return ok(body);
+    }
     if (route === `GET ${account}/r2/buckets`) return state.r2 ? ok({ buckets: state.buckets.map((name) => ({ name })) }) : no(403, 10042, 'Please enable R2 through the Cloudflare Dashboard.');
     if (route === `POST ${account}/r2/buckets`) {
       if (!state.r2) return no(403, 10042, 'Please enable R2 through the Cloudflare Dashboard.');
@@ -117,9 +205,10 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     if (route === `GET ${account}/tokens`) return ok(state.accountTokens.map(({ id, name }) => ({ id, name })));
     if (route === `POST ${account}/tokens`) {
       const value = `deploy-secret-${++serial}`;
-      state.accountTokens.push({ id: `a-${body.name}`, name: body.name, status: 'active', policies: body.policies });
+      const id = createHash('md5').update(`${body.name}:${serial}`).digest('hex');
+      state.accountTokens.push({ id, name: body.name, status: 'active', policies: body.policies });
       state.minted.push(value);
-      return ok({ id: `a-${body.name}`, value });
+      return ok({ id, value });
     }
     const accountToken = url.pathname.match(new RegExp(`^${account}/tokens/([^/]+)(/value)?$`));
     if (accountToken) {
@@ -134,6 +223,10 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
         const value = `deploy-rolled-${++serial}`;
         state.minted.push(value);
         return ok(value);
+      }
+      if (method === 'DELETE') {
+        state.accountTokens = state.accountTokens.filter(token => token.id !== found.id);
+        return ok({ id: found.id });
       }
     }
     return no(500, 1000, `no route ${route}`);
@@ -151,7 +244,8 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     };
     if (req.headers.authorization !== `Bearer ${TOKEN}`) return send(no(403, 9109, 'Invalid access token'));
     if (state.refuse.some((prefix) => `${req.method} ${path}`.startsWith(prefix))) return send(no(500, 1000, 'refused by the test'));
-    send(handle(req.method, path, text ? JSON.parse(text) : undefined));
+    const multipart = req.headers['content-type']?.startsWith('multipart/form-data');
+    send(handle(req.method, path, text ? (multipart ? text : JSON.parse(text)) : undefined));
   });
   await new Promise((done) => server.listen(0, '127.0.0.1', done));
   const api = `http://127.0.0.1:${server.address().port}/client/v4`;

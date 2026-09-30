@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Business pages and previews require login
+
+New standalone and managed installs protect pages, assets, APIs, mini apps, and old/new previews automatically with email login. Human sessions default to 30 days; machine and memory credentials keep their separate lifetimes. Deployment checks refuse publication without native Worker protection. Managed team changes retain owner/machine access and revoke the workspace's human sessions on removal, with failed provider work visibly pending.
+
+**Updating.** Review existing public pages, webhooks, protocols, and overlapping protection before the first updated push. Keep local business code and data; merge the signed login check instead of replacing handlers. Confirm the owner's reachable email and real team, attach protection to both existing Workers without a gap, and give the publishing key read permission to check it. Keep old versions protected. Managed workspaces also need their new encrypted management connection; report reconnection or failed membership/revocation work as pending until confirmed. Verify real email login, independent machine access, and memory before reporting the workspace private.
+
 ## 27.7.0 — Forms return to the workspace
 
 Password and token pages save and continue in one tap, keeping partial successes for correction. Completed private input wakes its requesting workspace with a result-only message and shows whether the chat was notified. Website hand-over pages mirror native form buttons below their fields, preserving the site's labels, validation, and code steps.

@@ -77,7 +77,7 @@ const REFUSED_FILES = new Set([".env", ".env.local", ".env.example", EXAMPLE]);
  * nobody thought to name. This catches the case where someone has pasted one
  * into `.dev.vars` directly.
  */
-const SUSPICIOUS_KEY = /^(CLOUDFLARE_|CF_ACCESS_|CF_API)/;
+const SUSPICIOUS_KEY = /^(CLOUDFLARE_|CF_ACCESS_|CF_API|SKIP_AUTH$|WONG_ENVIRONMENT$)/;
 
 /**
  * Bindings that must be twinned in `env.staging`. Durable Objects are absent
@@ -450,6 +450,9 @@ function checkSecrets(appDir) {
   }
 
   const problems = [];
+  for (const name of new Set([...production, ...staging])) {
+    if (name === 'SKIP_AUTH' || name === 'WONG_ENVIRONMENT') problems.push(`secret '${name}' overrides deployed authentication configuration; remove it before deploying.`);
+  }
   for (const name of production) {
     if (!staging.includes(name)) {
       problems.push(`secret '${name}' is set on production but missing from ${STAGING_ENV}.`);

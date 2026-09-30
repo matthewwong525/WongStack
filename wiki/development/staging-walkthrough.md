@@ -21,7 +21,7 @@ A scenario **no probe reaches** is **listed by name as unverified**, never silen
 - **A browser, only for a UI journey.** `/verify` installs it on the machine and says so ([required tools](required-tools.md)).
 - **A preview URL.** The walk asks GitHub what was deployed for this commit, so Vercel, Netlify, Cloudflare, Render, Fly, and GitHub Pages previews are found the same way. It never builds a URL from a naming convention: that URL can address a commit that was never deployed and still answer `200`. A repo whose CI doesn't deploy gets `UNKNOWN`.
 - **Optional: a public bucket** (`WALK_MEDIA_BUCKET`, `WALK_MEDIA_BASE_URL`) to show screenshots in the comment. Without it the comment cites local paths, which is not a failure. The `WALK_` names stay, because renaming a variable users already set breaks them silently.
-- **Optional: an Access service token**, when [Cloudflare Access](../stack/cloudflare-access.md#5-create-the-service-token-do-it-now) gates your previews. `/verify` mints one if you have none: [when the walk can't get in](#when-the-walk-cant-get-in).
+- **An Access service token**, provisioned automatically when [Cloudflare Access](../stack/cloudflare-access.md#5-create-the-service-token-do-it-now) gates your previews. `/verify` mints one if you have none: [when the walk can't get in](#when-the-walk-cant-get-in).
 - **A seed, on a seeded stack.** Where staging is a [seeded fixture database](../stack/d1-pipeline.md#seeded-staging-production-untouched), `schema/seed.sql` ships empty. Journeys then have nothing to act on, and fail for a reason that isn't a bug.
 
 ## Why a walk runs the way it does

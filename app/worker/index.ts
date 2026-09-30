@@ -1,22 +1,12 @@
-// This Worker is PUBLIC and deliberately enforces no identity.
-//
-// Do not enforce here until Cloudflare Access is actually in front of every
-// hostname that reaches this Worker: on a public Worker, `Cf-Access-
-// Authenticated-User-Email` is just a request header — any caller can set it to
-// any address and become any user. Enforcement and the login wall are adopted in
-// the same step, in that order: wiki/stack/cloudflare-access.md
-//
-// When you do adopt it, use `./access.ts` — it ships beside this file, inert.
-// It VERIFIES the signed `Cf-Access-Jwt-Assertion` rather than trusting a plain
-// header, which is what makes it correct for machine callers too: Access sets no
-// email header for a service token, so the header pattern 401s CI and /verify.
+// Verify signed Access identity before all business content; memory keeps its own keys.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
 import { handleMiniApp, MINI_PREFIX } from "../../mini-apps/router.mjs";
 import miniApps from "../../mini-apps/routes.mjs";
 import { API_PREFIX, handleApi } from "./api/router.ts";
+import { getAccessIdentity, type AccessEnv } from "./access.ts";
 
 export default {
-  fetch(request, env, ctx) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // Session memory, served from the memory skill on the production Worker's
@@ -24,6 +14,15 @@ export default {
     // memory key authenticates each call: wiki/development/memory.md.
     if (url.pathname.startsWith(MEMORY_PREFIX)) {
       return handleMemory(request, env);
+    }
+
+    const identity = await getAccessIdentity(request, env);
+    if (!identity) {
+      const configured = env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD;
+      return new Response(configured ? "Unauthorized" : "Workspace access is not configured", {
+        status: configured ? 401 : 503,
+        headers: { "Cache-Control": "no-store" },
+      });
     }
 
     // Mini apps, from mini-apps/: their pages are in the static assets, and
@@ -36,6 +35,6 @@ export default {
     if (url.pathname.startsWith(API_PREFIX)) {
       return handleApi(request, env);
     }
-    return new Response(null, { status: 404 });
+    return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<Env & AccessEnv>;

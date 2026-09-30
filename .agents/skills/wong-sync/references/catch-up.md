@@ -18,3 +18,11 @@ Each step keeps the person's own text. A move is `git mv` or a reviewed merge, n
 7. **`no-baseline` — no file list at the installed commit.** Every current payload unit is `added`, and each one the repo already has is `locally-adapted`. Treat each as possibly edited: read it against upstream and merge, never overwrite. `merge-check.mjs` has no baseline here and reports `skipped`; the plan's review is the check.
 
 The install-record task comes last, after every step above, and advances the record once.
+
+## Privacy migration
+
+A prior public default needs explicit review; do not silently preserve anonymous business pages or erase intentional public services. Read the existing entry point, assets, APIs, webhooks, protocols, routes, custom domains, and Access apps. Keep local business code and databases; merge signed enforcement and Worker-first routing into the handlers rather than copying the scaffold over them. Review WebSocket compatibility and higher-precedence hostname/path/preview apps before publishing.
+
+Backfill a reachable owner login email separately from git authorship and include real existing team emails. Synthetic extra-workspace rows grant nothing. Attach one owned app to both actual Worker IDs before the first gated push; adopt an owned legacy gate only after reviewing its policies and retaining human/machine access without a wall gap. Only production memory gets its key-authenticated override. Widen the CI deploy token with Access read permission, preserving its existing necessary scopes and excluding policy writes.
+
+Keep old/live versions behind the wall. Report coverage, real email login, and machine checks independently; an old install is not private merely because new config was written. Managed installs also need their reviewed source pin and authenticated encrypted Access-only connection adopted by the cloud service. Show reconnection, membership updates, and revocation as pending until provider readback succeeds; replace then retire only recorded account tokens. An offline owner server must not stop cloud policy updates.

@@ -225,7 +225,7 @@ export function deployedWorkerName(configPath, env) {
 }
 
 /** The generated config a plugin build redirected wrangler at, or `null`. */
-function redirectedConfig(configPath) {
+export function redirectedConfig(configPath) {
   const redirectDir = resolve(dirname(configPath), ".wrangler/deploy");
   const redirect = resolve(redirectDir, "config.json");
   if (!existsSync(redirect)) return null;

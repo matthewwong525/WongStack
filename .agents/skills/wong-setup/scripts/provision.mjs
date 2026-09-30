@@ -8,13 +8,14 @@
 // environment or the target's .env. WONG_CLOUDFLARE_API points every call at another API base, for tests.
 // Every step checks before it acts, so a run that stopped runs again from the top.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
+import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
+import { accessOrganization, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-fragments.md');
@@ -41,9 +42,14 @@ export const NORMAL_PROVISION = [
   { name: 'Workers CI Write', scope: 'account', id: '2e095cf436e2455fa62c9a9c2e18c478' },
   { name: 'User Details Read', scope: 'user', id: '8acbe5bb0d54464ab867149d7f7cf8ac' },
   { name: 'Workers R2 Storage Write', scope: 'account', id: 'bf7481a1826f439697cb59a20b22293e' },
+  { name: 'Access: Apps and Policies Write', scope: 'account', id: '1e13c5124ca64b72b1969a67e8829049' },
+  { name: 'Access: Organizations, Identity Providers, and Groups Write', scope: 'account', id: 'bfe0d8686a584fa680f4c53b5eb0de6d' },
+  { name: 'Access: Service Tokens Write', scope: 'account', id: 'a1c0fec57cf94af79479a6d827fa518c' },
+  { name: 'Zero Trust Write', scope: 'account', id: 'b33f02c6f7284e05a6f20741c0bb0567' },
 ];
 /** The CI deploy token. `when`: always, with a memory bucket, or with custom-domain routes (never set here). */
 export const DEPLOY_TOKEN = [
+  { name: 'Access: Apps and Policies Read', scope: 'account', when: 'always', id: '7ea222f6d5064cfa89ea366d7c1fee89' },
   { name: 'Workers Scripts Write', scope: 'account', when: 'always', id: 'e086da7e2179491d91ee5f35b3ca210a' },
   { name: 'D1 Write', scope: 'account', when: 'always', id: '09b2857d1c31407795e75e3fed8617a1' },
   { name: 'Account Settings Read', scope: 'account', when: 'always', id: 'c1fde68c7bcc44588cbb6ddbc16d6480' },
@@ -127,8 +133,8 @@ export function cloudflare(token, { api, fetch: fetchFn = globalThis.fetch } = {
     try {
       response = await fetchFn(`${base}${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: { Authorization: `Bearer ${token}`, ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }) },
+        body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
       });
     } catch {
       throw new CloudflareError(method, path, 0);
@@ -233,6 +239,9 @@ export async function widen({ token, api, fetch, account, sleep = wait }) {
   const probed = account ? [account] : (await step('cloudflare', () => cf('GET', '/accounts?per_page=50'))).map((each) => each.id);
   for (const id of probed) {
     await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/d1/database?per_page=1`), sleep, pending));
+    for (const surface of ['apps', 'identity_providers', 'service_tokens']) {
+      await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/access/${surface}?per_page=1`), sleep, pending));
+    }
   }
   return { granted: missing.map(({ name }) => name), held: wanted.filter(({ group }) => held.has(group.id)).map(({ name }) => name), probed };
 }
@@ -349,7 +358,7 @@ function dropLines(text, from, to) {
  * The app's wrangler config: the fragment, its comments kept, with every placeholder filled. The bucket
  * binding stays only with a bucket, and staging's cron override goes, since production declares no crons.
  */
-export function wranglerConfig({ base, ids, bucket, today }, fragment = wranglerFragment()) {
+export function wranglerConfig({ base, ids, bucket, today, access }, fragment = wranglerFragment()) {
   const n = namesFor(base);
   let text = fragment;
   if (!bucket) text = dropLines(text, /\/\/ Only when the memory store has a bucket/, /^\s*\],?\s*$/);
@@ -363,6 +372,11 @@ export function wranglerConfig({ base, ids, bucket, today }, fragment = wrangler
     '<staging database_id>': ids.stagingDb,
     '<memory database_id>': ids.memory,
     '<your-repo>': base,
+    '<access team domain>': access?.teamDomain ?? '',
+    '<access audience>': access?.audience ?? '',
+    '<access app id>': access?.appId ?? '',
+    '<production Worker id>': access?.workers?.[0]?.id ?? '',
+    '<staging Worker id>': access?.workers?.[1]?.id ?? '',
   };
   for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
   const left = /<[^<>\n]+>/.exec(text);
@@ -457,7 +471,7 @@ const hasKey = (env) => (env.CLOUDFLARE_MEMORY_TOKEN ?? '').startsWith('wongm_')
  * the config, and the deploy token in the GitHub secret. `keepConfig` leaves an installed repo's
  * committed files as they are, and adds no new bucket they would need.
  */
-export async function provision({ token, api, fetch, account, repo, base, dir = '.', today = isoDate(), keepConfig = false, sleep = wait, exec = run, env = process.env }) {
+export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, sleep = wait, exec = run, env = process.env }) {
   const cf = cloudflare(token, { api, fetch });
   const n = namesFor(base);
   const report = { base, names: n, r2: false, created: [], reused: [], updated: [], todo: [] };
@@ -467,8 +481,19 @@ export async function provision({ token, api, fetch, account, repo, base, dir = 
   const needsKey = !hasKey(readEnv(envFile));
   const email = needsKey ? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout.trim() : null;
   if (needsKey && !email) throw new ProvisionError('repo', 'git has no user.email here, and the admin memory key is made for it; set it with `git config --global user.email <your email>` and run again');
-  await step('repo', async () => writeJson(await stateFile(dir, exec), { base }));
+  const loginEmail = ownerIdentity(ownerEmail ?? email ?? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout);
+  const provisionStateFile = await stateFile(dir, exec);
+  const state = readJson(provisionStateFile, {});
+  if (state.account && (state.account !== account || state.repo !== repo || state.base !== base)) {
+    throw new ProvisionError('access', 'private provisioning state belongs to another account or repository');
+  }
+  Object.assign(state, { base, account, repo });
+  const checkpoint = () => writeJson(provisionStateFile, state);
+  await step('repo', checkpoint);
 
+  report.access = await accessOrganization(cf, { account, base, note });
+  report.access.ownerEmail = loginEmail;
+  report.access.humanLogin = 'unverified';
   const groups = await step('cloudflare', () => cf('GET', '/user/tokens/permission_groups?per_page=1000'));
   const recordedBucket = readJson(recordFile(dir))?.components?.memory?.bucket ?? null;
 
@@ -486,6 +511,38 @@ export async function provision({ token, api, fetch, account, repo, base, dir = 
     }
   }
   const sub = await step('cloudflare', () => subdomain(cf, account, String(repo).split('/')[0], note));
+  Object.assign(report.access, await provisionAccess(cf, {
+    account, repo, base, names: n, subdomain: sub, state, checkpoint, note, today,
+    adoptExisting: readJson(recordFile(dir))?.components?.memory?.accountId === account
+      && readJson(recordFile(dir))?.components?.memory?.worker === `https://${n.worker}.${sub}.workers.dev/_memory`,
+  }));
+  await step('repo', () => exec('git', ['-C', dirname(envFile), 'check-ignore', '-q', '.env'], { env }));
+  report.access = await provisionAccessPolicies(cf, {
+    account, ownerEmail: loginEmail, teammateEmails, access: report.access, state, checkpoint, note,
+    credentials: readEnv(envFile),
+    saveCredentials: async ({ client_id, client_secret }) => {
+      if (![client_id, client_secret].every(value => typeof value === 'string' && /^[a-zA-Z0-9_.=-]+$/.test(value))) {
+        throw new ProvisionError('access', 'Cloudflare did not return safe verification credentials; run private setup again');
+      }
+      for (const file of new Set([envFile, join(dir, '.env')])) {
+        await step('repo', () => exec('git', ['-C', dirname(file), 'check-ignore', '-q', '.env'], { env }));
+        let text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+        for (const [key, value] of Object.entries({ CF_ACCESS_CLIENT_ID: client_id, CF_ACCESS_CLIENT_SECRET: client_secret })) {
+          text = text.split('\n').filter(line => !new RegExp(`^\\s*(?:export\\s+)?${key}\\s*=`).test(line)).join('\n');
+          text = `${text}${text && !text.endsWith('\n') ? '\n' : ''}${key}=${value}\n`;
+        }
+        writeFileSync(file, text, { mode: 0o600 });
+        chmodSync(file, 0o600);
+      }
+    },
+  });
+  if (!keepConfig) {
+    const record = readJson(recordFile(dir), {});
+    if (!isDeepStrictEqual(record.components?.access, report.access)) {
+      writeJson(recordFile(dir), { ...record, components: { ...record.components, access: report.access } });
+      note('updated', '.claude/.wong-stack.json components.access');
+    }
+  }
   const worker = `https://${n.worker}.${sub}.workers.dev/_memory`;
   recordMemory(dir, { accountId: account, databaseId: memoryId, database: n.memory, bucket, worker }, note);
 
@@ -504,7 +561,7 @@ export async function provision({ token, api, fetch, account, repo, base, dir = 
   const config = join(dir, 'app', 'wrangler.jsonc');
   if (!keepConfig) {
     if (!existsSync(config)) {
-      writeFileSync(config, wranglerConfig({ base, ids: { db, stagingDb, memory: memoryId }, bucket, today }));
+      writeFileSync(config, wranglerConfig({ base, ids: { db, stagingDb, memory: memoryId }, bucket, today, access: report.access }));
       note('created', 'app/wrangler.jsonc');
     } else if (bucket && !readFileSync(config, 'utf8').includes('MEMORY_BUCKET')) {
       if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
@@ -541,7 +598,7 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>]
   widen                                   grant the token a normal provision's groups, then wait until they work
   accounts                                list the accounts the token sees
   names --repo <owner/name>               derive the names; report each as free, ours, or taken, and the first free base
-  provision --repo <owner/name> --base <base> [--keep-config]
+  provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config]
                                           make or reuse the memory store, databases, config, and deploy token
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,
 from the environment or the target's .env. Each command prints one JSON report, never a token.`;
@@ -554,7 +611,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   try {
     parsed = parseArgs({
       args: argv,
-      options: { dir: { type: 'string' }, account: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'keep-config': { type: 'boolean' }, help: { type: 'boolean' } },
+      options: { dir: { type: 'string' }, account: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'owner-email': { type: 'string' }, 'keep-config': { type: 'boolean' }, help: { type: 'boolean' } },
       allowPositionals: true,
       strict: true,
     });
@@ -593,7 +650,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
     widen: () => widen(common),
     accounts: () => accounts(common),
     names: () => names(common),
-    provision: () => provision({ ...common, base: safeName(options.base), keepConfig: Boolean(values['keep-config']) }),
+    provision: () => provision({ ...common, base: safeName(options.base), ownerEmail: values['owner-email'], keepConfig: Boolean(values['keep-config']) }),
   };
   try {
     out(JSON.stringify(await commands[command](), null, 2));

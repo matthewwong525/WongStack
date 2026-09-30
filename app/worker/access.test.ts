@@ -56,8 +56,9 @@ describe("getAccessIdentity — rejections that need no key", () => {
     // The bypass must come from the environment: a caller sending a header of
     // its own must not be able to reach it.
     for (const value of [true, "true"]) {
-      const identity = await getAccessIdentity(requestWith({ SKIP_AUTH: "true" }), {
+      const identity = await getAccessIdentity(new Request("http://localhost/api/thing"), {
         SKIP_AUTH: value,
+        WONG_ENVIRONMENT: "local",
       });
 
       expect(identity).toEqual({
@@ -70,6 +71,14 @@ describe("getAccessIdentity — rejections that need no key", () => {
 
   it("does not treat a request header as the bypass", async () => {
     expect(await getAccessIdentity(requestWith({ "X-Skip-Auth": "true" }), ENV)).toBeNull();
+  });
+
+  it("rejects authentication substitution on deployed hosts and environments", async () => {
+    for (const environment of [undefined, "production", "staging", "local"]) {
+      expect(await getAccessIdentity(requestWith(), { ...ENV, WONG_ENVIRONMENT: environment, SKIP_AUTH: "true" })).toBeNull();
+    }
+    expect(await getAccessIdentity(new Request("http://localhost/"), { ...ENV, WONG_ENVIRONMENT: "production", SKIP_AUTH: true })).toBeNull();
+    expect(await getAccessIdentity(new Request("http://localhost/"), { ...ENV, WONG_ENVIRONMENT: "local", SKIP_AUTH: "false" })).toBeNull();
   });
 
   it("denies rather than allows when the team domain or audience is unset", async () => {
@@ -88,7 +97,7 @@ describe("getAccessIdentity — rejections that need no key", () => {
   });
 
   it("returns null for a token that is not three segments", async () => {
-    for (const token of ["", "one", "one.two", "one..three", ".two.three"]) {
+    for (const token of ["", "one", "one.two", "one..three", ".two.three", "one.two.three.four"]) {
       expect(
         await getAccessIdentity(requestWith({ "Cf-Access-Jwt-Assertion": token }), ENV),
         token,
@@ -330,6 +339,18 @@ describe("getAccessIdentity — verified assertions", () => {
     for (const times of [{ nbf: now }, { nbf: "9999999999999" }]) {
       expect(await getAccessIdentity(bearer(await withTimes(times)), ENV), JSON.stringify(times)).not.toBeNull();
     }
+  });
+
+  it("requires human reauthentication exactly at the thirty-day login expiry", async () => {
+    const issued = 1_800_000_000;
+    const expires = issued + 30 * 24 * 60 * 60;
+    vi.spyOn(Date, "now").mockReturnValue((expires - 1) * 1000);
+    const token = await signToken({ alg: "RS256", kid: KID }, claims({ email: "human@example.com", iat: issued, exp: expires }));
+    expect(await getAccessIdentity(bearer(token), ENV)).toMatchObject({ kind: "user" });
+    vi.mocked(Date.now).mockReturnValue(expires * 1000);
+    expect(await getAccessIdentity(bearer(token), ENV)).toBeNull();
+    vi.mocked(Date.now).mockReturnValue((expires + 1) * 1000);
+    expect(await getAccessIdentity(bearer(token), ENV)).toBeNull();
   });
 
   it("refetches once for an unknown kid, then rejects if it is still unknown", async () => {

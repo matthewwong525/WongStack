@@ -29,6 +29,6 @@ Pin these versions where the scaffold needs them (Vite's Cloudflare plugin and t
 
 - Standing the whole thing up from one token: [the provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 - How code and data ship, and how a bad migration is recovered: the [deploy and data pipeline](d1-pipeline.md).
-- The optional login wall in front of the app: [Cloudflare Access](cloudflare-access.md).
+- The automatic login wall in front of the app: [Cloudflare Access](cloudflare-access.md).
 - The tokens the pipeline needs: [Cloudflare credentials](cloudflare-credentials.md).
 - Back to the stack overview: [Cloudflare stack](README.md).
