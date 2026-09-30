@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 28.1.0 — You handle token websites
+## 28.2.0 — You handle token websites
 
 When a task needs a service's website to get or change an API key or token, the assistant gives you the service link and short steps for your own browser. It waits for new or replacement values through the private key link, or your confirmation for a change with no new value. Saved website logins, ordinary browsing, and existing authorized token management through APIs continue as usual.
 
