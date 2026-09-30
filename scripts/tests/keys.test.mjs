@@ -110,6 +110,7 @@ async function route(port, key, path, body) {
 test('the key link serves its page and the asked-for keys, touching no browser page', async t => {
   const f = fixture(t, { env: 'A=1\nMAPS_API_KEY=old\n' });
   const { port, key } = opened(f, 'MAPS_API_KEY,STRIPE_SECRET_KEY');
+  assert.equal(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).startUrl, null);
   assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Keys for your assistant/);
   assert.match(await (await fetch(`http://127.0.0.1:${port}/page.mjs`)).text(), /export function filledKeys/);
   assert.deepEqual(await route(port, key, 'keys'), { status: 200, json: { keys: [

@@ -123,11 +123,29 @@ export const FIELD_SCAN = `(() => {
   const identity = node => { if (!registry.ids.has(node)) registry.ids.set(node, String(++registry.sequence)); return registry.ids.get(node); };
   const formOf = node => node.form ? identity(node.form) : null;
   const visible = node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden' && getComputedStyle(node).display !== 'none';
+  registry.page ??= Math.random().toString(36).slice(2);
+  const geometry = node => { const r = node.getBoundingClientRect(); return { x: r.x ?? r.left, y: r.y ?? r.top, width: r.width, height: r.height }; };
+  const hitRect = field => {
+    let hit = field;
+    const own = field.getBoundingClientRect();
+    for (let parent = field.parentElement, depth = 0; parent && depth < 3; parent = parent.parentElement, depth++) {
+      const r = parent.getBoundingClientRect();
+      if (parent.querySelectorAll('input, select, textarea, button').length !== 1 || r.width > own.width + 100 || r.height > 96 || r.height < own.height) break;
+      hit = parent;
+    }
+    return geometry(hit);
+  };
+  let formWidth = 0;
   const fields = [];
   for (const field of document.querySelectorAll('input, select, textarea')) {
     const type = field.localName === 'input' ? field.type : field.localName;
-    if (SKIP.has(type) || field.disabled || field.readOnly || !field.getClientRects().length) continue;
+    if (SKIP.has(type) || field.disabled || field.readOnly || !visible(field)) continue;
+    const form = field.form;
+    if (form && visible(form)) { const r = form.getBoundingClientRect(); formWidth = Math.max(formWidth, r.width, r.right > innerWidth ? r.right : 0); }
     fields.push({
+      identity: registry.page + ':' + identity(field),
+      geometry: geometry(field),
+      hit: hitRect(field),
       form: formOf(field),
       kind: type === 'select' ? 'select' : type === 'checkbox' ? 'checkbox' : 'text',
       type,
@@ -150,11 +168,11 @@ export const FIELD_SCAN = `(() => {
     actions.push({ id, form: formOf(node), label: clean(node.getAttribute('aria-label')) || clean(byIds(node.getAttribute('aria-labelledby') ?? '')) || clean(node.localName === 'input' ? node.getAttribute('value') : textOf(node)) || 'Submit', disabled: node.matches(':disabled'), visible: true });
     if (actions.length === 40) break;
   }
-  const signature = JSON.stringify({ fields, actions });
+  const signature = JSON.stringify({ fields: fields.map(({ geometry, hit, ...metadata }) => metadata), actions });
   if (signature !== registry.signature) { registry.signature = signature; registry.revision++; }
   const revision = String(registry.revision);
   registry.current = new Set(actions.map(action => action.id));
-  return { fields, actions, revision };
+  return { fields, actions, revision, formWidth, viewport: { width: innerWidth, height: innerHeight } };
 })()`;
 
 /** Resolve only a previously scanned native element, never a selector supplied by the client. */
@@ -393,6 +411,18 @@ const FIELD_ACTIONS = {
   '/select': { kind: 'select', calls: (field, { value }) => (field.options.some(option => option.value === value) ? [['select', field.selector, value]] : null) },
   '/check': { kind: 'checkbox', calls: (field, { checked }) => (typeof checked === 'boolean' ? [[checked ? 'check' : 'uncheck', field.selector]] : null) },
 };
+const NAVIGATION = new Set(['start', 'back', 'forward', 'reload']);
+export const HISTORY_SCAN = '(() => ({ historyLength: history.length }))()';
+
+/** A private starting HTTP(S) address, keeping path/query/hash but excluding credentials. */
+export function startAddress(address) {
+  try {
+    const url = new URL(address);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    url.username = ''; url.password = '';
+    return url.href;
+  } catch { return null; }
+}
 
 /** A `/viewport` body's size clamped to VIEWPORT_LIMITS, or null unless width and height are integers. */
 export function clampViewport(body) {
@@ -406,7 +436,8 @@ export function clampViewport(body) {
  * field only by its `ref`, an index into that scan. Every agent-browser call, `/viewport`'s too, runs
  * through one queue.
  */
-function fieldRoutes({ isOpen = () => true } = {}) {
+function fieldRoutes({ isOpen = () => true, startUrl = null } = {}) {
+  const destination = startAddress(startUrl);
   let scanned = [];
   let actions = new Map();
   let revision = null;
@@ -424,8 +455,8 @@ function fieldRoutes({ isOpen = () => true } = {}) {
     revision = found.revision ?? null;
     actions = new Map((found.actions ?? []).map(action => [action.id, { ...action, ref: actions.get(action.id)?.ref ?? randomBytes(16).toString('hex') }]));
     const exposed = [...actions.values()].map(({ ref, label, form, disabled }) => ({ ref, label, form, disabled }));
-    const fields = scanned.map((field, ref) => ({ ref, form: field.form ?? null, kind: field.kind, label: field.label, ...fieldBox(field), options: field.options.map(({ value, text }) => ({ value, text })) }));
-    return { signature: createHash('sha256').update(JSON.stringify({ fields, actions: found.actions ?? [] })).digest('hex'), fields, actions: exposed, revision };
+    const fields = scanned.map((field, ref) => ({ ref, identity: field.identity, geometry: field.geometry, hit: field.hit, form: field.form ?? null, kind: field.kind, label: field.label, ...fieldBox(field), options: field.options.map(({ value, text }) => ({ value, text })) }));
+    return { signature: createHash('sha256').update(JSON.stringify({ fields: fields.map(({ geometry, hit, ...metadata }) => metadata), actions: found.actions ?? [] })).digest('hex'), fields, actions: exposed, revision, formWidth: found.formWidth ?? 0, viewport: found.viewport ?? null };
   };
   // A request joins a scan already waiting, unless a command was queued since: a pick can show a new field.
   const scan = () => {
@@ -445,6 +476,26 @@ function fieldRoutes({ isOpen = () => true } = {}) {
     }
     if (request.method !== 'POST') return reply(response, 405);
     const body = await readBody(request);
+    if (pathname === '/navigate') {
+      if (!body || Object.keys(body).length !== 1 || !NAVIGATION.has(body.action)) return reply(response, 400);
+      scanning = null;
+      const result = await serial(async () => {
+        let command = [body.action];
+        if (body.action === 'start') {
+          if (!destination) return { status: 409, body: { ok: false, reason: 'unavailable-start' } };
+          command = ['open', destination];
+        } else if (body.action === 'back' || body.action === 'forward') {
+          const metadata = (await browserData(['eval', '-b', Buffer.from(HISTORY_SCAN).toString('base64')]))?.result;
+          if (!Number.isInteger(metadata?.historyLength) || metadata.historyLength < 1) return { status: 502 };
+          if (metadata.historyLength === 1) return { status: 409, body: { ok: false, reason: 'no-history' } };
+        }
+        scanned = [];
+        actions.clear();
+        revision = null;
+        return (await browser(command)) === null ? { status: 502 } : { status: 200, body: { ok: true } };
+      });
+      return reply(response, result?.status ?? 502, result?.body);
+    }
     if (pathname === '/action') {
       if (!body || typeof body.ref !== 'string' || typeof body.revision !== 'string') return reply(response, 400);
       const target = [...actions.values()].find(action => action.ref === body.ref);
@@ -464,11 +515,18 @@ function fieldRoutes({ isOpen = () => true } = {}) {
     const action = FIELD_ACTIONS[pathname];
     if (!body || !Number.isInteger(body.ref) || body.ref < 0) return reply(response, 400);
     const field = scanned[body.ref];
-    if (!field) return reply(response, 409);
-    const calls = field.kind === action.kind && action.calls(field, body);
+    if (!field || (body.identity && body.identity !== field.identity)) return reply(response, 409);
+    let calls = field.kind === action.kind && action.calls(field, body);
     if (!calls) return reply(response, 400);
     scanning = null;
     const ok = await serial(async () => {
+      if (body.identity) {
+        if (!(await readFields())) return false;
+        const current = scanned[body.ref];
+        if (current?.identity !== body.identity || current.kind !== action.kind) return false;
+        calls = action.calls(current, body);
+        if (!calls) return false;
+      }
       for (const args of calls) if ((await browser(args)) === null) return false;
       return true;
     });
@@ -485,7 +543,7 @@ function fieldRoutes({ isOpen = () => true } = {}) {
  * `/viewport` need the key in an `x-hand-over-key` header. With `passwords` or `keys` it serves that
  * link's page and routes instead, passing `hooks` to them, and has no feed. Resolves to a close().
  */
-export function servePage({ port, streamPort, key, passwords = false, keys = null }, hooks = {}) {
+export function servePage({ port, streamPort, key, passwords = false, keys = null, startUrl = null }, hooks = {}) {
   const sockets = new Set();
   const streams = new Set();
   let finishing = false;
@@ -493,9 +551,9 @@ export function servePage({ port, streamPort, key, passwords = false, keys = nul
   const track = socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); return socket; };
   const mode = modeOf({ passwords, keys });
   hooks = { ...hooks, isOpen: () => !finishing };
-  const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, hooks), handOver: () => fieldRoutes(hooks) }[mode]();
+  const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, hooks), handOver: () => fieldRoutes({ ...hooks, startUrl }) }[mode]();
   const ROUTES = { passwords: PASSWORD_ROUTES, keys: KEY_ROUTES };
-  const isRoute = pathname => (ROUTES[mode] ? ROUTES[mode].has(pathname) : pathname === '/fields' || pathname === '/action' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
+  const isRoute = pathname => (ROUTES[mode] ? ROUTES[mode].has(pathname) : pathname === '/fields' || pathname === '/action' || pathname === '/navigate' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
   const served = PAGES[mode];
   const server = createServer((request, response) => {
     const { pathname } = new URL(request.url, 'http://page');
@@ -671,8 +729,10 @@ async function open(values) {
     return 1;
   };
   let feed = null;
+  let startUrl = null;
   if (!browserless) {
     await prepareBrowser();
+    startUrl = startAddress(await browser(['get', 'url']));
     feed = await streamPort();
     if (!feed) return fail('agent-browser reported no live feed for this browser session.');
   }
@@ -685,7 +745,7 @@ async function open(values) {
     if (!tunnel.origin) return fail('The Cloudflare tunnel did not come up within 30 seconds; try again in a minute.');
     origin = tunnel.origin;
   }
-  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), agentId: process.env.PASEO_AGENT_ID?.trim() || null, cwd: process.cwd(), paseoHome: process.env.PASEO_HOME || null, paseoHost: process.env.PASEO_HOST || null, tunnelPid, port, streamPort: feed, key, passwords: Boolean(values.passwords), keys, until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
+  writeFileSync(FILES.state, `${JSON.stringify({ completionId: randomBytes(16).toString('hex'), agentId: process.env.PASEO_AGENT_ID?.trim() || null, cwd: process.cwd(), paseoHome: process.env.PASEO_HOME || null, paseoHost: process.env.PASEO_HOST || null, tunnelPid, port, streamPort: feed, key, startUrl, passwords: Boolean(values.passwords), keys, until: values.until ?? null, untilGone: values['until-gone'] ?? null, deadline })}\n`, { mode: 0o600 });
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore' });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);

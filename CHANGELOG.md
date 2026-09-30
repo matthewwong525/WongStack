@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 27.9.0 — Room to use the browser
+
+Browser hand-over links separate the live website from its fields: switch between Page and Fill fields on a phone, or see both beside each other on a computer. Phone previews let you swipe up, down, left, or right through a readable login screen, then keep scrolling the website at its edges. Tap a supported text field on the page to open the phone keyboard; typing is shared with Fill fields. Wider forms expand the browser within its limits. Back and Forward arrows, a Reload icon, and a Return to start icon stay at the bottom so you can recover from an accidental click. Each has an accessible name and tooltip. Return to start opens the exact page where the private link began, even after visiting another website; when there is no browser history, Back and Forward explain that and preserve your typing and preview position. While the phone keyboard is open, the header, view tabs and navigation hide to give the selected field more room; they return when it closes, keeping your typing and the website's size.
+
+**Updating.** Let existing private links finish or expire before opening another with the updated scripts. Saved logins need no migration.
+
 ## 27.8.0 — A welcoming starter workspace
 
 - **Make the workspace yours.** The starter home page has a permanent heading and one request to name it and remove the welcome guide, with explanations and a preview before publishing.
