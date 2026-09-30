@@ -6,13 +6,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { checkLogins, chooseName, hostOf, LIMITS, slug } from '../../.agents/skills/verify/scripts/passwords.mjs';
-import { parseExport, siteUrl } from '../../.agents/skills/verify/scripts/passwords-page.mjs';
+import { checkLogins, chooseName, hostOf, LIMITS, slug } from '../../.agents/skills/hand-over/scripts/passwords.mjs';
+import { parseExport, siteUrl } from '../../.agents/skills/hand-over/scripts/passwords-page.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
+const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const SECRET = 'hunter2-Secret!';
 

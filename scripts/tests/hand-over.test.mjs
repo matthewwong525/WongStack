@@ -6,13 +6,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { autofillToken, FIELD_SCAN, HISTORY_SCAN, startAddress, actionScan, fieldBox, finished, globToRegExp, keyMatches, servePage, tidyTabs, tunnelOrigin } from '../../.agents/skills/verify/scripts/hand-over.mjs';
-import { sendPlan, toPage, typedKeys, wantedSize } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
+import { autofillToken, FIELD_SCAN, HISTORY_SCAN, startAddress, actionScan, fieldBox, finished, globToRegExp, keyMatches, servePage, tidyTabs, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { sendPlan, toPage, typedKeys, wantedSize } from '../../.agents/skills/hand-over/scripts/hand-over-page.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
+const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
 const ORIGIN = 'https://quiet-fox-lamp.trycloudflare.com';
 const KEY = /#key=([0-9a-f]{64})$/m;
 const REAL = { active: false, label: null, tabId: 't1', title: 'Pay', type: 'page', url: 'https://pay.example.com/card' };

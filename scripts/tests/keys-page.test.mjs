@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 
-const scripts = new URL('../../.agents/skills/verify/scripts/', import.meta.url);
+const scripts = new URL('../../.agents/skills/hand-over/scripts/', import.meta.url);
 const source = readFileSync(new URL('keys-page.mjs', scripts), 'utf8').replace(/^export /gm, '');
 const html = readFileSync(new URL('keys-page.html', scripts), 'utf8').replace('<script type="module" src="page.mjs"></script>', () => `<script>${source}</script>`);
 const settle = async () => { for(let i=0;i<8;i++) await new Promise(done=>setTimeout(done,0)); };

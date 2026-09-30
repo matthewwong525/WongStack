@@ -5,14 +5,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { cleanValue, declarations, firstSentence, formatLine, LIMITS, setKey } from '../../.agents/skills/verify/scripts/keys.mjs';
-import { filledKeys } from '../../.agents/skills/verify/scripts/keys-page.mjs';
+import { cleanValue, declarations, firstSentence, formatLine, LIMITS, setKey } from '../../.agents/skills/hand-over/scripts/keys.mjs';
+import { filledKeys } from '../../.agents/skills/hand-over/scripts/keys-page.mjs';
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/verify/scripts/hand-over.mjs');
+const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
 const seedScript = join(repo, '.agents/skills/ship/scripts/worktree-secrets.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const SECRET = 'sk_live_Secret123';

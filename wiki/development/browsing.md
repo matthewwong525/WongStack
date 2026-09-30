@@ -57,13 +57,13 @@ When a step needs you, the agent sends you a private link that opens its browser
 
 - **When.** A login, a captcha or bot check, a code sent to you, any input only you can give, or you saying *let me take over*. API key and token website steps follow [the own-browser procedure](secrets.md#api-token-website-steps). The agent never tries to get past a login or check itself: no retries, no disguised browser, no solving service. A yes or no is not one of these: the agent asks it in the chat, never through a hand-over.
 - **Ask first.** Before it sends a link, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *I need you to log in to your bank.* `Ready, send the link / Not now`. It sends the link only once you reply, so the 10 minutes start when you're there, not while you're away. A question waits for you; a link dies. If your last message was *let me take over*, you're there, so the link comes straight away.
-- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/verify/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. `open` closes blank tabs and brings the task's page to the front, so the link never opens on an empty page:
+- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open` with the finish to watch for, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. `open` closes blank tabs and brings the task's page to the front, so the link never opens on an empty page:
 
   ```bash
-  node .claude/skills/verify/scripts/hand-over.mjs open --until "**mail.google.com/mail/**"   # a login: the logged-in page
-  node .claude/skills/verify/scripts/hand-over.mjs open --until-gone "iframe[src*=recaptcha]"  # a captcha that clears in place
-  node .claude/skills/verify/scripts/hand-over.mjs open                                        # let me take over: no finish
-  node .claude/skills/verify/scripts/hand-over.mjs wait                                        # prints HANDOVER_RESULT=...
+  node .claude/skills/hand-over/scripts/hand-over.mjs open --until "**mail.google.com/mail/**"   # a login: the logged-in page
+  node .claude/skills/hand-over/scripts/hand-over.mjs open --until-gone "iframe[src*=recaptcha]"  # a captcha that clears in place
+  node .claude/skills/hand-over/scripts/hand-over.mjs open                                        # let me take over: no finish
+  node .claude/skills/hand-over/scripts/hand-over.mjs wait                                        # prints HANDOVER_RESULT=...
   ```
 
   Name the page you reach once past the step, not "left the login page": a two-step code page would count too. Add `--local` only when you say you're at the computer the agent runs on; it prints a local link and opens no tunnel.
@@ -81,11 +81,11 @@ Give the agent the logins you choose through a private link, so it logs in for y
 - **Where they're kept.** On the computer the agent runs on, in agent-browser's own locked store (`~/.agent-browser/auth/`), never in your repo. The key to that store sits beside it, on the same computer. So it stops a copied or backed-up file from exposing your logins, but not someone with full access to that computer, the agent included.
 - **Keep bank and email out**, unless you trust the agent with them: anyone with that computer can reach what's saved.
 - **Change or forget one in the chat.** Saving the same site and username again replaces the old password, so a changed password is fixed by adding it again. A second account on the same site is kept beside the first. Say *forget my Netflix login* and the agent runs `agent-browser auth delete <name>`. Say *which logins do you have?* and it lists the sites and usernames from `auth list`.
-- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/verify/scripts/hand-over.mjs) `open --passwords`, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. Private input ends after a successful *Save and continue*, on *Close without continuing*, or after 10 minutes:
+- **How.** The agent runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `open --passwords`, sends you the `HANDOVER_LINK` it prints, and runs `wait` in the background. Private input ends after a successful *Save and continue*, on *Close without continuing*, or after 10 minutes:
 
   ```bash
-  node .claude/skills/verify/scripts/hand-over.mjs open --passwords   # the password link; no live view of the browser
-  node .claude/skills/verify/scripts/hand-over.mjs wait               # HANDOVER_RESULT=done, then HANDOVER_SAVED=netflix-com,costco-com
+  node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords   # the password link; no live view of the browser
+  node .claude/skills/hand-over/scripts/hand-over.mjs wait               # HANDOVER_RESULT=done, then HANDOVER_SAVED=netflix-com,costco-com
   ```
 
   It then names the saved sites in the chat, looked up by name in `auth list`, never a password. `--local` works as for a hand-over. Only one link, a hand-over or a password link, is open at a time.

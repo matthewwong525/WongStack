@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Hands the agent's browser to the person through a private link that closes itself.
 //
-//     node .claude/skills/verify/scripts/hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
-//     node .claude/skills/verify/scripts/hand-over.mjs open --passwords [--local] [--minutes N]
-//     node .claude/skills/verify/scripts/hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
-//     node .claude/skills/verify/scripts/hand-over.mjs wait
-//     node .claude/skills/verify/scripts/hand-over.mjs close
+//     node .claude/skills/hand-over/scripts/hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
+//     node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords [--local] [--minutes N]
+//     node .claude/skills/hand-over/scripts/hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
+//     node .claude/skills/hand-over/scripts/hand-over.mjs wait
+//     node .claude/skills/hand-over/scripts/hand-over.mjs close
 //
 // `open` sets the page to 1280×720, so the live picture and the clicks agree; closes blank tabs and
 // brings the task's page to the front; reads the session's live-feed port; picks a free loopback port

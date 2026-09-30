@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Draft a change's plan and review page, or a to-do for work that changes no repo file; also takes pasted review notes.
+description: Draft a change's plan and review page, or a to-do for work changing no repo file; also takes pasted review notes.
 user-invocable: true
 ---
 

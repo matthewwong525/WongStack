@@ -51,5 +51,8 @@
   {"name": "improve/scripts/survey.mjs", "replacement": "`/improve` outcome brief through the normal delivery skills", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
   {"name": "improve/references/consolidation.md", "replacement": "`/improve` outcome brief through the normal delivery skills", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
   {"name": "improve/references/security.md", "replacement": "`/improve` outcome brief through the normal delivery skills", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is the measured before-state of 19.0.0"},
-  {"name": "improve-survey.test.mjs", "replacement": "nothing: its survey executable is removed"}
+  {"name": "improve-survey.test.mjs", "replacement": "nothing: its survey executable is removed"},
+  {"name": "verify/scripts/hand-over", "replacement": "`hand-over/scripts/hand-over`"},
+  {"name": "verify/scripts/keys", "replacement": "`hand-over/scripts/keys`"},
+  {"name": "verify/scripts/passwords", "replacement": "`hand-over/scripts/passwords`"}
 ]
