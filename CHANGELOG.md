@@ -9,6 +9,14 @@ When a task needs a service's website to get or change an API key or token, the 
 
 **Updating.** Nothing to do by hand. Existing credentials and private key links need no migration.
 
+## 28.1.0 — Check the preview toward a goal
+
+- **One goal, not a script.** `/verify` states what a check must prove and what it may do on its own, and chooses how to check each promise. You still get pictures and answers from the live preview, a verdict, and one comment on the pull request, with the same limits: it fixes a failure in this change at most twice and never merges.
+- **Plain checks.** Ask it to screenshot a page, test an address, or click through the app. It checks the address you name, else the live preview, shows what it saw in the chat, and posts nothing unless you ask.
+- **Each point said once.** The walkthrough page keeps why a check works this way, and the how-to page keeps how to run one.
+
+**Updating.** Nothing to do by hand.
+
 ## 28.0.0 — Business pages and previews require login
 
 New standalone and managed installs protect pages, assets, APIs, mini apps, and old/new previews automatically with email login. Human sessions default to 30 days; machine and memory credentials keep their separate lifetimes. Deployment checks refuse publication without native Worker protection. Managed team changes retain owner/machine access and revoke the workspace's human sessions on removal, with failed provider work visibly pending.
