@@ -142,14 +142,19 @@ The source SHALL ship `server/setup.sh`, which, run as root with no prompt on a 
 - **WHEN** `server/setup.sh` installs a Node.js major other than the one `.nvmrc` names
 - **THEN** the source's tests fail and name both versions
 
-### Requirement: The server script keeps the host contract
+### Requirement: The server script leaves the host its paths
 
-The script SHALL NOT open an inbound port, touch a host's secret, or write under `/etc/wongstack` or `/opt/wongstack`, and SHALL stay at most 12 KiB, with a test that fails past the budget. `server/README.md` SHALL state the command, the input, the end state, and these limits. `server/` SHALL stay source-only, never installed or synced.
+The script SHALL NOT open an inbound port, touch a host's secret, or write under `/etc/wongstack` or `/opt/wongstack`. It SHALL have no size budget: a host downloads it from the source rather than packing it into first-boot data. `server/README.md` SHALL state the command, the input, the end state, and these limits. `server/` SHALL stay source-only, never installed or synced.
 
-#### Scenario: The script grows too large
+#### Scenario: The script grows past the old budget
 
 - **WHEN** a change makes `server/setup.sh` larger than 12 KiB
-- **THEN** the source's tests fail and name the size and the budget
+- **THEN** the source's tests still pass
+
+#### Scenario: A host's paths stay the host's
+
+- **WHEN** `server/setup.sh` runs on a fresh server
+- **THEN** it writes nothing under `/etc/wongstack` or `/opt/wongstack`
 
 ### Requirement: The server installer installs WongStack unattended
 

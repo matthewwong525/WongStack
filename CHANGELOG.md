@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 28.5.0 — The server's helper lives in WongStack
+
+The helper each wongstack.com server runs, which pairs devices, connects GitHub, installs WongStack, and copies a server, moves into WongStack's `server/agent/`, beside the setup script. A server built from WongStack or your fork runs the helper from that same copy, so a fork decides what its servers run. A running server keeps its helper until it is rebuilt.
+
+- **A written agreement, version 1.** [`server/README.md`](server/README.md#the-agent) spells out every message between the helper and wongstack.com. Each check-in names that version and the commit the server was built from, so wongstack.com can check a fork before building from it.
+- **No size limit on the setup script.** wongstack.com now downloads it, so a fork's setup script can grow freely.
+
+**Updating.** Nothing to do by hand: installed repos never receive the server folder.
+
 ## 28.4.0 — Keep open questions from crowding the briefing
 
 - **Room for decisions and preferences.** The briefing each session starts with still shows every open question on the work you are on first. Other open questions show only when under 30 days old, at most 8 of them, and a line says how many more there are and how to search them. Older questions stay saved and searchable.

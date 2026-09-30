@@ -1,6 +1,6 @@
 # Server setup
 
-`setup.sh` turns a fresh Ubuntu 24.04 server into a workspace where agents work: a workspace user, the tools, and Paseo. [`install-wongstack.mjs`](#install-wongstack-into-a-repo) then installs WongStack into a person's repo there. Run either by hand on any server, or let a host run them for you. This page is the contract a host relies on, so a host can run WongStack's scripts or your fork's without reading them.
+`setup.sh` turns a fresh Ubuntu 24.04 server into a workspace where agents work: a workspace user, the tools, and Paseo. [`install-wongstack.mjs`](#install-wongstack-into-a-repo) then installs WongStack into a person's repo there. Run either by hand on any server, or let a host run them for you. A host such as wongstack.com also runs [the agent](#the-agent), which takes its requests on the server. This page is the contract a host relies on, so a host can run WongStack's scripts and agent, or your fork's, without reading them.
 
 ## Run it
 
@@ -137,6 +137,7 @@ A host that runs the installer may import these names from it, and nothing else:
 | `jobFolder` | The folder a job works in, or `null` when the job is not a valid one. |
 | `repoFolder` | The folder name of an `owner/name` repo, or `null` when it is not safe. |
 | `CLOUDFLARE_CALL` | The pattern the refused-call line matches. |
+| `setEnv` | Replaces each key's own line in a `.env` file, or adds it, and leaves the file mode 0600. |
 
 Run it again after any stop. It finishes what the last run began and makes no second copy of anything. On a repo it already pushed, it restores `.env` and the secrets and commits nothing.
 
@@ -149,6 +150,70 @@ Run it again after any stop. It finishes what the last run began and makes no se
 
 Its Cloudflare steps are [the provisioning script](../.agents/skills/wong-setup/scripts/provision.mjs) `/wong-setup` runs, so a fix to one reaches both.
 
+## The agent
+
+`agent/agent.mjs` runs on a host's server as root and takes the host's requests: pair a device, connect GitHub, install WongStack, add a teammate, copy the server. It needs nothing beyond this source and `agent.env`. It imports the installer's names [above](#what-a-host-may-import), and runs [the installer](#install-wongstack-into-a-repo) as the workspace user from a clone pinned to the job's commit.
+
+### What runs it
+
+The host does this at first boot, in order:
+
+1. Unpack this source at the build's commit, root-owned and mode 0755, so the workspace user can read it. wongstack.com uses `/opt/wongstack/source`.
+2. Write `/etc/wongstack/agent.env`, mode 0600: `APP_URL`, `AGENT_TOKEN`, `VM_ID`, `SOURCE_REPO`, and `SOURCE_COMMIT`, the 40-character commit it unpacked.
+3. Run `server/setup.sh`, with `AGENT_TOKEN` kept out of its environment.
+4. Send the setup report (below).
+5. On a zero exit, run `node server/agent/agent.mjs` as root under a service that restarts it, with `agent.env` as its environment.
+
+The agent runs that copy for the server's life. Rebuilding the server is the only way it gets a newer agent.
+
+### Contract 1
+
+`agent.mjs` exports `CONTRACT = 1`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
+
+**The poll.** Every `interval` seconds (10 by default) the agent sends `POST /api/agent/poll`:
+
+```json
+{ "contract": 1, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
+```
+
+`paseo` is `up` when `paseo.service` is active, else `down`. The reply is `{ jobs, interval }`, each job `{ id, type, payload }`. A reply without them means no work and the default wait.
+
+**The jobs.** Each job type, its payload, and the `result` a done job returns:
+
+| Type | Payload | Result |
+| --- | --- | --- |
+| `pair` | none | The Paseo relay pairing link. |
+| `suspend` | none | none; stops `paseo.service`. |
+| `resume` | none | none; starts `paseo.service`. |
+| `github` | `{ token, repo, name, email, invited }` | none; signs `gh` in, sets git's name and email, clones `repo` once, and sets up Paseo. An `invited` teammate's server accepts the owner's invitation first, or fails with `repo`. |
+| `cloudflare` | [The installer's job](#the-job), plus `sourceRepo` and `sourceCommit`, the pinned clone | none; `rolled` says whether it swapped the pasted token's value for one only the server holds. A failure carries the installer's `reason`, and `detail` when the line before it matches `CLOUDFLARE_CALL`. |
+| `team-add` | `{ repo, login }` | none; gives the GitHub `login` push access to the owner's `repo`. |
+| `team-remove` | `{ repo, login }` | none; withdraws the invitation, removes access, and stops the teammate's memory keys where the repo's memory supports it. |
+| `copy-key` | none | The new server's public X25519 key, base64. |
+| `copy-send` | `{ copyId, publicKey, port, peer, pullToken }` | none; sends the home folder, locked to `publicKey`, to the one connection from `peer` that proves `pullToken`. |
+| `copy-restore` | `{ copyId, host, port, pullToken }` | none; pulls the copy from `host`, unlocks it, and unpacks it as the workspace user. |
+
+A job of any other type is `rejected` and runs nothing. `cloudflare`, `copy-send`, and `copy-restore` run in the background, one of each type at a time, so the poll goes on around them.
+
+**The job result.** The agent sends `POST /api/agent/jobs/:id` with `{ status, result?, reason?, detail?, rolled? }`, where `status` is `done`, `failed`, or `rejected`. For a `cloudflare` job, the host answers `{ ok: true }`, or the agent keeps the outcome and sends it again.
+
+**The access result.** After a `cloudflare` job with a `managementResult`, the agent reads the [private management result](#the-private-management-result) from its exact path, checks it against the job, and sends it to `POST /api/agent/jobs/:id/access`. It keeps a private journal under `/var/lib/wongstack/access-jobs` so a restart resends it rather than installing again.
+
+**The setup report.** The host, not the agent, sends `POST /api/agent/setup?exit=<code>` once after `setup.sh`, with the last 4,000 bytes of its log as `text/plain`.
+
+A change to any of these shapes raises `CONTRACT`. The host supports the new number first; then the source releases it.
+
+### What the agent never does
+
+- It never changes its own code: no fetch, replace, or restart onto other code, and no job that names code for it to run.
+- It opens no inbound port. The one exception is `copy-send`, which listens on the job's port for the job's peer alone, until one copy is sent.
+- It never passes `AGENT_TOKEN` to the installer.
+- It never reports installer output beyond the reason word and a line matching `CLOUDFLARE_CALL`, and it logs a job by its id, type, and status alone.
+
+### Change the agent in your fork
+
+Your fork's servers run your fork's agent. Change it as you like, and keep contract 1, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
+
 ## Test a change on a real server
 
 The source's tests use a pretend Cloudflare. Before you ship a change to either script, run both for real:
@@ -158,12 +223,8 @@ The source's tests use a pretend Cloudflare. Before you ship a change to either 
 3. Run the installer as [above](#install-wongstack-into-a-repo). Check that it prints `done`, the repo's first deploy passes, the site answers, and `memory.mjs digest` reads through the Worker. Run it again: it prints `done` and changes nothing.
 4. Delete the server, the repo, and on Cloudflare the Workers, databases, memory bucket, and `<repo>-deploy` token. Deleting a repo needs `gh auth refresh -s delete_repo` first.
 
-## The size budget
-
-`setup.sh` stays at most 12 KiB. A host can then put it in first-boot data: Hetzner, for one, limits that to 32 KiB, and the host's own files need the rest. The source's tests fail when the script grows past the budget. The installer has no budget: it runs from the clone.
-
 ## Your fork is your template
 
-Fork WongStack and edit `setup.sh` to change what every server gets: add a tool, pin a version, or remove one you do not use. Keep the contract above, and keep the final check honest. A host that pairs devices needs `paseo`, and removing it breaks chat there. Change the payload, and `install-wongstack.mjs` installs your version: your fork's tests install it into a practice repo, so a file it misses fails there first. Neither script is in the [payload](../.agents/skills/wong-sync/references/payload-manifest.md#not-copied), so installed repos never get them; the template belongs to the source you fork.
+Fork WongStack and edit `setup.sh` to change what every server gets: add a tool, pin a version, or remove one you do not use. Keep the contract above, and keep the final check honest. A host that pairs devices needs `paseo`, and removing it breaks chat there. Change the payload, and `install-wongstack.mjs` installs your version: your fork's tests install it into a practice repo, so a file it misses fails there first. Neither the scripts nor the agent is in the [payload](../.agents/skills/wong-sync/references/payload-manifest.md#not-copied), so installed repos never get them; the template belongs to the source you fork.
 
 [Required tools](../wiki/development/required-tools.md) owns what WongStack needs on your own machine.

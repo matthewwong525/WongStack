@@ -1,7 +1,7 @@
 {
   "all": true,
   "src": ["scripts", ".agents/skills", ".github/scripts", "mini-apps", "server"],
-  "include": ["scripts/*.mjs", ".agents/skills/*/scripts/**/*.mjs", ".agents/skills/*/worker/*.mjs", ".github/scripts/*.mjs", "mini-apps/*.mjs", "server/*.mjs"],
+  "include": ["scripts/*.mjs", ".agents/skills/*/scripts/**/*.mjs", ".agents/skills/*/worker/*.mjs", ".github/scripts/*.mjs", "mini-apps/*.mjs", "server/*.mjs", "server/agent/*.mjs"],
   "exclude": ["scripts/tests/**"],
   "reporter": ["text-summary"],
   "reports-dir": "scripts/tests/coverage",
