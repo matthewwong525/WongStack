@@ -46,6 +46,7 @@ export const NORMAL_PROVISION = [
   { name: 'Access: Organizations, Identity Providers, and Groups Write', scope: 'account', id: 'bfe0d8686a584fa680f4c53b5eb0de6d' },
   { name: 'Access: Service Tokens Write', scope: 'account', id: 'a1c0fec57cf94af79479a6d827fa518c' },
   { name: 'Zero Trust Write', scope: 'account', id: 'b33f02c6f7284e05a6f20741c0bb0567' },
+  { name: 'Browser Run Write', scope: 'account', id: 'adddda876faa4a0590f1b23a038976e4' },
 ];
 /** The CI deploy token. `when`: always, with a memory bucket, or with custom-domain routes (never set here). */
 export const DEPLOY_TOKEN = [

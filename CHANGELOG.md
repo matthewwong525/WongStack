@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Get past sites that block the assistant's browser
+
+Some sites show a *Verify you are human* check to the assistant's browser, or turn it away, and tapping the check yourself doesn't help. Now the assistant says so in one line and carries on in Cloudflare's own cloud browser, which many of those sites let in, such as Uber Eats and SkipTheDishes.
+
+- **You stay logged in.** It copies just that site's login across before the switch and back after. Your other logins never move.
+- **Hand-overs still work.** If Cloudflare's browser needs you, say for a login code, you get the same private link.
+- **One setting flips the default.** Say *use the cloud browser first* if most of your sites block the assistant's own.
+- **Nothing is disguised.** A site that turns both browsers away, like DoorDash, gets its link and the steps to do on your phone.
+
+Cloudflare's browser runs on your Cloudflare account: the Workers Paid plan includes 10 browser hours a month, then $0.09 an hour, and the free plan 10 minutes a day.
+
+**Updating.** Nothing to do by hand. The first time a site needs Cloudflare's browser, your Cloudflare key gives itself the one permission it needs, *Browser Run Write*, and the assistant tells you it did. New installs get it during setup.
+
 ## 28.3.0 — Give the private links their own home
 
 The tools behind the three private links (handing the browser to you, receiving a key, saving passwords) move out of `/verify`'s folder into their own hidden skill, `hand-over`. It stays out of your list of commands; the browsing and keys guides point the agent to it. The links look and work as before, and each session reads no more words at startup.

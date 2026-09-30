@@ -1,6 +1,6 @@
 ---
 name: hand-over
-description: Private links: hand over the browser, receive keys, save passwords.
+description: Private links: browser, keys, passwords.
 hidden: true
 disable-model-invocation: true
 ---
