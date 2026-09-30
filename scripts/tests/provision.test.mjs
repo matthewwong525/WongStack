@@ -72,7 +72,7 @@ test('private bootstrap precedes app publication and records real Worker IDs', a
   assert.deepEqual(report.access.workers.map(w => w.name), ['recipe-box', 'recipe-box-staging']);
   assert.ok(report.access.workers.every(w => /^[a-f0-9]{32}$/.test(w.id) && w.id !== w.name));
   assert.deepEqual(env.fake.state.workerSubdomains, {
-    'recipe-box': { enabled: false, previews_enabled: false },
+    'recipe-box': { enabled: true, previews_enabled: false },
     'recipe-box-staging': { enabled: false, previews_enabled: false },
   });
   const uploads = env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/'));
@@ -85,21 +85,142 @@ test('private bootstrap precedes app publication and records real Worker IDs', a
   assert.equal(app.domain, 'recipe-box.ada.workers.dev');
   assert.deepEqual(app.destinations.filter(d => d.type === 'worker').map(d => d.worker_id), report.access.workers.map(w => w.id));
   assert.equal(env.record().components.access.appId, app.id);
+  const activation = env.fake.calls.findIndex(call => call.method === 'POST' && call.path.endsWith('/workers/scripts/recipe-box/subdomain') && JSON.parse(call.body).enabled);
+  const policyReadback = env.fake.calls.findLastIndex((call, index) => index < activation && call.method === 'GET' && call.path.includes(`/access/apps/${app.id}/policies`));
+  assert.ok(policyReadback > 0 && activation > policyReadback);
+  assert.ok(env.fake.calls.slice(0, activation).some(call => call.method === 'GET' && call.path.endsWith(`/access/apps/${app.id}`)));
+  const writes = env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`);
   await env.provision();
   assert.equal(env.fake.state.accessApps.length, 1);
   assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+  assert.equal(env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`), writes);
 });
 
 test('interrupted bootstrap reuses owned Workers without opening preview publication', async (t) => {
   const env = await setup(t);
   env.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/apps`];
   await assert.rejects(env.provision(), /Cloudflare POST/);
+  const saved = JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8'));
+  assert.equal(saved.workers['recipe-box'].bootstrapLoginPending, true);
+  assert.equal(env.fake.state.workerSubdomains['recipe-box'].enabled, false);
   assert.equal(existsSync(join(env.dir, 'app/wrangler.jsonc')), false);
   assert.deepEqual(env.gh.secrets(), {});
   env.fake.state.refuse = [];
   await env.provision();
   assert.equal(env.fake.state.workers.length, 2);
   assert.equal(env.fake.state.accessApps.length, 1);
+});
+
+test('machine policy failure retains a closed recoverable bootstrap anchor', async t => {
+  const env = await setup(t);
+  const fetchWithoutMachine = async (url, options) => {
+    if (options.method === 'POST' && String(options.body).includes('"decision":"non_identity"')) throw new Error('interrupted policy write');
+    return fetch(url, options);
+  };
+  await assert.rejects(env.provision({ fetch: fetchWithoutMachine }), /Cloudflare POST/);
+  assert.equal(env.fake.state.workerSubdomains['recipe-box'].enabled, false);
+  assert.equal(env.fake.state.accessApps[0].policies.length, 1);
+  assert.equal(existsSync(join(env.dir, 'app/wrangler.jsonc')), false);
+  await env.provision();
+  assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], { enabled: true, previews_enabled: false });
+  assert.equal(env.fake.state.accessApps[0].policies.length, 2);
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+});
+
+test('an interrupted bootstrap upload retains ownership and resumes without another content upload', async t => {
+  const env = await setup(t);
+  const lostUpload = async (url, options) => {
+    const response = await fetch(url, options);
+    if (url.endsWith('/workers/scripts/recipe-box') && options.method === 'PUT') throw new Error('lost upload receipt');
+    return response;
+  };
+  await assert.rejects(env.provision({ fetch: lostUpload }), /Cloudflare PUT/);
+  const saved = JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8'));
+  assert.deepEqual(saved.workers['recipe-box'], { name: 'recipe-box', pending: true, bootstrapLoginPending: true });
+  assert.equal(env.fake.state.accessApps.length, 0);
+  await env.provision();
+  assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], { enabled: true, previews_enabled: false });
+  assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+});
+
+test('missing publication settings or ignored activation remain recoverable failures', async t => {
+  for (const missing of [true, false]) {
+    const env = await setup(t);
+    const brokenPublication = async (url, options) => {
+      const response = await fetch(url, options);
+      if (url.endsWith('/workers/scripts/recipe-box/subdomain') && options.method === 'GET') {
+        return new Response(JSON.stringify({ success: true, result: missing ? {} : { enabled: false, previews_enabled: false } }));
+      }
+      return response;
+    };
+    await assert.rejects(env.provision({ fetch: brokenPublication }), { reason: 'access', message: /bootstrap/ });
+    assert.equal(JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8')).workers['recipe-box'].bootstrapLoginPending, true);
+    await env.provision();
+    assert.equal(JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8')).workers['recipe-box'].bootstrapLoginPending, undefined);
+    assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], { enabled: true, previews_enabled: false });
+  }
+});
+
+test('bootstrap activation failure and lost receipts retry without rewriting content or publication choices', async t => {
+  for (const applied of [false, true]) {
+    const env = await setup(t);
+    const interruptedFetch = async (url, options) => {
+      if (url.endsWith('/workers/scripts/recipe-box/subdomain') && options.method === 'POST' && JSON.parse(options.body).enabled) {
+        if (applied) await fetch(url, options);
+        throw new Error('interrupted activation');
+      }
+      return fetch(url, options);
+    };
+    await assert.rejects(env.provision({ fetch: interruptedFetch }), /Cloudflare POST/);
+    assert.equal(JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8')).workers['recipe-box'].bootstrapLoginPending, true);
+    assert.equal(env.fake.state.workerSubdomains['recipe-box'].enabled, applied);
+    await env.provision();
+    assert.equal(JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8')).workers['recipe-box'].bootstrapLoginPending, undefined);
+    assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], { enabled: true, previews_enabled: false });
+    assert.equal(env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`), 2);
+    assert.equal(env.fake.calls.filter(call => call.method === 'PUT' && call.path.includes('/workers/scripts/')).length, 2);
+    const chosen = { enabled: false, previews_enabled: true };
+    env.fake.state.workerSubdomains['recipe-box'] = chosen;
+    await env.provision();
+    assert.deepEqual(env.fake.state.workerSubdomains['recipe-box'], chosen);
+    assert.equal(env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`), 2);
+  }
+});
+
+test('provider policy or app readback mismatch prevents bootstrap anchor activation', async t => {
+  for (const field of ['human', 'machine', 'app']) {
+    const env = await setup(t);
+    const mismatchedFetch = async (url, options) => {
+      const response = await fetch(url, options);
+      if (options.method !== 'GET' || !url.includes('/access/apps/')) return response;
+      const data = await response.json();
+      if (Array.isArray(data.result) && data.result.length === 2) {
+        const policy = data.result.find(item => item.decision === (field === 'human' ? 'allow' : 'non_identity'));
+        if (field !== 'app') policy.include = [{ everyone: {} }];
+      } else if (field === 'app' && data.result.destinations?.[0].overrides) data.result.aud = 'wrong-audience';
+      return new Response(JSON.stringify(data), { status: response.status });
+    };
+    await assert.rejects(env.provision({ fetch: mismatchedFetch }), { reason: 'access', message: /did not retain/ });
+    assert.equal(env.fake.state.workerSubdomains['recipe-box'].enabled, false);
+    assert.equal(env.fake.count(`POST /accounts/${ACCOUNT}/workers/scripts/recipe-box/subdomain`), 1);
+    assert.equal(existsSync(join(env.dir, 'app/wrangler.jsonc')), false);
+  }
+});
+
+test('adopted Workers retain all existing publication choices without bootstrap uploads', async t => {
+  for (const enabled of [true, false]) {
+    const env = await setup(t);
+    env.fake.state.workers = ['recipe-box', 'recipe-box-staging'];
+    env.fake.state.workerSubdomains = {
+      'recipe-box': { enabled, previews_enabled: true },
+      'recipe-box-staging': { enabled: !enabled, previews_enabled: true },
+    };
+    const chosen = structuredClone(env.fake.state.workerSubdomains);
+    writeFileSync(join(env.dir, '.claude/.wong-stack.json'), JSON.stringify({ components: { memory: { accountId: ACCOUNT, worker: 'https://recipe-box.ada.workers.dev/_memory' } } }));
+    await env.provision();
+    assert.deepEqual(env.fake.state.workerSubdomains, chosen);
+    assert.equal(env.fake.calls.filter(call => ['PUT', 'POST'].includes(call.method) && call.path.includes('/workers/scripts/')).length, 0);
+  }
 });
 
 test('unowned Workers and higher-precedence apps are untouched and block protected success', async (t) => {

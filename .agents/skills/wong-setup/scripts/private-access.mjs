@@ -67,14 +67,14 @@ const notFound = async fn => fn().catch(error => {
 });
 
 /** A missing Worker gets only an unavailable response; existing content is never overwritten. */
-async function bootstrapWorker(cf, { root, name, state, checkpoint, note, today, adoptExisting }) {
+async function bootstrapWorker(cf, { root, name, state, checkpoint, note, today, adoptExisting, loginAnchor }) {
   state.workers ??= {};
   let worker = await notFound(() => cf('GET', `${root}/workers/workers/${name}`));
   const remembered = state.workers[name];
   if (worker && !remembered && !adoptExisting) throw new AccessSetupError(`Worker ${name} already exists and is not owned by this install; choose a free base`);
   if (worker && remembered?.id && worker.id !== remembered.id) throw new AccessSetupError(`Worker ${name} has a different ID; review ownership before continuing`);
   if (!worker) {
-    state.workers[name] = { name, pending: true };
+    state.workers[name] = { name, pending: true, ...(loginAnchor && { bootstrapLoginPending: true }) };
     checkpoint();
     const form = new FormData();
     form.set('metadata', new Blob([JSON.stringify({ main_module: 'unavailable.mjs', compatibility_date: today })], { type: 'application/json' }));
@@ -88,7 +88,7 @@ async function bootstrapWorker(cf, { root, name, state, checkpoint, note, today,
     note('reused', `Worker ${name}`);
   }
   if (worker.name !== name || !/^[a-f0-9]{32}$/i.test(worker.id ?? '')) throw new AccessSetupError(`Cloudflare did not return the actual ID for Worker ${name}; no content was published`);
-  state.workers[name] = { name, id: worker.id };
+  state.workers[name] = { name, id: worker.id, ...(state.workers[name]?.bootstrapLoginPending && { bootstrapLoginPending: true }) };
   checkpoint();
   return worker;
 }
@@ -98,7 +98,7 @@ export async function provisionAccess(cf, { account, repo, base, names, subdomai
   const root = `/accounts/${account}`;
   const workers = [];
   for (const name of [names.worker, names.staging]) {
-    workers.push(await bootstrapWorker(cf, { root, name, state, checkpoint, note, today, adoptExisting }));
+    workers.push(await bootstrapWorker(cf, { root, name, state, checkpoint, note, today, adoptExisting, loginAnchor: name === names.worker }));
   }
   const scripts = await cf('GET', `${root}/workers/scripts`);
   for (const worker of workers) worker.routes = scripts.find(script => script.id === worker.name)?.routes ?? [];
@@ -134,6 +134,31 @@ export async function provisionAccess(cf, { account, repo, base, names, subdomai
 
 export const HUMAN_SESSION_DURATION = '720h';
 const MEMORY_OVERRIDE = [{ behavior: 'public', path_pattern: '/_memory/*' }];
+
+/** Activate the new unavailable production anchor once; later publication choices stay untouched. */
+async function bootstrapLogin(cf, { account, access, state, checkpoint, note }) {
+  const worker = access.workers[0];
+  const owned = state.workers[worker.name];
+  if (!owned?.bootstrapLoginPending) return;
+  if (owned.id !== worker.id) throw new AccessSetupError('the bootstrap login Worker has changed ownership; review it before continuing');
+  const path = `/accounts/${account}/workers/scripts/${worker.name}/subdomain`;
+  const current = await cf('GET', path);
+  if (typeof current.enabled !== 'boolean' || typeof current.previews_enabled !== 'boolean') {
+    throw new AccessSetupError('Cloudflare did not return the bootstrap publication settings; run private setup again');
+  }
+  if (current.enabled === false && current.previews_enabled === false) {
+    await cf('POST', path, { enabled: true, previews_enabled: false });
+    const checked = await cf('GET', path);
+    if (checked.enabled !== true || checked.previews_enabled !== false) {
+      throw new AccessSetupError('Cloudflare did not activate the protected bootstrap login anchor; run private setup again');
+    }
+    note('updated', 'protected unavailable production login anchor');
+  }
+  delete owned.bootstrapLoginPending;
+  checkpoint();
+}
+
+const matchesFields = (actual, expected) => actual && Object.entries(expected).every(([key, value]) => isDeepStrictEqual(actual[key], value));
 
 /** Build the latest exact allowlist; synthetic extra-workspace rows never grant an identity. */
 export function humanEmails(ownerEmail, teammates = []) {
@@ -226,8 +251,17 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
     note('updated', 'production memory exception and workspace email login');
   }
   const checked = await cf('GET', appPath);
-  if (!isDeepStrictEqual(checked.destinations, destinations) || checked.session_duration !== desired.session_duration) {
+  if (!matchesFields(checked, { ...desired, id: access.appId, aud: access.audience })) {
     throw new AccessSetupError('Cloudflare did not retain the private workspace configuration; content remains unavailable');
   }
+  const confirmed = await accessList(cf, `${appPath}/policies`);
+  const expected = [
+    { id: human.id, name: `${app.name} people`, decision: 'allow', include: emails.map(email => ({ email: { email } })), exclude: [], require: [] },
+    { id: service.id, name: `${app.name} verification`, decision: 'non_identity', include: [{ service_token: { token_id: machine.id } }], exclude: [], require: [] },
+  ];
+  if (!human.id || !service.id || confirmed.length !== 2 || !expected.every(policy => confirmed.some(actual => matchesFields(actual, policy)))) {
+    throw new AccessSetupError('Cloudflare did not retain both exact workspace policies; content remains unavailable');
+  }
+  await bootstrapLogin(cf, { account, access, state, checkpoint, note });
   return { ...access, ...state.access, sessionDuration: checked.session_duration };
 }

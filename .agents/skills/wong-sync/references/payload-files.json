@@ -38,6 +38,7 @@
       ".claude/hooks.json",
       ".claude/config.toml",
       "paseo.json",
+      ".nvmrc",
       ".claude/rules/code.md",
       ".claude/rules/wiki.md",
       ".claude/rules/openspec.md",

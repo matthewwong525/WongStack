@@ -240,6 +240,11 @@ Provisioning SHALL protect production and staging business content with Cloudfla
 - **WHEN** provisioning cannot establish the login wall
 - **THEN** business content remains unavailable and the report names what is needed to continue
 
+#### Scenario: Preview login before production content
+
+- **WHEN** native protection and both owned exact human and machine policies are confirmed for newly created bootstrap Workers before production business content is uploaded
+- **THEN** the protected unavailable production login anchor permits the native email callback, its previews remain disabled, and incomplete protection remains unavailable and recoverable
+
 ### Requirement: Protection covers every address of this workspace
 
 The workspace's Access protection SHALL cover its production and staging Workers across default addresses, custom domains, routes, branch aliases, and unique version URLs, including addresses added later and previews created before adoption. Provisioning SHALL NOT gate unrelated Workers or create account-wide protection. More-specific conflicting policies SHALL prevent a successful coverage report until resolved.
@@ -256,7 +261,7 @@ The workspace's Access protection SHALL cover its production and staging Workers
 
 ### Requirement: Machine access uses explicit authentication
 
-Provisioning SHALL supply a dedicated app-specific service-token policy for automated verification. Membership updates SHALL preserve that machine policy. The production memory route SHALL remain authenticated by its memory keys and SHALL be the only automatic route exception; other public routes require explicit reviewed configuration. Staging and previews SHALL carry no memory bindings.
+Provisioning SHALL supply a dedicated app-specific service-token policy for automated verification. Membership updates SHALL preserve that machine policy. The production memory route SHALL remain authenticated by its memory keys and SHALL be the only automatic route exception; other public routes require explicit reviewed configuration. Staging and CI branch previews SHALL carry no memory bindings.
 
 #### Scenario: Automated checks and memory
 

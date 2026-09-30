@@ -190,6 +190,9 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       state.workerSubdomains[workerScript[1]] = body;
       return ok(body);
     }
+    if (workerScript && method === 'GET' && workerScript[2]) {
+      return ok(state.workerSubdomains[workerScript[1]] ?? { enabled: false, previews_enabled: false });
+    }
     if (route === `GET ${account}/r2/buckets`) return state.r2 ? ok({ buckets: state.buckets.map((name) => ({ name })) }) : no(403, 10042, 'Please enable R2 through the Cloudflare Dashboard.');
     if (route === `POST ${account}/r2/buckets`) {
       if (!state.r2) return no(403, 10042, 'Please enable R2 through the Cloudflare Dashboard.');

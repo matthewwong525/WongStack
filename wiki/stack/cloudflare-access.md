@@ -2,6 +2,8 @@
 
 WongStack setup protects the business app automatically. The owner signs in with a code sent to their reachable email. Exact teammate emails can be allowed too; arbitrary domains and synthetic `.invalid` identities receive no grant. Pages, scripts, styles, APIs, mini apps, staging, and version previews share the same protection.
 
+Production version URLs run the production version and inherit its bindings, including independently keyed memory. Staging and CI branch previews have no memory bindings. Keep every version protected by the same Worker-scoped wall.
+
 ## Turning it on through an agent
 
 Setup widens the supplied user token into the normal Access permissions, reuses or creates the account's Zero Trust organization and email PIN provider, and creates unavailable bootstrap Workers before attaching protection. If onboarding requires a dashboard step, setup stops closed, gives the account's Zero Trust link, and continues on rerun. It publishes no business content on failure.

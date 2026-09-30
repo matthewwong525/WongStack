@@ -157,7 +157,7 @@ It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `r
 
 ### 4e. The workflow
 
-Confirm the payload's `.github/workflows/deploy.yml` exists; [the pipeline scripts own every deploy decision](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions).
+Confirm `.github/workflows/test.yml`, `.github/workflows/deploy.yml`, and `.nvmrc` landed; [the pipeline scripts own every deploy decision](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions).
 
 Missing `workflow` scope → offer `gh auth refresh --scopes workflow` ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
 

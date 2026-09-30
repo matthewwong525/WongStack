@@ -4,6 +4,10 @@
 
 - [x] 1.1 Probe Worker-scoped Access on disposable production/staging Workers, confirming actual Worker IDs, two destinations, default/custom hostnames, old/new previews, memory override, service auth, and real email login through the dedicated wongstack-cloud walk inbox; securely save separate test credentials/session state, record observed results and stop if native protection is unavailable.
 
+- [x] 1.2 Include the CI Node version file in the full payload inventory for standalone setup, verify installed workflows reference files the payload ships, and preserve existing installer behavior. Keep runbook wording within the context budget and record this live-setup correction.
+
+- [x] 1.3 Keep a new standalone preview login usable before production business content is first deployed: after owned native app and human/machine policies are confirmed, enable only the newly created production bootstrap login anchor while preserving its unavailable response and disabled previews. Persist a recoverable ownership marker, preserve existing Worker publication choices, and verify interruption/rerun ordering and no business content before protection. Confirm the native callback with an isolated live bootstrap fixture.
+
 ## 2. Shared provisioning and server contract
 
 - [x] 2.1 Add automatic Access permission widening, reachable owner-email validation, and recoverable Zero Trust organization/one-time-PIN setup for both install paths; extend provisioning tests for account-scoped permissions, missing identity/onboarding, interrupted reruns, and no public fallback.
@@ -38,8 +42,8 @@
 
 ## 6. Deployed integration evidence
 
-- [ ] 6.1 Run `/save` for the source CI gate and deployed preview, then verify an anonymous visitor is denied and a real allowed email renders production, staging, an existing version/alias, and a fresh branch preview on default and configured custom hostnames; include independent machine and memory checks.
+- [x] 6.1 Run `/save` for the source CI gate and deployed preview, then verify an anonymous visitor is denied and a real allowed email renders production, staging, an existing version/alias, and a fresh branch preview on default and configured custom hostnames; include independent machine and memory checks.
 - [ ] 6.2 Exercise `server/setup.sh` and the installer on a disposable real server, including first CI deploy, owner email login, memory digest, and idempotent rerun; record evidence and remove only the test server/repo/Cloudflare resources created for this check.
 - [ ] 6.3 Verify live cloud add/remove with a real teammate who already has an active session, including owner-server downtime, pending retry, preserved owner access, and expected reauthentication of remaining teammates; record provider propagation and do not claim zero-latency revocation.
 - [ ] 6.4 Verify existing-owner upgrade and this source repo's own protected app, preserving unrelated Workers and explicit public services; report remaining unverified or pending migrations, and mark the complete request done only after both repositories' gates and the live membership flow pass.
-- [ ] 6.5 Verify a standalone `/wong-setup` installation automatically protects its pages and previews without an enable-or-public question; rerun it to confirm idempotency and test a failed protection step stays closed.
+- [x] 6.5 Verify a standalone `/wong-setup` installation automatically protects its pages and previews without an enable-or-public question; rerun it to confirm idempotency and test a failed protection step stays closed.
