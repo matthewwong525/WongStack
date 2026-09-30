@@ -315,6 +315,18 @@ test('a run stopped by Cloudflare finishes on the next run with no duplicate', a
   assert.ok(s.pushed());
 });
 
+test('the server installer stops when Zero Trust needs onboarding, and never opens the site', async (t) => {
+  const s = await setup(t);
+  s.fake.state.organization = null;
+  s.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/organizations`];
+  const stopped = await s.install();
+  assert.equal(stopped.code, 1);
+  assert.match(stopped.err.join('\n'), /finish Zero Trust onboarding/);
+  assert.equal(s.pushed(), null);
+  assert.equal(existsSync(join(s.dir, 'app/wrangler.jsonc')), false);
+  assert.deepEqual(s.fake.state.databases, []);
+});
+
 test('a refused push stops with push and keeps the commit; the next run pushes it', async (t) => {
   const s = await setup(t);
   git('-C', s.dir, 'remote', 'set-url', 'origin', join(s.root, 'missing.git'));

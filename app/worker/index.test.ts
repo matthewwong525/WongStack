@@ -41,6 +41,23 @@ describe("private Worker routing", () => {
     for (const path of ASSET_PATHS) expect((await call(path, {}, { ASSETS: assets } as typeof env)).status).toBe(503);
     expect(assets.fetch).not.toHaveBeenCalled();
   });
+  it("serves an open workspace without login only while no Access identifier is set", async () => {
+    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off" } as unknown as typeof env;
+    for (const path of ASSET_PATHS) expect((await call(path, {}, open)).status, path).toBe(200);
+    expect(await (await call("/api/health", {}, open)).json()).toEqual({ ok: true });
+    expect((await call("/_memory/unknown", {}, { ...open, MEMORY_DB: {} } as typeof env)).status).toBe(401);
+    expect(assets.fetch).toHaveBeenCalledTimes(ASSET_PATHS.length);
+  });
+  it("ignores a stale open switch once Access identifiers are set", async () => {
+    const stale = { ...env, WORKSPACE_LOGIN: "off" };
+    for (const path of [...ASSET_PATHS, "/api/health"]) expect((await call(path, {}, stale)).status, path).toBe(401);
+    const onlyTeam = { ASSETS: assets, WORKSPACE_LOGIN: "off", CF_ACCESS_TEAM_DOMAIN: TEAM } as unknown as typeof env;
+    expect((await call("/", {}, onlyTeam)).status).toBe(503);
+    for (const value of ["on", "OFF", ""]) {
+      expect((await call("/", {}, { ASSETS: assets, WORKSPACE_LOGIN: value } as unknown as typeof env)).status, value).toBe(503);
+    }
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
   it("serves pages, scripts, styles, mini-app assets and unknown SPA routes to signed humans and services", async () => {
     for (const claims of [{ email: "human@example.com" }, { common_name: "service-client", sub: "" }]) {
       const assertion = await token(claims);

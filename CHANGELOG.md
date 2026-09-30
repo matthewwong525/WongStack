@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Setup finishes without a card
+
+Cloudflare turns on the private email login only once your account has a card on file. Setup used to stop there and had to run again. Now it finishes in one pass.
+
+- **Your site goes live without the card.** When Cloudflare wants a card first, the site goes live without the email login: anyone with the link can see it. Your memory stays private behind its own key.
+- **The card is an optional last step.** The closing message lists three links to open in your own browser (add a card, turn on storage, pick the free login plan) and says what you miss without them. Tell the assistant when it's done: it turns the login on and publishes the change.
+- **The final checks run themselves.** Setup checks your site with its own machine key instead of asking you to sign in by email code on every site. Opening your link and seeing your app is the human check.
+
+**Updating.** Nothing to do by hand. A site that already has the private login keeps it, and the server installer still stops until the login is on.
+
 ## 28.5.0 — The server's helper lives in WongStack
 
 The helper each wongstack.com server runs, which pairs devices, connects GitHub, installs WongStack, and copies a server, moves into WongStack's `server/agent/`, beside the setup script. A server built from WongStack or your fork runs the helper from that same copy, so a fork decides what its servers run. A running server keeps its helper until it is rebuilt.

@@ -6,9 +6,21 @@ Production version URLs run the production version and inherit its bindings, inc
 
 ## Turning it on through an agent
 
-Setup widens the supplied user token into the normal Access permissions, reuses or creates the account's Zero Trust organization and email PIN provider, and creates unavailable bootstrap Workers before attaching protection. If onboarding requires a dashboard step, setup stops closed, gives the account's Zero Trust link, and continues on rerun. It publishes no business content on failure.
+Setup widens the supplied user token into the normal Access permissions, reuses or creates the account's Zero Trust organization and email PIN provider, and creates unavailable bootstrap Workers before attaching protection. When Zero Trust onboarding needs a dashboard step, usually a card, interactive setup finishes [open until the card](#open-until-the-card); the server installer stops closed, gives the account's Zero Trust link, and continues on rerun. Any other failure publishes no business content.
 
 There is no enable-or-public question. The shared provisioner serves both standalone setup and the managed server installer. Safe app/Worker/policy identifiers live in the install record; machine credentials live in ignored `.env` files. A separate CI token can read protection and publish code, without Access policy-write permission.
+
+## Open until the card
+
+Cloudflare turns on Zero Trust only once the account has a card on file. [`/wong-setup`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#step-4--provision) doesn't stop for it: the site goes live without the email login, and the closing report recommends the card as optional.
+
+- **The switch is committed config, not a secret.** Production's and staging's `vars` carry `WORKSPACE_LOGIN: "off"`, with the `CF_ACCESS_*` ids blank, so a reviewer sees it. A secret would hide it from review.
+- **The Worker honors it only while no Access id is set.** Once `CF_ACCESS_TEAM_DOMAIN` or `CF_ACCESS_AUD` has a value, a request without a valid assertion is refused, so a leftover switch can't weaken a private site.
+- **The deploy check accepts only this exact state.** Both environments must carry the switch and no Access ids; the Worker names and the secrets rule still hold. Every publish prints one warning that the site is open. The switch beside Access ids fails the check.
+- **Memory stays private.** `/_memory/*` checks its own key either way.
+- **Anyone with the link sees production, staging, and previews.** Staging binds no production data or memory.
+
+**Turning it private later:** the person adds the card from [the card list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#the-card-list), and the runbook's [adding the card later](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#adding-the-card-later) reruns `provision`. It makes the Access app over the deployed Workers, fills the ids, and removes the switch in `app/wrangler.jsonc`, ready for `/save` to publish. The deploy check then runs in full.
 
 ## The model, in one picture
 
@@ -74,7 +86,7 @@ The output includes only independent anonymous/machine statuses and leaves human
 
 ## The auth model: verify the signed assertion
 
-The template entry point enforces `app/worker/access.ts` before every app route and asset. Missing public Access configuration returns unavailable; absent, expired, forged, wrong-audience, or invalid-signature assertions are denied. Assets run through the Worker first, including unknown paths that would otherwise use the SPA fallback.
+The template entry point enforces `app/worker/access.ts` before every app route and asset. Missing public Access configuration returns unavailable, unless the site is [open until the card](#open-until-the-card); absent, expired, forged, wrong-audience, or invalid-signature assertions are denied. Assets run through the Worker first, including unknown paths that would otherwise use the SPA fallback.
 
 ### Verify the JWT; don't trust the header
 
@@ -84,7 +96,7 @@ Human JWT claims carry an email; machine claims carry `common_name`, the service
 
 Setup writes public `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_APP_ID`, `CF_ACCESS_WORKER_ID`, and `WONG_ENVIRONMENT` vars in production and staging configuration. Preserve each environment's real Worker ID and app audience when adapting an installed app. Merge the signed guard into local handlers; replacing them with the scaffold can erase business code.
 
-Both CI backends and host previews run `scripts/check-private-access.mjs` before content publication. It reads actual Worker metadata, secret names, destinations, policies, and overlapping apps, and checks generated config against source. Missing coverage or provider/read permission stops publication. Repair private setup or restore the CI token's account-scoped `Access: Apps and Policies Read`, then retry; never disable the check to get a preview.
+Both CI backends and host previews run `scripts/check-private-access.mjs` before content publication. It reads actual Worker metadata, secret names, destinations, policies, and overlapping apps, and checks generated config against source; an [open](#open-until-the-card) config gets only the Worker and secret checks, and a warning. Missing coverage or provider/read permission stops publication. Repair private setup or restore the CI token's account-scoped `Access: Apps and Policies Read`, then retry; never disable the check to get a preview.
 
 ### Local development
 

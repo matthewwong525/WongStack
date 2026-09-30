@@ -15,7 +15,9 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
-import { accessOrganization, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { AccessSetupError, accessOrganization, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
+import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-fragments.md');
@@ -357,6 +359,8 @@ function dropLines(text, from, to) {
 /**
  * The app's wrangler config: the fragment, its comments kept, with every placeholder filled. The bucket
  * binding stays only with a bucket, and staging's cron override goes, since production declares no crons.
+ * An open `access` (no Zero Trust yet) leaves the Access ids blank and adds `WORKSPACE_LOGIN: "off"` to
+ * production's and staging's vars: the committed switch the Worker and the deploy check both read.
  */
 export function wranglerConfig({ base, ids, bucket, today, access }, fragment = wranglerFragment()) {
   const n = namesFor(base);
@@ -379,6 +383,7 @@ export function wranglerConfig({ base, ids, bucket, today, access }, fragment = 
     '<staging Worker id>': access?.workers?.[1]?.id ?? '',
   };
   for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
+  if (access?.mode === 'open') text = text.replace(/^(\s*)"WONG_ENVIRONMENT": "(production|staging)",[ \t]*$/gm, '$&\n$1"WORKSPACE_LOGIN": "off",');
   const left = /<[^<>\n]+>/.exec(text);
   if (left) throw new ProvisionError('repo', `the wrangler fragment has a placeholder this script does not fill: ${left[0]}`);
   return text.endsWith('\n') ? text : `${text}\n`;
@@ -394,6 +399,38 @@ function addBucketBinding(file, bucket) {
   const block = `${indent}"r2_buckets": [\n${indent}${unit}{ "binding": "MEMORY_BUCKET", "bucket_name": "${bucket}" }\n${indent}],\n`;
   writeFileSync(file, text.slice(0, env.index) + block + text.slice(env.index));
   return true;
+}
+
+/**
+ * Turns an open config private in place, keeping its comments: fills the four `CF_ACCESS_*` vars, production's
+ * then staging's, and drops `WORKSPACE_LOGIN`. Restores the file and returns false when the result doesn't
+ * parse to exactly the private config `access` describes.
+ */
+function closeOpenConfig(file, access) {
+  const before = readFileSync(file, 'utf8');
+  const values = {
+    CF_ACCESS_TEAM_DOMAIN: [access.teamDomain, access.teamDomain],
+    CF_ACCESS_AUD: [access.audience, access.audience],
+    CF_ACCESS_APP_ID: [access.appId, access.appId],
+    CF_ACCESS_WORKER_ID: [access.workers?.[0]?.id, access.workers?.[1]?.id],
+  };
+  let text = before.replace(/^[ \t]*"WORKSPACE_LOGIN"\s*:\s*"[^"\n]*",?[ \t]*\n/gm, '');
+  for (const [key, [production, staging]] of Object.entries(values)) {
+    let seen = 0;
+    text = text.replace(new RegExp(`("${key}"\\s*:\\s*)"[^"\\n]*"`, 'g'), (_, head) => `${head}"${[production, staging][seen++] ?? ''}"`);
+    if (seen !== 2) return false;
+  }
+  writeFileSync(file, text);
+  try {
+    const config = parseConfig(file);
+    const [production, staging] = ['production', 'staging'].map((environment) => privateDeployment(config, environment));
+    const expected = (deployment, worker) => deployment.appId === access.appId && deployment.audience === access.audience && deployment.teamDomain === access.teamDomain && deployment.workerId === worker?.id;
+    if (expected(production, access.workers?.[0]) && expected(staging, access.workers?.[1])) return true;
+  } catch {
+    // Falls through to restore the file.
+  }
+  writeFileSync(file, before);
+  return false;
 }
 
 /** The two `db:migrate:*` scripts, filled with the literal database names, after `build:app`. */
@@ -469,9 +506,12 @@ const hasKey = (env) => (env.CLOUDFLARE_MEMORY_TOKEN ?? '').startsWith('wongm_')
  * Everything after the one billable ask, under `base`: the memory store (R2 check, database, bucket),
  * the subdomain, the record's `components.memory`, the memory schema, the admin key, both app databases,
  * the config, and the deploy token in the GitHub secret. `keepConfig` leaves an installed repo's
- * committed files as they are, and adds no new bucket they would need.
+ * committed files as they are, and adds no new bucket they would need. `openWithoutLogin` lets a Zero
+ * Trust organization Cloudflare refuses (onboarding, usually a card) record `access.mode: 'open'` and go
+ * on without Access; a site already private never opens, and a rerun that gets the organization turns an
+ * open config private.
  */
-export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, sleep = wait, exec = run, env = process.env }) {
+export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env }) {
   const cf = cloudflare(token, { api, fetch });
   const n = namesFor(base);
   const report = { base, names: n, r2: false, created: [], reused: [], updated: [], todo: [] };
@@ -491,9 +531,19 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
   const checkpoint = () => writeJson(provisionStateFile, state);
   await step('repo', checkpoint);
 
-  report.access = await accessOrganization(cf, { account, base, note });
-  report.access.ownerEmail = loginEmail;
-  report.access.humanLogin = 'unverified';
+  const wasPrivate = Boolean(state.access?.appId || readJson(recordFile(dir))?.components?.access?.appId);
+  try {
+    report.access = await accessOrganization(cf, { account, base, note });
+    report.access.ownerEmail = loginEmail;
+    report.access.humanLogin = 'unverified';
+  } catch (error) {
+    // A flaky connection or a Cloudflare outage is not a refusal: only a refusal opens the site.
+    const status = error.cause?.status;
+    const transient = status !== undefined && (status === 0 || status === 429 || status >= 500);
+    if (!openWithoutLogin || wasPrivate || !(error instanceof AccessSetupError) || transient) throw error;
+    report.access = { mode: 'open', reason: 'zero-trust-onboarding', onboardingUrl: `https://one.dash.cloudflare.com/${account}/`, ownerEmail: loginEmail, humanLogin: 'none' };
+  }
+  const open = report.access.mode === 'open';
   const groups = await step('cloudflare', () => cf('GET', '/user/tokens/permission_groups?per_page=1000'));
   const recordedBucket = readJson(recordFile(dir))?.components?.memory?.bucket ?? null;
 
@@ -511,13 +561,13 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     }
   }
   const sub = await step('cloudflare', () => subdomain(cf, account, String(repo).split('/')[0], note));
-  Object.assign(report.access, await provisionAccess(cf, {
+  if (!open) Object.assign(report.access, await provisionAccess(cf, {
     account, repo, base, names: n, subdomain: sub, state, checkpoint, note, today,
     adoptExisting: readJson(recordFile(dir))?.components?.memory?.accountId === account
       && readJson(recordFile(dir))?.components?.memory?.worker === `https://${n.worker}.${sub}.workers.dev/_memory`,
   }));
   await step('repo', () => exec('git', ['-C', dirname(envFile), 'check-ignore', '-q', '.env'], { env }));
-  report.access = await provisionAccessPolicies(cf, {
+  if (!open) report.access = await provisionAccessPolicies(cf, {
     account, ownerEmail: loginEmail, teammateEmails, access: report.access, state, checkpoint, note,
     credentials: readEnv(envFile),
     saveCredentials: async ({ client_id, client_secret }) => {
@@ -563,9 +613,15 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     if (!existsSync(config)) {
       writeFileSync(config, wranglerConfig({ base, ids: { db, stagingDb, memory: memoryId }, bucket, today, access: report.access }));
       note('created', 'app/wrangler.jsonc');
-    } else if (bucket && !readFileSync(config, 'utf8').includes('MEMORY_BUCKET')) {
-      if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
-      else report.todo.push(`add MEMORY_BUCKET for ${bucket} to app/wrangler.jsonc`);
+    } else {
+      if (!open && /"WORKSPACE_LOGIN"/.test(readFileSync(config, 'utf8'))) {
+        if (closeOpenConfig(config, report.access)) note('updated', 'app/wrangler.jsonc: private login on, WORKSPACE_LOGIN removed');
+        else report.todo.push('fill the CF_ACCESS_* vars from components.access and remove WORKSPACE_LOGIN in app/wrangler.jsonc');
+      }
+      if (bucket && !readFileSync(config, 'utf8').includes('MEMORY_BUCKET')) {
+        if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
+        else report.todo.push(`add MEMORY_BUCKET for ${bucket} to app/wrangler.jsonc`);
+      }
     }
     migrateScripts(dir, n, note);
   }
@@ -598,8 +654,9 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>]
   widen                                   grant the token a normal provision's groups, then wait until they work
   accounts                                list the accounts the token sees
   names --repo <owner/name>               derive the names; report each as free, ours, or taken, and the first free base
-  provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config]
-                                          make or reuse the memory store, databases, config, and deploy token
+  provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config] [--open-without-login]
+                                          make or reuse the memory store, databases, config, and deploy token;
+                                          --open-without-login goes on, open, when Zero Trust needs onboarding
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,
 from the environment or the target's .env. Each command prints one JSON report, never a token.`;
 
@@ -611,7 +668,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   try {
     parsed = parseArgs({
       args: argv,
-      options: { dir: { type: 'string' }, account: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'owner-email': { type: 'string' }, 'keep-config': { type: 'boolean' }, help: { type: 'boolean' } },
+      options: { dir: { type: 'string' }, account: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'owner-email': { type: 'string' }, 'keep-config': { type: 'boolean' }, 'open-without-login': { type: 'boolean' }, help: { type: 'boolean' } },
       allowPositionals: true,
       strict: true,
     });
@@ -650,7 +707,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
     widen: () => widen(common),
     accounts: () => accounts(common),
     names: () => names(common),
-    provision: () => provision({ ...common, base: safeName(options.base), ownerEmail: values['owner-email'], keepConfig: Boolean(values['keep-config']) }),
+    provision: () => provision({ ...common, base: safeName(options.base), ownerEmail: values['owner-email'], keepConfig: Boolean(values['keep-config']), openWithoutLogin: Boolean(values['open-without-login']) }),
   };
   try {
     out(JSON.stringify(await commands[command](), null, 2));

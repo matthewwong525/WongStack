@@ -17,7 +17,10 @@ export default {
     }
 
     const identity = await getAccessIdentity(request, env);
-    if (!identity) {
+    // Open without login only by the committed switch, and only while no Access
+    // identifier is set: a leftover switch can't weaken a private site.
+    const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;
+    if (!identity && !open) {
       const configured = env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD;
       return new Response(configured ? "Unauthorized" : "Workspace access is not configured", {
         status: configured ? 401 : 503,

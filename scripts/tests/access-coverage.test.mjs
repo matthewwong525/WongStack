@@ -56,6 +56,53 @@ test('missing coverage, broad exceptions, policies, precedence and secret overri
   await assert.rejects(checkPrivateAccess(config, 'production', async () => { throw new Error('403'); }), /403/);
 });
 
+const openVars = environment => ({ WONG_ENVIRONMENT: environment, WORKSPACE_LOGIN: 'off' });
+const openConfig = () => ({ account_id: account, name: 'demo', assets: { run_worker_first: true }, vars: openVars('production'), env: { staging: { name: 'demo-staging', vars: openVars('staging') } } });
+const openResources = () => ({
+  '/workers/scripts': [{ id: 'demo' }, { id: 'demo-staging' }],
+  '/workers/scripts/demo/secrets': [], '/workers/scripts/demo-staging/secrets': [],
+});
+
+test('an explicit open-without-login config publishes with the secrets rule and no Access reads', async () => {
+  for (const environment of ['production', 'staging']) {
+    assert.deepEqual(await checkPrivateAccess(openConfig(), environment, provider(openResources())), { environment, worker: environment === 'production' ? 'demo' : 'demo-staging', protection: 'open', humanLogin: 'none' });
+  }
+  // A first deploy: the Workers don't exist yet, so there are no secrets to read.
+  assert.equal((await checkPrivateAccess(openConfig(), 'production', provider({ '/workers/scripts': [] }))).protection, 'open');
+  const flattened = { ...openConfig().env.staging, assets: { run_worker_first: true } };
+  assert.equal((await checkPrivateAccess(openConfig(), 'staging', provider(openResources()), flattened)).protection, 'open');
+});
+
+test('an open switch beside Access identifiers, on one side only, or with a bypass stops publication', async () => {
+  const mixed = structuredClone(config); mixed.vars.WORKSPACE_LOGIN = 'off'; mixed.env.staging.vars.WORKSPACE_LOGIN = 'off';
+  await assert.rejects(checkPrivateAccess(mixed, 'production', provider(resources())), /beside Access identifiers/);
+  const oneId = openConfig(); oneId.env.staging.vars.CF_ACCESS_AUD = 'aud';
+  await assert.rejects(checkPrivateAccess(oneId, 'staging', provider(openResources())), /beside Access identifiers/);
+  const half = openConfig(); half.env.staging.vars = vars('staging');
+  await assert.rejects(checkPrivateAccess(half, 'production', provider(openResources())), /both be private or both open/);
+  const other = openConfig(); other.vars.WORKSPACE_LOGIN = 'on';
+  await assert.rejects(checkPrivateAccess(other, 'production', provider(openResources())), /only be "off"/);
+  const same = openConfig(); same.env.staging.name = 'demo';
+  await assert.rejects(checkPrivateAccess(same, 'production', provider(openResources())), /distinct Worker names/);
+  const secret = openResources(); secret['/workers/scripts/demo/secrets'] = [{ name: 'SKIP_AUTH' }];
+  await assert.rejects(checkPrivateAccess(openConfig(), 'production', provider(secret)), /secrets override/);
+  const bypass = openConfig(); bypass.env.staging.vars.SKIP_AUTH = 'true';
+  await assert.rejects(checkPrivateAccess(bypass, 'staging', provider(openResources())), /substitution cannot deploy/);
+  const memoryBound = openConfig(); memoryBound.env.staging.r2_buckets = [{ binding: 'MEMORY_BUCKET' }];
+  await assert.rejects(checkPrivateAccess(memoryBound, 'staging', provider(openResources())), /must not bind production memory/);
+  await assert.rejects(checkPrivateAccess(openConfig(), 'staging', provider(openResources()), { ...config.env.staging, assets: config.assets }), /differs from the protected source/);
+});
+
+test('the check prints one open warning and lets an open deploy through', t => {
+  const fixture = pack(t, { scripts: ['check-private-access.mjs', 'lib-access-config.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs'], config: JSON.stringify(openConfig()) });
+  fixture.write('open.mjs', "globalThis.fetch = async url => ({ok:true,status:200,json:async()=>({success:true,result:String(url).endsWith('/secrets') ? [] : [{id:'demo'}]})});\n");
+  const result = fixture.run('check-private-access.mjs', ['--environment', 'production', '--source-only'], { env: { CLOUDFLARE_API_TOKEN: 'open-fixture', NODE_OPTIONS: `--import=${fixture.root}/open.mjs` } });
+  assert.equal(result.status, 0, result.out);
+  assert.equal(result.stderr.match(/WARNING/g)?.length, 1, result.out);
+  assert.match(result.stderr, /anyone with its link can see it/);
+  assert.match(result.out, /"protection":"open"/);
+});
+
 test('both CI backends and host previews fail before a content command when provider protection is missing', t => {
   const scripts = ['cf-deploy.sh', 'cf-preview.sh', 'check-private-access.mjs', 'lib-access-config.mjs', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs'];
   const fixture = pack(t, { scripts, config: JSON.stringify(config), tools: { npx: logger('npx '), npm: logger('npm ') } });

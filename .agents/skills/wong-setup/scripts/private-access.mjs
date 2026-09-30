@@ -46,7 +46,7 @@ export async function accessOrganization(cf, { account, base, note }) {
     return { teamDomain: organization.auth_domain, identityProviderId: pin.id };
   } catch (error) {
     if (error instanceof AccessSetupError) throw error;
-    throw new AccessSetupError(`${error.message}; ${onboarding}`);
+    throw Object.assign(new AccessSetupError(`${error.message}; ${onboarding}`), { cause: error });
   }
 }
 

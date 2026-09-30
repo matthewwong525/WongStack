@@ -44,7 +44,8 @@ export const startingPolicies = () => [
  * The fake. `state` is live: tests read and change it between runs. `refuse` holds `METHOD /path`
  * prefixes that answer 500; `refusedPolls` refuses the widen's probe that many times with `refusedStatus`
  * (`403` or `401`, code `10000`), as Cloudflare does while a widen takes effect; `d1Failures` fails that
- * many D1 queries.
+ * many D1 queries. `needsOnboarding` refuses a new Zero Trust organization with a 403, as an account
+ * without a card does.
  */
 export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }] } = {}) {
   const state = {
@@ -58,6 +59,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     buckets: [],
     accountTokens: [],
     refuse: [],
+    needsOnboarding: false,
     refusedPolls: 0,
     refusedStatus: 403,
     d1Failures: 0,
@@ -93,6 +95,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     if (route === 'GET /accounts') return ok(state.accounts);
     if (route === `GET ${account}/access/organizations`) return state.organization ? ok(state.organization) : no(404);
     if (route === `POST ${account}/access/organizations`) {
+      if (state.needsOnboarding) return no(403, 12130, 'finish Zero Trust onboarding first');
       state.organization = body;
       return ok(body);
     }
