@@ -1,4 +1,10 @@
-# Proposal
+# Get past sites that block the assistant's browser
+
+**Status:** ready-to-ship
+
+**Branch:** famous-turtle
+
+**Open questions:** none
 
 ## Why
 
@@ -63,3 +69,4 @@ None.
 - **2026-09-30** — Assumed: the hidden `hand-over` skill's description shortens to *Private links: browser, keys, passwords.* to offset the `browser` skill's, because startup text sits at its 2,200-word ceiling.
 - **2026-09-30** — Asked whether to comment on vercel-labs/agent-browser#1642 with the Browser Run use case → declined; nothing was posted and the bridge stays.
 - **2026-09-30** — Asked to log in to Uber Eats through a hand-over on the cloud browser and place a real order → declined as too much work; the login carry-over, the phone hand-over on the cloud browser, and a real order stay unverified, recorded as an open thread.
+- **2026-09-30** — Assumed: archived and checkpointed for /ship as 28.6.0 after merging main (28.4.0, 28.5.0), keeping both changelog entries.

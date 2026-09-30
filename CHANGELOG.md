@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Get past sites that block the assistant's browser
+## 28.6.0 — Get past sites that block the assistant's browser
 
 Some sites show a *Verify you are human* check to the assistant's browser, or turn it away, and tapping the check yourself doesn't help. Now the assistant says so in one line and carries on in Cloudflare's own cloud browser, which many of those sites let in, such as Uber Eats and SkipTheDishes.
 
