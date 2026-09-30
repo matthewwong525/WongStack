@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · card-after-setup</title>
+<title>Review · 2026-09-30-card-after-setup</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="card-after-setup">
+<body data-change="2026-09-30-card-after-setup">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>card-after-setup</h1>
+  <h1>2026-09-30-card-after-setup</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -159,6 +159,7 @@
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: Only a Cloudflare refusal of the Zero Trust organization opens the site; a network failure, rate limit, or Cloudflare outage still stops setup, because a flaky connection must never publish a site without its login.</li>
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: A site already private (an Access app in the saved state or install record) never opens, even with <code>--open-without-login</code>, because a private site keeps its login.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: The live run on a no-card Cloudflare account is recorded unverified, because no such account is at hand; only the fake-Cloudflare tests cover it. The widen step reads Access before provisioning, so a no-card account might stop there instead; the first real no-card setup will show it. CI runs at the ship's save.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-09-30</p>Assumed: Archive checkpoint for the ship, numbered 28.7.0 after merging 28.6.0 from main; the changelog kept both entries, this one on top.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

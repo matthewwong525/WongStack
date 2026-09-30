@@ -80,3 +80,4 @@ None.
 - **2026-09-30** — Assumed: Only a Cloudflare refusal of the Zero Trust organization opens the site; a network failure, rate limit, or Cloudflare outage still stops setup, because a flaky connection must never publish a site without its login.
 - **2026-09-30** — Assumed: A site already private (an Access app in the saved state or install record) never opens, even with `--open-without-login`, because a private site keeps its login.
 - **2026-09-30** — Assumed: The live run on a no-card Cloudflare account is recorded unverified, because no such account is at hand; only the fake-Cloudflare tests cover it. The widen step reads Access before provisioning, so a no-card account might stop there instead; the first real no-card setup will show it. CI runs at the ship's save.
+- **2026-09-30** — Assumed: Archive checkpoint for the ship, numbered 28.7.0 after merging 28.6.0 from main; the changelog kept both entries, this one on top.
