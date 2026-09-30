@@ -62,6 +62,43 @@ A JSON object on stdin, never in arguments, since anyone on the server can read 
 | `token` | The person's Cloudflare user token, made with the two rows on [the credentials page](../wiki/stack/cloudflare-credentials.md#create-the-token). |
 | `accountId` | The Cloudflare account to use: 32 hex characters. |
 | `repo` | The GitHub repo, as `owner/name`. The installer works in `~/<name>`. |
+| `ownerEmail` | The authenticated cloud owner's verified reachable email, independent of git authorship. Missing, synthetic, and GitHub noreply identities stop older jobs with an upgrade/reconnect reason. |
+| `managementResult` | Optional version-1 private handoff described below; a trusted host supplies it for cloud-managed workspaces. |
+
+### The private management result
+
+The trusted host supplies this object on stdin, with string recipient IDs and a positive integer generation. The path is exactly `<workspace user's HOME>/.local/state/wongstack/access-results/<jobId>.json`; it must be outside both repositories, with no symlink. Cleanup IDs are previously recorded account-owned management tokens for this connection and account, never names or user-token IDs.
+
+```json
+{
+  "version": 1,
+  "recipient": { "ownerId": "owner-1", "vmId": "vm-1", "jobId": "job-1", "connectionId": "connection-1", "generation": 1 },
+  "path": "/home/wong/.local/state/wongstack/access-results/job-1.json",
+  "cleanupTokenIds": []
+}
+```
+
+Before publishing content, the installer validates the recipient/path and any existing result's job, target, owner, account, and source. After private provisioning succeeds, it atomically writes a bounded (16 KiB) regular result file, mode 0600, inside a workspace-user-owned directory mode 0700. The result contains:
+
+| Field | Contract |
+| --- | --- |
+| `version`, `recipient` | Version 1 and the exact trusted host recipient. |
+| `source` | `{repo, commit}` from the actual checked-out GitHub origin and 40-character HEAD; normalize HTTPS/SSH to `owner/name`, compare repository identities case-insensitively. |
+| `accountId`, `repo`, `ownerEmail` | The selected account, target GitHub repository, and normalized verified login email. |
+| `appId`, `aud`, `teamDomain`, `anchorHostname` | Owned app identity, audience, Zero Trust hostname, and exact production default `workers.dev` login anchor. |
+| `policyIds` | `{human, machine}` IDs for separate owned exact-email allow and service-auth policies. |
+| `workers` | `{production: {id, name}, staging: {id, name}}` with actual Worker IDs. |
+| `sessionDuration` | The application session duration: new app/human defaults are `720h`; reviewed shorter app or human-policy settings stay separate. |
+| `tokenId`, `token` | Account-owned management token and its private value, with only account-scoped `Access: Apps and Policies Write`. |
+| `cleanup` | `{revokedTokenIds, pendingTokenIds}` partitions the requested old account-token IDs by acknowledged deletion and outstanding cleanup. |
+
+Live probing of the single-permission management token allowed Worker metadata listing; Worker content/publication, D1/R2, API-token management, and account-member probes were refused. The cloud provider client uses only its recorded Access resources. Cloudflare grants Access policy writes across the selected account, so the cloud must additionally restrict every action to this owner's recorded app/policy/Worker IDs. Its permission supports this application's session revocation. It has a separate lifetime from human sessions and machine credentials.
+
+The host reads only its exact job-derived file, checks schema, size, ownership, permissions, and regular-file status, then sends it over TLS to `POST /api/agent/jobs/:id/access` with its existing VM bearer credential. Source code never receives that host credential. The cloud authenticates the VM and compares all recipient, owner, target, account, pinned source, and generation fields against its authoritative records before encrypting the restricted token. A successful response contains only `{ok:true, connectionId, generation, state:"pending"}` and uses `Cache-Control: no-store`. Repeated identical delivery is idempotent; mismatched, expired, replaced, or deleted recipients cannot adopt it.
+
+After acknowledgement the host erases the file. A lost receipt retries the same file; unsuccessful delivery leaves it privately available for recovery and reports a separate pending management state. Neither recovery nor delivery uses stdout. Rerunning the same source job reuses its result and token; an interrupted one-time token handoff recovers only the recorded connection's token. The result contains no broad setup token, machine secret, memory key, GitHub credential, or human session.
+
+Cleanup uses fresh transient setup authority and only `DELETE /accounts/<accountId>/tokens/<tokenId>` for recorded restricted connection tokens. Failed or unauthorized cleanup stays pending; removing a local value does not revoke it. Retained Access-only authority never gains token management. Keep the Access app and policies while any live Worker, version, alias, or old preview can serve content; removing the wall requires separately authorized and verified Worker decommissioning.
 
 ### What it needs
 
@@ -105,9 +142,9 @@ Run it again after any stop. It finishes what the last run began and makes no se
 
 ### What the installer never does
 
-- It never puts a token in an argument, an error, its output, or a commit. The user token and the memory key stay in the repo's `.env`, which only the workspace user can read. The deploy token goes straight to the GitHub secret.
+- It never puts a token in an argument, an error, its output, or a commit. The user token, memory key, and separate verification credentials stay in the repo's ignored `.env`, mode 0600. The deploy token goes straight to the GitHub secret; the restricted cloud management token uses only the private result file.
 - It never changes a repo that holds work it did not commit.
-- It never deletes anything on Cloudflare, or touches what another project named: when a name is taken, every name moves to the next free suffix, such as `recipe-box-2`.
+- It touches only owned resources. A taken name moves the workspace to a free suffix, such as `recipe-box-2`. Its only automatic deletion is acknowledged cleanup of recorded restricted account tokens; the login wall remains in place.
 - It never writes under `/etc/wongstack` or `/opt/wongstack`.
 
 Its Cloudflare steps are [the provisioning script](../.agents/skills/wong-setup/scripts/provision.mjs) `/wong-setup` runs, so a fix to one reaches both.

@@ -7,14 +7,18 @@
 	"name": "wongstack",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-28",
-	// The Worker runs first for every path it serves. Once this list exists,
-	// any path NOT in it gets the single-page fallback, even a POST (which gets
-	// 405), so each Worker route must be here. /apps/ hands its pages back to
-	// ASSETS.
+	// Verify signed Access identity before every page, asset, API, and mini app.
 	"assets": {
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application",
-		"run_worker_first": ["/api/*", "/_memory/*", "/apps/*"]
+		"run_worker_first": true
+	},
+	"vars": {
+		"WONG_ENVIRONMENT": "production",
+		"CF_ACCESS_TEAM_DOMAIN": "startuptemplate.cloudflareaccess.com",
+		"CF_ACCESS_AUD": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
+		"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",
+		"CF_ACCESS_WORKER_ID": "37236d316a9d49028048b9217deae927"
 	},
 	"observability": {
 		"enabled": true
@@ -56,11 +60,34 @@
 	"env": {
 		"staging": {
 			"name": "wongstack-staging",
+			"vars": {
+				"WONG_ENVIRONMENT": "staging",
+				"CF_ACCESS_TEAM_DOMAIN": "startuptemplate.cloudflareaccess.com",
+				"CF_ACCESS_AUD": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
+				"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",
+				"CF_ACCESS_WORKER_ID": "bc809703c01f47528ff4e5449cf36e12"
+			},
 			"d1_databases": [
 				{
 					"binding": "DB",
 					"database_name": "wongstack-db-staging",
 					"database_id": "0e5a5be6-1eca-4b99-ab10-5decaa4c55f5",
+					"migrations_dir": "../schema/migrations"
+				}
+			]
+		},
+		"local": {
+			"name": "wongstack-local",
+			"vars": {
+				"WONG_ENVIRONMENT": "local",
+				"SKIP_AUTH": "true"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "wongstack-db-local",
+					"database_id": "322d78e8-19e1-4bf0-8489-faa13c66deb1",
+					"remote": false,
 					"migrations_dir": "../schema/migrations"
 				}
 			]

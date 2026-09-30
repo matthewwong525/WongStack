@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 28.0.0 — Business pages and previews require login
+
+New standalone and managed installs protect pages, assets, APIs, mini apps, and old/new previews automatically with email login. Human sessions default to 30 days; machine and memory credentials keep their separate lifetimes. Deployment checks refuse publication without native Worker protection. Managed team changes retain owner/machine access and revoke the workspace's human sessions on removal, with failed provider work visibly pending.
+
+Standalone installs also receive the Node version file their test and publishing workflows require.
+
+The protected login address works for a first preview before business pages are published.
+
+**Updating.** Review existing public pages, webhooks, protocols, and overlapping protection before the first updated push. Keep local business code and data; merge the signed login check instead of replacing handlers. Confirm the owner's reachable email and real team, attach protection to both existing Workers without a gap, and give the publishing key read permission to check it. Keep old versions protected. Managed workspaces also need their new encrypted management connection; report reconnection or failed membership/revocation work as pending until confirmed. Verify real email login, independent machine access, and memory before reporting the workspace private.
+
 ## 27.10.0 — Room to use the browser
 
 Browser hand-over links separate the live website from its fields: switch between Page and Fill fields on a phone, or see both beside each other on a computer. Phone previews let you swipe up, down, left, or right through a readable login screen, then keep scrolling the website at its edges. Tap a supported text field on the page to open the phone keyboard; typing is shared with Fill fields. Wider forms expand the browser within its limits. Back and Forward arrows, a Reload icon, and a Return to start icon stay at the bottom so you can recover from an accidental click. Each has an accessible name and tooltip. Return to start opens the exact page where the private link began, even after visiting another website; when there is no browser history, Back and Forward explain that and preserve your typing and preview position. While the phone keyboard is open, the header, view tabs and navigation hide to give the selected field more room; they return when it closes, keeping your typing and the website's size.

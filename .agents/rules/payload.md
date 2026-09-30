@@ -5,6 +5,7 @@ paths:
   - "app/**"
   - "scripts/**"
   - ".github/**"
+  - ".nvmrc"
   - "VERSION"
   - "CHANGELOG.md"
   - "wiki/wiki-style.md"

@@ -11,7 +11,7 @@ const setup = '.agents/skills/wong-setup';
 
 // The live smoke run confirmed this set is enough to migrate and deploy, and
 // hosted setups rely on it when they mint the CI deploy token.
-const DEPLOY_TOKEN_ALWAYS = ['Workers Scripts Write', 'D1 Write', 'Account Settings Read'];
+const DEPLOY_TOKEN_ALWAYS = ['Access: Apps and Policies Read', 'Workers Scripts Write', 'D1 Write', 'Account Settings Read'];
 
 // Every index entry, path → mode. The index holds staged work too.
 function indexModes() {
@@ -99,8 +99,8 @@ test('the deploy token permission list is pinned', () => {
     assert.notEqual(row.when, 'always', `${name} is granted only when the config needs it — ${surface}`);
   }
   for (const row of rows) {
-    assert.doesNotMatch(row.name, /API Tokens|Access|Zero Trust|User Details/,
-      `the deploy token must never mint tokens or touch Access (${row.name}) — ${surface}`);
+    assert.doesNotMatch(row.name, /API Tokens|Access.*Write|Zero Trust|User Details/,
+      `the deploy token must never mint tokens or write Access policies (${row.name}) — ${surface}`);
   }
 });
 

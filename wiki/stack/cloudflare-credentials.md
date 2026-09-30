@@ -1,6 +1,6 @@
 # Cloudflare credentials
 
-This page is the Cloudflare token screen in detail: where to click, what to tick, what the token can do afterward, and the security trade-off that design makes. One token gets everything running. Create it with **two permission rows** and save it in the primary worktree's `.env`. The agent then grants it only the permissions each step needs — [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), build logs, and (only if you want it) the [Access](cloudflare-access.md) login wall — and tells you what it granted. This user token stays on your computer. CI gets a [separate, smaller token](#the-ci-deploy-token).
+This page is the Cloudflare token screen in detail: where to click, what to tick, what the token can do afterward, and the security trade-off that design makes. One token gets everything running. Create it with **two permission rows** and save it in the primary worktree's `.env`. The agent then grants it only the permissions each step needs — [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), build logs, and the automatic [Access](cloudflare-access.md) login wall — and tells you what it granted. This user token stays on your computer. CI gets a [separate, smaller token](#the-ci-deploy-token).
 
 Values land in `.env` per the [secrets convention](../development/secrets.md); real values never touch git.
 
@@ -29,7 +29,7 @@ The symptom, if you get it wrong: `/user/tokens/verify` returns `Invalid API Tok
 
 The link asks for all accounts, so the Account Resources field people miss in the steps below is already set. If you have two accounts, the agent asks which one to use.
 
-Two permission rows really are the whole ask. The agent adds only the groups a step needs, when it needs them: Workers, D1, and account settings for provisioning, and the Access groups only if you ask for a login wall. The [widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#a-normal-provision) lists each one.
+Two permission rows really are the whole ask. The agent adds only the groups a step needs, when it needs them: Workers, D1, and account settings for provisioning, and the Access groups for automatic private setup. The [widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#a-normal-provision) lists each one.
 
 ### If the link doesn't work
 
@@ -75,7 +75,7 @@ CLOUDFLARE_ACCOUNT_ID=
 
 ### The CI deploy token
 
-**CI never gets the user token.** The user token can mint other tokens, so a copy in CI would let any workflow in the repo take over the account. Provisioning uses it to mint an account-owned token named `<repo>-deploy`, with only `Workers Scripts Write`, `D1 Write`, and `Account Settings Read` on your account ([the list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#the-ci-deploy-token)). The value goes straight from Cloudflare to `gh secret set CLOUDFLARE_API_TOKEN` and is written to no file. `CLOUDFLARE_ACCOUNT_ID` goes beside it.
+**CI never gets the user token.** The user token can mint other tokens, so a copy in CI would let any workflow in the repo take over the account. Provisioning uses it to mint an account-owned token named `<repo>-deploy`, with only `Workers Scripts Write`, `D1 Write`, `Account Settings Read`, and read-only Access coverage on your account ([the list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md#the-ci-deploy-token)). The value goes straight from Cloudflare to `gh secret set CLOUDFLARE_API_TOKEN` and is written to no file. `CLOUDFLARE_ACCOUNT_ID` goes beside it.
 
 So each credential lives in one place: the user token in the primary worktree's git-ignored `.env`, and the deploy token in GitHub's sealed secret store. To rotate the deploy token, ask your agent; it rolls the value and sets the secret again. You see the token in the dashboard under **Manage Account → Account API Tokens**, where you or a teammate can revoke it. (A repo on the Workers Builds fallback needs no secret: that CI runs inside Cloudflare.)
 
@@ -83,7 +83,7 @@ The session memory store needs no Cloudflare token of its own. Provisioning uses
 
 ## How two permission rows become enough
 
-The token rewrites its own permissions: it reads its own policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified against the live API. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no re-paste. [The widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md) owns the calls, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall. Someone who never wants a login wall never grants anything Zero-Trust-shaped.
+The token rewrites its own permissions: it reads its own policy, looks permission groups up by name, and `PUT`s itself a wider set. Verified against the live API. **The token id doesn't change**, so the durable `.env` is written once — no rotation, no re-paste. [The widen protocol](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/permission-groups.md) owns the calls, the rules that keep the token able to widen again, and every group granted for a normal setup or an [Access](cloudflare-access.md) login wall. Normal provisioning includes the Access groups; CI receives read-only policy inspection.
 
 ### The widen is pre-authorized
 
@@ -111,7 +111,7 @@ Treat the token like a root password. Its one copy lives in the primary worktree
 
 ## Access service token
 
-Only for an [Access](cloudflare-access.md) login wall: the ID/secret pair that lets CI, a script, or `/verify` reach a gated preview without a browser. [Cloudflare Access](cloudflare-access.md#5-create-the-service-token-do-it-now) owns how to create and store it, and [the auth model](cloudflare-access.md#the-auth-model-verify-the-signed-assertion) owns what reaches the Worker.
+Created during private setup for the [Access](cloudflare-access.md) login wall: the ID/secret pair that lets CI, a script, or `/verify` reach a gated preview without a browser. [Cloudflare Access](cloudflare-access.md#5-create-the-service-token-do-it-now) owns how to create and store it, and [the auth model](cloudflare-access.md#the-auth-model-verify-the-signed-assertion) owns what reaches the Worker.
 
 ## Worker secrets are per environment
 

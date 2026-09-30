@@ -1,9 +1,6 @@
 // Cloudflare Access identity — verify the signed assertion, don't trust a header.
 //
-// SHIPS INERT. Nothing imports this module until you adopt Access. The Worker is
-// public by default, and enforcing identity on a public Worker is worse than not
-// enforcing it: see wiki/stack/cloudflare-access.md for why the code change and
-// the login wall are adopted in the same step, in that order.
+// Enforced by the Worker before pages, assets, APIs and mini apps.
 //
 // WHY VERIFY RATHER THAN READ A HEADER
 //
@@ -48,7 +45,7 @@ interface AccessClaims {
   [key: string]: unknown;
 }
 
-interface AccessEnv {
+export interface AccessEnv {
   /** "<your-team-name>.cloudflareaccess.com" — public identifier, not a secret. */
   CF_ACCESS_TEAM_DOMAIN?: string;
   /** The application's Audience (AUD) tag — public identifier, not a secret. */
@@ -58,6 +55,7 @@ interface AccessEnv {
    * can turn off the wall by sending a header.
    */
   SKIP_AUTH?: string | boolean;
+  WONG_ENVIRONMENT?: string;
 }
 
 /** A fixed identity for local work, used ONLY when SKIP_AUTH is explicitly set. */
@@ -155,7 +153,11 @@ export async function getAccessIdentity(
 ): Promise<AccessIdentity | null> {
   // Local development. Explicit opt-in from the environment; a request cannot
   // reach this branch on its own.
-  if (env.SKIP_AUTH === true || env.SKIP_AUTH === "true") return DEV_IDENTITY;
+  if (
+    env.WONG_ENVIRONMENT === "local" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(new URL(request.url).hostname) &&
+    (env.SKIP_AUTH === true || env.SKIP_AUTH === "true")
+  ) return DEV_IDENTITY;
 
   const teamDomain = env.CF_ACCESS_TEAM_DOMAIN;
   const audience = env.CF_ACCESS_AUD;
@@ -169,7 +171,9 @@ export async function getAccessIdentity(
     request.headers.get("Cookie")?.match(/(?:^|;\s*)CF_Authorization=([^;]+)/)?.[1];
   if (!token) return null;
 
-  const [headerSegment, payloadSegment, signatureSegment] = token.split(".");
+  const segments = token.split(".");
+  if (segments.length !== 3) return null;
+  const [headerSegment, payloadSegment, signatureSegment] = segments;
   if (!headerSegment || !payloadSegment || !signatureSegment) return null;
 
   try {

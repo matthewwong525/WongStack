@@ -38,20 +38,6 @@ A missing scaffold file SHALL be copied, and a present one SHALL change only thr
 - **WHEN** a target already has a file at a scaffold path
 - **THEN** the sync leaves it as it is unless a reviewed plan adapts it
 
-### Requirement: The Access module ships inert
-
-The scaffold SHALL include a Worker module that verifies the signed Cloudflare Access assertion and returns identity: `email` for a person, `common_name` for a service token. It SHALL enforce nothing until Access is adopted, so a public app rejects nobody and adopting Access is wiring, not writing.
-
-#### Scenario: A public app
-
-- **WHEN** the scaffold deploys with no Access in front
-- **THEN** every request reaches the app
-
-#### Scenario: A service token once enabled
-
-- **WHEN** verification is on and a service token calls the app
-- **THEN** it is identified by the verified `common_name`
-
 ### Requirement: The scaffold tests its own code
 
 The scaffold SHALL ship a `test` script and a suite over its own code, which the core test workflow finds in `app/`. The suite SHALL cover the Access module's deny paths, the service-token identity, and accepted tokens signed by a real generated key. It SHALL declare no browser dependency and test no WongStack skill file, and the runner SHALL stay out of the deployed bundle.
@@ -107,3 +93,16 @@ The code rule SHALL load when an agent edits the main app or a mini app, and SHA
 
 - **WHEN** the agent adds a page to the main app
 - **THEN** it adds a folder under the pages folder and one entry in the route list, following the home page
+### Requirement: The starter app requires verified identity
+
+The scaffold SHALL require a verified signed Access identity scoped to this workspace before serving its HTML, static assets, APIs, or mini apps. It SHALL recognize a human by verified email and a machine by verified service-token identity. Missing configuration SHALL fail closed; missing, forged, expired, or wrong-application assertions SHALL be denied. Plain email headers SHALL NOT authorize a request. Only explicit local-development configuration SHALL substitute an identity; deployed environments SHALL reject that development bypass. Memory SHALL remain independently authenticated by its memory keys.
+
+#### Scenario: A caller attempts direct asset access
+
+- **WHEN** a caller requests HTML, JavaScript, CSS, a mini-app asset, or an API with no valid assertion, including a forged email header
+- **THEN** no protected content is returned
+
+#### Scenario: Valid human and machine callers
+
+- **WHEN** a human or service-token caller presents an assertion valid for this workspace
+- **THEN** the caller reaches the intended app resource under the verified identity

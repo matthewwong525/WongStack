@@ -102,6 +102,7 @@ function originHead(root, branch) {
 // with `undefined`, removes from the script's environment.
 function deploy(t, { branch, generated, remoteDefault, config = deployConfig, env = {} } = {}) {
   const fixture = pack(t, { scripts: ['cf-deploy.sh', ...LIB], config, tools: { npx: deployNpx }, prefix: 'cf-deploy-' });
+  fixture.write('scripts/check-private-access.mjs', '// Routing-only fixture: provider enforcement has its own integration tests.\n');
   if (remoteDefault) originHead(fixture.root, remoteDefault);
   if (generated) {
     // What @cloudflare/vite-plugin leaves behind: a redirect to a flattened config.
@@ -373,18 +374,12 @@ test('the assets folder comes from the redirected build config, else the source 
   assert.equal(assetsDirectory(path), join(app, 'dist/client'));
 });
 
-// Once `run_worker_first` is a list, a path left out of it gets the single-page
-// fallback, and a POST there answers 405 without reaching the Worker. 24.0.0
-// listed only /apps/* and broke /_memory/ and /api/ in production.
-test('the Worker runs first for every route it serves, in the app config and its fragment', () => {
-  const routes = ['/api/*', '/_memory/*', '/apps/*'];
+// Every static path now needs signed identity, including the SPA fallback.
+test('the Worker runs before all assets in the app config and its fragment', () => {
   const app = parseConfig(join(repo, 'app/wrangler.jsonc'));
-  assert.deepEqual([...app.assets.run_worker_first].sort(), [...routes].sort());
-
+  assert.equal(app.assets.run_worker_first, true);
   const fragments = readFileSync(join(repo, '.agents/skills/wong-sync/references/stack-pack-fragments.md'), 'utf8');
-  const listed = /"run_worker_first":\s*(\[[^\]]*\])/.exec(fragments)?.[1];
-  assert.ok(listed, 'the wrangler.jsonc fragment sets run_worker_first');
-  assert.deepEqual(JSON.parse(listed).sort(), [...routes].sort());
+  assert.match(fragments, /"run_worker_first":\s*true/);
 });
 
 // Without this flag, `import { env } from "cloudflare:workers"` hands a mini app every binding, memory's too.

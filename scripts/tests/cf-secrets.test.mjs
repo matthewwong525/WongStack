@@ -123,6 +123,17 @@ test('push with no .dev.vars anywhere stops before any wrangler call', t => {
   assert.match(result.output, /app\/\.dev\.vars/);
 });
 
+test('push refuses local authentication substitutions as deployed secrets', t => {
+  const { primary, push } = pushFixture(t);
+  for (const name of ['SKIP_AUTH', 'WONG_ENVIRONMENT']) {
+    writeFileSync(join(primary, 'app/.dev.vars'), `${name}=local\n`);
+    const result = push();
+    assert.equal(result.status, 1);
+    assert.deepEqual(result.calls, []);
+    assert.match(result.output, new RegExp(name));
+  }
+});
+
 test('an account credential in the primary copy is still refused', t => {
   const { primary, push } = pushFixture(t);
   writeFileSync(join(primary, 'app/.dev.vars'), 'CLOUDFLARE_API_TOKEN=x\n');
