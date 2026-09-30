@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  CloudflareError, DEPLOY_TOKEN, NORMAL_PROVISION, R2_OFF, USER_GRANTS,
+  CloudflareError, DEPLOY_TOKEN, NORMAL_PROVISION, PROPAGATION, R2_OFF, USER_GRANTS,
   accounts, cli, cloudflare, names, provision, readEnv, run, safeName, widen, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
@@ -590,6 +590,35 @@ test('a refused or wrong-kind token stops with token; a failed or untaken widen 
   const before = env.fake.count(`GET /accounts/${ACCOUNT}/d1`);
   await assert.rejects(env.widen({ account: ACCOUNT }), { reason: 'cloudflare' });
   assert.equal(env.fake.count(`GET /accounts/${ACCOUNT}/d1`) - before, 1, 'an error that is neither 401 nor 403 is not retried');
+});
+
+test('an Access probe still refused stops the widen, unless the caller will finish open', async (t) => {
+  const env = await setup(t);
+  env.fake.state.refusedAccessPolls = 99;
+  await assert.rejects(env.widen({ account: ACCOUNT }), { reason: 'cloudflare', message: new RegExp(`GET /accounts/${ACCOUNT}/access/apps: HTTP 403 10000`) });
+  assert.deepEqual(env.sleeps, [2000, 4000, 8000, 15000, 30000]);
+  env.sleeps.length = 0;
+  const probes = () => ['apps', 'identity_providers', 'service_tokens'].map((surface) => env.fake.count(`GET /accounts/${ACCOUNT}/access/${surface}`));
+  const before = probes();
+  const report = await env.widen({ account: ACCOUNT, openWithoutLogin: true });
+  assert.deepEqual(report.accessPending, ['apps', 'identity_providers', 'service_tokens']);
+  assert.deepEqual(env.sleeps, [2000, 4000, 8000, 15000, 30000], 'one full wait, not three');
+  assert.deepEqual(probes().map((count, i) => count - before[i]), [PROPAGATION.length + 1, 1, 1], 'the later surfaces get one try each');
+});
+
+test('on the open path a probe that clears is not pending, and the database probe still stops', async (t) => {
+  const env = await setup(t);
+  env.fake.state.refusedAccessPolls = 1;
+  const cleared = await env.widen({ account: ACCOUNT, openWithoutLogin: true });
+  assert.deepEqual(cleared.accessPending, []);
+  assert.deepEqual(env.sleeps, [2000]);
+  const closed = await env.widen({ account: ACCOUNT });
+  assert.equal('accessPending' in closed, false);
+  env.fake.state.refusedPolls = 99;
+  await assert.rejects(env.widen({ account: ACCOUNT, openWithoutLogin: true }), { reason: 'cloudflare', message: /d1\/database: HTTP 403 10000/ });
+  env.fake.state.refusedPolls = 0;
+  env.fake.state.refuse = [`GET /accounts/${ACCOUNT}/access/identity_providers`];
+  await assert.rejects(env.widen({ account: ACCOUNT, openWithoutLogin: true }), { reason: 'cloudflare', message: /HTTP 500/ });
 });
 
 test('a permission group Cloudflare does not list stops with token', async (t) => {

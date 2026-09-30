@@ -2,7 +2,9 @@
 // Installs WongStack into a person's empty GitHub repo on their own server, with no question: what
 // /wong-setup does for an empty folder, with every choice made ahead. A host clones this source at a
 // pinned commit into ~/.cache/wong-stack/WongStack and runs this file from there, as the workspace user,
-// with {token, accountId, repo, ownerEmail, managementResult?} on stdin. It installs this clone.
+// with {token, accountId, repo, ownerEmail, managementResult?, openWithoutLogin?} on stdin. It installs this clone.
+// With `openWithoutLogin: true`, a Zero Trust organization Cloudflare refuses (usually no card) finishes
+// with the login off, and a later run that gets it turns the config private, leaving the edits uncommitted.
 // It prints one last line: `done`, or why it stopped (`token`, `repo`, `cloudflare`, or `push`); a refused
 // Cloudflare call that stopped it comes on the line before, when it matches CLOUDFLARE_CALL.
 // Every step checks before it acts, so a second run finishes a first run that stopped.
@@ -212,8 +214,14 @@ async function addPresets(dir, exec, log) {
 
 // ── the whole install ───────────────────────────────────────────────────────
 
+/** True when an installed repo's committed config still has the login off: a rerun then turns it private. */
+const loginOff = (dir) => {
+  const config = join(dir, 'app', 'wrangler.jsonc');
+  return existsSync(config) && /"WORKSPACE_LOGIN"\s*:\s*"off"/.test(readFileSync(config, 'utf8'));
+};
+
 /** Installs, provisions, commits, pushes, then adds the Paseo presets. Throws a ProvisionError with the reason. */
-export async function install({ token, accountId, repo, ownerEmail, managementResult }, { dir, env = process.env, fetch, sleep, today, exec = run, log = () => {} }) {
+export async function install({ token, accountId, repo, ownerEmail, managementResult, openWithoutLogin }, { dir, env = process.env, fetch, sleep, today, exec = run, log = () => {} }) {
   const quiet = (file, args, options = {}) => exec(file, args, { env, ...options });
   const loginEmail = await step('repo', () => ownerIdentity(ownerEmail));
   const destination = managementDestination(managementResult, { home: env.HOME, repoDir: dir, sourceDir: SOURCE });
@@ -222,8 +230,9 @@ export async function install({ token, accountId, repo, ownerEmail, managementRe
   const git = (args) => quiet('git', ['-C', dir, ...args]);
   const mode = await step('repo', () => checkRepo(dir, git));
   await step('repo', () => protectSecrets(dir, { token, accountId }));
+  const open = openWithoutLogin === true;
   const cloudflare = { token, api: env.WONG_CLOUDFLARE_API, fetch, account: accountId, repo, dir, env, exec: quiet, ...(sleep && { sleep }) };
-  await widen(cloudflare);
+  await widen({ ...cloudflare, openWithoutLogin: open });
 
   let record = null;
   if (mode === 'fresh') {
@@ -232,8 +241,10 @@ export async function install({ token, accountId, repo, ownerEmail, managementRe
   }
   const { base } = await names(cloudflare);
   if (record) writeJson(join(dir, '.claude', '.wong-stack.json'), record);
-  const report = await step('cloudflare', () => provision({ ...cloudflare, base, today, ownerEmail: loginEmail, keepConfig: mode === 'installed' }));
-  await step('cloudflare', () => writeManagementResult({ destination, source, report, ownerEmail: loginEmail, repo, token, api: env.WONG_CLOUDFLARE_API, fetch, dir, exec: quiet }));
+  // An open install reruns without keepConfig, so a Zero Trust organization that now works turns it private.
+  const keepConfig = mode === 'installed' && !loginOff(dir);
+  const report = await step('cloudflare', () => provision({ ...cloudflare, base, today, ownerEmail: loginEmail, keepConfig, openWithoutLogin: open }));
+  await step('cloudflare', () => writeManagementResult({ destination, source, report, accountId, ownerEmail: loginEmail, repo, token, api: env.WONG_CLOUDFLARE_API, fetch, dir, exec: quiet }));
 
   await step('push', async () => {
     if (mode === 'fresh') {

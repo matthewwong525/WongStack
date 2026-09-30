@@ -28,6 +28,11 @@ test('private mode/ownership, recipient and independently observed outcome are s
  for(const token of ['broad-setup-secret','restricted-secret'])assert.ok(!readFileSync(journal,'utf8').includes(token));
  assert.equal(calls[0].body.token,'restricted-secret');await s.report(job,outcome,post);assert.equal(entry().reported,true);
 });
+test('an open result, with no credential, is delivered unchanged through the same checks',async()=>{
+ const open={version:1,mode:'open',recipient:value.recipient,source:value.source,accountId:'c'.repeat(32),repo:value.repo,ownerEmail:value.ownerEmail,anchorHostname:'site.owner.workers.dev'};
+ const outcome=await store().execute(job,async()=>{put(open);return{status:'done',rolled:true};},post);
+ assert.deepEqual(outcome,{status:'done',rolled:true});assert.deepEqual(calls[0].body,open);assert.equal(existsSync(path),false);assert.equal(entry().ack,true);
+});
 test('lost Access receipt retains the same file/outcome and restart retries identical delivery without source export or rolling',async()=>{
  let installs=0;const s=store();const first=await s.execute(job,async()=>{installs++;put();return{status:'done',rolled:true};},async(route,body)=>{calls.push({route,body});throw Error('lost acknowledgement');});
  assert.equal(first,null);assert.equal(existsSync(path),true);assert.equal(entry().ack,false);

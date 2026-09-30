@@ -91,10 +91,23 @@ export function validateExistingManagementResult(destination, metadata) {
   }
 }
 
+/**
+ * An open install's result: its login is off, so it holds no management credential and cleans up nothing.
+ * A retry of the same job must find the same eight fields.
+ */
+function writeOpenResult(path, result) {
+  if (existsSync(path) && !isDeepStrictEqual(readPrivate(path), result)) fail('the private management result belongs to another job, recipient, or source; recover through the trusted host');
+  writePrivate(path, result);
+}
+
 /** Mint only account-scoped Access policy authority and retain delivery outside every repo file. */
-export async function writeManagementResult({ destination, source, report, ownerEmail, repo, token, api, fetch, dir, exec }) {
+export async function writeManagementResult({ destination, source, report, accountId, ownerEmail, repo, token, api, fetch, dir, exec }) {
   if (!destination) return;
   const { access } = report;
+  if (access.mode === 'open') {
+    const anchorHostname = new URL(report.urls.production).hostname;
+    return writeOpenResult(destination.path, { version: 1, mode: 'open', recipient: destination.recipient, source, accountId, repo, ownerEmail, anchorHostname });
+  }
   const metadata = {
     version: 1, recipient: destination.recipient, source, accountId: access.accountId, repo, ownerEmail,
     appId: access.appId, aud: access.audience, teamDomain: access.teamDomain,
@@ -114,7 +127,9 @@ export async function writeManagementResult({ destination, source, report, owner
   const prefix = `${report.base}-access-${connection}-`;
   const name = `${prefix}${destination.recipient.generation}`;
   const key = `${access.accountId}:${destination.recipient.connectionId}:${destination.recipient.generation}`;
+  // An open result from an earlier try of this job is replaced: the card arrived in between.
   let existing = existsSync(destination.path) ? readPrivate(destination.path) : null;
+  if (existing?.mode === 'open') existing = null;
   if (existing) {
     if (!Object.entries(metadata).every(([field, value]) => isDeepStrictEqual(existing[field], value))) fail('the private management result belongs to another job, recipient, or source; recover through the trusted host');
     const current = await cf('GET', `${root}/${existing.tokenId}`);

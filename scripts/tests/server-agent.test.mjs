@@ -102,15 +102,15 @@ test("a poll sends the contract, the source commit, and health with the token, a
   pollReply = { status: 200, body: { jobs: [], interval: 2 } };
   const interval = await tick({ appUrl, token: "tok", commit: SOURCE_COMMIT, fetch, exec: fakeExec().exec, log: () => {} });
   assert.equal(interval, 2);
-  assert.equal(CONTRACT, 1);
-  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 1, commit: SOURCE_COMMIT, paseo: "up" } }]);
+  assert.equal(CONTRACT, 2);
+  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 2, commit: SOURCE_COMMIT, paseo: "up" } }]);
 });
 
 test("a poll sends a null commit when SOURCE_COMMIT is missing or not a full commit", async () => {
   for (const commit of [undefined, "", "abc1234", SOURCE_COMMIT.toUpperCase(), `${SOURCE_COMMIT}\n`]) {
     requests = [];
     await tick({ appUrl, token: "tok", commit, fetch, exec: fakeExec({ fail: ["is-active"] }).exec, log: () => {} });
-    assert.deepEqual(requests[0].body, { contract: 1, commit: null, paseo: "down" }, String(commit));
+    assert.deepEqual(requests[0].body, { contract: 2, commit: null, paseo: "down" }, String(commit));
   }
 });
 
@@ -174,7 +174,7 @@ test("main polls in a loop, waits the hinted interval, and keeps going after an 
   assert.deepEqual(lines, ["poll error: network down"]);
   assert.equal(requests.length, 2);
   assert.equal(requests[0].auth, "Bearer tok");
-  assert.deepEqual(requests[0].body, { contract: 1, commit: SOURCE_COMMIT, paseo: "up" });
+  assert.deepEqual(requests[0].body, { contract: 2, commit: SOURCE_COMMIT, paseo: "up" });
 });
 
 test("github signs gh in with the token on stdin, sets git up, and clones the repo", async () => {
@@ -342,7 +342,8 @@ test("the install runs the installer as wong with the job on stdin, never in arg
   const installed = calls.filter((call) => call.line === INSTALL);
   assert.equal(installed.length, 1);
   assert.equal(installed[0].line, INSTALL);
-  assert.deepEqual(JSON.parse(installed[0].options.input), { token: CF_TOKEN, accountId: CLOUDFLARE.accountId, repo: CLOUDFLARE.repo, ownerEmail: CLOUDFLARE.ownerEmail, managementResult: CLOUDFLARE.managementResult });
+  assert.deepEqual(JSON.parse(installed[0].options.input), { token: CF_TOKEN, accountId: CLOUDFLARE.accountId, repo: CLOUDFLARE.repo, ownerEmail: CLOUDFLARE.ownerEmail, managementResult: CLOUDFLARE.managementResult, openWithoutLogin: true });
+  assert.ok(!installed[0].options.input.includes("AGENT_TOKEN"));
   assert.equal(installed[0].options.timeout, INSTALL_TIMEOUT_MS);
   assert.equal(INSTALL_TIMEOUT_MS, 1_200_000);
   assert.ok(!installed[0].line.includes(CF_TOKEN));

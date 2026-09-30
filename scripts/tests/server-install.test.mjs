@@ -15,6 +15,7 @@ import { readEnv } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { databaseName, parseConfig, workerName } from '../lib-wrangler-config.mjs';
 import { ACCOUNT, TOKEN, fakeCloudflare, fakeGh } from './fixtures/cloudflare.mjs';
 import { checkedOutSource } from '../../server/access-result.mjs';
+import { privateDeployment } from '../lib-access-config.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const INSTALLER = join(repoRoot, 'server/install-wongstack.mjs');
@@ -325,6 +326,109 @@ test('the server installer stops when Zero Trust needs onboarding, and never ope
   assert.equal(s.pushed(), null);
   assert.equal(existsSync(join(s.dir, 'app/wrangler.jsonc')), false);
   assert.deepEqual(s.fake.state.databases, []);
+});
+
+// ── the open finish: no card ────────────────────────────────────────────────
+
+const OPEN_KEYS = ['accountId', 'anchorHostname', 'mode', 'ownerEmail', 'recipient', 'repo', 'source', 'version'];
+
+/** A no-card account: Cloudflare refuses a new Zero Trust organization and, here, the widen's Access probes. */
+const noCard = (s) => {
+  s.fake.state.organization = null;
+  s.fake.state.needsOnboarding = true;
+  s.fake.state.refusedAccessPolls = 99;
+};
+const withCard = (s) => {
+  s.fake.state.needsOnboarding = false;
+  s.fake.state.refusedAccessPolls = 0;
+};
+const openJob = (s, options) => ({ ...managedJob(s, options), openWithoutLogin: true });
+const readResult = (job) => JSON.parse(readFileSync(job.managementResult.path, 'utf8'));
+const managementTokens = (s) => s.fake.state.accountTokens.filter(token => token.name.includes('-access-'));
+
+test('a job that asks finishes open on a no-card account, with the switch committed and no management token', async (t) => {
+  const s = await setup(t);
+  noCard(s);
+  const job = openJob(s);
+  const result = await s.install(job);
+  assert.equal(result.last, 'done', result.err.join('\n'));
+  assert.match(git('--git-dir', s.origin, 'show', 'main:app/wrangler.jsonc'), /"WORKSPACE_LOGIN": "off"/);
+  assert.equal(git('-C', s.dir, 'status', '--porcelain'), '');
+  const value = readResult(job);
+  assert.deepEqual(Object.keys(value).sort(), OPEN_KEYS);
+  assert.deepEqual(value, {
+    version: 1, mode: 'open', recipient: job.managementResult.recipient, source: await checkedOutSource(repoRoot, run),
+    accountId: ACCOUNT, repo: REPO, ownerEmail: JOB.ownerEmail, anchorHostname: 'recipe-box.ada.workers.dev',
+  });
+  assert.equal(statSync(job.managementResult.path).mode & 0o777, 0o600);
+  assert.deepEqual(managementTokens(s), []);
+  assert.deepEqual(s.fake.state.accessApps, []);
+  assert.equal((await s.install(job)).last, 'done', 'a retry of the same job reuses the open result');
+  assert.deepEqual(readResult(job), value);
+});
+
+test('a job that does not ask stops on a no-card account, and a later Access error stops either way', async (t) => {
+  const s = await setup(t);
+  noCard(s);
+  const stopped = await s.install(managedJob(s));
+  assert.equal(stopped.last, 'cloudflare');
+  assert.equal(s.pushed(), null);
+  assert.equal(existsSync(join(s.dir, 'app/wrangler.jsonc')), false);
+  withCard(s);
+  s.fake.state.refuse = [`POST /accounts/${ACCOUNT}/access/apps`];
+  for (const job of [JOB, { ...JOB, openWithoutLogin: true }]) {
+    const later = await s.install(job);
+    assert.equal(later.last, 'cloudflare', JSON.stringify(job));
+    assert.equal(s.pushed(), null);
+  }
+});
+
+test('a rerun after the card turns the install private and leaves the edit uncommitted', async (t) => {
+  const s = await setup(t);
+  noCard(s);
+  assert.equal((await s.install(openJob(s))).last, 'done');
+  const head = s.pushed();
+  withCard(s);
+  const reconnect = openJob(s, { generation: 2 });
+  const result = await s.install(reconnect);
+  assert.equal(result.last, 'done', result.err.join('\n'));
+  assert.equal(s.pushed(), head);
+  assert.equal(git('-C', s.dir, 'rev-parse', 'HEAD'), head);
+  assert.match(git('-C', s.dir, 'status', '--porcelain'), /^ M app\/wrangler\.jsonc$/m);
+  const config = parseConfig(join(s.dir, 'app/wrangler.jsonc'));
+  assert.equal(config.vars.WORKSPACE_LOGIN, undefined);
+  assert.equal(privateDeployment(config).appId, s.fake.state.accessApps[0].id);
+  const value = readResult(reconnect);
+  assert.equal(value.mode, undefined);
+  assert.equal(value.appId, s.fake.state.accessApps[0].id);
+  assert.deepEqual(managementTokens(s).map(token => token.id), [value.tokenId]);
+});
+
+test('a rerun still without the card finishes open again and changes no file', async (t) => {
+  const s = await setup(t);
+  noCard(s);
+  assert.equal((await s.install(openJob(s))).last, 'done');
+  const head = s.pushed();
+  const reconnect = openJob(s, { generation: 2 });
+  assert.equal((await s.install(reconnect)).last, 'done');
+  assert.equal(readResult(reconnect).mode, 'open');
+  assert.equal(git('-C', s.dir, 'status', '--porcelain'), '');
+  assert.equal(s.pushed(), head);
+  assert.deepEqual(managementTokens(s), []);
+});
+
+test('a retry of an open job after the card replaces its open result with the restricted one', async (t) => {
+  const s = await setup(t);
+  noCard(s);
+  const job = openJob(s);
+  assert.equal((await s.install(job)).last, 'done');
+  assert.equal(readResult(job).mode, 'open');
+  withCard(s);
+  assert.equal((await s.install(job)).last, 'done');
+  const value = readResult(job);
+  assert.equal(value.mode, undefined);
+  assert.match(value.token, /^deploy-secret-/);
+  assert.deepEqual(managementTokens(s).map(token => token.id), [value.tokenId]);
 });
 
 test('a refused push stops with push and keeps the commit; the next run pushes it', async (t) => {

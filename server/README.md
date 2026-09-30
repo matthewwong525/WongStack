@@ -64,6 +64,13 @@ A JSON object on stdin, never in arguments, since anyone on the server can read 
 | `repo` | The GitHub repo, as `owner/name`. The installer works in `~/<name>`. |
 | `ownerEmail` | The authenticated cloud owner's verified reachable email, independent of git authorship. Missing, synthetic, and GitHub noreply identities stop older jobs with an upgrade/reconnect reason. |
 | `managementResult` | Optional version-1 private handoff described below; a trusted host supplies it for cloud-managed workspaces. |
+| `openWithoutLogin` | Optional; `true` asks for [the open finish](#the-open-finish). Without it, an account Cloudflare holds back from Zero Trust stops the install with `cloudflare`. |
+
+### The open finish
+
+Cloudflare turns on Zero Trust, the email login, only once the account has a payment method. With `openWithoutLogin: true`, an install on an account without one goes on: the app goes live with the login off, its committed `app/wrangler.jsonc` carries `"WORKSPACE_LOGIN": "off"`, and the last line is `done`. Only that refusal opens it: an outage, any later Access error, or a site that already has the login still stops the install.
+
+Run it again after the card is added, on the installed repo: it makes the login, turns `app/wrangler.jsonc` private, and writes the restricted result. It leaves that edit uncommitted in `~/<name>` for the person's assistant to publish, and never commits or pushes over their work. Until then the Worker stays open, not broken. Still no card: it finishes open again and changes no file.
 
 ### The private management result
 
@@ -78,7 +85,7 @@ The trusted host supplies this object on stdin, with string recipient IDs and a 
 }
 ```
 
-Before publishing content, the installer validates the recipient/path and any existing result's job, target, owner, account, and source. After private provisioning succeeds, it atomically writes a bounded (16 KiB) regular result file, mode 0600, inside a workspace-user-owned directory mode 0700. The result contains:
+Before publishing content, the installer validates the recipient/path and any existing result's job, target, owner, account, and source. After private provisioning succeeds, or [finishes open](#the-open-finish), it atomically writes a bounded (16 KiB) regular result file, mode 0600, inside a workspace-user-owned directory mode 0700. The result contains:
 
 | Field | Contract |
 | --- | --- |
@@ -91,6 +98,8 @@ Before publishing content, the installer validates the recipient/path and any ex
 | `sessionDuration` | The application session duration: new app/human defaults are `720h`; reviewed shorter app or human-policy settings stay separate. |
 | `tokenId`, `token` | Account-owned management token and its private value, with only account-scoped `Access: Apps and Policies Write`. |
 | `cleanup` | `{revokedTokenIds, pendingTokenIds}` partitions the requested old account-token IDs by acknowledged deletion and outstanding cleanup. |
+
+An install that [finished open](#the-open-finish) writes the open result instead: exactly `version`, `mode: "open"`, `recipient`, `source`, `accountId`, `repo`, `ownerEmail`, and `anchorHostname`, as above. It mints no management token, carries no Access identifier, token, or cleanup field, and leaves `cleanupTokenIds` alone. A retry of the same job reuses it; a retry after the card replaces it with the restricted result.
 
 Live probing of the single-permission management token allowed Worker metadata listing; Worker content/publication, D1/R2, API-token management, and account-member probes were refused. The cloud provider client uses only its recorded Access resources. Cloudflare grants Access policy writes across the selected account, so the cloud must additionally restrict every action to this owner's recorded app/policy/Worker IDs. Its permission supports this application's session revocation. It has a separate lifetime from human sessions and machine credentials.
 
@@ -112,7 +121,7 @@ Its last line of output is one word, and it exits 0 only on `done`. The cause go
 
 | Line | Meaning |
 | --- | --- |
-| `done` | Installed and pushed, or it already was. |
+| `done` | Installed and pushed, or it already was; with [the open finish](#the-open-finish), possibly with the login off. |
 | `token` | Cloudflare refused the token, or the token lacks one of its two rows. |
 | `repo` | A bad job, no clone at `~/<name>`, a repo with other work, no git email, or the copy failed. |
 | `cloudflare` | A Cloudflare call, the memory store, or a GitHub secret failed. |
@@ -139,7 +148,7 @@ A host that runs the installer may import these names from it, and nothing else:
 | `CLOUDFLARE_CALL` | The pattern the refused-call line matches. |
 | `setEnv` | Replaces each key's own line in a `.env` file, or adds it, and leaves the file mode 0600. |
 
-Run it again after any stop. It finishes what the last run began and makes no second copy of anything. On a repo it already pushed, it restores `.env` and the secrets and commits nothing.
+Run it again after any stop. It finishes what the last run began and makes no second copy of anything. On a repo it already pushed, it restores `.env` and the secrets and commits nothing; on one it installed open, it may turn the config private, uncommitted.
 
 ### What the installer never does
 
@@ -166,14 +175,14 @@ The host does this at first boot, in order:
 
 The agent runs that copy for the server's life. Rebuilding the server is the only way it gets a newer agent.
 
-### Contract 1
+### Contract 2
 
-`agent.mjs` exports `CONTRACT = 1`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
+`agent.mjs` exports `CONTRACT = 2`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
 
 **The poll.** Every `interval` seconds (10 by default) the agent sends `POST /api/agent/poll`:
 
 ```json
-{ "contract": 1, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
+{ "contract": 2, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
 ```
 
 `paseo` is `up` when `paseo.service` is active, else `down`. The reply is `{ jobs, interval }`, each job `{ id, type, payload }`. A reply without them means no work and the default wait.
@@ -186,7 +195,7 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `suspend` | none | none; stops `paseo.service`. |
 | `resume` | none | none; starts `paseo.service`. |
 | `github` | `{ token, repo, name, email, invited }` | none; signs `gh` in, sets git's name and email, clones `repo` once, and sets up Paseo. An `invited` teammate's server accepts the owner's invitation first, or fails with `repo`. |
-| `cloudflare` | [The installer's job](#the-job), plus `sourceRepo` and `sourceCommit`, the pinned clone | none; `rolled` says whether it swapped the pasted token's value for one only the server holds. A failure carries the installer's `reason`, and `detail` when the line before it matches `CLOUDFLARE_CALL`. |
+| `cloudflare` | [The installer's job](#the-job), plus `sourceRepo` and `sourceCommit`, the pinned clone. The agent adds `openWithoutLogin: true` itself. | none; `rolled` says whether it swapped the pasted token's value for one only the server holds. A failure carries the installer's `reason`, and `detail` when the line before it matches `CLOUDFLARE_CALL`. |
 | `team-add` | `{ repo, login }` | none; gives the GitHub `login` push access to the owner's `repo`. |
 | `team-remove` | `{ repo, login }` | none; withdraws the invitation, removes access, and stops the teammate's memory keys where the repo's memory supports it. |
 | `copy-key` | none | The new server's public X25519 key, base64. |
@@ -197,11 +206,13 @@ A job of any other type is `rejected` and runs nothing. `cloudflare`, `copy-send
 
 **The job result.** The agent sends `POST /api/agent/jobs/:id` with `{ status, result?, reason?, detail?, rolled? }`, where `status` is `done`, `failed`, or `rejected`. For a `cloudflare` job, the host answers `{ ok: true }`, or the agent keeps the outcome and sends it again.
 
-**The access result.** After a `cloudflare` job with a `managementResult`, the agent reads the [private management result](#the-private-management-result) from its exact path, checks it against the job, and sends it to `POST /api/agent/jobs/:id/access`. It keeps a private journal under `/var/lib/wongstack/access-jobs` so a restart resends it rather than installing again.
+**The access result.** After a `cloudflare` job with a `managementResult`, the agent reads the [private management result](#the-private-management-result), restricted or open, from its exact path, checks it against the job, and sends it to `POST /api/agent/jobs/:id/access`. It keeps a private journal under `/var/lib/wongstack/access-jobs` so a restart resends it rather than installing again.
 
 **The setup report.** The host, not the agent, sends `POST /api/agent/setup?exit=<code>` once after `setup.sh`, with the last 4,000 bytes of its log as `text/plain`.
 
 A change to any of these shapes raises `CONTRACT`. The host supports the new number first; then the source releases it.
+
+**What changed from contract 1.** The agent asks the installer for [the open finish](#the-open-finish), so a `cloudflare` job on an account without a card ends `done`, and the access result may be the open one. A contract-1 agent never asks, so its server still stops with `cloudflare`, and the host never gets an open result from it.
 
 ### What the agent never does
 
@@ -212,7 +223,7 @@ A change to any of these shapes raises `CONTRACT`. The host supports the new num
 
 ### Change the agent in your fork
 
-Your fork's servers run your fork's agent. Change it as you like, and keep contract 1, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
+Your fork's servers run your fork's agent. Change it as you like, and keep contract 2, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
 
 ## Test a change on a real server
 

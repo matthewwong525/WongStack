@@ -218,8 +218,11 @@ function durableEnv(dir) {
 /**
  * The token grants itself a normal provision's groups, keeping its own two, its `resources`, and its
  * condition, then waits until the new set works on `account`, or on every account it sees.
+ * `openWithoutLogin`, for a caller that finishes open when Zero Trust needs onboarding: an Access probe
+ * still refused after the full wait goes in `accessPending` instead of stopping, and the later ones get
+ * one try each, since that wait already covered propagation; provision's Zero Trust step then decides.
  */
-export async function widen({ token, api, fetch, account, sleep = wait }) {
+export async function widen({ token, api, fetch, account, openWithoutLogin = false, sleep = wait }) {
   const cf = cloudflare(token, { api, fetch });
   const [self, groups] = await step('token', async () => {
     const { id } = await cf('GET', '/user/tokens/verify');
@@ -240,13 +243,27 @@ export async function widen({ token, api, fetch, account, sleep = wait }) {
     await step('cloudflare', () => cf('PUT', `/user/tokens/${self.id}`, { name, status, policies, ...(condition && { condition }) }));
   }
   const probed = account ? [account] : (await step('cloudflare', () => cf('GET', '/accounts?per_page=50'))).map((each) => each.id);
+  const accessPending = [];
   for (const id of probed) {
     await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/d1/database?per_page=1`), sleep, pending));
     for (const surface of ['apps', 'identity_providers', 'service_tokens']) {
-      await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/access/${surface}?per_page=1`), sleep, pending));
+      const probe = () => cf('GET', `/accounts/${id}/access/${surface}?per_page=1`);
+      await step('cloudflare', async () => {
+        try {
+          await (accessPending.length ? probe() : retry(probe, sleep, pending));
+        } catch (error) {
+          if (!openWithoutLogin || !pending(error)) throw error;
+          if (!accessPending.includes(surface)) accessPending.push(surface);
+        }
+      });
     }
   }
-  return { granted: missing.map(({ name }) => name), held: wanted.filter(({ group }) => held.has(group.id)).map(({ name }) => name), probed };
+  return {
+    granted: missing.map(({ name }) => name),
+    held: wanted.filter(({ group }) => held.has(group.id)).map(({ name }) => name),
+    probed,
+    ...(openWithoutLogin && { accessPending }),
+  };
 }
 
 /** The accounts the token sees. Zero with a valid token means Account Resources was left unset. */
