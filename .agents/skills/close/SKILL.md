@@ -37,7 +37,7 @@ Publish the edits alone. After a merge, first `git fetch origin main`, `git swit
 ```bash
 S="$(git rev-parse --show-toplevel)/.claude/skills"
 node "$S/memory/scripts/memory.mjs" keep-transcript current # never stops the close
-node "$S/verify/scripts/hand-over.mjs" close # only when this chat's hand-over link is open
+node "$S/hand-over/scripts/hand-over.mjs" close # only when this chat's hand-over link is open
 node "$S/routine/scripts/tidy.mjs" close # --discard on that route
 ```
 

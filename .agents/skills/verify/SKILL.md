@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Check the live preview end to end, grade the evidence, post it to the PR; also walks the app, tests an API, or screenshots.
+description: Check the live preview end to end, grade the evidence, post it to the PR; also walks the app, tests APIs, or screenshots.
 user-invocable: true
 ---
 

@@ -26,7 +26,7 @@ import { isMain } from "../../memory/scripts/lib/cli.mjs";
 import { primaryRoot } from "../../memory/scripts/lib/primary-root.mjs";
 
 const LIVE_FILE = /^(\.env|\.dev\.vars)(\..+)?$/;
-/** One `KEY=value` line of a live file; the key link (verify's keys.mjs) reads lines by it too. */
+/** One `KEY=value` line of a live file; the key link (hand-over's keys.mjs) reads lines by it too. */
 export const ENTRY = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
 const BASE_FILE = "wongstack-secrets-base.json";
 const KINDS = ["add", "remove", "change", "conflict", "unresolved"];

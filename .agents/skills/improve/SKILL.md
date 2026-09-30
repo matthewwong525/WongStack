@@ -1,6 +1,6 @@
 ---
 name: improve
-description: Find and ship one improvement that makes the project more useful, reliable, or easier to maintain. Supports --audit-only and an area or desired outcome.
+description: Find and ship one improvement making the project more useful, reliable, or easier to maintain; takes --audit-only, an area, or an outcome.
 user-invocable: true
 ---
 

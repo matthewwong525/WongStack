@@ -7,7 +7,7 @@ import { needs } from './fixtures/needs.mjs';
 
 // The password page in jsdom: the HTML with its module inlined as a classic script (jsdom runs no
 // module scripts), a fake `fetch` for `save`, `done`, and `page.mjs`, and the DOM driven by hand.
-const scripts = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/verify/scripts');
+const scripts = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/hand-over/scripts');
 const html = readFileSync(resolve(scripts, 'passwords-page.html'), 'utf8');
 const source = readFileSync(resolve(scripts, 'passwords-page.mjs'), 'utf8').replace(/^export /gm, '');
 // jsdom comes from scripts/tests/node_modules (`npm ci` there).

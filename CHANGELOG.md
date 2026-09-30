@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 28.3.0 — Give the private links their own home
+
+The tools behind the three private links (handing the browser to you, receiving a key, saving passwords) move out of `/verify`'s folder into their own hidden skill, `hand-over`. It stays out of your list of commands; the browsing and keys guides point the agent to it. The links look and work as before, and each session reads no more words at startup.
+
+**Updating.** Let any open private link finish or expire before you update: it runs from the old folder, which the update removes. The update moves the files for you.
+
 ## 28.2.0 — You handle token websites
 
 When a task needs a service's website to get or change an API key or token, the assistant gives you the service link and short steps for your own browser. It waits for new or replacement values through the private key link, or your confirmation for a change with no new value. Saved website logins, ordinary browsing, and existing authorized token management through APIs continue as usual.

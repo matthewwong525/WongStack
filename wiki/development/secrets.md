@@ -56,8 +56,8 @@ When a task needs a key the live files lack, or the person asks for *the key lin
 3. **Open it**, send the `HANDOVER_LINK` it prints, and run `wait` in the background:
 
    ```bash
-   node .claude/skills/verify/scripts/hand-over.mjs open --keys STRIPE_SECRET_KEY,MAPS_API_KEY
-   node .claude/skills/verify/scripts/hand-over.mjs wait
+   node .claude/skills/hand-over/scripts/hand-over.mjs open --keys STRIPE_SECRET_KEY,MAPS_API_KEY
+   node .claude/skills/hand-over/scripts/hand-over.mjs wait
    # HANDOVER_RESULT=done
    # HANDOVER_SAVED=STRIPE_SECRET_KEY,MAPS_API_KEY
    # HANDOVER_APP_KEYS=STRIPE_SECRET_KEY

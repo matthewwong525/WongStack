@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Resume saved work (a change by name, PR, or menu, or an open thread) and hand it to /apply.
+description: Resume saved work (a change by name, PR, or menu, or an open thread) for /apply.
 user-invocable: true
 ---
 

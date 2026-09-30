@@ -4,8 +4,8 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-import { revealOffset } from '../../.agents/skills/verify/scripts/hand-over-page.mjs';
-const scripts=new URL('../../.agents/skills/verify/scripts/',import.meta.url);
+import { revealOffset } from '../../.agents/skills/hand-over/scripts/hand-over-page.mjs';
+const scripts=new URL('../../.agents/skills/hand-over/scripts/',import.meta.url);
 const sourcePath=fileURLToPath(new URL('hand-over-page.mjs',scripts));
 // Keep byte offsets and the real filename so V8 records coverage for the browser code exercised.
 const source=readFileSync(sourcePath,'utf8').replace(/^export /gm,'       ');

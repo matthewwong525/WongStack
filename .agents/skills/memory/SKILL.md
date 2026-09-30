@@ -1,6 +1,6 @@
 ---
 name: memory
-description: Search and record this repo's memory of decisions, preferences, and open threads, each traceable to its transcript.
+description: Search and record this repo's memory: decisions, preferences, open threads, each traceable to its transcript.
 user-invocable: true
 ---
 
