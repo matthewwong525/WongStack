@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Keep open questions from crowding the briefing
+
+- **Room for decisions and preferences.** The briefing each session starts with still shows every open question on the work you are on first. Other open questions show only when under 30 days old, at most 8 of them, and a line says how many more there are and how to search them. Older questions stay saved and searchable.
+- **A done check closes its question.** When a session saves what it learned, the save check also lists open questions that sound like what the session did, even ones filed under other work, and the writer closes each one it answered with a note of what was found.
+- **The daily tidy-up closes answered questions** when a later note shows the answer.
+
+**Updating.** Nothing to do by hand.
+
 ## 28.3.0 — Give the private links their own home
 
 The tools behind the three private links (handing the browser to you, receiving a key, saving passwords) move out of `/verify`'s folder into their own hidden skill, `hand-over`. It stays out of your list of commands; the browsing and keys guides point the agent to it. The links look and work as before, and each session reads no more words at startup.
