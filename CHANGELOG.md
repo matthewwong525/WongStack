@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 28.1.0 — You handle token websites
+
+When a task needs a service's website to get or change an API key or token, the assistant gives you the service link and short steps for your own browser. It waits for new or replacement values through the private key link, or your confirmation for a change with no new value. Saved website logins, ordinary browsing, and existing authorized token management through APIs continue as usual.
+
+**Updating.** Nothing to do by hand. Existing credentials and private key links need no migration.
+
 ## 28.0.0 — Business pages and previews require login
 
 New standalone and managed installs protect pages, assets, APIs, mini apps, and old/new previews automatically with email login. Human sessions default to 30 days; machine and memory credentials keep their separate lifetimes. Deployment checks refuse publication without native Worker protection. Managed team changes retain owner/machine access and revoke the workspace's human sessions on removal, with failed provider work visibly pending.

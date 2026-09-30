@@ -35,6 +35,18 @@ The template is only useful if it stays complete. **When you add a variable in c
 
 Rotating an existing value is different: update the durable `.env`, but leave `.env.example` alone unless the variable's name, purpose, or acquisition instructions changed. Rewriting an already-blank declaration creates noise and does not document the rotation.
 
+## API token website steps
+
+When a task needs a website to get, create, reveal, copy, rotate, change permissions for, or revoke an API key or token, ask the person to do that step in their own browser. This applies even when the agent has a saved login. The agent must not use browser automation, saved logins, screenshots, page extraction, or a remote browser hand-over for that step.
+
+If an ordinary browsing task reaches a token step, stop interacting with that step before taking a picture or extracting page content, then follow this procedure:
+
+1. **Give the service link.** Use the direct token-management page from existing provider guidance. If the exact address is uncertain, give the known dashboard link and the navigation path; do not invent an account-specific address or open the token page in the agent's browser.
+2. **Give short steps.** Say what to create or change and which permissions the task needs. Ask the person to use their own browser, including any login the service needs.
+3. **Wait for the result.** For a new or replacement value, [send the private key link](#receive-a-key-through-a-private-link) and wait until the required key is saved. For a permission edit, revocation, or other change with no new value, wait for the person's confirmation. Resume dependent work only after that result arrives.
+
+Ordinary browsing, saved website logins, use of stored credentials, and existing authorized token management through APIs continue as usual. This procedure covers the service's token website; the private key form below still receives values.
+
 ## Receive a key through a private link
 
 When a task needs a key the live files lack, or the person asks for *the key link*, send a private link instead of asking for the key in the chat. Chats are stored; the link carries the key from their device straight to the ignored file.

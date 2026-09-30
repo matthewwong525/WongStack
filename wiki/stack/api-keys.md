@@ -4,9 +4,11 @@ An API key is a long password that lets your app or the assistant use another se
 
 ## Get the key
 
-Sign in to the service's website and look for a page called *API keys*, *Developers*, or *Tokens*. Create a key there and copy it. Many services show a key only once, so copy it before you leave the page.
+The assistant gives you a direct link to the service's key page and short steps, including which permissions you need. Open it in your own browser and sign in there. If the service's exact key-page address is unclear, the assistant gives its dashboard link and where to go next, usually *API keys*, *Developers*, or *Tokens*. Create a key there and copy it. Many services show a key only once, so copy it before you leave the page.
 
 If the service asks what the key may do, give it only what you need. A key that can only read cannot be used to change or spend anything.
+
+Changes to an existing key, such as replacing it, editing permissions, or deleting it, also use your own browser. Give new or replacement values through [the private link below](#give-it-through-the-private-link); for a change with no new value, tell the assistant when you're done. The assistant follows [the token website procedure](../development/secrets.md#api-token-website-steps).
 
 ## Give it through the private link
 
@@ -38,6 +40,6 @@ If you shared a key by mistake (in a message, a screenshot, or a public page), r
 
 ## Keys are not logins
 
-A key is for a service your app talks to. Signing in to a website as yourself, like your email or bank, is different: you never paste a password into the chat. The assistant opens a browser and you sign in there once. [Saved browser logins](../development/browsing.md#saved-browser-logins) explains how. To have the assistant log in for you instead, give it the logins you choose through a private link: [save your passwords](../development/browsing.md#save-your-passwords).
+A key is for a service your app talks to. Signing in to a website as yourself, like your email or bank, is different: you never paste a password into the chat. For ordinary website tasks, the assistant opens a browser and you sign in there once. [Saved browser logins](../development/browsing.md#saved-browser-logins) explains how. To have the assistant log in for you instead, give it the logins you choose through a private link: [save your passwords](../development/browsing.md#save-your-passwords).
 
 The Cloudflare key you made during [getting started](getting-started.md) is a key like these; [Cloudflare credentials](cloudflare-credentials.md) covers it. Back to [the Cloudflare stack](README.md).
