@@ -324,9 +324,11 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
   for (const fact of facts) {
     statements.push([`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL AND f.slug = ?${mine} ORDER BY f.created_at DESC LIMIT 40`, [fact.slug || '', ...mineParams]]);
     const match = ftsQuery(fact.body || '');
-    statements.push(match
-      ? [`SELECT ${F_COLUMNS} FROM facts f JOIN ${FTS_HITS} hits ON hits.rowid = f.id WHERE f.superseded_by IS NULL AND f.slug != ?${mine} ORDER BY hits.rank LIMIT 5`, [match, fact.slug || '', ...mineParams]]
-      : ['SELECT 1 WHERE 0']);
+    const otherSlugs = (limit, type = '') => match
+      ? [`SELECT ${F_COLUMNS} FROM facts f JOIN ${FTS_HITS} hits ON hits.rowid = f.id WHERE f.superseded_by IS NULL AND f.slug != ?${type}${mine} ORDER BY hits.rank LIMIT ${limit}`, [match, fact.slug || '', ...mineParams]]
+      : ['SELECT 1 WHERE 0'];
+    // Open threads on other slugs this fact may answer, so the writer can close one done under other work.
+    statements.push(otherSlugs(5), otherSlugs(3, " AND f.type = 'thread'"));
   }
   const [tagRows, ...results] = await store.batch(statements);
   const secrets = secretValues(store.env);
@@ -334,13 +336,15 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
   facts.forEach((fact, index) => {
     const problem = validateFact({ ...fact, action: undefined }, index, secrets);
     if (problem) { out.push(`Candidate ${index + 1}: ${problem}`); return; }
-    const [sameSlug, closest] = [results[index * 2], results[index * 2 + 1]];
+    const [sameSlug, closest, threads] = results.slice(index * 3, index * 3 + 3);
+    const answers = threads.filter(row => !closest.some(near => near.id === row.id));
     out.push(`Candidate ${index + 1}: [${fact.type}] ${fact.body}`, sameSlug.length ? `  Live facts on ${fact.slug}:` : `  No live facts on ${fact.slug}.`, ...sameSlug.map(row => `  ${formatFact(row)}`));
     if (closest.length) out.push('  Closest matches on other slugs:', ...closest.map(row => `  ${formatFact(row)}`));
+    if (answers.length) out.push('  Open threads this may answer:', ...answers.map(row => `  ${formatFact(row)}`));
   });
   const { errors, warnings } = tagProblems(tagRows.map(row => row.name), facts, input.newTags);
   out.push(...[...errors, ...warnings].map(message => `Tags: ${message}`));
-  out.push('\nDecide each candidate: "add", "supersede" with "supersedes": [ids] when it replaces or corrects a live fact, or "drop" when a live fact already says it. Then run put-facts with the decisions.');
+  out.push('\nDecide each candidate: "add", "supersede" with "supersedes": [ids] when it replaces or corrects a live fact, or "drop" when a live fact already says it. A fact that answers an open thread supersedes it, saying what was found. Then run put-facts with the decisions.');
   console.log(out.join('\n'));
 }
 
