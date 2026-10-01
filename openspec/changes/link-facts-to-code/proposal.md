@@ -1,6 +1,6 @@
 # Link memory facts to the code they're about
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** cold-fireant
 
@@ -85,3 +85,4 @@ None.
 - **2026-10-01** — Asked, after the build, whether the assistant can search memory by code area outside a build → yes: list `areas <path>` in the memory skill's Read table, and have `/explore` run `areas` on the paths it expects to touch beside its keyword search, each offset in its own file. This reverses the earlier non-goal of no area loading in planning.
 - **2026-10-01** — Measured before task 5.2's edits (`measure-context.mjs --json`, current words / bytes): memory `SKILL.md` 938 / 6367, `/explore` `SKILL.md` 665 / 4811. Each ends at or under these.
 - **2026-10-01** — Assumed: checkpoint for gate task 5.3: 5.1–5.2 built; memory `SKILL.md` trimmed three more words after the helper left it one over its start (936 / 6342 against 938 / 6367); the modified *The verbs read memory where they decide* was copied into the main memory spec at this save.
+- **2026-10-01** — Assumed: gate task 5.3 done: CI passed on PR #229 with area lookup in the memory skill's Read table and in `/explore`.

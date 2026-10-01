@@ -25,4 +25,4 @@
 
 - [x] 5.1 Before editing, record `.agents/skills/memory/SKILL.md` and `.agents/skills/explore/SKILL.md` words and bytes with `node scripts/measure-context.mjs --json` in the Decision log. Verify both counts are logged.
 - [x] 5.2 Add the *Read* table row for `areas` to memory `SKILL.md`, and change `/explore`'s *Search memory before asking* to run `areas <paths>` on the paths it expects to touch beside `search <terms>`, by design.md's *Lookup anywhere*; add one line to `wiki/development/memory.md`'s *Facts by code area* that planning loads areas too. Trim each skill file to at or under its 5.1 counts. Verify with `measure-context.mjs --json` against the logged counts, `node scripts/measure-context.mjs --check`, and `node scripts/check-payload-links.mjs`.
-- [ ] 5.3 Run CI through `/save`. Verify CI passes.
+- [x] 5.3 Run CI through `/save`. Verify CI passes.
