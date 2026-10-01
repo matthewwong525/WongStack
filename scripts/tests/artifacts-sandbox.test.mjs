@@ -39,7 +39,7 @@ function sdkClient() {
   });
   const client = new Client({ stub: {}, logger });
   const expireIdleTimers = () => {
-    for (const [id, callback] of [...timeouts]) { timeouts.delete(id); callback(); }
+    for (const [id, callback] of timeouts) { timeouts.delete(id); callback(); }
   };
   return { client, connection, timeouts, intervals, expireIdleTimers };
 }
