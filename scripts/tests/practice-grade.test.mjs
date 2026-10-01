@@ -133,6 +133,6 @@ test('a wiki note passes no-repo-edit when "publish it?" comes before anything i
   assert.match(check('no-repo-edit', mug, goodLog, silent).evidence, /without asking "publish it\?" first/);
   const pushed = [...base, ...note, ...bash('git commit -am note && git push'), say('Published. Publish anything else?'), { type: 'checkout', changed: ['wiki/people/sam.md'] }];
   assert.equal(check('no-repo-edit', mug, goodLog, pushed).pass, false, 'published before asking');
-  const code = [...base, ...tool('Edit', { file_path: '/tmp/practice-wt-1/app/src/App.tsx', old_string: 'a', new_string: 'b' }), say('Publish it?'), { type: 'checkout', changed: ['app/src/App.tsx'] }];
-  assert.match(check('no-repo-edit', mug, goodLog, code).evidence, /changed app\/src\/App\.tsx/);
+  const code = [...base, ...tool('Edit', { file_path: '/tmp/practice-wt-1/app/src/router.tsx', old_string: 'a', new_string: 'b' }), say('Publish it?'), { type: 'checkout', changed: ['app/src/router.tsx'] }];
+  assert.match(check('no-repo-edit', mug, goodLog, code).evidence, /changed app\/src\/router\.tsx/);
 });
