@@ -49,7 +49,7 @@ export class PilotController {
   }
   start(params, job) {
     requireThat(!this.state.stopped, 'Pilot stopped');
-    requireThat(params.owner === this.state.namespace && params.repo === this.state.repo && shaOK(params.sha) && /^refs\/heads\//.test(params.ref), 'Unexpected event source or commit');
+    requireThat(params.owner === this.state.namespace && params.repo === this.state.repo && shaOK(params.sha) && typeof params.ref === 'string' && params.ref.startsWith('refs/heads/'), 'Unexpected event source or commit');
     if (this.state.jobs[job]) return { duplicate: true };
     const key = `${params.ref}:${params.sha}`;
     if (this.state.candidates[key]) return { duplicate: true };
