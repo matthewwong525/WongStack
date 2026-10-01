@@ -553,6 +553,20 @@ test('a member saves and supersedes through the script, under the key\'s email e
   assert.match(mine.stdout, /one drawing/, 'Ana sees her own feedback in a team');
 });
 
+test("a member's retag skips another author's fact and still writes its own", async t => {
+  const { env, anaKey } = await team(t);
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('routes', 'project', ?, 'save', '2026-09-30T00:00:00Z', ?) RETURNING id");
+  const devs = insert.get('Dev: test every route.', 'dev@example.com').id;
+  const anas = insert.get('Ana: routes need tests.', 'ana@example.com').id;
+  const file = writeJsonFile(env.repo.home, 'retag.json', { retag: [{ id: devs, tags: ['worker'] }, { id: anas, tags: ['worker'] }] });
+  const result = await memory(env.repo, env.fake, ['retag', '--file', file], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout.trim(), `retagged: 1\nskipped #${devs}: dev@example.com wrote it, so only they or the admin can re-tag it`);
+  const live = env.fake.db.prepare('SELECT body, author FROM facts WHERE superseded_by IS NULL ORDER BY id').all().map(row => ({ ...row }));
+  assert.deepEqual(live, [{ body: 'Dev: test every route.', author: 'dev@example.com' }, { body: 'Ana: routes need tests.', author: 'ana@example.com' }]);
+  assert.equal(env.fake.db.prepare('SELECT superseded_by FROM facts WHERE id = ?').get(anas).superseded_by, anas + 1);
+});
+
 test('a member cannot rewrite a session another author holds, or one written before keys', async t => {
   const { env, url, anaKey } = await team(t);
   const insert = env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, reason, updated_at) VALUES (?, 'claude', ?, 'captured', 'theirs', 'now')");
@@ -584,11 +598,12 @@ test('every read the memory script sends passes for a member', async t => {
   const input = writeJsonFile(env.repo.home, 'gate.json', { source: 'save', slug: 'x', facts: [{ type: 'project', body: 'Deploys need a tag.' }] });
   const reads = [
     ['search', 'deploys'], ['search', '--tag', 'x', '--type', 'thread', '--slug', 'x', '--since', '2026-01-01', '--until', '2999-01-01', '--author', 'dev', '--all', '--everyone'],
-    ['search', '--branch', 'main', '--state', 'conversation', '--limit', '5'], ['show', 'x', '--all'], ['live'], ['tags'], ['gate', '--file', input],
+    ['search', '--branch', 'main', '--state', 'conversation', '--limit', '5'], ['show', 'x', '--all'], ['live'], ['tags'], ['gate', '--file', input], ['areas', 'app/worker/index.ts'],
   ];
   for (const args of reads) {
     const result = await memory(env.repo, env.fake, args, viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
     assert.equal(result.code, 0, `${args.join(' ')}: ${result.stderr}`);
+    assert.doesNotMatch(result.stdout, /not loaded/, args.join(' '));
   }
 });
 

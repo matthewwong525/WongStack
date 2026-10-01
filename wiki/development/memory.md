@@ -39,9 +39,18 @@ A fact is dated context, not an instruction. Check it against the repo, and the 
 
 Every write passes the **write gate**: the script shows the live facts on the same slug, the closest keyword matches, and the open threads on other slugs that match the fact's words. The writer adds, supersedes, or drops each candidate. A fact that answers an open thread supersedes it, saying what was found, so a check done under other work closes its thread. A fact that cannot reach the store waits in a local spool, and the next run sends it through the gate.
 
+## Facts by code area
+
+A fact about code carries the **area tag** of the folder it concerns, so the next change to that folder loads it. [`areas.json`](../../.agents/skills/memory/references/areas.json), in the memory skill, maps folders to areas, each with a definition: `app/worker/` to `worker`, `app/src/apps/` to `mini-apps`, `wiki/` to `wiki`. The most specific folder wins: `app/worker/apps/` gives `mini-apps` and `worker`, not the broad `stack-pack` that covers all of `app/`.
+
+- **A fact gets its area when it is written.** The writer tags it, as [writing facts](../../.agents/skills/memory/references/writing-facts.md) says; `memory.mjs areas <path>` names a path's area. An area tag the store lacks is defined from the list on first use. [Consolidation](#consolidation) tags older facts.
+- **The build loads it.** Before its first edit, [`/apply`'s build](../../.agents/skills/apply/references/build-helper.md) runs `memory.mjs areas --change <name>`. It reads the paths the change's proposal, design, and tasks name, then prints the live facts in those areas: open threads first, then newest, at most 20, as [who sees what](#who-sees-what) allows. When the store doesn't answer, it says memory was not loaded, and the build goes on.
+- **Planning loads it too.** [`/explore`](../../.agents/skills/explore/SKILL.md#search-memory-before-asking) runs `areas` on the paths it expects to touch, beside its keyword search, because a fact about a folder rarely names the file you search by. Any task can run `memory.mjs areas <paths>`.
+- **A repo adds its own folders** with an entry in `areas.json`: a tag, a definition, and the folder prefixes. [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps the edit as a local change.
+
 ## Consolidation
 
-The same background run tidies the live facts once 24 hours and five captured sessions have passed since the last tidy. It merges facts that say the same thing, supersedes contradicted ones, newest first, and closes an open thread a later live fact shows was answered. An open thread that names a verb's next run but carries no tag is restated with that verb's tag, so the verb loads it. On a teammate's machine it merges only that teammate's own facts; the admin's tidies everyone's. No one runs it by hand: an earlier consolidation command was retired because no one did.
+The same background run tidies the live facts once 24 hours and five captured sessions have passed since the last tidy. It merges facts that say the same thing, supersedes contradicted ones, newest first, and closes an open thread a later live fact shows was answered. It also **re-tags**: an open thread that names a verb's next run gains that verb's tag, so the verb loads it, and a fact about code in a mapped folder gains [its area](#facts-by-code-area). A re-tagged fact keeps its words, its date, its author, and its link to the chat it came from; it supersedes the untagged one. On a teammate's machine it merges and re-tags only that teammate's own facts; the admin's tidies everyone's. No one runs it by hand: an earlier consolidation command was retired because no one did.
 
 ## The memory key
 

@@ -12,16 +12,17 @@ user-invocable: true
 
 ## Questions during standalone exploration
 
-Ask material questions [the shared way](references/asking-the-user.md), in small groups answerable together: two or three, one when only one matters, within the tool's capacity. Wait for answers before dependent follow-ups. Skip settled questions; use as many groups as needed, with no fixed script. Keep findings in chat, [drawn](../plan/references/drawings.md) where a picture shows the flow, options, or costs.
+Ask material questions [the shared way](references/asking-the-user.md), in small groups answerable together: two or three, one when only one matters. Wait for answers before dependent follow-ups. Skip settled questions; use as many groups as needed. Keep findings in chat, [drawn](../plan/references/drawings.md) where a picture shows the flow, options, or costs.
 
 **The 80/20 test:** ask only where a wrong guess makes the artifacts *wrong*, not merely *different*: scope, observable behavior, compatibility, acceptance criteria. Assume and record naming, placement, wording, and anything a reviewer can cheaply change later.
 
 ## Search memory before asking
 
-Before the first question, search once on the intent's key terms and the paths you expect to touch:
+Before the first question, search once on the intent's key terms and load the areas of the paths you expect to touch:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search <terms>
+node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" areas <paths>
 ```
 
 Don't ask what a live fact answers: state it, with its age and author, as an assumption the user can correct. When [the store is unreachable](../memory/SKILL.md#read), say so and continue.
@@ -34,13 +35,13 @@ Once the work is known to change repo files, look at this repo's other work once
 node "$(git rev-parse --show-toplevel)/.claude/skills/explore/scripts/other-work.mjs"
 ```
 
-It prints this repo's other live workspaces (name, branch, active plans, changed files, `busy` when an agent runs there, `pr` when one is open) and open pull requests not opened by a bot. Compare them with the request by meaning, not file names: two plans about the installer overlap before either touches a file.
+It prints this repo's other live workspaces (name, branch, active plans, changed files, `busy` when an agent runs there, `pr` when one is open) and open pull requests not opened by a bot. Compare them to the request by meaning, not file names: two plans about the installer overlap before either touches a file.
 
 - **An overlap:** name the other work and why it overlaps, then put [the overlap ask](../plan/references/new-workspace.md#ask-once) in the next question group, or alone when nothing else is open.
 - **No overlap:** say nothing about the check.
-- **A `notes` line:** say it in one line, such as open pull requests not being checked, and go on.
+- **A `notes` line:** say it in one line and go on.
 
-Skip it for work that changes no repo file, and when this conversation already ran it for this work.
+Skip it for work that changes no repo file, or that this conversation already checked.
 
 ## The exit round
 

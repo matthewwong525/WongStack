@@ -133,8 +133,8 @@ test('length, type, and credential checks reject a fact without echoing a secret
 
 test('tags need a definition, near duplicates warn, and aliases match their target', async t => {
   const env = await setup(t);
-  const missing = await put(env, { source: 'save', slug: 't', facts: [{ action: 'add', type: 'project', body: 'A fact.', tags: ['save'] }] });
-  assert.match(missing.stderr, /tag save does not exist/);
+  const missing = await put(env, { source: 'save', slug: 't', facts: [{ action: 'add', type: 'project', body: 'A fact.', tags: ['search'] }] });
+  assert.match(missing.stderr, /tag search does not exist/);
   await put(env, { source: 'save', slug: 't', newTags: [{ name: 'save', definition: 'The checkpoint verb.' }], facts: [{ action: 'add', type: 'project', body: 'Save stages by path.', tags: ['save'] }] });
   const near = await put(env, { source: 'save', slug: 't', newTags: [{ name: 'saves', definition: 'Checkpoints.' }], facts: [{ action: 'add', type: 'project', body: 'Another.', tags: ['saves'] }] });
   assert.match(near.stderr, /tag saves is close to existing tag save/);

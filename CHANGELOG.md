@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.3.0 — Link memory facts to the code they're about
+
+A lesson your assistant saved about part of your code now comes back when a change touches that code, not only when a search happens to find it.
+
+- **Each fact names the part of the code it's about.** A short list matches folders to areas, such as your app's server code to *worker* and the wiki to *wiki*. A saved fact about code gets its area, the way it already gets a topic.
+- **Building a change loads the facts for the code it touches.** Before the first edit, the build reads which folders the plan names and loads the saved facts for those areas, so a warning about the server routes shows up before the routes change. Planning does the same for the files it expects to touch.
+- **Older facts get their area too.** The background tidy-up re-saves each one about a mapped folder with its area, keeping its words, its date, who wrote it, and its link to the chat it came from. On a teammate's computer it changes only that teammate's own facts.
+- **Your own folders can join the list.** Add a folder to `.claude/skills/memory/references/areas.json` with a name and a short definition, and the next update keeps it.
+
+**Updating.** Nothing to do by hand: the next build loads areas, and the next tidy-up tags older facts.
+
 ## 29.2.0 — Setup from any folder, and a first message that gets to know you
 
 Setup no longer needs an empty folder, and your starter site's first message now teaches the assistant who you are.
