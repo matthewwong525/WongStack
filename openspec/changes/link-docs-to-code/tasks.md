@@ -20,4 +20,4 @@
 ## 4. Release
 
 - [x] 4.1 Add a `## Next (minor) — One web of code, facts, wiki pages, specs, and past plans` entry to `CHANGELOG.md`, with a plain *Updating* note that an install's wiki is now checked on each publish; verify `check-payload-links.mjs`, `check-retired-names.mjs`, and `measure-context.mjs --check` pass.
-- [ ] 4.2 Run `/save` and confirm CI passes on the pull request, the new wiki step included.
+- [x] 4.2 Run `/save` and confirm CI passes on the pull request, the new wiki step included.

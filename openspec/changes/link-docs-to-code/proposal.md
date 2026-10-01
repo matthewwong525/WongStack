@@ -1,6 +1,6 @@
 # One web of code, facts, wiki pages, specs, and past plans
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** improvements-linking-facts-code
 
@@ -82,3 +82,4 @@ None.
 - **2026-10-01** — Check: `.github/scripts/wiki-links.mjs` is a new check that fails on a broken wiki link, a lost page, or a hub that skips a page, because a lost page was invisible before; it loosens nothing.
 - **2026-10-01** — Check: `.github/workflows/test.yml` adds the *Check the wiki's links* step and a Summary sentence for it, because the wiki check must run in every install on every push; no existing step changes.
 - **2026-10-01** — Assumed: checkpoint for gate task 4.2: tasks 1.1–4.1 are built and the related tests pass locally (250), along with the payload link, retired-name, config, and context checks; this save runs CI. The spec deltas were copied into the main memory and knowledge-center specs at this save. Past changes count a folder named in a plan as an exact match only when it is at least as deep as the path's area folder, so `wiki/` or `app/worker/` naming doesn't jump the queue.
+- **2026-10-01** — Assumed: gate task 4.2 done: CI passed on PR #231 after merging main (#230; `wiki/development/memory.md` was the only conflict, keeping both edits), and the *Check the wiki's links* step ran and passed in the test workflow.
