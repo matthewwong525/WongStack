@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { apps, listApps, pageFor } from ".";
+import { apps, appPage, listApps } from ".";
 
 const card = { title: "Runs", description: "Log a run." };
 
@@ -12,12 +12,12 @@ it("lists every app folder in this build, each with a page, a title, a descripti
     expect(app.title.trim(), app.name).not.toBe("");
     expect(app.description.trim(), app.name).not.toBe("");
     expect(app.href).toBe(`/apps/${app.name}/`);
-    expect(pageFor(app.name), app.name).toBeDefined();
+    expect(appPage(app.name), app.name).not.toBeNull();
   }
 });
 
 it("finds no page for a folder that does not exist", () => {
-  expect(pageFor("nothing")).toBeUndefined();
+  expect(appPage("nothing")).toBeNull();
 });
 
 it("sorts the list by name and keeps each card's words", () => {

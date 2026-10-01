@@ -1,4 +1,4 @@
-import { lazy, type ComponentType } from 'react'
+import { createElement, lazy, Suspense, type ComponentType, type ReactElement } from 'react'
 
 // Every mini app, found by folder: app/src/apps/<name>/ holds its page
 // (App.tsx, exporting `App`) and its card on the home page (app.json, with a
@@ -50,7 +50,8 @@ const pages = new Map(
   ]),
 )
 
-/** The page of the app in folder `name`, or undefined when there is none. */
-export function pageFor(name: string) {
-  return pages.get(name)
+/** The page of the app in folder `name`, ready to render, or null when there is none. */
+export function appPage(name: string): ReactElement | null {
+  const page = pages.get(name)
+  return page ? createElement(Suspense, { fallback: null }, createElement(page)) : null
 }

@@ -31,7 +31,7 @@ export default {
     // page is the single-page app's, and /apps/<name>/api/* goes to the app's
     // handler with who is calling. wiki/stack/mini-apps.md
     if (url.pathname === "/apps/") {
-      return Response.redirect(new URL("/", request.url), 302);
+      return Response.redirect(new URL("/", request.url).href, 302);
     }
     if (APP_API.test(url.pathname)) {
       return handleApp(request, env, identity);
