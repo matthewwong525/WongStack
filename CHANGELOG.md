@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Link memory facts to the code they're about
+## 29.3.0 — Link memory facts to the code they're about
 
 A lesson your assistant saved about part of your code now comes back when a change touches that code, not only when a search happens to find it.
 

@@ -86,3 +86,4 @@ None.
 - **2026-10-01** — Measured before task 5.2's edits (`measure-context.mjs --json`, current words / bytes): memory `SKILL.md` 938 / 6367, `/explore` `SKILL.md` 665 / 4811. Each ends at or under these.
 - **2026-10-01** — Assumed: checkpoint for gate task 5.3: 5.1–5.2 built; memory `SKILL.md` trimmed three more words after the helper left it one over its start (936 / 6342 against 938 / 6367); the modified *The verbs read memory where they decide* was copied into the main memory spec at this save.
 - **2026-10-01** — Assumed: gate task 5.3 done: CI passed on PR #229 with area lookup in the memory skill's Read table and in `/explore`.
+- **2026-10-01** — Assumed: archive checkpoint: all 12 tasks ticked, CI passed on PR #229; the spec deltas were already copied into the main memory and apply specs at earlier saves, so the archive skipped specs. Released as 29.3.0.
