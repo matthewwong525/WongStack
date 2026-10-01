@@ -1,6 +1,6 @@
 # Log in with fewer taps: a ready password page, and codes through the chat
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** 1password-login-sharing
 **Open questions:** none
 
@@ -90,3 +90,4 @@ None.
 - **2026-10-01** — Assumed: the site and username travel in the link's `#` part beside the key, because that part never reaches the server or a log, and the username is already known to the chat from the saved-login list.
 - **2026-10-01** — Assumed: *Sign in with Google* or *Apple* and other non-password logins keep the live browser link, because there's no password to save.
 - **2026-10-01** — Assumed: built tasks 1.1–3.1 and added the new page to `payload-files.json` so the payload link check counts it; task 3.2 waits on CI at this save.
+- **2026-10-01** — Assumed: task 3.2 done, because CI passed on PR #237; every task is complete.

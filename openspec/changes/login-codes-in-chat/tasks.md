@@ -16,4 +16,4 @@
 ## 3. Release
 
 - [x] 3.1 Add a `## Next (minor) — Log in with fewer taps` entry at the top of `CHANGELOG.md`
-- [ ] 3.2 Pass the payload and wiki checks in CI through `/save`
+- [x] 3.2 Pass the payload and wiki checks in CI through `/save`
