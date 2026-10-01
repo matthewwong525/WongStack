@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Wiki pages stay short, titled, and their section links work
+## 29.5.0 — Wiki pages stay short, titled, and their section links work
 
 Every publish now checks each wiki page the way code is checked, and the three longest pages are split into shorter ones.
 

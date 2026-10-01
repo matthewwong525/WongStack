@@ -1,6 +1,6 @@
 # Keep wiki pages short, titled, and their section links working
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** wiki-file-size-limits
 
@@ -88,3 +88,4 @@ None.
 - **2026-10-01** — Check: `.github/scripts/app-untouched.sh` prints a fourth answer, `wiki_affected`, false only when the change touches no Markdown and removes or moves no file, because the person asked that a code-only change skip the wiki check; any doubt (no base, an empty diff) answers true.
 - **2026-10-01** — Check: `.github/workflows/test.yml` skips *Check the wiki's links* when `wiki_affected` is false and says so in the summary, because no wiki link can break when no Markdown changed and no file was removed or moved.
 - **2026-10-01** — Saved for the online checks (task 4.3): all build tasks done; local checks pass except three browser-page tests that need `jsdom`, which this machine lacks.
+- **2026-10-01** — Archived for /ship as 29.5.0; the online checks passed on the branch after one lint fix (`startsWith` over a caret regex).

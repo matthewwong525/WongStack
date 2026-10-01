@@ -25,4 +25,4 @@
 
 - [x] 4.1 Add "a page stays under 3,000 words; split a longer one by its sections" to *No orphans, no dead-ends, full hub-coverage* in `wiki/wiki-style.md`, cutting as many words elsewhere on the page; verify `node scripts/measure-context.mjs --check` passes with no new baseline.
 - [x] 4.2 Write a `## Next (minor) — Wiki pages stay short, titled, and their section links work` entry at the top of `CHANGELOG.md`, in plain words, whose **Updating.** note asks the install to split any of its own wiki pages over 3,000 words and names the five moved sections; verify `node scripts/check-payload-links.mjs` passes.
-- [ ] 4.3 Run `/save` and verify CI's payload checks and the Test workflow's wiki step pass on the branch.
+- [x] 4.3 Run `/save` and verify CI's payload checks and the Test workflow's wiki step pass on the branch.

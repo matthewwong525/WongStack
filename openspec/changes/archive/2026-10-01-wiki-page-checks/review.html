@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · wiki-page-checks</title>
+<title>Review · 2026-10-01-wiki-page-checks</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="wiki-page-checks">
+<body data-change="2026-10-01-wiki-page-checks">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>wiki-page-checks</h1>
+  <h1>2026-10-01-wiki-page-checks</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -158,6 +158,7 @@
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-01</p>Check: <code>.github/scripts/app-untouched.sh</code> prints a fourth answer, <code>wiki_affected</code>, false only when the change touches no Markdown and removes or moves no file, because the person asked that a code-only change skip the wiki check; any doubt (no base, an empty diff) answers true.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-01</p>Check: <code>.github/workflows/test.yml</code> skips <i>Check the wiki's links</i> when <code>wiki_affected</code> is false and says so in the summary, because no wiki link can break when no Markdown changed and no file was removed or moved.</li>
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-01</p>Saved for the online checks (task 4.3): all build tasks done; local checks pass except three browser-page tests that need <code>jsdom</code>, which this machine lacks.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-01</p>Archived for /ship as 29.5.0; the online checks passed on the branch after one lint fix (<code>startsWith</code> over a caret regex).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
