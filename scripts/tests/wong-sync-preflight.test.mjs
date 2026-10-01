@@ -122,6 +122,28 @@ test('a selected no-op is current and leaves the target worktree and index uncha
   assert.deepEqual(readFileSync(join(f.target, '.git/index')), index);
 });
 
+test('a recorded fork can be refreshed and compared without changing a local adaptation', t => {
+  const f = fixture(t, { targetFiles: { 'plain.txt': 'project-specific workflow\n' } });
+  const fork = 'https://github.com/business/custom-stack';
+  f.updateRecord({ upstream: { repo: fork, clone: join(f.root, 'fork-cache') } });
+  write(f.source, 'plain.txt', 'fork workflow latest\n');
+  write(f.source, 'VERSION', '1.1.0\n');
+  const latest = f.commit('publish fork defaults');
+
+  // Map only the transport to a local fixture; retrieve the URL in the actual record.
+  const record = JSON.parse(readFileSync(join(f.target, '.claude/.wong-stack.json'), 'utf8'));
+  git(f.root, '-c', `url.${f.source}.insteadOf=${fork}`, 'clone', record.upstream.repo, record.upstream.clone);
+  assert.equal(git(record.upstream.clone, 'remote', 'get-url', 'origin'), fork);
+  const before = readFileSync(join(f.target, 'plain.txt'), 'utf8');
+  const report = f.inspect({ source: record.upstream.clone });
+  assert.equal(report.status, 'update');
+  assert.equal(report.source.commit, latest);
+  assert.equal(report.source.version, '1.1.0');
+  assert.equal(report.changes.find(change => change.sourcePath === 'plain.txt').localState, 'locally-adapted');
+  assert.equal(readFileSync(join(f.target, 'plain.txt'), 'utf8'), before);
+  assert.equal(JSON.parse(readFileSync(join(f.target, '.claude/.wong-stack.json'), 'utf8')).upstream.repo, fork);
+});
+
 test('one changed file classifies installed, latest, adapted, and missing target states', t => {
   const f = fixture(t);
   write(f.source, '.agents/skills/alpha/SKILL.md', 'alpha latest\n');

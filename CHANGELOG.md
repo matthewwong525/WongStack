@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.8.0 — Make WongStack your own
+
+- A guide explains how to customize a fork's defaults, install it with one request, and keep projects updated from it.
+- Easy setup uses the requested repository's guide, tool requirements, and payload, and records that source for later updates. With no custom source, it uses the original WongStack.
+
+**Updating.** No action needed. Existing projects keep their recorded source. The guide arrives with the usual update.
+
 ## 29.7.0 — Log in with fewer taps
 
 When your assistant meets a login or a code, you type less, and you get the live browser link only for steps only you can do on the page.

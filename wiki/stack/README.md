@@ -9,6 +9,7 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 ## Pages
 
 - [Getting started](getting-started.md) — what installing costs, what you do by hand, and what to do when something goes wrong; start here if you're setting this up for the first time.
+- [Make WongStack your own](customizing-wongstack.md) — change the defaults in your fork, install it with one request, and keep projects following your version.
 - [Core stack](core-stack.md) — *what* you build on: React + Vite on Cloudflare Workers with D1, and why the combo suits AI-driven dev.
 - [Deploy and data pipeline](d1-pipeline.md) — *how* code and data ship: the `env.staging` model, auto-applied migrations, and seeded staging.
 - [Staging bindings and secrets](staging-bindings.md) — the staging Worker's own database, queue, bucket, and secrets, so a branch never writes to production.

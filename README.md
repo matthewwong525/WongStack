@@ -48,6 +48,8 @@ You end with a working assistant, a starter site online, memory that carries ove
 
 ## For developers
 
+Want your own defaults for every new project? [Make WongStack your own](wiki/stack/customizing-wongstack.md) covers customizing a fork, installing it with one request, and keeping projects updated from it.
+
 ### How it works
 
 **Coding agents forget your decisions between sessions, and your process lives in chat and in people's heads.** WongStack keeps the process, the plans, and the decisions in the repo, and gives agents a repeatable loop that writes down what each change teaches.
