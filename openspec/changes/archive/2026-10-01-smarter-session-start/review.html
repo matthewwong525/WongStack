@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · smarter-session-start</title>
+<title>Review · 2026-10-01-smarter-session-start</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="smarter-session-start">
+<body data-change="2026-10-01-smarter-session-start">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>smarter-session-start</h1>
+  <h1>2026-10-01-smarter-session-start</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -149,6 +149,7 @@
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: existing untagged threads get a tag when consolidation restates them, not through a new tag-only write, because a new write needs a Worker change and members can rewrite only their own facts.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: the people page gets at most 1.5 KB of the digest's 6 KB, with a line pointing to the full page when cut, so preferences and decisions keep room as the page grows.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: checkpoint for gate task 1.2: the digest code (1.1) and its tests are written and pass locally; this save runs CI. <code>personalFilter</code> now takes the already-read people page, and the left-out count includes other changes' unlisted threads.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: archive checkpoint: CI passed on PR #224 after merging main 29.0.0 and 29.0.1 (changelog was the only conflict, kept both entries with this one on top); all tasks ticked; spec deltas were already copied into the main memory spec at the first save. Released as 29.1.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

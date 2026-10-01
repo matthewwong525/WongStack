@@ -1,6 +1,6 @@
 # Load what matters at session start, and look up the rest
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** check-memory-org
 
@@ -73,3 +73,4 @@ None.
 - **2026-10-01** — Assumed: existing untagged threads get a tag when consolidation restates them, not through a new tag-only write, because a new write needs a Worker change and members can rewrite only their own facts.
 - **2026-10-01** — Assumed: the people page gets at most 1.5 KB of the digest's 6 KB, with a line pointing to the full page when cut, so preferences and decisions keep room as the page grows.
 - **2026-10-01** — Assumed: checkpoint for gate task 1.2: the digest code (1.1) and its tests are written and pass locally; this save runs CI. `personalFilter` now takes the already-read people page, and the left-out count includes other changes' unlisted threads.
+- **2026-10-01** — Assumed: archive checkpoint: CI passed on PR #224 after merging main 29.0.0 and 29.0.1 (changelog was the only conflict, kept both entries with this one on top); all tasks ticked; spec deltas were already copied into the main memory spec at the first save. Released as 29.1.0.
