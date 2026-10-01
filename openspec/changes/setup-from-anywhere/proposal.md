@@ -103,3 +103,4 @@ None.
 - **2026-10-01** — Assumed: the landing prompt stays `Install WongStack from github.com/matthewwong525/WongStack`, so the landing chat needs no new wording.
 - **2026-10-01** — Assumed: the memory skill's description reads *"Search and record repo memory: decisions, preferences, open threads; skim recent chats to learn about someone."*, dropping *"each traceable to its transcript"*, because the planned wording put the session-start word count 8 over its 2200 ceiling; the Read table still lists `source`.
 - **2026-10-01** — Assumed: save the built change to check it in CI before asking to publish, because task 5.3 needs the test run and a preview.
+- **2026-10-01** — Saved as PR #228; checks passed, and the preview home page shows the new message in the one *Make it yours* box. Task 5.4 waits for the release.
