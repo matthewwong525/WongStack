@@ -37,4 +37,4 @@
 ## 6. Release and preview
 
 - [x] 6.1 Add `## Next (major) — Mini apps live in the main app` at the top of `CHANGELOG.md`'s entries, in plain words, with an **Updating.** note saying the update moves each mini app into the main app at the same address, keeping its data, and shows each in the preview before publishing. Verify `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs` pass.
-- [ ] 6.2 On the `/apply` preview, open `/`, `/apps/hello/`, and `/apps/tips/` at 320px and 390px in light and dark, submit Hello's form, compute $100 / 4 people / 20% in Tips, and probe `/apps/`, `/apps/hello/api/greeting`, `/api/health`, and `/_memory/` with GET and POST. Record the result in the Decision log.
+- [x] 6.2 On the `/apply` preview, open `/`, `/apps/hello/`, and `/apps/tips/` at 320px and 390px in light and dark, submit Hello's form, compute $100 / 4 people / 20% in Tips, and probe `/apps/`, `/apps/hello/api/greeting`, `/api/health`, and `/_memory/` with GET and POST. Record the result in the Decision log.

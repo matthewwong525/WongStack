@@ -1,6 +1,6 @@
 # Mini apps live in the main app
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** setup-without-paseo
 
@@ -75,3 +75,5 @@ None.
 - **2026-10-01** — Check: `scripts/tests/.c8rc.json` stops measuring `mini-apps/`, because that folder is deleted; the coverage floor is unchanged.
 - **2026-10-01** — Assumed: save the whole build at gate task 1.1, because the app's tests, type checks and coverage run only in CI; the spec deltas were applied to the main specs at this save, which clears the retired-names check (task 5.3), and the build helper's staged deletions of `mini-apps/` and `scripts/mini-dashboard.mjs` are kept as intended.
 - **2026-10-01** — Assumed: tasks 1.1–3.4 and 4.2 are done, because CI passed on the branch after one fix: the app page lookup now builds its element outside the component (oxlint's components-during-render rule), and the `/apps/` redirect passes a string URL, as the Workers types require.
+- **2026-10-01** — Assumed: the preview walk (task 6.2) passed on https://mini-apps-in-the-main-app-wongstack-staging.matthewwong525.workers.dev. GET `/`, `/apps/hello/` and `/apps/tips/` return the page; `/apps/` redirects home for GET and POST; `/apps/hello/api/greeting?name=Sam` answers `Hello, Sam!` and 404s on POST; `/apps/hello/api.mjs` returns the page, not source; `/api/health` answers; `/_memory/` answers staging's no-store 404 for both methods. In the browser, Hello greeted Sam at 320px and kept the name; Tips gave $30.00 each for $100, 4 people, 20% at 390px; the home list showed Hello (Example) and Tip calculator; dark mode at 320px read clearly; no page scrolled sideways.
+- **2026-10-01** — Asked whether to publish after the preview walk → ran `/ship`. Archived the complete change with the spec deltas already applied at the first save, and numbered this major release 29.0.0.
