@@ -1,6 +1,6 @@
 # Get the computer ready
 
-[`/wong-setup`](../SKILL.md) runs this after the empty-folder check, before it clones the source. It readies four things, in order: the tools, the GitHub sign-in, the git name and email, and on Windows, folder links; nothing is written in the target folder until all four pass. [Required tools](../../../../wiki/development/required-tools.md) says why each is needed.
+[`/wong-setup`](../SKILL.md) runs this before cloning. Use its selected repository and raw root for every source reference. Ready the tools, GitHub sign-in, git identity, and Windows links before writing in the target. [Required tools](../../../../wiki/development/required-tools.md) explains each.
 
 **The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, and a tool that links you to it. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
 
@@ -12,7 +12,7 @@ Check each with `command -v`, in this order, since the clone needs `git` and Ope
 |---|---|
 | `git` | `git --version` answers |
 | `gh` | `gh --version` answers |
-| Node.js | `node --version` is at least the major version in the source's `.nvmrc`, read from `https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.nvmrc` |
+| Node.js | `node --version` is at least the major version in `<selected raw root>/.nvmrc`; an unreadable or invalid requirement stops setup |
 | OpenSpec | `openspec --version` answers |
 
 Check [the helpers](#the-helpers-the-browser-and-the-link-tool) too, so the ask names them. Install each missing one of the four by the first route with **no password prompt**, which the agent's shell cannot answer. Never install a package manager.

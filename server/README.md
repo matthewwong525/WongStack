@@ -236,6 +236,8 @@ The source's tests use a pretend Cloudflare. Before you ship a change to either 
 
 ## Your fork is your template
 
+[Make WongStack your own](../wiki/stack/customizing-wongstack.md) covers shared defaults, easy setup from a fork, and the two levels of updates.
+
 Fork WongStack and edit `setup.sh` to change what every server gets: add a tool, pin a version, or remove one you do not use. Keep the contract above, and keep the final check honest. A host that pairs devices needs `paseo`, and removing it breaks chat there. Change the payload, and `install-wongstack.mjs` installs your version: your fork's tests install it into a practice repo, so a file it misses fails there first. Neither the scripts nor the agent is in the [payload](../.agents/skills/wong-sync/references/payload-manifest.md#not-copied), so installed repos never get them; the template belongs to the source you fork.
 
 [Required tools](../wiki/development/required-tools.md) owns what WongStack needs on your own machine.
