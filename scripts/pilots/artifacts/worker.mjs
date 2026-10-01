@@ -33,7 +33,7 @@ export class PilotState extends DurableObject {
       };
       const db = this.env.MEMORY_DB;
       const controller = new PilotController(state, {
-        ...config, fetch,
+        ...config, fetch: (...args) => fetch(...args),
         head: async ref => {
           const rows = await api(`repos/${encodeURIComponent(config.repo)}/log?ref=${encodeURIComponent(ref)}&limit=1`);
           // Fail closed on an SDK/API schema change; never substitute the event's asserted SHA.
