@@ -11,6 +11,7 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 - [Adding a skill](adding-a-skill.md) — create a new workflow skill and wire it through every surface that installs, versions, and advertises the payload.
 - [Repo layout](repo-layout.md) — `.claude` and `.codex` are symlinks to `.agents`, and `CLAUDE.md` to `AGENTS.md`: which path to edit and to link, and why a repo-wide `grep` under-counts.
 - [The payload rule](../../.agents/rules/payload.md) — the release steps and the link check every payload edit runs.
+- [Practice errands](practice-errands.md) — run whole browsing errands against a pretend shop, graded the same way every time.
 - [Development](../development/README.md) — the change loop and the conventions every install uses, this repo included.
 
 Part of [the WongStack wiki](../README.md).

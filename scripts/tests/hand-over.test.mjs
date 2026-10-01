@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { autofillToken, FIELD_SCAN, HISTORY_SCAN, startAddress, actionScan, fieldBox, finished, globToRegExp, keyMatches, servePage, tidyTabs, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { autofillToken, FIELD_SCAN, HISTORY_SCAN, STEP_SCAN, startAddress, actionScan, fieldBox, finished, globToRegExp, keyMatches, personStep, servePage, tidyTabs, tunnelOrigin, unsupportedGlob } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
 import { sendPlan, toPage, typedKeys, wantedSize } from '../../.agents/skills/hand-over/scripts/hand-over-page.mjs';
 
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
@@ -38,7 +38,7 @@ case "$1 $2" in
   "stream enable") rm -f "${file('stream-off')}"; echo "✓ Streaming enabled" ;;
   "get url") [ -e "${file('fail-url')}" ] && exit 1; cat "${file('url')}" ;;
   "get count") cat "${file('count')}" ;;
-  "eval -b") if [ "$3" = "${Buffer.from(HISTORY_SCAN).toString("base64")}" ]; then printf '{"success":true,"data":{"result":{"historyLength":%s}}}\\n' "$(cat "${file('history')}")"; exit 0; fi; printf '{"success":true,"data":{"origin":"https://pay.example.com/card","result":%s},"error":null}\n' "$(cat "${file('fields')}")" ;;
+  "eval -b") if [ "$3" = "${Buffer.from(STEP_SCAN).toString("base64")}" ]; then printf '{"success":true,"data":{"result":%s}}\\n' "$(cat "${file('step')}")"; exit 0; fi; if [ "$3" = "${Buffer.from(HISTORY_SCAN).toString("base64")}" ]; then printf '{"success":true,"data":{"result":{"historyLength":%s}}}\\n' "$(cat "${file('history')}")"; exit 0; fi; printf '{"success":true,"data":{"origin":"https://pay.example.com/card","result":%s},"error":null}\n' "$(cat "${file('fields')}")" ;;
   "fill "*) [ -e "${file('fail')}" ] && exit 1; while [ -e "${file('hold-fill')}" ]; do sleep 0.01; done; echo '✓ Done' ;;
   "focus "*|"select "*|"check "*|"uncheck "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
   "open "*|"back "*|"forward "*|"reload "*) [ -e "${file('fail')}" ] && exit 1; echo '✓ Done' ;;
@@ -61,6 +61,7 @@ exec sleep 600
   writeFileSync(file('tabs'), JSON.stringify([{ ...REAL, active: true }]));
   writeFileSync(file('stream-port'), '9\n');
   writeFileSync(file('fields'), '[]\n');
+  writeFileSync(file('step'), '{"ready":true,"fields":[],"frames":[]}\n');
   writeFileSync(file('history'), '2\n');
   // Without cloudflared, PATH is the fake bin alone, so it carries the two tools the fake uses.
   if (!cloudflared) for (const tool of ['cat', 'rm', 'sleep']) symlinkSync(spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim(), join(bin, tool));
@@ -201,6 +202,8 @@ test('reaching the named address gives done and tears down, the watcher having r
   assert.doesNotMatch(readFileSync(join(f.state, 'result.json'), 'utf8'), new RegExp(`http|mail|secret|${key}`));
   const watcherCalls = f.calls().slice(before).filter(line => line.startsWith('agent-browser'));
   assert.equal(watcherCalls.at(-1), 'agent-browser set viewport 1280 720', 'the page size is put back last');
+  const step = `agent-browser eval -b ${Buffer.from(STEP_SCAN).toString('base64')} --json`;
+  assert.ok(!watcherCalls.includes(step), 'a named page finish never asks what the page wants');
   for (const line of watcherCalls.slice(0, -1)) assert.match(line, /^agent-browser (get url|get count .+)$/);
   assert.ok(watcherCalls.includes('agent-browser get url'));
 });
@@ -222,6 +225,62 @@ test('with both finishes named, both must hold', async t => {
   assert.ok(!existsSync(join(f.state, 'result.json')), 'the address alone does not finish');
   f.set('count', '0');
   assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=done');
+});
+
+test('past an --until-gone finish, a page asking for a code or a card keeps the link open until it moves on', async t => {
+  const f = fixture(t);
+  opened(f, '--until-gone', 'input[type=password]');
+  const pause = () => new Promise(done => setTimeout(done, 400));
+  f.set('step', JSON.stringify({ ready: true, fields: [{ type: 'text', autocomplete: 'one-time-code', name: 'code', id: 'code', label: 'Code', placeholder: '' }], frames: [] }));
+  f.set('count', '0');
+  await pause();
+  assert.ok(!existsSync(join(f.state, 'result.json')), 'the code page keeps the link open');
+  f.set('step', JSON.stringify({ ready: false, fields: [], frames: [] }));
+  await pause();
+  assert.ok(!existsSync(join(f.state, 'result.json')), 'a page still loading is looked at again');
+  f.set('step', JSON.stringify({ ready: true, fields: [], frames: [{ title: 'Secure card payment', name: '', host: 'js.stripe.com' }] }));
+  await pause();
+  assert.ok(!existsSync(join(f.state, 'result.json')), 'a payment box keeps it open');
+  f.set('step', JSON.stringify({ ready: true, fields: [{ type: 'search', autocomplete: '', name: 'q', id: 'q', label: 'Search mail', placeholder: 'Search' }], frames: [] }));
+  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=done', 'a logged-in page with a search box closes it');
+});
+
+test('a named --until finish page always closes the link, even a checkout with a card box', async t => {
+  const f = fixture(t);
+  opened(f, '--until', '**shop.example.com/checkout**');
+  f.set('step', JSON.stringify({ ready: true, fields: [{ type: 'text', autocomplete: 'cc-number', name: 'cardnumber', id: '', label: 'Card number', placeholder: '' }], frames: [{ title: 'Secure card payment', name: '', host: 'js.stripe.com' }] }));
+  f.set('url', 'https://shop.example.com/checkout');
+  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=done');
+  assert.ok(!f.calls().includes(`agent-browser eval -b ${Buffer.from(STEP_SCAN).toString('base64')} --json`), 'a named page never asks what the page wants');
+});
+
+test('with both finishes named, the named page closes the link past a code field', async t => {
+  const f = fixture(t);
+  opened(f, '--until', 'https://app.example.com/**', '--until-gone', 'input[type=password]');
+  f.set('step', JSON.stringify({ ready: true, fields: [{ type: 'text', autocomplete: 'one-time-code', name: 'code', id: '', label: 'Code', placeholder: '' }], frames: [] }));
+  f.set('url', 'https://app.example.com/verify');
+  f.set('count', '0');
+  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=done');
+});
+
+test('personStep names only steps the person alone can give', () => {
+  const field = extra => ({ type: 'text', autocomplete: '', name: '', id: '', label: '', placeholder: '', ...extra });
+  assert.equal(personStep({ fields: [field({ type: 'password', label: 'Password' })] }), 'password');
+  assert.equal(personStep({ fields: [field({ autocomplete: 'one-time-code' })] }), 'code');
+  assert.equal(personStep({ fields: [field({ label: 'Enter the verification code we sent' })] }), 'code');
+  assert.equal(personStep({ fields: [field({ label: 'Code from your bank', name: 'code' })] }), 'code');
+  assert.equal(personStep({ fields: [field({ autocomplete: 'cc-number', name: 'cardnumber' })] }), 'card');
+  assert.equal(personStep({ fields: [field({ label: 'Card number' })] }), 'card');
+  assert.equal(personStep({ fields: [], frames: [{ title: 'Secure payment input frame', name: '__privateStripeFrame', host: 'js.stripe.com' }] }), 'payment frame');
+  for (const ordinary of [field({ type: 'search', label: 'Search' }), field({ label: 'Promo code' }), field({ label: 'Postal code', autocomplete: 'postal-code' }), field({ type: 'email', label: 'Email for the receipt' }), field({ label: 'Name' })]) {
+    assert.equal(personStep({ fields: [ordinary], frames: [{ title: 'YouTube video player', name: '', host: 'www.youtube.com' }] }), null, ordinary.label);
+  }
+  assert.equal(personStep(null), null, 'a failed scan never holds the link');
+});
+
+test('STEP_SCAN reads no value, tick state, or choice', () => {
+  for (const read of ['.value', '.checked', '.selectedIndex', '.selected', '.defaultValue', 'innerText', 'contentDocument']) assert.ok(!STEP_SCAN.includes(read), read);
+  assert.doesNotThrow(() => new Function(`return ${STEP_SCAN}`));
 });
 
 test('a takeover with no finish ends only on close, and close gives closed', async t => {
@@ -288,6 +347,18 @@ test('wait and close with nothing open say so', t => {
   const close = f.run('close');
   assert.equal(close.status, 0);
   assert.match(close.stderr, /No hand-over link is open/);
+});
+
+test('an --until it could never match is a usage error naming the supported patterns, before any link opens', t => {
+  const f = fixture(t);
+  for (const glob of ['**/{order,receipt}**', '**/order[s]/**', '**/(order|receipt)/**']) {
+    const out = f.run('open', '--local', '--until', glob);
+    assert.equal(out.status, 2, glob);
+    assert.match(out.stderr, /--until takes one page address with only \*\* \(any run\) and \* \(anything but \/\) as patterns/);
+  }
+  assert.deepEqual(f.calls(), [], 'nothing ran: no browser, no tunnel');
+  assert.ok(!existsSync(join(f.state, 'state.json')), 'no link opened');
+  assert.equal(unsupportedGlob('**/order/**?id=*'), null, 'a query mark and plain stars are fine');
 });
 
 test('a bad --minutes or command is a usage error', t => {

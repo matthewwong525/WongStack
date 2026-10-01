@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Browsing errands stay in one browser
+
+We ran whole errands, buying and logging in included, against a pretend shop, and fixed what went wrong.
+
+- **No more browser crash at the start of a task.** The assistant kept one browser for your logins, but its browsing tool's own guide told it to start a second one per task. Only one browser can open your saved logins, so the second crashed and the assistant lost a few steps recovering. It now stays in the one browser.
+- **Changes to a website go through the browser.** The assistant once filled a site's cart with a direct request instead of the browser, so you got no pictures and the login and check rules didn't apply. Now anything that changes a site, such as a cart, a form, or a payment, happens in the browser. Looking something up can still skip it.
+- **One link for a two-step sign-in or payment.** The private link used to close as soon as the first step was done, so a texted code after your password, or your bank's code after the card, needed a second link. Now, when the assistant waits for a step's box to go away, the link stays open while the next page still asks for a password, a code, or card details, and closes once it doesn't. A link that names the page to stop at still closes there, even at a checkout, so you see the page before you pay.
+- **The chat wakes up when you finish on the link.** The assistant sometimes named the page to stop at with a pattern the link can't read, so it never noticed you were done and you had to say so in the chat. Now the link refuses such a pattern before it opens, and the assistant names the page plainly.
+- **A blocked page is checked first.** Before saying a site blocked it, the assistant runs its quick check, which decides whether to move to Cloudflare's browser.
+
+**Updating.** Nothing to do by hand.
+
 ## 28.8.0 — Hosted setup finishes without a card
 
 A wongstack.com server now finishes setting up your app even when your Cloudflare account has no card, the same way setup on your own computer already does.

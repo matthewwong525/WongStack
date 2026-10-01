@@ -2,6 +2,7 @@
 // Hands the agent's browser to the person through a private link that closes itself.
 //
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
+//     (`--until` takes only `**` and `*`; one with `{a,b}`, `[ab]`, or `a|b` is a usage error before any link opens)
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords [--local] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs wait
@@ -17,7 +18,11 @@
 // port and passes `/stream?key=<hex>` through to the live feed, with no `Origin`, never reading a
 // frame. It polls every 2 seconds, reading only `agent-browser get url` (matched against `--until`:
 // `**` any run, `*` no `/`) and `agent-browser get count <selector>` (0 meets `--until-gone`); both
-// given means both must hold, neither means only `close` or the deadline ends it.
+// given means both must hold, neither means only `close` or the deadline ends it. Reaching a named
+// `--until` page always ends it. An `--until-gone` finish alone runs STEP_SCAN, which reads the kinds of
+// the page's fields and embedded frames, never a value, and stays open while the next page asks for a
+// step only the person can give (`personStep`): a password, a one-time code, card fields, or an
+// embedded payment frame.
 //
 // For the page's field list it also serves four routes, each needing the key in an `x-hand-over-key`
 // header. `GET /fields` runs the fixed FIELD_SCAN through `agent-browser eval`, which reads each
@@ -80,6 +85,7 @@ const TUNNEL_WAIT_MS = 30_000;
 const PAGE_WAIT_MS = 10_000;
 const TOOL_TIMEOUT_MS = 15_000;
 const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
+const LOADING_MS = 10_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
 const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml') };
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -175,6 +181,34 @@ export const FIELD_SCAN = `(() => {
   return { fields, actions, revision, formWidth, viewport: { width: innerWidth, height: innerHeight } };
 })()`;
 
+/**
+ * The page script the watcher runs once the finish is met: whether the page has loaded, and for its
+ * visible text fields and embedded frames only what says what they ask for (type, autocomplete, name,
+ * id, label, placeholder; a frame's title, name, and host). It never reads a value.
+ */
+export const STEP_SCAN = `(() => {
+  const clean = text => String(text ?? '').replace(/\\s+/g, ' ').trim().slice(0, 80);
+  const visible = node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden' && getComputedStyle(node).display !== 'none';
+  const SKIP = new Set(['hidden', 'submit', 'button', 'reset', 'image', 'file', 'radio', 'range', 'color', 'checkbox']);
+  const fields = [];
+  for (const field of document.querySelectorAll('input, textarea')) {
+    const type = field.localName === 'input' ? field.type : 'textarea';
+    if (SKIP.has(type) || field.disabled || field.readOnly || !visible(field)) continue;
+    fields.push({ type, autocomplete: field.getAttribute('autocomplete') ?? '', name: field.getAttribute('name') ?? '', id: field.id, label: clean(field.labels?.[0]?.textContent) || clean(field.getAttribute('aria-label')), placeholder: field.getAttribute('placeholder') ?? '' });
+    if (fields.length === 40) break;
+  }
+  const frames = [];
+  for (const frame of document.querySelectorAll('iframe')) {
+    const box = frame.getBoundingClientRect();
+    if (!visible(frame) || box.width < 40 || box.height < 20) continue;
+    let host = '';
+    try { host = new URL(frame.getAttribute('src') ?? '', location.href).hostname; } catch { host = ''; }
+    frames.push({ title: clean(frame.title), name: clean(frame.name), host });
+    if (frames.length === 20) break;
+  }
+  return { ready: document.readyState === 'complete', fields, frames };
+})()`;
+
 /** Resolve only a previously scanned native element, never a selector supplied by the client. */
 export function actionScan(id, revision) {
   return `(() => {
@@ -235,6 +269,11 @@ export function globToRegExp(glob) {
   return new RegExp(`^${body}$`);
 }
 
+/** The first character an `--until` uses that globToRegExp can't match as a pattern (`{a,b}`, `[ab]`, `a|b`), or null. */
+export function unsupportedGlob(glob) {
+  return /[{}[\]|]/.exec(glob ?? '')?.[0] ?? null;
+}
+
 /** The first quick-tunnel origin in cloudflared's log, or null. */
 export function tunnelOrigin(log) {
   return /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(log)?.[0] ?? null;
@@ -246,6 +285,26 @@ export function finished({ until, untilGone }, { url, count }) {
   if (until && !(url != null && globToRegExp(until).test(url))) return false;
   if (untilGone && count !== 0) return false;
   return true;
+}
+
+const NOT_A_CODE = /promo|coupon|discount|gift|voucher|postal|post ?code|\bzip|referral|invite|country|area|product|search/;
+const CODE_WORDS = /\bcode\b|passcode|verification|\botp\b|\b2fa\b|\bmfa\b/;
+const PAYMENT_FRAME = /\b(card|payment|pay|checkout|stripe|braintree|adyen|paypal|squareup|3-?d ?secure|3ds|cvc|cvv)\b/i;
+
+/**
+ * The step only the person can give that a page still asks for, from STEP_SCAN's result: `password`,
+ * `code`, `card`, or `payment frame`; null when there is none, so a logged-in page with a search box
+ * closes the link.
+ */
+export function personStep(scan) {
+  for (const field of scan?.fields ?? []) {
+    const token = autofillToken(field);
+    const words = [field.name, field.id, field.label, field.placeholder].join(' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+    if (field.type === 'password' || token.endsWith('-password')) return 'password';
+    if (token === 'one-time-code' || (CODE_WORDS.test(words) && !NOT_A_CODE.test(words))) return 'code';
+    if (token.startsWith('cc-')) return 'card';
+  }
+  return (scan?.frames ?? []).some(frame => PAYMENT_FRAME.test(`${frame.title} ${frame.name} ${frame.host.replace(/[.-]/g, ' ')}`)) ? 'payment frame' : null;
 }
 
 /**
@@ -755,7 +814,7 @@ async function open(values) {
   return 0;
 }
 
-/** Serves the page and reads only the address and a count, never page content, until the finish or the deadline. */
+/** Serves the page and reads only the address, a count, and past the finish the kinds of fields, never page content, until the finish or the deadline. */
 async function watch() {
   const state = readJson(FILES.state);
   if (!state) return 1;
@@ -794,12 +853,23 @@ async function watch() {
   } catch {
     return finish('error');
   }
+  // A named --until page always ends the link. Past an --until-gone finish alone, a page still asking
+  // for a password, a code, or a card keeps it open; one still loading is looked at again, for up to
+  // LOADING_MS.
+  const keepOpen = Boolean(state.untilGone && !state.until);
+  let loadingSince = null;
+  const needsPerson = async () => {
+    const scan = (await browserData(['eval', '-b', Buffer.from(STEP_SCAN).toString('base64')]))?.result;
+    if (scan?.ready === false && Date.now() - (loadingSince ??= Date.now()) < LOADING_MS) return true;
+    loadingSince = null;
+    return Boolean(personStep(scan));
+  };
   while (!done) {
     if (Date.now() >= state.deadline) return finish('timeout');
     const seen = {};
     if (state.until) seen.url = await browser(['get', 'url']);
     if (state.untilGone) seen.count = Number.parseInt((await browser(['get', 'count', state.untilGone])) ?? '', 10);
-    if (finished(state, seen)) return finish('done');
+    if (finished(state, seen) && !(keepOpen && await needsPerson())) return finish('done');
     await sleep(Math.min(POLL_MS, Math.max(0, state.deadline - Date.now())));
   }
 }
@@ -864,6 +934,8 @@ function parse(args) {
   if (!['open', 'watch', 'wait', 'close'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const minutes = Number(parsed.values.minutes ?? 10);
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
+  const unmatched = unsupportedGlob(parsed.values.until);
+  if (unmatched) usageError(`--until takes one page address with only ** (any run) and * (anything but /) as patterns; '${unmatched}' is not supported, so it would never match: name one page`);
   if (parsed.values.passwords && (parsed.values.until || parsed.values['until-gone'])) usageError('--passwords takes no --until or --until-gone');
   if (parsed.values.keys === undefined) return { command, values: { ...parsed.values, minutes } };
   if (parsed.values.passwords || parsed.values.until || parsed.values['until-gone']) usageError('--keys takes no --passwords, --until, or --until-gone');
