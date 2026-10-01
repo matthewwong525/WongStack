@@ -1,6 +1,6 @@
 # Try Cloudflare Artifacts for hosted projects
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** github-artifacts
 
@@ -75,3 +75,6 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 - **2026-10-01** — The fresh unchanged trial reproduced disposed-stub failure after green candidate checks. Upstream Sandbox PR #799 documents an idle-disconnect race matching the installed source; release 0.12.5 is the first patch containing its active-call guard. Apply only that compatible pilot SDK patch, force the CI dependency to the same version and match its public container image; keep the CI SDK, Wrangler, pipeline and run bounds unchanged. Prove the actual installed idle-call behavior remotely before redeployment, then compare live outcomes without claiming the prior root cause is established.
 - **2026-10-01** — Check: the meta-only payload check workflow installs the locked pilot dependencies without install scripts before the script suite, because the pending-RPC regression must exercise actual SDK code. It uses the existing docs-only condition; no test or existing check is skipped, removed or weakened. The payload manifest explicitly excludes this workflow from installations.
 - **2026-10-01** — Check: `.github/workflows/payload.yml` adds a locked pilot dependency install under the existing docs-only condition, because the regression must execute the real corrected SDK. No existing check is disabled or weakened.
+- **2026-10-01** — Corrected SDK checkpoint `a5d2a7b` passed all remote gates, including both actual-installed RPC lifecycle regressions and 951 script cases. Recreate only the removed run-owned container application through the acknowledged controller deployment and repeat live previews with SDK/image 0.12.5.
+- **2026-10-01** — Two patched candidates passed their tests but failed trusted previews with `OperationInterruptedError: The sandbox container stopped while the operation was pending`. Canonical readbacks found all patched-run instances inactive, unlike the original orphan. Stop after these two patched attempts; preserve the actual SDK regression fix but defer customer adoption because passing main previews and a repeat approved publication remain unproven. Final refs/history were restored successfully after trigger disable; finish full manifest cleanup and the retry report.
+- **2026-10-01** — The retry is complete: three candidate attempts (one unchanged, two patched) all failed previews after green fixture checks. All fifteen logical resources, both old/new container applications and all eleven tracked credentials were verified removed/revoked, with no leftovers. Export restored branches, tag and object integrity. Keep customer adoption deferred and checkpoint the tooling plus both reports for review; no live trial preview remains.

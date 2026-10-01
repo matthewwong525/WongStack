@@ -38,7 +38,7 @@
 ## 6. Fresh bounded retry
 
 - [x] 6.1 Inspect the pinned CI/Sandbox source and previous RPC failures; correct any demonstrated pilot integration defect with focused regression coverage, and record evidence versus hypotheses in the design.
-- [ ] 6.2 Run `/save` for any harness correction and require all remote checks to pass before live execution; if unchanged, verify the prior source gate.
-- [ ] 6.3 Preflight the same explicit platform account, show the fresh exact disposable inventory and current estimate, then run two consecutive passing unapproved main previews under the original finite bounds; verify reported commit identities, production unchanged, and runner cleanup between candidates.
-- [ ] 6.4 Exercise owner-approved exact publication, export all refs/history, stop triggers and workflows, revoke all run credentials and verify manifest-only deletion; record every outcome and any leftover in `retry-evidence.md`.
-- [ ] 6.5 Update the adoption recommendation with both runs, refresh the review, and checkpoint the finished retry report remotely while keeping tooling unmerged.
+- [x] 6.2 Run `/save` for any harness correction and require all remote checks to pass before live execution; if unchanged, verify the prior source gate.
+- [x] 6.3 Preflight the same explicit platform account, show the fresh exact disposable inventory and current estimate, then attempt two consecutive passing unapproved main previews under the original finite bounds; verify commit identities and production state for actual outcomes, stop after repeated provider failures, and record any unproven passing case as UNKNOWN. Inspect runner cleanup between candidates.
+- [x] 6.4 Exercise owner-approved exact publication when a passing candidate exists; otherwise record it as UNKNOWN and prove failed approval is refused. Export all refs/history, stop triggers and workflows, revoke all run credentials and verify manifest-only deletion; record every outcome and any leftover in `retry-evidence.md`.
+- [x] 6.5 Update the adoption recommendation with both runs, refresh the review, and checkpoint the finished retry report remotely while keeping tooling unmerged.
