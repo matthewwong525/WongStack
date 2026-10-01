@@ -443,8 +443,8 @@ A tag SHALL be able to point at another as its alias, and the admin SHALL be abl
 
 #### Scenario: A look-alike tag
 
-- **WHEN** `memory-worker` is an alias of `memory` and a live fact carries only `memory-worker`
-- **THEN** `search --tag memory` returns that fact, and `tags` shows `memory-worker` as an alias of `memory`
+- **WHEN** `memory-architecture` is an alias of `memory` and a live fact carries only `memory-architecture`
+- **THEN** `search --tag memory` returns that fact, and `tags` shows `memory-architecture` as an alias of `memory`
 
 #### Scenario: A member tries to change a tag
 
