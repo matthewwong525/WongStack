@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Load what matters at session start
+
+The briefing your assistant reads at the start of each chat now holds what applies to any task, and the assistant looks up the rest once it knows what you want.
+
+- **Open questions on other work leave the briefing.** One line counts how many wait on each step, such as plan 3 or save 5. Open questions on the work you're on still come first.
+- **Your own wiki page loads next**, up to a set size, with a line pointing to the rest. Then your newest preferences and decisions get the room the old notes took.
+- **The assistant searches memory once it knows the task**, in its own words, before it acts on more than a quick question.
+- **Open questions come back when their step starts.** Each one is tagged with the step that should check it, so `/plan` loads its few notes, not all of them. The background tidy adds the tag to older ones.
+
+**Updating.** Nothing to do by hand: your next chat uses the new briefing.
+
 ## 28.8.0 — Hosted setup finishes without a card
 
 A wongstack.com server now finishes setting up your app even when your Cloudflare account has no card, the same way setup on your own computer already does.
