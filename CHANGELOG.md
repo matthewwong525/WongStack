@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Memory finds what you mean and keeps itself tidy
+
+Your assistant's memory now finds a note when you ask in other words, keeps its open questions tied to whoever should check them, and tidies itself on every save.
+
+- **Search matches different forms of a word.** *Previews*, *checked*, and *checking* find notes that say *preview* and *check*. Filler words like *how* and *should* no longer pull in unrelated notes. A fixed set of real questions now runs in the automatic checks, so a later change can't quietly break search.
+- **Every open question says who checks it, and stale ones close.** A new open question must name the step (*plan*, *verify*, *sync*) or the part of the code whose next visit should check it, or it isn't saved. Older ones get that label where their own words name one. One left unchecked for 30 days closes as *never checked*, and stays searchable.
+- **Labels stay clean.** Look-alike labels merge under one name, so a search on *memory* also finds notes labelled *memory-worker*. The person who set up memory can now correct a label's description, and each code-area label's description follows the shipped list.
+- **The simple tidying runs on every save, as plain code.** Labelling notes by folder, merging look-alike labels, and closing stale questions happen each time memory saves, with no AI and no waiting. The occasional AI tidy-up keeps only the work that needs judgment.
+- **Notes about a folder show up on their own.** The first time the assistant changes a file in a folder during a chat, that folder's open questions and newest notes appear before the edit, once per folder. It works in Claude Code and in Codex; Codex asks once to trust the new step.
+
+**Updating.** After this update is live, the person who set up memory runs `node .claude/skills/memory/scripts/memory.mjs migrate` once, to rebuild the search index so it matches word forms. Search works as before until then.
+
 ## 29.4.0 — One web of code, facts, wiki pages, specs, and past plans
 
 When your assistant is about to change part of your code or a wiki page, one lookup now brings up everything tied to it, and every publish checks that no wiki page is lost.

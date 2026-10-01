@@ -1,6 +1,6 @@
 # Writing facts
 
-A fact is the smallest thing a cold reader needs to act as this session would: one or two sentences, at most 400 characters, reason included. It carries only what the raw transcript and the change's Decision log don't make easy to find.
+A fact is the smallest thing a cold reader needs to act as this session would: one or two sentences, at most 400 characters, reason included. It carries only what the transcript and the Decision log don't make easy to find.
 
 ## Keep
 
@@ -8,7 +8,7 @@ A fact is the smallest thing a cold reader needs to act as this session would: o
 - **Decisions with their reason**, and ruled-out options with theirs: *Rejected a Worker in front of the store, because it adds a service to keep alive.* Type `project`.
 - **Specifics**: names, repo-relative paths, numbers, versions, error strings. Tag the code area a fact concerns; `memory.mjs areas <path>` prints it.
 - **Pointers** to dashboards, tickets, external docs. Type `reference`.
-- **Unanswered questions**. Type `thread`; tag the verb or skill whose next run should check it, such as `plan`. A fact that answers a thread the gate lists supersedes it, saying what was found.
+- **Unanswered questions**. Type `thread`, tagged with the verb (`plan`) or area whose next run should check it; untagged, it is refused. A fact answering a listed thread supersedes it, saying what it found.
 
 ## Drop
 

@@ -25,6 +25,9 @@ test('a recorded migration never runs again', async t => {
   assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, files.length);
   assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('facts') WHERE name = 'shared'"), [{ name: 'shared', dflt_value: '1' }]);
   assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('memory_keys') WHERE name = 'reader'"), [{ name: 'reader', dflt_value: '0' }]);
+  const stored = await put(env, { source: 'save', slug: 'routes', facts: [{ action: 'add', type: 'project', body: 'Probe every route on the preview.' }] });
+  assert.equal(stored.code, 0, stored.stderr);
+  assert.match((await memory(env.repo, env.fake, ['search', 'previews'])).stdout, /Probe every route on the preview\./, 'a fact written after schema 6 matches another word form');
 });
 
 test('a fact is never edited or deleted; a later fact supersedes it', async t => {
@@ -63,7 +66,7 @@ test('a resolved thread closes when a fact supersedes it, and show lists open th
   const env = await setup(t);
   await put(env, { source: 'save', slug: 'po', facts: [
     { action: 'add', type: 'project', body: 'Search uses FTS5.' },
-    { action: 'add', type: 'thread', body: 'Should search rank by recency too?' },
+    { action: 'add', type: 'thread', body: 'Should search rank by recency too?', tags: ['plan'] },
   ] });
   const shown = await memory(env.repo, env.fake, ['show', 'po']);
   assert.match(shown.stdout, /## Open threads\n- \[thread\] Should search rank/);
@@ -87,7 +90,7 @@ test('the gate shows live facts on the slug and close keyword matches elsewhere'
 
 test('the gate lists an open thread on another slug that the fact may answer, and a supersede closes it', async t => {
   const env = await setup(t);
-  await put(env, { source: 'save', slug: 'setup-flow', facts: [{ action: 'add', type: 'thread', body: 'Next time, try a real setup from one token.' }] });
+  await put(env, { source: 'save', slug: 'setup-flow', facts: [{ action: 'add', type: 'thread', body: 'Next time, try a real setup from one token.', tags: ['setup'] }] });
   const thread = rows(env, "SELECT id FROM facts WHERE type = 'thread'")[0].id;
   await put(env, { source: 'save', slug: 'noise', facts: Array.from({ length: 5 }, (_, i) => ({ action: 'add', type: 'project', body: `A real setup run from one token worked end to end on host ${i}.` })) });
   const gate = async () => {
@@ -335,8 +338,8 @@ test("search by change keeps the team filter on a teammate's personal facts", as
 test('--state filters before the limit, so an older match is still found', async t => {
   const env = await setup(t);
   mkdirSync(join(env.repo.root, 'openspec', 'changes', 'busy'), { recursive: true });
-  await put(env, { source: 'save', slug: 'chat', facts: [{ action: 'add', type: 'thread', body: 'Open question from a conversation.' }] });
-  for (const n of [1, 2, 3]) await put(env, { source: 'save', slug: 'busy', facts: [{ action: 'add', type: 'thread', body: `Open item ${n} in a change.` }] });
+  await put(env, { source: 'save', slug: 'chat', facts: [{ action: 'add', type: 'thread', body: 'Open question from a conversation.', tags: ['plan'] }] });
+  for (const n of [1, 2, 3]) await put(env, { source: 'save', slug: 'busy', facts: [{ action: 'add', type: 'thread', body: `Open item ${n} in a change.`, tags: ['plan'] }] });
   const found = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--state', 'conversation', '--limit', '2']);
   assert.match(found.stdout, /from a conversation/);
   const capped = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--state', 'active', '--limit', '2']);
@@ -399,7 +402,9 @@ test('a missing token names the variable and prints no value', async t => {
 });
 
 test('helpers: FTS query, tag normalization, near tags, redaction', () => {
-  assert.equal(ftsQuery('The digest, the DIGEST!'), '"the" OR "digest"');
+  assert.equal(ftsQuery('The digest, the DIGEST!'), '"digest"');
+  assert.equal(ftsQuery('how should previews be checked'), '"previews" OR "checked"');
+  assert.equal(ftsQuery('how should'), '"how" OR "should"', 'filler stays when nothing else is left');
   assert.equal(ftsQuery('a b'), null);
   assert.equal(normalizeTag('Saves'), 'save');
   assert.equal(nearTag('checkpoints', ['checkpoint']), 'checkpoint');
@@ -464,4 +469,85 @@ test('--home is an unknown flag, and nothing reaches the store', async t => {
     assert.match(result.stderr, /Unknown option '--home'/);
   }
   assert.equal(env.fake.calls.length, before);
+});
+
+test('the shipped question set: each question finds its fact in the top three, and filler alone finds nothing', async t => {
+  const env = await setup(t);
+  const { facts, questions } = JSON.parse(readFileSync(new URL('./fixtures/memory-search-questions.json', import.meta.url), 'utf8'));
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES (?, ?, ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com') RETURNING id");
+  const ids = new Map(facts.map(fact => [insert.get(fact.slug, fact.type, fact.body).id, fact.key]));
+  for (const { query, finds } of questions) {
+    const result = await memory(env.repo, env.fake, ['search', ...query.split(' ')]);
+    assert.equal(result.code, 0, result.stderr);
+    const ranked = [...result.stdout.matchAll(/, #(\d+)\)$/gm)].map(([, id]) => ids.get(Number(id)));
+    if (finds) assert.ok(ranked.slice(0, 3).includes(finds), `"${query}" ranks ${finds} in the top three: ${ranked.join(', ') || 'none'}`);
+    else assert.deepEqual(ranked, [], `"${query}" shares only filler words, so it finds nothing`);
+  }
+});
+
+test('a thread must name who checks it: a verb or area tag, read through aliases', async t => {
+  const env = await setup(t);
+  const untagged = await put(env, { source: 'save', slug: 'q', facts: [
+    { action: 'add', type: 'project', body: 'A settled fact in the same batch.' },
+    { action: 'add', type: 'thread', body: 'Does the preview need a second check?' },
+  ] });
+  assert.equal(untagged.code, 1);
+  assert.match(untagged.stderr, /fact 2: a thread needs the tag of the verb whose next run should check it \(explore, plan, apply, save, ship, continue, verify, routine, sync, setup, close, improve\), or the area tag/);
+  assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0, 'nothing in the batch is stored');
+  const gated = await memory(env.repo, env.fake, ['gate', '--file', writeJsonFile(env.repo.home, 'gate.json', { slug: 'q', facts: [{ type: 'thread', body: 'Does the preview need a second check?' }] })]);
+  assert.match(gated.stdout, /Tags: fact 1: a thread needs the tag of the verb/);
+  for (const tag of ['verify', 'worker']) {
+    const tagged = await put(env, { source: 'save', slug: 'q', facts: [{ action: 'add', type: 'thread', body: `Checked by ${tag}?`, tags: [tag] }] });
+    assert.equal(tagged.code, 0, tagged.stderr);
+  }
+  env.fake.db.prepare("INSERT INTO tags (name, definition, alias_of, created_at) VALUES ('checks', 'Look-alike of verify.', 'verify', 'now')").run();
+  const aliased = await put(env, { source: 'save', slug: 'q', facts: [{ action: 'add', type: 'thread', body: 'Checked through an alias?', tags: ['checks'] }] });
+  assert.equal(aliased.code, 0, aliased.stderr);
+  assert.equal(rows(env, "SELECT count(*) AS n FROM facts WHERE type = 'thread'")[0].n, 3);
+});
+
+test('a refused spooled thread keeps its spool file', async t => {
+  const env = await setup(t);
+  const spooled = writeJsonFile(env.repo.home, 'spooled.json', { source: 'save', slug: 'q', facts: [{ action: 'add', type: 'thread', body: 'Written offline, with no tag.' }] });
+  const result = await memory(env.repo, env.fake, ['put-facts', '--file', spooled, '--spooled', spooled]);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /a thread needs the tag/);
+  assert.ok(readFileSync(spooled, 'utf8').includes('Written offline'), 'the spool file stays for the next try');
+});
+
+test('a look-alike tag merges as an alias: a search by the main tag finds it, and an alias never points at an alias', async t => {
+  const env = await setup(t);
+  env.fake.db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('memory', 'Session memory.', 'now'), ('memory-worker', 'The memory route.', 'now'), ('deploys', 'Deploys.', 'now')").run();
+  await put(env, { source: 'save', slug: 'm', facts: [{ action: 'add', type: 'project', body: 'The memory route refuses the keys table.', tags: ['memory-worker'] }] });
+  const tag = (...args) => memory(env.repo, env.fake, ['tag', ...args]);
+  assert.equal((await tag('memory-worker', '--alias-of', 'memory')).code, 0);
+  assert.match((await memory(env.repo, env.fake, ['search', '--tag', 'memory'])).stdout, /refuses the keys table/);
+  assert.match((await memory(env.repo, env.fake, ['tags'])).stdout, /- memory-worker \(1\) alias of memory: The memory route\./);
+  for (const [args, refusal] of [
+    [['deploys', '--alias-of', 'memory-worker'], /memory-worker is itself an alias of memory; use that/],
+    [['memory', '--alias-of', 'deploys'], /memory-worker is an alias of memory; point it at deploys first/],
+    [['deploys', '--alias-of', 'deploys'], /deploys can not be its own alias/],
+    [['deploys', '--alias-of', 'nope'], /no tag nope/],
+    [['nope', '--definition', 'x'], /no tag nope/],
+    [['deploys'], /usage: memory\.mjs tag/],
+  ]) {
+    const result = await tag(...args);
+    assert.equal(result.code, 1, args.join(' '));
+    assert.match(result.stderr, refusal);
+  }
+  assert.equal((await tag('memory-worker', '--no-alias')).code, 0);
+  assert.equal(rows(env, "SELECT alias_of FROM tags WHERE name = 'memory-worker'")[0].alias_of, null);
+});
+
+test('a put-facts whose upkeep fails still stores its fact and exits 0, and the next write retries upkeep', async t => {
+  const env = await setup(t);
+  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at) VALUES ('old', 'project', 'Routes live in app/worker/api/.', 'save', '2026-09-01T00:00:00Z')").run();
+  env.fake.db.exec("CREATE TRIGGER no_restate BEFORE INSERT ON facts WHEN new.source = 'consolidation' BEGIN SELECT RAISE(ABORT, 'restates refused'); END");
+  const result = await put(env, { source: 'save', slug: 'new', facts: [{ action: 'add', type: 'project', body: 'A fact saved before upkeep.' }] });
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /^stored: added 1, superseded 0, dropped 0\nupkeep skipped: memory query failed: restates refused\n$/);
+  assert.equal(rows(env, "SELECT count(*) AS n FROM facts WHERE body = 'A fact saved before upkeep.'")[0].n, 1);
+  env.fake.db.exec('DROP TRIGGER no_restate');
+  const next = await put(env, { source: 'save', slug: 'new', facts: [{ action: 'add', type: 'project', body: 'The next save.' }] });
+  assert.match(next.stdout, /upkeep: closed 0, retagged 1, tags 0/);
 });

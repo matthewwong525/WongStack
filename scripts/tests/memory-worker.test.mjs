@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
 import { handleMemory, hashKey, KEY_LIMIT, MAX_TRANSCRIPT_BYTES, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
-import { batchRefusal, FTS_HITS, memberRefusal, readRefusal, shadowCtes, shadowRead, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
+import { ADMIN_WRITES, batchRefusal, FTS_HITS, memberRefusal, readRefusal, shadowCtes, shadowRead, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { keyEmail } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { memory, node, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
@@ -537,6 +537,45 @@ test('a member key cannot change, delete, or write under another name, and a ref
   assert.equal(admin.status, 200, 'the admin key is not limited to the script\'s writes');
 });
 
+test('only the admin changes a tag: a member key is refused and the tag stays as it was', async t => {
+  const { env, url, anaKey } = await team(t);
+  env.fake.db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('mini-apps', 'Small apps on their own Worker.', 'now'), ('memory', 'Session memory.', 'now'), ('memory-worker', 'The memory route.', 'now')").run();
+  const tag = name => ({ ...env.fake.db.prepare('SELECT definition, alias_of FROM tags WHERE name = ?').get(name) });
+  const direct = await call(url, anaKey, { sql: ADMIN_WRITES.tagUpdate.sql, params: ['Changed.', null, 'mini-apps'] });
+  assert.equal(direct.status, 403);
+  assert.equal((await direct.json()).errors[0].code, 'member_write');
+  const viaScript = await memory(env.repo, env.fake, ['tag', 'mini-apps', '--definition', 'Changed.'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.equal(viaScript.code, 1);
+  assert.match(viaScript.stderr, /only the admin can change a tag/);
+  assert.deepEqual(tag('mini-apps'), { definition: 'Small apps on their own Worker.', alias_of: null });
+  const admin = await memory(env.repo, env.fake, ['tag', 'mini-apps', '--definition', 'Mini apps in the main app.'], viaWorker());
+  assert.equal(admin.code, 0, admin.stderr);
+  assert.deepEqual(tag('mini-apps'), { definition: 'Mini apps in the main app.', alias_of: null });
+  const aliased = await memory(env.repo, env.fake, ['tag', 'memory-worker', '--alias-of', 'memory'], viaWorker());
+  assert.equal(aliased.code, 0, aliased.stderr);
+  assert.deepEqual(tag('memory-worker'), { definition: 'The memory route.', alias_of: 'memory' });
+});
+
+test("a member's upkeep changes only their own facts, and no tag", async t => {
+  const { env, anaKey } = await team(t);
+  const db = env.fake.db;
+  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('mini-apps', 'Stale.', 'now')").run();
+  const insert = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('routes', ?, ?, 'save', ?, ?) RETURNING id");
+  const old = new Date(Date.now() - 40 * 86400000).toISOString();
+  const ids = [
+    insert.get('project', 'Dev: routes live in app/worker/api/.', old, 'dev@example.com').id,
+    insert.get('thread', 'Dev: is /verify enough here?', old, 'dev@example.com').id,
+    insert.get('project', 'Ana: routes live in app/worker/api/.', old, 'ana@example.com').id,
+    insert.get('thread', 'Ana: is /verify enough here?', old, 'ana@example.com').id,
+  ];
+  const result = await memory(env.repo, env.fake, ['upkeep'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'upkeep: closed 1, retagged 1, tags 0');
+  const live = id => db.prepare('SELECT superseded_by FROM facts WHERE id = ?').get(id).superseded_by === null;
+  assert.deepEqual(ids.map(live), [true, true, false, false], "a teammate's facts stay as they were");
+  assert.equal(db.prepare("SELECT definition FROM tags WHERE name = 'mini-apps'").get().definition, 'Stale.');
+});
+
 test('a member saves and supersedes through the script, under the key\'s email even when git says otherwise', async t => {
   const { env, anaKey } = await team(t);
   const first = writeJsonFile(env.repo.home, 'first.json', { source: 'save', slug: 'm', facts: [{ action: 'add', type: 'feedback', body: 'Ana wants short plans.' }] });
@@ -975,7 +1014,7 @@ test('a reader\'s thread shows in their own digest, search, and gate, never a te
   const memberKey = await joinedKey(url, 'tok-cy');
   mkdirSync(join(env.repo.root, 'openspec', 'changes', 'x'), { recursive: true });
   writeFileSync(join(env.repo.root, 'openspec', 'changes', 'x', 'proposal.md'), '# X\n\n**Branch:** main\n');
-  const input = writeJsonFile(env.repo.home, 'thread.json', { source: 'save', slug: 'x', facts: [{ action: 'add', type: 'thread', body: 'Ana wonders whether deploys need a tag.' }] });
+  const input = writeJsonFile(env.repo.home, 'thread.json', { source: 'save', slug: 'x', facts: [{ action: 'add', type: 'thread', body: 'Ana wonders whether deploys need a tag.', tags: ['ship'] }] });
   const saved = await memory(env.repo, env.fake, ['put-facts', '--file', input], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: readerKey }));
   assert.equal(saved.code, 0, saved.stderr);
   const as = key => viaWorker(key ? { CLOUDFLARE_MEMORY_TOKEN: key } : {});

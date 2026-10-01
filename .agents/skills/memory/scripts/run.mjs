@@ -91,6 +91,8 @@ function main(agent) {
       const reason = result.error ? `${command} could not start (${result.error.code})` : `${command} exited with code ${result.status ?? result.signal}`;
       spawnSync(process.execPath, [join(HERE, 'memory.mjs'), 'finish-run', '--kind', 'capture', '--status', 'failed', '--reason', reason], { cwd: ctx.root, stdio: 'ignore' });
     }
+    // Upkeep once more, after the captures and consolidation. It adds nothing to the tally and never fails the run.
+    spawnSync(process.execPath, [join(HERE, 'memory.mjs'), 'upkeep'], { cwd: ctx.root, stdio: 'ignore' });
   } finally {
     rmSync(tally, { force: true });
     rmSync(lock, { force: true });

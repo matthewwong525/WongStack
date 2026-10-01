@@ -1,0 +1,31 @@
+{
+  "about": "Real-shaped facts, and questions in other word forms that must find each one in the top three. A miss means search lost a word form or ranks filler. The last query shares only filler words with any fact, so it must find nothing.",
+  "facts": [
+    { "key": "route-probe", "slug": "verify-preview", "type": "feedback", "body": "Probe every Worker route on the preview, not only the new one: a change to app/worker/ broke an old route once." },
+    { "key": "digest-cap", "slug": "smarter-session-start", "type": "project", "body": "The session-start digest is capped at 40 lines and 6 KB, so the person's page and feedback keep room." },
+    { "key": "short-replies", "slug": "voice", "type": "feedback", "body": "The owner wants short replies in plain words, with no tool names unless they ask." },
+    { "key": "migrate-admin", "slug": "memory-migrations", "type": "project", "body": "Only the admin runs memory.mjs migrate; it applies each unrecorded migration file, then records it." },
+    { "key": "spool", "slug": "memory-offline", "type": "project", "body": "An offline write is spooled to a local file, and the next session start sends it through the gate." },
+    { "key": "squash-merge", "slug": "ship", "type": "project", "body": "Ship squash-merges the pull request after CI passes and the preview is checked." },
+    { "key": "key-renewal", "slug": "memory-keys", "type": "project", "body": "A memory key ends after 30 days; the session-start hook renews it through GitHub before it expires." },
+    { "key": "secrets", "slug": "secrets", "type": "reference", "body": "Credentials sit in the git-ignored .env at the primary worktree; a key is received through a private link." },
+    { "key": "mini-apps", "slug": "mini-apps", "type": "project", "body": "Each mini app is served at /apps/<name>/ from folders inside the main app." },
+    { "key": "thread-tags", "slug": "smarter-session-start", "type": "thread", "body": "Unverified: whether agents load a verb's open threads when that verb starts." },
+    { "key": "filler-trap", "slug": "noise", "type": "project", "body": "How should this be done? We would have to ask them about it, and then they could answer." }
+  ],
+  "questions": [
+    { "query": "how should previews be checked", "finds": "route-probe" },
+    { "query": "probing routes after changing the worker", "finds": "route-probe" },
+    { "query": "how many lines does the digest show", "finds": "digest-cap" },
+    { "query": "capping the session starting digest", "finds": "digest-cap" },
+    { "query": "replying shortly to owners", "finds": "short-replies" },
+    { "query": "who applies migrations", "finds": "migrate-admin" },
+    { "query": "writes spooling while offline", "finds": "spool" },
+    { "query": "when are pull requests merged", "finds": "squash-merge" },
+    { "query": "renewing expired memory keys", "finds": "key-renewal" },
+    { "query": "where are credentials kept", "finds": "secrets" },
+    { "query": "serving mini apps", "finds": "mini-apps" },
+    { "query": "loading open threads when verbs start", "finds": "thread-tags" },
+    { "query": "how should we price the invoice templates", "finds": null }
+  ]
+}
