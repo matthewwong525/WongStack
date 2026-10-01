@@ -1,16 +1,22 @@
 ---
 name: wong-setup
-description: Evaluate or install WongStack in an empty folder, Cloudflare hosting included, from one token. Installed repos use /wong-sync.
+description: Evaluate or install WongStack from any folder, Cloudflare hosting included, from one token. Installed repos use /wong-sync.
 user-invocable: true
 ---
 
 # /wong-setup
 
-Check the target is an empty folder, get the computer ready, get the latest WongStack source and the Cloudflare token, then invoke `/explore` with the setup intent. A target with a real install record at `.claude/.wong-stack.json` goes straight to `/wong-sync`.
+Pick the target folder, get the computer ready, get the latest WongStack source and the Cloudflare token, then invoke `/explore` with the setup intent. A target with a real install record at `.claude/.wong-stack.json` goes straight to `/wong-sync`.
 
-## Start from an empty folder
+## Pick the folder
 
-Install only into an empty folder, or one holding only a `.git` with no commits, never an existing project. Otherwise stop before writing anything and offer [a choice](../explore/references/asking-the-user.md): *"WongStack setup starts from an empty folder. Make a new folder and run setup there (Recommended), or stop here."*
+Pick the target before anything else, never writing into an existing project:
+
+1. The open folder has `.claude/.wong-stack.json` → `/wong-sync`.
+2. It is empty, or holds only a `.git` with no commits → install here.
+3. Otherwise the target is `~/wongstack`: missing or empty → use it; holding an install record → `/wong-sync` there; holding anything else → try `~/wongstack-2`, `~/wongstack-3`, and so on.
+
+Name the target in one plain line, with no question: *"This folder already has files, so I'll set up WongStack in ~/wongstack."* Make it with `mkdir -p` only at the first write, after the tools and the token. Every later step uses the target's absolute path.
 
 ## Get the computer ready
 
@@ -34,9 +40,9 @@ Then run Step 1 of the [provisioning runbook](references/cloudflare.md); it conf
 
 Invoke `/explore` with this description, filled in, plus the user's intent:
 
-> Set up WongStack in this empty folder from <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from the git author email. Private pages and previews are automatic when the Cloudflare account allows them; ask no enable-or-public question. An account that needs a card first finishes setup open, and the closing report recommends the card as optional. Install the full payload from the source inventory — the workflow skills, knowledge surfaces, stack pack, app scaffold, and UI pages — in a real `.agents/` folder linked from `.claude` and `.codex`, with the rules in a real `AGENTS.md` linked from `CLAUDE.md`, plus the required wiki hubs, environment ignore rules, and the install record. After the payload lands, if the `paseo` command is installed, run `node .claude/skills/routine/scripts/presets.mjs add` in this folder to add WongStack's agent presets to this computer's Paseo; a failure there never stops setup. Then run Steps 2–5 of the provisioning runbook at <source path>/.agents/skills/wong-setup/references/cloudflare.md. Carry this through the normal workflow to the stage the user requested.
+> Set up WongStack in <target> from <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from the git author email. Private pages and previews are automatic when the Cloudflare account allows them; ask no enable-or-public question. An account that needs a card first finishes setup open, and the closing report recommends the card as optional. Install the full payload from the source inventory — the workflow skills, knowledge surfaces, stack pack, app scaffold, and UI pages — in a real `.agents/` folder linked from `.claude` and `.codex`, with the rules in a real `AGENTS.md` linked from `CLAUDE.md`, plus the required wiki hubs, environment ignore rules, and the install record. After the payload lands, if the `paseo` command is installed, run `node .claude/skills/routine/scripts/presets.mjs add` in <target> to add WongStack's agent presets to this computer's Paseo; a failure there never stops setup. Then run Steps 2–5 of the provisioning runbook at <source path>/.agents/skills/wong-setup/references/cloudflare.md. Carry this through the normal workflow to the stage the user requested.
 
-`/explore` owns questions, `/plan` the plan, `/apply` the install and runbook, and `/save` the commits and the push that starts the first deploy. Ask no component question: an empty folder takes everything. Ask in [the ask format](../explore/references/asking-the-user.md).
+`/explore` owns questions, `/plan` the plan, `/apply` the install and runbook, and `/save` the commits and the push that starts the first deploy. Ask no component question: the target takes everything. Ask in [the ask format](../explore/references/asking-the-user.md).
 
 <a id="step-7--bootstrap-seed-hand-off"></a>
 

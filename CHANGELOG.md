@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Setup from any folder, and a first message that gets to know you
+
+Setup no longer needs an empty folder, and your starter site's first message now teaches the assistant who you are.
+
+- **Paste the setup prompt anywhere.** In a folder that already has files, setup leaves it alone and installs into a new `wongstack` folder in your home folder, or `wongstack-2` when that one is taken. It tells you where it went and to open that folder in Paseo next time.
+- **"Make it yours" gets to know you.** The box's message now asks the assistant to ask first, then skim your Claude Code and Codex chats from the last 30 days on this computer, ask two or three short rounds of questions, and save short notes about you before it makes the page yours. On a computer with no past chats, it goes straight to the questions.
+- **Your past chats are read safely.** The assistant reads them through a small built-in tool that keeps only what you typed, hides passwords and keys, and keeps the reading short. The notes it saves never hold passwords, keys, or copies of your chats.
+
+**Updating.** The new message reaches your home page only while the *Make it yours* box is still on it; once you've removed the box, it stays removed. Nothing to do by hand.
+
 ## 29.0.0 — Mini apps live in the main app
 
 A mini app used to be built a different way from the rest of your app, and could reach only the database. Now it's part of the main app: one way to build any page or tool.
