@@ -1,0 +1,6 @@
+{
+  "name": "disposable-artifacts-project",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test.mjs", "build": "node build.mjs" }
+}

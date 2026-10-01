@@ -1,0 +1,10 @@
+{
+  "name": "wongstack-artifacts-pilot",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@cloudflare/ci": "0.2.0",
+    "@cloudflare/sandbox": "0.12.1"
+  },
+  "devDependencies": { "wrangler": "4.146.0" }
+}

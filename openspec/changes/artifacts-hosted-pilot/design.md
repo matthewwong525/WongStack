@@ -1,0 +1,90 @@
+# Design
+
+## Context
+
+See [proposal.md](proposal.md) for the chosen scope. WongStack's supported workflow discovers checks and previews through GitHub, publishes through `gh pr merge`, and joins memory through GitHub account and repository permissions. Those are separate migration surfaces from Git storage. The hosted control plane in `/root/wongstack-cloud` also uses GitHub sign-in; this experiment edits no file there.
+
+The owning conventions are [the change loop](../../../wiki/development/the-change-loop.md), [the Cloudflare pipeline](../../../wiki/stack/d1-pipeline.md), and [the memory key](../../../wiki/development/memory-key.md). Read the current stack-pack, delivery-gate, memory, and managed-workspace-access specs before implementation. This internal prototype opts out of spec deltas and does not weaken or amend those product promises.
+
+## Goals / Non-Goals
+
+**Goals:** produce reproducible live evidence for repository provisioning, remote checks, commit-specific previews, approval-controlled publication, repository and memory revocation, Git export, and cleanup.
+
+**Non-goals:** production authentication, customer enrollment, paid subscription changes, modifying the shipped skills, and building a user-facing screen. The operator uses a developer harness; customers would use a future hosted-service interface. A signed test identity is explicitly a prototype boundary, never evidence that real sign-in or offboarding has shipped.
+
+## Decisions
+
+### 1. Keep the experiment outside the shipped payload
+
+Put the harness, small controller Worker, pipeline definition, and generated-project templates under `scripts/pilots/artifacts/`. Use `scripts/tests/artifacts-pilot.test.mjs` for meaningful deterministic contract tests, discovered by the existing payload-check workflow. Keep dependency declarations and lockfiles confined to the pilot folder. No app route, workflow, payload manifest, installer, VERSION, or CHANGELOG edit is planned.
+
+The manifest's existing inclusion rules must be checked during implementation to confirm these files are meta-only. If a payload edit proves necessary, re-plan that scope and release rather than adding it silently. This avoids turning an experiment into supported installation behavior.
+
+### 2. Explicit account, unique resources, resumable state
+
+Require an explicit platform account ID; never select the first visible account. Preflight reads access, entitlement, current pricing, and permissions before creating resources. Do not enable a paid plan, change billing, or widen an existing token. A missing permission or entitlement is reported as a concrete prerequisite through the existing private-key workflow if needed.
+
+Use a unique namespace and run prefix such as `wong-artifacts-pilot-<run-id>`. Maintain a mode-0600 manifest in the ignored `.scratch/` folder recording the exact account, repository IDs, Worker names, D1 IDs, pipeline resources, token IDs, and creation acknowledgements. Keep plaintext credentials in private files or Worker secrets, separate from the report. Mutation and cleanup reject an account mismatch, resources not in the manifest, and any pre-existing resource not created by this run. Interrupted provisioning can resume from the manifest.
+
+Provision one working project and a second empty repository solely to test token isolation. The published trial and its staging environment have distinct Workers and D1 bindings. Seed only invented data, including a canary that detects staging writes reaching trial production. The controller's state and signing credentials are never bindings of candidate application code.
+
+### 3. Use the event-driven custom pipeline
+
+Start with Cloudflare's documented `@cloudflare/ci` + Workflows pipeline triggered by `cf.artifacts.repo.pushed`, filtered to the pilot repository. Pin the SDK and tools to versions verified during implementation. Runs check out the event's exact commit, run the fixture's tests and build remotely, and persist commit, ref, results, timestamps, and the preview URL reported by the deployment tool. Never infer a preview URL from a naming pattern.
+
+Candidate build runners receive no platform deployment or controller credentials. A trusted deploy step uses a controller-owned configuration and allowlisted pilot resource IDs; candidate configuration cannot select another Worker, database, or namespace. The published runtime also receives no controller, Artifacts administration, or pipeline credentials. Reuse existing deploy/environment helpers where they fit without modifying them; otherwise use narrow pilot-owned wrappers.
+
+The simpler Workers Builds connection is an alternative for a future product. Its current guide requires dashboard connection steps, and this pilot needs an explicit approval ledger and failure injection. The custom pipeline directly tests those needs. Do not switch pipeline approaches silently when a documented primitive fails: preserve its actual error as pilot evidence.
+
+### 4. Approval is an authenticated exact-commit decision
+
+The controller records a candidate as pending, checking, failed, or preview-ready. An owner-signed session can approve only a preview-ready commit whose checks passed and whose preview actually serves that commit's identifier. Record repository, candidate SHA, base production SHA, owner subject, and approval time in controller storage outside the candidate repo.
+
+Only the trusted publication operation deploys the approved immutable result. It rechecks the approval and base immediately before publication, serializes production updates, and records the deployed commit. Branch events build previews, never automatically authorize production. Artifacts Git write scope is repo-wide rather than a promised branch-protection rule: a direct push to `main` without a matching approval must not publish, and newer branch commits must not inherit older approval. Duplicate events cannot cause duplicate publication; an unavailable or unreadable check state blocks publication.
+
+Test a red candidate, an unapproved `main` push, a newer commit after an earlier approval, an out-of-date base, and duplicate events. The harness may record the trial operator's approval as a signed owner decision; this is the prototype for the future app's approval action, not a replacement UI shipped to customers.
+
+### 5. Prototype hosted membership against real memory handling
+
+Maintain a controller-owned roster with stable opaque owner/member subjects, verified test emails supplied by the trusted fixture, and membership status. Create short-lived signed sessions scoped to run, project, subject, audience, and expiry. A caller cannot become owner by typing the owner's email. Only the owner may add/remove a member or authorize publication.
+
+Issue distinct repo-scoped Git tokens per trial member/session and track all issued token IDs by subject. Prove a read token cannot push and a project token cannot fetch the second repository. Agents receive only these Git tokens, not the account API credential.
+
+For memory, use a pilot-only join wrapper that checks the signed session and live roster, inserts a properly hashed memory key into a disposable database using the existing memory schema, and invokes the current `handleMemory` module for normal memory requests. Do not call or fake its GitHub join route, populate a production store, or change the shared Worker module. Link trial-issued keys to stable subjects in pilot-owned storage, check current membership before forwarding requests, and revoke every issued key on removal. Handle `/_memory/join` in the wrapper so a request cannot fall through to the GitHub path.
+
+Exercise owner and member writes, a teammate's personal-fact privacy, a member attempting owner actions, forged identity, and a removed member using previously valid Git, memory, and session credentials. Other members and the owner retain access. Removal is not reported complete until both Artifacts token revocation and memory/session rejection are observed; retries finish partial removals without granting a fresh token. Record revocation propagation time rather than assuming instantaneous enforcement.
+
+This proves the replacement identity seam with test principals and the existing memory read/write enforcement. It does not prove real hosted sign-in, all memory client/hook integrations, Cloudflare Access session revocation, or removal from a live customer VM. These remain named follow-up work in the adoption report.
+
+### 6. Portable export and explicit cleanup
+
+Export before deletion using a mirror clone or Git bundle that includes all advertised branches, tags, and reachable history. Verify restored refs and object identities and run `git fsck` in a clean clone. Use a temporary local bare remote as the destination; it proves Git portability without creating a GitHub repository. Do not claim an actual GitHub migration has been tested. Tokens, approval records, and hosted membership are service metadata and are not part of Git export; describe that boundary.
+
+Cleanup first disables event triggers and waits for or cancels in-flight runs, then revokes remaining trial tokens and deletes only manifest-owned repositories and resources. Verify deletion via provider reads and keep a non-secret receipt naming anything that remains. Keep cleanup independently runnable after partial failure. Never delete pre-existing caches, buckets, Workers, or namespace resources.
+
+### 7. Bounded execution and a decision report
+
+Use one pipeline runner at a time, at most ten build attempts, and a 30-minute timeout per build. Stop on repeated provider failures instead of retrying indefinitely. Before the live run, show the selected account, exact resource inventory, and estimated trial cost using current Artifacts and runner pricing. A required billing change remains a prerequisite, not an implicit part of this plan.
+
+Write a redacted `evidence.md` under this change after execution. Each case includes PASS, FAIL, or UNKNOWN, timestamp, immutable commit when relevant, safe resource identifiers, observation, and a pointer to raw redacted evidence in `.scratch/`. Include provisioning time, build and preview times, revocation latency, cleanup results, operation counts, storage, and estimated cost per representative change. Separate observed usage from estimates and include pipeline compute/storage separately from Artifacts pricing. The trial cannot establish service-scale cost or reliability.
+
+Recommend adopting Artifacts for new hosted projects only if all core cases pass live and cleanup is verified. A mocked contract test, missing credential, unsupported API, or unchecked case cannot count as PASS. The next product plan must cover hosted-service identity, approval UX, onboarding, installer/agent integration, legal/data ownership, and existing-project migration. No automatic customer rollout follows a successful pilot.
+
+## Risks / Trade-offs
+
+- **A newly released beta or SDK differs from its guide** → preflight and pin actual versions; record failed operations and keep a separate cleanup path.
+- **A Git write token can change any branch** → publication uses approval outside the repo, exact commits, a trusted deployment configuration, and owner credentials unavailable to builds.
+- **A successful fixture overstates migration readiness** → report test identities, local export destination, client integrations, and Access coverage as explicit limits.
+- **Removal partially succeeds** → deny new sessions immediately, retain revocation IDs, retry both surfaces, and require observed rejection before reporting completion.
+- **Trial infrastructure incurs ongoing charges after interruption** → record every created resource, use finite run limits, disable triggers, and verify cleanup.
+
+## Migration Plan
+
+There is no customer migration in this change. Implement and verify the harness through `/apply` and `/save`, then execute the bounded disposable trial. The harness's Git operations exercise only scratch fixture repositories and their explicitly recorded pilot remotes; planning performs none. Current workspace branch operations remain owned by `/save` and `/ship`. Publish the tooling itself only through the existing WongStack change loop. Export the test project before cleanup and retain redacted decision evidence in the change.
+
+## Sources checked on 2026-10-01
+
+- [Artifacts build-on-push guide](https://developers.cloudflare.com/artifacts/guides/build-and-deploy-on-push/) — custom CI, event triggers, remote runners, caching, and deployment.
+- [Workers Builds Artifacts integration](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/artifacts-integration/) — dashboard connection, `main` production branch, and previews.
+- [Artifacts Workers binding](https://developers.cloudflare.com/artifacts/api/workers-binding/) and [REST API](https://developers.cloudflare.com/artifacts/api/rest-api/) — repository lifecycle, Git tokens, and revocation.
+- [Artifacts pricing](https://developers.cloudflare.com/artifacts/platform/pricing/) and [limits](https://developers.cloudflare.com/artifacts/platform/limits/) — Workers Paid prerequisite, operations/storage billing, and repository/file bounds. Recheck pricing and runner costs before executing.
