@@ -3,8 +3,8 @@
 // device and joins the list with none ticked; a login typed or filled into the form joins it ticked.
 // Save and continue sends selected logins and a filled form to `POST /continue`; the file
 // stays local. Close without continuing posts `/done` and cancels without readiness. A `site` and `user`
-// in the link's fragment, beside `key`, pre-fill the form, title the page for that site, and focus the
-// first empty box. The pure `parseExport` and `siteUrl` are exported for the tests; the rest runs only
+// in the link's fragment, beside `key`, pre-fill the form, title the page for that site, move the form
+// above the export box, and focus the first empty box. The pure `parseExport` and `siteUrl` are exported for the tests; the rest runs only
 // in a browser.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
@@ -305,7 +305,11 @@ function start() {
     $('#site').value = site;
     $('#username').value = username;
     const host = hostOf(siteUrl(site));
-    if (host) document.title = $('#page h1').textContent = `Save your ${host} login`;
+    if (host) {
+      document.title = $('#page h1').textContent = `Save your ${host} login`;
+      $('#drop').before($('#add-title'), $('#add-form'));
+      $('#drop').textContent = 'Or drop your password export here, or tap to pick it';
+    }
     ['#site', '#username', '#password'].map($).find(input => !input.value)?.focus();
   }
 

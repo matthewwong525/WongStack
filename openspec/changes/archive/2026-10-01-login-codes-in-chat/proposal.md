@@ -91,3 +91,5 @@ None.
 - **2026-10-01** — Assumed: *Sign in with Google* or *Apple* and other non-password logins keep the live browser link, because there's no password to save.
 - **2026-10-01** — Assumed: built tasks 1.1–3.1 and added the new page to `payload-files.json` so the payload link check counts it; task 3.2 waits on CI at this save.
 - **2026-10-01** — Assumed: task 3.2 done, because CI passed on PR #237; every task is complete.
+- **2026-10-01** — Asked, after seeing screenshots, to put the login form above the export box when a site is filled in → done; the export box below reads *Or drop your password export here*.
+- **2026-10-01** — Assumed: archived and numbered 29.7.0 for publishing, because every task is done and CI passed.

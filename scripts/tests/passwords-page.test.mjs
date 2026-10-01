@@ -285,6 +285,9 @@ test('a site and username in the link fill the form, title the page, and focus t
   assert.equal(p.document.title, 'Save your netflix.com login');
   assert.equal(p.document.activeElement, p.$('#username'));
   assert.equal(p.$('#save').disabled, true, 'a site alone is not a login yet');
+  const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
+  assert.ok(order(p.$('#add-form')) < order(p.$('#drop')), 'the form for this site comes before the export box');
+  assert.match(p.$('#drop').textContent, /^Or drop/);
 
   const q = page({ hash: 'key=abc&site=netflix.com&user=me%2B1%40x.com' });
   assert.equal(q.$('#username').value, 'me+1@x.com');
@@ -295,6 +298,8 @@ test('a site and username in the link fill the form, title the page, and focus t
 test('a link with no site or username leaves the page as it was', needsDom, () => {
   const p = page();
   assert.equal(p.$('h1').textContent, 'Save logins for your agent');
+  const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
+  assert.ok(order(p.$('#drop')) < order(p.$('#add-form')), 'the export box stays first');
   assert.equal(p.$('#site').value, '');
   assert.notEqual(p.document.activeElement, p.$('#site'));
 });

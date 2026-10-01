@@ -14,7 +14,7 @@ Give the agent the logins you choose through a private link, so it logs in for y
   node .claude/skills/hand-over/scripts/hand-over.mjs wait               # HANDOVER_RESULT=done, then HANDOVER_SAVED=netflix-com,costco-com
   ```
 
-  For one site's login, `--site` fills in the website, and `--username` the username of a saved login the site rejected, so you type only what's missing. The page is titled *Save your netflix.com login* and starts in the first empty box. Both ride only in the link, after the `#`, which your browser never sends, so they reach no server, log, or file. Saving the same site and username replaces the old password:
+  For one site's login, `--site` fills in the website, and `--username` the username of a saved login the site rejected, so you type only what's missing. The page is titled *Save your netflix.com login*, puts that form above the export box, and starts in the first empty box. Both ride only in the link, after the `#`, which your browser never sends, so they reach no server, log, or file. Saving the same site and username replaces the old password:
 
   ```bash
   node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords --site https://www.netflix.com/login                      # no saved login

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Log in with fewer taps
+## 29.7.0 — Log in with fewer taps
 
 When your assistant meets a login or a code, you type less, and you get the live browser link only for steps only you can do on the page.
 
