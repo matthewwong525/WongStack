@@ -2,8 +2,10 @@
 // holds one list: a CSV password export, dropped anywhere on the page or picked, is read on this
 // device and joins the list with none ticked; a login typed or filled into the form joins it ticked.
 // Save and continue sends selected logins and a filled form to `POST /continue`; the file
-// stays local. Close without continuing posts `/done` and cancels without readiness. The pure `parseExport` and
-// `siteUrl` are exported for the tests; the rest runs only in a browser.
+// stays local. Close without continuing posts `/done` and cancels without readiness. A `site` and `user`
+// in the link's fragment, beside `key`, pre-fill the form, title the page for that site, move the form
+// above the export box, and focus the first empty box. The pure `parseExport` and `siteUrl` are exported for the tests; the rest runs only
+// in a browser.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
 const USER = ['username', 'login_username', 'login', 'email', 'user name'];
@@ -89,7 +91,8 @@ const SEARCH_FROM = 9;
 
 function start() {
   const $ = selector => document.querySelector(selector);
-  const key = new URLSearchParams(location.hash.slice(1)).get('key') ?? '';
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  const key = fragment.get('key') ?? '';
   history.replaceState(null, '', location.pathname);
   // Rows are `{url, host, username, password, label, source: 'file' | 'typed', state: 'open' | 'saved'}`,
   // one per `id`: host and username. Ticks are kept by id, so sorting and merging never move them.
@@ -296,6 +299,21 @@ function start() {
     closed();
   });
 
+  // A link sent for one site's login comes with the site, and maybe the username, filled in.
+  function prefill(site, username) {
+    if (!site && !username) return;
+    $('#site').value = site;
+    $('#username').value = username;
+    const host = hostOf(siteUrl(site));
+    if (host) {
+      document.title = $('#page h1').textContent = `Save your ${host} login`;
+      $('#drop').before($('#add-title'), $('#add-form'));
+      $('#drop').textContent = 'Or drop your password export here, or tap to pick it';
+    }
+    ['#site', '#username', '#password'].map($).find(input => !input.value)?.focus();
+  }
+
+  prefill(fragment.get('site') ?? '', fragment.get('user') ?? '');
   draw();
   if (!key) closed();
 }

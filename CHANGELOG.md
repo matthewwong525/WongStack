@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.7.0 — Log in with fewer taps
+
+When your assistant meets a login or a code, you type less, and you get the live browser link only for steps only you can do on the page.
+
+- **No saved password? You get the password page, with the website filled in.** You fill only your username and password, or pick them from your password manager, and tap *Save and continue*. The assistant logs in with it and carries on. You can still drop an export file there too.
+- **A saved password that stopped working gets the same page**, with the website and your username filled in. You type only the new password, and it replaces the old one.
+- **A code sent by email, the assistant fetches itself.** When its browser is already signed in to that email, it opens only the newest message from that site, takes the code, and says so in one line. It shows no picture of your inbox, and never logs in to your email just for a code.
+- **A code sent to your phone or app is asked in the chat.** The assistant names the site and where the code went, you type it in the chat, and it carries on. No link.
+- **"Approve on your phone" needs no link.** The assistant asks you to tap *Yes* in the site's app and waits.
+- **A wrong or expired code is asked again**, after asking the site for a new one.
+- **The live browser link stays for what only you can do on the page:** picture puzzles, passkeys, *Sign in with Google* or *Apple*, and backup codes. Passwords still never go in the chat.
+
+The rules live on a new wiki page, [login codes](wiki/development/login-codes.md).
+
 ## 29.6.1 — Search memory with the words a note would use
 
 The memory page now says that search matches word forms, not meanings: a question in other words can miss a note, so the assistant searches with the words the note itself would use.

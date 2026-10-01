@@ -27,7 +27,7 @@ const SECOND = 'name,url,username,password\n'
  * The page with a fake server. `reply(body)` answers each `/save`: a `{saved, failed}` result by
  * default, from the hosts sent; `open` says whether `page.mjs` still loads (a closed link's 403).
  */
-function page({ reply, open = true } = {}) {
+function page({ reply, open = true, hash = 'key=abc' } = {}) {
   const calls = [];
   const errors = [];
   const virtualConsole = new VirtualConsole();
@@ -44,7 +44,7 @@ function page({ reply, open = true } = {}) {
   };
   const markup = html.replace('<script type="module" src="page.mjs"></script>', () => `<script>${source}</script>`);
   const { window } = new JSDOM(markup, {
-    url: 'https://pw.test/#key=abc',
+    url: `https://pw.test/#${hash}`,
     runScripts: 'dangerously',
     virtualConsole,
     beforeParse(win) { win.fetch = fetch; },
@@ -275,4 +275,43 @@ test('an incomplete typed login blocks a selected export and saving blocks all c
   p.type('','','');p.$('#save').click();await settle();assert.equal(p.$('#done').disabled,true);assert.equal(p.$('#add').disabled,true);assert.equal(p.$('#drop').disabled,true);
   p.$('#save').click();assert.equal(p.saves().length,1);
   finish({ok:true,status:200,json:async()=>({saved:[],failed:[0],ready:false})});await settle();assert.equal(p.$('#done').disabled,false);
+});
+
+test('a site and username in the link fill the form, title the page, and focus the first empty box', needsDom, () => {
+  const p = page({ hash: 'key=abc&site=https%3A%2F%2Fwww.netflix.com%2Flogin' });
+  assert.equal(p.$('#site').value, 'https://www.netflix.com/login');
+  assert.equal(p.$('#username').value, '');
+  assert.equal(p.$('h1').textContent, 'Save your netflix.com login');
+  assert.equal(p.document.title, 'Save your netflix.com login');
+  assert.equal(p.document.activeElement, p.$('#username'));
+  assert.equal(p.$('#save').disabled, true, 'a site alone is not a login yet');
+  const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
+  assert.ok(order(p.$('#add-form')) < order(p.$('#drop')), 'the form for this site comes before the export box');
+  assert.match(p.$('#drop').textContent, /^Or drop/);
+
+  const q = page({ hash: 'key=abc&site=netflix.com&user=me%2B1%40x.com' });
+  assert.equal(q.$('#username').value, 'me+1@x.com');
+  assert.equal(q.document.activeElement, q.$('#password'), 'a rejected login needs only the new password');
+  assert.deepEqual(q.errors, []);
+});
+
+test('a link with no site or username leaves the page as it was', needsDom, () => {
+  const p = page();
+  assert.equal(p.$('h1').textContent, 'Save logins for your agent');
+  const order = el => [...p.document.querySelectorAll('#page *')].indexOf(el);
+  assert.ok(order(p.$('#drop')) < order(p.$('#add-form')), 'the export box stays first');
+  assert.equal(p.$('#site').value, '');
+  assert.notEqual(p.document.activeElement, p.$('#site'));
+});
+
+test('a pre-filled form is saved by Save and continue alone, and the fragment never reaches the server', needsDom, async () => {
+  const p = page({ hash: 'key=abc&site=netflix.com&user=me%40x.com' });
+  assert.equal(p.window.location.hash, '', 'the site and username leave the address bar with the key');
+  assert.deepEqual(p.calls, [], 'nothing is sent on load');
+  p.$('#password').value = 'pw-new';
+  p.$('#add-form').dispatchEvent(new p.window.Event('input', { bubbles: true }));
+  assert.equal(p.$('#save').disabled, false);
+  await p.click('#save');
+  assert.deepEqual(p.saves(), [[{ url: 'https://netflix.com', username: 'me@x.com', password: 'pw-new' }]]);
+  assert.ok(p.calls.every(call => !/[#?]/.test(call.path)), 'no request carries the fragment');
 });

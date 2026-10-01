@@ -297,6 +297,34 @@ test('a bad --minutes or command is a usage error', t => {
   assert.equal(f.run().status, 2);
 });
 
+test('--site and --username go only with --passwords, and only as a website and one line', t => {
+  const f = fixture(t);
+  for (const args of [['--site', 'netflix.com'], ['--username', 'me'], ['--keys', 'MAPS_API_KEY', '--site', 'netflix.com'], ['--passwords', '--site', 'not a site'], ['--passwords', '--site', 'ftp://netflix.com'], ['--passwords', '--username', ' '], ['--passwords', '--username', 'me\nyou']]) {
+    const out = f.run('open', '--local', ...args);
+    assert.equal(out.status, 2, args.join(' '));
+    assert.match(out.stderr, /usage:/);
+  }
+  assert.deepEqual(f.calls(), []);
+  assert.ok(!existsSync(join(f.state, 'watcher.pid')));
+});
+
+test('--site and --username ride URL-encoded in the link\'s fragment beside the key, and nowhere else', async t => {
+  const f = fixture(t, { cloudflared: false });
+  const out = f.run('open', '--local', '--passwords', '--site', 'https://www.netflix.com/login', '--username', 'me+1@x.com');
+  assert.equal(out.status, 0, out.stderr);
+  const link = new URL(/^HANDOVER_LINK=(.+)$/m.exec(out.stdout)[1]);
+  assert.match(link.hash, /^#key=[0-9a-f]{64}&site=https%3A%2F%2Fwww\.netflix\.com%2Flogin&user=me%2B1%40x\.com$/);
+  const fragment = new URLSearchParams(link.hash.slice(1));
+  assert.equal(fragment.get('site'), 'https://www.netflix.com/login');
+  assert.equal(fragment.get('user'), 'me+1@x.com');
+  const state = readFileSync(join(f.state, 'state.json'), 'utf8');
+  assert.ok(!/netflix|me\+1/.test(state), 'the watcher\'s state holds neither');
+  assert.ok(await answers(Number(link.port)));
+  const plain = f.run('close');
+  assert.equal(plain.status, 0);
+  assert.match(opened(f, '--local', '--passwords').link, /#key=[0-9a-f]{64}$/, 'no flags, no extra fragment');
+});
+
 test('the pure helpers follow agent-browser\'s glob and the recorded output shapes', () => {
   assert.ok(globToRegExp('**mail.google.com/mail/**').test('https://mail.google.com/mail/u/0/#inbox'));
   assert.ok(globToRegExp('https://x.com/*').test('https://x.com/home'));

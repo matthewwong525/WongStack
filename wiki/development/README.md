@@ -11,6 +11,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
 - [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, and handing the browser over.
   - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.
+  - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no hand-over link.
   - [When a site blocks the agent's browser](blocked-sites.md) — the agent moves to Cloudflare's cloud browser and carries on, disguising nothing.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, and consolidation.
   - [The memory key](memory-key.md) — the key that opens the store: the admin, member, and reader roles, joining through GitHub, and adding or removing a teammate.
