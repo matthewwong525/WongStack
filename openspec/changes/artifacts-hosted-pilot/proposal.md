@@ -1,6 +1,6 @@
 # Try Cloudflare Artifacts for hosted projects
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** github-artifacts
 
@@ -66,3 +66,6 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 - **2026-10-01** — Remote checks passed on `90404de`, including all 23 pilot cases and 946 script cases. Live deployment exposed a guide/tool mismatch: pinned Wrangler requires `filter.repo_name` and `targets` with a workflow target. Keep the custom pipeline and use the installed schema; preserve the original error in trial evidence.
 - **2026-10-01** — The first live workflow checked and deployed its fixture successfully, then the controller rejected its global `fetch` receiver. Wrap the adapter call so the Workers runtime keeps its receiver; repeat the preview case with a fresh commit. Live member Git/memory/session revocation and retained owner access passed before credential expiry.
 - **2026-10-01** — Live readbacks showed Artifacts history resolves a short branch name, while the ledger keeps its canonical `refs/heads/` form. Normalize that API input and reject non-branch refs. Workers supports manual redirects, so reject non-success identity responses without following them. Add regression cases and repeat the preview after both corrections.
+
+- **2026-10-01** — Completed the bounded live cases with seven candidate attempts. Exact-commit previews, approved publication, access removal, real memory permissions and final Git restore passed. Both unapproved main previews failed in sandbox RPC; one left a running container, and a passing main preview remains unproven. Defer customer adoption and finish manifest-only teardown before reviewing publication of this experiment tooling.
+- **2026-10-01** — All fifteen manifest-owned resources were removed. The namespace DELETE returned HTTP 204 and independent GET/list readbacks proved absence; update the provider parser to accept that acknowledgment while keeping absence readback mandatory, with a regression case. The final checkpoint records the completed experiment for review; publishing the tooling is separate from adopting Artifacts for customers.

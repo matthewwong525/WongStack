@@ -11,7 +11,8 @@ export class CloudflareProvider {
     const multipart = body instanceof FormData;
     const response = await this.fetcher(`https://api.cloudflare.com/client/v4${path}`, { method, headers: { Authorization: `Bearer ${this.credentials.token}`, ...(!multipart ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
     if (allow404 && response.status === 404) return null;
-    const result = await response.json();
+    if (response.status === 204) { this.lastResultInfo = undefined; return null; }
+    const result = await response.json().catch(() => { throw new Error(`Cloudflare ${method} ${path}: HTTP ${response.status}, invalid JSON response`); });
     if (!response.ok || result.success === false) throw new Error(`Cloudflare ${method} ${path}: HTTP ${response.status}, code ${result.errors?.[0]?.code || 'unknown'}`);
     this.lastResultInfo = result.result_info;
     return result.result;

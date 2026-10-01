@@ -106,6 +106,22 @@ test('cleanup refuses resources without creation acknowledgment or quiescence', 
   await assert.rejects(cf.quiesce(manifest), /receipts/);
 });
 
+test('empty deletion acknowledgments require absence readback and preserve HTTP errors', async () => {
+  const manifest = createManifest(account, run), spec = inventory(manifest)[0];
+  manifest.resources.push({ ...spec, id: spec.name, status: 'created', createdBy: run });
+  let absent = false;
+  const cf = new CloudflareProvider(account, { token: 'secret' }, manifest.namespace, async (_url, opts) => {
+    if (opts.method === 'DELETE') return new Response(null, { status: 204 });
+    return absent ? new Response(null, { status: 404 }) : Response.json({ success: true, result: { namespace: spec.name } });
+  });
+  assert.equal((await cleanup(manifest, account, cf, async () => {})).outcome, 'FAIL');
+  assert.equal(manifest.resources[0].status, 'created');
+  absent = true;
+  assert.equal((await cleanup(manifest, account, cf, async () => {})).outcome, 'PASS');
+  cf.fetcher = async () => new Response(null, { status: 500 });
+  await assert.rejects(cf.request(cf.artifact(''), 'DELETE'), /HTTP 500, invalid JSON response/);
+});
+
 test('event source, duplicate events, and finite build limit fail closed', () => {
   const control = controller();
   assert.throws(() => control.start({ ...params(), repo: 'customer' }, 'j'), /Unexpected/);
