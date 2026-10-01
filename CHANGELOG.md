@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.1.1 — Say why the assistant picks its own memory search
+
+The memory guide now says why the assistant searches memory with its own words once it knows the task, instead of loading memory from your first message: what loads stays for the whole chat, and a search on your raw words pulls in unrelated notes.
+
+**Updating.** Nothing to do by hand.
+
 ## 29.1.0 — Load what matters at session start
 
 The briefing your assistant reads at the start of each chat now holds what applies to any task, and the assistant looks up the rest once it knows what you want.
