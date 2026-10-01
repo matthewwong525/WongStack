@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Setup from any folder, and a first message that gets to know you
+## 29.2.0 — Setup from any folder, and a first message that gets to know you
 
 Setup no longer needs an empty folder, and your starter site's first message now teaches the assistant who you are.
 
