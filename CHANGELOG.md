@@ -13,6 +13,12 @@ Setup no longer needs an empty folder, and your starter site's first message now
 
 **Updating.** The new message reaches your home page only while the *Make it yours* box is still on it; once you've removed the box, it stays removed. Nothing to do by hand.
 
+## 29.1.1 — Say why the assistant picks its own memory search
+
+The memory guide now says why the assistant searches memory with its own words once it knows the task, instead of loading memory from your first message: what loads stays for the whole chat, and a search on your raw words pulls in unrelated notes.
+
+**Updating.** Nothing to do by hand.
+
 ## 29.1.0 — Load what matters at session start
 
 The briefing your assistant reads at the start of each chat now holds what applies to any task, and the assistant looks up the rest once it knows what you want.
