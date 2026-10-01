@@ -143,9 +143,9 @@ Create/reuse distinct production and staging databases; branch deploys never wri
 
 With no config, write the [fragment](../../wong-sync/references/stack-pack-fragments.md) with actual production/staging D1 and Access IDs; an open site gets blank Access IDs and `WORKSPACE_LOGIN: "off"` instead. Bind memory only at the top level, plus R2 when available. Fill the two `db:migrate:*` scripts. Preserve the fragment's entry point, assets, flags, and date. Existing config stays apart from a new memory bucket and [adding the card later](#adding-the-card-later); plan other privacy updates as a reviewed merge. The [scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold) supplies the Worker.
 
-The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`; they need no Worker or config of their own.
+The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`, as part of the main app; they need no Worker or config of their own.
 
-**Moving older mini apps.** Merge `/apps/` routing and Worker-first assets into the main Worker. Remove the obsolete mini-app config, Worker, tsconfig, ignore files, and assetsignore only as reviewed changes. After production deploys, verify `/apps/` and every saved app; only then delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` GitHub environment. Keep them on failure.
+**Moving older mini apps.** Apps kept outside the main app move into it by [the update's catch-up step](../../wong-sync/references/catch-up.md), `mini-apps-folder`. An install with its own mini-app Worker also merges `/apps/` routing and Worker-first assets into the main Worker. Remove the obsolete mini-app config, Worker, tsconfig, ignore files, and assetsignore only as reviewed changes. After production deploys, verify `/apps/` and every saved app; only then delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` GitHub environment. Keep them on failure.
 
 ### 4d. The CI deploy token
 

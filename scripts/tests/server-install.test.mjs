@@ -42,11 +42,12 @@ function expectedPayload() {
   const under = (folder) => sourceFiles.filter((path) => path.startsWith(`${folder}/`));
   const paths = new Set([
     ...core.skillDirs.flatMap((skill) => under(`.agents/skills/${skill}`)),
-    ...[...core.files, ...ui.files, ...pack.files, ...scaffold.files].map(real),
+    ...[core, ui, pack, scaffold].flatMap((category) => category.files ?? []).map(real),
     ...[...pack.dirs, ...scaffold.dirs].flatMap((dir) => under(real(dir))),
   ]);
-  for (const gone of scaffold.exclude) paths.delete(real(gone));
-  return [...paths].sort();
+  // An excluded folder takes everything under it, such as a source-only mini app.
+  const out = scaffold.exclude.map(real);
+  return [...paths].filter((path) => !out.some((gone) => path === gone || path.startsWith(`${gone}/`))).sort();
 }
 
 // ── a practice repo on a pretend server ─────────────────────────────────────
@@ -219,7 +220,8 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
   assert.deepEqual(missing, [], `the installer missed payload files: ${missing.join(', ')}`);
   for (const path of manifest.seededBySetup.files) assert.ok(tree.has(path), `setup seeds ${path}`);
   for (const path of ['AGENTS.md', 'CLAUDE.md', '.claude', '.codex', '.nvmrc', '.env.example', 'paseo.json', 'openspec/config.yaml', 'app/wrangler.jsonc', '.agents/.wong-stack.json']) assert.ok(tree.has(path), path);
-  for (const path of ['.env', 'VERSION', 'CHANGELOG.md', 'server/setup.sh', '.agents/skills/wong-setup/SKILL.md', '.agents/rules/payload.md']) assert.ok(!tree.has(path), `${path} is not payload`);
+  for (const path of ['.env', 'VERSION', 'CHANGELOG.md', 'server/setup.sh', '.agents/skills/wong-setup/SKILL.md', '.agents/rules/payload.md', 'app/src/apps/tips/App.tsx']) assert.ok(!tree.has(path), `${path} is not payload`);
+  assert.ok(tree.has('app/src/apps/hello/App.tsx') && tree.has('app/worker/apps/hello/api.ts'), 'the example mini app ships');
   assert.equal(readlinkSync(join(s.dir, '.claude')), '.agents');
   assert.equal(readlinkSync(join(s.dir, '.codex')), '.agents');
   assert.equal(readlinkSync(join(s.dir, 'CLAUDE.md')), 'AGENTS.md');

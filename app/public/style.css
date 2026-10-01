@@ -1,4 +1,4 @@
-/* The look every page shares: the main app's pages and every mini app link
+/* The look every page shares, mini apps included: index.html links
    /style.css. The device's font, light or dark to match the device, and a
    narrow column with quiet neutral surfaces. This is the only file that styles whole elements; a part's
    own styles sit beside it, under class names named for the part. */

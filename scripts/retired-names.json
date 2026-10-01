@@ -54,5 +54,10 @@
   {"name": "improve-survey.test.mjs", "replacement": "nothing: its survey executable is removed"},
   {"name": "verify/scripts/hand-over", "replacement": "`hand-over/scripts/hand-over`"},
   {"name": "verify/scripts/keys", "replacement": "`hand-over/scripts/keys`"},
-  {"name": "verify/scripts/passwords", "replacement": "`hand-over/scripts/passwords`"}
+  {"name": "verify/scripts/passwords", "replacement": "`hand-over/scripts/passwords`"},
+  {"name": "mini-apps/apps/", "replacement": "`app/src/apps/<name>/` and `app/worker/apps/<name>/`", "allow": [".agents/skills/wong-sync/references/catch-up.md", ".agents/skills/wong-sync/scripts/preflight.mjs", "scripts/tests/wong-sync-preflight.test.mjs", "scripts/tests/app-untouched.test.mjs"], "why": "the update finds and moves mini apps from the old folder, and the test proves that folder no longer skips the suite"},
+  {"name": "mini-dashboard.mjs", "replacement": "nothing: the main app's build includes every mini app", "allow": [".agents/skills/wong-sync/references/catch-up.md"], "why": "the update removes an older install's copy"},
+  {"name": "is-test-file.mjs", "replacement": "`.github/scripts/test-file.mjs`"},
+  {"name": "mini_changed", "replacement": "`untouched` alone"},
+  {"name": "apps.json", "replacement": "the list compiled into the home page from `app/src/apps/`", "allow": [".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs"], "why": "the update removes an older install's reader of the old list"}
 ]

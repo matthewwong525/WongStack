@@ -369,29 +369,26 @@ test('two skills that map to one local name fail with path-collision', t => {
     && error.message.includes('alpha') && error.message.includes('beta'));
 });
 
-test('the real scaffold ships the mini-app router and its example, never another app', t => {
+test('the real scaffold ships the example mini app, never another app', t => {
   const real = JSON.parse(readFileSync(join(repo, '.agents/skills/wong-sync/references/payload-files.json'), 'utf8'));
   const f = fixture(t, { manifest: inventory({ scaffold: real.scaffold }) });
   const files = {
-    'mini-apps/router.mjs': 'router\n',
-    'mini-apps/router.d.mts': 'types\n',
-    'mini-apps/routes.mjs': 'routes\n',
-    'mini-apps/routes.d.mts': 'types\n',
-    'mini-apps/apps/hello/index.html': 'hello\n',
-    'mini-apps/apps/hello/app.json': '{}\n',
-    'mini-apps/apps/tips/index.html': 'a source-only app\n',
-    'mini-apps/apps/tips/app.json': '{}\n',
+    'app/src/apps/index.ts': 'registry\n',
+    'app/src/apps/hello/App.tsx': 'hello\n',
+    'app/src/apps/hello/app.json': '{}\n',
+    'app/worker/apps/hello/api.ts': 'hello api\n',
+    'app/src/apps/tips/App.tsx': 'a source-only app\n',
+    'app/src/apps/tips/app.json': '{}\n',
+    'app/worker/apps/tips/api.ts': 'a source-only api\n',
   };
   for (const [path, content] of Object.entries(files)) write(f.source, path, content);
-  f.commit('add the mini-app router, its example, and a source-only app');
-  const paths = f.inspect().changes.map(change => change.sourcePath).filter(path => path.startsWith('mini-apps/'));
+  f.commit('add the registry, its example, and a source-only app');
+  const paths = f.inspect().changes.map(change => change.sourcePath).filter(path => /^app\/(src|worker)\/apps\//.test(path));
   assert.deepEqual(paths.sort(), [
-    'mini-apps/apps/hello/app.json',
-    'mini-apps/apps/hello/index.html',
-    'mini-apps/router.d.mts',
-    'mini-apps/router.mjs',
-    'mini-apps/routes.d.mts',
-    'mini-apps/routes.mjs',
+    'app/src/apps/hello/App.tsx',
+    'app/src/apps/hello/app.json',
+    'app/src/apps/index.ts',
+    'app/worker/apps/hello/api.ts',
   ]);
 });
 
@@ -468,6 +465,7 @@ test('each catch-up reason fires on its own layout', t => {
     ['opted-out', f => f.updateRecord({ components: { skills: ['alpha'], stackPack: false, ui: false } })],
     ['generated-openspec', f => mkdirSync(join(f.target, '.agents/skills/openspec-explore'))],
     ['deploy-token', f => { f.updateRecord({ version: '17.2.0' }); write(f.target, '.github/workflows/deploy.yml', 'on: push\n'); }],
+    ['mini-apps-folder', f => mkdirSync(join(f.target, 'mini-apps/apps'), { recursive: true })],
   ];
   for (const [code, arrange] of cases) {
     const f = fixture(t);
@@ -493,6 +491,20 @@ test('each catch-up reason fires on its own layout', t => {
     { code: 'generated-openspec', paths: ['.claude/skills/openspec-explore'] },
     { code: 'deploy-token', paths: ['.github/workflows/deploy.yml'] },
   ]);
+
+  const apps = fixture(t);
+  currentLayout(apps);
+  apps.updateRecord({ version: '26.0.0' });
+  write(apps.target, 'mini-apps/apps/runs/index.html', 'runs\n');
+  write(apps.target, 'mini-apps/apps/hello/index.html', 'hello\n');
+  write(apps.target, 'mini-apps/apps/apps.json', '[]\n');
+  write(apps.target, 'mini-apps/router.mjs', 'router\n');
+  assert.deepEqual(apps.inspect().catchUp, {
+    needed: true,
+    reasons: [{ code: 'mini-apps-folder', paths: ['mini-apps/apps/hello', 'mini-apps/apps/runs'] }],
+  });
+  rmSync(join(apps.target, 'mini-apps/apps'), { recursive: true });
+  assert.deepEqual(codes(apps.inspect()), [], 'only the apps folder is a reason');
 
   const token = fixture(t);
   currentLayout(token);

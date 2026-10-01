@@ -12,7 +12,7 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 - [Core stack](core-stack.md) — *what* you build on: React + Vite on Cloudflare Workers with D1, and why the combo suits AI-driven dev.
 - [Deploy and data pipeline](d1-pipeline.md) — *how* code and data ship: the `env.staging` model, twin-every-binding, auto-applied migrations, seeded staging, and CI.
 - [Fix a broken production database](d1-recovery.md) — the runbooks for when production is red: undo a bad migration with Time Travel, never hand-apply schema, and repair a drifted `d1_migrations` ledger.
-- [Mini apps](mini-apps.md) — small apps from one request, served by the main app under `/apps/`: the same loop as any change, tests per app, and a generated app list on the home page.
+- [Mini apps](mini-apps.md) — small apps from one request, part of the main app under `/apps/`: the same loop and checks as any change, and a card each on the home page.
 - [Cloudflare Access](cloudflare-access.md) — automatic email login, native Worker and preview coverage, signed identity, and separate machine access.
 - [Staging walkthrough](../development/staging-walkthrough.md) — `/verify` exercises the change's own scenarios against the deployed preview — a real browser for UI journeys, direct requests and existing commands for the rest — and grades them against what those scenarios promised. It is not stack-specific and lives with the development docs; this entry points at it because the pack's pipeline is what publishes the preview it walks.
 - [API keys](api-keys.md) — for anyone: get a key from a service, give it through the private link the assistant sends, and what to do if one leaks.

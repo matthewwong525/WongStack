@@ -1,7 +1,7 @@
 # What does this change touch? The one "Check what the change touches" step that
 # test.yml, deploy.yml, and payload.yml share. It runs
 # .github/scripts/app-untouched.sh, which owns what each answer means, and maps
-# its five lines to outputs. The calling job checks out first, with
+# its three lines to outputs. The calling job checks out first, with
 # `fetch-depth: 0`: the comparison needs the whole branch, and a local action
 # loads only from a checkout.
 #
@@ -27,14 +27,8 @@ inputs:
 
 outputs:
   untouched:
-    description: true only when every changed path is docs or a mini app.
+    description: true only when every changed path is docs.
     value: ${{ steps.scope.outputs.untouched }}
-  mini_apps:
-    description: The mini apps the change touches, space-separated.
-    value: ${{ steps.scope.outputs.mini_apps }}
-  mini_changed:
-    description: Whether any mini app changed.
-    value: ${{ steps.scope.outputs.mini_changed }}
   docs_only:
     description: true only when every changed path is under wiki/ or openspec/.
     value: ${{ steps.scope.outputs.docs_only }}

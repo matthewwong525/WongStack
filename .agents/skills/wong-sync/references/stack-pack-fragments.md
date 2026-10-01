@@ -39,7 +39,8 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
   "main": "worker/index.ts",
   "compatibility_date": "<today, YYYY-MM-DD>",
   // disallow_importable_env: code reaches a binding only through the env a
-  // route hands it, so a mini app can not import the memory store.
+  // route hands it, and a mini app's env leaves out the memory store, so it
+  // can not import it.
   "compatibility_flags": ["nodejs_compat", "disallow_importable_env"],
   // Signed Access identity is checked before every page, asset, API, and mini app.
   "assets": {

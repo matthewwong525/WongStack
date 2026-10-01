@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# CI build wrapper: apply D1 migrations to the right database, then build, then
-# copy the mini apps (mini-apps/apps/) into the build under /apps/.
+# CI build wrapper: apply D1 migrations to the right database, then build.
 #
 # Wire it up as your `build` script (package.json). Cloudflare Workers Builds
 # runs `npm run build` on every push, so this wrapper makes the dashboard's
@@ -67,17 +66,9 @@ wong_resolve_wrangler_config "$ROOT"
 
 wong_ci_branch "$ROOT"
 
-# Build the app, then copy the mini apps into its static assets under /apps/.
-# The copy reads the assets folder from the config the build just wrote, so it
-# follows whichever environment the build selected. A repo with no mini-apps/
-# folder builds as before.
+# Build the app; its mini apps are part of it (app/src/apps/, app/worker/apps/).
 build() {
   (cd "$BUILD_DIR" && npm run build:app)
-  if [ -d "$ROOT/mini-apps/apps" ]; then
-    local assets
-    assets=$(wong_config assets-dir)
-    node "$SCRIPT_DIR/mini-dashboard.mjs" --dir "$ROOT/mini-apps" --into "$assets"
-  fi
 }
 
 # Local (non-CI) runs: skip the migrate, just build.

@@ -523,6 +523,11 @@ function catchUpNeeds(target, record, installedVersion, baseline) {
   if (below(installedVersion, [18, 0, 0]) && at('.github/workflows/deploy.yml') !== null) {
     reasons.push({ code: 'deploy-token', paths: ['.github/workflows/deploy.yml'] });
   }
+  // Mini apps from before they moved into the main app: each one converts.
+  if (at('mini-apps/apps') === 'dir') {
+    const apps = readdirSync(resolve(target, 'mini-apps/apps'), { withFileTypes: true }).filter(entry => entry.isDirectory());
+    reasons.push({ code: 'mini-apps-folder', paths: apps.map(entry => `mini-apps/apps/${entry.name}`).sort() });
+  }
   if (baseline === 'empty') reasons.push({ code: 'no-baseline', paths: [] });
   return { needed: reasons.length > 0 || below(installedVersion, [19, 0, 0]), reasons };
 }

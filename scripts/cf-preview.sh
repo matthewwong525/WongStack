@@ -3,8 +3,8 @@
 #
 #     bash scripts/cf-preview.sh [--alias <name>]
 #
-# /apply runs it for a mini app (`--alias mini-<name>`): the main app's Worker
-# serves every mini app under /apps/, so a preview builds the whole app. See
+# /apply runs it for a finished change (`--alias <change-name>`). Mini apps are
+# part of the main app, so a preview builds the whole app. See
 # wiki/stack/mini-apps.md.
 #
 # On the agent host, with CLOUDFLARE_API_TOKEN set (the skill sources the
@@ -13,7 +13,7 @@
 #      /apply uploads before /save creates a branch
 #   2. install the app's dependencies when it has no node_modules
 #   3. apply pending migrations to the STAGING database
-#   4. build the app for staging, with the mini apps in it (cf-build.sh)
+#   4. build the app for staging (cf-build.sh)
 #   5. upload a version of the staging Worker under the preview alias; when the
 #      staging Worker does not exist yet, deploy it once and upload again
 #   6. print the preview URL that wrangler reports

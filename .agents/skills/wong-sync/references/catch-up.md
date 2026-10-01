@@ -16,6 +16,13 @@ Each step keeps the person's own text. A move is `git mv` or a reviewed merge, n
 5. **`generated-openspec` — leftover OpenSpec skills.** List each `openspec-*` skill folder as a removal for review. The WongStack verbs (`/plan`, `/apply`, `/ship`) replace them. Keep a folder whose content the person wrote, and say why.
 6. **`deploy-token` — the CI deploy token.** Before 18.0.0, the GitHub secret `CLOUDFLARE_API_TOKEN` held the person's own Cloudflare token. The version alone raises this code, so check first: when the account already has a `<repo>-deploy` token, the move was made, and the plan says so and skips it. Otherwise, mint the `<repo>-deploy` token and replace the secret by [the CI deploy token step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4d-the-ci-deploy-token), run from the source checkout. Then ask the person to roll the old token's value in the Cloudflare dashboard and update `.env`, because CI could read it.
 7. **`no-baseline` — no file list at the installed commit.** Every current payload unit is `added`, and each one the repo already has is `locally-adapted`. Treat each as possibly edited: read it against upstream and merge, never overwrite. `merge-check.mjs` has no baseline here and reports `skipped`; the plan's review is the check.
+8. **`mini-apps-folder` — mini apps in the old separate folder.** Mini apps once lived in `mini-apps/apps/<name>/`, as plain pages beside the main app; now each is part of it, as [mini apps](../../../../wiki/stack/mini-apps.md) says. The code lists each app's folder. Name every app in the plan, and move each in the shape of the example, Hello:
+   - Its page becomes `app/src/apps/<name>/App.tsx`, exporting `App`, with its `app.json` beside it and its `style.css` as the page's own CSS. Drop its copy of the site header: the main app's frame draws it.
+   - Its `api.mjs` routes become `app/worker/apps/<name>/api.ts`, exporting `routes`, with each handler in its own file. Keep every address and every table it reads, so its data stays.
+   - Its `.mjs` logic becomes `.ts`, and its `node --test` tests become Vitest tests beside the code, covering every line.
+   - A `hello` equal to the old shipped one is replaced by the new Hello; an edited one moves like any other app.
+
+   Show each app in the update's preview. Then, in the same change, remove `mini-apps/`, `scripts/mini-dashboard.mjs`, and any reader of `/apps/apps.json` the repo added.
 
 The install-record task comes last, after every step above, and advances the record once.
 

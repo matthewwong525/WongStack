@@ -163,23 +163,9 @@ A branch commit SHALL deploy exactly once, even with an open pull request, and t
 - **WHEN** a commit is pushed to a branch with an open same-repo pull request
 - **THEN** one job deploys it, and the check reports success rather than cancellation
 
-### Requirement: An untouched main app is not redeployed
-
-When a branch leaves the main app and every mini app untouched, CI SHALL skip the main app's migration, build, and deploy and say so. A change to any mini app SHALL deploy the main app, because its Worker serves them.
-
-#### Scenario: A docs-only branch
-
-- **WHEN** a branch changes only `wiki/` and `openspec/`
-- **THEN** the check is green and no main-app deploy ran
-
-#### Scenario: A mini-app change
-
-- **WHEN** a push to the default branch changes only `mini-apps/apps/`
-- **THEN** CI deploys the production main app with the mini apps in it
-
 ### Requirement: The main Worker answers its own routes
 
-The main Worker SHALL handle `/api/`, `/_memory/`, and `/apps/<name>/api/` itself, never the single-page fallback, and SHALL never serve a mini app's handler, test, or TypeScript source. The routing SHALL ship as a pack module, so `/wong-sync` keeps it current.
+The main Worker SHALL handle `/api/`, `/_memory/`, and `/apps/<name>/api/` itself, never the single-page fallback, and SHALL never serve a mini app's source or test files. The main app SHALL bundle every mini app's server side itself, so adding an app needs no edit outside its folders.
 
 #### Scenario: An API path in a browser tab
 
@@ -199,15 +185,6 @@ The pack SHALL ship a script that uploads a staging preview of the main app from
 
 - **WHEN** the script runs on the default branch with no named alias
 - **THEN** it refuses and uploads nothing
-
-### Requirement: A sync ships only the example mini app
-
-The payload SHALL carry the mini-app router and the example app `mini-apps/apps/hello/`, and no other app folder, so an app made in the source repo never reaches a target.
-
-#### Scenario: An app in the source repo
-
-- **WHEN** the source gains `mini-apps/apps/tips/` and a target syncs
-- **THEN** no path under `mini-apps/apps/tips/` is selected
 
 ### Requirement: Older installs retire the mini Workers
 
@@ -245,3 +222,26 @@ Every step that acts on staging (the branch build, the staging deploy, the previ
 
 - **WHEN** the staging entry's name and id both differ from production's
 - **THEN** the branch build migrates the staging database as before
+
+### Requirement: A docs-only change is not redeployed
+
+When a branch changes only docs, CI SHALL skip the main app's migration, build, and deploy and say so. Any change to the main app, a mini app included, SHALL deploy it.
+
+#### Scenario: A docs-only branch
+
+- **WHEN** a branch changes only `wiki/` and `openspec/`
+- **THEN** the check is green and no main-app deploy ran
+
+#### Scenario: A mini-app change
+
+- **WHEN** a push to the default branch changes only one mini app's folders
+- **THEN** CI deploys the production main app with that change in it
+
+### Requirement: A sync ships only the example mini app's folders
+
+The payload SHALL carry the example mini app `hello` and no other mini app, so an app made in the source repo never reaches a target.
+
+#### Scenario: An app in the source repo
+
+- **WHEN** the source has the mini app `tips` and a target syncs
+- **THEN** no path of the `tips` app is selected

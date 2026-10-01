@@ -1,12 +1,11 @@
 // Verify signed Access identity before all business content; memory keeps its own keys.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
-import { handleMiniApp, MINI_PREFIX } from "../../mini-apps/router.mjs";
-import miniApps from "../../mini-apps/routes.mjs";
 import { API_PREFIX, handleApi } from "./api/router.ts";
+import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv } from "./access.ts";
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
     // Session memory, served from the memory skill on the production Worker's
@@ -28,10 +27,14 @@ export default {
       });
     }
 
-    // Mini apps, from mini-apps/: their pages are in the static assets, and
-    // /apps/<name>/api/* goes to the app's handler. wiki/stack/mini-apps.md
-    if (url.pathname.startsWith(MINI_PREFIX)) {
-      return handleMiniApp(request, env, ctx, miniApps);
+    // Mini apps: the home page lists them, so /apps/ goes there. Each app's
+    // page is the single-page app's, and /apps/<name>/api/* goes to the app's
+    // handler with who is calling. wiki/stack/mini-apps.md
+    if (url.pathname === "/apps/") {
+      return Response.redirect(new URL("/", request.url), 302);
+    }
+    if (APP_API.test(url.pathname)) {
+      return handleApp(request, env, identity);
     }
 
     // The app's own API: one handler per route, listed in api/router.ts.
