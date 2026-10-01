@@ -1,6 +1,6 @@
 # Link memory facts to the code they're about
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** cold-fireant
 
@@ -80,3 +80,4 @@ None.
 - **2026-10-01** — Assumed: no baseline re-record; each edited instruction file ends no longer in words or bytes than it started, which keeps `measure-context.mjs --check` and the save and resume routes from growing.
 - **2026-10-01** — Measured before any text edit (`measure-context.mjs --json`, current words / bytes): `build-helper.md` 323 / 2080, `writing-facts.md` 275 / 1719, memory `SKILL.md` 920 / 6216. Each ends at or under these.
 - **2026-10-01** — Assumed: checkpoint for gate task 4.3: tasks 1.1–4.2 are built and the memory tests pass locally (areas 7, store 30, worker 58); this save runs CI. The member re-tag test lives in `memory-worker.test.mjs`, which has the Worker harness; `areas.json`'s `mini-apps` definition was corrected to the 29.0.0 layout rather than copied stale from the store.
+- **2026-10-01** — Assumed: gate task 4.3 done: CI passed on PR #229 after merging main 29.1.1 and 29.2.0 (changelog was the only conflict, kept both entries with this one on top); the spec deltas were copied into the main memory and apply specs at this save.

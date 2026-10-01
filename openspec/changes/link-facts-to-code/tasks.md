@@ -19,4 +19,4 @@
 
 - [x] 4.1 In `wiki/development/memory.md`, add a short *Facts by code area* section (the list, how a fact gets its area, the build loading it, how a repo adds a folder) and extend *Consolidation* with re-tagging that keeps date, author, and chat. Verify it matches the spec deltas and `node scripts/check-payload-links.mjs` passes.
 - [x] 4.2 Add `## Next (minor) — Link memory facts to the code they're about` at the top of `CHANGELOG.md`'s entries, in plain words, with no hand step to update. Verify `node scripts/check-openspec-config.mjs` passes.
-- [ ] 4.3 Run the memory tests and the payload checks in CI through `/save`. Verify CI passes.
+- [x] 4.3 Run the memory tests and the payload checks in CI through `/save`. Verify CI passes.
