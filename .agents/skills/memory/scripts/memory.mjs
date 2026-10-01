@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter } from './lib/digest.mjs';
+import { changePaths, loadAreas, pathAreas, withAreaTags } from './lib/areas.mjs';
 import { JOIN_COMMANDS } from './lib/join.mjs';
 import { githubUser, linkAdmin, MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
@@ -120,6 +121,23 @@ function tagProblems(existing, facts, newTags = []) {
 
 const TAG_NAMES = ['SELECT name FROM tags'];
 
+// The batch's newTags, with each area tag it uses defined from the list; throws on a tag problem.
+async function checkedTags(store, facts, given) {
+  const existing = (await store.query(...TAG_NAMES)).map(row => row.name);
+  const newTags = withAreaTags(existing, facts, given);
+  const { errors, warnings } = tagProblems(existing, facts, newTags);
+  warnings.forEach(message => console.error(`warning: ${message}`));
+  if (errors.length) throw new StoreError(errors.join('; '));
+  return newTags;
+}
+
+// Facts carrying any of these tags or their aliases, as a WHERE fragment on alias `f`.
+const tagClause = tags => ({
+  sql: `f.id IN (SELECT fact_id FROM fact_tags WHERE tag IN (SELECT name FROM tags WHERE coalesce(alias_of, name) IN (
+    SELECT coalesce(alias_of, name) FROM tags WHERE name IN (${tags.map(() => '?').join(', ')}))))`,
+  params: tags,
+});
+
 // ---------- the one write path ----------
 
 const stripFile = (ctx, id) => statePath(ctx, 'strip', `${id.replace(':', '-')}.json`);
@@ -145,19 +163,22 @@ function sessionUpsert(record, status, { reason, author, machine }) {
 }
 
 // Statements for one write: the session row, new tags, then each kept fact with its tags and supersedes.
-// Every fact insert returns its id, in order, so a caller can map its own keys to ids.
+// Every fact insert returns its id, in order, so a caller can map its own keys to ids. A fact's own
+// createdAt, sessionId, or author overrides the batch's, so a restated fact keeps its origin.
 function writeStatements({ record, status, reason, newTags = [], facts, source, sessionId, createdAt, author, machine }) {
   const statements = record ? [sessionUpsert(record, status, { reason, author, machine })] : [];
   for (const tag of newTags) statements.push([WRITES.tag.sql, [tag.name, tag.definition, tag.aliasOf || null, author || null, now()]]);
   for (const fact of facts) {
     statements.push([WRITES.fact.sql,
-      [fact.slug, fact.type, fact.body.trim(), sessionId || null, source, fact.createdAt || createdAt, author || null]]);
+      [fact.slug, fact.type, fact.body.trim(), own(fact, 'sessionId', sessionId), source, fact.createdAt || createdAt, own(fact, 'author', author)]]);
     for (const tag of fact.tags || []) statements.push([WRITES.factTag.sql, [tag]]);
     const ids = (fact.supersedes || []).map(Number).filter(Boolean);
     if (ids.length) statements.push([supersedeSql(ids.length), ids]);
   }
   return statements;
 }
+
+const own = (fact, key, fallback) => (fact[key] === undefined ? fallback : fact[key]) || null;
 
 function markSeen(ctx, record) {
   if (!record?.id || record.size == null) return;
@@ -171,7 +192,8 @@ function markSeen(ctx, record) {
 export async function putFacts(ctx, input) {
   const source = input.source || 'save';
   if (!SOURCES.includes(source)) throw new StoreError(`source must be one of ${SOURCES.join(', ')}`);
-  const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug }));
+  // Only retag restates a fact under its old session and author; a put-facts fact takes the batch's.
+  const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug, sessionId: undefined, author: undefined }));
   const kept = facts.filter(fact => fact.action !== 'drop');
   const secrets = secretValues(loadEnv(ctx));
   kept.forEach((fact, index) => {
@@ -179,13 +201,11 @@ export async function putFacts(ctx, input) {
     if (problem) throw new StoreError(`${input.session ? `session ${input.session}: ` : ''}${problem}`);
   });
   const store = openStore(ctx);
-  const { errors, warnings } = tagProblems((await store.query(...TAG_NAMES)).map(row => row.name), kept, input.newTags);
-  warnings.forEach(message => console.error(`warning: ${message}`));
-  if (errors.length) throw new StoreError(errors.join('; '));
+  const newTags = await checkedTags(store, kept, input.newTags);
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
   const plan = await digestPlan(ctx, store);
-  const writes = writeStatements({ record, status, reason: input.reason, newTags: input.newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine });
+  const writes = writeStatements({ record, status, reason: input.reason, newTags, facts: kept, source, sessionId: input.session, createdAt: input.createdAt || now(), author: store.author, machine: ctx.machine });
   const results = await store.batch([...writes, ...plan.statements]);
   markSeen(ctx, record);
   try { plan.finish(results); } catch { /* the cache is best effort */ }
@@ -228,6 +248,47 @@ async function putFactsCommand(ctx, { values, tally }) {
   }
 }
 
+// Restate live facts with added tags: the same slug, type, body, date, session, and author, plus the old tags,
+// superseding the old fact. A fact that is gone, superseded, already tagged, or (for a member's key) someone
+// else's is skipped and reported, so one bad id never fails the batch.
+export async function retag(ctx, input) {
+  const asks = (input.retag || []).map(ask => ({ id: Number(ask.id), tags: ask.tags || [] })).filter(ask => ask.id);
+  if (!asks.length) return { written: 0, skipped: [] };
+  const store = openStore(ctx);
+  const team = await teamWhere(ctx, store, {});
+  const ids = asks.map(ask => ask.id);
+  const list = ids.map(() => '?').join(', ');
+  const [found, tagged] = await store.batch([
+    [`SELECT ${F_COLUMNS} FROM facts f WHERE f.id IN (${list})${team.sql}`, [...ids, ...team.params]],
+    [`SELECT fact_id, tag FROM fact_tags WHERE fact_id IN (${list})`, ids],
+  ]);
+  const byId = new Map(found.map(fact => [fact.id, fact]));
+  const me = (store.author || '').toLowerCase();
+  const skipped = [];
+  const facts = [];
+  for (const { id, tags } of asks) {
+    const fact = byId.get(id);
+    const old = tagged.filter(row => row.fact_id === id).map(row => row.tag);
+    const adds = tags.filter(tag => !old.includes(tag));
+    const why = !fact ? 'not found'
+      : fact.superseded_by ? `superseded by #${fact.superseded_by}`
+        : store.role !== 'admin' && (fact.author || '').toLowerCase() !== me ? `${fact.author || 'no one'} wrote it, so only they or the admin can re-tag it`
+          : !adds.length ? 'already carries every tag' : null;
+    if (why) { skipped.push({ id, why }); continue; }
+    facts.push({ slug: fact.slug, type: fact.type, body: fact.body, createdAt: fact.created_at, sessionId: fact.session_id, author: fact.author, tags: [...old, ...adds], supersedes: [id] });
+  }
+  if (!facts.length) return { written: 0, skipped };
+  const newTags = await checkedTags(store, facts, input.newTags);
+  await store.batch(writeStatements({ newTags, facts, source: 'consolidation', createdAt: now(), author: store.author }));
+  return { written: facts.length, skipped };
+}
+
+async function retagCommand(ctx, { values, tally }) {
+  const result = await retag(ctx, readInput(values.file));
+  addToTally(tally, { consolidationSuperseded: result.written });
+  console.log([`retagged: ${result.written}`, ...result.skipped.map(({ id, why }) => `skipped #${id}: ${why}`)].join('\n'));
+}
+
 // ---------- read commands ----------
 
 async function search(ctx, { values, positionals }) {
@@ -254,10 +315,9 @@ async function search(ctx, { values, positionals }) {
     params.push(key === 'author' ? `%${values[key]}%` : values[key]);
   }
   if (values.tag) {
-    where.push(`f.id IN (SELECT fact_id FROM fact_tags WHERE tag IN (
-      SELECT name FROM tags WHERE name = coalesce((SELECT alias_of FROM tags WHERE name = ?1), ?1)
-      OR alias_of = coalesce((SELECT alias_of FROM tags WHERE name = ?1), ?1)))`.replaceAll('?1', '?'));
-    params.push(values.tag, values.tag, values.tag, values.tag);
+    const tag = tagClause([values.tag]);
+    where.push(tag.sql);
+    params.push(...tag.params);
   }
   const limit = Number(values.limit) || 30;
   const sql = `SELECT ${F_COLUMNS} FROM facts f ${joins.join(' ')} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
@@ -313,6 +373,25 @@ async function tags(ctx) {
   console.log(rows.length ? rows.map(tag => `- ${tag.name} (${tag.uses})${tag.alias_of ? ` alias of ${tag.alias_of}` : ''}: ${tag.definition}`).join('\n') : 'No tags yet. A new tag needs a definition.');
 }
 
+// The live facts for the code areas these paths, or a change's named paths, fall in: threads first, then newest.
+// Memory never stops a build: an unreachable store prints one line and exits 0.
+async function areas(ctx, { values, positionals }) {
+  const found = pathAreas([...positionals, ...(values.change ? changePaths(ctx.root, values.change) : [])], loadAreas(), ctx.root);
+  if (!found.size) { console.log('No mapped area for these paths.'); return; }
+  console.log(`Areas: ${[...found].map(([tag, path]) => `${tag} (${path})`).join(', ')}`);
+  try {
+    const store = openStore(ctx);
+    const team = await teamWhere(ctx, store, values);
+    const tag = tagClause([...found.keys()]);
+    const facts = await store.query(`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL AND ${tag.sql}${team.sql}
+      ORDER BY CASE WHEN f.type = 'thread' THEN 0 ELSE 1 END, f.created_at DESC LIMIT ${Number(values.limit) || 20}`, [...tag.params, ...team.params]);
+    console.log(facts.length ? facts.map(fact => formatFact(fact)).join('\n') : 'No live facts in these areas.');
+  } catch (error) {
+    if (!(error instanceof StoreError)) throw error;
+    console.log(`Memory was not loaded (${error.reason}); go on without it.`);
+  }
+}
+
 // Print each candidate's neighbours, in one batch, so the writer can choose add, supersede, or drop.
 async function gateFacts(ctx, input, store = openStore(ctx)) {
   const facts = (input.facts || []).map(fact => ({ ...fact, slug: fact.slug || input.slug }));
@@ -342,7 +421,8 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
     if (closest.length) out.push('  Closest matches on other slugs:', ...closest.map(row => `  ${formatFact(row)}`));
     if (answers.length) out.push('  Open threads this may answer:', ...answers.map(row => `  ${formatFact(row)}`));
   });
-  const { errors, warnings } = tagProblems(tagRows.map(row => row.name), facts, input.newTags);
+  const names = tagRows.map(row => row.name);
+  const { errors, warnings } = tagProblems(names, facts, withAreaTags(names, facts, input.newTags));
   out.push(...[...errors, ...warnings].map(message => `Tags: ${message}`));
   out.push('\nDecide each candidate: "add", "supersede" with "supersedes": [ids] when it replaces or corrects a live fact, or "drop" when a live fact already says it. A fact that answers an open thread supersedes it, saying what was found. Then run put-facts with the decisions.');
   console.log(out.join('\n'));
@@ -552,10 +632,11 @@ async function linkRunningAdmin(ctx, store) {
 }
 
 export const COMMANDS = {
-  migrate, search, show, source, tags, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
+  migrate, search, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   'keep-transcript': keepTranscript,
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
+  retag: retagCommand,
   'finish-run': finishRun,
   ...MEMBER_COMMANDS,
   ...JOIN_COMMANDS,
@@ -573,8 +654,10 @@ const USAGE = `usage: memory.mjs <command>
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
+  areas [paths…] [--change name] [--limit n]   live facts for the code areas the paths, or the change's named paths, fall in
   gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
+  retag --file -               restate live facts with added tags, keeping date, session, and author: {"retag":[{"id":n,"tags":[...]}]}
   pending [--limit n] [--exclude ids]   strip <session-id>   live [--everyone]   digest   stats   spool   due
   keep-transcript <session-id|current>   upload the session's redacted transcript now; leaves its capture alone
                                (in a team, search, show, and live hide other people's personal and reader facts; only the admin's --everyone shows them)
