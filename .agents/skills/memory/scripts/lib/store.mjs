@@ -13,7 +13,7 @@ export { isMain } from './cli.mjs';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
 const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
-const TOKEN_PAGE = 'wiki/development/memory.md#the-memory-key';
+const TOKEN_PAGE = 'wiki/development/memory-key.md';
 const SPOOLABLE = new Set(['unconfigured', 'auth', 'network', 'server']);
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
 const KEY_PREFIX = 'wongm_';

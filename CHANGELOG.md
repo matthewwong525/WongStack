@@ -15,6 +15,19 @@ Your assistant's memory now finds a note when you ask in other words, keeps its 
 
 **Updating.** After this update is live, the person who set up memory runs `node .claude/skills/memory/scripts/memory.mjs migrate` once, to rebuild the search index so it matches word forms. Search works as before until then.
 
+## 29.5.0 — Wiki pages stay short, titled, and their section links work
+
+Every publish now checks each wiki page the way code is checked, and the three longest pages are split into shorter ones.
+
+- **A page over 3,000 words fails the check.** The message names the page and its length, and says to split it by its sections into pages beside it. A long page is slow to read and costly for the assistant to load.
+- **A link to a section must land on a heading.** A link like `browsing.md#hand-the-browser-over` fails when that heading is renamed or moved, naming the page and line that link it.
+- **Every page opens with its title and a sentence.** A page with no `#` title, two titles, or a list straight after the title fails, because a reader who lands from search needs the first line to say what the page is.
+- **Three long pages are split.** The deploy pipeline, browsing, and session memory pages each keep their address and their opening sections. Their longest later sections move to new pages beside them: [staging bindings and secrets](wiki/stack/staging-bindings.md), [CI on GitHub Actions](wiki/stack/github-actions.md), [when a site blocks the agent's browser](wiki/development/blocked-sites.md), [save your passwords](wiki/development/passwords.md), and [the memory key](wiki/development/memory-key.md). Each moved section leaves its heading behind with a sentence and a link, so links to it still work.
+- **The wiki rules name the limit**, so the assistant splits a page before the check has to catch it.
+- **A code-only change skips the wiki check.** It runs when a change touches any Markdown file or removes or moves a file, and the run page says when it skipped.
+
+**Updating.** Your next publish runs the new checks on your own wiki pages too. Ask the assistant to split any of your pages over 3,000 words by its sections, and to fix any section link the check names. Five sections moved to new pages: *Twin every stateful binding* and *One declared list of secrets, two Workers* (now in `wiki/stack/staging-bindings.md`), *CI is GitHub Actions* (now `wiki/stack/github-actions.md`), *When a site blocks the agent's browser* (now `wiki/development/blocked-sites.md`), *Save your passwords* (now `wiki/development/passwords.md`), and *The memory key* (now `wiki/development/memory-key.md`). A link from your pages to one of those headings still works; a link to a smaller heading inside one, such as `memory.md#joining-through-github`, needs its page changed to the new one.
+
 ## 29.4.0 — One web of code, facts, wiki pages, specs, and past plans
 
 When your assistant is about to change part of your code or a wiki page, one lookup now brings up everything tied to it, and every publish checks that no wiki page is lost.

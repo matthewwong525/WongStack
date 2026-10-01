@@ -1,7 +1,7 @@
 # What does this change touch? The one "Check what the change touches" step that
 # test.yml, deploy.yml, and payload.yml share. It runs
 # .github/scripts/app-untouched.sh, which owns what each answer means, and maps
-# its three lines to outputs. The calling job checks out first, with
+# its four lines to outputs. The calling job checks out first, with
 # `fetch-depth: 0`: the comparison needs the whole branch, and a local action
 # loads only from a checkout.
 #
@@ -32,6 +32,9 @@ outputs:
   docs_only:
     description: true only when every changed path is under wiki/ or openspec/.
     value: ${{ steps.scope.outputs.docs_only }}
+  wiki_affected:
+    description: false only when no changed path is wiki or Markdown and no file was removed or moved.
+    value: ${{ steps.scope.outputs.wiki_affected }}
   base:
     description: The commit the change is compared with, or empty.
     value: ${{ steps.scope.outputs.base }}
