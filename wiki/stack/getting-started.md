@@ -10,7 +10,7 @@ It assumes you know nothing about Cloudflare, databases, or deployment: where a 
 - A separate address for every version you're still working on, so you can look at a change before it's real
 - A place your data lives, and a practice copy of it that test versions use
 - Automatic publishing: when a change is approved, it goes live
-- A **starter site**: a working page that lists *Your apps* under a *Learn the development loop* box. Press **Copy** in that box and paste the message into your chat; your first change removes the box, and the agent explains each step as it goes. The site is yours to change, replace, or delete.
+- A **starter site**: a working page that lists *Your apps* under a *Make it yours* box. Press **Copy** in that box and paste the message into your chat: the agent gets to know you, asking before it skims your recent chats, then makes the page yours, removes the box, and explains each step as it goes. The site is yours to change, replace, or delete.
 
 ## What it costs
 

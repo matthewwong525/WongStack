@@ -20,17 +20,17 @@ It asks before it sends, buys, or deletes anything.
 ## Start in three steps
 
 1. **Get Claude Code and Paseo.** [Claude Code](https://code.claude.com/docs/en/setup) is the AI agent; [Codex](https://developers.openai.com/codex/cli) works too. Its install page may open a terminal once, for one command. Then get the free [Paseo](https://paseo.sh) app, where you chat with it.
-2. **Make an empty folder, open it in Paseo, and paste this:**
+2. **Open Paseo and paste this:**
 
    ```
-   Install WongStack in this folder from github.com/matthewwong525/WongStack
+   Install WongStack from github.com/matthewwong525/WongStack
    ```
 
    *For the agent: read and follow `https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md`.*
 
-3. **Answer a few questions.** The agent installs any free tools it still needs, after asking. You approve a sign-in code for a free [GitHub](https://github.com/signup) account, where your files are kept. Then you open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a free [Cloudflare](https://cloudflare.com) account, where your apps run, press Create, and paste the key it shows you.
+3. **Answer a few questions.** The agent installs any free tools it still needs, after asking. You approve a sign-in code for a free [GitHub](https://github.com/signup) account, where your files are kept. Then you open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a free [Cloudflare](https://cloudflare.com) account, where your apps run, press Create, and paste the key it shows you. Then open your site and paste its *Make it yours* message: the assistant gets to know you and makes the page yours.
 
-You end with a working assistant, a starter site online, memory that carries over between chats, and the steps to connect your phone. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong. In a folder that already has files, setup stops and says so.
+You end with a working assistant, a starter site online, memory that carries over between chats, and the steps to connect your phone. [Getting started](wiki/stack/getting-started.md) says what it costs, what you do by hand, and what to do when something goes wrong. Paste it in any folder: if it already has files, setup makes a `wongstack` folder in your home folder.
 
 ## Where you chat
 

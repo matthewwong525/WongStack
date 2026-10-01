@@ -159,20 +159,45 @@ function claudeCandidates(dirs) {
   return out;
 }
 
-function codexCandidates(dirs, now) {
+// Every Codex rollout in the day folders from `days` days ago through today.
+function codexRollouts(days, now) {
   const out = [];
-  for (let day = 0; day <= CODEX_LOOKBACK_DAYS; day += 1) {
+  for (let day = 0; day <= days; day += 1) {
     const dir = codexDayDir(codexHome(), new Date(now - day * 86400000));
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
       const match = name.match(CODEX_NAME);
-      if (!match) continue;
-      const file = join(dir, name);
-      const cwd = firstRecord(file)?.payload?.cwd;
-      if (cwd && dirs.some(checkout => inside(resolve(cwd), checkout))) out.push({ agent: 'codex', id: `codex:${match[1]}`, file });
+      if (match) out.push({ agent: 'codex', id: `codex:${match[1]}`, file: join(dir, name) });
     }
   }
   return out;
+}
+
+function codexCandidates(dirs, now) {
+  return codexRollouts(CODEX_LOOKBACK_DAYS, now).filter(({ file }) => {
+    const cwd = firstRecord(file)?.payload?.cwd;
+    return cwd && dirs.some(checkout => inside(resolve(cwd), checkout));
+  });
+}
+
+// Every top-level chat on this computer changed in the last `days` days, from any folder, newest first.
+// Subagents, the excluded session, and background runs in `registry` are left out.
+export function recentTranscripts({ days = 30, now = Date.now(), registry = new Map() } = {}) {
+  const home = claudeHome();
+  const claude = (existsSync(home) ? readdirSync(home) : []).flatMap(folder => {
+    const dir = join(home, folder);
+    if (!stat(dir)?.isDirectory()) return [];
+    return readdirSync(dir).flatMap(name => {
+      const match = name.match(CLAUDE_NAME);
+      return match ? [{ agent: 'claude', id: `claude:${match[1]}`, file: join(dir, name) }] : [];
+    });
+  });
+  const since = now - days * 86400000;
+  return [...claude, ...codexRollouts(days, now)]
+    .filter(chat => !registry.get(chat.id)?.background && chat.id !== excluded() && !chat.file.split(sep).includes('subagents'))
+    .map(chat => ({ ...chat, mtimeMs: stat(chat.file)?.mtimeMs ?? 0 }))
+    .filter(chat => chat.mtimeMs >= since)
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
 // Sessions this clone may claim: registry entries, plus transcripts of checkouts that exist now.

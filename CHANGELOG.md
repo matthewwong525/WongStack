@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.2.0 — Setup from any folder, and a first message that gets to know you
+
+Setup no longer needs an empty folder, and your starter site's first message now teaches the assistant who you are.
+
+- **Paste the setup prompt anywhere.** In a folder that already has files, setup leaves it alone and installs into a new `wongstack` folder in your home folder, or `wongstack-2` when that one is taken. It tells you where it went and to open that folder in Paseo next time.
+- **"Make it yours" gets to know you.** The box's message now asks the assistant to ask first, then skim your Claude Code and Codex chats from the last 30 days on this computer, ask two or three short rounds of questions, and save short notes about you before it makes the page yours. On a computer with no past chats, it goes straight to the questions.
+- **Your past chats are read safely.** The assistant reads them through a small built-in tool that keeps only what you typed, hides passwords and keys, and keeps the reading short. The notes it saves never hold passwords, keys, or copies of your chats.
+
+**Updating.** The new message reaches your home page only while the *Make it yours* box is still on it; once you've removed the box, it stays removed. Nothing to do by hand.
+
 ## 29.1.1 — Say why the assistant picks its own memory search
 
 The memory guide now says why the assistant searches memory with its own words once it knows the task, instead of loading memory from your first message: what loads stays for the whole chat, and a search on your raw words pulls in unrelated notes.
