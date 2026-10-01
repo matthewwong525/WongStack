@@ -107,7 +107,7 @@ function pageProblems(root, page) {
   const lines = raw.split(/\r?\n/);
   const masked = maskCode(raw).split(/\r?\n/);
   const first = masked.findIndex(line => line.trim());
-  const titles = masked.filter(line => /^# /.test(line)).length;
+  const titles = masked.filter(line => line.startsWith('# ')).length;
   if (first < 0 || !/^# +\S/.test(lines[first])) problems.push(`${page}: has no # title on its first line`);
   else {
     const next = lines.slice(first + 1).find(line => line.trim());
