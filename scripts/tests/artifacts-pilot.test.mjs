@@ -285,7 +285,7 @@ test('generated controller config has filtered events, separate databases and bo
   const manifest = createManifest(account, run);
   manifest.resources = inventory(manifest).filter(row => ['repo', 'worker', 'd1', 'r2'].includes(row.kind)).map(row => ({ ...row, status: 'created', id: row.name }));
   const generated = controllerConfig(manifest, config.owner, config.ownerEmail);
-  assert.equal(generated.triggers.events[0].filter.repoName, config.repo);
+  assert.deepEqual(generated.triggers.events[0], { type: 'cf.artifacts.repo.pushed', filter: { namespace: manifest.namespace, repo_name: config.repo }, targets: [{ type: 'workflow', workflow_name: `${manifest.prefix}-pipeline` }] });
   assert.equal(generated.containers[0].max_instances, 1);
   assert.equal(generated.containers[0].image, 'docker.io/cloudflare/sandbox:0.12.1');
   assert.equal(generated.d1_databases.length, 1); assert.ok(!JSON.stringify(generated).includes('CF_TOKEN'));

@@ -25,7 +25,7 @@ export function controllerConfig(manifest, owner, ownerEmail) {
     d1_databases: [{ binding: 'MEMORY_DB', database_id: resource('d1', 'memory').id, database_name: resource('d1', 'memory').name }],
     r2_buckets: [{ binding: 'BACKUP_BUCKET', bucket_name: resource('r2', 'cache').name }, { binding: 'MEMORY_BUCKET', bucket_name: resource('r2', 'memory').name }],
     vars: { PILOT_CONFIG: JSON.stringify(config), CLOUDFLARE_ACCOUNT_ID: manifest.account, BACKUP_BUCKET_NAME: resource('r2', 'cache').name },
-    triggers: { events: [{ type: 'cf.artifacts.repo.pushed', filter: { namespace: manifest.namespace, repoName: config.repo }, target: { scriptName: name, workflowName: `${manifest.prefix}-pipeline` } }] },
+    triggers: { events: [{ type: 'cf.artifacts.repo.pushed', filter: { namespace: manifest.namespace, repo_name: config.repo }, targets: [{ type: 'workflow', workflow_name: `${manifest.prefix}-pipeline` }] }] },
     observability: { enabled: true },
   };
 }
