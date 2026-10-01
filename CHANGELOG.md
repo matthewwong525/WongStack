@@ -3,6 +3,10 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.6.1 — Search memory with the words a note would use
+
+The memory page now says that search matches word forms, not meanings: a question in other words can miss a note, so the assistant searches with the words the note itself would use.
+
 ## 29.6.0 — Memory finds what you mean and keeps itself tidy
 
 Your assistant's memory now finds a note when you ask in other words, keeps its open questions tied to whoever should check them, and tidies itself on every save.
