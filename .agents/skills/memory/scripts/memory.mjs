@@ -4,15 +4,16 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter } from './lib/digest.mjs';
+import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
 import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
 import { backlinks } from './lib/links.mjs';
+import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { JOIN_COMMANDS } from './lib/join.mjs';
 import { githubUser, linkAdmin, MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
 import { isMain, loadConfig, loadEnv, openStore, readJson, repoContext, RUN_TALLY, SCRIPT, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, parseTranscriptText, pending, pruneRegistry, readRegistry, recentTranscripts, sessionFile, strip } from './lib/transcripts.mjs';
-import { FTS_HITS, supersedeSql, WRITES } from '../worker/statements.mjs';
+import { ADMIN_WRITES, FTS_HITS, supersedeSql, WRITES } from '../worker/statements.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../worker/memory-worker.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -59,9 +60,16 @@ export function nearTag(name, existing) {
   return existing.find(tag => tag !== name && (normalizeTag(tag) === key || (name.length >= 5 && editDistance(tag.toLowerCase(), name.toLowerCase()) <= 2))) || null;
 }
 
-// FTS5 query: every significant word, OR-joined, so a paraphrase that shares a few words still ranks.
+// Words too common to match on their own: a fact sharing only *how* or *should* with a question is noise.
+const FILLER = new Set(('how should what when which does the and for with that this from into about have been would could there their '
+  + 'them then than also just only some any all our your you are was were can will not').split(' '));
+
+// FTS5 query: every significant word, OR-joined, so a paraphrase that shares a few words still ranks. Filler
+// words drop out, unless nothing else is left.
 export function ftsQuery(text) {
-  const words = [...new Set(text.toLowerCase().match(/[\p{L}\p{N}_]{3,}/gu) || [])].slice(0, 24);
+  const all = [...new Set(text.toLowerCase().match(/[\p{L}\p{N}_]{3,}/gu) || [])];
+  const meant = all.filter(word => !FILLER.has(word));
+  const words = (meant.length ? meant : all).slice(0, 24);
   return words.length ? words.map(word => `"${word}"`).join(' OR ') : null;
 }
 
@@ -123,20 +131,32 @@ function tagProblems(existing, facts, newTags = []) {
   return { errors: [...new Set(errors)], warnings };
 }
 
-const TAG_NAMES = ['SELECT name FROM tags'];
+// A thread names who checks it: a verb tag, or an area tag from the list, read through aliases. One problem
+// per thread that names neither, for the gate to show and put-facts to refuse.
+export function threadProblems(facts, tagRows, areas = loadAreas()) {
+  const aliasOf = new Map(tagRows.map(row => [row.name, row.alias_of || row.aliasOf]));
+  const owns = tag => VERB_TAGS.includes(tag) || Object.hasOwn(areas, tag);
+  return facts.flatMap((fact, index) => fact.type !== 'thread' || (fact.tags || []).some(tag => owns(tag) || owns(aliasOf.get(tag))) ? []
+    : [`fact ${index + 1}: a thread needs the tag of the verb whose next run should check it (${VERB_TAGS.join(', ')}), or the area tag of the folder whose next change should`]);
+}
 
-// The batch's newTags, with each area tag it uses defined from the list; throws on a tag problem.
-async function checkedTags(store, facts, given) {
-  const existing = (await store.query(...TAG_NAMES)).map(row => row.name);
+const TAG_ROWS = ['SELECT name, alias_of FROM tags'];
+
+// The batch's newTags, with each area tag it uses defined from the list; throws on a tag problem, and with
+// `threads`, on a thread that names no one to check it.
+async function checkedTags(store, facts, given, { threads = false } = {}) {
+  const rows = await store.query(...TAG_ROWS);
+  const existing = rows.map(row => row.name);
   const newTags = withAreaTags(existing, facts, given);
   const { errors, warnings } = tagProblems(existing, facts, newTags);
+  if (threads) errors.push(...threadProblems(facts, [...rows, ...newTags]));
   warnings.forEach(message => console.error(`warning: ${message}`));
   if (errors.length) throw new StoreError(errors.join('; '));
   return newTags;
 }
 
 // Facts carrying any of these tags or their aliases, as a WHERE fragment on alias `f`.
-const tagClause = tags => ({
+export const tagClause = tags => ({
   sql: `f.id IN (SELECT fact_id FROM fact_tags WHERE tag IN (SELECT name FROM tags WHERE coalesce(alias_of, name) IN (
     SELECT coalesce(alias_of, name) FROM tags WHERE name IN (${tags.map(() => '?').join(', ')}))))`,
   params: tags,
@@ -205,7 +225,7 @@ export async function putFacts(ctx, input) {
     if (problem) throw new StoreError(`${input.session ? `session ${input.session}: ` : ''}${problem}`);
   });
   const store = openStore(ctx);
-  const newTags = await checkedTags(store, kept, input.newTags);
+  const newTags = await checkedTags(store, kept, input.newTags, { threads: true });
   const record = input.session ? sessionRecord(ctx, input.session) : null;
   const status = facts.length ? 'captured' : 'skipped';
   const plan = await digestPlan(ctx, store);
@@ -245,6 +265,7 @@ async function putFactsCommand(ctx, { values, tally }) {
     if (values.spooled) spoolRemove(values.spooled);
     console.log(`stored: added ${result.added}, superseded ${result.superseded}, dropped ${result.dropped}${result.session ? ` (session ${result.session}, ${result.status})` : ''}`);
     for (const { id, author } of result.left) console.log(`left #${id} live: ${author ? `${author} wrote it, so only they or the admin` : 'it has no author, so only the admin'} can supersede it`);
+    console.log(await upkeepLine(ctx));
   } catch (error) {
     if (!(error instanceof StoreError) || !error.spoolable || values.spooled) throw error;
     const file = spoolWrite(ctx, input);
@@ -255,10 +276,9 @@ async function putFactsCommand(ctx, { values, tally }) {
 // Restate live facts with added tags: the same slug, type, body, date, session, and author, plus the old tags,
 // superseding the old fact. A fact that is gone, superseded, already tagged, or (for a member's key) someone
 // else's is skipped and reported, so one bad id never fails the batch.
-export async function retag(ctx, input) {
+export async function retag(ctx, input, store = openStore(ctx)) {
   const asks = (input.retag || []).map(ask => ({ id: Number(ask.id), tags: ask.tags || [] })).filter(ask => ask.id);
   if (!asks.length) return { written: 0, skipped: [] };
-  const store = openStore(ctx);
   const team = await teamWhere(ctx, store, {});
   const ids = asks.map(ask => ask.id);
   const list = ids.map(() => '?').join(', ');
@@ -285,6 +305,40 @@ export async function retag(ctx, input) {
   const newTags = await checkedTags(store, facts, input.newTags);
   await store.batch(writeStatements({ newTags, facts, source: 'consolidation', createdAt: now(), author: store.author }));
   return { written: facts.length, skipped };
+}
+
+// Upkeep, by lib/upkeep.mjs's plan: one read of the live facts the key may change (a member's own only), then
+// the closing facts, the tag sync (admin only), and the re-tags. It writes no runs row.
+export async function upkeep(ctx, store = openStore(ctx)) {
+  const team = await teamWhere(ctx, store, {});
+  const live = `SELECT f.id, f.slug, f.type, f.body, f.author, f.created_at FROM facts f WHERE f.superseded_by IS NULL${team.sql}`;
+  const [found, tagged, tagRows] = await store.batch([
+    [live, team.params],
+    ['SELECT fact_id, tag FROM fact_tags WHERE fact_id IN (SELECT id FROM facts WHERE superseded_by IS NULL)'],
+    ['SELECT name, definition, alias_of FROM tags'],
+  ]);
+  const admin = store.role === 'admin';
+  const me = (store.author || '').toLowerCase();
+  const facts = found.filter(fact => admin || (fact.author || '').toLowerCase() === me)
+    .map(fact => ({ ...fact, tags: tagged.filter(row => row.fact_id === fact.id).map(row => row.tag) }));
+  const areas = loadAreas();
+  const plan = upkeepPlan(facts, tagRows, { areas, root: ctx.root });
+  const closing = plan.close.map(thread => ({ slug: thread.slug, type: 'project', body: closingBody(thread), tags: thread.tags, supersedes: [thread.id] }));
+  const tags = admin ? tagSync(tagRows, areas, { author: store.author, now: now() }) : [];
+  const writes = [...writeStatements({ facts: closing, source: 'consolidation', createdAt: now(), author: store.author }), ...tags];
+  if (writes.length) await store.batch(writes);
+  const { written } = await retag(ctx, { retag: plan.retag }, store);
+  return { closed: closing.length, retagged: written, tags: tags.filter(([sql]) => sql === ADMIN_WRITES.tagUpdate.sql).length };
+}
+
+// Upkeep's one line; it never throws, so the write before it always stands.
+export async function upkeepLine(ctx) {
+  try {
+    const { closed, retagged, tags } = await upkeep(ctx);
+    return `upkeep: closed ${closed}, retagged ${retagged}, tags ${tags}`;
+  } catch (error) {
+    return `upkeep skipped: ${error.reason || error.message}`;
+  }
 }
 
 async function retagCommand(ctx, { values, tally }) {
@@ -377,6 +431,34 @@ async function tags(ctx) {
   console.log(rows.length ? rows.map(tag => `- ${tag.name} (${tag.uses})${tag.alias_of ? ` alias of ${tag.alias_of}` : ''}: ${tag.definition}`).join('\n') : 'No tags yet. A new tag needs a definition.');
 }
 
+// Why a tag can not take this change, or null. An alias stays one level deep, as tagClause reads it.
+function tagRefusal(rows, name, alias) {
+  const byName = new Map(rows.map(row => [row.name, row]));
+  if (!byName.has(name)) return `no tag ${name}`;
+  if (!alias) return null;
+  if (alias === name) return `${name} can not be its own alias`;
+  if (!byName.has(alias)) return `no tag ${alias}`;
+  if (byName.get(alias).alias_of) return `${alias} is itself an alias of ${byName.get(alias).alias_of}; use that`;
+  const own = rows.find(row => row.alias_of === name);
+  return own ? `${own.name} is an alias of ${name}; point it at ${alias} first` : null;
+}
+
+// Correct a tag's definition, or make it an alias of another. Admin only: the store refuses a member's key.
+async function tagCommand(ctx, { values, positionals: [name] }) {
+  const alias = values['alias-of'];
+  if (!name || (alias && values['no-alias']) || !(values.definition || alias || values['no-alias'])) {
+    throw new StoreError('usage: memory.mjs tag <name> [--definition text] [--alias-of tag | --no-alias]');
+  }
+  const store = openStore(ctx);
+  const rows = await store.query('SELECT name, definition, alias_of FROM tags');
+  const refusal = store.role === 'admin' ? tagRefusal(rows, name, alias) : 'only the admin can change a tag; a member key may add facts, but not change them';
+  if (refusal) throw new StoreError(refusal);
+  const tag = rows.find(row => row.name === name);
+  const next = { definition: values.definition?.trim() || tag.definition, aliasOf: values['no-alias'] ? null : alias || tag.alias_of };
+  await store.batch([[ADMIN_WRITES.tagUpdate.sql, [next.definition, next.aliasOf, name]]]);
+  console.log(`tag ${name}${next.aliasOf ? ` (alias of ${next.aliasOf})` : ''}: ${next.definition}`);
+}
+
 // Everything linked to these paths, topics, or a change's named paths: their areas, the docs those name, past
 // changes, what links to each path, then the live facts for the areas, threads first, then newest. All but the
 // facts print before the store opens. Memory never stops a build: an unreachable store prints one line and exits 0.
@@ -418,7 +500,7 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
   const personal = await personalFilter(ctx, store);
   const mine = personal ? ` AND ${personal.clause}` : '';
   const mineParams = personal?.params || [];
-  const statements = [TAG_NAMES];
+  const statements = [TAG_ROWS];
   for (const fact of facts) {
     statements.push([`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL AND f.slug = ?${mine} ORDER BY f.created_at DESC LIMIT 40`, [fact.slug || '', ...mineParams]]);
     const match = ftsQuery(fact.body || '');
@@ -441,8 +523,9 @@ async function gateFacts(ctx, input, store = openStore(ctx)) {
     if (answers.length) out.push('  Open threads this may answer:', ...answers.map(row => `  ${formatFact(row)}`));
   });
   const names = tagRows.map(row => row.name);
-  const { errors, warnings } = tagProblems(names, facts, withAreaTags(names, facts, input.newTags));
-  out.push(...[...errors, ...warnings].map(message => `Tags: ${message}`));
+  const newTags = withAreaTags(names, facts, input.newTags);
+  const { errors, warnings } = tagProblems(names, facts, newTags);
+  out.push(...[...errors, ...threadProblems(facts, [...tagRows, ...newTags]), ...warnings].map(message => `Tags: ${message}`));
   out.push('\nDecide each candidate: "add", "supersede" with "supersedes": [ids] when it replaces or corrects a live fact, or "drop" when a live fact already says it. A fact that answers an open thread supersedes it, saying what was found. Then run put-facts with the decisions.');
   console.log(out.join('\n'));
 }
@@ -697,14 +780,16 @@ export const COMMANDS = {
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   retag: retagCommand,
+  tag: tagCommand,
+  upkeep: async ctx => console.log(await upkeepLine(ctx)),
   'finish-run': finishRun,
   ...MEMBER_COMMANDS,
   ...JOIN_COMMANDS,
 };
 
 const OPTIONS = Object.fromEntries([
-  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'everyone', 'background'].map(name => [name, { type: 'boolean' }]),
+  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of'].map(name => [name, { type: 'string' }]),
+  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
@@ -714,10 +799,12 @@ const USAGE = `usage: memory.mjs <command>
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
+  tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)
   areas [paths|topics…] [--change name] [--limit n]   everything linked to them: areas, docs, past changes, backlinks, live facts
   gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   retag --file -               restate live facts with added tags, keeping date, session, and author: {"retag":[{"id":n,"tags":[...]}]}
+  upkeep                       close threads unchecked for 30 days, add the tags facts' words name, sync area tags (put-facts runs it)
   pending [--limit n] [--exclude ids]   strip <session-id>   live [--everyone]   digest   stats   spool   due
   keep-transcript <session-id|current>   upload the session's redacted transcript now; leaves its capture alone
   recent-chats [--days n] [--limit chars]   what you typed in this computer's Claude Code and Codex chats (default 30 days), redacted; needs no store

@@ -226,11 +226,11 @@ test('the hook prints the digest with branch threads, and starts one detached ru
     { action: 'add', type: 'user', body: 'The user runs the release.' },
     { action: 'add', type: 'reference', body: 'Dashboards live in Grafana.' },
     { action: 'add', type: 'project', body: 'Search ships in October.' },
-    { action: 'add', type: 'thread', body: 'Should search rank by recency?' },
+    { action: 'add', type: 'thread', body: 'Should search rank by recency?', tags: ['plan'] },
     { action: 'add', type: 'feedback', body: 'User wants terse replies.' },
   ] })]);
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'g.json', { source: 'save', slug: 'other-work', facts: [
-    { action: 'add', type: 'thread', body: 'Is the other change blocked?' },
+    { action: 'add', type: 'thread', body: 'Is the other change blocked?', tags: ['worker'] },
   ] })]);
   claudeSession(env, 1, [['user', 'Old work.']]);
   const bin = join(env.repo.home, 'bin');
@@ -467,6 +467,17 @@ test('a run keeps its tally only while it runs, and records what was stored, not
   assert.deepEqual(rows(env, 'SELECT status, counts, reason FROM runs'), [{ status: 'ok', counts: '{}', reason: 'model reported other counts: captured' }]);
   const digest = await memory(env.repo, env.fake, ['digest']);
   assert.match(digest.stdout, /Last background capture run \(.*\): nothing to do \(the run's own report differed\)/);
+});
+
+test('a background run runs upkeep once at its end, outside the tally', async t => {
+  const env = await setup(t);
+  const old = new Date(Date.now() - 31 * 86400000).toISOString();
+  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at) VALUES ('q', 'thread', 'Was this ever checked?', 'save', ?)").run(old);
+  const bin = fakeAgent(env, [`$M finish-run --kind capture --status ok`]);
+  const result = await node(env.repo, env.fake, 'run.mjs', ['--agent', 'claude'], { env: { PATH: `${bin}:${process.env.PATH}` } });
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(rows(env, "SELECT body FROM facts WHERE body LIKE 'Closed unchecked%'").map(row => row.body), [`Closed unchecked after 30 days (thread #1, ${old.slice(0, 10)}): Was this ever checked?`]);
+  assert.deepEqual(rows(env, 'SELECT kind, counts FROM runs'), [{ kind: 'capture', counts: '{}' }]);
 });
 
 test('inside a run, put-facts and strip add what they stored to the tally, and finish-run records it', async t => {

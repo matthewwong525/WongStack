@@ -7,7 +7,8 @@ import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { areasOf, loadAreas } from '../../.agents/skills/memory/scripts/lib/areas.mjs';
-import { memory, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { editedPaths } from '../../.agents/skills/memory/scripts/before-edit.mjs';
+import { memory, node, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const AREAS = loadAreas();
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -42,7 +43,13 @@ test('every area in the list has a definition and a folder', () => {
   for (const [tag, area] of Object.entries(AREAS)) {
     assert.ok(area.definition?.trim(), `${tag} has a definition`);
     assert.ok(area.paths?.length && area.paths.every(path => typeof path === 'string' && path), `${tag} has folders`);
+    for (const alias of area.aliases || []) {
+      assert.ok(typeof alias === 'string' && alias, `${tag}'s aliases are names`);
+      assert.ok(!Object.hasOwn(AREAS, alias), `${tag}'s alias ${alias} is not itself an area tag`);
+    }
   }
+  assert.deepEqual(AREAS.memory.aliases, ['memory-architecture', 'memory-worker']);
+  assert.deepEqual(AREAS.tests.aliases, ['testing']);
 });
 
 test('every capability spec is named by an area, and every named doc exists', () => {
@@ -59,8 +66,8 @@ test("areas loads a change's facts by the folders it names: threads first, cappe
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'tasks.md'), '- [ ] 1.1 Route `/api/x` in `app/worker/index.ts`. Verify with `npm test`.\n');
   const stored = await put(env, { source: 'save', slug: 'routes', facts: [
-    { action: 'add', type: 'thread', body: 'Does every route need its own test?', tags: ['worker'], createdAt: '2026-09-01T00:00:00Z' },
-    { action: 'add', type: 'project', body: 'When you touch the server routes, test every route, not only the new one.', tags: ['worker'], createdAt: '2026-09-30T00:00:00Z' },
+    { action: 'add', type: 'thread', body: 'Does every route need its own test?', tags: ['worker'], createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+    { action: 'add', type: 'project', body: 'When you touch the server routes, test every route, not only the new one.', tags: ['worker'], createdAt: new Date(Date.now() - 86400000).toISOString() },
     { action: 'add', type: 'project', body: 'The wiki links every page from its hub.', tags: ['wiki'] },
   ] });
   assert.equal(stored.code, 0, stored.stderr);
@@ -194,4 +201,113 @@ test('a topic name loads its area, unless a file has that name', async t => {
   files(env.repo.root, { 'mini-apps': '' });
   const file = await memory(env.repo, env.fake, ['areas', 'mini-apps', 'not-an-area']);
   assert.equal(file.stdout.trim(), 'No mapped area for these paths.');
+});
+
+const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+const upkeep = env => memory(env.repo, env.fake, ['upkeep']);
+const tagsOf = (env, id) => rows(env, 'SELECT tag FROM fact_tags WHERE fact_id = ? ORDER BY tag', id).map(row => row.tag);
+
+test('upkeep closes a thread unchecked for 30 days, keeping its tags and naming its id', async t => {
+  const env = await setup(t);
+  const db = env.fake.db;
+  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('verify', 'The /verify walk.', 'now')").run();
+  const insert = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('checks', 'thread', ?, 'save', ?, 'dev@example.com') RETURNING id");
+  const old = insert.get(`Does the phone view still scroll? ${'Check it on a real phone after the next layout change. '.repeat(6)}`.trim(), daysAgo(31)).id;
+  const fresh = insert.get('Is the new route fast enough?', daysAgo(29)).id;
+  for (const id of [old, fresh]) db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'verify')").run(id);
+  const result = await upkeep(env);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'upkeep: closed 1, retagged 0, tags 1');
+  const [closing] = rows(env, 'SELECT id, slug, type, body, source FROM facts WHERE id = (SELECT superseded_by FROM facts WHERE id = ?)', old);
+  assert.match(closing.body, new RegExp(`^Closed unchecked after 30 days \\(thread #${old}, ${daysAgo(31).slice(0, 10)}\\): Does the phone view`));
+  assert.ok(closing.body.length <= 400, `${closing.body.length} characters`);
+  assert.deepEqual({ ...closing, id: undefined, body: undefined }, { id: undefined, body: undefined, slug: 'checks', type: 'project', source: 'consolidation' });
+  assert.deepEqual(tagsOf(env, closing.id), ['verify']);
+  assert.equal(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', fresh)[0].superseded_by, null, 'a 29-day thread stays open');
+  assert.match((await memory(env.repo, env.fake, ['search', 'phone', '--all'])).stdout, /\[thread\] Does the phone view/, 'the thread stays searchable');
+});
+
+test('upkeep adds the area a fact names and the verb a thread names, keeping body, date, session, and author', async t => {
+  const env = await setup(t);
+  const db = env.fake.db;
+  db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES ('claude:s', 'claude', 'matthew@example.com', 'captured', 'now')").run();
+  const insert = db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES ('routes', ?, ?, 'claude:s', 'save', '2026-09-30T10:00:00Z', 'matthew@example.com') RETURNING id");
+  const fact = insert.get('feedback', 'Test every route when `app/worker/index.ts` changes.').id;
+  const thread = insert.get('thread', 'Check on the next real /wong-sync whether the hook merges.').id;
+  const plain = insert.get('project', 'Nothing here names a folder, e.g. this one.').id;
+  const result = await upkeep(env);
+  assert.equal(result.stdout.trim(), 'upkeep: closed 0, retagged 2, tags 0');
+  const restated = id => rows(env, 'SELECT id, type, body, session_id, created_at, author FROM facts WHERE id = (SELECT superseded_by FROM facts WHERE id = ?)', id)[0];
+  assert.deepEqual({ ...restated(fact), id: undefined }, { id: undefined, type: 'feedback', body: 'Test every route when `app/worker/index.ts` changes.', session_id: 'claude:s', created_at: '2026-09-30T10:00:00Z', author: 'matthew@example.com' });
+  assert.deepEqual(tagsOf(env, restated(fact).id), ['worker']);
+  assert.deepEqual(tagsOf(env, restated(thread).id), ['sync']);
+  assert.equal(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', plain)[0].superseded_by, null);
+  assert.equal((await upkeep(env)).stdout.trim(), 'upkeep: closed 0, retagged 0, tags 0', 'a second pass finds nothing');
+});
+
+test('upkeep sets area tag definitions and aliases to the list, and restates at most 50 per pass', async t => {
+  const env = await setup(t);
+  const db = env.fake.db;
+  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('mini-apps', 'Small apps on their own Worker beside the main app.', 'now'), ('testing', 'Tests.', 'now')").run();
+  const insert = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('many', 'project', ?, 'save', ?, 'dev@example.com')");
+  for (let i = 0; i < 60; i += 1) insert.run(`Route ${i} lives in app/worker/api/r${i}.ts.`, daysAgo(1));
+  const first = await upkeep(env);
+  assert.equal(first.stdout.trim(), 'upkeep: closed 0, retagged 50, tags 2');
+  assert.deepEqual(rows(env, "SELECT name, definition, alias_of FROM tags WHERE name IN ('mini-apps', 'testing', 'tests') ORDER BY name"), [
+    { name: 'mini-apps', definition: AREAS['mini-apps'].definition, alias_of: null },
+    { name: 'testing', definition: 'Tests.', alias_of: 'tests' },
+    { name: 'tests', definition: AREAS.tests.definition, alias_of: null },
+  ]);
+  assert.equal((await upkeep(env)).stdout.trim(), 'upkeep: closed 0, retagged 10, tags 0', 'the rest wait for the next pass');
+});
+
+const edit = (env, path, session = 's1', options = {}) => node(env.repo, env.fake, 'before-edit.mjs', [], {
+  input: JSON.stringify({ session_id: session, cwd: env.repo.root, hook_event_name: 'PreToolUse', tool_name: 'Edit', tool_input: { file_path: join(env.repo.root, path) } }), ...options,
+});
+
+test("the pre-edit hook shows an area's threads, then its newest facts, once per area per session", async t => {
+  const env = await setup(t);
+  const db = env.fake.db;
+  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('worker', 'The Worker.', 'now')").run();
+  const insert = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('routes', ?, ?, 'save', ?, 'dev@example.com') RETURNING id");
+  for (let i = 0; i < 10; i += 1) db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'worker')").run(insert.get('project', `Route fact ${i}.`, daysAgo(i)).id);
+  db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'worker')").run(insert.get('thread', 'Does every route need a probe?', daysAgo(20)).id);
+  insert.get('project', 'An untagged fact.', daysAgo(0));
+  const first = await edit(env, 'app/worker/index.ts');
+  assert.equal(first.code, 0, first.stderr);
+  const { hookSpecificOutput: output } = JSON.parse(first.stdout);
+  assert.equal(output.hookEventName, 'PreToolUse');
+  const lines = output.additionalContext.split('\n');
+  assert.equal(lines[0], 'Memory for worker:');
+  assert.match(lines[1], /^- \[thread\] Does every route need a probe\?/);
+  assert.deepEqual(lines.slice(2).map(line => line.match(/Route fact (\d)/)?.[1]), ['0', '1', '2', '3', '4', '5', '6']);
+  assert.equal(lines.length - 1, 8, 'eight facts at most');
+  const again = await edit(env, 'app/worker/api/health.ts');
+  assert.deepEqual([again.code, again.stdout], [0, ''], 'an area already shown this session shows nothing');
+  const otherSession = await edit(env, 'app/worker/index.ts', 's2');
+  assert.match(otherSession.stdout, /Memory for worker:/);
+  const unmapped = await edit(env, 'README.md', 's3');
+  assert.deepEqual([unmapped.code, unmapped.stdout], [0, '']);
+});
+
+test('the pre-edit hook shows nothing, and exits 0, with no key or no store', async t => {
+  const env = await setup(t);
+  await put(env, { source: 'save', slug: 'routes', facts: [{ action: 'add', type: 'project', body: 'Routes need probes.', tags: ['worker'] }] });
+  env.fake.setOffline('hang');
+  const unreachable = await edit(env, 'app/worker/index.ts');
+  assert.deepEqual([unreachable.code, unreachable.stdout], [0, '']);
+  env.fake.setOffline(false);
+  writeFileSync(join(env.repo.root, '.env'), 'OTHER=1\n');
+  const noKey = await edit(env, 'app/worker/index.ts', 's2');
+  assert.deepEqual([noKey.code, noKey.stdout], [0, '']);
+});
+
+test("the pre-edit hook reads Claude Code's edited file and every file in a Codex patch", () => {
+  assert.deepEqual(editedPaths({ tool_input: { file_path: '/r/app/worker/index.ts', old_string: 'a', new_string: 'b' } }), ['/r/app/worker/index.ts']);
+  assert.deepEqual(editedPaths({ tool_input: { notebook_path: '/r/n.ipynb' } }), ['/r/n.ipynb']);
+  const command = ['*** Begin Patch', '*** Update File: /r/app/worker/index.ts', '@@', '+// hi', '*** Add File: wiki/new.md', '+# New',
+    '*** Update File: a.txt', '*** Move to: scripts/tests/b.txt', '*** Delete File: old.md', '*** End Patch'].join('\n');
+  assert.deepEqual(editedPaths({ tool_name: 'apply_patch', tool_input: { command } }), ['/r/app/worker/index.ts', 'wiki/new.md', 'a.txt', 'scripts/tests/b.txt', 'old.md']);
+  assert.deepEqual(editedPaths({ tool_input: { command: 'ls -la' } }), []);
+  assert.deepEqual(editedPaths({}), []);
 });

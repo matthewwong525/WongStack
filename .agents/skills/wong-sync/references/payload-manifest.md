@@ -6,7 +6,7 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the hidden `hand-over` skill whose scripts open the private links, the hidden `browser` skill that runs Cloudflare's cloud browser when a site blocks the agent's own, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, scripts (the wiki check among them) and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the hidden `hand-over` skill whose scripts open the private links, the hidden `browser` skill that runs Cloudflare's cloud browser when a site blocks the agent's own, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start and pre-edit hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, scripts (the wiki check among them) and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
@@ -66,7 +66,7 @@ Every `/wong-sync`, however old, reads this page from the source, so the plan's 
 
 ## The memory store and its hooks
 
-**memory** ships as one folder on OpenSpec's Node.js: script, schema migrations, the Worker's route module, runbook, and [writing bar](../../memory/references/writing-facts.md). Merge its `SessionStart` hook into a target's own `.claude/settings.json` or `.claude/hooks.json`; never replace the file. Codex asks once to trust a new hook. Plan the store by [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that adds a file under `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+**memory** ships as one folder on OpenSpec's Node.js: script, schema migrations, the Worker's route module, runbook, and [writing bar](../../memory/references/writing-facts.md). Merge its `SessionStart` and `PreToolUse` hooks into a target's own `.claude/settings.json` or `.claude/hooks.json`; never replace the file. Codex asks once to trust a new hook. Plan the store by [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync that adds a file under `migrations/` ends its plan with one admin task: run `memory.mjs migrate` after the update merges and production deploys. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
 
 ## The Paseo project file
 

@@ -20,6 +20,11 @@ export const WRITES = {
   run: { sql: 'INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts) VALUES (?, ?, ?, ?, ?, ?, ?)' },
 };
 
+// The admin's own writes. They sit outside WRITES, so no member or reader key may run them: a tag is shared.
+export const ADMIN_WRITES = {
+  tagUpdate: { sql: 'UPDATE tags SET definition = ?, alias_of = ? WHERE name = ?' },
+};
+
 // What the route runs for a member key in place of the script's own statement: a supersede marks only facts
 // under the key's email, so a teammate's fact stays live, and a reader key's fact is stored unshared.
 export const MEMBER_WRITES = {

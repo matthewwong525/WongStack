@@ -22,8 +22,9 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | One slug, open threads first | `show <slug>` |
 | Everything linked to files, a topic, or a change: docs, past changes, backlinks, facts | `areas <paths or topic…>` or `areas --change <name>` |
 | The transcript behind a fact | `source <fact-id>` |
-| Tags with definitions | `tags` |
+| Tags; fix one, or merge a look-alike (admin) | `tags`; `tag <name> --definition <text>` or `--alias-of <tag>` |
 | Counts, embeddings trigger | `stats` |
+| Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
 | What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask first | `recent-chats [--days 30]` |
 
 In a team repo (`components.memory.team`), the store shows each key only what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. A fact is dated context: check it against the repo, and the repo wins.
@@ -74,7 +75,7 @@ The session-start hook starts this run with no user. Follow these steps in order
    3. Run `gate --file <input>`, decide each candidate, and run `put-facts --file <input>` with `"session": "<session-id>"` and `"source": "backfill"`. Nothing worth keeping: run `put-facts` with an empty `facts` list and a `reason`; it records the session as skipped.
 3. **Consolidation.** Run `due`. If it prints `consolidation due`:
    1. Run `live` to list live facts by slug and type.
-   2. Merge facts that say the same thing into one `supersede` fact listing them in `supersedes`. When a newer live fact contradicts an older one, supersede the older: newest wins. When a later live fact shows an open thread was answered, supersede the thread with a fact that says so. Use `"source": "consolidation"` and no session. Send `retag --file <input>`, as `{"retag": [{"id": 539, "tags": ["worker"]}]}`, for an open thread naming a verb's next run, with that verb's tag, and a fact about code in an [`areas.json`](references/areas.json) folder, with its area's tag; it keeps the body, date, session, and author, and skips a fact already tagged. A teammate's key changes only its own facts; the admin's tidies everyone's.
+   2. Merge facts that say the same thing into one `supersede` fact listing them in `supersedes`. When a newer live fact contradicts an older one, supersede the older: newest wins. Supersede a thread a later live fact answered, saying so. Use `"source": "consolidation"` and no session. Upkeep already adds the tags a fact's paths and slash commands name; send `retag --file <input>`, as `{"retag": [{"id": 539, "tags": ["worker"]}]}`, only where a fact's [area](references/areas.json) or verb takes judgment to read. A teammate's key changes only its own facts.
    3. Report what you stored, re-tags as superseded: `finish-run --kind consolidation --status ok --counts '{"merged":N,"superseded":M}'`.
 4. **Finish.** Run `finish-run --kind capture --status ok --counts '{"captured":A,"skipped":B,"unrecognized":C,"added":D,"superseded":E,"dropped":F}'`. The script records what it stored and notes when your counts differ. If a step failed and you could not go on, run it with `--status failed --reason "<one line, no values>"`.
 
