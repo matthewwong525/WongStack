@@ -161,8 +161,8 @@ test('archive bodies omit unavailable links and rendering errors preserve output
 test('the body renders a change record only; a mini-app mode is gone', t => {
   const root = mkdtempSync(join(tmpdir(), 'wong-mini-body-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  file(root, 'mini-apps/apps/tips/app.json', JSON.stringify({ title: 'Tips', description: 'Split a bill and add a tip.' }));
+  file(root, 'app/src/apps/tips/app.json', JSON.stringify({ title: 'Tips', description: 'Split a bill and add a tip.' }));
   file(root, 'summary.txt', 'Adds a tip calculator.\n');
-  const options = { repoRoot: root, changeRoot: 'mini-apps/apps/tips', mode: 'mini-app', repoUrl: 'https://github.com/example/repo', branch: 'mini/tips', summaryFile: join(root, 'summary.txt') };
+  const options = { repoRoot: root, changeRoot: 'app/src/apps/tips', mode: 'mini-app', repoUrl: 'https://github.com/example/repo', branch: 'mini/tips', summaryFile: join(root, 'summary.txt') };
   assert.throws(() => renderPrBody(options), /mode/);
 });

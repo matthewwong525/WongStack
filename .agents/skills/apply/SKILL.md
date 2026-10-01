@@ -51,7 +51,7 @@ The work stays in this working tree until the person saves or publishes.
    DEFAULT_BRANCH=main bash "$(git rev-parse --show-toplevel)/.github/scripts/app-untouched.sh" --worktree
    ```
 
-   `untouched=true` with `mini_changed=false` → skip the upload and say so in one line.
+   `untouched=true` → skip the upload and say so in one line.
 2. **Upload the preview** from this host, with the Cloudflare credential from the primary worktree's `.env` ([secrets](../../../wiki/development/secrets.md)). Can't run (no stack pack, no credential) → say why in one line.
 
    ```bash

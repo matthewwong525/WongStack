@@ -1,9 +1,3 @@
-// One mini app, as the build writes it to /apps/apps.json (scripts/mini-dashboard.mjs).
-export type MiniApp = { name: string; title: string; description: string; href: string }
-
-// The list, or null when it could not load.
-export function loadApps(): Promise<MiniApp[] | null> {
-  return fetch('/apps/apps.json')
-    .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-    .catch(() => null)
-}
+// Every mini app in this build, compiled into the page: app/src/apps/ finds and
+// checks them, so the home page needs no fetch.
+export { apps, type MiniApp } from '../apps'

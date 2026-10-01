@@ -14,6 +14,17 @@ The briefing your assistant reads at the start of each chat now holds what appli
 
 **Updating.** Nothing to do by hand: your next chat uses the new briefing.
 
+## 29.0.0 — Mini apps live in the main app
+
+A mini app used to be built a different way from the rest of your app, and could reach only the database. Now it's part of the main app: one way to build any page or tool.
+
+- **Same addresses, same home page.** Each app keeps its own folders, its address at `/apps/<name>/`, and its card on the home page.
+- **It can do more.** An app's server side can use your saved keys for outside services, such as a payment provider, and knows who's signed in. Your memory stays out of reach, as before.
+- **The same checks as the rest of your app.** Every line of an app's code has tests. A change to one app runs all your app's checks, so it takes a few minutes, not seconds.
+- **The home page never waits for its list.** The list is part of the page, so it no longer shows *Loading your apps…*. An app with no title or description fails the checks and names its folder.
+
+**Updating.** The update moves each of your mini apps into the main app, at the same address and keeping its data, and shows each one in the preview before anything is published. You don't do anything by hand; the plan names every app it moves.
+
 ## 28.8.0 — Hosted setup finishes without a card
 
 A wongstack.com server now finishes setting up your app even when your Cloudflare account has no card, the same way setup on your own computer already does.

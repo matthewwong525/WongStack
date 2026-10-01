@@ -8,44 +8,21 @@ Let a person get a small standalone app from one request, in its own folder serv
 
 ### Requirement: A mini app lives in its own folder, served by the main app
 
-Each mini app SHALL live in `mini-apps/apps/<name>/` with a manifest holding a title and description, and need no build step of its own. The main app's Worker SHALL serve its pages at `/apps/<name>/` and its optional handler at `/apps/<name>/api/*`; there SHALL be no separate mini-app Worker.
+Each mini app SHALL be part of the main app: written, built, and tested the same way as the main app's own pages, with its page in its own folder and its optional server side in a matching folder, and a manifest holding a title and description. The main app SHALL serve its page at `/apps/<name>/` and its server side at `/apps/<name>/api/*`; there SHALL be no separate mini-app Worker, build step, or copy step.
 
 #### Scenario: A saved app goes live
 
 - **WHEN** the mini app `tips` is published and production deploys
 - **THEN** `https://<app>/apps/tips/` serves it from the main app's Worker
 
-### Requirement: A mini app reaches only the app database
-
-A handler SHALL receive the repo's app database and no other binding, and the Worker SHALL turn off every other runtime route to its bindings, such as importing them or reading them from the process environment. The docs SHALL say a handler shares the Worker with the memory store, so the limit stops mistakes, not code written to get around it. A preview SHALL use staging data, never production.
-
-#### Scenario: Production binds memory
-
-- **WHEN** a handler runs on the production Worker, which binds the memory store
-- **THEN** the handler gets the app database and no memory binding
-
-#### Scenario: A handler imports the Worker's bindings
-
-- **WHEN** a handler imports the environment from the Workers runtime
-- **THEN** the runtime refuses, and no memory binding reaches it
-
 ### Requirement: A mini app carries its own tests
 
-A mini app's plan SHALL include tests for its logic in its own folder, runnable by Node with no install. CI SHALL run only the changed mini apps' tests, in the required `test` check.
+A mini app's plan SHALL include tests for its logic in its own folders. The main app's test suite SHALL run them, under the same checks and limits as the rest of the main app, in the required `test` check.
 
 #### Scenario: A failing test
 
 - **WHEN** a pull request changes a mini app whose test fails
 - **THEN** the `test` check fails and `/ship` cannot merge it
-
-### Requirement: The landing page lists every mini app
-
-Each build SHALL publish the list of mini apps, with title, description, and link, at `/apps/apps.json` for the landing page to show; `/apps/` SHALL redirect to `/`. A preview SHALL also list the app it previews. A manifest missing its title or description SHALL fail the build and name the folder.
-
-#### Scenario: A malformed manifest
-
-- **WHEN** a folder's manifest has no title
-- **THEN** the build fails and names the folder
 
 ### Requirement: The starter landing page teaches the loop
 
@@ -83,26 +60,12 @@ The main app SHALL serve one shared stylesheet at /style.css, holding the look e
 
 ### Requirement: The example mini app is set up to grow
 
-The example mini app SHALL keep its page markup, page script, and API in separate files, and its API SHALL dispatch through a route list, with no build step. An unknown API route SHALL answer 404.
+The example mini app SHALL keep its page, its parts, and its server side in separate files, and its server side SHALL dispatch through a route list. An unknown API route SHALL answer 404.
 
 #### Scenario: A copied app gains a route
 
 - **WHEN** the agent adds an API route to a mini app copied from the example
 - **THEN** it adds one entry to the route list and a handler, without touching the page
-
-### Requirement: One rule names a mini app's test files
-
-One shared rule SHALL decide which files are tests: every name Node's test runner picks up by default, plus `.spec.` and `test_` names. CI SHALL run those files as a mini app's tests, the build SHALL leave them out of the published pages, the Worker SHALL refuse to serve them, and the loosened-check guard SHALL read them for switched-off tests.
-
-#### Scenario: An underscore test file
-
-- **WHEN** a mini app holds `foo_test.mjs`
-- **THEN** CI runs it as a test, and `/apps/<name>/foo_test.mjs` is neither copied into the build nor served
-
-#### Scenario: A skipped test in a mini app
-
-- **WHEN** a branch adds `test.skip` to a mini app's `foo_test.mjs` with no recorded reason
-- **THEN** the test check fails and names the file
 
 ### Requirement: The starter and example share an editable identity
 
@@ -146,21 +109,6 @@ The welcome SHALL confirm when its first request is copied. If the browser canno
 - **WHEN** clipboard access is missing or the browser rejects the copy
 - **THEN** the full request remains selectable and the person receives a copy-by-hand instruction
 
-### Requirement: The starter app list guides first use
-
-The starter app list SHALL present each available app as a clearly focused link with its title and description, and SHALL identify the supplied example as an example. With no apps it SHALL explain how to ask for a first tool. Loading and a failed list SHALL be distinguished from an empty list, and a failure SHALL give a recovery instruction without hiding the welcome. The page SHALL remain readable and operable at phone widths and with keyboard navigation.
-
-#### Scenario: Apps are available
-
-- **WHEN** the app list loads available apps
-- **THEN** each app has a title, description, and keyboard-accessible link, and the supplied example is visibly labeled
-
-#### Scenario: Apps are not yet available to display
-
-- **WHEN** the app list is empty, still loading, or fails to load
-- **THEN** the person sees the matching state: a first-tool request, a loading message, or a recovery instruction
-- **AND** any welcome guide remains available
-
 ### Requirement: The existing calculator matches the starter
 
 The repository's existing tip calculator SHALL use the same editable brand header and neutral light/dark appearance as the starter and Hello, with the brand linking home. It SHALL retain immediate recalculation, accessible input labels and selected tip state, announced results, and existing empty/invalid-input guidance. Its controls and results SHALL fit narrow phone screens. This requirement SHALL NOT add the calculator to the distributed starter payload.
@@ -175,3 +123,54 @@ The repository's existing tip calculator SHALL use the same editable brand heade
 
 - **WHEN** the bill is empty or an input is invalid
 - **THEN** the existing guidance appears and all fields remain editable without horizontal scrolling
+
+### Requirement: A mini app reaches everything but memory
+
+A mini app's server side SHALL receive every binding and secret the main app's Worker has, except the memory store's bindings, and SHALL receive the verified identity of the caller: a person's email, or a service token's name. The Worker SHALL keep every other runtime route to its bindings, such as importing them, turned off. The docs SHALL say a mini app shares the Worker with the memory store, so the limit stops mistakes, not code written to get around it. A preview SHALL use staging data and staging keys, never production.
+
+#### Scenario: Production binds memory
+
+- **WHEN** a mini app's handler runs on the production Worker, which binds the memory store
+- **THEN** it gets the app database, the app's saved keys, and the signed-in person, and no memory binding
+
+#### Scenario: A handler imports the Worker's bindings
+
+- **WHEN** a handler imports the environment from the Workers runtime
+- **THEN** the runtime refuses, and no memory binding reaches it
+
+### Requirement: The home page lists every mini app
+
+The home page SHALL list every mini app in the build, each with its title, description, and link, and `/apps/` SHALL redirect to `/`. A preview SHALL list the app it previews. A mini app whose manifest lacks a title or description, or whose folder name is not lowercase letters, digits, and hyphens, SHALL fail the `test` check and name the folder.
+
+#### Scenario: A malformed manifest
+
+- **WHEN** a mini app's manifest has no title
+- **THEN** the `test` check fails and names the folder
+
+### Requirement: The home page's app list guides first use
+
+The home page SHALL present each mini app as a clearly focused link with its title and description, and SHALL identify the supplied example as an example. With no apps it SHALL explain how to ask for a first tool. The list SHALL remain readable and operable at phone widths and with keyboard navigation.
+
+#### Scenario: Apps are available
+
+- **WHEN** a person opens the home page of a workspace with apps
+- **THEN** each app has a title, description, and keyboard-accessible link, and the supplied example is visibly labeled
+
+#### Scenario: No apps yet
+
+- **WHEN** a workspace has no mini apps
+- **THEN** the person sees a first-tool request to copy into their chat
+
+### Requirement: Existing mini apps move into the main app on update
+
+When an installed repo still has mini apps in the old separate folder, its next update SHALL plan moving each one into the main app, at the same addresses and with the same data, and SHALL then remove the old folder. Each moved app SHALL appear in the update's preview before anything is published. An app the person changed SHALL keep its behavior; the plan SHALL name every app it moves.
+
+#### Scenario: An install with two mini apps updates
+
+- **WHEN** a repo with mini apps `hello` and `runs` in the old folder syncs to this release
+- **THEN** the update plan moves both into the main app, the preview serves `/apps/hello/` and `/apps/runs/`, and the old folder is gone once it is published
+
+#### Scenario: An app's data survives
+
+- **WHEN** the moved `runs` app reads the table its old version wrote
+- **THEN** it finds the same rows, because the move changes no database table

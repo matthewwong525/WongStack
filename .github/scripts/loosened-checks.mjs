@@ -36,8 +36,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCli, usageError } from '../../.claude/skills/memory/scripts/lib/cli.mjs';
-// The one rule for which files are tests: the ones CI runs are the ones read here.
-import { TEST_FILE } from '../../mini-apps/is-test-file.mjs';
+import { TEST_FILE } from './test-file.mjs';
 
 const USAGE = `usage: node .github/scripts/loosened-checks.mjs --base <sha>
        node .github/scripts/loosened-checks.mjs --worktree

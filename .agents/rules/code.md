@@ -1,5 +1,5 @@
 ---
-paths: ["app/**", "mini-apps/**", "scripts/**", ".github/workflows/**"]
+paths: ["app/**", "scripts/**", ".github/workflows/**"]
 ---
 
 # Write less code
@@ -15,7 +15,7 @@ Follow the files that already do it. Split by job, not by size: each file does o
 - **Data and helpers with no UI:** [`app/src/lib/`](../../app/src/lib/apps.ts).
 - **Styles:** the shared look is [`app/public/style.css`](../../app/public/style.css), the only file that styles whole elements. A part's CSS sits beside it, under class names named for the part, like [`AppList.css`](../../app/src/pages/home/AppList.css).
 - **An API route:** a handler file in [`app/worker/api/`](../../app/worker/api/health.ts), and one entry in [its router](../../app/worker/api/router.ts).
-- **A mini app:** copy [`mini-apps/apps/hello/`](../../mini-apps/apps/hello/api.mjs). Page markup goes in `index.html`, the page script in `app.js`, tested logic in named `.mjs` modules, API routes in `api.mjs`'s route list, and the app's own styles in `style.css`.
+- **A mini app:** copy the example's two folders, [`app/src/apps/hello/`](../../app/src/apps/hello/App.tsx) and, for a server side, [`app/worker/apps/hello/`](../../app/worker/apps/hello/api.ts). The page is `App.tsx`, with `app.json` and its CSS beside it; an API route is a handler file and one entry in `api.ts`'s route list. No other file needs an edit.
 
 The [`npm test` chain](../../app/package.json) owns all numeric limits and enforces them in CI, which is [the gate](../../wiki/development/the-change-loop.md#the-gate); nothing builds locally.
 

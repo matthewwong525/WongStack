@@ -92,7 +92,7 @@ The work decides the form; no mode or setting does.
 
 ### Mini apps
 
-"Make me a …" builds a small app in `mini-apps/apps/<name>/`, served by the main app's Worker at `/apps/<name>/`, through this same loop and its stops: a plan, a host preview, then *publish it?* [Mini apps](../stack/mini-apps.md) owns the layout and rules.
+"Make me a …" builds a small app inside the main app, at `/apps/<name>/`, through this same loop and its stops: a plan, a host preview, then *publish it?* [Mini apps](../stack/mini-apps.md) owns the layout and rules.
 
 ### Verifying the app
 
@@ -108,7 +108,7 @@ This page **states** the delivery doctrine; every other surface links here inste
 
 **The ladder is CI-when-present → merge**; a skipped rung is never a failure, and nothing else gates a merge. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.
 
-**A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/`, `openspec/`, or `mini-apps/apps/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A mini-app branch runs the changed apps' own tests, and Deploy still deploys the main app, whose Worker serves them; a shared file elsewhere under `mini-apps/` [is main-app code](../stack/mini-apps.md). The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests.
+**A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests.
 
 **The staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) once and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. Only a `FAILURE` stops `/ship`, to **ask the user** to fix or merge anyway: a human decision, with *merge anyway* always available.
 

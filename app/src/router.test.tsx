@@ -2,17 +2,10 @@
 
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { routes } from "./router";
 
-beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => [] })));
-});
-
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
+afterEach(cleanup);
 
 const open = async (path: string) => {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -62,4 +55,23 @@ it("says a deeper unknown address is not found too", async () => {
   });
   expect(router.state.location.pathname).toBe("/");
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your workspace, shaped around you");
+});
+
+it("shows a mini app at its own address, inside the page frame", async () => {
+  await open("/apps/hello/");
+
+  const heading = await screen.findByRole("heading", { level: 1, name: "Hello" });
+  expect(heading.closest("main")).not.toBeNull();
+  expect(screen.getByRole("link", { name: "WongStack" }).closest("header")).not.toBeNull();
+  expect(screen.queryByText("Page not found")).toBeNull();
+});
+
+it("says an unknown mini app is not found", async () => {
+  for (const path of ["/apps/nothing/", "/apps/nothing/deeper"]) {
+    await open(path);
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent, path).toBe("Page not found");
+    expect(screen.getByRole("link", { name: "Go home" }).getAttribute("href")).toBe("/");
+    cleanup();
+  }
 });

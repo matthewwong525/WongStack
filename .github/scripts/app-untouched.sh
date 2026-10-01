@@ -3,21 +3,16 @@
 #
 # `test.yml` (core) and the pack's `deploy.yml` both call this first, so a
 # branch that changes only docs installs, tests, and deploys none of the main
-# app, and a branch that changes only mini apps runs their tests, not the main
-# suite. The main Worker serves the mini apps, so `deploy.yml` still deploys it
-# when mini_changed is true. The skip happens INSIDE each job: a workflow-level
-# `paths-ignore` would leave a required check pending forever and block the
-# merge. See wiki/development/the-change-loop.md.
+# app. A mini app is main-app code, so changing one runs the whole suite and
+# deploys. The skip happens INSIDE each job: a workflow-level `paths-ignore`
+# would leave a required check pending forever and block the merge. See
+# wiki/development/the-change-loop.md.
 #
-# Prints five lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
+# Prints three lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
 # to stderr:
 #
-#   untouched=true|false   true only when EVERY changed path is under wiki/,
-#                          openspec/, or mini-apps/apps/, or ends in .md. The
-#                          rest of mini-apps/ is the main Worker's code.
-#   mini_apps=<names>      the folders under mini-apps/apps/ the change
-#                          touches, sorted, space-separated
-#   mini_changed=true|false  whether any path under mini-apps/apps/ changed
+#   untouched=true|false   true only when EVERY changed path is under wiki/
+#                          or openspec/, or ends in .md.
 #   base=<sha>             the commit the change is compared with, or empty
 #                          when the comparison can not be made.
 #                          `loosened-checks.mjs` diffs from it.
@@ -34,9 +29,8 @@
 #
 # When the comparison can not be made — an all-zero BEFORE_SHA (a new branch or
 # a first push), a ref that no fetch can find, no merge base, an unknown event —
-# every answer assumes a change: untouched=false, docs_only=false, every mini
-# app listed, and mini_changed=true when mini-apps/apps/ exists. An empty diff
-# is untouched=false and docs_only=false too. A skipped suite must be a proven skip; a guess runs the suite.
+# every answer assumes a change: untouched=false and docs_only=false. An empty
+# diff is untouched=false and docs_only=false too. A skipped suite must be a proven skip; a guess runs the suite.
 #
 # Input (environment):
 #   GITHUB_EVENT_NAME, GITHUB_BASE_REF, GITHUB_REF_NAME  set by GitHub Actions
@@ -77,27 +71,17 @@ remote_branch() {
   have_commit "$ref" && echo "$ref"
 }
 
-# Every folder under mini-apps/apps/ at HEAD — the fail-safe list.
-all_mini_apps() {
-  git ls-tree -d --name-only HEAD mini-apps/apps/ 2>/dev/null \
-    | sed 's#^mini-apps/apps/##' | grep -E '^[A-Za-z0-9][A-Za-z0-9._-]*$' | sort -u | tr '\n' ' ' | sed 's/ $//'
-}
-
-answer() { # answer <untouched> <mini_apps> <mini_changed> <base> <docs_only>
+answer() { # answer <untouched> <base> <docs_only>
   echo "untouched=$1"
-  echo "mini_apps=$2"
-  echo "mini_changed=$3"
-  echo "base=$4"
-  echo "docs_only=$5"
+  echo "base=$2"
+  echo "docs_only=$3"
   exit 0
 }
 
 # No base: assume everything changed.
 unknown() {
   note "$* — comparison not possible; assuming the main app changed"
-  local changed=false
-  git cat-file -e HEAD:mini-apps/apps 2>/dev/null && changed=true
-  answer false "$(all_mini_apps)" "$changed" "" false
+  answer false "" false
 }
 
 git rev-parse --verify --quiet HEAD >/dev/null 2>&1 || unknown "no commit checked out"
@@ -163,9 +147,7 @@ fi
 
 UNTOUCHED=true
 DOCS_ONLY=true
-MINI_CHANGED=false
 COUNT=0
-NAMES=""
 while IFS= read -r -d '' path; do
   COUNT=$((COUNT + 1))
   case "$path" in
@@ -173,28 +155,15 @@ while IFS= read -r -d '' path; do
     *) DOCS_ONLY=false ;;
   esac
   case "$path" in
-    mini-apps/apps/*) MINI_CHANGED=true ;;
     wiki/*|openspec/*|*.md) ;;
     *) UNTOUCHED=false ;;
-  esac
-  case "$path" in
-    mini-apps/apps/*/*)
-      name="${path#mini-apps/apps/}"
-      name="${name%%/*}"
-      if [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
-        NAMES="$NAMES$name"$'\n'
-      else
-        note "ignoring mini-apps/apps/$name: not a usable app folder name"
-      fi
-      ;;
   esac
 done < "$CHANGED"
 
 if [ "$COUNT" -eq 0 ]; then
   note "the diff is empty — nothing to prove untouched"
-  answer false "" false "$BASE" false
+  answer false "$BASE" false
 fi
 
-MINI_APPS=$(printf '%s' "$NAMES" | sort -u | tr '\n' ' ' | sed 's/ $//')
 note "$COUNT changed path(s); main app untouched: $UNTOUCHED; docs only: $DOCS_ONLY"
-answer "$UNTOUCHED" "$MINI_APPS" "$MINI_CHANGED" "$BASE" "$DOCS_ONLY"
+answer "$UNTOUCHED" "$BASE" "$DOCS_ONLY"

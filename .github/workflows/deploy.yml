@@ -1,7 +1,7 @@
 # Cloudflare stack pack — build and deploy when the repo is provisioned.
 #
 #   build  migrate + build + deploy, green when the repo is unprovisioned.
-#          The build copies the mini apps (mini-apps/apps/) in under /apps/.
+#          The mini apps are part of the main app's build.
 #
 # The test suite is NOT here. It runs in the core `test.yml` workflow, which
 # every repo receives whether or not it took this pack — so a commit is tested
@@ -21,9 +21,8 @@
 # `.github/actions/change-scope` (the same check test.yml runs), compares
 # the whole branch — or, on the default branch, the whole push — with its base.
 # When every changed path is docs, every main-app step skips and the job says
-# so: a docs branch never redeploys the main app. A change under
-# `mini-apps/apps/` does deploy it, because the main Worker serves the mini
-# apps; the core test job still skips the main suite for it.
+# so: a docs branch never redeploys the main app. A mini app is main-app code,
+# so a change to one deploys it.
 #
 # So both CI backends run identical code, and a repo can switch between them by
 # changing where the scripts are invoked from. See wiki/stack/d1-pipeline.md.
@@ -121,11 +120,9 @@ jobs:
         with:
           skip-when: |
             untouched=true
-            mini_changed=false
           skipped-note: The main app is untouched (only docs changed), so no main-app migration, build, or deploy ran.
 
-      # Skipped when the main app is untouched and no mini app changed. Every
-      # main-app step below —
+      # Skipped when the main app is untouched. Every main-app step below —
       # through "Publish the preview URL" — is gated on this step's
       # `configured`, so they skip with it.
       #
@@ -135,7 +132,7 @@ jobs:
       # other non-zero exit is a real error and still fails the job.
       - name: Locate the app
         id: app
-        if: ${{ steps.scope.outputs.untouched != 'true' || steps.scope.outputs.mini_changed == 'true' }}
+        if: ${{ steps.scope.outputs.untouched != 'true' }}
         run: |
           set +e
           DIR=$(bash scripts/cf-build.sh --app-dir)

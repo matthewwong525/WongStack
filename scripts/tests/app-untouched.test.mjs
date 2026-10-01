@@ -26,8 +26,8 @@ function gitEnv(home) {
   };
 }
 
-// A bare "origin" and a clone whose `main` holds the main app, a wiki page, and
-// one mini app, pushed. Returns helpers bound to the clone.
+// A bare "origin" and a clone whose `main` holds the main app, one mini app in
+// it, and a wiki page, pushed. Returns helpers bound to the clone.
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-app-untouched-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -54,8 +54,8 @@ function fixture(t) {
     'app/src/index.ts': 'export const x = 1;\n',
     'app/package.json': '{}\n',
     'wiki/README.md': '# Wiki\n',
-    'mini-apps/apps/hello/index.html': '<p>hi</p>\n',
-    'mini-apps/apps/hello/app.json': '{}\n',
+    'app/src/apps/hello/App.tsx': 'export function App() {}\n',
+    'app/src/apps/hello/app.json': '{}\n',
   }, 'base');
   git('push', '-q', '-u', 'origin', 'main');
 
@@ -68,15 +68,12 @@ function fixture(t) {
     });
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     const lines = result.stdout.split('\n').filter(Boolean);
-    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'mini_apps', 'mini_changed', 'base', 'docs_only'],
-      `stdout must hold only the five output lines:\n${result.stdout}`);
+    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'base', 'docs_only'],
+      `stdout must hold only the three output lines:\n${result.stdout}`);
     return Object.fromEntries(lines.map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
   };
-  // The three answers about what changed; `base` and `docs_only` have their own tests.
-  const check = (vars, args) => {
-    const { base: _base, docs_only: _docsOnly, ...answers } = outputs(vars, args);
-    return answers;
-  };
+  // Whether the main app is untouched; `base` and `docs_only` have their own tests.
+  const check = (vars, args) => outputs(vars, args).untouched;
   const docsOnly = (vars, args) => outputs(vars, args).docs_only;
   const branch = name => git('checkout', '-q', '-b', name);
   const push = () => git('push', '-q', '-u', 'origin', 'HEAD');
@@ -91,36 +88,28 @@ test('a docs-only branch leaves the main app untouched', t => {
   f.commit({ 'wiki/new.md': '# New\n', 'README.md': '# Readme\n', 'openspec/changes/x/tasks.md': '- [ ] 1\n' }, 'docs');
   f.commit({ 'app/README.md': '# App readme\n' }, 'an app readme is still docs');
   f.push();
-  assert.deepEqual(f.check(f.onBranch('docs')), { untouched: 'true', mini_apps: '', mini_changed: 'false' });
+  assert.equal(f.check(f.onBranch('docs')), 'true');
 });
 
 test('a pull request compares with its base branch', t => {
   const f = fixture(t);
   f.branch('docs');
   f.commit({ 'wiki/new.md': '# New\n' }, 'docs');
-  assert.deepEqual(f.check({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'main', GITHUB_REF_NAME: '7/merge' }),
-    { untouched: 'true', mini_apps: '', mini_changed: 'false' });
+  assert.equal(f.check({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'main', GITHUB_REF_NAME: '7/merge' }),
+    'true');
   f.commit({ 'app/src/index.ts': 'export const x = 2;\n' }, 'code');
-  assert.equal(f.check({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'main' }).untouched, 'false');
+  assert.equal(f.check({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'main' }), 'false');
 });
 
-test('a mini-apps-only branch is untouched and names each changed app once', t => {
+test('a change to a mini app is a change to the main app', t => {
   const f = fixture(t);
-  f.branch('mini/tips');
-  f.commit({
-    'mini-apps/apps/tips/index.html': '<p>tips</p>\n',
-    'mini-apps/apps/tips/api.ts': 'export default {};\n',
-    'mini-apps/apps/hello/app.json': '{"title":"Hello"}\n',
-  }, 'tips');
+  f.branch('tips');
+  f.commit({ 'app/src/apps/tips/App.tsx': 'export function App() {}\n', 'app/worker/apps/tips/api.ts': 'export {};\n' }, 'tips');
   f.push();
-  assert.deepEqual(f.check(f.onBranch('mini/tips')), { untouched: 'true', mini_apps: 'hello tips', mini_changed: 'true' });
-});
-
-test('a change to the mini-app router is a change to the main app', t => {
-  const f = fixture(t);
-  f.branch('mini-router');
-  f.commit({ 'mini-apps/router.mjs': 'export {};\n', 'mini-apps/NOTES.md': '# Notes\n' }, 'router');
-  assert.deepEqual(f.check(f.onBranch('mini-router')), { untouched: 'false', mini_apps: '', mini_changed: 'false' });
+  assert.equal(f.check(f.onBranch('tips')), 'false');
+  // A folder from before mini apps moved into the main app is no longer a skip path.
+  f.commit({ 'mini-apps/apps/old/index.html': '<p>old</p>\n' }, 'old');
+  assert.equal(f.check({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'main' }), 'false');
 });
 
 test('a docs commit on top of a code commit runs the suite', t => {
@@ -129,7 +118,7 @@ test('a docs commit on top of a code commit runs the suite', t => {
   f.commit({ 'app/src/index.ts': 'export const x = 2;\n' }, 'code');
   f.commit({ 'wiki/after.md': '# After\n' }, 'docs on top');
   f.push();
-  assert.equal(f.check(f.onBranch('feature')).untouched, 'false');
+  assert.equal(f.check(f.onBranch('feature')), 'false');
 });
 
 test('a file moved out of the main app into the wiki is a change to the main app', t => {
@@ -139,48 +128,47 @@ test('a file moved out of the main app into the wiki is a change to the main app
   renameSync(join(f.work, 'app/src/index.ts'), join(f.work, 'wiki/moved/index.ts.md'));
   f.git('add', '-A');
   f.git('commit', '-q', '-m', 'move');
-  assert.equal(f.check(f.onBranch('move')).untouched, 'false');
+  assert.equal(f.check(f.onBranch('move')), 'false');
 });
 
 test('a push to the default branch compares with the before SHA', t => {
   const f = fixture(t);
   const before = f.git('rev-parse', 'HEAD');
-  f.commit({ 'mini-apps/apps/tips/index.html': '<p>tips</p>\n' }, 'keep tips');
+  f.commit({ 'wiki/tips.md': '# Tips\n' }, 'docs');
   f.push();
-  assert.deepEqual(f.check({ ...f.onBranch('main'), BEFORE_SHA: before }),
-    { untouched: 'true', mini_apps: 'tips', mini_changed: 'true' });
+  assert.equal(f.check({ ...f.onBranch('main'), BEFORE_SHA: before }), 'true');
 
   // Two commits in one push: code, then docs. The whole push counts.
   const before2 = f.git('rev-parse', 'HEAD');
   f.commit({ 'app/src/index.ts': 'export const x = 3;\n' }, 'code');
   f.commit({ 'wiki/after.md': '# After\n' }, 'docs');
   f.push();
-  assert.deepEqual(f.check({ ...f.onBranch('main'), BEFORE_SHA: before2 }),
-    { untouched: 'false', mini_apps: '', mini_changed: 'false' });
+  assert.equal(f.check({ ...f.onBranch('main'), BEFORE_SHA: before2 }),
+    'false');
 });
 
 test('an all-zero before SHA is not a base', t => {
   const f = fixture(t);
   f.commit({ 'wiki/only.md': '# Docs\n' }, 'docs');
   f.push();
-  assert.deepEqual(f.check({ ...f.onBranch('main'), BEFORE_SHA: '0'.repeat(40) }),
-    { untouched: 'false', mini_apps: 'hello', mini_changed: 'true' });
+  assert.equal(f.check({ ...f.onBranch('main'), BEFORE_SHA: '0'.repeat(40) }),
+    'false');
 });
 
-test('no reachable base runs the suite and lists every mini app', t => {
+test('no reachable base runs the suite', t => {
   const f = fixture(t);
   f.branch('docs');
   f.commit({ 'wiki/new.md': '# New\n' }, 'docs');
-  const unknown = { untouched: 'false', mini_apps: 'hello', mini_changed: 'true' };
+  const unknown = 'false';
   // The default branch is not on origin.
-  assert.deepEqual(f.check({ ...f.onBranch('docs'), DEFAULT_BRANCH: 'trunk' }), unknown);
+  assert.equal(f.check({ ...f.onBranch('docs'), DEFAULT_BRANCH: 'trunk' }), unknown);
   // The pull request's base is not on origin.
-  assert.deepEqual(f.check({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'gone' }), unknown);
+  assert.equal(f.check({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_BASE_REF: 'gone' }), unknown);
   // The before SHA is on neither the clone nor origin.
   f.git('checkout', '-q', 'main');
-  assert.deepEqual(f.check({ ...f.onBranch('main'), BEFORE_SHA: '1234567890abcdef1234567890abcdef12345678' }), unknown);
+  assert.equal(f.check({ ...f.onBranch('main'), BEFORE_SHA: '1234567890abcdef1234567890abcdef12345678' }), unknown);
   // An event the workflows do not use.
-  assert.deepEqual(f.check({ GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF_NAME: 'main' }), unknown);
+  assert.equal(f.check({ GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF_NAME: 'main' }), unknown);
 });
 
 test('a missing remote-tracking ref is fetched from origin', t => {
@@ -188,13 +176,13 @@ test('a missing remote-tracking ref is fetched from origin', t => {
   f.branch('docs');
   f.commit({ 'wiki/new.md': '# New\n' }, 'docs');
   f.git('update-ref', '-d', 'refs/remotes/origin/main');
-  assert.equal(f.check(f.onBranch('docs')).untouched, 'true');
+  assert.equal(f.check(f.onBranch('docs')), 'true');
 });
 
 test('an empty diff is not proof', t => {
   const f = fixture(t);
   f.branch('same-as-main');
-  assert.deepEqual(f.check(f.onBranch('same-as-main')), { untouched: 'false', mini_apps: '', mini_changed: 'false' });
+  assert.equal(f.check(f.onBranch('same-as-main')), 'false');
 });
 
 // Writes files into the clone without committing them.
@@ -210,19 +198,19 @@ test('--worktree: uncommitted prose leaves the main app untouched', t => {
   const f = fixture(t);
   write(f, { 'wiki/README.md': '# Wiki, edited\n', 'openspec/changes/x/tasks.md': '- [ ] 1\n' });
   f.git('add', 'openspec');
-  assert.deepEqual(worktree(f), { untouched: 'true', mini_apps: '', mini_changed: 'false' });
+  assert.equal(worktree(f), 'true');
 });
 
 test('--worktree: an uncommitted app edit touches the main app', t => {
   const f = fixture(t);
   write(f, { 'app/src/index.ts': 'export const x = 2;\n' });
-  assert.equal(worktree(f).untouched, 'false');
+  assert.equal(worktree(f), 'false');
 });
 
-test('--worktree: an untracked mini-app file names its app', t => {
+test('--worktree: an untracked mini-app file touches the main app', t => {
   const f = fixture(t);
-  write(f, { 'mini-apps/apps/tips/index.html': '<p>tips</p>\n' });
-  assert.deepEqual(worktree(f), { untouched: 'true', mini_apps: 'tips', mini_changed: 'true' });
+  write(f, { 'app/src/apps/tips/App.tsx': 'export function App() {}\n' });
+  assert.equal(worktree(f), 'false');
 });
 
 test('--worktree: committed branch work counts with the uncommitted work', t => {
@@ -230,19 +218,19 @@ test('--worktree: committed branch work counts with the uncommitted work', t => 
   f.branch('feature');
   f.commit({ 'app/src/index.ts': 'export const x = 2;\n' }, 'code');
   write(f, { 'wiki/after.md': '# After\n' });
-  assert.equal(worktree(f).untouched, 'false');
+  assert.equal(worktree(f), 'false');
 });
 
 test('--worktree: no base fails safe to touched', t => {
   const f = fixture(t);
   write(f, { 'wiki/new.md': '# New\n' });
-  assert.deepEqual(f.check({ DEFAULT_BRANCH: 'trunk' }, ['--worktree']),
-    { untouched: 'false', mini_apps: 'hello', mini_changed: 'true' });
+  assert.equal(f.check({ DEFAULT_BRANCH: 'trunk' }, ['--worktree']),
+    'false');
 });
 
 test('--worktree: a clean tree is not proof', t => {
   const f = fixture(t);
-  assert.deepEqual(worktree(f), { untouched: 'false', mini_apps: '', mini_changed: 'false' });
+  assert.equal(worktree(f), 'false');
 });
 
 test('base names the commit the change is compared with, or is empty', t => {
