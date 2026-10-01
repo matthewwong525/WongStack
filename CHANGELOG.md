@@ -13,6 +13,21 @@ Setup no longer needs an empty folder, and your starter site's first message now
 
 **Updating.** The new message reaches your home page only while the *Make it yours* box is still on it; once you've removed the box, it stays removed. Nothing to do by hand.
 
+## 29.1.0 — Load what matters at session start
+
+The briefing your assistant reads at the start of each chat now holds what applies to any task, and the assistant looks up the rest once it knows what you want.
+
+- **Open questions on other work leave the briefing.** One line counts how many wait on each step, such as plan 3 or save 5. Open questions on the work you're on still come first.
+- **Your own wiki page loads next**, up to a set size, with a line pointing to the rest. Then your newest preferences and decisions get the room the old notes took.
+- **The assistant searches memory once it knows the task**, in its own words, before it acts on more than a quick question.
+- **Open questions come back when their step starts.** Each one is tagged with the step that should check it, so `/plan` loads its few notes, not all of them. The background tidy adds the tag to older ones.
+
+**Updating.** Nothing to do by hand: your next chat uses the new briefing.
+
+## 29.0.1 — Say what you lose without Paseo
+
+The required-tools page now lists everything that needs Paseo: chatting from your phone, closing a workspace, a browser hand-over waking the chat, and tidying idle workspaces. Nothing changes in how WongStack works.
+
 ## 29.0.0 — Mini apps live in the main app
 
 A mini app used to be built a different way from the rest of your app, and could reach only the database. Now it's part of the main app: one way to build any page or tool.

@@ -8,7 +8,7 @@ A fact is the smallest thing a cold reader needs to act as this session would: o
 - **Decisions with their reason**, and ruled-out options with theirs: *Rejected a Worker in front of the store, because it adds a service to keep alive.* Type `project`.
 - **Specifics**: names, repo-relative paths, numbers, versions, error strings.
 - **Pointers** to dashboards, tickets, external docs. Type `reference`.
-- **Unanswered questions**. Type `thread`; a superseding fact closes it. A fact that answers a thread the gate lists supersedes it, saying what was found.
+- **Unanswered questions**. Type `thread`; tag the verb or skill whose next run should check it, such as `plan` or `sync`. A superseding fact closes it. A fact that answers a thread the gate lists supersedes it, saying what was found.
 
 ## Drop
 
