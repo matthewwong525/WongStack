@@ -14,6 +14,10 @@ The briefing your assistant reads at the start of each chat now holds what appli
 
 **Updating.** Nothing to do by hand: your next chat uses the new briefing.
 
+## 29.0.1 — Say what you lose without Paseo
+
+The required-tools page now lists everything that needs Paseo: chatting from your phone, closing a workspace, a browser hand-over waking the chat, and tidying idle workspaces. Nothing changes in how WongStack works.
+
 ## 29.0.0 — Mini apps live in the main app
 
 A mini app used to be built a different way from the rest of your app, and could reach only the database. Now it's part of the main app: one way to build any page or tool.
