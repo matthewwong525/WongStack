@@ -1,6 +1,6 @@
 # Memory finds what you mean and keeps itself tidy
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** memory-system-explanation
 
@@ -118,3 +118,4 @@ None.
 - **2026-10-01** — Measured (task 5.1) with `node scripts/measure-context.mjs --json`, before any text edit: `.agents/skills/memory/SKILL.md` is 935 words, 6,339 bytes; `.agents/skills/memory/references/writing-facts.md` is 273 words, 1,715 bytes. Each ends at or under these.
 - **2026-10-01** — Assumed, at build: `lib/upkeep.mjs` holds upkeep's decisions (`upkeepPlan`, `tagSync`, `closingBody`), and `memory.mjs` its reads and writes (`upkeep`, `upkeepLine`), because the writes reuse `retag` and `writeStatements` there and an import back into `memory.mjs` would be a cycle. The member-key upkeep case is tested in `memory-worker.test.mjs`, which already runs member keys through the route.
 - **2026-10-01** — Assumed: checkpoint for gate task 6.1, inside `/ship`: tasks 1.1–5.4 built; merged main at 29.5.0 (`wiki-page-checks`, the overlapping workspace, shipped first). Conflicts in `CHANGELOG.md`, `payload-manifest.md`, and `areas.json` were resolved as the union: this entry on top, the pre-edit hook beside the renamed wiki check, and the `memory` aliases on main's new docs list. The memory tests (143) and the wiki, payload-link, retired-name, config, and context checks pass locally; this save runs CI.
+- **2026-10-01** — Assumed: archive checkpoint: all 17 tasks ticked, CI passed on PR #235 for gate task 6.1; the spec deltas were applied to the main memory spec by the archive. Numbered 29.6.0 from main's 29.5.0.

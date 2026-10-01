@@ -33,4 +33,4 @@
 
 ## 6. Gate
 
-- [ ] 6.1 Run the memory tests and payload checks in CI through `/save`. Verify CI passes.
+- [x] 6.1 Run the memory tests and payload checks in CI through `/save`. Verify CI passes.

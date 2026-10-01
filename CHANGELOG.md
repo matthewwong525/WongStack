@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Memory finds what you mean and keeps itself tidy
+## 29.6.0 — Memory finds what you mean and keeps itself tidy
 
 Your assistant's memory now finds a note when you ask in other words, keeps its open questions tied to whoever should check them, and tidies itself on every save.
 

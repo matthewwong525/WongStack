@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · memory-search-and-upkeep</title>
+<title>Review · 2026-10-01-memory-search-and-upkeep</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="memory-search-and-upkeep">
+<body data-change="2026-10-01-memory-search-and-upkeep">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>memory-search-and-upkeep</h1>
+  <h1>2026-10-01-memory-search-and-upkeep</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -181,6 +181,7 @@
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-01</p>Measured (task 5.1) with <code>node scripts/measure-context.mjs --json</code>, before any text edit: <code>.agents/skills/memory/SKILL.md</code> is 935 words, 6,339 bytes; <code>.agents/skills/memory/references/writing-facts.md</code> is 273 words, 1,715 bytes. Each ends at or under these.</li>
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed, at build: <code>lib/upkeep.mjs</code> holds upkeep's decisions (<code>upkeepPlan</code>, <code>tagSync</code>, <code>closingBody</code>), and <code>memory.mjs</code> its reads and writes (<code>upkeep</code>, <code>upkeepLine</code>), because the writes reuse <code>retag</code> and <code>writeStatements</code> there and an import back into <code>memory.mjs</code> would be a cycle. The member-key upkeep case is tested in <code>memory-worker.test.mjs</code>, which already runs member keys through the route.</li>
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: checkpoint for gate task 6.1, inside <code>/ship</code>: tasks 1.1–5.4 built; merged main at 29.5.0 (<code>wiki-page-checks</code>, the overlapping workspace, shipped first). Conflicts in <code>CHANGELOG.md</code>, <code>payload-manifest.md</code>, and <code>areas.json</code> were resolved as the union: this entry on top, the pre-edit hook beside the renamed wiki check, and the <code>memory</code> aliases on main's new docs list. The memory tests (143) and the wiki, payload-link, retired-name, config, and context checks pass locally; this save runs CI.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: archive checkpoint: all 17 tasks ticked, CI passed on PR #235 for gate task 6.1; the spec deltas were applied to the main memory spec by the archive. Numbered 29.6.0 from main's 29.5.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
