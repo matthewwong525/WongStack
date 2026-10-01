@@ -7,7 +7,7 @@ import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scr
 import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
 import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
-import { MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { memory, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
@@ -189,22 +189,75 @@ const digestOf = async env => {
   return text;
 };
 
-test('other changes\' open threads show at most 8 under 30 days, and a line says how many more a search finds', async t => {
+// Tags a fact, defining the tag first when the store has none by that name.
+const tagFact = (env, id, tag) => {
+  env.fake.db.prepare('INSERT OR IGNORE INTO tags (name, definition, created_at) VALUES (?, ?, ?)').run(tag, `Work on ${tag}.`, daysAgo(0));
+  env.fake.db.prepare('INSERT INTO fact_tags (fact_id, tag) VALUES (?, ?)').run(id, tag);
+};
+const STEP_SEARCH = 'When a step starts, load its own: `node .claude/skills/memory/scripts/memory.mjs search --type thread --tag <step>`.';
+
+test("other changes' open threads are never listed; one line counts them by step", async t => {
   const env = await setup(t);
   const insert = insertFact(env);
-  for (let i = 0; i < 80; i += 1) insert(`change-${i % 10}`, 'thread', `Open question ${i}.`, i < 75 ? i * 0.3 : 31 + i);
+  for (let i = 0; i < 80; i += 1) {
+    const { lastInsertRowid: id } = insert(`change-${i % 10}`, 'thread', `Open question ${i}.`, i * 0.3);
+    if (i < 10) tagFact(env, id, 'plan');
+    else if (i < 15) tagFact(env, id, 'save');
+  }
   for (let i = 0; i < 100; i += 1) insert('ops', i % 5 ? 'project' : 'feedback', `Settled fact ${i}.`, 1);
   const lines = (await digestOf(env)).split('\n');
-  const threads = lines.filter(line => line.startsWith('- [thread]'));
-  assert.deepEqual(threads.map(line => line.match(/Open question (\d+)\./)[1]), ['0', '1', '2', '3', '4', '5', '6', '7'], 'the 8 newest');
-  const held = lines.indexOf(threads.at(-1)) + 1;
-  assert.equal(lines[held], '72 more open threads are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search --type thread`.');
-  assert.match(lines[held + 1], /^- \[feedback\] Settled fact/);
-  assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts still show');
+  assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0, 'no other change\'s thread is listed');
+  assert.equal(lines[2], `Open threads on other changes, by step: plan 10, save 5; 65 untagged. ${STEP_SEARCH}`);
+  assert.ok(lines.some(line => line.startsWith('- [feedback] Settled fact')), 'feedback facts show');
+  assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts show');
   const shown = lines.filter(line => line.startsWith('- [')).length;
   assert.equal(lines.at(-1), `${180 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
-  const old = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--limit', '100']);
-  assert.match(old.stdout, /Open question 79\./, 'an aged-out thread stays live and searchable');
+  const all = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--limit', '100']);
+  assert.match(all.stdout, /Open question 79\./, 'a thread left out stays live and searchable');
+});
+
+test('threads tagged with a step count under it, and a tag search loads only that step\'s threads', async t => {
+  const env = await setup(t);
+  const insert = insertFact(env);
+  for (let i = 0; i < 3; i += 1) tagFact(env, insert('change-a', 'thread', `Plan question ${i}.`, i).lastInsertRowid, 'plan');
+  for (let i = 0; i < 2; i += 1) tagFact(env, insert('change-b', 'thread', `Save question ${i}.`, i).lastInsertRowid, 'save');
+  tagFact(env, insert('change-c', 'thread', 'Deploy question.', 1).lastInsertRowid, 'deploy');
+  for (let i = 0; i < 4; i += 1) insert('change-c', 'thread', `Loose question ${i}.`, i);
+  insert('ops', 'feedback', 'Keep replies short.', 1);
+  const lines = (await digestOf(env)).split('\n');
+  assert.ok(lines.includes(`Open threads on other changes, by step: plan 3, save 2; 5 untagged. ${STEP_SEARCH}`), 'a non-step tag counts as untagged');
+  const found = (await memory(env.repo, env.fake, ['search', '--type', 'thread', '--tag', 'plan', '--limit', '100'])).stdout.trim().split('\n');
+  assert.deepEqual(found.map(line => line.match(/^- \[thread\] (Plan question \d)\. \(change-a, (\w+, )?\d+d, /)?.[1]), ['Plan question 0', 'Plan question 1', 'Plan question 2']);
+});
+
+test('the digest shows your people page within 1.5 KB, a line naming the rest, then feedback', async t => {
+  const env = await setup(t);
+  mkdirSync(join(env.repo.root, 'wiki', 'people'), { recursive: true });
+  const prefs = Array.from({ length: 48 }, (_, i) => `- Preference ${i}: short notes, plain words, one idea at a time, please.`);
+  const page = ['# Ana', '', 'Ana runs operations.', '', '- **Git emails:** `dev@example.com`.', ...prefs, '', 'Back to [people](README.md).', ''].join('\n');
+  assert.ok(Buffer.byteLength(page) > 3000, `${Buffer.byteLength(page)} bytes`);
+  writeFileSync(join(env.repo.root, 'wiki', 'people', 'ana.md'), page);
+  const insert = insertFact(env);
+  for (let i = 0; i < 5; i += 1) insert('ops', 'feedback', `Preference fact ${i}.`, 1);
+  const lines = (await digestOf(env)).split('\n');
+  const start = lines.indexOf('## You (wiki/people/ana.md)');
+  const end = lines.indexOf('The rest: wiki/people/ana.md.');
+  assert.ok(start > 1 && end > start, 'a person section ending with the rest line');
+  assert.deepEqual(lines.slice(start + 1, start + 4), ['Ana runs operations.', '- **Git emails:** `dev@example.com`.', '- Preference 0: short notes, plain words, one idea at a time, please.']);
+  assert.ok(Buffer.byteLength(lines.slice(start, end + 1).join('\n')) < PERSON_MAX_BYTES);
+  assert.ok(!lines.includes('# Ana') && !lines.includes('Back to [people](README.md).'), 'no title or footer');
+  assert.equal(lines[end + 1], '## Live facts');
+  assert.match(lines[end + 2], /^- \[feedback\] Preference fact/);
+});
+
+test('with no people page listing you, the digest has no person section and still asks for a search', async t => {
+  const env = await setup(t);
+  mkdirSync(join(env.repo.root, 'wiki', 'people'), { recursive: true });
+  writeFileSync(join(env.repo.root, 'wiki', 'people', 'bo.md'), '# Bo\n\n- **Git emails:** `bo@example.com`.\n');
+  insertFact(env)('ops', 'feedback', 'Keep replies short.', 1);
+  const lines = (await digestOf(env)).split('\n');
+  assert.equal(lines.filter(line => line.startsWith('## You')).length, 0);
+  assert.match(lines[1], /Once you know the task, and before you act on more than a quick question, search memory for its key terms in your own words: `node \.claude\/skills\/memory\/scripts\/memory\.mjs search <terms>`\.$/);
 });
 
 test("the current change's open threads all show first, old ones too", async t => {
@@ -221,9 +274,9 @@ test("the current change's open threads all show first, old ones too", async t =
   const start = lines.indexOf('## Open threads on `add-po-search`');
   assert.ok(start > 0, 'the current change has its own section');
   assert.deepEqual(lines.slice(start + 1, start + 13).map(line => line.match(/^- \[thread\] Current question (\d+)\./)?.[1]), Array.from({ length: 12 }, (_, i) => String(i)));
-  assert.equal(lines[start + 13], '## Live facts');
-  assert.equal(lines.filter(line => line.startsWith('- [thread] Other question')).length, 8);
-  assert.ok(lines.includes('12 more open threads are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search --type thread`.'));
+  assert.equal(lines[start + 13], `Open threads on other changes, by step: 20 untagged. ${STEP_SEARCH}`);
+  assert.equal(lines[start + 14], '## Live facts');
+  assert.equal(lines.filter(line => line.startsWith('- [thread] Other question')).length, 0);
 });
 
 test('a store of 400 live facts keeps the digest within its caps and says how many it left out', async t => {
@@ -232,7 +285,7 @@ test('a store of 400 live facts keeps the digest within its caps and says how ma
   for (let i = 0; i < 400; i += 1) insert(`s${i % 7}`, ['thread', 'feedback', 'project', 'reference', 'user'][i % 5], `Fact ${i} ${'about the release window '.repeat(4)}`.trim(), i % 40);
   const lines = (await digestOf(env)).split('\n');
   const shown = lines.filter(line => line.startsWith('- [')).length;
-  assert.ok(lines.filter(line => line.startsWith('- [thread]')).length <= 8);
+  assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0);
   assert.equal(lines.at(-1), `${400 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
 });
 

@@ -5,9 +5,11 @@ import { readHead, SCRIPT, statePath } from './store.mjs';
 
 export const MAX_LINES = 40;
 export const MAX_BYTES = 6 * 1024;
-// Other changes' open threads: at most THREAD_CAP, each under THREAD_MAX_AGE_DAYS, so other facts keep room.
-export const THREAD_CAP = 8;
-export const THREAD_MAX_AGE_DAYS = 30;
+// The person's own wiki page gets at most this much of the digest, so facts keep room as the page grows.
+export const PERSON_MAX_BYTES = 1536;
+// Topic tags named after a verb or skill. An open thread carries the one whose next run should check it;
+// the digest counts other changes' threads by these, and a verb loads its own when it starts.
+export const VERB_TAGS = ['explore', 'plan', 'apply', 'save', 'ship', 'continue', 'verify', 'routine', 'sync', 'setup', 'close', 'improve'];
 const FETCH_LIMIT = 60;
 const CONSOLIDATE_AFTER_MS = 24 * 60 * 60 * 1000;
 const CONSOLIDATE_AFTER_SESSIONS = 5;
@@ -27,10 +29,11 @@ const hasReaders = store => (store.readerSchema ??= store.query(...READER_SCHEMA
 // except a fact a reader key wrote, which only its author sees; a store before the reader schema has none.
 // The memory Worker already keeps a member's or reader's view to this; for the admin, it narrows the default
 // view to their own. Returns a WHERE clause on alias `f` with its params, or null when the repo is not a team.
-export async function personalFilter(ctx, store) {
+// `page` is the person's page when the caller already read it.
+export async function personalFilter(ctx, store, page = personPage(ctx)) {
   if (!store.config.team) return null;
   const emails = new Set([(ctx.author || '').toLowerCase(), store.email].filter(email => email?.includes('@')));
-  for (const email of personPage(ctx)?.text.toLowerCase().match(EMAIL) || []) emails.add(email);
+  for (const email of page?.text.toLowerCase().match(EMAIL) || []) emails.add(email);
   const list = emails.size ? [...emails] : [''];
   const own = `lower(f.author) IN (${list.map(() => '?').join(', ')})`;
   const personal = { clause: `(f.type NOT IN ('user', 'feedback') OR ${own})`, params: list };
@@ -83,55 +86,76 @@ export function consolidationDue(state, now = Date.now()) {
   return Boolean(since) && now - Date.parse(since) >= CONSOLIDATE_AFTER_MS && Number(state.captured_since) >= CONSOLIDATE_AFTER_SESSIONS;
 }
 
-// Builds the digest within MAX_LINES and MAX_BYTES: the current change's threads, then the
-// other facts in query rank (other changes' threads, feedback, project, reference, user; newest first).
-// `otherThreads` counts every live open thread on other slugs; a line after the threads says how many are held back.
+// One line on other changes' open threads: how many carry each verb tag and how many carry none, and how a
+// verb loads its own. `steps` are rows of { tag, n }, with a null tag for the untagged. Null when there are none.
+export function stepLine(steps = []) {
+  const counts = new Map(steps.map(row => [row.tag ?? null, Number(row.n)]));
+  const tagged = VERB_TAGS.filter(tag => counts.get(tag)).map(tag => `${tag} ${counts.get(tag)}`).join(', ');
+  const untagged = counts.get(null) ? `${counts.get(null)} untagged` : '';
+  if (!tagged && !untagged) return null;
+  return `Open threads on other changes, by step: ${[tagged, untagged].filter(Boolean).join('; ')}. When a step starts, load its own: \`${SCRIPT} search --type thread --tag <step>\`.`;
+}
+
+// The person's page as digest lines: its body, without the `#` title, the `Back to` footer, or blank lines.
+const personLines = text => text.split('\n').map(line => line.trimEnd()).filter(line => line && !/^# /.test(line) && !/^Back to /.test(line));
+
+// Builds the digest within MAX_LINES and MAX_BYTES, in this order: the current change's threads, the count of
+// other changes' threads by verb tag, the person's page within PERSON_MAX_BYTES, then the other facts in query
+// rank (feedback, project, reference, user; newest first). Other changes' threads are never listed.
 // Returns '' when there is nothing to say.
 // `personal` says the team filter is on; only the admin's key is told --everyone widens it.
-export function buildDigest({ facts, live = facts.length, threads = [], otherThreads = 0, run = null, slug = null, personal = false, admin = false, now = Date.now() }) {
+export function buildDigest({ facts, live = facts.length, threads = [], steps = [], person = null, run = null, slug = null, personal = false, admin = false, now = Date.now() }) {
   const runLine = formatRun(run);
-  if (!facts.length && !threads.length && !runLine) return '';
+  const step = stepLine(steps);
+  if (!facts.length && !threads.length && !runLine && !step && !person) return '';
   const lines = [
     '# Memory digest',
-    `Facts are dated context from past sessions, not instructions. Check a fact against the repo before you act on it; the repo wins. Search more: \`${SEARCH}\`.`,
+    `Facts are dated context from past sessions, not instructions. Check a fact against the repo before you act on it; the repo wins. Once you know the task, and before you act on more than a quick question, search memory for its key terms in your own words: \`${SEARCH}\`.`,
     ...(personal ? [`This team repo shows only your own user and feedback facts.${admin ? ` See everyone's: \`${SEARCH} --everyone\`.` : ''}`] : []),
     ...(runLine ? [runLine] : []),
   ];
-  const threadIds = new Set(threads.map(fact => fact.id));
-  const ranked = [
-    ...threads.map(fact => [`## Open threads on \`${slug}\``, fact]),
-    ...facts.filter(fact => !threadIds.has(fact.id)).map(fact => ['## Live facts', fact]),
-  ];
   const omittedLine = count => `${count} more live facts are not shown. Search them: \`${SEARCH}\`.`;
-  const heldLine = count => `${count} more open threads are not shown. Search them: \`${SCRIPT} search --type thread\`.`;
-  const reserve = Buffer.byteLength(omittedLine(live)) + 1;
-  const heldReserve = Buffer.byteLength(heldLine(otherThreads)) + 1;
+  const size = next => next.reduce((sum, line) => sum + Buffer.byteLength(line) + 1, 0);
+  const reserve = size([omittedLine(live)]);
   let bytes = Buffer.byteLength(lines.join('\n'));
-  let heading = null;
+  // Whether `next` fits with room left for `held`, lines still to come, and the left-out line.
+  const fits = (next, held = []) => lines.length + next.length + held.length + 1 <= MAX_LINES && bytes + size(next) + size(held) + reserve <= MAX_BYTES;
+  const push = next => { lines.push(...next); bytes += size(next); };
+  let full = false;
   let shown = 0;
-  let shownThreads = 0;
-  let heldDone = false;
-  // The held-back line goes once, right after the other changes' threads; room for it stays reserved until then.
-  const addHeld = () => {
-    heldDone = true;
-    if (otherThreads <= shownThreads) return;
-    lines.push(heldLine(otherThreads - shownThreads));
-    bytes += Buffer.byteLength(lines.at(-1)) + 1;
-  };
-  for (const [section, fact] of ranked) {
-    const otherThread = section === '## Live facts' && fact.type === 'thread';
-    if (!heldDone && section === '## Live facts' && !otherThread) addHeld();
-    const held = !heldDone && otherThreads > shownThreads + (otherThread ? 1 : 0);
-    const next = [...(section === heading ? [] : [section]), formatFact(fact, now)];
-    const size = next.reduce((sum, line) => sum + Buffer.byteLength(line) + 1, 0);
-    if (lines.length + next.length + 1 + (held ? 1 : 0) > MAX_LINES || bytes + size + reserve + (held ? heldReserve : 0) > MAX_BYTES) break;
-    lines.push(...next);
-    bytes += size;
-    heading = section;
+  // The step line goes right after the current change's threads; its room stays reserved until then.
+  const stepHeld = step ? [step] : [];
+  for (const [i, fact] of threads.entries()) {
+    const next = [...(i ? [] : [`## Open threads on \`${slug}\``]), formatFact(fact, now)];
+    if (!fits(next, stepHeld)) { full = true; break; }
+    push(next);
     shown += 1;
-    if (otherThread) shownThreads += 1;
   }
-  if (!heldDone) addHeld();
+  if (step && fits(stepHeld)) push(stepHeld);
+  const body = person ? personLines(person.text) : [];
+  if (!full && body.length) {
+    const heading = `## You (${person.path})`;
+    const rest = `The rest: ${person.path}.`;
+    const section = [heading];
+    let cut = false;
+    for (const [i, line] of body.entries()) {
+      const tail = i === body.length - 1 ? [] : [rest];
+      if (size([...section, line, ...tail]) > PERSON_MAX_BYTES || !fits([...section, line], tail)) { cut = true; break; }
+      section.push(line);
+    }
+    if (cut) section.push(rest);
+    if (fits(section)) push(section); else full = true;
+  }
+  const threadIds = new Set(threads.map(fact => fact.id));
+  let heading = false;
+  for (const fact of full ? [] : facts) {
+    if (threadIds.has(fact.id)) continue;
+    const next = [...(heading ? [] : ['## Live facts']), formatFact(fact, now)];
+    if (!fits(next)) break;
+    push(next);
+    heading = true;
+    shown += 1;
+  }
   if (live > shown) lines.push(omittedLine(live - shown));
   return lines.join('\n');
 }
@@ -140,22 +164,23 @@ export function buildDigest({ facts, live = facts.length, threads = [], otherThr
 // Writers append these to their own batch, so the refreshed digest sees their writes in the same round trip.
 export async function digestPlan(ctx, store) {
   const slug = currentSlug(ctx.root, ctx.branch);
-  const personal = await personalFilter(ctx, store);
+  const person = personPage(ctx);
+  const personal = await personalFilter(ctx, store, person);
   const where = `f.superseded_by IS NULL${personal ? ` AND ${personal.clause}` : ''}`;
   const params = personal?.params || [];
-  const cutoff = new Date(Date.now() - THREAD_MAX_AGE_DAYS * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const verbTags = VERB_TAGS.map(tag => `'${tag}'`).join(', ');
   const statements = [
-    [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type = 'thread' AND f.slug != ? AND f.created_at >= ? ORDER BY f.created_at DESC, f.id DESC LIMIT ${THREAD_CAP}`, [...params, slug || '', cutoff]],
+    // Other changes' open threads by verb tag: one with two counts under each, and the untagged come back as a null tag.
+    [`SELECT ft.tag, count(*) AS n FROM facts f LEFT JOIN fact_tags ft ON ft.fact_id = f.id AND ft.tag IN (${verbTags}) WHERE ${where} AND f.type = 'thread' AND f.slug != ? GROUP BY ft.tag`, [...params, slug || '']],
     [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type != 'thread' ORDER BY ${TYPE_ORDER}, f.created_at DESC, f.id DESC LIMIT ${FETCH_LIMIT}`, params],
-    [`SELECT count(*) AS live, count(CASE WHEN f.type = 'thread' AND f.slug != ? THEN 1 END) AS other_threads FROM facts f WHERE ${where}`, [slug || '', ...params]],
+    [`SELECT count(*) AS live FROM facts f WHERE ${where}`, params],
     [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type = 'thread' AND f.slug = ? ORDER BY f.created_at DESC`, [...params, slug || '']],
     ['SELECT kind, host, started_at, finished_at, status, reason, counts FROM runs ORDER BY id DESC LIMIT 1'],
     CONSOLIDATION_STATE,
   ];
   const finish = results => {
-    const [recent, others, [count], threads, [run], [state]] = results.slice(-statements.length);
-    const facts = [...recent, ...others];
-    const text = buildDigest({ facts, live: count?.live ?? facts.length, threads, otherThreads: count?.other_threads ?? recent.length, run, slug, personal: Boolean(personal), admin: store.role === 'admin' });
+    const [steps, facts, [count], threads, [run], [state]] = results.slice(-statements.length);
+    const text = buildDigest({ facts, live: count?.live ?? facts.length, threads, steps, person, run, slug, personal: Boolean(personal), admin: store.role === 'admin' });
     writeFileSync(statePath(ctx, 'digest.md'), text);
     return { text, due: consolidationDue(state) };
   };
