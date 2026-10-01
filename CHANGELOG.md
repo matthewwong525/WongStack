@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One web of code, facts, wiki pages, specs, and past plans
+## 29.4.0 — One web of code, facts, wiki pages, specs, and past plans
 
 When your assistant is about to change part of your code or a wiki page, one lookup now brings up everything tied to it, and every publish checks that no wiki page is lost.
 

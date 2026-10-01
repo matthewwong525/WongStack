@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · link-docs-to-code</title>
+<title>Review · 2026-10-01-link-docs-to-code</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="link-docs-to-code">
+<body data-change="2026-10-01-link-docs-to-code">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>link-docs-to-code</h1>
+  <h1>2026-10-01-link-docs-to-code</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -155,6 +155,7 @@
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-01</p>Check: <code>.github/workflows/test.yml</code> adds the <i>Check the wiki's links</i> step and a Summary sentence for it, because the wiki check must run in every install on every push; no existing step changes.</li>
 <li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: checkpoint for gate task 4.2: tasks 1.1–4.1 are built and the related tests pass locally (250), along with the payload link, retired-name, config, and context checks; this save runs CI. The spec deltas were copied into the main memory and knowledge-center specs at this save. Past changes count a folder named in a plan as an exact match only when it is at least as deep as the path's area folder, so <code>wiki/</code> or <code>app/worker/</code> naming doesn't jump the queue.</li>
 <li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: gate task 4.2 done: CI passed on PR #231 after merging main (#230; <code>wiki/development/memory.md</code> was the only conflict, keeping both edits), and the <i>Check the wiki's links</i> step ran and passed in the test workflow.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-01</p>Assumed: archive checkpoint: all tasks ticked, CI passed on PR #231; the spec deltas were already copied into the main memory and knowledge-center specs at the earlier save, so the archive skipped specs. Released as 29.4.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
