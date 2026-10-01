@@ -3,7 +3,11 @@
   "entry": [
     "worker/index.ts",
     // Shared signed-identity verifier used by the Worker entry point.
-    "worker/access.ts"
+    "worker/access.ts",
+    // Each mini app's page and server side, which Vite finds by glob
+    // (src/apps/index.ts, worker/apps/index.ts).
+    "src/apps/*/App.tsx",
+    "worker/apps/*/api.ts"
   ],
   "project": ["worker/**/*.ts", "src/**/*.{ts,tsx}"],
   "vite": {

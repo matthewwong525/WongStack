@@ -59,7 +59,8 @@
       ".github/workflows/test.yml",
       ".github/actions/change-scope/action.yml",
       ".github/scripts/app-untouched.sh",
-      ".github/scripts/loosened-checks.mjs"
+      ".github/scripts/loosened-checks.mjs",
+      ".github/scripts/test-file.mjs"
     ],
     "blocks": [
       {
@@ -93,8 +94,7 @@
       "schema/seed.sql",
       "schema/migrations/.gitkeep",
       "app/.dev.vars.example",
-      "scripts/cf-preview.sh",
-      "scripts/mini-dashboard.mjs"
+      "scripts/cf-preview.sh"
     ],
     "dirs": [
       "wiki/stack"
@@ -102,18 +102,12 @@
   },
   "scaffold": {
     "dirs": [
-      "app",
-      "mini-apps/apps/hello"
-    ],
-    "files": [
-      "mini-apps/router.mjs",
-      "mini-apps/router.d.mts",
-      "mini-apps/routes.mjs",
-      "mini-apps/routes.d.mts",
-      "mini-apps/is-test-file.mjs"
+      "app"
     ],
     "exclude": [
-      "app/wrangler.jsonc"
+      "app/wrangler.jsonc",
+      "app/src/apps/tips",
+      "app/worker/apps/tips"
     ]
   },
   "seededBySetup": {

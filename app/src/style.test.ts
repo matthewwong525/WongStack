@@ -2,8 +2,8 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 
-// The shared look lives in public/, so it is served at /style.css, where the
-// mini apps link it too. A JS import would give it a hashed name they can't find.
+// The shared look lives in public/, so it is served at /style.css under a
+// fixed name that index.html links, for every page and mini app.
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 it("links the shared stylesheet from the app's page", () => {

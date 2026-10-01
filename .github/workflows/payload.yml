@@ -52,7 +52,7 @@ jobs:
         run: npm install -g @fission-ai/openspec@1.13.2
       - name: Lint scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
-        run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/memory/worker .github/scripts mini-apps/router.mjs mini-apps/routes.mjs mini-apps/is-test-file.mjs server
+        run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/memory/worker .github/scripts server
       # shellcheck is preinstalled on ubuntu-latest.
       - name: Check shell scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}

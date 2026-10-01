@@ -26,7 +26,7 @@ A push SHALL produce one test run, and the pack's deploy workflow SHALL NOT run 
 
 ### Requirement: A change that leaves the main app untouched skips its suite
 
-When everything a branch changes against the default branch is under `wiki/`, `openspec/`, or `mini-apps/apps/`, or ends in `.md`, the check SHALL pass without running the main app's suite, and SHALL run only the changed mini apps' tests. The comparison SHALL cover the whole branch, and when it cannot be made, the suite SHALL run.
+When everything a branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`, the check SHALL pass without running the main app's suite. A change to a mini app SHALL run the suite, like any main-app change. The comparison SHALL cover the whole branch, and when it cannot be made, the suite SHALL run.
 
 #### Scenario: A docs-only branch
 

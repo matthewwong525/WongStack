@@ -25,7 +25,8 @@
 	},
 	"upload_source_maps": true,
 	// disallow_importable_env: code reaches a binding only through the env a
-	// route hands it, so a mini app can not import MEMORY_DB. wiki/stack/mini-apps.md
+	// route hands it, and a mini app's env leaves out MEMORY_DB and
+	// MEMORY_BUCKET, so it can not import them. wiki/stack/mini-apps.md
 	"compatibility_flags": [
 		"nodejs_compat",
 		"disallow_importable_env"

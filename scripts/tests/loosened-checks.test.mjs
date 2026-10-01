@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TEST_FILE } from '../../.github/scripts/test-file.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.github/scripts/loosened-checks.mjs');
@@ -30,8 +31,8 @@ function gitEnv(home) {
 
 const PACKAGE = JSON.stringify({ scripts: { lint: 'oxlint', test: 'npm run lint && vitest run', dev: 'vite' } }, null, 2);
 
-// A bare "origin" and a clone whose `main` holds a small app, a mini app, and
-// the check scripts, pushed. Work happens on the branch `feature`.
+// A bare "origin" and a clone whose `main` holds a small app with a mini app in
+// it, pushed. Work happens on the branch `feature`.
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-loosened-checks-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -61,7 +62,7 @@ function fixture(t) {
     'app/src/sum.test.ts': "import { sum } from './sum';\ntest('adds', () => expect(sum(1, 2)).toBe(3));\n",
     'app/vitest.config.ts': 'export default { test: { coverage: { thresholds: { lines: 100 } } } };\n',
     'app/package.json': `${PACKAGE}\n`,
-    'mini-apps/apps/tips/api.test.mjs': "import test from 'node:test';\ntest('tips', () => {});\n",
+    'app/src/apps/tips/tip.test.ts': "test('tips', () => {});\n",
     'wiki/README.md': '# Wiki\n',
   }, 'base');
   git('push', '-q', '-u', 'origin', 'main');
@@ -132,16 +133,24 @@ test('a deleted test fails, a test moved to another test does not', t => {
 
 test('a skipped test in a mini app fails', t => {
   const f = fixture(t);
-  f.commit({ 'mini-apps/apps/tips/api.test.mjs': `import test from 'node:test';\n${SKIPPED_TEST}('tips', () => {});\n` });
-  assertFails(f.check(), 'mini-apps/apps/tips/api.test.mjs');
+  f.commit({ 'app/src/apps/tips/tip.test.ts': `${SKIPPED_TEST}('tips', () => {});\n` });
+  assertFails(f.check(), 'app/src/apps/tips/tip.test.ts');
 });
 
-// One rule names test files for CI, the build, and this check: Node runs
-// `foo_test.mjs`, so a skip there must not slip past.
-test('a skipped test in an underscore-named mini-app test fails', t => {
+// Node runs `foo_test.mjs`, so a skip there must not slip past.
+test('a skipped test in an underscore-named test fails', t => {
   const f = fixture(t);
-  f.commit({ 'mini-apps/apps/tips/foo_test.mjs': `import test from 'node:test';\n${SKIPPED_TEST}('tips', () => {});\n` });
-  assertFails(f.check(), 'mini-apps/apps/tips/foo_test.mjs');
+  f.commit({ 'scripts/tests/foo_test.mjs': `import test from 'node:test';\n${SKIPPED_TEST}('tips', () => {});\n` });
+  assertFails(f.check(), 'scripts/tests/foo_test.mjs');
+});
+
+test('the test-file rule names every file Node runs by default, plus spec and test_ names', () => {
+  for (const path of ['a.test.mjs', 'a-test.js', 'a_test.mjs', 'test-a.mjs', 'test.mjs', 'test_a.py', 'a.spec.ts', 'App.test.tsx', 'test/x.mjs', 'lib/test/x.json']) {
+    assert.equal(TEST_FILE.test(path), true, path);
+  }
+  for (const path of ['app.js', 'api.ts', 'latest.mjs', 'attest.mjs', 'testing.mjs', 'tests/x.mjs', 'index.html']) {
+    assert.equal(TEST_FILE.test(path), false, path);
+  }
 });
 
 test('a test-skip word outside a test file is not a marker', t => {

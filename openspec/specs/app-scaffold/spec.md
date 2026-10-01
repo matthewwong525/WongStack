@@ -87,12 +87,13 @@ The starter app SHALL route its pages through a route list, with the home page a
 
 ### Requirement: The code rule says where things go
 
-The code rule SHALL load when an agent edits the main app or a mini app, and SHALL say where a new page, API route, shared part, helper, and style go, pointing at the files that already follow it.
+The code rule SHALL load when an agent edits the main app, mini apps included, and SHALL say where a new page, API route, mini app, shared part, helper, and style go, pointing at the files that already follow it.
 
 #### Scenario: A second page
 
 - **WHEN** the agent adds a page to the main app
 - **THEN** it adds a folder under the pages folder and one entry in the route list, following the home page
+
 ### Requirement: The starter app requires verified identity
 
 The scaffold SHALL require a verified signed Access identity scoped to this workspace before serving its HTML, static assets, APIs, or mini apps. It SHALL recognize a human by verified email and a machine by verified service-token identity. Missing configuration SHALL fail closed; missing, forged, expired, or wrong-application assertions SHALL be denied. Plain email headers SHALL NOT authorize a request. Only explicit local-development configuration SHALL substitute an identity; deployed environments SHALL reject that development bypass. Memory SHALL remain independently authenticated by its memory keys.

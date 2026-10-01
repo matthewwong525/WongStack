@@ -11,8 +11,8 @@ describe("private Worker routing", () => {
   let publicKey: JsonWebKey;
   const assets = { fetch: vi.fn(async () => new Response("asset")) };
   const env = { ASSETS: assets, CF_ACCESS_TEAM_DOMAIN: TEAM, CF_ACCESS_AUD: AUD };
-  const call = (path: string, headers: Record<string, string> = {}, bindings = env) => worker.fetch(
-    new Request(`https://workspace.example.com${path}`, { headers }), bindings as Env & typeof env, {} as ExecutionContext,
+  const call = (path: string, headers: Record<string, string> = {}, bindings = env, method = "GET") => worker.fetch(
+    new Request(`https://workspace.example.com${path}`, { headers, method }), bindings as Env & typeof env, {} as ExecutionContext,
   );
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   async function token(claims: Record<string, unknown> = { email: "human@example.com" }) {
@@ -77,6 +77,30 @@ describe("private Worker routing", () => {
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toEqual({ error: "Not found" });
     expect(assets.fetch).not.toHaveBeenCalled();
+  });
+  it("routes each kind of address to its owner, for GET and POST", async () => {
+    const headers = { "Cf-Access-Jwt-Assertion": await token() };
+    const memoryEnv = { ...env, MEMORY_DB: { prepare: () => ({ bind: () => ({ first: async () => null }) }) } };
+    const answers: Record<string, unknown[]> = {};
+    for (const method of ["GET", "POST"]) {
+      for (const path of ["/", "/apps/", "/apps/hello/", "/apps/hello/api/greeting", "/apps/hello/api.mjs", "/api/health", "/_memory/"]) {
+        const response = await call(path, headers, memoryEnv, method);
+        const type = response.headers.get("Content-Type") ?? "";
+        const body = type.includes("json") ? await response.json() : await response.text();
+        (answers[path] ??= []).push(response.status, response.headers.get("Location") ?? body);
+      }
+    }
+    expect(answers).toEqual({
+      "/": [200, "asset", 200, "asset"],
+      "/apps/": [302, "https://workspace.example.com/", 302, "https://workspace.example.com/"],
+      "/apps/hello/": [200, "asset", 200, "asset"],
+      "/apps/hello/api/greeting": [200, { message: "Hello, world!" }, 404, { error: "Not found" }],
+      // An old source path gets the single-page app's page, never the file.
+      "/apps/hello/api.mjs": [200, "asset", 200, "asset"],
+      "/api/health": [200, { ok: true }, 404, { error: "Not found" }],
+      "/_memory/": [401, expect.objectContaining({ errors: [expect.objectContaining({ code: 10000 })] }), 401, expect.objectContaining({ errors: [expect.objectContaining({ code: 10000 })] })],
+    });
+    expect(assets.fetch).toHaveBeenCalledTimes(6);
   });
   it("denies wrong-audience and tampered signatures at the origin", async () => {
     const wrong = await token({ email: "human@example.com", aud: "another-workspace" });
