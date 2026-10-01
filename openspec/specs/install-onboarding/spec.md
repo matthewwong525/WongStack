@@ -2,18 +2,18 @@
 
 ## Purpose
 
-How a person gets WongStack: one pasted prompt runs `/wong-setup` in an empty folder and installs everything through the normal workflow; the source also ships a script that makes a fresh server an agent workspace.
+How a person gets WongStack: one pasted prompt runs `/wong-setup` from any folder and installs everything through the normal workflow; the source also ships a script that makes a fresh server an agent workspace.
 
 ## Requirements
 
 ### Requirement: The README offers one prompt to paste
 
-The README SHALL give a one-line prompt that names the WongStack GitHub repository and asks the agent to install it in the open folder. Next to it, a line addressed to the agent SHALL give the raw address of `.agents/skills/wong-setup/SKILL.md` by its real path. The README SHALL send the person to Paseo, running Claude Code or Codex on their own computer, as the place to paste it, with no terminal inside the chat and no cloud-container session. It SHALL say to start in an empty folder, with a free GitHub account and a free Cloudflare account.
+The README SHALL give a one-line prompt that names the WongStack GitHub repository and asks the agent to install it, with no folder named and no folder to make first. Next to it, a line addressed to the agent SHALL give the raw address of `.agents/skills/wong-setup/SKILL.md` by its real path. The README SHALL send the person to Paseo, running Claude Code or Codex on their own computer, as the place to paste it, with no terminal inside the chat and no cloud-container session. It SHALL say what they need first: a free GitHub account and a free Cloudflare account. Its steps SHALL end with opening the starter site and pasting its first message.
 
 #### Scenario: A newcomer reads the README
 
 - **WHEN** someone new to coding agents reads the install section
-- **THEN** they find one prompt, an app to paste it in, and what they need first
+- **THEN** they find one prompt, an app to paste it in, and what they need first, with no step to make a folder
 
 #### Scenario: The agent finds the runbook
 
@@ -34,19 +34,19 @@ The README SHALL carry the numbered install steps, and no other page SHALL repea
 - **WHEN** the install steps change
 - **THEN** only the README's steps need editing
 
-### Requirement: Setup installs only into an empty folder
+### Requirement: Setup installs into an empty folder it finds or makes
 
-`/wong-setup` SHALL install only into an empty folder, or one holding only a `.git` with no commits, and SHALL write nothing for any other folder; a folder with an install record SHALL go to `/wong-sync`. The install SHALL always take everything, with no component question.
+`/wong-setup` SHALL install into the open folder when it is empty, or holds only a `.git` with no commits. A folder with an install record SHALL go to `/wong-sync`. Any other folder SHALL stay untouched: setup SHALL install instead into a new `wongstack` folder in the person's home folder, taking the next free numbered name when one exists with other files, and going to `/wong-sync` when one already holds WongStack. Setup SHALL make that folder without asking, only once it writes its first file, and SHALL say where it is and to open it in Paseo for later chats. The install SHALL always take everything, with no component question.
 
 #### Scenario: Empty folder
 
 - **WHEN** a person runs setup in an empty folder with a Cloudflare token
-- **THEN** setup installs everything without asking which parts to take
+- **THEN** setup installs everything there without asking which parts to take
 
 #### Scenario: A folder with files
 
 - **WHEN** setup runs in a folder with files and no install record
-- **THEN** it writes nothing and says setup starts from an empty folder
+- **THEN** it writes nothing in that folder, installs into a new `wongstack` folder in the home folder, and its closing report names that folder and says to open it in Paseo next time
 
 ### Requirement: Setup readies the computer before it writes anything
 

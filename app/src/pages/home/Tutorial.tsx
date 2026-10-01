@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import './Tutorial.css'
 
-// The first request names the workspace and walks through the change loop.
+// The first request gets to know the person, names the workspace, and walks through the change loop.
 // Remove this file, Tutorial.test.tsx, Tutorial.css, and the Tutorial import/render in Home.tsx.
 const message =
-  'Help me make this home page my own. Ask me what to call it, update the heading, and remove this welcome guide. Explain each step and show me a preview before publishing.'
+  "Get to know me and make this home page mine. First ask if you may skim my Claude Code and Codex chats from the last 30 days on this computer. Then ask me two or three short rounds of questions about what you couldn't find. Save short notes about me on my wiki page and in your memory, never passwords, keys, or copies of my chats. Then ask what to call this page, update its heading, remove this welcome guide, explain each step, and show me a preview before publishing."
 
 const labels = { ready: 'Copy your first request', copied: 'Copied', failed: 'Select the message and copy it' }
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -517,4 +517,52 @@ test("the digest's run line says when the run's own report differed", () => {
   assert.equal(formatRun(run), 'Last background capture run (2026-09-27 10:00 UTC on box): captured 2');
   assert.equal(formatRun({ ...run, reason: 'model reported other counts: skipped' }), "Last background capture run (2026-09-27 10:00 UTC on box): captured 2 (the run's own report differed)");
   assert.equal(formatRun({ ...run, status: 'failed', reason: 'claude exited with code 1; model reported other counts: skipped' }), 'Last background capture run failed (2026-09-27 10:00 UTC on box): claude exited with code 1; model reported other counts: skipped');
+});
+
+// A repo with a .env and no memory store, and a store address that never answers: recent-chats must not call it.
+function storelessRepo(t) {
+  const root = tempDir(t, 'recent-repo-');
+  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: root });
+  writeFileSync(join(root, '.env'), `SERVICE_TOKEN=${SECRET}\n`);
+  const home = tempDir(t, 'recent-home-');
+  return { repo: { root, home, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state') }, fake: { api: 'http://127.0.0.1:9/client/v4' } };
+}
+
+test('recent-chats shows only what the person typed, from every folder, redacted, newest first, with no store', async t => {
+  const env = storelessRepo(t);
+  const github = 'ghp_abcdefghijklmnopqrstuvwxyz0123';
+  const other = claudeSession(env, 1, [['user', `Book the venue for the Lisbon offsite with ${github}.`], ['assistant', 'Agent reply text.']], { cwd: '/work/events', dir: escapeClaude('/work/events') });
+  age(other.file, 5 * HOUR);
+  claudeSession(env, 2, [['user', `My password is ${SECRET}.<pasted_content>someone else's notes</pasted_content>`]]);
+  const old = claudeSession(env, 3, [['user', 'From last quarter.']]);
+  age(old.file, 40 * 24 * HOUR);
+  claudeSession(env, 4, [['user', 'Subagent brief.']], { sub: true });
+  claudeSession(env, 7, [['user', '<task-notification>helper finished</task-notification>']]);
+  const background = claudeSession(env, 8, [['user', 'Background run brief.']]);
+  register(env, { id: background.id, agent: 'claude', transcript: background.file, background: true });
+  codexSession(env, 5, [['user', 'Draft the bakery newsletter.'], ['assistant', 'Codex reply text.']]);
+  const result = await memory(env.repo, env.fake, ['recent-chats']);
+  assert.equal(result.code, 0, result.stderr);
+  const out = result.stdout;
+  assert.match(out, /- Book the venue for the Lisbon offsite with \[redacted:token\]\./);
+  assert.match(out, /- My password is \[redacted:\.env\]\./);
+  assert.match(out, /- Draft the bakery newsletter\./);
+  assert.match(out, /## \d{4}-\d{2}-\d{2} · events \(claude\)/);
+  assert.doesNotMatch(out, /reply text|From last quarter|Subagent brief|helper finished|Background run brief|someone else's notes|environment_context|ghp_|super-secret|\/work\/events/);
+  assert.ok(out.indexOf('My password') < out.indexOf('Draft the bakery') && out.indexOf('Draft the bakery') < out.indexOf('Lisbon'), 'newest first');
+  assert.doesNotMatch(out, /left out/);
+
+  const capped = await memory(env.repo, env.fake, ['recent-chats', '--limit', '120']);
+  assert.match(capped.stdout, /more chats left out at the 120-character cap/);
+  assert.doesNotMatch(capped.stdout, /Lisbon/);
+  const long = claudeSession(env, 6, [['user', 'x'.repeat(2000)]]);
+  age(long.file, 0);
+  assert.match((await memory(env.repo, env.fake, ['recent-chats'])).stdout, new RegExp(`- ${'x'.repeat(500)}…\\n`));
+});
+
+test('recent-chats with no recent chats says so and succeeds', async t => {
+  const env = storelessRepo(t);
+  const result = await memory(env.repo, env.fake, ['recent-chats', '--days', '7']);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'No Claude Code or Codex chats from the last 7 days on this computer.');
 });

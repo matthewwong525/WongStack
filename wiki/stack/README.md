@@ -1,6 +1,6 @@
 # Cloudflare stack
 
-The stack every WongStack install runs on: a React + Vite SPA on Cloudflare Workers, with D1 for data, migrations applied automatically on release, and Cloudflare Access protecting pages and previews automatically. Setup starts from an empty folder and stands all of it up from one token.
+The stack every WongStack install runs on: a React + Vite SPA on Cloudflare Workers, with D1 for data, migrations applied automatically on release, and Cloudflare Access protecting pages and previews automatically. Setup runs from any folder and stands all of it up from one token.
 
 It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch preview URLs, and a change that ships the moment its PR lands. [One token](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) is all it takes to stand up.
 
@@ -18,6 +18,6 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 - [API keys](api-keys.md) — for anyone: get a key from a service, give it through the private link the assistant sends, and what to do if one leaks.
 - [Cloudflare credentials](cloudflare-credentials.md) — the token screen in detail: the user-scoped token with two permission rows, how it widens itself, the narrow CI deploy token, per-environment Worker secrets, and the account-root trade-off.
 
-Every install takes the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack in an empty folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown).
+Every install takes the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack, from any folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown).
 
 > Session memory is not part of this pack: every repo gets it, and [its page](../development/memory.md) lives with the core process docs.

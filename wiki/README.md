@@ -2,7 +2,7 @@
 
 This wiki is what WongStack has learned: how you work, who is who, and how the project runs. WongStack is an assistant that remembers you and gets things done. Ask it anything: research, a reminder, a plan for your week, or a small app. Each page stands on its own, so follow the links down to what you need.
 
-New here? Start with [getting started](stack/getting-started.md): from an empty folder to a working assistant and a live site, with three things you do by hand.
+New here? Start with [getting started](stack/getting-started.md): from any folder to a working assistant and a live site, with three things you do by hand.
 
 The rest is for people who shape how WongStack works. [AI knowledge centers](agent-knowledge-center.md) gives the six principles behind it. [Wiki style](wiki-style.md) says how a page is shaped, [voice](voice.md) how its sentences read, and [contributing](contributing.md) how to send an improvement upstream. Building UI? [UX principles](ux-principles.md) says what a screen should *be* before any component is picked.
 
@@ -22,7 +22,7 @@ The rest is for people who shape how WongStack works. [AI knowledge centers](age
 
 Where the app runs. The process above does not depend on it, but every new install uses it.
 
-- [Cloudflare stack](stack/README.md) — the opinionated stack for AI-driven dev (React + Vite on Cloudflare Workers, D1, Access). Every install runs on it. The flow: `/wong-setup` once in an empty folder, which puts the app online, then `/wong-sync` to stay current.
+- [Cloudflare stack](stack/README.md) — the opinionated stack for AI-driven dev (React + Vite on Cloudflare Workers, D1, Access). Every install runs on it. The flow: `/wong-setup` once, from any folder, which puts the app online, then `/wong-sync` to stay current.
 
 ## Terms the agent may use
 
