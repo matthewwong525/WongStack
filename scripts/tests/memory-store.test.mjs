@@ -395,7 +395,7 @@ test('a missing token names the variable and prints no value', async t => {
   writeFileSync(join(env.repo.root, '.env'), 'OTHER=1\n');
   const missing = await memory(env.repo, env.fake, ['search', 'x']);
   assert.equal(missing.code, 1);
-  assert.match(missing.stderr, /CLOUDFLARE_MEMORY_TOKEN is not set in \.env; `node \.claude\/skills\/memory\/scripts\/memory\.mjs join` gets one through your GitHub access to this repo\. See wiki\/development\/memory\.md#the-memory-key/);
+  assert.match(missing.stderr, /CLOUDFLARE_MEMORY_TOKEN is not set in \.env; `node \.claude\/skills\/memory\/scripts\/memory\.mjs join` gets one through your GitHub access to this repo\. See wiki\/development\/memory-key\.md/);
 });
 
 test('helpers: FTS query, tag normalization, near tags, redaction', () => {

@@ -4,7 +4,7 @@ paths: [".env*", "**/.env.example", "**/.dev.vars*"]
 
 # Touch env files carefully
 
-Two live files, one role each ([which file holds what](../../wiki/stack/d1-pipeline.md#env-and-devvars-are-not-interchangeable)):
+Two live files, one role each ([which file holds what](../../wiki/stack/staging-bindings.md#env-and-devvars-are-not-interchangeable)):
 
 - **Root `.env`** — what you and the scripts use to reach Cloudflare. It never reaches a Worker.
 - **`app/.dev.vars`** — the secrets the Worker reads at runtime.

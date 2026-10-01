@@ -52,6 +52,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, statSync } from "node:fs";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { headingAnchors } from "../.agents/skills/memory/scripts/lib/links.mjs";
 import { parseCli } from "./lib-cli.mjs";
 
 const { values } = parseCli({
@@ -358,36 +359,12 @@ function sourceOnlySkills() {
   return readdirSync(dir).filter((name) => statSync(join(dir, name)).isDirectory() && !listed.has(name));
 }
 
-/**
- * A heading's anchor as GitHub makes it: the rendered text, lowercased, every
- * character but letters, digits, spaces, hyphens, and underscores dropped, and
- * each space a hyphen. `Step 5 — the closing report` -> `step-5--the-closing-report`.
- */
-function slug(heading) {
-  const text = heading
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/<[^>]+>/g, "")
-    .replace(/[*`]/g, "");
-  return text.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, "").replace(/ /g, "-");
-}
-
+// Heading anchors come from the memory skill's lib/links.mjs, the copy the shipped wiki check reads, so the
+// two never disagree. Cached here: one run reads a page's headings many times.
 const anchorCache = new Map();
-
-/** Every anchor a Markdown file offers: its headings' slugs (repeats get `-1`, `-2`) and explicit ids. */
 function anchorsOf(path) {
-  if (anchorCache.has(path)) return anchorCache.get(path);
-  const text = readFileSync(join(ROOT, path), "utf8").replace(/(`{3,}|~{3,})[\s\S]*?\1/g, "");
-  const anchors = new Set();
-  const seen = new Map();
-  for (const [, heading] of text.matchAll(/^ {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/gm)) {
-    const base = slug(heading);
-    const n = seen.get(base) ?? 0;
-    seen.set(base, n + 1);
-    anchors.add(n ? `${base}-${n}` : base);
-  }
-  for (const [, id] of text.matchAll(/<a\s+(?:name|id)="([^"]+)"/g)) anchors.add(id);
-  anchorCache.set(path, anchors);
-  return anchors;
+  if (!anchorCache.has(path)) anchorCache.set(path, headingAnchors(ROOT, path));
+  return anchorCache.get(path);
 }
 
 function exists(path) {

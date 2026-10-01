@@ -40,6 +40,6 @@ If you shared a key by mistake (in a message, a screenshot, or a public page), r
 
 ## Keys are not logins
 
-A key is for a service your app talks to. Signing in to a website as yourself, like your email or bank, is different: you never paste a password into the chat. For ordinary website tasks, the assistant opens a browser and you sign in there once. [Saved browser logins](../development/browsing.md#saved-browser-logins) explains how. To have the assistant log in for you instead, give it the logins you choose through a private link: [save your passwords](../development/browsing.md#save-your-passwords).
+A key is for a service your app talks to. Signing in to a website as yourself, like your email or bank, is different: you never paste a password into the chat. For ordinary website tasks, the assistant opens a browser and you sign in there once. [Saved browser logins](../development/browsing.md#saved-browser-logins) explains how. To have the assistant log in for you instead, give it the logins you choose through a private link: [save your passwords](../development/passwords.md).
 
 The Cloudflare key you made during [getting started](getting-started.md) is a key like these; [Cloudflare credentials](cloudflare-credentials.md) covers it. Back to [the Cloudflare stack](README.md).

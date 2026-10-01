@@ -144,11 +144,15 @@ jobs:
         run: node .github/scripts/loosened-checks.mjs --base "$BASE" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Every run that is not cancelled, docs-only ones too: a wiki edit is
-      # often all a change is. Fails on a dead link, a page no other wiki page
-      # links to, or a hub that skips a page; wiki/wiki-style.md owns the rules.
+      # often all a change is. Skipped only when `wiki_affected` is false: the
+      # change touches no Markdown and removes or moves no file, so no link can
+      # break. Fails on a dead link or section link, a page no other wiki page
+      # links to, a hub that skips a page, a page over 3,000 words, or a page
+      # not opening with one title and a sentence; wiki/wiki-style.md owns the
+      # rules.
       - name: Check the wiki's links
         id: wiki
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.scope.outputs.wiki_affected != 'false' }}
         shell: bash
         run: node .github/scripts/wiki-links.mjs | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -170,6 +174,7 @@ jobs:
             LINE="The main app changed, but no test suite is declared."
           fi
           [ "$LOOSENED" = failure ] && LINE="$LINE A check was loosened with no written reason; see Loosened checks above."
-          [ "$WIKI" = failure ] && LINE="$LINE A wiki link is broken or a page is linked from nowhere; see Wiki links above."
+          [ "$WIKI" = failure ] && LINE="$LINE A wiki page has a broken link, is linked from nowhere, is too long, or lacks its title; see Wiki checks above."
+          [ "$WIKI" = skipped ] && LINE="$LINE The wiki check skipped, because no page or linked file changed."
           echo "$LINE" >> "$GITHUB_STEP_SUMMARY"
           echo "$LINE"
