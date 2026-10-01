@@ -240,9 +240,10 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   chmodSync(join(bin, 'claude'), 0o755);
   const result = await hook(env, { PATH: `${bin}:${process.env.PATH}`, WONG_MEMORY_MODEL: '' });
   assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /# Memory digest\nFacts are dated context/);
-  assert.match(result.stdout, /## Open threads on `add-po-search`\n- \[thread\] Should search rank by recency\?/);
-  assert.match(result.stdout, /## Live facts\n- \[thread\] Is the other change blocked\?.*\n- \[feedback\] .*\n- \[project\] .*\n- \[reference\] .*\n- \[user\] /);
+  assert.match(result.stdout, /# Memory digest\nFacts are dated context.* Once you know the task, and before you act on more than a quick question, search memory for its key terms in your own words: /);
+  assert.match(result.stdout, /## Open threads on `add-po-search`\n- \[thread\] Should search rank by recency\?.*\nOpen threads on other changes, by step: 1 untagged\. /);
+  assert.doesNotMatch(result.stdout, /Is the other change blocked\?/);
+  assert.match(result.stdout, /## Live facts\n- \[feedback\] .*\n- \[project\] .*\n- \[reference\] .*\n- \[user\] /);
   for (let i = 0; i < 100 && !existsSync(marker); i += 1) await new Promise(done => setTimeout(done, 100));
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
