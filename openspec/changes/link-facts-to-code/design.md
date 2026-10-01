@@ -12,7 +12,7 @@ A write runs `putFacts`: `validateFact`, `tagProblems` (a tag must exist or come
 
 **Goals:** the build sees the facts for the folders it edits before its first edit; older facts gain area tags without losing date, author, or transcript link; the list is a file a person can extend.
 
-**Non-Goals:** area loading in `/plan`, `/explore`, or the digest; a tag write on an existing fact (a Worker statement change); globs or file-content matching.
+**Non-Goals:** area loading in the digest; a tag write on an existing fact (a Worker statement change); globs or file-content matching.
 
 ## Decisions
 
@@ -34,6 +34,7 @@ A write runs `putFacts`: `validateFact`, `tagProblems` (a tag must exist or come
 - **Writing bar.** `writing-facts.md` gains, under *Specifics*: tag the code area a fact concerns; `memory.mjs areas <path>` prints it. Offset in the same file.
 - **Consolidation.** Memory `SKILL.md` step 3.2's untagged-thread sentence becomes one sentence covering both: an open thread naming a verb's next run without its tag, or a fact about code in an `areas.json` folder without that area's tag, goes to `retag` with the tag. The verb-tag restate thereby also keeps dates. Offset in the same file.
 - **Build step.** `build-helper.md` *Build* step 1 appends: then run `node <root>/.claude/skills/memory/scripts/memory.mjs areas --change "<name>"` and treat its facts as dated context the repo overrides. Offset in the same file, so `/apply`'s word count holds.
+- **Lookup anywhere.** Memory `SKILL.md`'s *Read* table gains a row: facts for files or a change → `areas <paths…>` or `areas --change <name>`. `/explore`'s *Search memory before asking* runs `search <terms>` for the intent and `areas <paths>` for the paths it expects to touch, replacing "and the paths you expect to touch" on the keyword search, since a path as a search term misses facts that never name it. `/plan`'s bounded pass gets it through `/explore`. Each file is offset in itself.
 - **Word budget.** No `--write-baseline`: each edited instruction file ends at or under its starting words and bytes, measured before and after with `measure-context.mjs --json`, and `--check` passes.
 
 ## Risks / Trade-offs

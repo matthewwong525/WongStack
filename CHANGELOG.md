@@ -8,7 +8,7 @@
 A lesson your assistant saved about part of your code now comes back when a change touches that code, not only when a search happens to find it.
 
 - **Each fact names the part of the code it's about.** A short list matches folders to areas, such as your app's server code to *worker* and the wiki to *wiki*. A saved fact about code gets its area, the way it already gets a topic.
-- **Building a change loads the facts for the code it touches.** Before the first edit, the build reads which folders the plan names and loads the saved facts for those areas, so a warning about the server routes shows up before the routes change.
+- **Building a change loads the facts for the code it touches.** Before the first edit, the build reads which folders the plan names and loads the saved facts for those areas, so a warning about the server routes shows up before the routes change. Planning does the same for the files it expects to touch.
 - **Older facts get their area too.** The background tidy-up re-saves each one about a mapped folder with its area, keeping its words, its date, who wrote it, and its link to the chat it came from. On a teammate's computer it changes only that teammate's own facts.
 - **Your own folders can join the list.** Add a folder to `.claude/skills/memory/references/areas.json` with a name and a short definition, and the next update keeps it.
 

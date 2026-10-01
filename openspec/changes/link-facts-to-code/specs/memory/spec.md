@@ -37,3 +37,19 @@ The `memory` skill SHALL restate a live fact with added tags as a new fact with 
 
 - **WHEN** a teammate's key asks to re-tag a fact another person wrote
 - **THEN** that fact is skipped and reported, the other re-tags in the batch are written, and the fact stays live
+
+## MODIFIED Requirements
+
+### Requirement: The verbs read memory where they decide
+
+`/explore` SHALL search memory before it asks a question (`asking-the-user`), by the intent's words and by the code areas of the paths it expects to touch; `/continue` SHALL read the slug's live facts and open threads, and `/close` SHALL read the session's and its change's facts before it closes. An unreachable store SHALL NOT stop a verb; it SHALL say memory was not loaded.
+
+#### Scenario: Resuming a change
+
+- **WHEN** `/continue add-po-search` runs and the store holds facts for that slug
+- **THEN** the recap shows its open threads and facts with their ages
+
+#### Scenario: Planning a Worker change
+
+- **WHEN** `/explore` expects to touch `app/worker/index.ts` and a live fact is tagged `worker` without naming that path
+- **THEN** it loads that fact before its first question

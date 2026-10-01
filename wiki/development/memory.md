@@ -45,6 +45,7 @@ A fact about code carries the **area tag** of the folder it concerns, so the nex
 
 - **A fact gets its area when it is written.** The writer tags it, as [writing facts](../../.agents/skills/memory/references/writing-facts.md) says; `memory.mjs areas <path>` names a path's area. An area tag the store lacks is defined from the list on first use. [Consolidation](#consolidation) tags older facts.
 - **The build loads it.** Before its first edit, [`/apply`'s build](../../.agents/skills/apply/references/build-helper.md) runs `memory.mjs areas --change <name>`. It reads the paths the change's proposal, design, and tasks name, then prints the live facts in those areas: open threads first, then newest, at most 20, as [who sees what](#who-sees-what) allows. When the store doesn't answer, it says memory was not loaded, and the build goes on.
+- **Planning loads it too.** [`/explore`](../../.agents/skills/explore/SKILL.md#search-memory-before-asking) runs `areas` on the paths it expects to touch, beside its keyword search, because a fact about a folder rarely names the file you search by. Any task can run `memory.mjs areas <paths>`.
 - **A repo adds its own folders** with an entry in `areas.json`: a tag, a definition, and the folder prefixes. [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps the edit as a local change.
 
 ## Consolidation

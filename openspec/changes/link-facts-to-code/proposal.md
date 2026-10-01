@@ -1,6 +1,6 @@
 # Link memory facts to the code they're about
 
-**Status:** ready-to-ship
+**Status:** in-progress
 
 **Branch:** cold-fireant
 
@@ -21,7 +21,7 @@ The assistant saves warnings like "when you touch the app's server routes, test 
    memory scripts    │ memory
    wiki/             │ wiki
   ```
-- **Building a change loads the facts for the code it touches.** Before it edits anything, the build reads which folders the plan names, and loads the saved facts for those areas. A change to the app's server code brings up the routes warning before the first edit.
+- **Building a change loads the facts for the code it touches.** Before it edits anything, the build reads which folders the plan names, and loads the saved facts for those areas. A change to the app's server code brings up the routes warning before the first edit. Planning does the same for the files it expects to touch, and the assistant can look up the facts for any file whenever it needs them.
   ```text
    plan names app/worker/index.ts
               │
@@ -45,7 +45,7 @@ The assistant saves warnings like "when you touch the app's server routes, test 
   ```
 - **Nothing gets longer to read.** The build's instructions grow by one step and lose as much elsewhere, and nothing is added to what every chat reads at the start.
 
-Non-goals: a second database or a graph of facts; a change to how facts are stored; loading area facts during planning or at the start of a chat; matching by file contents rather than folder.
+Non-goals: a second database or a graph of facts; a change to how facts are stored; loading area facts at the start of a chat; matching by file contents rather than folder.
 
 ## Capabilities
 
@@ -56,13 +56,14 @@ None.
 ### Modified Capabilities
 
 - `memory`: a fact tags the code area it concerns, mapped from folders by a shipped list; `memory.mjs areas` loads the live facts for a set of paths or a change's named paths; `memory.mjs retag` restates a fact with added tags, keeping its body, date, session, and author; consolidation re-tags older facts through it.
+- `memory` also: `/explore` loads the areas of the paths it expects to touch beside its keyword search.
 - `apply`: the build helper loads the facts for the areas the change's files fall in before it edits.
 
 ## Impact
 
 - `.agents/skills/memory/references/areas.json` (new): area tag → definition and folder prefixes.
 - `.agents/skills/memory/scripts/memory.mjs`, `scripts/lib/areas.mjs` (new): the `areas` and `retag` commands; `put-facts` and `retag` define a missing area tag from the list.
-- `.agents/skills/memory/references/writing-facts.md`, `.agents/skills/memory/SKILL.md`, `.agents/skills/apply/references/build-helper.md`: one line each, each file offset by an equal or larger cut.
+- `.agents/skills/memory/references/writing-facts.md`, `.agents/skills/memory/SKILL.md`, `.agents/skills/apply/references/build-helper.md`, `.agents/skills/explore/SKILL.md`: one line each, each file offset by an equal or larger cut.
 - `scripts/tests/memory-areas.test.mjs` (new): coverage.
 - `wiki/development/memory.md`: *Consolidation* and a short *Facts by code area* note.
 - `CHANGELOG.md`: a `## Next (minor)` entry. No migration, schema, Worker, or hook change; `AGENTS.md` is unchanged.
@@ -81,3 +82,6 @@ None.
 - **2026-10-01** — Measured before any text edit (`measure-context.mjs --json`, current words / bytes): `build-helper.md` 323 / 2080, `writing-facts.md` 275 / 1719, memory `SKILL.md` 920 / 6216. Each ends at or under these.
 - **2026-10-01** — Assumed: checkpoint for gate task 4.3: tasks 1.1–4.2 are built and the memory tests pass locally (areas 7, store 30, worker 58); this save runs CI. The member re-tag test lives in `memory-worker.test.mjs`, which has the Worker harness; `areas.json`'s `mini-apps` definition was corrected to the 29.0.0 layout rather than copied stale from the store.
 - **2026-10-01** — Assumed: gate task 4.3 done: CI passed on PR #229 after merging main 29.1.1 and 29.2.0 (changelog was the only conflict, kept both entries with this one on top); the spec deltas were copied into the main memory and apply specs at this save.
+- **2026-10-01** — Asked, after the build, whether the assistant can search memory by code area outside a build → yes: list `areas <path>` in the memory skill's Read table, and have `/explore` run `areas` on the paths it expects to touch beside its keyword search, each offset in its own file. This reverses the earlier non-goal of no area loading in planning.
+- **2026-10-01** — Measured before task 5.2's edits (`measure-context.mjs --json`, current words / bytes): memory `SKILL.md` 938 / 6367, `/explore` `SKILL.md` 665 / 4811. Each ends at or under these.
+- **2026-10-01** — Assumed: checkpoint for gate task 5.3: 5.1–5.2 built; memory `SKILL.md` trimmed three more words after the helper left it one over its start (936 / 6342 against 938 / 6367); the modified *The verbs read memory where they decide* was copied into the main memory spec at this save.
