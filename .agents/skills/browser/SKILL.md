@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # browser
 
-`scripts/cloud-browser.mjs` drives Cloudflare's cloud browser with the same `agent-browser` commands, so a site that blocks the agent's own browser still loads. [Browsing](../../../wiki/development/browsing.md#when-a-site-blocks-the-agents-browser) owns when and how to run it:
+`scripts/cloud-browser.mjs` drives Cloudflare's cloud browser with the same `agent-browser` commands, so a site that blocks the agent's own browser still loads. [Browsing](../../../wiki/development/blocked-sites.md) owns when and how to run it:
 
 - `open` and `close` start and end a cloud session.
 - `check` says whether a page is a bot check or a block.

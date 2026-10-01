@@ -10,7 +10,9 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 
 - [Getting started](getting-started.md) — what installing costs, what you do by hand, and what to do when something goes wrong; start here if you're setting this up for the first time.
 - [Core stack](core-stack.md) — *what* you build on: React + Vite on Cloudflare Workers with D1, and why the combo suits AI-driven dev.
-- [Deploy and data pipeline](d1-pipeline.md) — *how* code and data ship: the `env.staging` model, twin-every-binding, auto-applied migrations, seeded staging, and CI.
+- [Deploy and data pipeline](d1-pipeline.md) — *how* code and data ship: the `env.staging` model, auto-applied migrations, and seeded staging.
+- [Staging bindings and secrets](staging-bindings.md) — the staging Worker's own database, queue, bucket, and secrets, so a branch never writes to production.
+- [CI on GitHub Actions](github-actions.md) — the thin deploy workflow that runs the pipeline's scripts, and why not Cloudflare's Workers Builds.
 - [Fix a broken production database](d1-recovery.md) — the runbooks for when production is red: undo a bad migration with Time Travel, never hand-apply schema, and repair a drifted `d1_migrations` ledger.
 - [Mini apps](mini-apps.md) — small apps from one request, part of the main app under `/apps/`: the same loop and checks as any change, and a card each on the home page.
 - [Cloudflare Access](cloudflare-access.md) — automatic email login, native Worker and preview coverage, signed identity, and separate machine access.

@@ -56,7 +56,7 @@ After the tools pass, check `command -v paseo`. Missing → say one plain senten
 
 ## 2. The GitHub sign-in
 
-Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to set the git email and let teammates [join memory](../../../../wiki/development/memory.md#joining-through-github) ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
+Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to set the git email and let teammates [join memory](../../../../wiki/development/memory-key.md#joining-through-github) ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
 
 - **Signed out** → run `gh auth login --web --hostname github.com --git-protocol https --scopes workflow,user:email` in the background, output to a temporary file.
 - **Signed in, a scope missing** from the `Token scopes:` line → run `gh auth refresh --hostname github.com --scopes <every missing scope>` the same way; one refresh covers them all.

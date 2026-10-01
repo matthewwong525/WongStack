@@ -1,6 +1,6 @@
 # Progressive-disclosure wiki: the rulebook
 
-A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one place to start, and every page drills down, recursively. It is **plain Markdown with standard links**, so it renders anywhere.
+A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one place to start, and every page drills down. It is **plain Markdown with standard links**: it renders anywhere.
 
 ## The shape: start general, break down as needed
 
@@ -23,7 +23,7 @@ Readers land from search, without context.
 
 ## Link everything, generously
 
-**Link every doc, app, page, tool, or resource the moment you name it**, inline: a reader who doesn't need the link loses nothing. Link a **section**, here or on another page, by its heading anchor: lowercased, spaces → hyphens, punctuation dropped (`## The bar: is it *upstream*?` → `#the-bar-is-it-upstream`). Every page points **up** to its hub, **down** to what it references, and **sideways** to the siblings it hands off to.
+**Link every doc, page, tool, or resource when you name it**, inline: a reader who doesn't need the link loses nothing. Link a **section**, here or on another page, by its heading anchor: lowercased, spaces → hyphens, punctuation dropped (`## The bar: is it *upstream*?` → `#the-bar-is-it-upstream`). Every page points **up** to its hub, **down** to what it references, and **sideways** to siblings it hands off to.
 
 ## Folders only for deep branches
 
@@ -35,7 +35,7 @@ A `mermaid` diagram may open a section; keep it **visual-only**: clickable nodes
 
 ## No orphans, no dead-ends, full hub-coverage
 
-Something links to every page, its hub at minimum; a hub links *every one* of its children. Every page links onward, up at least. CI checks it.
+A hub links *every one* of its children, and every page links onward, up at least. A page stays under 3,000 words; split a longer one by its sections. CI checks it.
 
 ## Repeatable knowledge
 

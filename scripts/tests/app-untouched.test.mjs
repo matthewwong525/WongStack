@@ -68,18 +68,19 @@ function fixture(t) {
     });
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     const lines = result.stdout.split('\n').filter(Boolean);
-    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'base', 'docs_only'],
-      `stdout must hold only the three output lines:\n${result.stdout}`);
+    assert.deepEqual(lines.map(line => line.split('=')[0]), ['untouched', 'base', 'docs_only', 'wiki_affected'],
+      `stdout must hold only the four output lines:\n${result.stdout}`);
     return Object.fromEntries(lines.map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
   };
-  // Whether the main app is untouched; `base` and `docs_only` have their own tests.
+  // Whether the main app is untouched; `base`, `docs_only`, and `wiki_affected` have their own tests.
   const check = (vars, args) => outputs(vars, args).untouched;
   const docsOnly = (vars, args) => outputs(vars, args).docs_only;
+  const wikiAffected = (vars, args) => outputs(vars, args).wiki_affected;
   const branch = name => git('checkout', '-q', '-b', name);
   const push = () => git('push', '-q', '-u', 'origin', 'HEAD');
   const onBranch = name => ({ GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: name });
 
-  return { work, git, commit, outputs, check, docsOnly, branch, push, onBranch };
+  return { work, git, commit, outputs, check, docsOnly, wikiAffected, branch, push, onBranch };
 }
 
 test('a docs-only branch leaves the main app untouched', t => {
@@ -288,6 +289,59 @@ test('docs_only fails safe to false', t => {
   f.git('checkout', '-q', 'docs');
   write(f, { 'wiki/more.md': '# More\n' });
   assert.equal(f.docsOnly({}, ['--worktree']), 'true');
+});
+
+test('wiki_affected is false only for a code change that removes or moves nothing', t => {
+  const f = fixture(t);
+  f.branch('code');
+  f.commit({ 'app/src/index.ts': 'export const x = 2;\n', 'app/src/new.ts': 'export {};\n' }, 'code only');
+  assert.equal(f.wikiAffected(f.onBranch('code')), 'false');
+
+  f.git('checkout', '-q', 'main');
+  f.branch('wiki');
+  f.commit({ 'app/src/index.ts': 'export const x = 2;\n', 'wiki/new.md': '# New\n' }, 'code and a wiki page');
+  assert.equal(f.wikiAffected(f.onBranch('wiki')), 'true');
+
+  f.git('checkout', '-q', 'main');
+  f.branch('skill-text');
+  f.commit({ '.agents/skills/save/SKILL.md': '# Save\n' }, 'a .md outside wiki/');
+  assert.equal(f.wikiAffected(f.onBranch('skill-text')), 'true');
+});
+
+test('wiki_affected is true when a code file is removed or moved', t => {
+  const f = fixture(t);
+  f.branch('remove');
+  f.git('rm', '-q', 'app/package.json');
+  f.git('commit', '-q', '-m', 'remove');
+  assert.equal(f.wikiAffected(f.onBranch('remove')), 'true');
+
+  f.git('checkout', '-q', 'main');
+  f.branch('move');
+  renameSync(join(f.work, 'app/src/index.ts'), join(f.work, 'app/src/main.ts'));
+  f.git('add', '-A');
+  f.git('commit', '-q', '-m', 'move');
+  assert.equal(f.wikiAffected(f.onBranch('move')), 'true');
+
+  // The working tree answers too: an uncommitted move of a code file.
+  f.git('checkout', '-q', 'main');
+  renameSync(join(f.work, 'app/src/index.ts'), join(f.work, 'app/src/index2.ts'));
+  assert.equal(f.wikiAffected({}, ['--worktree']), 'true');
+});
+
+test('wiki_affected fails safe to true', t => {
+  const f = fixture(t);
+  f.branch('code');
+  f.commit({ 'app/src/index.ts': 'export const x = 2;\n' }, 'code');
+  // No base.
+  assert.equal(f.wikiAffected({ ...f.onBranch('code'), DEFAULT_BRANCH: 'trunk' }), 'true');
+  assert.equal(f.wikiAffected({ GITHUB_EVENT_NAME: 'workflow_dispatch' }), 'true');
+  // An empty diff.
+  f.git('checkout', '-q', 'main');
+  f.branch('same-as-main');
+  assert.equal(f.wikiAffected(f.onBranch('same-as-main')), 'true');
+  // The working tree: a code-only edit is false.
+  write(f, { 'app/src/index.ts': 'export const x = 3;\n' });
+  assert.equal(f.wikiAffected({}, ['--worktree']), 'false');
 });
 
 test('an unknown argument is a usage error', t => {

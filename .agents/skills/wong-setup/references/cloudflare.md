@@ -117,14 +117,14 @@ Resolve a reachable owner email before provisioning; reject `.invalid` and GitHu
 
 ### 4b. The memory store
 
-[The memory convention](../../../../wiki/development/memory.md#the-memory-key) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
+[The memory convention](../../../../wiki/development/memory-key.md) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
 
 1. **Is R2 on?** An error listing R2 buckets that says to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
 2. **The database.** It reuses or creates `<repo>-memory`.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None is secret.
 5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retrying while the new store takes effect. On a new store, it also links the GitHub account `gh` is signed in as, making it the admin.
-6. **The admin key.** With no memory key in `.env`, it runs `memory.mjs member admin`, which writes a 30-day, self-renewing admin key, never printed, to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env`. No git email stops it with `repo`: ask the user to set one. A signed-out `gh` stops it with `cloudflare`: ask them to run `gh auth login`. Teammates [join through GitHub](../../../../wiki/development/memory.md#joining-through-github) once production is deployed. **Never** make the key a GitHub secret.
+6. **The admin key.** With no memory key in `.env`, it runs `memory.mjs member admin`, which writes a 30-day, self-renewing admin key, never printed, to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env`. No git email stops it with `repo`: ask the user to set one. A signed-out `gh` stops it with `cloudflare`: ask them to run `gh auth login`. Teammates [join through GitHub](../../../../wiki/development/memory-key.md#joining-through-github) once production is deployed. **Never** make the key a GitHub secret.
 
 Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
 
@@ -135,7 +135,7 @@ Memory answers once CI deploys production; until then, facts wait in the local s
 2. Once that change merges and production deploys, run step 6's `$M member admin` by hand, then check `$M digest` through the Worker.
 3. Only when that passes, delete the old token: find `<repo>-memory` in `GET /user/tokens`, then `DELETE /user/tokens/{id}`.
 
-If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key next session by [joining through GitHub](../../../../wiki/development/memory.md#joining-through-github); nobody makes one by hand, so give GitHub access to anyone who lacks it.
+If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key next session by [joining through GitHub](../../../../wiki/development/memory-key.md#joining-through-github); nobody makes one by hand, so give GitHub access to anyone who lacks it.
 
 ### 4c. The two app databases and the config
 
@@ -159,7 +159,7 @@ It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `r
 
 ### 4e. The workflow
 
-Confirm `.github/workflows/test.yml`, `.github/workflows/deploy.yml`, and `.nvmrc` landed; [the pipeline scripts own every deploy decision](../../../../wiki/stack/d1-pipeline.md#ci-is-github-actions).
+Confirm `.github/workflows/test.yml`, `.github/workflows/deploy.yml`, and `.nvmrc` landed; [the pipeline scripts own every deploy decision](../../../../wiki/stack/github-actions.md).
 
 Missing `workflow` scope → offer `gh auth refresh --scopes workflow` ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
 

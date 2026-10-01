@@ -8,7 +8,7 @@
 # would leave a required check pending forever and block the merge. See
 # wiki/development/the-change-loop.md.
 #
-# Prints three lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
+# Prints four lines for `>> "$GITHUB_OUTPUT"` on stdout; everything else goes
 # to stderr:
 #
 #   untouched=true|false   true only when EVERY changed path is under wiki/
@@ -19,6 +19,10 @@
 #   docs_only=true|false   true only when EVERY changed path is under wiki/
 #                          or openspec/. `payload.yml` skips its script tests
 #                          on it. Markdown anywhere else is false.
+#   wiki_affected=true|false  false only when NO changed path is under wiki/
+#                          or ends in .md, and the change removes or moves no
+#                          file (a move could break a wiki link to it).
+#                          `test.yml` skips its wiki check on false.
 #
 # The comparison covers the WHOLE change, never only the last commit, so a docs
 # commit on top of a code commit still runs the suite. The base is:
@@ -29,8 +33,9 @@
 #
 # When the comparison can not be made — an all-zero BEFORE_SHA (a new branch or
 # a first push), a ref that no fetch can find, no merge base, an unknown event —
-# every answer assumes a change: untouched=false and docs_only=false. An empty
-# diff is untouched=false and docs_only=false too. A skipped suite must be a proven skip; a guess runs the suite.
+# every answer assumes a change: untouched=false, docs_only=false, and
+# wiki_affected=true. An empty diff answers the same. A skipped check must be a
+# proven skip; a guess runs it.
 #
 # Input (environment):
 #   GITHUB_EVENT_NAME, GITHUB_BASE_REF, GITHUB_REF_NAME  set by GitHub Actions
@@ -71,17 +76,18 @@ remote_branch() {
   have_commit "$ref" && echo "$ref"
 }
 
-answer() { # answer <untouched> <base> <docs_only>
+answer() { # answer <untouched> <base> <docs_only> <wiki_affected>
   echo "untouched=$1"
   echo "base=$2"
   echo "docs_only=$3"
+  echo "wiki_affected=$4"
   exit 0
 }
 
 # No base: assume everything changed.
 unknown() {
   note "$* — comparison not possible; assuming the main app changed"
-  answer false "" false
+  answer false "" false true
 }
 
 git rev-parse --verify --quiet HEAD >/dev/null 2>&1 || unknown "no commit checked out"
@@ -135,18 +141,25 @@ esac
 
 # `--no-renames` lists both sides of a rename, so moving a file out of app/
 # into wiki/ still counts as a change to app/. `-z` keeps odd names intact.
+# `--diff-filter=D` with `--no-renames` lists every removed path, the old side
+# of a move included.
 CHANGED=$(mktemp)
-trap 'rm -f "$CHANGED"' EXIT
+REMOVED=$(mktemp)
+trap 'rm -f "$CHANGED" "$REMOVED"' EXIT
 if $WORKTREE; then
   # No second commit: the working tree itself, then every untracked file.
   { git diff --name-only --no-renames -z "$BASE" && git ls-files --others --exclude-standard -z; } \
     > "$CHANGED" 2>/dev/null || unknown "git diff failed"
+  git diff --name-only --no-renames --diff-filter=D -z "$BASE" > "$REMOVED" 2>/dev/null || unknown "git diff failed"
 else
   git diff --name-only --no-renames -z "$BASE" HEAD > "$CHANGED" 2>/dev/null || unknown "git diff failed"
+  git diff --name-only --no-renames --diff-filter=D -z "$BASE" HEAD > "$REMOVED" 2>/dev/null || unknown "git diff failed"
 fi
 
 UNTOUCHED=true
 DOCS_ONLY=true
+WIKI_AFFECTED=false
+[ -s "$REMOVED" ] && WIKI_AFFECTED=true
 COUNT=0
 while IFS= read -r -d '' path; do
   COUNT=$((COUNT + 1))
@@ -158,12 +171,15 @@ while IFS= read -r -d '' path; do
     wiki/*|openspec/*|*.md) ;;
     *) UNTOUCHED=false ;;
   esac
+  case "$path" in
+    wiki/*|*.md) WIKI_AFFECTED=true ;;
+  esac
 done < "$CHANGED"
 
 if [ "$COUNT" -eq 0 ]; then
   note "the diff is empty — nothing to prove untouched"
-  answer false "$BASE" false
+  answer false "$BASE" false true
 fi
 
-note "$COUNT changed path(s); main app untouched: $UNTOUCHED; docs only: $DOCS_ONLY"
-answer "$UNTOUCHED" "$BASE" "$DOCS_ONLY"
+note "$COUNT changed path(s); main app untouched: $UNTOUCHED; docs only: $DOCS_ONLY; wiki affected: $WIKI_AFFECTED"
+answer "$UNTOUCHED" "$BASE" "$DOCS_ONLY" "$WIKI_AFFECTED"

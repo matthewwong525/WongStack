@@ -79,7 +79,7 @@ CLOUDFLARE_ACCOUNT_ID=
 
 So each credential lives in one place: the user token in the primary worktree's git-ignored `.env`, and the deploy token in GitHub's sealed secret store. To rotate the deploy token, ask your agent; it rolls the value and sets the secret again. You see the token in the dashboard under **Manage Account → Account API Tokens**, where you or a teammate can revoke it. (A repo on the Workers Builds fallback needs no secret: that CI runs inside Cloudflare.)
 
-The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory.md#the-memory-key) owns that name and what a key can reach.
+The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory-key.md) owns that name and what a key can reach.
 
 ## How two permission rows become enough
 
@@ -115,7 +115,7 @@ Created during private setup for the [Access](cloudflare-access.md) login wall: 
 
 ## Worker secrets are per environment
 
-The credentials above are yours: they let *you* and an agent talk to Cloudflare. A **Worker secret** belongs to a deployed Worker, which reads it off `env` — an API key the Worker calls out with, say. [Staging is a separate Worker](d1-pipeline.md#why-staging-is-a-whole-worker), so each secret goes to both. [One declared list of secrets](d1-pipeline.md#one-declared-list-of-secrets-two-workers) owns how: `app/.dev.vars`, `npm run secrets:push`, and the parity check.
+The credentials above are yours: they let *you* and an agent talk to Cloudflare. A **Worker secret** belongs to a deployed Worker, which reads it off `env` — an API key the Worker calls out with, say. [Staging is a separate Worker](d1-pipeline.md#why-staging-is-a-whole-worker), so each secret goes to both. [One declared list of secrets](staging-bindings.md#one-declared-list-of-secrets-two-workers) owns how: `app/.dev.vars`, `npm run secrets:push`, and the parity check.
 
 ## Next
 
