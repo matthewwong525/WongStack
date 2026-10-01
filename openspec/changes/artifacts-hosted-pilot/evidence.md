@@ -1,6 +1,6 @@
 # Artifacts disposable trial evidence
 
-Run `a1001f4c9` uses platform account `040f88e2bf4f25fb0b91b7cb24f3d442`. This is a technical trial with invented identities and data. Harness contract checks passed remotely on `90404de`; compatibility fixes also passed remotely on `b75a89d` (25 pilot cases, 948 script cases). Those checks are not live-provider evidence.
+Run `a1001f4c9` uses platform account `040f88e2bf4f25fb0b91b7cb24f3d442`. This is a technical trial with invented identities and data. Harness contract checks passed remotely on `90404de`; compatibility fixes also passed remotely on `b75a89d` (25 pilot cases, 948 script cases). The final HTTP 204 cleanup regression also passed remotely on `b9b94a7` (26 pilot cases, 949 script cases). Those checks are not live-provider evidence.
 
 ## Preflight — PASS
 

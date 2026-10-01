@@ -33,4 +33,4 @@
 - [x] 5.5 Export and restore all project refs/history into a clean local destination, verify identical refs/object IDs and `git fsck`, then disable triggers and remove every manifest-owned resource; record deletion readbacks or exact leftovers in `evidence.md`.
 - [x] 5.6 Write the adoption recommendation with case outcomes, provisioning/build/revocation timings, measured usage and cost assumptions, cleanup receipt, and remaining hosted-service integration work; verify no customer migration is triggered and report an untested or failed core case as a reason to defer adoption.
 
-- [ ] 5.7 Checkpoint the finished evidence and review page with `/save`, verify the final remote checks, and leave the tooling unmerged for the user to review.
+- [x] 5.7 Checkpoint the finished evidence and review page with `/save`, verify the final remote checks, and leave the tooling unmerged for the user to review.
