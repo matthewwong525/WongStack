@@ -2,7 +2,7 @@
 // Hands the agent's browser to the person through a private link that closes itself.
 //
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
-//     node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords [--local] [--minutes N]
+//     node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords [--site <url>] [--username <user>] [--local] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs wait
 //     node .claude/skills/hand-over/scripts/hand-over.mjs close
@@ -35,7 +35,10 @@
 // no browser page: no viewport, tabs, live feed, or field routes. It serves passwords-page.html and
 // .mjs and mounts passwords.mjs's keyed `POST /save` and `POST /done`; it ends on `/done`, `close`, or
 // the deadline. `result.json` then also holds `saved`, the vault names saved, and `wait` prints
-// `HANDOVER_SAVED=<name>,<name>` after the result: never a host, username, or password.
+// `HANDOVER_SAVED=<name>,<name>` after the result: never a host, username, or password. `--site` (an
+// http(s) URL or a bare host) and `--username` pre-fill the page's add-a-login form: they ride only in
+// the printed link's fragment, `#key=<hex>&site=<url>&user=<username>`, URL-encoded, which a browser
+// never sends, so they reach no server, log, or file.
 //
 // `open --keys NAME[,NAME]` opens the key link the same way, also touching no browser page. Before any
 // tunnel, keys.mjs resolves each name against the example files: one declared in neither exits 2 with
@@ -62,14 +65,16 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { APP_FILE, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
 import { findPaseo } from '../../routine/scripts/lib/paseo.mjs';
-import { PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
+import { hostOf, LIMITS as PASSWORD_LIMITS, PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
+import { siteUrl } from './passwords-page.mjs';
 
 const USAGE = `usage: hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
-       hand-over.mjs open --passwords [--local] [--minutes N]
+       hand-over.mjs open --passwords [--site <url>] [--username <user>] [--local] [--minutes N]
        hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
        hand-over.mjs wait | close
   open    start the private link, print HANDOVER_LINK=<url>, and watch for the finish
-          --passwords: save logins and continue, or cancel
+          --passwords: save logins and continue, or cancel; --site and --username
+          fill in the add-a-login form, carried only in the link
           --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=)
   wait    block until the link closes; print HANDOVER_RESULT=done|timeout|closed|error,
@@ -751,8 +756,13 @@ async function open(values) {
   writeFileSync(FILES.pid, `${watcher}\n`);
   child.unref();
   if (!(await pageAnswers(port, watcher))) return fail('The hand-over page did not start; try again.');
-  console.log(`HANDOVER_LINK=${origin}/#key=${key}`);
+  console.log(`HANDOVER_LINK=${origin}/#${linkFragment(key, values)}`);
   return 0;
+}
+
+/** The link's `#` part: the key, then any site and username to pre-fill, URL-encoded. */
+export function linkFragment(key, { site, username } = {}) {
+  return new URLSearchParams({ key, ...(site && { site: site.trim() }), ...(username && { user: username.trim() }) }).toString();
 }
 
 /** Serves the page and reads only the address and a count, never page content, until the finish or the deadline. */
@@ -852,7 +862,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, keys: { type: 'string' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -865,9 +875,17 @@ function parse(args) {
   const minutes = Number(parsed.values.minutes ?? 10);
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
   if (parsed.values.passwords && (parsed.values.until || parsed.values['until-gone'])) usageError('--passwords takes no --until or --until-gone');
+  checkPrefill(parsed.values);
   if (parsed.values.keys === undefined) return { command, values: { ...parsed.values, minutes } };
   if (parsed.values.passwords || parsed.values.until || parsed.values['until-gone']) usageError('--keys takes no --passwords, --until, or --until-gone');
   return { command, values: { ...parsed.values, minutes, keys: keyNames(parsed.values.keys) } };
+}
+
+/** `--site` and `--username` come only with `--passwords`: a website and one line of username, or a usage error. */
+function checkPrefill({ passwords, site, username }) {
+  if ((site !== undefined || username !== undefined) && !passwords) usageError('--site and --username go with --passwords only');
+  if (site !== undefined && (!hostOf(siteUrl(site)) || site.length > PASSWORD_LIMITS.field)) usageError(`--site takes a website, like netflix.com or https://www.netflix.com/login: '${site}'`);
+  if (username !== undefined && (!username.trim() || /[\r\n]/.test(username) || username.length > PASSWORD_LIMITS.field)) usageError('--username takes one line of text');
 }
 
 /** `--keys`' comma-separated names, each once, or a usage error. */
