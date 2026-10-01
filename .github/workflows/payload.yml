@@ -50,6 +50,10 @@ jobs:
         working-directory: scripts/tests
       - name: Install supported OpenSpec CLI
         run: npm install -g @fission-ai/openspec@1.13.2
+      - name: Install isolated Artifacts pilot SDK for lifecycle regression
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: scripts/pilots/artifacts
       - name: Lint scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
         run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/memory/worker .github/scripts server

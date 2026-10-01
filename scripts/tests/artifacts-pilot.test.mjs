@@ -46,7 +46,8 @@ test('pilot is outside the payload, has bounded names and pins SDK-compatible to
   assert.throws(() => createManifest(account, 'a'.repeat(36)), /6–14/);
   assert.ok(inventory(createManifest(account, 'a'.repeat(14))).every(row => row.name.length <= 63));
   const pkg = JSON.parse(readFileSync(new URL('../pilots/artifacts/package.json', import.meta.url)));
-  assert.equal(pkg.dependencies['@cloudflare/ci'], '0.2.0'); assert.equal(pkg.dependencies['@cloudflare/sandbox'], '0.12.1');
+  assert.equal(pkg.dependencies['@cloudflare/ci'], '0.2.0'); assert.equal(pkg.dependencies['@cloudflare/sandbox'], '0.12.5');
+  assert.equal(pkg.overrides['@cloudflare/sandbox'], '$@cloudflare/sandbox');
   assert.equal(pkg.devDependencies.wrangler, '4.146.0');
 });
 
@@ -318,7 +319,7 @@ test('generated controller config has filtered events, separate databases and bo
   const generated = controllerConfig(manifest, config.owner, config.ownerEmail);
   assert.deepEqual(generated.triggers.events[0], { type: 'cf.artifacts.repo.pushed', filter: { namespace: manifest.namespace, repo_name: config.repo }, targets: [{ type: 'workflow', workflow_name: `${manifest.prefix}-pipeline` }] });
   assert.equal(generated.containers[0].max_instances, 1);
-  assert.equal(generated.containers[0].image, 'docker.io/cloudflare/sandbox:0.12.1');
+  assert.equal(generated.containers[0].image, 'docker.io/cloudflare/sandbox:0.12.5');
   assert.equal(generated.d1_databases.length, 1); assert.ok(!JSON.stringify(generated).includes('CF_TOKEN'));
   assert.equal(existsSync(generated.main), true);
 });

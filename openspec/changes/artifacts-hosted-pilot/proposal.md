@@ -1,6 +1,6 @@
 # Try Cloudflare Artifacts for hosted projects
 
-**Status:** ready-to-ship
+**Status:** in-progress
 
 **Branch:** github-artifacts
 
@@ -46,7 +46,7 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 
 ## Impact
 
-- Meta-only experiment files under `scripts/pilots/artifacts/` and tests under `scripts/tests/`, outside the payload inventory. No release or payload change is needed.
+- Meta-only experiment files under `scripts/pilots/artifacts/` and tests under `scripts/tests/`, outside the payload inventory. The retry adds one dependency-install step to the meta-only payload check workflow so its regression exercises the real pinned SDK. No shipped workflow, release or payload change is needed.
 - Disposable Artifacts repositories, a controller/pipeline Worker, trial production and staging Workers, test D1 databases, and any pipeline-owned cache/container/workflow resources, all recorded by ID in one run manifest.
 - Existing Cloudflare deployment helpers and memory request handling may be imported without changing their supported behavior; the experiment supplies its own identity entry point and credentials.
 - A future product migration belongs in `wongstack-cloud`; this plan neither edits that repo nor changes its login, team membership, or installer.
@@ -70,3 +70,8 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 - **2026-10-01** — Completed the bounded live cases with seven candidate attempts. Exact-commit previews, approved publication, access removal, real memory permissions and final Git restore passed. Both unapproved main previews failed in sandbox RPC; one left a running container, and a passing main preview remains unproven. Defer customer adoption and finish manifest-only teardown before reviewing publication of this experiment tooling.
 - **2026-10-01** — All fifteen manifest-owned resources were removed. The namespace DELETE returned HTTP 204 and independent GET/list readbacks proved absence; update the provider parser to accept that acknowledgment while keeping absence readback mandatory, with a regression case. The final checkpoint records the completed experiment for review; publishing the tooling is separate from adopting Artifacts for customers.
 - **2026-10-01** — Final source checkpoint `b9b94a7` passed every remote gate, including 26 pilot cases and 949 script cases. Trial report and cleanup are complete; retain the unmerged branch for the user’s review.
+- **2026-10-01** — User asked to try again. Reopen the same experiment for a fresh bounded run focused on sandbox lifecycle reliability, two successful unapproved main previews, exact owner-approved publication, export and full cleanup. Preserve the first report; record the retry separately. Diagnose the pinned SDK before execution and correct a demonstrated integration defect without changing the custom pipeline, customer signup or publication safeguards.
+- **2026-10-01** — Pinned source inspection found no demonstrated pilot defect. Keep source and dependencies unchanged, verify successful source gate `b9b94a7` and clean final gate `000c0b9`, and retry from fresh resources while observing container absence between candidates. Internal configuration/disconnect races are hypotheses only.
+- **2026-10-01** — The fresh unchanged trial reproduced disposed-stub failure after green candidate checks. Upstream Sandbox PR #799 documents an idle-disconnect race matching the installed source; release 0.12.5 is the first patch containing its active-call guard. Apply only that compatible pilot SDK patch, force the CI dependency to the same version and match its public container image; keep the CI SDK, Wrangler, pipeline and run bounds unchanged. Prove the actual installed idle-call behavior remotely before redeployment, then compare live outcomes without claiming the prior root cause is established.
+- **2026-10-01** — Check: the meta-only payload check workflow installs the locked pilot dependencies without install scripts before the script suite, because the pending-RPC regression must exercise actual SDK code. It uses the existing docs-only condition; no test or existing check is skipped, removed or weakened. The payload manifest explicitly excludes this workflow from installations.
+- **2026-10-01** — Check: `.github/workflows/payload.yml` adds a locked pilot dependency install under the existing docs-only condition, because the regression must execute the real corrected SDK. No existing check is disabled or weakened.

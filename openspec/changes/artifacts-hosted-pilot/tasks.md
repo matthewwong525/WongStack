@@ -34,3 +34,11 @@
 - [x] 5.6 Write the adoption recommendation with case outcomes, provisioning/build/revocation timings, measured usage and cost assumptions, cleanup receipt, and remaining hosted-service integration work; verify no customer migration is triggered and report an untested or failed core case as a reason to defer adoption.
 
 - [x] 5.7 Checkpoint the finished evidence and review page with `/save`, verify the final remote checks, and leave the tooling unmerged for the user to review.
+
+## 6. Fresh bounded retry
+
+- [x] 6.1 Inspect the pinned CI/Sandbox source and previous RPC failures; correct any demonstrated pilot integration defect with focused regression coverage, and record evidence versus hypotheses in the design.
+- [ ] 6.2 Run `/save` for any harness correction and require all remote checks to pass before live execution; if unchanged, verify the prior source gate.
+- [ ] 6.3 Preflight the same explicit platform account, show the fresh exact disposable inventory and current estimate, then run two consecutive passing unapproved main previews under the original finite bounds; verify reported commit identities, production unchanged, and runner cleanup between candidates.
+- [ ] 6.4 Exercise owner-approved exact publication, export all refs/history, stop triggers and workflows, revoke all run credentials and verify manifest-only deletion; record every outcome and any leftover in `retry-evidence.md`.
+- [ ] 6.5 Update the adoption recommendation with both runs, refresh the review, and checkpoint the finished retry report remotely while keeping tooling unmerged.

@@ -4,7 +4,8 @@
   "type": "module",
   "dependencies": {
     "@cloudflare/ci": "0.2.0",
-    "@cloudflare/sandbox": "0.12.1"
+    "@cloudflare/sandbox": "0.12.5"
   },
+  "overrides": { "@cloudflare/sandbox": "$@cloudflare/sandbox" },
   "devDependencies": { "wrangler": "4.146.0" }
 }

@@ -18,7 +18,7 @@ export function controllerConfig(manifest, owner, ownerEmail) {
     name, account_id: manifest.account, main: resolve(import.meta.dirname, 'worker.mjs'),
     compatibility_date: '2026-10-01', compatibility_flags: ['nodejs_compat'], workers_dev: true,
     artifacts: [{ binding: 'ARTIFACTS', namespace: manifest.namespace }],
-    containers: [{ name: `${manifest.prefix}-runner`, class_name: 'CiSandbox', image: 'docker.io/cloudflare/sandbox:0.12.1', max_instances: 1, instance_type: 'standard-1' }],
+    containers: [{ name: `${manifest.prefix}-runner`, class_name: 'CiSandbox', image: 'docker.io/cloudflare/sandbox:0.12.5', max_instances: 1, instance_type: 'standard-1' }],
     durable_objects: { bindings: [{ name: 'SANDBOX', class_name: 'CiSandbox' }, { name: 'PILOT_STATE', class_name: 'PilotState' }] },
     migrations: [{ tag: 'pilot-v1', new_sqlite_classes: ['CiSandbox', 'PilotState'] }],
     workflows: [{ name: `${manifest.prefix}-pipeline`, binding: 'CI_WORKFLOW', class_name: 'CI' }],
