@@ -30,4 +30,3 @@
 - [x] 5.1 Add a `## Next (minor) — Setup from any folder, and a first message that gets to know you` entry to `CHANGELOG.md`, with an **Updating.** note saying the new message arrives only while the welcome box is still on the home page.
 - [x] 5.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/check-retired-names.mjs`.
 - [x] 5.3 Through `/save`, confirm CI passes, and that the preview's home page shows the new message in the one *Make it yours* box.
-- [ ] 5.4 Tell the landing-page chat (wongstack-cloud workspace "joyful-bumblebee") that this release is out and the prompt stays `Install WongStack from github.com/matthewwong525/WongStack`.
