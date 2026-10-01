@@ -5,7 +5,8 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter } from './lib/digest.mjs';
-import { changePaths, loadAreas, pathAreas, withAreaTags } from './lib/areas.mjs';
+import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
+import { backlinks } from './lib/links.mjs';
 import { JOIN_COMMANDS } from './lib/join.mjs';
 import { githubUser, linkAdmin, MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
@@ -376,16 +377,31 @@ async function tags(ctx) {
   console.log(rows.length ? rows.map(tag => `- ${tag.name} (${tag.uses})${tag.alias_of ? ` alias of ${tag.alias_of}` : ''}: ${tag.definition}`).join('\n') : 'No tags yet. A new tag needs a definition.');
 }
 
-// The live facts for the code areas these paths, or a change's named paths, fall in: threads first, then newest.
-// Memory never stops a build: an unreachable store prints one line and exits 0.
+// Everything linked to these paths, topics, or a change's named paths: their areas, the docs those name, past
+// changes, what links to each path, then the live facts for the areas, threads first, then newest. All but the
+// facts print before the store opens. Memory never stops a build: an unreachable store prints one line and exits 0.
 async function areas(ctx, { values, positionals }) {
-  const found = pathAreas([...positionals, ...(values.change ? changePaths(ctx.root, values.change) : [])], loadAreas(), ctx.root);
-  if (!found.size) { console.log('No mapped area for these paths.'); return; }
-  console.log(`Areas: ${[...found].map(([tag, path]) => `${tag} (${path})`).join(', ')}`);
+  const list = loadAreas();
+  const isTopic = word => !word.includes('/') && Object.hasOwn(list, word) && !existsSync(join(ctx.root, word));
+  const paths = positionals.filter(word => !isTopic(word));
+  const named = values.change ? changePaths(ctx.root, values.change) : [];
+  const found = new Map(positionals.filter(isTopic).map(tag => [tag, 'topic']));
+  for (const [tag, path] of pathAreas([...paths, ...named], list, ctx.root)) if (!found.has(tag)) found.set(tag, path);
+  const tags = [...found.keys()];
+  const docs = areaDocs(tags, list, ctx.root);
+  const past = pastChanges(ctx.root, [...paths, ...named], tags, list, { skip: values.change });
+  console.log(found.size ? `Areas: ${[...found].map(([tag, path]) => `${tag} (${path})`).join(', ')}` : 'No mapped area for these paths.');
+  if (docs.length) console.log(`Docs: ${docs.join(', ')}`);
+  if (past.length) console.log(`Past changes:\n${past.map(change => `- [${change.folder}](${change.proposal}) — ${change.title}`).join('\n')}`);
+  for (const path of paths) {
+    const links = backlinks(ctx.root, path);
+    if (links.length) console.log(`Linked to ${path} from:\n${[...links.slice(0, 10).map(link => `- ${link}`), ...(links.length > 10 ? [`+${links.length - 10} more`] : [])].join('\n')}`);
+  }
+  if (!found.size) return;
   try {
     const store = openStore(ctx);
     const team = await teamWhere(ctx, store, values);
-    const tag = tagClause([...found.keys()]);
+    const tag = tagClause(tags);
     const facts = await store.query(`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL AND ${tag.sql}${team.sql}
       ORDER BY CASE WHEN f.type = 'thread' THEN 0 ELSE 1 END, f.created_at DESC LIMIT ${Number(values.limit) || 20}`, [...tag.params, ...team.params]);
     console.log(facts.length ? facts.map(fact => formatFact(fact)).join('\n') : 'No live facts in these areas.');
@@ -698,7 +714,7 @@ const USAGE = `usage: memory.mjs <command>
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
-  areas [paths…] [--change name] [--limit n]   live facts for the code areas the paths, or the change's named paths, fall in
+  areas [paths|topics…] [--change name] [--limit n]   everything linked to them: areas, docs, past changes, backlinks, live facts
   gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   retag --file -               restate live facts with added tags, keeping date, session, and author: {"retag":[{"id":n,"tags":[...]}]}

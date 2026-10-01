@@ -143,6 +143,15 @@ jobs:
           BASE: ${{ steps.scope.outputs.base }}
         run: node .github/scripts/loosened-checks.mjs --base "$BASE" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # Every run that is not cancelled, docs-only ones too: a wiki edit is
+      # often all a change is. Fails on a dead link, a page no other wiki page
+      # links to, or a hub that skips a page; wiki/wiki-style.md owns the rules.
+      - name: Check the wiki's links
+        id: wiki
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: node .github/scripts/wiki-links.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+
       # One line on the run page: what ran, or why nothing did.
       - name: Summary
         if: ${{ !cancelled() }}
@@ -150,6 +159,7 @@ jobs:
           UNTOUCHED: ${{ steps.scope.outputs.untouched }}
           FOUND: ${{ steps.suite.outputs.found }}
           LOOSENED: ${{ steps.loosened.outcome }}
+          WIKI: ${{ steps.wiki.outcome }}
           SUITE: ${{ steps.test.outcome }}
         run: |
           if [ "$UNTOUCHED" = true ]; then
@@ -160,5 +170,6 @@ jobs:
             LINE="The main app changed, but no test suite is declared."
           fi
           [ "$LOOSENED" = failure ] && LINE="$LINE A check was loosened with no written reason; see Loosened checks above."
+          [ "$WIKI" = failure ] && LINE="$LINE A wiki link is broken or a page is linked from nowhere; see Wiki links above."
           echo "$LINE" >> "$GITHUB_STEP_SUMMARY"
           echo "$LINE"

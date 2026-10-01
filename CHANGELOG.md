@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.4.0 — One web of code, facts, wiki pages, specs, and past plans
+
+When your assistant is about to change part of your code or a wiki page, one lookup now brings up everything tied to it, and every publish checks that no wiki page is lost.
+
+- **One lookup shows everything linked.** Ask about a file, a wiki page, or a topic such as *mini-apps*, and you get its topic, the wiki pages and records that own it, the past plans that changed it, the pages that link to it, and the saved notes about it. Planning and building already run it before the first edit, so they get all of it.
+- **Past plans come back when you touch the same code.** The five newest plans that named the file come first, then the ones about the same topic, so the assistant sees why the code has its shape before it changes it.
+- **Each topic names the pages that explain it.** The topic list now names the wiki pages for each topic. Add your own pages beside your own topics, and the next update keeps them.
+- **Every publish checks your wiki.** It fails when a page links to a page that's gone, when no other page links to a page, or when a section's main page skips one of its pages, and names each one. The assistant fixes it in the same change.
+
+**Updating.** Your next publish checks your wiki's links for the first time. If it finds a lost page or a broken link, ask the assistant to fix the pages it names, then publish again.
+
 ## 29.3.0 — Link memory facts to the code they're about
 
 A lesson your assistant saved about part of your code now comes back when a change touches that code, not only when a search happens to find it.

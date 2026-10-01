@@ -4,7 +4,7 @@ A `wiki/` built this way is a **progressive-disclosure knowledge tree**: one pla
 
 ## The shape: start general, break down as needed
 
-A section's `README.md` gives the whole process, each step a link. A step with more to it gets its own page, which breaks down the same way: section README → hub (`onboarding/README.md`) → a leaf specific enough to act on. **Don't manufacture depth.**
+A section's `README.md` gives the whole process, each step a link. A step with more gets its own page, broken down the same way: section README → hub (`onboarding/README.md`) → a leaf specific enough to act on. **Don't manufacture depth.**
 
 ## One topic, one page
 
@@ -15,7 +15,7 @@ Document each thing in **exactly one place**: the same procedure on two pages is
 
 ## Every page stands on its own
 
-Readers land on a page from search, with no context.
+Readers land from search, without context.
 
 - Give every page a clear **`#` title** and a **first sentence** that says what it is, never a breadcrumb, caveat, or filler: search results quote it.
 - **Title the topic, not its place in a sequence**: `Find inspiration`, never `Stage 1 — Find inspiration`. Order lives in the parent hub's list, so a page moves without going stale.
@@ -27,15 +27,15 @@ Readers land on a page from search, with no context.
 
 ## Folders only for deep branches
 
-Use a folder only when a step grows into several pages (`onboarding/`: a hub plus a page per role), with its `README.md` as the hub; a lone page stays flat. Breadcrumbs follow folders, so don't hand-write them. Moving a page changes its URL: update its links.
+Use a folder only if a step grows into several pages (`onboarding/`: a hub, a page per role), with its `README.md` as the hub; a lone page stays flat. Breadcrumbs follow folders; don't hand-write them. Moving a page changes its URL: `memory.mjs areas <page>` lists links to fix.
 
 ## Maps are pictures; links live in the list
 
-A `mermaid` diagram may open a section, but keep it **visual-only**: clickable nodes are brittle. The numbered list beside it carries the links.
+A `mermaid` diagram may open a section; keep it **visual-only**: clickable nodes are brittle. The numbered list beside it holds the links.
 
 ## No orphans, no dead-ends, full hub-coverage
 
-Something links to every page, its hub at minimum; a hub links *every one* of its children. Every page links onward, up at least.
+Something links to every page, its hub at minimum; a hub links *every one* of its children. Every page links onward, up at least. CI checks it.
 
 ## Repeatable knowledge
 
@@ -68,4 +68,4 @@ When a person asks for more detail than [plain words](../.agents/skills/explore/
 
 ## Keeping it tidy
 
-Garden [the wiki](README.md): extend each fact's owning page, merge duplicates, resolve contradictions newest-wins, prune stale content, repair links.
+Garden [the wiki](README.md): extend each fact's owning page, merge duplicates, resolve contradictions newest-wins, prune stale text, fix links.
