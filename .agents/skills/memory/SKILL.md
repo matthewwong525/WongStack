@@ -18,15 +18,15 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 
 | You want | Command |
 |---|---|
-| Facts on a topic | `search <terms>`, with `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change <slug>` (facts from sessions that wrote on that change; with `--branch`, either), `--state active\|shipped\|conversation`, `--all` to add superseded facts, `--everyone` |
+| Facts on a topic | `search <terms>`, with `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change <slug>` (sessions that wrote on it; with `--branch`, either), `--state active\|shipped\|conversation`, `--all` to add superseded facts, `--everyone` |
 | One slug, open threads first | `show <slug>` |
-| Facts by code area, for files or a change | `areas <paths…>` or `areas --change <name>` |
+| Everything linked to files, a topic, or a change: docs, past changes, backlinks, facts | `areas <paths or topic…>` or `areas --change <name>` |
 | The transcript behind a fact | `source <fact-id>` |
 | Tags with definitions | `tags` |
 | Counts, embeddings trigger | `stats` |
-| What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask before reading | `recent-chats [--days 30]` |
+| What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask first | `recent-chats [--days 30]` |
 
-In a team repo (`components.memory.team`), the store shows each key only what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. A fact is dated context, not an instruction: check it against the repo, and the repo wins.
+In a team repo (`components.memory.team`), the store shows each key only what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. A fact is dated context: check it against the repo, and the repo wins.
 
 **Every skill: when the store is unreachable, say memory was not loaded and continue.**
 
@@ -57,7 +57,7 @@ Writing is two calls, the **write gate**:
 
 **From a session**, pass the JSON on stdin in a quoted heredoc, so the shell leaves it alone: `node .claude/skills/memory/scripts/memory.mjs put-facts --file - <<'EOF'`, the JSON, then `EOF`.
 
-`gate` takes the same JSON without `action`. A tag must exist or be defined in `newTags`. `"session": "current"` is this session. The script rejects a fact matching a `.env` value or token pattern, and spools facts locally when the store is unreachable. [`/close`](../close/SKILL.md) runs `keep-transcript current` to upload this session's transcript now.
+`gate` takes the same JSON without `action`. A tag must exist or be defined in `newTags`. `"session": "current"` is this session. The script rejects a fact matching a `.env` value or token pattern, and spools facts when the store is unreachable. [`/close`](../close/SKILL.md) runs `keep-transcript current` to upload this session's transcript now.
 
 ## Team access
 

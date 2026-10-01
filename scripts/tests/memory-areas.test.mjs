@@ -1,13 +1,25 @@
-// Code areas: the shipped list, path matching, `memory.mjs areas`, `retag`, and area tags that define themselves.
+// Code areas: the shipped list and its docs, path matching, `memory.mjs areas` with its docs, past changes, and
+// backlinks, `retag`, and area tags that define themselves.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { areasOf, loadAreas } from '../../.agents/skills/memory/scripts/lib/areas.mjs';
 import { memory, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const AREAS = loadAreas();
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const files = (root, map) => Object.entries(map).forEach(([path, body]) => {
+  mkdirSync(dirname(join(root, path)), { recursive: true });
+  writeFileSync(join(root, path), body);
+});
+// An archived change whose tasks name the given paths.
+const archived = (folder, title, ...paths) => ({
+  [`openspec/changes/archive/${folder}/proposal.md`]: `# ${title}\n`,
+  [`openspec/changes/archive/${folder}/tasks.md`]: paths.map(path => `- [x] Edit \`${path}\`.\n`).join(''),
+});
 const input = (env, value) => writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, value);
 const put = (env, value) => memory(env.repo, env.fake, ['put-facts', '--file', input(env, value)]);
 const retag = (env, value) => memory(env.repo, env.fake, ['retag', '--file', input(env, value)]);
@@ -31,6 +43,14 @@ test('every area in the list has a definition and a folder', () => {
     assert.ok(area.definition?.trim(), `${tag} has a definition`);
     assert.ok(area.paths?.length && area.paths.every(path => typeof path === 'string' && path), `${tag} has folders`);
   }
+});
+
+test('every capability spec is named by an area, and every named doc exists', () => {
+  const named = new Set(Object.values(AREAS).flatMap(area => area.docs || []));
+  const specs = readdirSync(join(REPO, 'openspec/specs')).map(cap => `openspec/specs/${cap}/spec.md`).filter(spec => existsSync(join(REPO, spec)));
+  assert.ok(specs.length > 20);
+  assert.deepEqual(specs.filter(spec => !named.has(spec)), [], 'each of these specs needs an area in areas.json');
+  assert.deepEqual([...named].filter(doc => !existsSync(join(REPO, doc))), [], 'each of these docs is gone');
 });
 
 test("areas loads a change's facts by the folders it names: threads first, capped, nothing else", async t => {
@@ -104,4 +124,74 @@ test('retag restates a fact with its body, date, session, author, and old tags, 
   assert.equal(rows(env, "SELECT definition FROM tags WHERE name = 'worker'")[0].definition, AREAS.worker.definition, 'the area tag defined itself');
   const again = await retag(env, { retag: [{ id: old, tags: ['memory'] }] });
   assert.equal(again.stdout.trim(), `retagged: 0\nskipped #${old}: superseded by #${restated.id}`);
+});
+
+test('areas prints docs, past changes, and backlinks before the facts, even with the store unreachable', async t => {
+  const env = await setup(t);
+  files(env.repo.root, {
+    'wiki/stack/mini-apps.md': '# Mini apps\n\nServe [hello](../../app/worker/apps/hello/index.ts).\n',
+    'app/worker/apps/hello/index.ts': '',
+    ...archived('2026-09-01-add-mini-apps', 'Add mini apps', 'app/worker/apps/'),
+  });
+  const expected = [
+    'Areas: worker (app/worker/apps/hello/index.ts), mini-apps (app/worker/apps/hello/index.ts)',
+    'Docs: wiki/stack/mini-apps.md',
+    'Past changes:',
+    '- [2026-09-01-add-mini-apps](openspec/changes/archive/2026-09-01-add-mini-apps/proposal.md) — Add mini apps',
+    'Linked to app/worker/apps/hello/index.ts from:',
+    '- wiki/stack/mini-apps.md:3',
+  ];
+  await put(env, { source: 'save', slug: 'routes', facts: [{ action: 'add', type: 'project', body: 'Test every route, not only the new one.', tags: ['worker'] }] });
+  const loaded = await memory(env.repo, env.fake, ['areas', 'app/worker/apps/hello/index.ts']);
+  assert.equal(loaded.code, 0, loaded.stderr);
+  assert.deepEqual(loaded.stdout.trim().split('\n').slice(0, 6), expected, 'openspec/specs/mini-apps/spec.md is missing here, so it is skipped');
+  assert.match(loaded.stdout.trim().split('\n')[6], /^- \[project\] Test every route/);
+  env.fake.setOffline(true);
+  const unreachable = await memory(env.repo, env.fake, ['areas', 'app/worker/apps/hello/index.ts']);
+  assert.equal(unreachable.code, 0, unreachable.stderr);
+  assert.deepEqual(unreachable.stdout.trim().split('\n'), [...expected, 'Memory was not loaded (memory store unreachable (network)); go on without it.']);
+});
+
+test('past changes: those naming the path first, then those sharing an area, newest first, five at most', async t => {
+  const env = await setup(t);
+  env.fake.setOffline(true);
+  files(env.repo.root, {
+    ...archived('2026-01-01-exact', 'Names the file', 'app/worker/apps/hello/index.ts'),
+    ...archived('2026-01-02-folder', 'Names its folder', 'app/worker/apps/hello/'),
+    ...archived('2026-01-03-broad', 'Names a folder above the area', 'app/worker/'),
+    ...archived('2026-01-04-wiki', 'Another area', 'wiki/voice.md'),
+    ...Object.assign({}, ...[5, 6, 7, 8, 9].map(day => archived(`2026-01-0${day}-area-${day}`, `Area ${day}`, 'app/worker/index.ts'))),
+  });
+  const past = async (...args) => (await memory(env.repo, env.fake, ['areas', ...args])).stdout.split('\n')
+    .filter(line => line.startsWith('- [2026')).map(line => line.match(/^- \[([^\]]+)\]/)[1]);
+  assert.deepEqual(await past('app/worker/apps/hello/index.ts'),
+    ['2026-01-02-folder', '2026-01-01-exact', '2026-01-09-area-9', '2026-01-08-area-8', '2026-01-07-area-7'], 'a folder above the area, like app/worker/, names too much to count');
+  assert.deepEqual(await past('app/worker/apps/'), ['2026-01-02-folder', '2026-01-01-exact', '2026-01-09-area-9', '2026-01-08-area-8', '2026-01-07-area-7'],
+    'a folder asked about matches the files inside it');
+  assert.deepEqual((await past('wiki/voice.md')), ['2026-01-04-wiki']);
+});
+
+test('backlinks print only for paths asked about directly, never for the paths a change names', async t => {
+  const env = await setup(t);
+  env.fake.setOffline(true);
+  files(env.repo.root, {
+    'wiki/README.md': '# Wiki\n\n[routes](../app/worker/index.ts)\n',
+    'app/worker/index.ts': '',
+    'openspec/changes/fix-routes/tasks.md': '- [ ] 1.1 Route `/api/x` in `app/worker/index.ts`.\n',
+  });
+  const byChange = await memory(env.repo, env.fake, ['areas', '--change', 'fix-routes']);
+  assert.doesNotMatch(byChange.stdout, /Linked to/);
+  const direct = await memory(env.repo, env.fake, ['areas', 'app/worker/index.ts']);
+  assert.match(direct.stdout, /^Linked to app\/worker\/index\.ts from:\n- wiki\/README\.md:3$/m);
+});
+
+test('a topic name loads its area, unless a file has that name', async t => {
+  const env = await setup(t);
+  env.fake.setOffline(true);
+  files(env.repo.root, { 'wiki/stack/mini-apps.md': '# Mini apps\n' });
+  const topic = await memory(env.repo, env.fake, ['areas', 'mini-apps']);
+  assert.match(topic.stdout, /^Areas: mini-apps \(topic\)\nDocs: wiki\/stack\/mini-apps\.md\n/);
+  files(env.repo.root, { 'mini-apps': '' });
+  const file = await memory(env.repo, env.fake, ['areas', 'mini-apps', 'not-an-area']);
+  assert.equal(file.stdout.trim(), 'No mapped area for these paths.');
 });
