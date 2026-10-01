@@ -3,6 +3,10 @@ import { handleMemory, hashKey, newKey } from '../../../.agents/skills/memory/wo
 
 const requireThat = (condition, message) => { if (!condition) throw new Error(message); };
 export const shaOK = sha => /^[a-f0-9]{40}$/.test(sha || '');
+export function branchName(ref) {
+  requireThat(typeof ref === 'string' && ref.startsWith('refs/heads/') && ref.length > 'refs/heads/'.length, 'Canonical branch ref required');
+  return ref.slice('refs/heads/'.length);
+}
 const b64 = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
 const unb64 = text => Uint8Array.from(atob(text.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0));
 const encoder = new TextEncoder();
@@ -77,7 +81,7 @@ export class PilotController {
     const url = new URL(deployment.url);
     requireThat(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && url.pathname === '/' && url.hostname.endsWith('.workers.dev') && deployment.reported === true, 'Untrusted preview URL');
     requireThat(deployment.version && url.hostname.startsWith(`${deployment.version.slice(0, 8)}-${this.adapters.staging}.`), 'URL does not match deployment evidence');
-    const response = await this.adapters.fetch(`${url.origin}/identity`, { redirect: 'error' });
+    const response = await this.adapters.fetch(`${url.origin}/identity`, { redirect: 'manual' });
     requireThat(response.ok && (await response.json()).commit === sha, 'Preview serves a different commit');
     Object.assign(candidate, { status: 'preview-ready', checks: 'PASS', code: result.code, digest: result.digest, url: url.origin, version: deployment.version, finishedAt: new Date().toISOString() });
     this.state.active = null;
@@ -92,7 +96,7 @@ export class PilotController {
     const candidate = this.candidate(sha, ref);
     requireThat(candidate.status === 'preview-ready' && candidate.checks === 'PASS' && this.state.latest[ref] === sha, 'Only the latest passing preview can be approved');
     await this.currentHead(sha, ref);
-    const response = await this.adapters.fetch(`${candidate.url}/identity`, { redirect: 'error' });
+    const response = await this.adapters.fetch(`${candidate.url}/identity`, { redirect: 'manual' });
     requireThat(response.ok && (await response.json()).commit === sha, 'Approval preview identity unreadable');
     const approval = { id: crypto.randomUUID(), sha, ref, repo: this.state.repo, digest: candidate.digest, base: this.state.production, subject: actor.sub, at: new Date().toISOString(), status: 'approved' };
     this.state.approvals[approval.id] = approval;

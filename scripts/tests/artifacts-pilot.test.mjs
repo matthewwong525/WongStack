@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync, mkdtempSync, statSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { initialState, PilotController, signSession, verifySession, pilotMemory } from '../pilots/artifacts/core.mjs';
+import { initialState, PilotController, signSession, verifySession, pilotMemory, branchName } from '../pilots/artifacts/core.mjs';
 import { createManifest, inventory, writePrivate, readManifest, ensureResource, cleanup } from '../pilots/artifacts/lifecycle.mjs';
 import { buildResult, deploymentCommand, deploymentResult, runPipeline } from '../pilots/artifacts/pipeline.mjs';
 import { caseEvidence, redact, adoption, compareRefs } from '../pilots/artifacts/evidence.mjs';
@@ -31,6 +31,11 @@ function controller(overrides = {}) {
 const artifact = async () => ({ sha, code: btoa('export default {};'), digest: await hashKey('export default {};'), exitCode: 0 });
 async function ready(control) { control.start(params(), 'job'); await control.preview(sha, ref, await artifact(), deployment); }
 const claims = (sub = member.sub) => ({ sub, run, project: config.repo, aud: 'artifacts-pilot', epoch: 0, exp: Date.now() + 100000 });
+
+test('Artifacts log receives branch names while the approval ledger retains canonical refs', () => {
+  assert.equal(branchName('refs/heads/feature/nested'), 'feature/nested');
+  for (const invalid of ['refs/tags/feature', 'feature', 'refs/heads/', null]) assert.throws(() => branchName(invalid), /Canonical/);
+});
 
 test('pilot is outside the payload, has bounded names and pins SDK-compatible tools', () => {
   const payload = JSON.parse(readFileSync(new URL('../../.agents/skills/wong-sync/references/payload-files.json', import.meta.url)));
@@ -152,6 +157,16 @@ test('passing preview needs owner approval and authenticated readable checks bef
   control.finishPublication(approval.id, sha, version);
   assert.equal(control.state.production, sha);
   assert.equal(control.beginPublication(approval.id, 'duplicate').duplicate, true);
+});
+
+test('edge preview verification uses manual redirects and rejects a redirected identity', async () => {
+  const control = controller({ fetch: async (_url, options) => {
+    assert.equal(options.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://evil.example/' } });
+  } });
+  control.start(params(), 'j');
+  await assert.rejects(control.preview(sha, ref, await artifact(), deployment), /different commit/);
+  assert.equal(control.candidate(sha, ref).status, 'checking');
 });
 
 test('failed/unreadable checks, later commits and outdated bases cannot publish', async () => {

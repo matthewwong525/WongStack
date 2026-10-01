@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { CIWorkflow } from '@cloudflare/ci';
 export { CiSandbox } from '@cloudflare/ci/worker';
-import { initialState, PilotController, pilotMemory, verifySession } from './core.mjs';
+import { initialState, PilotController, pilotMemory, verifySession, branchName } from './core.mjs';
 import { runPipeline } from './pipeline.mjs';
 
 const configOf = env => JSON.parse(env.PILOT_CONFIG);
@@ -35,7 +35,7 @@ export class PilotState extends DurableObject {
       const controller = new PilotController(state, {
         ...config, fetch: (...args) => fetch(...args),
         head: async ref => {
-          const rows = await api(`repos/${encodeURIComponent(config.repo)}/log?ref=${encodeURIComponent(ref)}&limit=1`);
+          const rows = await api(`repos/${encodeURIComponent(config.repo)}/log?ref=${encodeURIComponent(branchName(ref))}&limit=1`);
           // Fail closed on an SDK/API schema change; never substitute the event's asserted SHA.
           return rows[0]?.hash;
         },
