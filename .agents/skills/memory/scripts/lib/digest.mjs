@@ -97,7 +97,7 @@ export function stepLine(steps = []) {
 }
 
 // The person's page as digest lines: its body, without the `#` title, the `Back to` footer, or blank lines.
-const personLines = text => text.split('\n').map(line => line.trimEnd()).filter(line => line && !/^# /.test(line) && !/^Back to /.test(line));
+const personLines = text => text.split('\n').map(line => line.trimEnd()).filter(line => line && !line.startsWith('# ') && !line.startsWith('Back to '));
 
 // Builds the digest within MAX_LINES and MAX_BYTES, in this order: the current change's threads, the count of
 // other changes' threads by verb tag, the person's page within PERSON_MAX_BYTES, then the other facts in query
