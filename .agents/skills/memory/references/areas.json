@@ -10,7 +10,7 @@
   "save": {"definition": "The /save checkpoint: capture, commit, push, PR, and CI wait.", "paths": [".agents/skills/save/"], "docs": ["wiki/development/the-change-loop.md", "openspec/specs/delivery-gate/spec.md"]},
   "ship": {"definition": "The /ship archive-and-merge step.", "paths": [".agents/skills/ship/"], "docs": ["wiki/development/the-change-loop.md", "openspec/specs/delivery-gate/spec.md"]},
   "verify": {"definition": "/verify, the on-demand evidence walk of a preview.", "paths": [".agents/skills/verify/"], "docs": ["wiki/development/staging-walkthrough.md", "openspec/specs/staging-walkthrough/spec.md"]},
-  "explore": {"definition": "/explore and its question rounds.", "paths": [".agents/skills/explore/"], "docs": ["openspec/specs/asking-the-user/spec.md", "openspec/specs/other-work-check/spec.md"]},
+  "explore": {"definition": "/explore and its question rounds.", "paths": [".agents/skills/explore/"], "docs": ["openspec/specs/asking-the-user/spec.md", "openspec/specs/other-work-check/spec.md", "openspec/specs/session-coordination/spec.md", "wiki/development/the-change-loop.md", "wiki/development/task-chats.md"]},
   "continue": {"definition": "/continue and cold resume.", "paths": [".agents/skills/continue/"], "docs": ["wiki/development/the-change-loop.md"]},
   "routine": {"definition": "Scheduled work that runs recurring agents in isolated Paseo worktrees", "paths": [".agents/skills/routine/"], "docs": ["openspec/specs/paseo-routines/spec.md"]},
   "close": {"definition": "/close and how a chat is wrapped up: memory, wiki, unfinished work, the workspace.", "paths": [".agents/skills/close/"], "docs": ["openspec/specs/workspace-cleanup/spec.md"]},

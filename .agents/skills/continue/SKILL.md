@@ -67,6 +67,8 @@ git fetch origin   # a handed-off branch may exist only on the remote
 
 ### 4. Orient and continue
 
+Recover [owner agreements and relevant chat context](../../../wiki/development/the-change-loop.md#chats-coordinate-directly). Refresh dependencies, compare your title to the resumed task, and continue independent work.
+
 Recap so the user can confirm the loaded state:
 
 - **The change**: 2–4 lines on the work and task progress, its `Status:` line, and any open questions.

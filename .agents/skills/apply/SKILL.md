@@ -26,7 +26,7 @@ Check `applyRequires` in `openspec status --change "<name>" --json`:
 - **No change, clear intent** → invoke `plan` with that intent.
 - **Unclear intent** → ask before any plan or code.
 
-`/apply` authorizes plan-then-implement. After `/plan` returns, verify the `applyRequires` closure; paused or blocked → report and stop. Otherwise announce the change's **exact name** and keep it; no other change may replace it. Then [build in a helper](#build-in-a-helper).
+`/apply` authorizes plan-then-implement. After `/plan` returns, verify the `applyRequires` closure; paused or blocked → report and stop. Otherwise announce the change's **exact name** and keep it; no other change may replace it. Read existing [owner agreements](../../../wiki/development/the-change-loop.md#chats-coordinate-directly); refresh affected context when scope changes. Continue independent tasks while dependencies wait. Then [build in a helper](#build-in-a-helper).
 
 At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-with-a-preview), unless a task-driven `/save` completed the final task: then report its result and CI preview, with no upload. **When `/ship` invoked you, return instead**, with no upload and no `/save`; `/ship` archives and makes the one checkpoint.
 

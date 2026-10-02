@@ -1,9 +1,14 @@
-# other-work-check Specification
+# Spec Delta
 
-## Purpose
-Before planning a change to the repo, the agent looks at the repo's other active work, so two chats don't plan the same thing without knowing it.
+## REMOVED Requirements
 
-## Requirements
+### Requirement: Planning names overlapping work and asks
+
+**Reason**: Routine conflicts should be coordinated by the task owners rather than immediately passed to the person.
+
+**Migration**: Use automatic cooperation for reachable owners, asking only when cooperation leaves a real outcome unresolved or the affected work cannot proceed with an unreachable owner.
+
+## ADDED Requirements
 
 ### Requirement: Planning coordinates overlapping work with its owner
 
@@ -19,6 +24,8 @@ When planning repo work, the agent SHALL inspect this repo's other active work b
 
 - **WHEN** other active work concerns unrelated outcomes
 - **THEN** the task continues without mentioning the check or waiting for unrelated sessions
+
+## MODIFIED Requirements
 
 ### Requirement: The check reads only this repo's live work
 

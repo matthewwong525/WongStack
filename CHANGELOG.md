@@ -13,6 +13,13 @@ This hosted migration is still in progress. Cloud preparation gets the repositor
 
 **Updating.** Hosted operators must rebuild older server agents with contract 3 and coordinate the platform/toolkit rollout. Existing GitHub projects keep their current workflow until a verified migration is explicitly requested. Installation-owned memory and Devices are a separate unfinished feature; cloud roles do not grant memory authority, and setup must report unavailable or pending memory truthfully until that feature and its integration are delivered. Follow the completed migration instructions when this release is ready.
 
+## 29.10.0 — Task chats coordinate directly
+
+- Chats find overlapping work by current titles and confirmed task context, then exchange brief messages with its owner. Each keeps its own task and publishing approval; agreements stay in existing plans.
+- Each chat keeps its title aligned with meaningful task changes. Busy owners keep working, and dependent work waits until safe contact is available.
+
+**Updating.** No action needed. Direct messages need the optional Paseo app; without it, the assistant still finds other saved and unsaved work and asks when an overlap cannot be resolved.
+
 ## 29.9.0 — Windows setup handles folder links
 
 - Setup readies Windows folder links automatically, turning on the needed setting when links fail. Approve Windows' permission window if it appears; the assistant runs the commands and checks the links before installing.

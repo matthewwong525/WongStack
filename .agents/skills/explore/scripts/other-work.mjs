@@ -6,7 +6,7 @@
 // Git is the base: every worktree of this repo, from the primary checkout, so another project
 // never appears. A worktree counts when it has unsaved files, commits not on the default branch,
 // an active OpenSpec change on disk (saved or not), or a running agent; the current worktree never
-// counts. Paseo, when it answers, adds each workspace's name and whether an agent is running in it.
+// counts unless another chat shares it. Paseo adds workspace names and distinct peer chats.
 // `gh` adds open pull requests not opened by a bot, each folded into the worktree on its branch.
 // The script gathers facts only; the agent judges what overlaps.
 //
@@ -181,14 +181,17 @@ async function paseoFacts(env, notes) {
     return empty;
   }
   try {
-    const workspaces = await paseo(bin, ['workspace', 'ls']);
-    const agents = await paseo(bin, ['ls', '-g']);
+    const route = env.PASEO_HOST ? ['--host', env.PASEO_HOST] : env.PASEO_HOME ? ['--home', env.PASEO_HOME] : [];
+    const workspaces = await paseo(bin, ['workspace', 'ls', ...route], { env });
+    const agents = await paseo(bin, ['ls', '-g', ...route], { env });
     const ok = (list, fields) => Array.isArray(list) && list.every(item => fields.every(field => typeof item?.[field] === 'string'));
-    if (!ok(workspaces, ['cwd']) || !ok(agents, ['status', 'cwd'])) throw new Error("Paseo's output has changed");
+    if (!ok(workspaces, ['cwd']) || !ok(agents, ['id', 'name', 'status', 'cwd'])) throw new Error("Paseo's output has changed");
     const home = env.HOME || homedir();
     return {
       workspaces: workspaces.map(ws => ({ name: ws.name, cwd: realpath(ws.cwd.replace(/^~(?=\/|$)/, home)) })),
-      agents: agents.map(agent => ({ status: agent.status, cwd: realpath(agent.cwd.replace(/^~(?=\/|$)/, home)) })),
+      agents: agents.filter(agent => agent.id !== env.PASEO_AGENT_ID && !agent.archived && !agent.archivedAt && agent.status !== 'archived')
+        .map(agent => ({ id: agent.id, title: agent.name, status: agent.status,
+          cwd: realpath(agent.cwd.replace(/^~(?=\/|$)/, home)) })),
     };
   } catch (error) {
     notes.push(`Workspace names and running agents were not checked: ${firstLine(error.message)}.`);
@@ -223,20 +226,33 @@ export async function otherWork(cwd = process.cwd(), env = process.env) {
   const base = baseRef(repo.primary, branch);
   if (!base) notes.push('The default branch was not found, so commits not yet published were not counted.');
   const facts = await paseoFacts(env, notes);
+  // A nested checkout may be another project: require its actual git root to match a listed tree.
+  const chatsByRoot = new Map();
+  for (const agent of facts.agents) {
+    const root = tryGit(agent.cwd, 'rev-parse', '--show-toplevel');
+    if (!root) continue;
+    const dir = realpath(root);
+    const chats = chatsByRoot.get(dir) ?? [];
+    chats.push(agent);
+    chatsByRoot.set(dir, chats);
+  }
 
   const workspaces = [];
   for (const tree of parseWorktrees(tryGit(repo.primary, 'worktree', 'list', '--porcelain') ?? '')) {
     const dir = realpath(tree.path);
-    if (dir === current || !existsSync(dir)) continue;
+    if (!existsSync(dir)) continue;
+    const chats = chatsByRoot.get(dir) ?? [];
+    if (dir === current && !chats.length) continue;
     const named = facts.workspaces.find(ws => ws.cwd === dir);
     const entry = {
       name: named?.name || path.basename(dir),
       path: dir,
       branch: tree.branch,
-      busy: facts.agents.some(agent => BUSY.has(agent.status) && inside(dir, agent.cwd)),
+      busy: chats.some(agent => BUSY.has(agent.status)),
+      chats,
       ...worktreeState(dir, base),
     };
-    if (isLive(entry)) workspaces.push(entry);
+    if (isLive(entry) || chats.length) workspaces.push(entry);
   }
 
   const prs = openPullRequests(repo.primary, notes);
