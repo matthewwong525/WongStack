@@ -1,6 +1,6 @@
 # Let task chats coordinate directly
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** session-task-coordination
 **Open questions:** none
 
@@ -71,3 +71,9 @@ Branch: `session-task-coordination`.
 - **2026-10-02** — Assumed: the change-loop section links a detailed task-chat procedure, because putting all command guidance in the eagerly loaded owner would exceed the named-secret route's existing context budget. Existing workflow instructions link the same change-loop section.
 
 - **2026-10-02** — Assumed: checkpoint the implemented discovery and workflow changes for gate task 4.1; static checks pass, while CI coverage and disposable-chat evidence remain pending.
+
+- **2026-10-02** — Assumed: mark gate task 4.1 complete after commit `0cad70c` passed all checks (payload run `37053586778`); the first run exposed a missing knowledge-area entry, which was added without changing or loosening checks. Disposable-chat evidence remains pending.
+
+- **2026-10-02** — Verified: task 4.2 passed in two disposable same-repo chats using the parent's provider/model/thinking/mode. Exact-ID discovery, proposal, targeted context request, owner answer, actual acceptance, owner-written existing-plan agreements, independent progress and unchanged publishing permissions were observed. Both idle fixtures were archived and their scratch files removed; no production change was published. See [integration evidence](integration-evidence.md).
+
+- **2026-10-02** — Authorized: the user invoked `/ship`. Archived the completed change with already reconciled specs, numbered release 29.10.0 from main's 29.9.0, and checkpointed the final integration evidence for publishing. No external task prerequisite or relaxed check applies.

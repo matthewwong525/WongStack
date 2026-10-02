@@ -18,5 +18,5 @@
 
 ## 4. Integration evidence
 
-- [ ] 4.1 Use /save to run discovery coverage in CI and record the gate result for the actual pushed head; leave this task pending if the gate is failing or unverifiable.
-- [ ] 4.2 Exercise direct discovery and a brief proposal, context request, and owner reply between two disposable same-repo chats under test-only briefs; show agreements recorded in their existing plans, independent tasks continuing, and permissions preserved. Send no task to unrelated existing chats and publish no production change. Use /save if fixture fixes need CI evidence.
+- [x] 4.1 Use /save to run discovery coverage in CI and record the gate result for the actual pushed head; leave this task pending if the gate is failing or unverifiable.
+- [x] 4.2 Exercise direct discovery and a brief proposal, context request, and owner reply between two disposable same-repo chats under test-only briefs; show agreements recorded in their existing plans, independent tasks continuing, and permissions preserved. Send no task to unrelated existing chats and publish no production change. Use /save if fixture fixes need CI evidence.

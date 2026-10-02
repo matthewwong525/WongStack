@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Task chats coordinate directly
+## 29.10.0 — Task chats coordinate directly
 
 - Chats find overlapping work by current titles and confirmed task context, then exchange brief messages with its owner. Each keeps its own task and publishing approval; agreements stay in existing plans.
 - Each chat keeps its title aligned with meaningful task changes. Busy owners keep working, and dependent work waits until safe contact is available.
