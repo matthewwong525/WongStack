@@ -1,11 +1,12 @@
 import { resolve } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { need, https, uuidOK } from './security.mjs';
+import { need, https, uuidOK, projectIdsOK } from './security.mjs';
 
 export function serviceConfig(input) {
   need(/^[a-f0-9]{32}$/.test(input.account || '') && /^[a-z0-9-]{3,10}$/.test(input.prefix || '') && /^[a-z0-9-]{3,32}$/.test(input.namespace || ''), 'Explicit account, prefix (3–10 characters) and namespace required');
   https(input.serviceUrl); https(input.cloudUrl);
   need(Array.isArray(input.sourceRepos) && input.sourceRepos.length && input.sourceRepos.every(x => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(x)), 'Reviewed public source repositories required');
+  need(projectIdsOK(input.projectIds), 'Project allowlist requires at most four unique UUIDs');
   const config = { ...input, maxQueued: 16, maxAttempts: 3, candidateTimeoutMs: 1800000, retentionDays: 30 };
   return {
     name: `${input.prefix}-service`, account_id: input.account, main: resolve(import.meta.dirname, 'worker.mjs'),

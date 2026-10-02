@@ -1,6 +1,6 @@
 import { ProjectController, initialProject } from './project.mjs';
 import { HostedProvider } from './provider.mjs';
-import { need, reply, uuidOK, digest, shaOK, publicCandidate } from './security.mjs';
+import { need, reply, uuidOK, digest, shaOK, publicCandidate, projectAllowed } from './security.mjs';
 import { validateBundle } from './bundle.mjs';
 import { publishBundle } from './pipeline.mjs';
 
@@ -182,6 +182,7 @@ export async function routeService(request, env) {
     }
   }
   need(uuidOK(projectId), 'Invalid project identity', 400);
+  need(projectAllowed(JSON.parse(env.HOSTED_CONFIG), projectId), 'Project is outside the configured trial allowlist', 403);
   const stub = env.PROJECTS.get(env.PROJECTS.idFromName(projectId));
   url.pathname = path;
   return stub.fetch(new Request(url, request));

@@ -1,6 +1,8 @@
 export const need = (condition, message, status = 409) => { if (!condition) throw Object.assign(new Error(message), { status }); };
 export const shaOK = value => /^[a-f0-9]{40}$/.test(value || '');
 export const uuidOK = value => /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value || '');
+export const projectIdsOK = ids => ids === undefined || Array.isArray(ids) && ids.length <= 4 && ids.every(uuidOK) && new Set(ids).size === ids.length;
+export const projectAllowed = (config, id) => projectIdsOK(config.projectIds) && (config.projectIds === undefined || config.projectIds.includes(id));
 export function refName(value) {
   need(typeof value === 'string' && /^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._/-]{0,180}$/.test(value) && !value.includes('..') && !value.endsWith('/') && !value.includes('//'), 'Invalid branch');
   return value.slice(11);

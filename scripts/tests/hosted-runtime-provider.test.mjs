@@ -63,13 +63,53 @@ test('owned resource provisioning rejects adoption and validates all receipts', 
     if (url.includes('/deployments?')) return api({ deployments: [{ id: projectId, strategy: 'percentage', versions: [{ version_id: versionId, percentage: 100 }] }] });
     if (url.includes(`/versions/${versionId}`)) return api({ id: versionId, resources: { bindings: [] } });
     if (input.method === 'GET') return url.includes('d1/database?') ? api([]) : absent();
-    return api({ uuid: projectId });
+    return api({ uuid: projectId, name: 'owned' });
   });
-  assert.equal(await provider.resource({ kind: 'd1', name: 'owned' }), projectId);
+  const database = { kind: 'd1', name: 'owned' };
+  assert.equal(await provider.resource(database), projectId);
+  assert.deepEqual(database.creationReceipt, { uuid: projectId, name: 'owned', accountId: config.account });
   assert.equal(await provider.resource({ kind: 'r2', name: 'owned' }), 'owned');
   assert.equal(await provider.resource({ kind: 'worker', name: 'owned' }), 'owned');
   assert((await calls.find(row => row.input.method === 'PUT').input.body.get('entry.mjs').text()).includes('Setup pending'));
   await assert.rejects(provider.resource({ kind: 'other', name: 'owned' }), /Unsupported/);
+});
+test('original D1 creation receipts persist only after exact provider creation and mismatches stay uncertain', async () => {
+  for (const result of [{ uuid: projectId, name: 'wrong' }, { uuid: projectId }, { uuid: 'bad', name: 'owned' }]) {
+    const row = { kind: 'd1', name: 'owned' };
+    const provider = providerWith(async (_url, input) => api(input.method === 'GET' ? [] : result));
+    await assert.rejects(provider.resource(row), /creation receipt/);
+    assert.equal(row.creationReceipt, undefined);
+  }
+  const f = await fixture(); const name = `${config.prefix}-${projectId}-memory`;
+  f.controller.a.provider = providerWith(async (_url, input) => api(input.method === 'GET' ? [] : { uuid: projectId, name, unnecessaryProviderDetail: 'do not retain' }));
+  const row = await f.controller.resource('d1', 'memory');
+  assert.deepEqual(row.creationReceipt, { uuid: projectId, name, accountId: config.account });
+  assert.deepEqual(f.writes.at(-1).resources[0].creationReceipt, row.creationReceipt);
+  assert.equal(f.writes.at(-1).resources[0].status, 'created');
+  const g = await fixture();
+  g.controller.a.provider = providerWith(async (_url, input) => api(input.method === 'GET' ? [] : { uuid: projectId, name: 'other-database' }));
+  await assert.rejects(g.controller.resource('d1', 'memory'), /creation receipt/);
+  assert.equal(g.state.resources[0].status, 'creating');
+  assert.equal(g.writes.at(-1).resources[0].status, 'creating');
+  assert.equal(g.state.resources[0].creationReceipt, undefined);
+  assert.equal(g.state.resources[0].id, undefined);
+});
+test('tenant status selects validated original D1 receipt fields without leaking raw or mismatched evidence', async () => {
+  const f = await fixture();
+  const receipt = { uuid: projectId, name: 'owned-memory', accountId: config.account };
+  const owned = { kind: 'd1', environment: 'memory', name: 'owned-memory', id: projectId, status: 'created', creationReceipt: { ...receipt, privateProviderField: 'must not leak' }, rawProviderResponse: { secret: 'must not leak' } };
+  f.state.resources = [owned];
+  assert.deepEqual(f.controller.status().resources[0], { kind: 'd1', environment: 'memory', name: 'owned-memory', id: projectId, status: 'created', creationReceipt: receipt });
+  for (const mismatch of [{ uuid: versionId }, { name: 'other' }, { accountId: 'f'.repeat(32) }]) {
+    owned.creationReceipt = { ...receipt, ...mismatch };
+    assert.equal(f.controller.status().resources[0].creationReceipt, undefined);
+  }
+  owned.creationReceipt = receipt; owned.kind = 'worker';
+  assert.equal(f.controller.status().resources[0].creationReceipt, undefined);
+  delete owned.creationReceipt; owned.kind = 'd1';
+  assert.equal(f.controller.status().resources[0].creationReceipt, undefined);
+  owned.id = 'invalid'; owned.creationReceipt = { ...receipt, uuid: 'invalid' };
+  assert.equal(f.controller.status().resources[0].creationReceipt, undefined);
 });
 test('owned resource deletion requires receipt and independent absence', async () => {
   const provider = providerWith(async (_url, input) => input.method === 'DELETE' ? api({}) : absent());
@@ -294,7 +334,7 @@ function storageFor(state) {
 }
 test('service routing denies admin spoofing and caller-chosen cross-tenant paths', async () => {
   const paths = [];
-  const env = { ADMIN_TOKEN: 'admin', PROJECTS: { idFromName: id => id, get: id => ({ fetch: async request => { paths.push({ id, path: new URL(request.url).pathname }); return Response.json({ id }); } }) } };
+  const env = { HOSTED_CONFIG: JSON.stringify(config), ADMIN_TOKEN: 'admin', PROJECTS: { idFromName: id => id, get: id => ({ fetch: async request => { paths.push({ id, path: new URL(request.url).pathname }); return Response.json({ id }); } }) } };
   assert.equal((await safeRoute(new Request(`https://service/v1/projects/${projectId}/status`, { headers: { Authorization: 'Bearer forged' } }), env)).status, 403);
   assert.equal((await safeRoute(new Request(`https://service/internal/start`, { headers: { Authorization: `Bearer wongh_${projectId}_${'a'.repeat(64)}` } }), env)).status, 404);
   assert.equal((await safeRoute(new Request('https://service/v1/workspace', { headers: { Authorization: `Bearer wongh_${projectId}_${'a'.repeat(64)}` } }), env)).status, 200);

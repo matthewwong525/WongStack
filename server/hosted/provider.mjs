@@ -56,7 +56,9 @@ export class HostedProvider {
       const found = await this.request(this.path(`d1/database?name=${part(name)}&per_page=100`));
       need(!found.some(x => x.name === name), 'Database already exists; reconcile provisioning');
       const created = await this.request(this.path('d1/database'), 'POST', { name });
-      need(uuidOK(created?.uuid), 'Database receipt missing', 502); return created.uuid;
+      need(uuidOK(created?.uuid) && created.name === name, 'Exact database creation receipt missing', 502);
+      row.creationReceipt = { uuid: created.uuid, name: created.name, accountId: this.config.account };
+      return created.uuid;
     }
     if (kind === 'r2') {
       need(!await this.request(this.path(`r2/buckets/${part(name)}`), 'GET', undefined, true), 'Bucket already exists; reconcile provisioning');

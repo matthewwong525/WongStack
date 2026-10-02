@@ -1,4 +1,4 @@
-import { need, shaOK, uuidOK, refName, digest, randomToken, publicCandidate } from './security.mjs';
+import { need, shaOK, uuidOK, refName, digest, randomToken, publicCandidate, projectAllowed } from './security.mjs';
 import { accessSetup, policies, revokeHuman } from './access.mjs';
 import { proveAncestry } from './git.mjs';
 import { wireBootstrap } from './bootstrap.mjs';
@@ -10,6 +10,7 @@ export class ProjectController {
   async save() { await this.a.checkpoint(this.state); }
   async prepare(input) {
     need(uuidOK(input.id) && input.owner?.id && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.owner.email || '') && shaOK(input.source?.commit), 'Reviewed pinned source and verified owner required', 400);
+    need(projectAllowed(this.a.config, input.id), 'Project is outside the configured trial allowlist', 403);
     need(this.a.config.sourceRepos.includes(input.source.repo), 'Hosted source repository is not reviewed', 422);
     const s = this.state;
     if (s.id) {
@@ -169,6 +170,6 @@ export class ProjectController {
   }
   status() {
     const s = this.state;
-    return { ...this.workspace(), stopped: s.stopped, production: s.production, publication: s.publication ? { sha: s.publication.sha, status: s.publication.status, approvalId: s.publication.approvalId, digest: s.publication.digest, version: s.publication.version, target: s.publication.target, mainBase: s.publication.mainBase, credentialId: s.publication.gitCredential?.id, credentialRevoked: s.publication.gitCredential?.revoked } : null, candidates: Object.values(s.candidates).map(publicCandidate), productionUrl: s.productionUrl || null, previews: Object.values(s.candidates).filter(row => row.status === 'passed').map(row => ({ sha: row.sha, url: row.previewUrl })), accessVerified: s.access?.verified === true, resources: s.resources.map(({ kind, name, id, status }) => ({ kind, name, id, status })) };
+    return { ...this.workspace(), stopped: s.stopped, production: s.production, publication: s.publication ? { sha: s.publication.sha, status: s.publication.status, approvalId: s.publication.approvalId, digest: s.publication.digest, version: s.publication.version, target: s.publication.target, mainBase: s.publication.mainBase, credentialId: s.publication.gitCredential?.id, credentialRevoked: s.publication.gitCredential?.revoked } : null, candidates: Object.values(s.candidates).map(publicCandidate), productionUrl: s.productionUrl || null, previews: Object.values(s.candidates).filter(row => row.status === 'passed').map(row => ({ sha: row.sha, url: row.previewUrl })), accessVerified: s.access?.verified === true, resources: s.resources.map(({ kind, environment, name, id, status, creationReceipt }) => ({ kind, environment, name, id, status, ...(kind === 'd1' && uuidOK(id) && creationReceipt?.uuid === id && creationReceipt.name === name && creationReceipt.accountId === this.a.config.account ? { creationReceipt: { uuid: creationReceipt.uuid, name: creationReceipt.name, accountId: creationReceipt.accountId } } : {}) })) };
   }
 }
