@@ -6,7 +6,7 @@ user-invocable: true
 
 # /wong-setup
 
-Pick the target folder, get the computer ready, get the latest WongStack source and the Cloudflare token, then invoke `/explore` with the setup intent. A target with a real install record at `.claude/.wong-stack.json` goes straight to `/wong-sync`.
+Pick the target, source, tools, and token, then invoke `/explore`. An installed target uses `/wong-sync` and its recorded source; an install request never switches it.
 
 ## Pick the folder
 
@@ -20,15 +20,17 @@ Name the target in one plain line, with no question: *"This folder already has f
 
 ## Get the computer ready
 
-Before anything is cloned or written, follow [get the computer ready](references/tools.md). With no clone yet, read it and the pages it links from this file's web address, such as `https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/references/tools.md`. A declined or failed step stops setup with nothing written.
+For a fresh target, select the GitHub repository requested by the person, else `https://github.com/matthewwong525/WongStack`. Normalize it to `https://github.com/<owner>/<repo>`. Resolve its default branch through GitHub's repository API (authenticated when needed); never assume `main`. Its raw root is `https://raw.githubusercontent.com/<owner>/<repo>/refs/heads/<default branch>`.
+
+Before cloning or writing, read that source's `/wong-setup` and [tools reference](references/tools.md) and follow their links under the same raw root. Use its `.nvmrc` and setup prerequisites. An unavailable source or missing requirement stops setup; never substitute the original stack.
 
 ## Get the latest source
 
-Follow [latest source](../wong-sync/references/latest-source.md). From a pasted URL, first get `https://github.com/matthewwong525/WongStack` into a separate local checkout, then read that reference there. Never set up the source repo itself.
+Retrieve the selected repository into a separate clean checkout per [latest source](../wong-sync/references/latest-source.md), read that reference there, and use its version and commit. Never install into the source checkout.
 
 ## Get the Cloudflare token
 
-Before writing anything, ask whether the user has the Cloudflare user token, saying what it is for, with the filled-in token link from [the credentials page](../../../wiki/stack/cloudflare-credentials.md#create-the-token) first and its click path as the fallback. Take the link from that page; never copy it here. No token → stop, write nothing, and say that running setup again once it exists continues from here. Don't ask for the value yet: its file needs Git first.
+Before writing, ask whether the user has the Cloudflare user token, saying what it is for, with the selected source's [token link and fallback](../../../wiki/stack/cloudflare-credentials.md#create-the-token). No token → stop and say setup continues once it exists. Don't ask for its value yet: its file needs Git first.
 
 ## Install through the normal workflow
 
@@ -36,13 +38,13 @@ Before writing anything, ask whether the user has the Cloudflare user token, say
 
 Use the source checkout's `.claude/skills/<verb>/SKILL.md`, starting with [`explore`](../explore/SKILL.md), and resolve their references there while you work in the target. This skill stays source-only.
 
-Then run Step 1 of the [provisioning runbook](references/cloudflare.md); it confirms the GitHub sign-in before any Cloudflare call. Commit and push only once the install is complete. Run `openspec init --tools none` at the point of need; the first plan uses the source config rules.
+Run Step 1 of the source's [provisioning runbook](references/cloudflare.md). Run `openspec init --tools none` when needed, using the source config rules. Commit and push only after installation.
 
 Invoke `/explore` with this description, filled in, plus the user's intent:
 
-> Set up WongStack in <target> from <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from the git author email. Private pages and previews are automatic when the Cloudflare account allows them; ask no enable-or-public question. An account that needs a card first finishes setup open, and the closing report recommends the card as optional. Install the full payload from the source inventory — the workflow skills, knowledge surfaces, stack pack, app scaffold, and UI pages — in a real `.agents/` folder linked from `.claude` and `.codex`, with the rules in a real `AGENTS.md` linked from `CLAUDE.md`, plus the required wiki hubs, environment ignore rules, and the install record. After the payload lands, if the `paseo` command is installed, run `node .claude/skills/routine/scripts/presets.mjs add` in <target> to add WongStack's agent presets to this computer's Paseo; a failure there never stops setup. Then run Steps 2–5 of the provisioning runbook at <source path>/.agents/skills/wong-setup/references/cloudflare.md. Carry this through the normal workflow to the stage the user requested.
+> Set up WongStack in <target> from <selected repository> at <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from git authorship. Private pages and previews are automatic when the account allows them; ask no enable-or-public question. An account needing a card finishes open and recommends the card as optional. Install every category from the source inventory, following its folder, rules, hub, ignore, and fresh install-record guidance. If `paseo` is installed, run `node .claude/skills/routine/scripts/presets.mjs add` in <target>; failure never stops setup. Run Steps 2–5 of <source path>/.agents/skills/wong-setup/references/cloudflare.md. Continue through the requested stage.
 
-`/explore` owns questions, `/plan` the plan, `/apply` the install and runbook, and `/save` the commits and the push that starts the first deploy. Ask no component question: the target takes everything. Ask in [the ask format](../explore/references/asking-the-user.md).
+`/explore` owns questions, `/plan` the plan, `/apply` installation, and `/save` the first deploy. Ask no component question: the target takes everything. Use [the ask format](../explore/references/asking-the-user.md).
 
 <a id="step-7--bootstrap-seed-hand-off"></a>
 

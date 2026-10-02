@@ -94,4 +94,4 @@ Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/`
 
 ## Install record
 
-`.claude/.wong-stack.json` records the source version and commit, memory store ids, actual local skill names, upstream, and install and update dates. Setup or sync advances it only after its agreed changes and any generated-layer migration, never on a proposal alone. It holds no mode: every install follows the same rules.
+Create a fresh `.claude/.wong-stack.json`: `upstream.repo` names the repository actually installed, including a fork; version and commit come from that checkout, and `upstream.clone` hints at its cache. Later sync follows this source. Record the target's memory store ids, local skill names, and install/update dates; never copy the source's record, memory bindings, or live config. Advance it only after agreed changes and any generated-layer migration. It holds no mode.

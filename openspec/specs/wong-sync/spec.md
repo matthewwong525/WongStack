@@ -172,6 +172,7 @@ When the preflight reports an update, sync SHALL invoke `/plan` directly, and SH
 
 - **WHEN** an install's own sync skill says to hand the report to `/explore`
 - **THEN** the exploration runs as `/plan`'s bounded pass and the sync ends at the plan's review link, never at *Plan it?*
+
 ### Requirement: Existing installs receive a reviewed privacy migration
 
 An update to private defaults SHALL plan protection for the existing production and staging Workers, their default addresses and previews, the owner, and the current team. It SHALL preserve locally adapted app code and explicitly intended public routes. Earlier recorded public choices SHALL inform the reviewed migration rather than silently excluding the install from the new defaults. It SHALL identify unavailable owner identities, management connections, conflicting Access rules, and unsupported protocols instead of silently weakening coverage. The update SHALL distinguish public or pending installs from verified private installs, and SHALL NOT mark migration complete from configuration alone.
@@ -185,3 +186,17 @@ An update to private defaults SHALL plan protection for the existing production 
 
 - **WHEN** the installed app has custom routes or WebSocket traffic
 - **THEN** the plan preserves its code, identifies necessary reviewed exceptions or compatible coverage, and leaves the migration explicitly pending until its access behavior works
+
+### Requirement: Updates follow the installed project's source
+
+Sync SHALL retrieve updates from the installed project's recorded source repository, including a customized fork, and SHALL NOT silently switch that project to the original WongStack. A source cache belonging to another repository or holding local work SHALL remain intact. If the recorded source cannot be retrieved, sync SHALL report the failure rather than compare against a different source.
+
+#### Scenario: A project installed from a fork
+
+- **WHEN** a project whose install record names a customized fork requests an update
+- **THEN** the update plan compares against that fork's latest payload and preserves local adaptations
+
+#### Scenario: A cache for another source
+
+- **WHEN** the usual source cache belongs to another repository or holds local work
+- **THEN** sync retrieves the recorded source separately and leaves the existing cache intact
