@@ -14,7 +14,10 @@ function clock() {
   return {
     setTimer(callback, ms) { timers.set(++id, { callback, ms }); return id; },
     clearTimer(key) { timers.delete(key); },
-    expire() { for (const [key, timer] of [...timers]) { timers.delete(key); timer.callback(); } },
+    expire() {
+      const scheduled = Array.from(timers.entries());
+      for (const [key, timer] of scheduled) { timers.delete(key); timer.callback(); }
+    },
     timers,
   };
 }
