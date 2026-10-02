@@ -10,7 +10,7 @@ function refs(text) {
   const result=new Map();
   for (const line of text.trim().split('\n').filter(Boolean)) {
     const fields=line.split(/\s+/), [sha,ref]=fields;
-    if (fields.length!==2 || !/^[a-f0-9]{40}$/.test(sha) || !ref?.startsWith('refs/') || /[\\\x00-\x20\x7f~^:?*\[]/.test(ref) || ref.includes('..') || ref.includes('@{') || ref.includes('//') || ref.endsWith('.') || ref.split('/').some(part=>!part || part.startsWith('.') || part.endsWith('.lock')) || result.has(ref)) throw new Error('invalid advertised refs');
+    if (fields.length!==2 || !/^[a-f0-9]{40}$/.test(sha) || !ref?.startsWith('refs/') || Array.from(ref).some(char=>char.charCodeAt(0)<=0x20 || char.charCodeAt(0)===0x7f) || /[\\~^:?*[]/.test(ref) || ref.includes('..') || ref.includes('@{') || ref.includes('//') || ref.endsWith('.') || ref.split('/').some(part=>!part || part.startsWith('.') || part.endsWith('.lock')) || result.has(ref)) throw new Error('invalid advertised refs');
     result.set(ref,sha);
   }
   return result;

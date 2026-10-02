@@ -284,7 +284,7 @@ function restoreFixture({existing=false,bare=true,origin=job.gitUrl,changed=fals
  for(let n=1;n<=68;n++) advertised.set(`refs/heads/branch-${n}`,n.toString(16).padStart(40,'0'));
  for(let n=69;n<=103;n++) advertised.set(`refs/tags/version-${n}`,n.toString(16).padStart(40,'0'));
  advertised.set('refs/pull/238/head','c'.repeat(40));
- if(tagsOnly)for(const ref of [...advertised.keys()])if(!ref.startsWith('refs/tags/'))advertised.delete(ref);
+ if(tagsOnly)for(const ref of advertised.keys())if(!ref.startsWith('refs/tags/'))advertised.delete(ref);
  if(unusual)advertised.set('refs/heads/bracket]/component./tip','e'.repeat(40));
  const stale='refs/heads/removed',staleSha='d'.repeat(40),local=new Map(existing?[[stale,staleSha]]:[]),objects=new Set(),calls=[];
  if(existing) {mkdirSync(dir);writeFileSync(join(dir,'HEAD'),'ref: refs/heads/main');}
