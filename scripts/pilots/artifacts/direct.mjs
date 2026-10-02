@@ -3,6 +3,9 @@ import { artifactBytes } from './core.mjs';
 
 const need = (condition, message) => { if (!condition) throw new Error(message); };
 const versionOK = value => /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value || '');
+const deploymentMatches = (deployment, version) => {
+  need(versionOK(deployment?.id) && deployment.strategy === 'percentage' && Array.isArray(deployment.versions) && deployment.versions.length === 1 && deployment.versions[0].version_id === version && deployment.versions[0].percentage === 100, 'Deployment does not assign the exact approved version');
+};
 
 export class DirectUpload {
   constructor(config, request, step, fetcher = (...args) => fetch(...args)) {
@@ -57,7 +60,21 @@ export class DirectUpload {
     }
     throw new Error('Worker identity differs or is unreadable; publication reservation retained if present');
   }
-  async preview(result, sha) {
+  async confirmPreview(deployment, sha, confirm) {
+    for (let poll = 0; poll < 12; poll++) {
+      const accepted = await this.once(`direct-controller-identity-${sha}-${poll}`, async () => {
+        try { await confirm(deployment); return true; }
+        catch (error) {
+          if (error.message !== 'Preview serves a different commit') throw error;
+          return false;
+        }
+      });
+      if (accepted) return;
+      if (poll < 11) await this.step.sleep(`direct-controller-propagation-${sha}-${poll}`, '5 seconds');
+    }
+    throw new Error('Preview serves a different commit');
+  }
+  async preview(result, sha, confirm) {
     need(result.exitCode === 0, 'Failed checks cannot upload a preview');
     const form = await this.form(result, sha, 'staging');
     const uploaded = await this.once(`direct-upload-${sha}`, () => this.call(`${this.target('staging')}/versions?bindings_inherit=strict`, 'POST', form));
@@ -69,20 +86,27 @@ export class DirectUpload {
       return { version: uploaded.id, url, target: this.config.staging, database: this.config.stagingDB, reported: true, previewSuffix: routing.preview_url_suffix };
     });
     await this.identity(deployment.url, sha, `direct-preview-${sha}`);
+    if (confirm) await this.confirmPreview(deployment, sha, confirm);
     return deployment;
   }
   async publish(candidate) {
     need(candidate.approval?.sha === candidate.sha && candidate.approval.digest === candidate.digest && candidate.approval.status === 'approved' && candidate.checks === 'PASS' && candidate.status === 'preview-ready', 'Exact approved immutable artifact required');
     const form = await this.form(candidate, candidate.sha, 'production');
     const label = `direct-publication-${candidate.approval.id}`;
-    const uploaded = await this.once(`${label}-upload`, () => this.call(this.target('production'), 'PUT', form));
+    const target = this.target('production');
+    const uploaded = await this.once(`${label}-upload`, () => this.call(`${target}/versions?bindings_inherit=strict`, 'POST', form));
+    await this.once(`${label}-version`, () => this.version('production', uploaded?.id));
+    const deployed = await this.once(`${label}-deploy`, () => this.call(`${target}/deployments`, 'POST', { strategy: 'percentage', versions: [{ version_id: uploaded.id, percentage: 100 }] }));
     const url = await this.once(`${label}-receipt`, async () => {
-      await this.version('production', uploaded?.version_id);
+      deploymentMatches(deployed, uploaded.id);
+      const observed = await this.call(`${target}/deployments/${deployed.id}`);
+      need(observed?.id === deployed.id, 'Deployment readback identifies a different deployment');
+      deploymentMatches(observed, uploaded.id);
       const routing = await this.routing('production');
       need(typeof routing.url === 'string', 'Provider reported no production URL');
       return this.url(routing.url, 'production');
     });
     await this.identity(url, candidate.sha, label);
-    return { version: uploaded.version_id };
+    return { version: uploaded.id };
   }
 }

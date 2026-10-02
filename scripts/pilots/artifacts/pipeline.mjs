@@ -73,8 +73,7 @@ export async function runPipeline(event, ci, controller, config, managed) {
     const result = buildResult(await readLogs(checked.logs), p.sha, checked.exitCode);
     if (config.backend === 'direct-api') {
       if (!managed) throw new Error('Direct API preview adapter required');
-      const deployment = await managed.preview(result, p.sha);
-      await controller('preview', { sha: p.sha, ref: p.ref, result, deployment });
+      await managed.preview(result, p.sha, deployment => controller('preview', { sha: p.sha, ref: p.ref, result, deployment }));
       return;
     }
     const deployed = await ci.runner({ name: 'trusted-preview', command: deploymentCommand(config, result, 'staging'), cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: false, config: runnerConfig });
