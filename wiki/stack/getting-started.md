@@ -48,8 +48,9 @@ Nothing here can be automated. Each needs you, and the ones marked *browser* ope
 2. Get the free [Paseo](https://paseo.sh) app, where you chat. Setup points to it if it's missing, and never installs it for you.
 3. Sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*)
 4. Say yes to any free tools setup needs to install. An install may show your computer's own permission window.
-5. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
-6. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
+5. On Windows, approve its permission window if setup needs to turn on the setting for your assistant's folder links. The agent handles the change; you type no command. If your workplace blocks it, ask your IT team for help ([Windows links](../development/required-tools.md#symbolic-links-in-the-agent-folder)).
+6. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
+7. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
 
 The first two happen before the chat exists; the rest happen in one sitting, while the agent waits. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
 

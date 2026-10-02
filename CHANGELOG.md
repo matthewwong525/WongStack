@@ -14,6 +14,13 @@ This coordinated release is still in progress. The memory checkpoint prepares id
 
 **Updating.** For the memory change, enable app login, confirm the initial owner, review historical ownership and reconnect each computer. Memory may pause until those steps are complete; hosted setup also stays pending until separate owner and device approval finishes. Preparatory migrations alone do not complete the move. Hosted operators must rebuild older server agents with contract 3 before sending Artifacts preparation jobs, and coordinate the platform and toolkit rollout. Existing GitHub projects keep their current workflow until their verified migration is explicitly requested. Follow the completed migration instructions when this release is ready.
 
+## 29.9.0 — Windows setup handles folder links
+
+- Setup readies Windows folder links automatically, turning on the needed setting when links fail. Approve Windows' permission window if it appears; the assistant runs the commands and checks the links before installing.
+- The README's copied message includes the setup guide's address, so the assistant can start before it finds the setup command.
+
+**Updating.** No action needed. This changes fresh setup; existing projects keep their settings.
+
 ## 29.8.0 — Make WongStack your own
 
 - A guide explains how to customize a fork's defaults, install it with one request, and keep projects updated from it.
