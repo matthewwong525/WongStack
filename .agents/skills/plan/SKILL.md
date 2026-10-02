@@ -16,6 +16,8 @@ Run [`/explore`](../explore/SKILL.md) in bounded mode; it asks by [the exit roun
 
 When the exit round chose new workspaces, [open one per other part](references/new-workspace.md) and report them before drafting; then plan only the part this chat keeps.
 
+Compare your own chat title to the task at initial planning and meaningful scope changes; [update it through Paseo](../../../wiki/development/the-change-loop.md#chats-coordinate-directly).
+
 ## Draft with the CLI
 
 Write every artifact in the planning set by [the CLI contract](references/openspec-cli.md#create-or-read-a-change), in the selected root or store. If `/apply` selected an incomplete change, complete that exact change; if planning blocks, report it to `/apply` without implementing.

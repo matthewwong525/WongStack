@@ -12,7 +12,7 @@ A payload edit loads [the release rules](.agents/rules/payload.md); the full pro
 
 ## Where context lives
 
-Before a non-trivial change, **read the owning doc, not a guess**: start at [`wiki/README.md`](wiki/README.md) and follow the links down. The repo is the shared memory: four surfaces, one job each, no fact on two:
+Before a change, **read the owning doc**: start at [`wiki/README.md`](wiki/README.md) and follow the links down. Four memory surfaces, one job each; no fact on two:
 
 - `openspec/changes/<slug>/`: the plan and why it has this shape. Ships, then archives.
 - The memory store, outside git: each session's facts. Superseded, never edited. A digest loads at session start ([convention](wiki/development/memory.md)).
@@ -25,7 +25,7 @@ Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the
 
 ## Rules
 
-- **Do a plain request directly.** Research, errands, reminders, and questions need no verb or question round; ask only when you can't act without an answer. One that edited a repo file, like a wiki note, ends by asking *publish it?*: [the change loop](wiki/development/the-change-loop.md).
+- **Do plain requests directly.** Research, errands, reminders, and questions need no verb; ask only for a needed answer. Repo edits end with *publish it?*: [the change loop](wiki/development/the-change-loop.md).
 - **Offer a routine or a mini app when a finished task will clearly come back**: they said it recurs, or memory shows they asked before. Offer once, in the closing question; remember a no: [offer a routine or an app](wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 - **Keep messages short and plain**, in [our voice](wiki/voice.md): a few lines, more only if asked. Name git, OpenSpec, or CI only if the person asks or must act; keep code, commands, identifiers, and quotes exact. Plans, questions, and reports use [plain words](.agents/skills/explore/references/asking-the-user.md#write-in-plain-words) for everyone.
 - **A person just asks to build or change code; you run the verbs** `/explore → /plan → /apply → /save → /ship`, plus `/continue`, `/close`, `/verify`, `/improve`, `/routine`, and `/wong-sync`. With no verb, ask [the finished-plan question](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step) at the plan's review link and "publish it?" after `/apply`'s preview from this host. A typed verb keeps its own reach; one missing its precondition runs the verb before it. An invoked verb also serves work that changes no repo file, with a to-do and a confirm per outward action: [just ask](wiki/development/the-change-loop.md#just-ask).
@@ -33,6 +33,7 @@ Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the
 - **Build a new standalone page or tool as a mini app**: its own folders in the main app, served at `/apps/<name>/`, through the same loop: [mini apps](wiki/stack/mini-apps.md).
 - **The WongStack skills own all git; OpenSpec never runs git.** `/apply` reads branch changes but makes none: [the change loop](wiki/development/the-change-loop.md).
 - **CI is the gate when present, else PR review; nothing builds locally**: [the gate](wiki/development/the-change-loop.md#the-gate).
+- **Coordinate overlapping same-repo tasks through brief Paseo messages**, authorized by this convention; keep each task and publishing approval: [direct coordination](wiki/development/the-change-loop.md#chats-coordinate-directly).
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge to the wiki when you learn it**: what will help a different, future task, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge). A change's specifics stay in its proposal and archive.

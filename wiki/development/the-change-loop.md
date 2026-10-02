@@ -1,6 +1,6 @@
 # The change loop
 
-Every change to WongStack, and to any repo that installs it, moves through one loop from a rough idea to a shipped, archived spec. The durable handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: a folder `openspec/changes/<name>/` with a `proposal.md`, a `tasks.md`, and optional delta specs, committed with the code and listed in any clone by `openspec list`.
+Repo changes follow this loop. The handoff is an **[OpenSpec](https://github.com/Fission-AI/OpenSpec) change**: `openspec/changes/<name>/` holds its proposal, tasks, and optional specs, saved with the code.
 
 A plain request — research, an errand, a reminder, a question — is not a change. The agent does it directly, with no verb and no question round, and writes anything [repeatable](../wiki-style.md#repeatable-knowledge) it learns to the wiki. One that edited a repo file, such as a wiki note, ends by asking *publish it?*, so no edit is left unsaved. Finished work in a Paseo workspace offers to close it: [`/close`](../../.agents/skills/close/SKILL.md) saves what the chat learned, updates the wiki, and closes the workspace. An invoked verb works for any work: [non-code work](#verbs-for-any-work) gets a to-do, not a change. The full loop is for the repo's code or process, and a new standalone page or tool is code: [a mini app](#mini-apps).
 
@@ -53,9 +53,13 @@ No offer after a code change you built, in an unattended run, or for a routine w
 
 One workspace holds one change. When a request has parts that could each be published alone, the agent asks once how to split them, [with these options](../../.agents/skills/plan/references/new-workspace.md#ask-once); each new [Paseo](https://paseo.sh) workspace plans its part and waits at its review link. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the one-at-a-time fallback when Paseo is missing or nobody can answer.
 
-Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's other workspaces, their plans, and open pull requests. It speaks only when one overlaps, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
+Before planning, [check other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): this repo's chats, plans, and open pull requests. Owners [coordinate overlaps directly](#chats-coordinate-directly); unrelated work continues.
 
 **Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/skills/routine/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes away with its workspace; in the main checkout, each session's tidy-up deletes scratch files older than a day.
+
+### Chats coordinate directly
+
+Owners resolve same-repo overlaps through [brief Paseo messages](task-chats.md), keeping each task and publishing approval. Existing plans retain agreements. Plan, resume, and scope changes refresh titles and context; publishing confirms agreed prerequisites. Ask only for an unresolved outcome or affected work blocked by an unreachable owner.
 
 ### Asking before drafting
 
@@ -100,7 +104,7 @@ The work decides the form; no mode or setting does.
 
 ## The gate
 
-This page **states** the delivery doctrine; every other surface links here instead of restating it.
+This page owns delivery; other surfaces link here.
 
 **The gate is CI when present, else PR review**: GitHub Actions is an optional accelerator on pull requests, version control, OpenSpec, and the repo. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **nothing builds locally as a prerequisite**; `/apply`'s host preview gates nothing and never reaches production.
 

@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Task chats coordinate directly
+
+- Chats find overlapping work by current titles and confirmed task context, then exchange brief messages with its owner. Each keeps its own task and publishing approval; agreements stay in existing plans.
+- Each chat keeps its title aligned with meaningful task changes. Busy owners keep working, and dependent work waits until safe contact is available.
+
+**Updating.** No action needed. Direct messages need the optional Paseo app; without it, the assistant still finds other saved and unsaved work and asks when an overlap cannot be resolved.
+
 ## 29.9.0 — Windows setup handles folder links
 
 - Setup readies Windows folder links automatically, turning on the needed setting when links fail. Approve Windows' permission window if it appears; the assistant runs the commands and checks the links before installing.
