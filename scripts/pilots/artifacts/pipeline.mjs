@@ -45,8 +45,8 @@ export async function runPipeline(event, ci, controller, config, managed) {
   if (p.pilotApproval) {
     const candidate = await controller('begin-publication', { id: p.pilotApproval, job: event.instanceId });
     if (candidate.duplicate) return;
-    if (config.backend === 'workers-builds') {
-      if (!managed) throw new Error('Managed publication adapter required; reservation retained');
+    if (['workers-builds', 'direct-api'].includes(config.backend)) {
+      if (!managed) throw new Error('Trusted API publication adapter required; reservation retained');
       const result = await managed.publish(candidate);
       await controller('finish-publication', { id: p.pilotApproval, sha: candidate.sha, version: result.version });
       return;
@@ -71,6 +71,12 @@ export async function runPipeline(event, ci, controller, config, managed) {
     }
     const checked = await ci.runner({ name: 'candidate-check-build', command: 'npm test && npm run build', env: { PILOT_COMMIT: p.sha }, cloudflareCredentials: false, sourceControlCredentials: false, config: runnerConfig });
     const result = buildResult(await readLogs(checked.logs), p.sha, checked.exitCode);
+    if (config.backend === 'direct-api') {
+      if (!managed) throw new Error('Direct API preview adapter required');
+      const deployment = await managed.preview(result, p.sha);
+      await controller('preview', { sha: p.sha, ref: p.ref, result, deployment });
+      return;
+    }
     const deployed = await ci.runner({ name: 'trusted-preview', command: deploymentCommand(config, result, 'staging'), cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: false, config: runnerConfig });
     if (deployed.exitCode !== 0) throw new Error('Preview deployment runner failed');
     const deployment = deploymentResult(await readLogs(deployed.logs), config, 'staging');

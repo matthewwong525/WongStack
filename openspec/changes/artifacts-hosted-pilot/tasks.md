@@ -48,5 +48,14 @@
 
 - [x] 7.1 Add an opt-in split backend and scoped managed-build lifecycle support, preserving the custom backend and previous evidence. Document configuration and credential boundaries; add meaningful contract coverage for failed tests never starting Builds, exact-commit build receipt/preview validation, no Sandbox deploy calls, production approval safeguards, and connection/trigger cleanup.
 - [x] 7.2 Run `/save` and require every remote check to pass before relying on the revised harness in the live trial.
-- [ ] 7.3 Preflight the same platform account, record the fresh resource inventory/current cost bounds, connect the disposable Artifacts repo and staging Worker, and exercise two green previews, a red test with no managed build, unchanged production, failed/stale approval and approved publication when possible. Preserve actual provider evidence, export all refs/history, cancel/stop both services, revoke every issued credential and verify manifest-only cleanup; record FAIL/UNKNOWN and stop boundedly when infrastructure repeats its failure.
+- [x] 7.3 Conclude the managed-build setup attempt as blocked, with execution cases UNKNOWN in `workers-builds-evidence.md`; this requested execution is superseded by the user-approved direct-API trial in section 8. No managed build or preview was proven.
 - [x] 7.4 Write the split-trial recommendation and `workers-builds-evidence.md`, refresh the review page and checkpoint with `/save`; verify the final remote gate and keep tooling unmerged.
+
+
+## 8. One runner and direct API deployment
+
+- [ ] 8.1 Implement the opt-in `direct-api` backend and trusted version-upload adapter; document configuration and add meaningful contracts for one credential-free runner, red checks causing no upload, artifact integrity, immutable preview identity/bindings, production approval and no second Sandbox deployment. Preserve prior backends.
+- [ ] 8.2 Run `/save` and require all remote checks before live execution; fix demonstrated source failures without local test/build gates.
+- [ ] 8.3 Run the fresh live trial in the authorized platform account; prove consecutive green previews, red-check/upload isolation, unchanged production before approval, failed/stale approval refusal, exact approved publication, D1 isolation, duplicate events and access removal. Diagnose and correct failures, repeat boundedly until a working route is proven or an intervention-only blocker remains; preserve actual evidence.
+- [ ] 8.4 Quiesce, export and restore all refs/history, revoke all issued credentials and delete only owned trial resources with absence readbacks. Write `direct-api-evidence.md` with timings, limits, failures, outcomes, adoption recommendation and exact leftovers if any.
+- [ ] 8.5 Refresh the review page and checkpoint the finished trial via `/save`, require final remote checks, and keep tooling unmerged for review.

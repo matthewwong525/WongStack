@@ -12,6 +12,7 @@ export function controllerConfig(manifest, owner, ownerEmail) {
     staging: resource('worker', 'staging').name, production: resource('worker', 'production').name,
     stagingDB: resource('d1', 'staging').id, productionDB: resource('d1', 'production').id,
   };
+  if (manifest.backend === 'direct-api') config.backend = manifest.backend;
   if (manifest.backend === 'workers-builds') {
     const connection = resource('build-connection', 'connection'), trigger = resource('build-trigger', 'managed');
     const repo = resource('repo', 'project');

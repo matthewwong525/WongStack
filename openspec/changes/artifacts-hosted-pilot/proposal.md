@@ -1,10 +1,10 @@
 # Try Cloudflare Artifacts for hosted projects
 
-**Status:** blocked
+**Status:** in-progress
 
 **Branch:** github-artifacts
 
-**Open questions:** An observed native Artifacts-to-Workers-Builds connection path is required before the split trial can execute.
+**Open questions:** Can one CI runner plus direct Worker version upload complete consecutive previews and approved publication reliably?
 
 ## Why
 
@@ -12,18 +12,18 @@ Hosted WongStack could create and manage a customer's project without asking the
 
 ## What Changes
 
-- **Try separate services for tests and previews.** Keep tests in the CI workflow, then ask Workers Builds to build the same saved change and create a preview. Keep publishing behind the owner’s approval, and compare the results with the two previous trials.
+- **Build once, then upload the result directly.** One CI runner tests and builds the exact saved change. The trusted controller uploads its output to a Worker preview through the API. Publishing still requires the owner's approval. This bypasses the refused managed-build connection and the failing second deployment container.
   ```text
-  Artifacts push ──▶ CI tests
-                        │ pass, same change
-                        ▼
-                   Workers Builds
-                        │
-                        ▼
-                   Worker preview
-                        │ owner approves
-                        ▼
-                   trial publication
+  Artifacts push ──▶ CI tests + build
+                            │ passing output
+                            ▼
+                       Workers API
+                            │
+                            ▼
+                       exact preview
+                            │ owner approves
+                            ▼
+                       trial publication
   ```
 
 - **Try one project in the platform's Cloudflare account.** Use made-up people and data, with a second empty repository to check that access stays inside the right project. The trial does not change customer signup or existing projects.
@@ -95,3 +95,6 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 
 - **2026-10-02** — User chose tests in CI Workflows and builds/previews in Workers Builds, and authorized implementing and running that split against fresh disposable resources. This supersedes the earlier restriction against pipeline substitution for the new run only. Preserve both prior reports and their failures. Keep the same explicit platform account, no customer changes, finite attempts, owner approval and full cleanup; tooling stays unmerged.
 - **2026-10-02** — The revised harness passed every remote check at `e71b364` (959 script cases). Fresh split run `a1002b7e4` reached native repository connection setup, then the exact Artifacts request returned HTTP 400 / error 12002, `Invalid request body`, without a connection ID. The public provider enum omits Artifacts, but the response does not prove which field failed and the dashboard guide documents Artifacts support. Available browser routes stopped at security challenges without an authenticated session. Stop setup and keep green/red previews and publication UNKNOWN until an observed native connection path is available. All advertised Git refs/history were restored; all three created resources and four issued credentials were removed/revoked, with no leftovers. See [the split report](workers-builds-evidence.md); keep the tooling unmerged and adoption deferred.
+
+- **2026-10-02** — The later permission probe verified an expanded temporary token could read the actual Artifacts repository, but the legacy Builds connection still returned 400/12002. A new Worker build-configuration POST also returned 400/12002 for the user-created `wongstack` namespace; its readback was 404. All owned trial resources and issued credentials were removed; the user namespace was preserved. These refusals do not identify the offending field or establish an entitlement defect.
+- **2026-10-02** — User accepted the proposed single-container tests/build plus direct Workers API upload and asked to keep trying until a solution is found. Implement an opt-in `direct-api` backend, preserve previous reports, and replace the uncompleted managed-build execution task with this trial. Correct demonstrated failures and repeat with fresh exact commits within finite per-run limits; do not stop solely because two attempts failed. No customer changes, billing changes, dashboard steps, migration or merge is authorized. Temporary API credentials and manifest-owned resource creation/cleanup remain authorized; preserve the user's namespace.

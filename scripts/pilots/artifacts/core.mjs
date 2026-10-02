@@ -3,6 +3,13 @@ import { handleMemory, hashKey, newKey } from '../../../.agents/skills/memory/wo
 
 const requireThat = (condition, message) => { if (!condition) throw new Error(message); };
 export const shaOK = sha => /^[a-f0-9]{40}$/.test(sha || '');
+export async function artifactBytes(result, sha) {
+  requireThat(result?.sha === sha && shaOK(sha) && typeof result.code === 'string' && result.code.length < 131072 && /^[A-Za-z0-9+/=]+$/.test(result.code), 'Invalid candidate artifact');
+  const bytes = Uint8Array.from(atob(result.code), c => c.charCodeAt(0));
+  const code = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  requireThat(await hashKey(code) === result.digest, 'Artifact digest mismatch');
+  return bytes;
+}
 export function branchName(ref) {
   requireThat(typeof ref === 'string' && ref.startsWith('refs/heads/') && ref.length > 'refs/heads/'.length, 'Canonical branch ref required');
   return ref.slice('refs/heads/'.length);
@@ -58,7 +65,8 @@ export class PilotController {
     const key = `${params.ref}:${params.sha}`;
     if (this.state.candidates[key]) return { duplicate: true };
     this.state.latest[params.ref] = params.sha;
-    requireThat(!this.state.active && !this.state.publication && this.state.attempts < 10, 'Runner busy or ten-build bound reached');
+    const bound = this.adapters.backend === 'direct-api' ? 12 : 10;
+    requireThat(!this.state.active && !this.state.publication && this.state.attempts < bound, `Runner busy or ${bound}-build bound reached`);
     this.state.attempts += 1;
     this.state.jobs[job] = key;
     this.state.active = job;
@@ -74,9 +82,7 @@ export class PilotController {
   async preview(sha, ref, result, deployment) {
     const candidate = this.candidate(sha, ref);
     requireThat(candidate.status === 'checking' && result?.sha === sha && result.exitCode === 0 && typeof result.code === 'string', 'Unreadable or mismatched check evidence');
-    requireThat(result.code.length < 131072 && /^[A-Za-z0-9+/=]+$/.test(result.code), 'Invalid candidate artifact');
-    const code = atob(result.code);
-    requireThat(await hashKey(code) === result.digest, 'Artifact digest mismatch');
+    await artifactBytes(result, sha);
     requireThat(deployment.target === this.adapters.staging && deployment.database === this.adapters.stagingDB, 'Unexpected deployment target');
     const url = new URL(deployment.url);
     requireThat(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && url.pathname === '/' && url.hostname.endsWith('.workers.dev') && deployment.reported === true, 'Untrusted preview URL');

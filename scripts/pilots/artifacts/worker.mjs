@@ -4,6 +4,7 @@ export { CiSandbox } from '@cloudflare/ci/worker';
 import { initialState, PilotController, pilotMemory, verifySession, branchName } from './core.mjs';
 import { runPipeline } from './pipeline.mjs';
 import { ManagedBuilds } from './builds.mjs';
+import { DirectUpload } from './direct.mjs';
 
 const configOf = env => JSON.parse(env.PILOT_CONFIG);
 const stubOf = env => env.PILOT_STATE.get(env.PILOT_STATE.idFromName(configOf(env).run));
@@ -20,12 +21,13 @@ export class CI extends CIWorkflow {
     const config = configOf(this.env);
     const request = async (path, method = 'GET', body, _allow404 = false, scope) => {
       const multipart = body instanceof FormData;
-      const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, { method, headers: { Authorization: `Bearer ${scope === 'deployment' ? this.env.CF_TOKEN : this.env.BUILDS_API_TOKEN}`, ...(!multipart ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
+      const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, { method, headers: { Authorization: `Bearer ${scope === 'deployment' ? this.env.CF_TOKEN : this.env.BUILDS_API_TOKEN}`, ...(config.backend === 'direct-api' && scope === 'deployment' ? { 'Cloudflare-Workers-Script-Api-Date': '2025-08-01' } : {}), ...(!multipart ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
       const result = await response.json();
-      if (!response.ok || result.success === false) throw new Error(`Managed API HTTP ${response.status}, code ${result.errors?.[0]?.code || 'unknown'}`);
+      if (!response.ok || result.success === false) throw new Error(`Pilot API HTTP ${response.status}, code ${result.errors?.[0]?.code || 'unknown'}`);
       return result.result;
     };
-    await runPipeline(event, ci, call, config, config.backend === 'workers-builds' ? new ManagedBuilds(config, request, step) : undefined);
+    const adapter = config.backend === 'direct-api' ? new DirectUpload(config, request, step) : config.backend === 'workers-builds' ? new ManagedBuilds(config, request, step) : undefined;
+    await runPipeline(event, ci, call, config, adapter);
   }
 }
 

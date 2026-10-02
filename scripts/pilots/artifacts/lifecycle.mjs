@@ -7,8 +7,8 @@ export const assertAccount = (manifest, account) => {
 export function createManifest(account, run, backend = 'custom') {
   if (!/^[a-f0-9]{32}$/i.test(account || '') || !/^[a-z0-9-]{6,14}$/.test(run || '')) throw new Error('Explicit account and unique 6–14 character run ID required');
   const prefix = `wong-artifacts-pilot-${run}`;
-  if (!['custom', 'workers-builds'].includes(backend)) throw new Error('Unknown pilot backend');
-  return { version: 1, account, run, prefix, namespace: prefix, backend, createdAt: new Date().toISOString(), resources: [], credentials: [], bounds: { builds: 10, concurrentRunners: 1, buildTimeoutMinutes: 30, ...(backend === 'workers-builds' ? { managedBuilds: 10, managedBuildTimeoutMinutes: 20 } : {}) }, cleanup: 'pending' };
+  if (!['custom', 'workers-builds', 'direct-api'].includes(backend)) throw new Error('Unknown pilot backend');
+  return { version: 1, account, run, prefix, namespace: prefix, backend, createdAt: new Date().toISOString(), resources: [], credentials: [], bounds: { builds: backend === 'direct-api' ? 12 : 10, concurrentRunners: 1, buildTimeoutMinutes: 30, ...(backend === 'workers-builds' ? { managedBuilds: 10, managedBuildTimeoutMinutes: 20 } : {}) }, cleanup: 'pending' };
 }
 export function writePrivate(file, value) {
   const full = resolve(file);
