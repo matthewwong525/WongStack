@@ -1,6 +1,6 @@
 # Hosted migration staging trial
 
-This is the current bounded verification plan, not live acceptance evidence. Earlier fixture trials remain in their original reports.
+The wh1002 trial below is closed; this inventory and its receipts are historical, not authority to recreate its resources or reuse revoked credentials. A fresh isolated actual-site trial needs a new reviewed inventory, ownership receipts and passing exact source/cloud gates. Earlier fixture reports remain unchanged.
 
 The explicit account is 040f88e2bf4f25fb0b91b7cb24f3d442. Use unique prefix wh1002 and namespace wongstack-hosted-wh1002; never adopt or remove the existing user namespace wongstack. The private ownership manifest lives in the ignored .scratch/hosted-wh1002 folder and records actual resource and credential receipts before cleanup.
 
@@ -28,6 +28,10 @@ This combined-scope prerequisite is retained for historical context. Its executi
 
 Before canonical initialization, use a manifest-owned disposable database from this inventory to probe REST DDL and metadata rollback and competing initialization writes. Worker-binding batch documentation explicitly describes transactional rollback; the REST query schema alone does not establish that guarantee. Record exact transport, SQL, failure shape and independent database readback. SQLite fixture rollback is not provider evidence, and a successful live probe is observed behavior rather than a future API guarantee. Partial migration or completed-bootstrap receipts must fail closed; do not initialize a customer database or enable operator/device routes from unvalidated exports.
 
-## Current prerequisites
+## Historical combined-scope prerequisites
 
 Probe source `3a6b9b6f1241cc926b9b9fb48b6a8cd3a0198614` passed all required checks and 1,179 script tests. Isolated service version `4581e7af-5632-4533-85b4-22d594887dd1` was independently observed serving that source with previous namespace/state/resource IDs preserved. This proves service deployment and routing only. Primary cloud owner mailbox is still pending; do not guess the immutable identity or treat fixture authentication as human evidence. No memory DB, live initializer phase or VM has run.
+
+## Current apply preflight
+
+Real cloud staging email sign-in succeeded for the selected existing account. Its legacy GitHub record and active subscription are retained; no workspace VM exists. The previous hosted-service staging settings were removed at trial closure. The current parent credential is active and reads the Access organization, but current Artifacts/Containers reads return HTTP401/403. These are unavailable permissions, not proof that a new service exists or that old credentials can be reused. Parent token-management metadata is readable; any new temporary trial credential/resource still needs its own fresh scoped ownership receipts. No VM, canonical memory invocation, grant or production promotion was performed by this apply.
