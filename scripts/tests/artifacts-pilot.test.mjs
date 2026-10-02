@@ -10,7 +10,7 @@ import { buildResult, deploymentCommand, deploymentResult, runPipeline } from '.
 import { caseEvidence, redact, adoption, compareRefs } from '../pilots/artifacts/evidence.mjs';
 import { controllerConfig } from '../pilots/artifacts/config.mjs';
 import { CloudflareProvider } from '../pilots/artifacts/provider.mjs';
-import { ManagedBuilds, managedTrigger, managedReceipt, validateTrigger } from '../pilots/artifacts/builds.mjs';
+import { ManagedBuilds, managedTrigger, managedReceipt } from '../pilots/artifacts/builds.mjs';
 import { managedOperation } from '../pilots/artifacts/managed-lifecycle.mjs';
 import { hashKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
