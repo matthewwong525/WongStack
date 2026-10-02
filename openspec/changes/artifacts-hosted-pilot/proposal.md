@@ -1,6 +1,6 @@
 # Try Cloudflare Artifacts for hosted projects
 
-**Status:** ready-to-ship
+**Status:** implementing
 
 **Branch:** github-artifacts
 
@@ -11,6 +11,20 @@
 Hosted WongStack could create and manage a customer's project without asking them to set up GitHub. A disposable trial will show whether Cloudflare Artifacts can support the full change-and-publish flow before we move customer projects.
 
 ## What Changes
+
+- **Try separate services for tests and previews.** Keep tests in the CI workflow, then ask Workers Builds to build the same saved change and create a preview. Keep publishing behind the owner’s approval, and compare the results with the two previous trials.
+  ```text
+  Artifacts push ──▶ CI tests
+                        │ pass, same change
+                        ▼
+                   Workers Builds
+                        │
+                        ▼
+                   Worker preview
+                        │ owner approves
+                        ▼
+                   trial publication
+  ```
 
 - **Try one project in the platform's Cloudflare account.** Use made-up people and data, with a second empty repository to check that access stays inside the right project. The trial does not change customer signup or existing projects.
   ```text
@@ -78,3 +92,5 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 - **2026-10-01** — Corrected SDK checkpoint `a5d2a7b` passed all remote gates, including both actual-installed RPC lifecycle regressions and 951 script cases. Recreate only the removed run-owned container application through the acknowledged controller deployment and repeat live previews with SDK/image 0.12.5.
 - **2026-10-01** — Two patched candidates passed their tests but failed trusted previews with `OperationInterruptedError: The sandbox container stopped while the operation was pending`. Canonical readbacks found all patched-run instances inactive, unlike the original orphan. Stop after these two patched attempts; preserve the actual SDK regression fix but defer customer adoption because passing main previews and a repeat approved publication remain unproven. Final refs/history were restored successfully after trigger disable; finish full manifest cleanup and the retry report.
 - **2026-10-01** — The retry is complete: three candidate attempts (one unchanged, two patched) all failed previews after green fixture checks. All fifteen logical resources, both old/new container applications and all eleven tracked credentials were verified removed/revoked, with no leftovers. Export restored branches, tag and object integrity. Keep customer adoption deferred and checkpoint the tooling plus both reports for review; no live trial preview remains.
+
+- **2026-10-02** — User chose tests in CI Workflows and builds/previews in Workers Builds, and authorized implementing and running that split against fresh disposable resources. This supersedes the earlier restriction against pipeline substitution for the new run only. Preserve both prior reports and their failures. Keep the same explicit platform account, no customer changes, finite attempts, owner approval and full cleanup; tooling stays unmerged.

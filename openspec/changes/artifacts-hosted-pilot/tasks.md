@@ -42,3 +42,11 @@
 - [x] 6.3 Preflight the same explicit platform account, show the fresh exact disposable inventory and current estimate, then attempt two consecutive passing unapproved main previews under the original finite bounds; verify commit identities and production state for actual outcomes, stop after repeated provider failures, and record any unproven passing case as UNKNOWN. Inspect runner cleanup between candidates.
 - [x] 6.4 Exercise owner-approved exact publication when a passing candidate exists; otherwise record it as UNKNOWN and prove failed approval is refused. Export all refs/history, stop triggers and workflows, revoke all run credentials and verify manifest-only deletion; record every outcome and any leftover in `retry-evidence.md`.
 - [x] 6.5 Update the adoption recommendation with both runs, refresh the review, and checkpoint the finished retry report remotely while keeping tooling unmerged.
+
+
+## 7. Tests in CI, previews in Workers Builds
+
+- [x] 7.1 Add an opt-in split backend and scoped managed-build lifecycle support, preserving the custom backend and previous evidence. Document configuration and credential boundaries; add meaningful contract coverage for failed tests never starting Builds, exact-commit build receipt/preview validation, no Sandbox deploy calls, production approval safeguards, and connection/trigger cleanup.
+- [ ] 7.2 Run `/save` and require every remote check to pass before relying on the revised harness in the live trial.
+- [ ] 7.3 Preflight the same platform account, record the fresh resource inventory/current cost bounds, connect the disposable Artifacts repo and staging Worker, and exercise two green previews, a red test with no managed build, unchanged production, failed/stale approval and approved publication when possible. Preserve actual provider evidence, export all refs/history, cancel/stop both services, revoke every issued credential and verify manifest-only cleanup; record FAIL/UNKNOWN and stop boundedly when infrastructure repeats its failure.
+- [ ] 7.4 Write the split-trial recommendation and `workers-builds-evidence.md`, refresh the review page and checkpoint with `/save`; verify the final remote gate and keep tooling unmerged.

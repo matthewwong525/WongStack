@@ -40,11 +40,17 @@ export function deploymentResult(logs, config, environment) {
   return { version, url, target, database: config[`${environment}DB`], reported: true };
 }
 
-export async function runPipeline(event, ci, controller, config) {
+export async function runPipeline(event, ci, controller, config, managed) {
   const p = event.payload;
   if (p.pilotApproval) {
     const candidate = await controller('begin-publication', { id: p.pilotApproval, job: event.instanceId });
     if (candidate.duplicate) return;
+    if (config.backend === 'workers-builds') {
+      if (!managed) throw new Error('Managed publication adapter required; reservation retained');
+      const result = await managed.publish(candidate);
+      await controller('finish-publication', { id: p.pilotApproval, sha: candidate.sha, version: result.version });
+      return;
+    }
     // A deployment failure keeps the reservation pending: never retry a possibly published version blindly.
     const deployed = await ci.runner({ name: 'trusted-publication', command: deploymentCommand(config, candidate, 'production'), cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: false, config: runnerConfig });
     if (deployed.exitCode !== 0) throw new Error('Publication runner failed; reconcile reservation before retry');
@@ -55,6 +61,14 @@ export async function runPipeline(event, ci, controller, config) {
   const candidate = await controller('start', { params: p, job: event.instanceId });
   if (candidate.duplicate) return;
   try {
+    if (config.backend === 'workers-builds') {
+      if (!managed) throw new Error('Managed preview adapter required');
+      const checked = await ci.runner({ name: 'candidate-tests', command: 'npm test', env: { PILOT_COMMIT: p.sha }, cloudflareCredentials: false, sourceControlCredentials: false, config: runnerConfig });
+      if (checked.exitCode !== 0) throw new Error('Candidate tests failed; no managed build started');
+      const { result, deployment, build } = await managed.preview(p.sha, p.ref, id => controller('build-started', { sha: p.sha, ref: p.ref, id }));
+      await controller('preview', { sha: p.sha, ref: p.ref, result, deployment, build });
+      return;
+    }
     const checked = await ci.runner({ name: 'candidate-check-build', command: 'npm test && npm run build', env: { PILOT_COMMIT: p.sha }, cloudflareCredentials: false, sourceControlCredentials: false, config: runnerConfig });
     const result = buildResult(await readLogs(checked.logs), p.sha, checked.exitCode);
     const deployed = await ci.runner({ name: 'trusted-preview', command: deploymentCommand(config, result, 'staging'), cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: false, config: runnerConfig });

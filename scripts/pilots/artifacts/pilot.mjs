@@ -8,13 +8,14 @@ import { CloudflareProvider, credentialsFile } from './provider.mjs';
 import { controllerConfig } from './config.mjs';
 import { signSession } from './core.mjs';
 import { exportRepository, redact } from './evidence.mjs';
+import { managedOperation } from './managed-lifecycle.mjs';
 
 export async function main(args) {
-  const parsed = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['account', 'run', 'manifest', 'credentials', 'admin-credentials', 'owner', 'owner-email', 'out', 'session', 'subject', 'controller', 'body', 'remote', 'mirror', 'destination'].map(key => [key, { type: 'string' }])) });
+  const parsed = parseArgs({ args, allowPositionals: true, options: Object.fromEntries(['account', 'run', 'backend', 'manifest', 'credentials', 'admin-credentials', 'owner', 'owner-email', 'out', 'session', 'subject', 'controller', 'body', 'remote', 'mirror', 'destination'].map(key => [key, { type: 'string' }])) });
   const [operation, action] = parsed.positionals;
   const opts = parsed.values;
   if (operation === 'init') {
-    const manifest = createManifest(opts.account, opts.run);
+    const manifest = createManifest(opts.account, opts.run, opts.backend);
     writePrivate(opts.manifest, manifest);
     return { manifest: opts.manifest, inventory: inventory(manifest), bounds: manifest.bounds };
   }
@@ -44,6 +45,7 @@ export async function main(args) {
   const credentials = credentialsFile(opts.credentials);
   if (opts['admin-credentials']) credentials.adminToken = credentialsFile(opts['admin-credentials']).token;
   const provider = new CloudflareProvider(opts.account, credentials, manifest.namespace);
+  if (operation === 'managed') return managedOperation(action, manifest, opts.account, provider, save, opts.body ? JSON.parse(readFileSync(opts.body, 'utf8')) : {});
   if (operation === 'preflight') return provider.preflight();
   if (operation === 'provision') {
     for (const spec of inventory(manifest).filter(row => ['namespace', 'repo', 'd1', 'r2', 'worker'].includes(row.kind))) {

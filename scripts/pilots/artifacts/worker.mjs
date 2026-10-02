@@ -3,20 +3,29 @@ import { CIWorkflow } from '@cloudflare/ci';
 export { CiSandbox } from '@cloudflare/ci/worker';
 import { initialState, PilotController, pilotMemory, verifySession, branchName } from './core.mjs';
 import { runPipeline } from './pipeline.mjs';
+import { ManagedBuilds } from './builds.mjs';
 
 const configOf = env => JSON.parse(env.PILOT_CONFIG);
 const stubOf = env => env.PILOT_STATE.get(env.PILOT_STATE.idFromName(configOf(env).run));
 const reply = value => Response.json(value, { headers: { 'Cache-Control': 'no-store' } });
 
 export class CI extends CIWorkflow {
-  async pipeline(event, _step, ci) {
+  async pipeline(event, step, ci) {
     const call = async (operation, input) => {
       const response = await stubOf(this.env).fetch(new Request(`https://controller/internal/${operation}`, { method: 'POST', body: JSON.stringify(input) }));
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       return result;
     };
-    await runPipeline(event, ci, call, configOf(this.env));
+    const config = configOf(this.env);
+    const request = async (path, method = 'GET', body, _allow404 = false, scope) => {
+      const multipart = body instanceof FormData;
+      const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, { method, headers: { Authorization: `Bearer ${scope === 'deployment' ? this.env.CF_TOKEN : this.env.BUILDS_API_TOKEN}`, ...(!multipart ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(`Managed API HTTP ${response.status}, code ${result.errors?.[0]?.code || 'unknown'}`);
+      return result.result;
+    };
+    await runPipeline(event, ci, call, config, config.backend === 'workers-builds' ? new ManagedBuilds(config, request, step) : undefined);
   }
 }
 
@@ -109,7 +118,16 @@ export class PilotState extends DurableObject {
 
 async function internal(controller, operation, input) {
   if (operation === 'start') return controller.start(input.params, input.job);
-  if (operation === 'preview') return controller.preview(input.sha, input.ref, input.result, input.deployment);
+  if (operation === 'build-started') {
+    const candidate = controller.candidate(input.sha, input.ref);
+    if (candidate.status !== 'checking' || !input.id || candidate.buildID && candidate.buildID !== input.id) throw new Error('Managed build tracking mismatch');
+    candidate.buildID = input.id; return { tracked: input.id };
+  }
+  if (operation === 'preview') {
+    const result = await controller.preview(input.sha, input.ref, input.result, input.deployment);
+    if (input.build) controller.candidate(input.sha, input.ref).build = input.build;
+    return result;
+  }
   if (operation === 'fail') { controller.fail(input.sha, input.ref); return { failed: true }; }
   if (operation === 'begin-publication') {
     const approval = controller.state.approvals[input.id];

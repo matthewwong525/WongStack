@@ -12,6 +12,12 @@ export function controllerConfig(manifest, owner, ownerEmail) {
     staging: resource('worker', 'staging').name, production: resource('worker', 'production').name,
     stagingDB: resource('d1', 'staging').id, productionDB: resource('d1', 'production').id,
   };
+  if (manifest.backend === 'workers-builds') {
+    const connection = resource('build-connection', 'connection'), trigger = resource('build-trigger', 'managed');
+    const repo = resource('repo', 'project');
+    config.backend = manifest.backend;
+    config.builds = { connection: connection.id, trigger: trigger.id, workerTag: trigger.workerTag, repoID: repo.id };
+  }
   if (!owner || !/^[^@\s]+@example\.(com|test)$/.test(ownerEmail || '')) throw new Error('Use a stable subject and invented example.com/example.test owner email');
   const name = resource('worker', 'controller').name;
   return {

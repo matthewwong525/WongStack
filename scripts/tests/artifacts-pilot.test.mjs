@@ -10,6 +10,8 @@ import { buildResult, deploymentCommand, deploymentResult, runPipeline } from '.
 import { caseEvidence, redact, adoption, compareRefs } from '../pilots/artifacts/evidence.mjs';
 import { controllerConfig } from '../pilots/artifacts/config.mjs';
 import { CloudflareProvider } from '../pilots/artifacts/provider.mjs';
+import { ManagedBuilds, managedTrigger, managedReceipt, validateTrigger } from '../pilots/artifacts/builds.mjs';
+import { managedOperation } from '../pilots/artifacts/managed-lifecycle.mjs';
 import { hashKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 
@@ -31,6 +33,128 @@ function controller(overrides = {}) {
 const artifact = async () => ({ sha, code: btoa('export default {};'), digest: await hashKey('export default {};'), exitCode: 0 });
 async function ready(control) { control.start(params(), 'job'); await control.preview(sha, ref, await artifact(), deployment); }
 const claims = (sub = member.sub) => ({ sub, run, project: config.repo, aud: 'artifacts-pilot', epoch: 0, exp: Date.now() + 100000 });
+const splitConfig = { ...config, backend: 'workers-builds', builds: { trigger: 'trigger-id', connection: 'connection-id', workerTag: 'worker-tag', repoID: 'repo-id' } };
+const splitTrigger = () => ({ ...managedTrigger(splitConfig, 'fresh-token'), trigger_uuid: 'trigger-id', repo_connection: { repo_connection_uuid: 'connection-id', repo_id: 'repo-id', repo_name: config.repo } });
+const splitReceipt = () => ({ build_uuid: 'build-id', status: 'stopped', build_outcome: 'success', trigger: splitTrigger(), build_trigger_metadata: { branch: 'feature', commit_hash: sha, repo_name: config.repo } });
+const splitLogs = async () => `PILOT_RESULT=${JSON.stringify(await artifact())}\nWorker Version ID: ${version}\n${deployment.url}`;
+
+test('split backend runs credential-free tests once and never starts Builds after red checks', async () => {
+  const runners = [], operations = []; let starts = 0;
+  const ci = { runner: async options => { runners.push(options); return { exitCode: 1 }; } };
+  const managed = { preview: async () => { starts++; throw new Error('must not start'); } };
+  await assert.rejects(runPipeline({ payload: params(), instanceId: 'split-red' }, ci, async op => { operations.push(op); return {}; }, splitConfig, managed), /tests failed/);
+  assert.equal(starts, 0); assert.equal(runners.length, 1); assert.equal(runners[0].command, 'npm test');
+  assert.equal(runners[0].cloudflareCredentials, false); assert.equal(runners[0].sourceControlCredentials, false);
+  assert.deepEqual(operations, ['start', 'fail']);
+});
+
+test('split green preview and publication use no Sandbox build or deploy runner', async () => {
+  const runners = [], operations = [];
+  const ci = { runner: async options => { runners.push(options); return { exitCode: 0 }; } };
+  const managed = { preview: async (actualSha, actualRef, track) => { assert.equal(actualSha, sha); assert.equal(actualRef, ref); await track('build-id'); return { result: await artifact(), deployment, build: { id: 'build-id' } }; }, publish: async candidate => { assert.equal(candidate.sha, sha); return { version }; } };
+  await runPipeline({ payload: params(), instanceId: 'split-green' }, ci, async (op, input) => { operations.push({ op, input }); return {}; }, splitConfig, managed);
+  assert.deepEqual(runners.map(row => row.command), ['npm test']); assert.deepEqual(operations.map(row => row.op), ['start', 'build-started', 'preview']);
+  const control = controller(); await ready(control); const approval = await control.approve(owner, sha, ref);
+  const call = async (op, input) => op === 'begin-publication' ? control.beginPublication(input.id, input.job) : control.finishPublication(input.id, input.sha, input.version);
+  await runPipeline({ payload: { pilotApproval: approval.id }, instanceId: 'publication' }, ci, call, splitConfig, managed);
+  assert.equal(runners.length, 1); assert.equal(control.state.production, sha);
+});
+
+test('managed receipt rejects wrong SHA, branch, trigger, repository, Worker, filters, result and URL', async () => {
+  const logs = await splitLogs();
+  assert.equal(managedReceipt(splitReceipt(), logs, splitConfig, sha, ref, 'build-id').result.sha, sha);
+  const mutations = [
+    receipt => { receipt.build_trigger_metadata.commit_hash = sha2; },
+    receipt => { receipt.build_trigger_metadata.branch = 'main'; },
+    receipt => { receipt.trigger.trigger_uuid = 'another-trigger'; },
+    receipt => { receipt.trigger.repo_connection.repo_id = 'another-repo'; },
+    receipt => { receipt.trigger.external_script_id = 'production-worker'; },
+    receipt => { receipt.trigger.branch_excludes = []; },
+    receipt => { receipt.trigger.deploy_command = 'wrangler deploy'; },
+    receipt => { receipt.status = 'running'; },
+    receipt => { receipt.build_outcome = 'fail'; },
+    receipt => { receipt.preview_url = 'https://forged.workers.dev/'; },
+  ];
+  for (const mutate of mutations) { const receipt = splitReceipt(); mutate(receipt); assert.throws(() => managedReceipt(receipt, logs, splitConfig, sha, ref, 'build-id')); }
+  assert.throws(() => managedReceipt(splitReceipt(), logs.replace(sha, sha2), splitConfig, sha, ref, 'build-id'), /different commit/);
+  assert.throws(() => managedReceipt(splitReceipt(), logs.replace(deployment.url, 'https://forged.workers.dev/'), splitConfig, sha, ref, 'build-id'), /matching immutable/);
+});
+
+test('managed API pins exact commit, records build before polling, and verifies version bindings', async () => {
+  const calls = [], tracked = [], step = { do: async (_name, _opts, fn) => fn(), sleep: async () => assert.fail('terminal build does not sleep') };
+  let binding = config.stagingDB;
+  const request = async (path, method, body) => {
+    calls.push({ path, method, body });
+    if (path.endsWith('/triggers')) return [splitTrigger()];
+    if (method === 'POST') return { build_uuid: 'build-id' };
+    if (path.endsWith('/builds/build-id')) { assert.deepEqual(tracked, ['build-id']); return splitReceipt(); }
+    if (path.endsWith('/logs')) return { lines: [[Date.now(), await splitLogs()]], truncated: false };
+    if (path.includes('/versions/')) return { id: version, resources: { bindings: [{ type: 'd1', name: 'DB', id: binding }] } };
+    assert.fail(path);
+  };
+  const api = new ManagedBuilds(splitConfig, request, step);
+  assert.equal((await api.preview(sha, ref, async id => tracked.push(id))).deployment.version, version);
+  assert.deepEqual(calls.find(row => row.method === 'POST').body, { branch: 'feature', commit_hash: sha });
+  binding = config.productionDB; tracked.length = 0;
+  await assert.rejects(api.preview(sha, ref, async id => tracked.push(id)), /unexpected runtime bindings/);
+});
+
+test('split production still rejects unapproved, failed, stale or outdated approvals and retains ambiguous reservation', async () => {
+  for (const mutate of [control => { control.candidate(sha, ref).checks = 'FAIL'; }, control => { control.state.latest[ref] = sha2; }, control => { control.state.production = sha2; }]) {
+    const control = controller(); await ready(control); const approval = await control.approve(owner, sha, ref); mutate(control);
+    let publications = 0;
+    await assert.rejects(runPipeline({ payload: { pilotApproval: approval.id }, instanceId: 'pub' }, { runner: () => assert.fail('no runner') }, async (_op, input) => control.beginPublication(input.id, input.job), splitConfig, { publish: async () => { publications++; } }));
+    assert.equal(publications, 0);
+  }
+  const control = controller(); await ready(control); const approval = await control.approve(owner, sha, ref);
+  await assert.rejects(runPipeline({ payload: { pilotApproval: approval.id }, instanceId: 'ambiguous' }, {}, async (_op, input) => control.beginPublication(input.id, input.job), splitConfig, { publish: async () => { throw new Error('upload response lost'); } }), /response lost/);
+  assert.equal(control.state.publication.id, approval.id); assert.equal(control.state.production, null);
+});
+
+test('trusted managed publication uploads immutable code and production-only bindings, verifies HTTP identity', async () => {
+  const calls = [];
+  const api = new ManagedBuilds(splitConfig, async (path, method, body, _allow404, scope) => {
+    calls.push({ path, method, scope }); assert.equal(scope, 'deployment');
+    if (method === 'PUT') {
+      assert.equal(await body.get('worker.mjs').text(), 'export default {};');
+      assert.deepEqual(JSON.parse(await body.get('metadata').text()).bindings, [{ type: 'd1', name: 'DB', id: config.productionDB }]);
+      return { version_id: version };
+    }
+    return { subdomain: 'fixture' };
+  }, undefined, async (url, options) => { assert.equal(url, `https://${config.production}.fixture.workers.dev/identity`); assert.equal(options.redirect, 'manual'); return Response.json({ commit: sha }); });
+  assert.equal((await api.publish(await artifact())).version, version);
+  assert.ok(calls[0].path.includes(config.production));
+  api.fetcher = async () => Response.json({ commit: sha2 });
+  await assert.rejects(api.publish(await artifact()), /reservation retained/);
+});
+
+test('managed cleanup deletes trigger before connection, proves references absent, refuses missing quiescence', async () => {
+  const manifest = createManifest(account, run, 'workers-builds'), operations = [];
+  manifest.resources = inventory(manifest).filter(row => row.kind.startsWith('build-')).map(row => ({ ...row, id: row.kind === 'build-trigger' ? 'trigger-id' : 'connection-id', workerTag: 'worker-tag', status: 'created', createdBy: run }));
+  const provider = new CloudflareProvider(account, { token: 'management', buildsApiToken: 'builds-api' }, manifest.namespace, async (url, options) => {
+    assert.equal(options.headers.Authorization, 'Bearer builds-api'); operations.push({ url, method: options.method });
+    return options.method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json({ success: true, result: [] });
+  });
+  await assert.rejects(cleanup(manifest, account, provider, async () => {}), /cancellation/);
+  manifest.quiesced = { buildsStopped: true };
+  assert.equal((await cleanup(manifest, account, provider, async () => {})).outcome, 'PASS');
+  assert.ok(operations[0].url.endsWith('/triggers/trigger-id')); assert.ok(operations[2].url.endsWith('/connections/connection-id'));
+  assert.equal(manifest.resources[0].deletionAcknowledged, true);
+});
+
+test('managed token registration rejects reusable admin credentials and tracks underlying token before POST', async () => {
+  const manifest = createManifest(account, run, 'workers-builds');
+  const credentials = { token: 'management-secret', buildsApiToken: 'api-secret', adminToken: 'admin-secret' };
+  const provider = { credentials, path: suffix => `/accounts/${account}/${suffix}`, request: async (_path, _method, body) => {
+    assert.ok(manifest.credentials.some(row => row.kind === 'build-deployment' && row.id === body.cloudflare_token_id));
+    assert.ok(manifest.credentials.some(row => row.kind === 'build-registration' && row.status === 'creating'));
+    return { build_token_uuid: 'registered-id', cloudflare_token_id: body.cloudflare_token_id };
+  } };
+  const input = { id: 'fresh-id', token: 'fresh-secret', expiresAt: new Date(Date.now() + 3600000).toISOString() };
+  for (const token of Object.values(credentials)) await assert.rejects(managedOperation('token', manifest, account, provider, async () => {}, { ...input, token }), /administration/);
+  assert.equal((await managedOperation('token', manifest, account, provider, async () => {}, input)).registration, 'registered-id');
+  assert.ok(!JSON.stringify(manifest).includes('fresh-secret'));
+});
 
 test('Artifacts log receives branch names while the approval ledger retains canonical refs', () => {
   assert.equal(branchName('refs/heads/feature/nested'), 'feature/nested');

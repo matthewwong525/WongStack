@@ -4,10 +4,11 @@ import { dirname, resolve } from 'node:path';
 export const assertAccount = (manifest, account) => {
   if (!/^[a-f0-9]{32}$/i.test(account || '') || manifest.account !== account) throw new Error('Explicit account differs from run manifest');
 };
-export function createManifest(account, run) {
+export function createManifest(account, run, backend = 'custom') {
   if (!/^[a-f0-9]{32}$/i.test(account || '') || !/^[a-z0-9-]{6,14}$/.test(run || '')) throw new Error('Explicit account and unique 6–14 character run ID required');
   const prefix = `wong-artifacts-pilot-${run}`;
-  return { version: 1, account, run, prefix, namespace: prefix, createdAt: new Date().toISOString(), resources: [], credentials: [], bounds: { builds: 10, concurrentRunners: 1, buildTimeoutMinutes: 30 }, cleanup: 'pending' };
+  if (!['custom', 'workers-builds'].includes(backend)) throw new Error('Unknown pilot backend');
+  return { version: 1, account, run, prefix, namespace: prefix, backend, createdAt: new Date().toISOString(), resources: [], credentials: [], bounds: { builds: 10, concurrentRunners: 1, buildTimeoutMinutes: 30, ...(backend === 'workers-builds' ? { managedBuilds: 10, managedBuildTimeoutMinutes: 20 } : {}) }, cleanup: 'pending' };
 }
 export function writePrivate(file, value) {
   const full = resolve(file);
@@ -28,6 +29,7 @@ export function inventory(manifest) {
     ...['production', 'staging', 'controller'].map(env => ({ kind: 'worker', name: `${p}-${env}` })),
     { kind: 'workflow', name: `${p}-pipeline` }, { kind: 'container', name: `${p}-runner` },
     { kind: 'durable-object', name: `${p}-controller-PilotState`, script: `${p}-controller`, class: 'PilotState' }, { kind: 'durable-object', name: `${p}-controller-CiSandbox`, script: `${p}-controller`, class: 'CiSandbox' },
+    ...(manifest.backend === 'workers-builds' ? [{ kind: 'build-connection', name: `${p}-connection` }, { kind: 'build-trigger', name: `${p}-managed` }] : []),
   ];
 }
 
@@ -57,7 +59,7 @@ export async function cleanup(manifest, account, provider, save) {
     catch (error) { errors.push({ kind: 'credential', id: credential.id, error: error.message }); }
   }
   // Keep management token until all resources have been deleted.
-  const order = { workflow: 0, container: 1, worker: 2, 'durable-object': 3, repo: 4, r2: 5, d1: 6, namespace: 7 };
+  const order = { 'build-trigger': -2, 'build-connection': -1, workflow: 0, container: 1, worker: 2, 'durable-object': 3, repo: 4, r2: 5, d1: 6, namespace: 7 };
   for (const row of [...manifest.resources].sort((a, b) => order[a.kind] - order[b.kind])) {
     if (row.status === 'deleted') continue;
     try {

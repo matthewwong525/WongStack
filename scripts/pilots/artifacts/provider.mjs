@@ -9,7 +9,9 @@ export class CloudflareProvider {
   async request(path, method = 'GET', body, allow404 = false) {
     this.operations += 1;
     const multipart = body instanceof FormData;
-    const response = await this.fetcher(`https://api.cloudflare.com/client/v4${path}`, { method, headers: { Authorization: `Bearer ${this.credentials.token}`, ...(!multipart ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
+    const token = path.includes('/builds/') ? this.credentials.buildsApiToken : this.credentials.token;
+    if (!token) throw new Error('Separate user-scoped Builds API credential required');
+    const response = await this.fetcher(`https://api.cloudflare.com/client/v4${path}`, { method, headers: { Authorization: `Bearer ${token}`, ...(!multipart ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}) });
     if (allow404 && response.status === 404) return null;
     if (response.status === 204) { this.lastResultInfo = undefined; return null; }
     const result = await response.json().catch(() => { throw new Error(`Cloudflare ${method} ${path}: HTTP ${response.status}, invalid JSON response`); });
@@ -28,6 +30,18 @@ export class CloudflareProvider {
     return { account: this.account, name: account.name, paid, artifactsReadable: true, namespaceCount: Array.isArray(namespaces) ? namespaces.length : null, at: new Date().toISOString(), operations: this.operations };
   }
   async find(spec) {
+    if (['build-trigger', 'build-connection'].includes(spec.kind)) {
+      if (!spec.workerTag) throw new Error('Manifest-owned staging Worker tag required');
+      const triggers = await this.request(this.path(`builds/workers/${part(spec.workerTag)}/triggers`));
+      if (spec.kind === 'build-trigger') return triggers.find(row => spec.id ? row.trigger_uuid === spec.id : row.trigger_name === spec.name) || null;
+      const reference = triggers.find(row => spec.id && row.repo_connection?.repo_connection_uuid === spec.id);
+      if (reference) return reference.repo_connection;
+      // The API exposes no connection GET/list. Absence requires DELETE acknowledgment
+      // and no remaining trigger reference; never invent a readback endpoint.
+      if (spec.deletionAcknowledged) return null;
+      if (!spec.id && spec.freshRepository) return null;
+      throw new Error('Connection absence needs deletion acknowledgment and trigger reference readback');
+    }
     if (spec.kind === 'namespace') return this.request(this.artifact(''), 'GET', undefined, true);
     if (spec.kind === 'repo') return this.request(this.artifact(`repos/${part(spec.name)}`), 'GET', undefined, true);
     if (spec.kind === 'worker') return this.request(this.path(`workers/scripts/${part(spec.name)}/settings`), 'GET', undefined, true);
@@ -80,6 +94,8 @@ export class CloudflareProvider {
       return this.request(this.artifact(''), 'DELETE', undefined, true);
     }
     const suffix = {
+      'build-trigger': `builds/triggers/${part(spec.id)}`,
+      'build-connection': `builds/repos/connections/${part(spec.id)}`,
       repo: `artifacts/namespaces/${part(this.namespace)}/repos/${part(spec.name)}`,
       worker: `workers/scripts/${part(spec.name)}?force=true`,
       d1: `d1/database/${part(spec.id)}`, r2: `r2/buckets/${part(spec.name)}`,
@@ -92,9 +108,20 @@ export class CloudflareProvider {
     }
     if (!suffix) throw new Error('Unsupported resource teardown');
     await this.request(this.path(suffix), 'DELETE', undefined, true);
+    if (spec.kind === 'build-connection') spec.deletionAcknowledged = true;
   }
   async revoke(credential) {
-    if (['management', 'r2'].includes(credential.kind)) {
+    if (credential.kind === 'build-registration') {
+      if (!credential.id || credential.status === 'creating') throw new Error('Interrupted build token registration requires receipt reconciliation');
+      await this.request(this.path(`builds/tokens/${part(credential.id)}`), 'DELETE', undefined, true);
+      for (let page = 1; page <= 100; page++) {
+        const rows = await this.request(this.path(`builds/tokens?page=${page}&per_page=100`));
+        if (rows.some(row => row.build_token_uuid === credential.id)) throw new Error('Build token registration remains after deletion');
+        if (rows.length < 100) return;
+      }
+      throw new Error('Build token absence exceeded pagination bound');
+    }
+    if (['management', 'r2', 'build-deployment'].includes(credential.kind)) {
       if (!this.credentials.adminToken) throw new Error('Separate existing token-management credential required for management-token teardown');
       const admin = new CloudflareProvider(this.account, { token: this.credentials.adminToken }, this.namespace, this.fetcher);
       return admin.request(credential.issuer === 'account' ? this.path(`tokens/${part(credential.id)}`) : `/user/tokens/${part(credential.id)}`, 'DELETE');
@@ -102,6 +129,7 @@ export class CloudflareProvider {
     return this.request(this.artifact(`tokens/${part(credential.id)}`), 'DELETE', undefined, true);
   }
   async quiesce(manifest) {
+    if (manifest.backend === 'workers-builds' && !manifest.quiesced?.buildsStopped) throw new Error('Managed build cancellation/terminal readbacks required before cleanup');
     const controller = manifest.resources.find(row => row.kind === 'worker' && row.name.endsWith('-controller') && row.status === 'created');
     if (!controller) return;
     // Updating settings alone cannot safely change event subscriptions. The caller must stop the DO,
