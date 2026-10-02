@@ -44,7 +44,7 @@ function harness(options = {}) {
       if (method === 'POST') {
         assert.deepEqual(body, { strategy: 'percentage', versions: [{ version_id: productionVersion, percentage: 100 }] });
         if (options.deployFailure) throw new Error('Ambiguous deployment');
-        return options.deploymentReceipt ?? deployment;
+        return options.deploymentReceipt ?? { id: deploymentID };
       }
       assert.equal(method, 'GET'); assert.ok(path.endsWith(`/deployments/${deploymentID}`));
       return options.deploymentReadback ?? deployment;

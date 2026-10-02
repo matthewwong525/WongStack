@@ -98,7 +98,8 @@ export class DirectUpload {
     await this.once(`${label}-version`, () => this.version('production', uploaded?.id));
     const deployed = await this.once(`${label}-deploy`, () => this.call(`${target}/deployments`, 'POST', { strategy: 'percentage', versions: [{ version_id: uploaded.id, percentage: 100 }] }));
     const url = await this.once(`${label}-receipt`, async () => {
-      deploymentMatches(deployed, uploaded.id);
+      need(versionOK(deployed?.id), 'Deployment returned no acknowledged ID');
+      if (deployed.strategy !== undefined || deployed.versions !== undefined) deploymentMatches(deployed, uploaded.id);
       const observed = await this.call(`${target}/deployments/${deployed.id}`);
       need(observed?.id === deployed.id, 'Deployment readback identifies a different deployment');
       deploymentMatches(observed, uploaded.id);
