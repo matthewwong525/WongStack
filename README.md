@@ -23,10 +23,8 @@ It asks before it sends, buys, or deletes anything.
 2. **Open Paseo and paste this:**
 
    ```
-   Install WongStack from github.com/matthewwong525/WongStack
+   Install WongStack from github.com/matthewwong525/WongStack. Read and follow https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md
    ```
-
-   *For the agent: read and follow `https://raw.githubusercontent.com/matthewwong525/WongStack/refs/heads/main/.agents/skills/wong-setup/SKILL.md`.*
 
 3. **Answer a few questions.** The agent installs any free tools it still needs, after asking. You approve a sign-in code for a free [GitHub](https://github.com/signup) account, where your files are kept. Then you open one [link](wiki/stack/cloudflare-credentials.md#create-the-token) in a free [Cloudflare](https://cloudflare.com) account, where your apps run, press Create, and paste the key it shows you. Then open your site and paste its *Make it yours* message: the assistant gets to know you and makes the page yours.
 
@@ -104,7 +102,7 @@ Checked against each project's README in September 2026.
 - **`curl`**, which macOS, Windows, and most Linux systems include.
 - **`git`**, **[`gh`](https://cli.github.com/)**, **[Node.js](https://nodejs.org/) 22** ([`.nvmrc`](.nvmrc)), and **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**. Setup installs any that are missing, after asking, and signs `gh` in to GitHub with the scopes it needs.
 - **A [Cloudflare](https://cloudflare.com) account** (the free plan works) and one user token, which stays on your computer. [`SECURITY.md`](SECURITY.md) says what each token can do.
-- **On Windows**, symbolic links. Setup checks and walks you through Developer Mode; a clone you make yourself needs it first ([how](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).
+- **On Windows**, symbolic links. Setup turns on the needed setting for you; approve Windows' permission window if it appears. A clone you make yourself needs the setting first ([how](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder)).
 
 [Required tools](wiki/development/required-tools.md) says why each is needed.
 

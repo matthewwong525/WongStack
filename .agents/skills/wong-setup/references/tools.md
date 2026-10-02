@@ -85,20 +85,52 @@ The email must be non-empty, because memory's admin key is made for it; with no 
 
 ## 4. Windows folder links
 
-On Windows only, test a real link in a temporary folder:
+On native Windows (`MINGW*`, `MSYS*`, `CYGWIN*`), run `git config --global core.symlinks true` before cloning, even if links already work. A failed write stops setup. WSL uses the Linux flow.
+
+Then test real directory and file links. Run this probe again after any setting change; its subshell keeps cleanup from hiding a failure:
 
 ```bash
-T=$(mktemp -d) && mkdir "$T/a" && MSYS=winsymlinks:nativestrict ln -s a "$T/b"; echo $?; rm -rf "$T"
+(
+  link_probe=$(mktemp -d) || exit 1
+  trap 'rm -rf "$link_probe"' EXIT
+  mkdir "$link_probe/folder" &&
+    printf 'ready\n' > "$link_probe/folder/file" &&
+    MSYS=winsymlinks:nativestrict ln -s folder "$link_probe/folder-link" &&
+    MSYS=winsymlinks:nativestrict ln -s folder/file "$link_probe/file-link" &&
+    test -L "$link_probe/folder-link" && test -L "$link_probe/file-link" &&
+    test "$(cat "$link_probe/folder-link/file")" = ready &&
+    test "$(cat "$link_probe/file-link")" = ready
+)
 ```
 
-Non-zero means Windows refuses links, and Git Bash would quietly make copies the agents cannot read as their folder. Walk the person through it:
+Zero → continue. Otherwise, enable [Developer Mode](https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode#use-powershell-to-enable-your-device) yourself. Tell the person first: *"I'll turn on the Windows setting your assistant needs. If Windows asks for permission, approve that window so I can continue."* Run this through `powershell.exe` when available; `RunAs` requests administrator approval, and `Wait` plus `PassThru` checks the result:
+
+```bash
+powershell.exe -NoProfile -Command '
+  try {
+    $process = Start-Process -FilePath "$env:SystemRoot\System32\reg.exe" -Verb RunAs -Wait -PassThru -ErrorAction Stop -ArgumentList "add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock /t REG_DWORD /f /v AllowDevelopmentWithoutDevLicense /d 1"
+    if ($process.ExitCode -ne 0) { exit 1 }
+  } catch {
+    $failure = $_.Exception
+    while ($failure) {
+      if ($failure.NativeErrorCode -eq 1223) { exit 2 }
+      $failure = $failure.InnerException
+    }
+    Write-Error $_
+    exit 3
+  }
+'
+```
+
+Zero → rerun the probe and continue only if both links pass. Exit 2 means approval was refused: stop, without asking again. Exit 1 or an error showing workplace policy → stop and explain that an administrator must allow the setting. Never change organization policy.
+
+Missing PowerShell or exit 3 without a policy restriction → the permission window could not launch. Only then give this fallback:
 
 ```text
-Windows needs one setting so I can link
-your assistant's folders.
-1. Open Settings > System > For developers
-2. Turn on Developer Mode
+I couldn't open Windows' permission window.
+1. Open Settings and search for Developer Mode
+2. Turn it on and approve Windows' prompt
 3. Tell me when it's on
 ```
 
-Then run `git config --global core.symlinks true` and test again; continue only when it passes.
+Retest after they finish. A failed final probe stops setup before cloning or writing in the target; use [the failure map](failure-map.md#getting-the-computer-ready). The registry change alone never proves links work.
