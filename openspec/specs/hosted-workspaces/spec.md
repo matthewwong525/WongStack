@@ -15,6 +15,17 @@ A hosted workspace SHALL prepare an empty Artifacts repository and coding-agent 
 - **WHEN** a cloud owner opens their prepared workspace and runs `/wong-setup`
 - **THEN** the assistant, site and memory are installed in that repository, without creating a second repository or asking for customer platform credentials
 
+#### Scenario: Teammate resumes an installed project
+
+- **WHEN** a teammate or returning owner runs setup for the same verified hosted project
+- **THEN** setup verifies private workspace identity and reads existing service status without provisioning or rewriting the installed app, config or credentials
+- **AND** it validates published app and Access pins before offering enrollment and never treats another machine's grant as this machine's readiness
+
+#### Scenario: Teammate reaches an empty project
+
+- **WHEN** a teammate runs setup before the owner installs and publishes the project
+- **THEN** setup stops pending the owner without copying the payload or calling owner-only provisioning
+
 ### Requirement: Hosted delivery gates the exact real application
 
 Hosted save SHALL remotely check and build the exact saved commit's real application, including assets and memory. Hosted publication SHALL use those immutable checked bytes after an owner approval and authoritative head/base checks. Failed, stale, unreadable and uncertain results SHALL never become a successful publication.

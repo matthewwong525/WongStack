@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, writeFileSync, symlinkSync, lstatSync, readlinkSync, unlinkSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { validateContext, safeContext, loadContext, command, writeSecrets, privateWrite, privatePath, request } from '../.agents/skills/save/scripts/hosted.mjs';
+import { validateContext, safeContext, loadContext, command, writeSecrets, privateWrite, privatePath, request, memoryResult, https } from '../.agents/skills/save/scripts/hosted.mjs';
 import { copyPayload, installRecord, run, SOURCE } from './install-wongstack.mjs';
 
 function refs(text) {
@@ -23,14 +23,18 @@ export function verifyRefs(expected,actual) {
 function privateJson(file,value) {
   privatePath(file);mkdirSync(dirname(file),{recursive:true,mode:0o700});privateWrite(file,`${JSON.stringify(value,null,2)}\n`);
 }
+async function verifyWorkspace(context,fetchFn) {
+  const verified=await request(context,'/v1/workspace',undefined,{fetchFn});
+  for (const key of ['projectId','gitUrl','sourceRepo','sourceCommit','ownerEmail','role','subject','subjectEmail']) if(verified[key]!==context[key]) throw new Error('workspace grant differs');
+  return verified;
+}
 export async function prepare(job,{home=process.env.HOME,exec=run,fetchFn}={}) {
   validateContext(job);
   if ((await exec('git',['-C',SOURCE,'rev-parse','HEAD'])).stdout.trim()!==job.sourceCommit) throw new Error('source pin differs');
   if (typeof job.token!=='string' || !job.token || /[\r\n\0]/.test(job.token)) throw new Error('invalid access grant');
   if (job.githubRepo && (!/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(job.githubRepo) || job.role!=='owner')) throw new Error('invalid migration');
   if(job.legacyRepo && !/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(job.legacyRepo)) throw new Error('invalid legacy repository');
-  const verified=await request(job,'/v1/workspace',undefined,{fetchFn});
-  for (const key of ['projectId','gitUrl','sourceRepo','sourceCommit','role','subject','subjectEmail']) if(verified[key]!==job[key]) throw new Error('workspace grant differs');
+  const verified=await verifyWorkspace(job,fetchFn);
   const previousRepo=job.githubRepo || job.legacyRepo;
   const legacy=previousRepo && join(home,previousRepo.split('/')[1]);
   const existingLegacy=legacy && existsSync(join(legacy,'.git'));
@@ -124,7 +128,11 @@ export async function installHosted({cwd=process.cwd(),exec=run,today=new Date()
   const context=await loadContext({cwd,exec:adapted});
   if (!context) throw new Error('prepared workspace missing');
   const recordPath=join(context.root,'.agents','.wong-stack.json');
-  if (existsSync(recordPath)) throw new Error('already installed; use /wong-sync');
+  if (existsSync(recordPath)) throw new Error('already installed; resume hosted setup');
+  if(context.role!=='owner') {
+    await verifyWorkspace(context,fetchFn);
+    throw new Error('owner must install and publish the hosted project before member setup');
+  }
   const pendingPath=join(context.common,'wongstack-installing.json');
   privatePath(pendingPath);
   const pending=existsSync(pendingPath) ? JSON.parse(readFileSync(pendingPath,'utf8')) : null;
@@ -160,7 +168,35 @@ export async function installHosted({cwd=process.cwd(),exec=run,today=new Date()
 }
 export async function configureHosted({cwd=process.cwd(),exec=run,fetchFn}={}) {
   const context=await loadContext({cwd,exec:async(file,args)=>exec(file,args)});
-  if(!context || !existsSync(join(context.root,'.agents','.wong-stack.json'))) throw new Error('installed prepared workspace required');
+  if(!context) throw new Error('installed prepared workspace required');
+  const recordPath=join(context.root,'.agents','.wong-stack.json');
+  privatePath(recordPath);
+  if(!existsSync(recordPath)) throw new Error('installed prepared workspace required');
+  const record=JSON.parse(readFileSync(recordPath,'utf8'));
+  await verifyWorkspace(context,fetchFn);
+  if(record.hosted!==undefined && record.hosted!==null) {
+    // Committed metadata only distinguishes a resume from migration. All authority
+    // and app pins come from the verified private grant and service responses.
+    if(record.hosted.projectId!==context.projectId || record.hosted.serviceUrl!==context.serviceUrl || record.hosted.gitUrl!==context.gitUrl) throw new Error('installed hosted project differs');
+    const status=await request(context,'/v1/status',undefined,{fetchFn});
+    for(const key of ['projectId','gitUrl','sourceRepo','sourceCommit','ownerEmail']) if(status[key]!==context[key]) throw new Error('hosted status project differs');
+    let memory=status.memory?.protocolVersion===1 ? memoryResult(status.memory) : null;
+    if(status.setup==='ready' && !memory) throw new Error('hosted memory pins are missing');
+    let production=null;
+    if(status.production!==null && status.production!==undefined) {
+      const value=status.production, url=https(value.url);
+      if(!/^[a-f0-9]{40}$/.test(value.sha || '') || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value.version || '') || url.pathname!=='/' || !memory || url.origin!==memory.appUrl || status.productionUrl!==memory.appUrl) throw new Error('hosted production pins differ');
+      production={sha:value.sha,version:value.version,url:url.origin};
+    }
+    if(memory) {
+      // Project-global status is not introspection of this requesting computer.
+      if(memory.status==='ready') memory={...memory,status:'pending-device',reason:'no-current-device',action:{kind:'connect-device',url:`${memory.appUrl}/apps/devices/`,operatorConfirmationRequired:false}};
+      if(status.setup!=='ready' || status.stopped===true || !production) memory={...memory,reason:'maintenance',action:null};
+      else if(status.accessVerified!==true) memory={...memory,reason:'access-unverified',action:null};
+    }
+    return {existingProject:true,hosted:safeContext(context),production,memory,enrollmentPending:true};
+  }
+  if(context.role!=='owner') throw new Error('owner must configure the hosted migration before member setup');
   const result=await command('setup',[],context,{fetchFn});
   // A plan adapts installed config and records, preserving local code and the former memory store.
   return {configurationOnly:true,hosted:safeContext(context),...result};

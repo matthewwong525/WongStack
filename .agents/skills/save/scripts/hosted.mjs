@@ -150,6 +150,22 @@ export async function initialBranch(context,{exec=execute}={}) {
   const branch=await git(['symbolic-ref','--quiet','HEAD']);
   return branch==='refs/heads/main' ? {initial:true,branch:'main'} : {initial:false,reason:'preserve-selected-branch'};
 }
+export function memoryResult(value) {
+  if(value.protocolVersion!==1 || !['pending-owner','pending-device','ready'].includes(value.status)) throw new Error('invalid memory enrollment result');
+  const app=https(value.appUrl), origin=https(value.memoryOrigin);
+  if(app.pathname!=='/' || origin.pathname!=='/') throw new Error('memory addresses must be exact origins');
+  const reasons=['owner-unconfirmed','no-current-device','login-required','access-unverified','maintenance','device-expired','device-revoked','membership-removed'];
+  if(value.reason!==null && !reasons.includes(value.reason)) throw new Error('invalid memory enrollment reason');
+  if(value.status==='ready' && (value.reason!==null || value.action!==null)) throw new Error('invalid ready memory result');
+  if(!value.installationId || !value.repositoryId) throw new Error('missing memory enrollment identity');
+  const memory={protocolVersion:1,installationId:value.installationId,repositoryId:value.repositoryId,appUrl:app.origin,memoryOrigin:origin.origin,status:value.status,reason:value.reason??null,action:null};
+  if(value.action) {
+    const url=https(value.action.url);
+    if(url.origin!==app.origin || url.pathname!=='/apps/devices/' || !['confirm-owner','connect-device'].includes(value.action.kind) || (value.action.kind==='confirm-owner')!==value.action.operatorConfirmationRequired) throw new Error('invalid memory enrollment action');
+    memory.action={kind:value.action.kind,url:url.href,operatorConfirmationRequired:value.action.operatorConfirmationRequired===true};
+  }
+  return memory;
+}
 export async function command(action,args,context,options={}) {
   if (action==='initial-branch') return initialBranch(context,options);
   if (action==='context') return safeContext(context);
@@ -159,23 +175,7 @@ export async function command(action,args,context,options={}) {
     if (!result.wrangler || !result.installRecordMemory || !result.env) throw new Error('incomplete hosted setup');
     writeSecrets(context,{WONGSTACK_HOSTED_TOKEN:context.token,...result.env});
     privateWrite(join(context.common,'wongstack-hosted.json'),`${JSON.stringify(safeContext(context),null,2)}\n`);
-    let memory=null;
-    if(result.memory) {
-      const value=result.memory;
-      if(value.protocolVersion!==1 || !['pending-owner','pending-device','ready'].includes(value.status)) throw new Error('invalid memory enrollment result');
-      const app=https(value.appUrl), origin=https(value.memoryOrigin);
-      if(app.pathname!=='/' || origin.pathname!=='/') throw new Error('memory addresses must be exact origins');
-      const reasons=['owner-unconfirmed','no-current-device','login-required','access-unverified','maintenance','device-expired','device-revoked','membership-removed'];
-      if(value.reason!==null && !reasons.includes(value.reason)) throw new Error('invalid memory enrollment reason');
-      if(value.status==='ready' && (value.reason!==null || value.action!==null)) throw new Error('invalid ready memory result');
-      if(!value.installationId || !value.repositoryId) throw new Error('missing memory enrollment identity');
-      memory={protocolVersion:1,installationId:value.installationId,repositoryId:value.repositoryId,appUrl:app.origin,memoryOrigin:origin.origin,status:value.status,reason:value.reason??null,action:null};
-      if(value.action) {
-        const url=https(value.action.url);
-        if(url.origin!==app.origin || url.pathname!=='/apps/devices/' || !['confirm-owner','connect-device'].includes(value.action.kind) || (value.action.kind==='confirm-owner')!==value.action.operatorConfirmationRequired) throw new Error('invalid memory enrollment action');
-        memory.action={kind:value.action.kind,url:url.href,operatorConfirmationRequired:value.action.operatorConfirmationRequired===true};
-      }
-    }
+    const memory=result.memory ? memoryResult(result.memory) : null;
     return {wrangler:result.wrangler,installRecordMemory:result.installRecordMemory,...(memory && {memory})};
   }
   if (action==='candidate' || action==='approve' || action==='wait') {

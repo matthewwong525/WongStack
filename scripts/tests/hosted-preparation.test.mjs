@@ -97,7 +97,7 @@ test('an installed migration obtains hosted config without overwriting app code 
  writeFileSync(join(common,'wongstack-hosted.json'),JSON.stringify(job));writeFileSync(join(root,'.agents','.wong-stack.json'),JSON.stringify(record));writeFileSync(join(root,'app','local.ts'),'keep local app');
  const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:root});
  try {
-  const result=await configureHosted({cwd:root,exec,fetchFn:async()=>({ok:true,json:async()=>({wrangler:{name:'hosted'},installRecordMemory:{worker:'https://new-memory.example.com/_memory'},env:{}})})});
+  const result=await configureHosted({cwd:root,exec,fetchFn:async url=>({ok:true,json:async()=>new URL(url).pathname==='/v1/workspace' ? job : {wrangler:{name:'hosted'},installRecordMemory:{worker:'https://new-memory.example.com/_memory'},env:{}}})});
   assert.equal(result.configurationOnly,true);assert.equal(result.wrangler.name,'hosted');
   assert.equal(readFileSync(join(root,'app','local.ts'),'utf8'),'keep local app');
   assert.deepEqual(JSON.parse(readFileSync(join(root,'.agents','.wong-stack.json'),'utf8')),record);
@@ -169,4 +169,103 @@ test('fresh teammate authorship uses verified membership email and rejects a for
   await prepare(member,{home,exec:fake.exec,fetchFn});
   assert.equal(fake.calls.filter(args=>args.includes('user.email')).length,count,'reconnect preserves locally configured authorship');
  }finally{rmSync(home,{recursive:true,force:true});}
+});
+
+function installedHosted(role='member') {
+ const home=mkdtempSync(join(tmpdir(),'hosted-resume-')),root=join(home,'wongstack'),common=join(root,'.git');
+ mkdirSync(common,{recursive:true});mkdirSync(join(root,'.agents'));mkdirSync(join(root,'app'));
+ const context=role==='owner' ? job : {...job,role,subject:'member-2',subjectEmail:'member@example.com'};
+ const {token:_token,...metadata}=job;
+ const record={hosted:metadata,custom:'keep',components:{memory:{installationId:'installation-1'}}};
+ writeFileSync(join(common,'wongstack-hosted.json'),JSON.stringify(context));
+ writeFileSync(join(root,'.agents','.wong-stack.json'),JSON.stringify(record));writeFileSync(join(root,'app','local.ts'),'unpublished local work');
+ writeFileSync(join(root,'.env'),'# preserve local settings\nCUSTOM_SETTING=keep\n');
+ const memory={protocolVersion:1,installationId:'installation-1',repositoryId:'repository-1',appUrl:'https://project.example.com',memoryOrigin:'https://memory.example.com',status:'pending-owner',reason:'owner-unconfirmed',action:{kind:'confirm-owner',url:'https://project.example.com/apps/devices/',operatorConfirmationRequired:true}};
+ const status={...job,setup:'ready',accessVerified:true,stopped:false,memory,production:{sha:'b'.repeat(40),version:'22222222-2222-2222-2222-222222222222',url:memory.appUrl},productionUrl:memory.appUrl};
+ const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:root});
+ const calls=[];
+ const fetchFn=async(url,options)=>{
+  const path=new URL(url).pathname;calls.push({path,method:options.method});
+  assert.equal(options.method,'GET','resume must never provision infrastructure or issue writes');
+  assert.ok(['/v1/workspace','/v1/status'].includes(path));
+  return {ok:true,json:async()=>path==='/v1/workspace' ? context : status};
+ };
+ return {home,root,common,context,record,memory,status,exec,calls,fetchFn};
+}
+test('same-project teammate and owner setup resume published pins without provisioning or changing local work',async()=>{
+ for(const role of ['member','owner']) {
+  const s=installedHosted(role);
+  try {
+   const result=await configureHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn});
+   assert.equal(result.existingProject,true);assert.equal(result.hosted.role,role);
+   assert.equal(result.production.sha,s.status.production.sha);assert.equal(result.memory.status,'pending-owner');
+   assert.equal(result.memory.action.url,'https://project.example.com/apps/devices/');assert.equal(result.enrollmentPending,true);
+   assert.deepEqual(s.calls.map(row=>row.path),['/v1/workspace','/v1/status']);
+   assert.deepEqual(JSON.parse(readFileSync(join(s.root,'.agents','.wong-stack.json'),'utf8')),s.record);
+   assert.equal(readFileSync(join(s.root,'app','local.ts'),'utf8'),'unpublished local work');
+   assert.equal(readFileSync(join(s.root,'.env'),'utf8'),'# preserve local settings\nCUSTOM_SETTING=keep\n');
+   assert.equal(JSON.parse(readFileSync(join(s.common,'wongstack-hosted.json'),'utf8')).token,job.token);
+  }finally{rmSync(s.home,{recursive:true,force:true});}
+ }
+});
+test('a project-global ready result never claims this teammate computer is enrolled',async()=>{
+ const s=installedHosted();s.status.memory={...s.memory,status:'ready',reason:null,action:null};
+ try {
+  const result=await configureHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn});
+  assert.equal(result.memory.status,'pending-device');assert.equal(result.memory.reason,'no-current-device');
+  assert.deepEqual(result.memory.action,{kind:'connect-device',url:'https://project.example.com/apps/devices/',operatorConfirmationRequired:false});
+ }finally{rmSync(s.home,{recursive:true,force:true});}
+});
+test('unpublished, stopped or unprotected hosted sites keep enrollment pending without offering Devices',async()=>{
+ for(const patch of [{production:null},{accessVerified:false},{stopped:true},{setup:'pending',production:null,memory:{status:'pending-owner'}}]) {
+  const s=installedHosted();Object.assign(s.status,patch);
+  try {
+   const result=await configureHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn});
+   assert.equal(result.enrollmentPending,true);assert.equal(result.memory?.action??null,null);
+   if(patch.accessVerified===false) assert.equal(result.memory.reason,'access-unverified');
+   if(patch.production===null) assert.equal(result.production,null);
+  }finally{rmSync(s.home,{recursive:true,force:true});}
+ }
+});
+test('resume rejects a different committed project and unverified service identities or production pins',async()=>{
+ for(const scenario of ['record-project','record-service','record-git','grant-subject','status-project','production-sha','production-version','production-origin','production-url','missing-memory']) {
+  const s=installedHosted();
+  if(scenario==='record-project') s.record.hosted.projectId='33333333-3333-3333-3333-333333333333';
+  if(scenario==='record-service') s.record.hosted.serviceUrl='https://other.example.com';
+  if(scenario==='record-git') s.record.hosted.gitUrl='https://git.example.com/other.git';
+  if(scenario==='grant-subject') s.context.subject='forged-subject';
+  if(scenario==='status-project') s.status.projectId='33333333-3333-3333-3333-333333333333';
+  if(scenario==='production-sha') s.status.production.sha='not-a-commit';
+  if(scenario==='production-version') s.status.production.version='not-a-version';
+  if(scenario==='production-origin') s.status.production.url='https://other.example.com';
+  if(scenario==='production-url') s.status.productionUrl='https://other.example.com';
+  if(scenario==='missing-memory') delete s.status.memory;
+  writeFileSync(join(s.root,'.agents','.wong-stack.json'),JSON.stringify(s.record));
+  try {
+   await assert.rejects(configureHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn}),/differs|missing/);
+   assert.equal(s.calls.some(row=>row.method!=='GET'),false);
+  }finally{rmSync(s.home,{recursive:true,force:true});}
+ }
+});
+test('a member cannot provision a legacy migration or copy a fresh payload before owner setup',async()=>{
+ for(const installed of [true,false]) {
+  const s=installedHosted();
+  if(installed) {delete s.record.hosted;writeFileSync(join(s.root,'.agents','.wong-stack.json'),JSON.stringify(s.record));}
+  else rmSync(join(s.root,'.agents'),{recursive:true});
+  try {
+   await assert.rejects((installed?configureHosted:installHosted)({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn}),/owner must/);
+   assert.deepEqual(s.calls.map(row=>row.path),['/v1/workspace']);
+   assert.equal(existsSync(join(s.common,'wongstack-installing.json')),false);
+   assert.equal(existsSync(join(s.root,'app','wrangler.jsonc')),false);
+   assert.equal(readFileSync(join(s.root,'app','local.ts'),'utf8'),'unpublished local work');
+  }finally{rmSync(s.home,{recursive:true,force:true});}
+ }
+});
+test('installed resume rejects a symlinked record before calling the service',async()=>{
+ const s=installedHosted(),file=join(s.root,'.agents','.wong-stack.json'),external=join(s.home,'other-record');
+ writeFileSync(external,JSON.stringify(s.record));rmSync(file);symlinkSync(external,file);
+ try {
+  await assert.rejects(configureHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn}),/unsafe credential file/);
+  assert.deepEqual(s.calls,[]);assert.deepEqual(JSON.parse(readFileSync(external,'utf8')),s.record);
+ }finally{rmSync(s.home,{recursive:true,force:true});}
 });
