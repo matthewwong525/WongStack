@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initializeMemoryInstallation as initialize, readMemorySetupStatus as status, MemoryOperatorError } from '../../.agents/skills/memory/scripts/lib/installation-operator.mjs';
+import { completedSchema10 } from './fixtures/memory/schema10.mjs';
 import { memoryMigrations } from '../../.agents/skills/memory/scripts/lib/installation-migrations.mjs';
 import { digest } from '../../.agents/skills/memory/scripts/lib/installation-validation.mjs';
 import { migrationFiles, migrationSql, applyMigrations } from './fixtures/memory/identity.mjs';
@@ -20,7 +21,7 @@ test('initializer manifest matches every bundled forward migration exactly', asy
 for (const options of [{}, { standalone: true, bucket: false }]) test(`initializer pins one installation without creating authority ${JSON.stringify(options)}`, async t => {
   const f = operatorFixture(t, options); const input = inputFor(f);
   const result = await initialize(f.operator, input);
-  assert.equal(result.schemaVersion, 10);
+  assert.equal(result.schemaVersion, 11);
   assert.deepEqual(result.appliedMigrations, memoryMigrations.map(row => row.version));
   assert.equal(result.memory.status, 'pending-owner');
   assert.equal(result.memory.reason, 'owner-unconfirmed');
@@ -58,7 +59,7 @@ test('initializer requires matching receipt or expected IDs and never repins imp
 
 test('atomic initializer handles failure, response loss and competing retries', async t => {
   const f = operatorFixture(t); const input = inputFor(f);
-  f.failAt = 20; // All ten SQL scripts/markers ran; no IDs should survive a later failure.
+  f.failAt = memoryMigrations.length * 2; // All forward SQL/markers ran; failure before the first metadata row must roll back DDL.
   await rejectsCode(initialize(f.operator, input), 'provider-unavailable');
   assert.equal(tableCount(f), 0);
   f.failAt = null; f.loseResponse = true;
@@ -78,7 +79,7 @@ test('atomic initializer handles failure, response loss and competing retries', 
 
 test('untrusted migration bytes fail before mutation, including a missing final migration', async t => {
   for (const readMigration of [async name => migrationSql(name) + '\n', async name => {
-    if (name.startsWith('0010')) throw new Error('private path');
+    if (name.startsWith('0011')) throw new Error('private path');
     return migrationSql(name);
   }, async () => null]) {
     const f = operatorFixture(t); f.operator.readMigration = readMigration;
@@ -88,7 +89,7 @@ test('untrusted migration bytes fail before mutation, including a missing final 
 });
 
 test('partial nontransactional provider writes never qualify as completed bootstrap', async t => {
-  for (const failAt of [20, 22, 24, 25]) {
+  for (const failAt of [22, 24, 26, 27, 28]) {
     const f = operatorFixture(t); f.atomic = false; f.failAt = failAt;
     await rejectsCode(initialize(f.operator, inputFor(f)), 'installation-conflict');
     assert.equal(f.db.prepare('SELECT count(*) n FROM memory_bootstrap_completion').get().n, 0);
@@ -170,4 +171,50 @@ test('input validation rejects URLs, unknown proof fields, malformed IDs and pri
     await rejectsCode(initialize(f.operator, input), code);
   }
   assert.equal(OPERATION.length, 32);
+});
+
+test('completed schema 10 is refused without changing IDs, data, receipt or configuration', async t => {
+  const f = operatorFixture(t);
+  const pin = await completedSchema10(f);
+  const complete = f.db.prepare(`SELECT i.installation_id FROM memory_installation i
+    JOIN memory_installation_configuration c USING (installation_id)
+    JOIN memory_bootstrap_completion done ON done.installation_id = i.installation_id AND done.request_hash = c.request_hash
+    JOIN memory_audit a ON a.id = done.audit_id AND a.target_id = i.installation_id AND a.action = 'installation-initialized'`).all();
+  assert.equal(complete.length, 1);
+  const snapshot = () => f.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all()
+    .map(({ name }) => [name, f.db.prepare(`SELECT * FROM "${name}"`).all()]);
+  const before = snapshot();
+  await rejectsCode(initialize(f.operator, inputFor(f)), 'schema-unsupported');
+  await rejectsCode(status(f.operator, { installation: pin }), 'schema-unsupported');
+  assert.deepEqual(snapshot(), before); assert.equal(f.batches, 0);
+});
+
+test('schema 11 bootstrap requires its exact immutable manifest and audit receipt', async t => {
+  for (const badHash of [false, true]) {
+    const f = operatorFixture(t); const input = inputFor(f);
+    const result = await initialize(f.operator, input);
+    const receipt = f.db.prepare('SELECT * FROM memory_schema_receipts').get();
+    assert.equal(receipt.schema_version, 11); assert.equal(receipt.repository_id, result.installation.repositoryId);
+    assert.throws(() => f.db.exec("UPDATE memory_schema_receipts SET manifest_hash = 'corrupt'"), /immutable/);
+    const trigger = badHash ? 'memory_schema_receipt_immutable' : 'memory_schema_receipt_retained';
+    const restore = f.db.prepare('SELECT sql FROM sqlite_master WHERE name = ?').get(trigger).sql;
+    f.db.exec(`DROP TRIGGER ${trigger}`);
+    if (badHash) f.db.prepare('UPDATE memory_schema_receipts SET manifest_hash = ?').run('a'.repeat(64));
+    else f.db.exec('DELETE FROM memory_schema_receipts');
+    f.db.exec(restore); // Test the receipt itself independently of missing-trigger rejection.
+    const batches = f.batches;
+    await rejectsCode(initialize(f.operator, input), 'installation-conflict');
+    await rejectsCode(status(f.operator, { installation: result.installation }), 'installation-conflict');
+    assert.equal(f.batches, batches);
+  }
+});
+
+test('schema markers and completion rows cannot hide missing receipt tables or guards', async t => {
+  for (const sql of ['DROP TABLE memory_owner_completions', 'DROP TRIGGER memory_owner_review_transition']) {
+    const f = operatorFixture(t); const input = inputFor(f);
+    await initialize(f.operator, input); f.db.exec(sql);
+    const batches = f.batches;
+    await rejectsCode(initialize(f.operator, input), 'installation-conflict');
+    assert.equal(f.batches, batches);
+  }
 });

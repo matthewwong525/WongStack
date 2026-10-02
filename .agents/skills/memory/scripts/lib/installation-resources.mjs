@@ -1,5 +1,5 @@
 import { accessConflicts } from '../../../../../scripts/lib-access-config.mjs';
-import { providerCall, requireValue } from './installation-validation.mjs';
+import { providerCall, requireValue, digest } from './installation-validation.mjs';
 
 const binding = (worker, name) => worker.settings.bindings.find(row => row.name === name);
 const validBindings = values => Array.isArray(values) && values.every(row => row && typeof row.name === 'string' && typeof row.type === 'string') && new Set(values.map(row => row.name)).size === values.length;
@@ -33,7 +33,7 @@ export async function inspectResources(operator, target) {
     const relevant = values => values.filter(row => /^(MEMORY_|CF_ACCESS_|WONG_ENVIRONMENT$|WORKSPACE_LOGIN$|SKIP_AUTH$)/.test(row.name))
       .map(row => [row.name, row.type, row.text ?? null, row.database_id ?? row.id ?? null, row.bucket_name ?? null]).sort(([a], [b]) => a.localeCompare(b));
     requireValue(JSON.stringify(relevant(settings.bindings)) === JSON.stringify(relevant(active.resources.bindings)), 'target-mismatch');
-    const worker = { ...info, settings: { bindings: active.resources.bindings } };
+    const worker = { ...info, activeVersionId: version.version_id, settings: { bindings: active.resources.bindings } };
     const db = binding(worker, 'MEMORY_DB');
     requireValue(db?.type === 'd1' && (db.database_id ?? db.id) === target.databaseId &&
       (db.id === undefined || db.id === target.databaseId), 'target-mismatch');
@@ -103,6 +103,8 @@ function safePolicies(app, policies) {
 // Closed placeholders are permitted. Optional machine exceptions are narrowly
 // bounded here; actual edge reachability and version-origin refusal need probes.
 export async function inspectProtection(operator, target, access, resources) {
+  resources.protection = null;
+  const applications = [];
   if (access === null || resources.workers.some(worker => variable(worker, 'WORKSPACE_LOGIN') === 'off')) return 'login-required';
   const root = `/accounts/${target.accountId}/access`;
   const organization = await providerCall(operator, 'GET', `${root}/organizations`);
@@ -115,13 +117,38 @@ export async function inspectProtection(operator, target, access, resources) {
     const worker = resources.workers.find(row => row.name === name);
     const app = await providerCall(operator, 'GET', `${root}/apps/${appId}`);
     if (app?.id !== appId || app.type !== 'self_hosted' || typeof app.aud !== 'string' || !app.aud ||
-        (name === target.appWorkerName && app.aud !== access.audience) || !Array.isArray(app.allowed_idps) || !app.allowed_idps.length ||
+        (name === target.appWorkerName && app.aud !== access.audience) || !Array.isArray(app.allowed_idps) || !app.allowed_idps.length || !app.allowed_idps.every(id => typeof id === 'string' && id.length > 0) ||
         !safeDestinations(app, worker.id, target, resources)) return 'access-unverified';
     if (variable(worker, 'CF_ACCESS_TEAM_DOMAIN') !== access.issuer.slice(8) || variable(worker, 'CF_ACCESS_AUD') !== app.aud ||
         variable(worker, 'CF_ACCESS_APP_ID') !== appId || variable(worker, 'CF_ACCESS_WORKER_ID') !== worker.id || binding(worker, 'WORKSPACE_LOGIN')) return 'access-unverified';
     if (accessConflicts(allApps, [worker], resources.subdomain, appId).length) return 'access-unverified';
     const policies = await list(operator, `${root}/apps/${appId}/policies`);
     if (!safePolicies(app, policies)) return 'access-unverified';
+    applications.push({ id: app.id, audience: app.aud, domain: app.domain ?? null, allowedIdps: app.allowed_idps,
+      destinations: app.destinations.map(row => ({ type: row.type, workerId: row.worker_id ?? null, uri: row.uri ?? null,
+        overrides: (row.overrides ?? []).map(value => ({ path: value.path_pattern, behavior: value.behavior })) })),
+      policies: policies.map(row => ({ id: row.id, decision: row.decision, include: row.include.map(rule =>
+        row.decision === 'allow' ? { email: rule.email.email.toLowerCase() } : { serviceTokenId: rule.service_token.token_id }) })) });
   }
+  resources.protection = { issuer: access.issuer, applications };
   return null;
+}
+
+// Only projected critical facts enter this digest. Provider envelopes/secrets do not.
+export function canonicalMemoryValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalMemoryValue).sort((a, b) => { const left = JSON.stringify(a); const right = JSON.stringify(b); return left < right ? -1 : left > right ? 1 : 0; });
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalMemoryValue(value[key])]));
+  return value;
+}
+export async function protectionDigest(resources) {
+  requireValue(resources.protection, 'protection-unavailable');
+  const workers = resources.workers.map(worker => ({ name: worker.name, id: worker.id, versionId: worker.activeVersionId,
+    bindings: worker.settings.bindings.filter(row => ['MEMORY_DB', 'MEMORY_BUCKET', 'WONG_ENVIRONMENT', 'CF_ACCESS_TEAM_DOMAIN', 'CF_ACCESS_AUD', 'CF_ACCESS_APP_ID', 'CF_ACCESS_WORKER_ID'].includes(row.name))
+      .map(row => ({ name: row.name, type: row.type, text: row.type === 'plain_text' ? row.text : null,
+        databaseId: row.database_id ?? row.id ?? null, bucketName: row.bucket_name ?? null })) }));
+  return digest(JSON.stringify(canonicalMemoryValue({ version: 1, workers, protection: resources.protection })));
+}
+export function humanAdmitted(resources, applicationId, email) {
+  return resources.protection?.applications.some(app => app.id === applicationId && app.policies.some(policy =>
+    policy.decision === 'allow' && policy.include.some(rule => rule.email === email))) === true;
 }

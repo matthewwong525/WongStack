@@ -1,5 +1,5 @@
 import { initializeMemoryInstallation, readMemorySetupStatus } from '../../../.agents/skills/memory/scripts/lib/installation-operator.mjs';
-import { inspectResources, inspectProtection } from '../../../.agents/skills/memory/scripts/lib/installation-resources.mjs';
+import { inspectResources, inspectProtection, protectionDigest } from '../../../.agents/skills/memory/scripts/lib/installation-resources.mjs';
 import { resourceTarget, accessConfiguration } from '../../../.agents/skills/memory/scripts/lib/installation-validation.mjs';
 import { memorySchemaVersion } from '../../../.agents/skills/memory/scripts/lib/installation-migrations.mjs';
 import { checkedPlan, need, phaseRecord, ProbeError, record } from './plan.mjs';
@@ -20,13 +20,14 @@ function barrier(size, timeout) {
   };
 }
 
-async function closedProtection(transport, input) {
+async function closedProtection(transport, input, plan) {
   const target = resourceTarget(input.target);
   const access = accessConfiguration(input.access);
   need(access !== null, 'protected-bootstrap-required');
   const operator = { cloudflare: transport };
   const resources = await inspectResources(operator, target);
   need(await inspectProtection(operator, target, access, resources) === null, 'protected-bootstrap-required');
+  need(await protectionDigest(resources) === plan.protectionDigest, 'protection-pins-changed');
   for (const id of new Set([access.appApplicationId, access.memoryApplicationId])) {
     const app = await transport('GET', `/accounts/${target.accountId}/access/apps/${id}`);
     need(Array.isArray(app?.destinations) && app.destinations.every(row => row &&
@@ -39,7 +40,8 @@ async function transportProof(context, plan) {
   let evidence;
   try { evidence = await context.readTransportEvidence(plan.runId); }
   catch { throw new ProbeError('transport-evidence-required'); }
-  need(evidence?.phase === 'transport' && evidence.status === 'PASS' && evidence.planDigest === plan.planDigest &&
+  need(evidence?.protocolVersion === 2 && JSON.stringify(evidence.snapshot) === JSON.stringify(plan.snapshot) &&
+    evidence.protectionDigest === plan.protectionDigest && evidence.phase === 'transport' && evidence.status === 'PASS' && evidence.planDigest === plan.planDigest &&
     evidence.runId === plan.runId && evidence.sourceRevision === plan.sourceRevision && evidence.target?.accountId === plan.target.accountId &&
     evidence.target.databaseId === plan.target.databaseId && evidence.target.databaseName === plan.target.databaseName && evidence.target.environment === 'memory' &&
     evidence.positiveObserved === true && evidence.rollbackObserved === true && evidence.emptyAfterCleanup === true &&
@@ -56,7 +58,7 @@ export async function runMemoryInitializationProbe(context, input, expectedPlan)
   await record(context, phaseRecord(plan, 'initialization', 'INTENT', { retainsInstallation: true }));
   try {
     await emptyTarget(transport, plan);
-    await closedProtection(transport, input.initialization);
+    await closedProtection(transport, input.initialization, plan);
     const conflicting = { ...input.initialization, operationId: `probe_conflict_${plan.runId}` };
     need(conflicting.operationId !== input.initialization.operationId, 'conflict-operation-required');
     let arrivals = 0; let lostResponses = 0;
@@ -96,7 +98,9 @@ export async function runMemoryInitializationProbe(context, input, expectedPlan)
     need(status.memory.status === 'pending-owner' && status.memory.reason === 'owner-unconfirmed', 'unexpected-memory-authority');
     const receipts = await query(transport, plan, 'SELECT count(*) n FROM memory_bootstrap_completion');
     need(receipts.length === 1 && receipts[0].n === 1, 'completion-receipt-invalid');
-    for (const table of ['memory_principals', 'memory_memberships', 'memory_devices', 'memory_credentials', 'memory_keys', 'memory_admins']) {
+    const schema = await query(transport, plan, 'SELECT schema_version, manifest_hash FROM memory_schema_receipts');
+    need(schema.length === 1 && schema[0].schema_version === 11 && schema[0].manifest_hash === plan.snapshot.manifestHash, 'schema-receipt-invalid');
+    for (const table of ['memory_owner_reviews', 'memory_owner_attempts', 'memory_owner_completions', 'memory_principals', 'memory_memberships', 'memory_devices', 'memory_credentials', 'memory_keys', 'memory_admins']) {
       const counts = await query(transport, plan, `SELECT count(*) n FROM ${table}`);
       need(counts.length === 1 && counts[0].n === 0, 'unexpected-memory-authority');
     }

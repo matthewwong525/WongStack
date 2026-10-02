@@ -206,3 +206,13 @@ test('confirmation parser rejects missing, false, coerced and substituted inputs
   }
   assert.equal(f.calls.length, 0);
 });
+
+test('current human allow policy must still admit the verified candidate independently of service policy', async t => {
+  const f = await fixture(t);
+  const w = f.workers.get(f.target.appWorkerName);
+  w.policy.include = [{ email: { email: 'different@example.com' } }];
+  const service = { id: 'verification', decision: 'non_identity', include: [{ service_token: { token_id: 'fixture-service' } }] };
+  w.app.policies.push({ id: service.id });
+  f.receipts.get(`/accounts/${f.target.accountId}/access/apps/${f.access.appApplicationId}/policies`).push(service);
+  await denied(f.read(), 'protection-unavailable');
+});

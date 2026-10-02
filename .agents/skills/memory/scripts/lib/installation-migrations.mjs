@@ -10,5 +10,6 @@ export const memoryMigrations = Object.freeze([
   Object.freeze({ version: 8, filename: '0008_principal_ownership.sql', sha256: '85ed7cd41aebcea7765264497b585d07593cea520d616340dda89fc6cc5e67ac' }),
   Object.freeze({ version: 9, filename: '0009_identity_reviews.sql', sha256: 'ed63bce13653822cddbe2b0d0b6d7b8c68372e5dc0cdfe7084ccf838de69dfd4' }),
   Object.freeze({ version: 10, filename: '0010_installation_configuration.sql', sha256: 'd268082e1ae654aa497adf3b5e35b91f03f4fd400954036ffa080added368630' }),
+  Object.freeze({ version: 11, filename: '0011_owner_confirmation_receipts.sql', sha256: 'f547567e84f32cf24b58d1e72426c785d9fc7df2163732556298f0b6b6985435' }),
 ]);
 export const memorySchemaVersion = memoryMigrations.at(-1).version;

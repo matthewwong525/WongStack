@@ -41,7 +41,7 @@ export async function initializeMemoryInstallation(operator, input) {
   if (state === null) {
     requireValue(input.expectedInstallation === null, 'installation-conflict');
     const statements = await trustedMigrations(operator);
-    statements.push(...bootstrapStatements(target, normalized, requestHash, crypto.randomUUID(), crypto.randomUUID()));
+    statements.push(...await bootstrapStatements(target, normalized, requestHash, crypto.randomUUID(), crypto.randomUUID()));
     try {
       // Submit one batch; the live REST rollback/concurrency gate is required before
       // integration. Worker-binding guarantees are not assumed for this transport.

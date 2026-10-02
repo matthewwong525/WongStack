@@ -1,6 +1,14 @@
 # Owner operator preparation
 
-This is a source-only part of task 1.4. The first-owner request/CSRF/candidate slice passed at `e992cef873b0c84eb1937f6e05379a6c6b2a91f7`; its [acceptance record](owner-candidate-contract.md) passed at `a0f0fc3b2830fd27f6852552edf64848ec70513a`. This new preparation slice has not passed its own source gate yet. Tasks 1.4 and 1.3b remain unchecked. No memory installation, live human candidate or operator confirmation is presumed to exist.
+This is a source-only part of task 1.4. The first-owner request/CSRF/candidate slice passed at `e992cef873b0c84eb1937f6e05379a6c6b2a91f7`; its [acceptance record](owner-candidate-contract.md) passed at `a0f0fc3b2830fd27f6852552edf64848ec70513a`. This preparation slice passed its own source gate as recorded below. Tasks 1.4 and 1.3b remain unchecked. No memory installation, live human candidate or operator confirmation is presumed to exist.
+
+## Source acceptance record
+
+The checkpoint owner reported `SOURCE_GATE_RESULT=SUCCESS` at exact revision `c52c1efc63eef6a5c37872221b78fccb79abb664`: [build 37051066033](https://github.com/matthewwong525/WongStack/actions/runs/37051066033), [payload/scripts 37051066035](https://github.com/matthewwong525/WongStack/actions/runs/37051066035), and [app tests 37051066030](https://github.com/matthewwong525/WongStack/actions/runs/37051066030), all required push checks successful. Skipped duplicate PR entries are excluded. The full script suite passed 1,241 tests with zero failures; coverage was 92.62% statements/lines, 89.05% branches and 94.52% functions, with unchanged floors.
+
+The preceding `22fdefdd8df705e351d5e385b9def0ebcaeae3c6` payload gate failed four tests because hooks were assigned to a copied fixture object. The single-file repair wraps the actual synthetic provider callback and preserves the read-only/query/state assertions, adding counters for injected mutations/errors. The corrected test hash is `f46c369f891ec994c94978c7e9ec5cb2f95cd80237a0658a5b364c33da390c5e`; the two modules and this document's pre-record contents were unchanged through the successful gate. No local suites/build/lint were run.
+
+Only the source freeze was released. No CLI, route, consumer, principal, confirmation, provider call or live integration acceptance followed. The next dependency is the [durable receipt design](owner-receipt-design.md); only change-local design work is authorized at this checkpoint.
 
 ## Reserved source boundary
 

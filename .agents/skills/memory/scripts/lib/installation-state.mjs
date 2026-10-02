@@ -1,6 +1,8 @@
 import { memoryMigrations, memorySchemaVersion } from './installation-migrations.mjs';
 import { requireValue, opaqueId, digest, rows, MemoryOperatorError } from './installation-validation.mjs';
 
+export const migrationManifestHash = () => digest(JSON.stringify(memoryMigrations));
+
 export async function readInstallation(operator, target) {
   const tables = await rows(operator, target, "SELECT name FROM sqlite_master WHERE type = 'table'");
   requireValue(tables.every(row => typeof row.name === 'string'), 'provider-unavailable');
@@ -9,13 +11,22 @@ export async function readInstallation(operator, target) {
   requireValue(['memory_installation_configuration', 'memory_bootstrap_completion', 'schema_migrations'].every(name => names.includes(name)), 'installation-conflict');
   const versions = await rows(operator, target, 'SELECT version FROM schema_migrations ORDER BY version');
   requireValue(versions.length === memoryMigrations.length && versions.every((row, index) => row.version === memoryMigrations[index].version), 'schema-unsupported');
+  requireValue(['memory_schema_receipts', 'memory_owner_reviews', 'memory_owner_attempts', 'memory_owner_completions'].every(name => names.includes(name)), 'installation-conflict');
+  const triggers = await rows(operator, target, "SELECT name FROM sqlite_master WHERE type = 'trigger'");
+  requireValue(['memory_schema_receipt_immutable', 'memory_schema_receipt_retained', 'memory_owner_review_transition', 'memory_owner_review_retained',
+    'memory_owner_attempt_immutable', 'memory_owner_attempt_retained', 'memory_owner_completion_immutable', 'memory_owner_completion_retained']
+    .every(name => triggers.some(row => row.name === name)), 'installation-conflict');
+  const manifestHash = await migrationManifestHash();
   const state = await rows(operator, target, `SELECT i.*, c.app_origin, c.memory_origin, c.app_worker_name, c.memory_worker_name,
     c.operation_id, c.request_hash, c.owner_email, c.access_json, c.pin_revision
     FROM memory_installation i JOIN memory_installation_configuration c USING (installation_id)
     JOIN memory_bootstrap_completion done ON done.installation_id = i.installation_id AND done.request_hash = c.request_hash
     JOIN memory_audit audit ON audit.id = done.audit_id AND audit.installation_id = i.installation_id
       AND audit.actor_kind = 'operator' AND audit.action = 'installation-initialized'
-      AND audit.target_id = i.installation_id AND audit.result = 'allowed'`);
+      AND audit.target_id = i.installation_id AND audit.result = 'allowed'
+    JOIN memory_schema_receipts receipt ON receipt.installation_id = i.installation_id AND receipt.repository_id = i.repository_id
+      AND receipt.schema_version = ? AND receipt.manifest_hash = ? AND receipt.request_hash = c.request_hash AND receipt.audit_id = done.audit_id`,
+  [memorySchemaVersion, manifestHash]);
   requireValue(state.length === 1, 'installation-conflict');
   const value = state[0];
   requireValue(opaqueId(value.installation_id) && opaqueId(value.repository_id) && ['pending', 'maintenance', 'ready'].includes(value.state), 'installation-conflict');
@@ -41,7 +52,7 @@ export async function trustedMigrations(operator) {
   return statements;
 }
 
-export function bootstrapStatements(target, input, requestHash, installationId, repositoryId) {
+export async function bootstrapStatements(target, input, requestHash, installationId, repositoryId) {
   const now = Math.floor(Date.now() / 1000);
   const auditId = crypto.randomUUID();
   const statements = [{
@@ -66,6 +77,10 @@ export function bootstrapStatements(target, input, requestHash, installationId, 
     sql: `INSERT INTO memory_audit (id, installation_id, actor_kind, action, target_id, result, created_at)
       VALUES (?, ?, 'operator', 'installation-initialized', ?, 'allowed', ?)`,
     params: [auditId, installationId, installationId, now],
+  }, {
+    sql: `INSERT INTO memory_schema_receipts (installation_id, repository_id, schema_version, manifest_hash, request_hash, audit_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    params: [installationId, repositoryId, memorySchemaVersion, await migrationManifestHash(), requestHash, auditId, now],
   }, {
     sql: `INSERT INTO memory_bootstrap_completion (installation_id, request_hash, audit_id)
       SELECT c.installation_id, c.request_hash, ? FROM memory_installation_configuration c

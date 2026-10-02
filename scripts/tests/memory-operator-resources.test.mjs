@@ -1,3 +1,4 @@
+import { inspectResources, inspectProtection, protectionDigest, humanAdmitted } from '../../.agents/skills/memory/scripts/lib/installation-resources.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initializeMemoryInstallation as initialize, readMemorySetupStatus as status } from '../../.agents/skills/memory/scripts/lib/installation-operator.mjs';
@@ -133,4 +134,28 @@ test('malformed provider query envelopes and unbounded Access pagination fail cl
   f.intercept = async (method, path) => path.includes('/access/apps?') ? Array.from({ length: 50 }, (_, index) => ({ id: `foreign-${index}` })) : undefined;
   await assert.rejects(initialize(f.operator, inputFor(f)), { code: 'provider-unavailable' });
   assert.equal(f.calls.filter(row => row.path.includes('/access/apps?')).length, 100);
+});
+
+test('receipt projection is stable, excludes secret envelopes and binds critical protection', async t => {
+  const f = operatorFixture(t);
+  const inspect = async () => {
+    const resources = await inspectResources(f.operator, f.target);
+    assert.equal(await inspectProtection(f.operator, f.target, f.access, resources), null);
+    assert.equal(humanAdmitted(resources, f.access.appApplicationId, 'owner@example.com'), true);
+    assert.equal(humanAdmitted(resources, f.access.appApplicationId, 'unknown@example.com'), false);
+    return protectionDigest(resources);
+  };
+  const before = await inspect();
+  const w = f.workers.get(f.target.appWorkerName);
+  w.info.private_secret = 'never project this'; w.app.private_secret = 'nor this'; w.policy.description = 'unrelated';
+  w.settings.bindings.reverse(); w.active.resources.bindings.reverse(); w.app.destinations.reverse();
+  assert.equal(await inspect(), before);
+  w.policy.include.push({ email: { email: 'other@example.com' } });
+  assert.notEqual(await inspect(), before);
+  w.policy.include.pop();
+  const version = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
+  w.active.id = version; w.deployment.deployments[0].versions[0].version_id = version;
+  f.receipts.set(`/accounts/${f.target.accountId}/workers/scripts/${f.target.appWorkerName}/versions/${version}`, w.active);
+  assert.notEqual(await inspect(), before);
+  assert.equal(before.includes('never'), false);
 });

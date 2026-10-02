@@ -1,3 +1,5 @@
+import { migrationManifestHash } from '../../.agents/skills/memory/scripts/lib/installation-state.mjs';
+import { inspectResources, inspectProtection, protectionDigest } from '../../.agents/skills/memory/scripts/lib/installation-resources.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -8,18 +10,24 @@ import { planMemoryRestProbe, runRestTransportProbe, runMemoryInitializationProb
 import { boundedTransport } from '../pilots/memory-rest/transport.mjs';
 import { operatorFixture, inputFor } from './fixtures/memory/operator.mjs';
 
-function fixture(t) {
+async function fixture(t) {
   const f = operatorFixture(t);
   const databaseName = 'fixture-project-memory';
   f.receipts.get(`/accounts/${f.target.accountId}/d1/database/${f.target.databaseId}`).name = databaseName;
-  const input = { sourceRevision: 'b'.repeat(40), runId: 'c'.repeat(32),
+  const resources = await inspectResources(f.operator, f.target);
+  await inspectProtection(f.operator, f.target, f.access, resources);
+  f.calls.length = 0;
+  const input = { protocolVersion: 2, sourceRevision: 'b'.repeat(40), runId: 'c'.repeat(32),
     target: { accountId: f.target.accountId, databaseId: f.target.databaseId, databaseName }, initialization: inputFor(f) };
-  const manifest = { version: 1, account: f.target.accountId, prefix: 'fixture', sourceGate: { sourceCommit: input.sourceRevision, requiredChecks: 'SUCCESS' },
+  input.snapshot = { sourceRevision: input.sourceRevision, schemaVersion: 11, manifestHash: await migrationManifestHash(), assetDigest: 'e'.repeat(64) };
+  input.protectionDigest = await protectionDigest(resources);
+  const manifest = { version: 1, account: f.target.accountId, prefix: 'fixture', sourceGate: { sourceCommit: input.sourceRevision, requiredChecks: 'SUCCESS', snapshot: structuredClone(input.snapshot) },
     resources: [{ kind: 'd1', environment: 'memory', id: f.target.databaseId, name: databaseName, status: 'created',
       receipt: { uuid: f.target.databaseId, name: databaseName, accountId: f.target.accountId, source: 'create-response' } }] };
   const records = [];
   const context = {
     readManifest: async () => structuredClone(manifest),
+    readSnapshotReceipt: async () => structuredClone(input.snapshot),
     record: async value => {
       if (value.status === 'INTENT' && records.some(row => row.phase === value.phase && row.status === 'INTENT')) throw new Error('Phase already claimed');
       records.push(structuredClone(value));
@@ -36,7 +44,7 @@ function fixture(t) {
 const objects = f => f.db.prepare("SELECT name FROM sqlite_master WHERE name NOT GLOB 'sqlite_*' AND name NOT GLOB '_cf_*'").all().map(row => row.name);
 
 test('probe planning is read-only, scoped to an exact owned memory receipt and hides owner intent', async t => {
-  const f = fixture(t);
+  const f = await fixture(t);
   const plan = await planMemoryRestProbe(f.manifest, f.input);
   assert.deepEqual(plan.phases, ['transport', 'initialization']);
   assert.equal(plan.executionAuthorized, false); assert.equal(plan.createsResources, false);
@@ -50,7 +58,7 @@ test('probe planning is read-only, scoped to an exact owned memory receipt and h
 });
 
 test('plan refuses business databases, absent/ambiguous receipts, wrong gates and injected identifiers', async t => {
-  const f = fixture(t);
+  const f = await fixture(t);
   const changes = [
     m => { m.resources[0].environment = 'production'; },
     m => { m.resources[0].environment = 'staging'; },
@@ -77,7 +85,7 @@ test('plan refuses business databases, absent/ambiguous receipts, wrong gates an
 });
 
 test('transport observes positive DDL/metadata and failed-batch rollback, then removes only owned probe tables', async t => {
-  const f = fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
   const result = await runRestTransportProbe(f.context, f.input, plan);
   assert.equal(result.status, 'PASS'); assert.equal(result.rollbackObserved, true);
   assert.equal(result.emptyAfterCleanup, true); assert.equal(result.officialGuarantee, false);
@@ -91,7 +99,7 @@ test('transport observes positive DDL/metadata and failed-batch rollback, then r
 });
 
 test('nontransactional REST behavior retains effects and never advances to initializer', async t => {
-  const f = fixture(t); f.original.atomic = false;
+  const f = await fixture(t); f.original.atomic = false;
   const plan = await planMemoryRestProbe(f.manifest, f.input);
   await assert.rejects(runRestTransportProbe(f.context, f.input, plan), { code: 'rollback-left-effects' });
   assert.equal(objects(f).some(name => name.includes('_rollback_')), true);
@@ -104,7 +112,7 @@ test('nontransactional REST behavior retains effects and never advances to initi
 test('wrong provider identity and pre-existing data stop before probe writes', async t => {
   for (const prepare of [f => { f.receipts.get(`/accounts/${f.target.accountId}/d1/database/${f.target.databaseId}`).name = 'foreign'; },
     f => { f.db.exec('CREATE TABLE business (id TEXT)'); }]) {
-    const f = fixture(t); prepare(f);
+    const f = await fixture(t); prepare(f);
     const plan = await planMemoryRestProbe(f.manifest, f.input);
     await assert.rejects(runRestTransportProbe(f.context, f.input, plan));
     assert.equal(f.original.batches, 0);
@@ -113,7 +121,7 @@ test('wrong provider identity and pre-existing data stop before probe writes', a
 });
 
 test('an unrelated failure is not rollback evidence; raw provider errors never enter reports', async t => {
-  const f = fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
   f.original.intercept = async (method, path, body) => {
     if (body?.batch?.[0].sql.includes('_rollback_')) throw new Error('PRIVATE_PROVIDER_BODY_AND_SECRET');
   };
@@ -124,7 +132,7 @@ test('an unrelated failure is not rollback evidence; raw provider errors never e
 });
 
 test('manifest/evidence changes and unavailable durable recording refuse before execution', async t => {
-  const f = fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
   await assert.rejects(runRestTransportProbe({ ...f.context, record: undefined }, f.input, plan), { code: 'private-context-required' });
   await assert.rejects(runRestTransportProbe({ ...f.context, readManifest: async () => { throw new Error('private'); } }, f.input, plan), { code: 'manifest-read-failed' });
   await assert.rejects(runRestTransportProbe(f.context, f.input, { ...plan, planDigest: 'x' }), { code: 'plan-changed' });
@@ -133,7 +141,7 @@ test('manifest/evidence changes and unavailable durable recording refuse before 
 });
 
 test('bounded transport cannot write another DB, provision resources or exceed its call budget', async t => {
-  const f = fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
   const transport = boundedTransport(f.context, plan, 1);
   for (const [method, path] of [['POST', `/accounts/${f.target.accountId}/workers/scripts/new`], ['DELETE', `/accounts/${f.target.accountId}/d1/database/${f.target.databaseId}`],
     ['POST', `/accounts/${f.target.accountId}/d1/database/foreign/query`], ['GET', `/accounts/${'b'.repeat(32)}/workers/subdomain`],
@@ -146,7 +154,7 @@ test('bounded transport cannot write another DB, provision resources or exceed i
 });
 
 test('source-only transport plan cannot authorize initializer, and an unreadable evidence record remains blocked', async t => {
-  const f = fixture(t); const input = { ...f.input, initialization: null };
+  const f = await fixture(t); const input = { ...f.input, initialization: null };
   const plan = await planMemoryRestProbe(f.manifest, input);
   await assert.rejects(runMemoryInitializationProbe(f.context, input, plan), { code: 'initialization-input-required' });
   const full = await planMemoryRestProbe(f.manifest, f.input);
@@ -155,7 +163,7 @@ test('source-only transport plan cannot authorize initializer, and an unreadable
 });
 
 test('separate initializer phase races actual canonical exports, recovers simulated response loss and retains pending state', async t => {
-  const f = fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
   await runRestTransportProbe(f.context, f.input, plan);
   assert.equal(objects(f).includes('memory_installation'), false);
   const result = await runMemoryInitializationProbe(f.context, f.input, plan);
@@ -170,20 +178,25 @@ test('separate initializer phase races actual canonical exports, recovers simula
 });
 
 test('initializer phase requires recorded same-plan transport PASS and closed protected Workers', async t => {
-  const f = fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
   await assert.rejects(runMemoryInitializationProbe(f.context, f.input, plan), { code: 'transport-evidence-required' });
   await runRestTransportProbe(f.context, f.input, plan);
   const receipt = f.records.find(row => row.status === 'PASS');
   for (const change of [{ status: 'FAIL' }, { sourceRevision: 'f'.repeat(40) }, { planDigest: 'foreign' }, { officialGuarantee: true }, { integrationReleased: true }])
     await assert.rejects(runMemoryInitializationProbe({ ...f.context, readTransportEvidence: async () => ({ ...receipt, ...change }) }, f.input, plan), { code: 'transport-evidence-required' });
   for (const row of f.workers.get(f.target.memoryWorkerName).app.destinations) row.overrides = [{ behavior: 'public', path_pattern: '/_memory/*' }];
+  const changed = await inspectResources(f.operator, f.target);
+  await inspectProtection(f.operator, f.target, f.access, changed);
+  const openedInput = { ...f.input, protectionDigest: await protectionDigest(changed) };
+  const openedPlan = await planMemoryRestProbe(f.manifest, openedInput);
+  const openedContext = { ...f.context, readTransportEvidence: async () => ({ ...receipt, planDigest: openedPlan.planDigest, protectionDigest: openedPlan.protectionDigest }) };
   const before = f.original.batches;
-  await assert.rejects(runMemoryInitializationProbe(f.context, f.input, plan), { code: 'closed-access-required' });
+  await assert.rejects(runMemoryInitializationProbe(openedContext, openedInput, openedPlan), { code: 'closed-access-required' });
   assert.equal(f.original.batches, before); assert.deepEqual(objects(f), []);
 });
 
 test('initializer preflight failure cancels competing attempts and retains any ambiguity', async t => {
-  const f = fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
   await runRestTransportProbe(f.context, f.input, plan);
   f.operator.readMigration = async () => { throw new Error('private migration path'); };
   const before = f.original.batches;
@@ -193,8 +206,8 @@ test('initializer preflight failure cancels competing attempts and retains any a
   assert.equal(JSON.stringify(f.records).includes('private migration path'), false);
 });
 
-test('read-only CLI prints a plan and has no mutation or credential switch', t => {
-  const f = fixture(t); const dir = mkdtempSync(join(tmpdir(), 'memory-probe-plan-'));
+test('read-only CLI prints a plan and has no mutation or credential switch', async t => {
+  const f = await fixture(t); const dir = mkdtempSync(join(tmpdir(), 'memory-probe-plan-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const manifest = join(dir, 'manifest.json'); const input = join(dir, 'input.json');
   writeFileSync(manifest, JSON.stringify(f.manifest)); writeFileSync(input, JSON.stringify(f.input));
@@ -209,4 +222,33 @@ test('read-only CLI prints a plan and has no mutation or credential switch', t =
   const invalid = run(['--manifest', manifest, '--input', input]);
   assert.notEqual(invalid.status, 0); assert.equal(invalid.stderr.includes('private file content'), false);
   assert.deepEqual(f.calls, []);
+});
+
+test('schema11 plan rejects old protocol, wrong manifests and mixed snapshot receipts before transport', async t => {
+  const f = await fixture(t);
+  for (const change of [{ protocolVersion: 1 }, { snapshot: { ...f.input.snapshot, schemaVersion: 10 } },
+    { snapshot: { ...f.input.snapshot, manifestHash: '0'.repeat(64) } }, { snapshot: { ...f.input.snapshot, sourceRevision: 'a'.repeat(40) } },
+    { snapshot: { ...f.input.snapshot, assetDigest: 'a'.repeat(64) } }, { protectionDigest: null }]) {
+    await assert.rejects(planMemoryRestProbe(f.manifest, { ...f.input, ...change }));
+  }
+  const plan = await planMemoryRestProbe(f.manifest, f.input);
+  assert.equal(plan.protocolVersion, 2); assert.equal(plan.snapshot.schemaVersion, 11);
+  await assert.rejects(runRestTransportProbe({ ...f.context, readSnapshotReceipt: undefined }, f.input, plan), { code: 'snapshot-verification-required' });
+  await assert.rejects(runRestTransportProbe({ ...f.context, readSnapshotReceipt: async () => { throw new Error('private snapshot path'); } }, f.input, plan), { code: 'snapshot-verification-required' });
+  await assert.rejects(runRestTransportProbe({ ...f.context, readSnapshotReceipt: async () => ({ ...f.input.snapshot, assetDigest: '0'.repeat(64) }) }, f.input, plan), { code: 'snapshot-mismatch' });
+  await assert.rejects(runRestTransportProbe(f.context, f.input, { ...plan, protocolVersion: 1 }), { code: 'plan-changed' });
+  assert.equal(f.calls.length, 0); assert.deepEqual(objects(f), []);
+});
+
+test('old phase evidence and changed actual deployment pins cannot release schema11 initialization', async t => {
+  const f = await fixture(t); const plan = await planMemoryRestProbe(f.manifest, f.input);
+  await runRestTransportProbe(f.context, f.input, plan);
+  const evidence = f.records.find(row => row.status === 'PASS');
+  for (const change of [{ protocolVersion: 1 }, { snapshot: { ...evidence.snapshot, schemaVersion: 10 } }, { protectionDigest: '0'.repeat(64) }]) {
+    await assert.rejects(runMemoryInitializationProbe({ ...f.context, readTransportEvidence: async () => ({ ...evidence, ...change }) }, f.input, plan), { code: 'transport-evidence-required' });
+  }
+  f.workers.get(f.target.appWorkerName).policy.include.push({ email: { email: 'new@example.com' } });
+  const before = f.original.batches;
+  await assert.rejects(runMemoryInitializationProbe(f.context, f.input, plan), { code: 'protection-pins-changed' });
+  assert.equal(f.original.batches, before); assert.deepEqual(objects(f), []);
 });
