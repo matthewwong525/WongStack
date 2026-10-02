@@ -177,6 +177,7 @@ test('URL/ref/header helpers reject untrusted routes and privilege forwarding', 
   assert.equal(https('https://host.example/'), 'https://host.example'); assert.throws(() => https('http://bad'), /HTTPS/);
   assert.equal(refName(ref), 'feature'); assert.throws(() => refName('refs/heads/../bad'), /branch/);
   assert.equal(safePath('/apps/hello/?x=1'), '/apps/hello/?x=1'); assert.throws(() => safePath('/%2e%2e/secret'), /Restricted/);
+  assert.throws(() => safePath('/bad' + String.fromCharCode(0)), /Invalid/); assert.throws(() => safePath('/bad%00path'), /Restricted/);
   assert(!siteHeaders({ authorization: 'secret', cookie: 'secret', accept: 'text/html' }).has('authorization'));
   assert.deepEqual(from64(to64(new Uint8Array([0, 1, 255]))), new Uint8Array([0, 1, 255]));
 });

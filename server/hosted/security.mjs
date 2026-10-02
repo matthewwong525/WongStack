@@ -17,10 +17,11 @@ export async function digest(value) {
 }
 export const from64 = text => { need(typeof text === 'string' && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(text), 'Invalid base64'); return Uint8Array.from(atob(text), x => x.charCodeAt(0)); };
 export const to64 = bytes => { let out = ''; for (let i = 0; i < bytes.length; i += 8192) out += String.fromCharCode(...bytes.subarray(i, i + 8192)); return btoa(out); };
+const unsafePathCharacter = value => Array.from(value).some(character => character === '\\' || character.charCodeAt(0) < 32);
 export function safePath(path) {
-  need(typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') && path.length < 4096 && !/[\\\u0000-\u001f]/.test(path), 'Invalid site path', 400);
+  need(typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') && path.length < 4096 && !unsafePathCharacter(path), 'Invalid site path', 400);
   const decoded = decodeURIComponent(path.split('?')[0]);
-  need(!decoded.includes('..') && !decoded.startsWith('//') && !decoded.includes('\\') && !decoded.startsWith('/_memory/') && !decoded.startsWith('/__wongstack/'), 'Restricted site path', 400);
+  need(!decoded.includes('..') && !decoded.startsWith('//') && !unsafePathCharacter(decoded) && !decoded.startsWith('/_memory/') && !decoded.startsWith('/__wongstack/'), 'Restricted site path', 400);
   return path;
 }
 export function siteHeaders(input = {}) {

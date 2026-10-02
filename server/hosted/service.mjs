@@ -1,6 +1,6 @@
 import { ProjectController, initialProject } from './project.mjs';
 import { HostedProvider } from './provider.mjs';
-import { need, reply, uuidOK, digest, shaOK, refName, publicCandidate } from './security.mjs';
+import { need, reply, uuidOK, digest, shaOK, publicCandidate } from './security.mjs';
 import { validateBundle } from './bundle.mjs';
 import { publishBundle } from './pipeline.mjs';
 
