@@ -4,28 +4,28 @@ import {test} from 'node:test';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {prepare,configureHosted,installHosted,restoreArtifacts} from '../../server/prepare-hosted.mjs';
+import {prepare,configureHosted,installHosted,restoreArtifacts,cloneArtifacts} from '../../server/prepare-hosted.mjs';
 import {SOURCE} from '../../server/install-wongstack.mjs';
 const job={serviceUrl:'https://hosted.example.com',projectId:'11111111-1111-1111-1111-111111111111',token:'private-grant',gitUrl:'https://git.example.com/account/project.git',sourceRepo:'owner/WongStack',sourceCommit:'a'.repeat(40),ownerEmail:'owner@example.com',subject:'owner-1',subjectEmail:'owner@example.com',role:'owner'};
 const refs=`${'a'.repeat(40)}\trefs/heads/main\n${'b'.repeat(40)}\trefs/tags/v1\n`;
-function commands(_home,{legacy=false,missingTag=false,populated=false,restoreFailure=false,fullRefs=refs}={}) {
- const calls=[];let pushed=false,origin=legacy?'https://github.com/owner/Existing.git':job.gitUrl;
+function commands(_home,{legacy=false,missingTag=false,populated=false,restoreFailure=false,fullRefs=refs,providerHead='main'}={}) {
+ const calls=[],branches=new Map(),remoteHeads=new Map(),advertised=new Map(fullRefs.trim().split('\n').map(line=>{const [sha,ref]=line.split(/\s+/);return [ref,sha];}));let pushed=false,origin=legacy?'https://github.com/owner/Existing.git':job.gitUrl;
  const exec=async(file,args)=>{
   assert.equal(file,'git');calls.push(args);
   let stdout='';
   if(args[0]==='-C' && args[1]===SOURCE && args.includes('rev-parse')) stdout=job.sourceCommit;
-  else if(args[0]==='clone') {const dir=args.at(-1);mkdirSync(args.includes('--mirror') || args.includes('--bare')?dir:join(dir,'.git'),{recursive:true});if(args.includes('--mirror') || args.includes('--bare'))writeFileSync(join(dir,'HEAD'),'ref: refs/heads/main');}
-  else if(args[0]==='ls-remote') stdout=args.includes('--symref') ? `ref: refs/heads/main\tHEAD\n${'a'.repeat(40)}\tHEAD\n` : args.at(-1)===job.gitUrl ? (pushed||populated?(missingTag?fullRefs.split('\n')[0]:fullRefs):'') : fullRefs;
+  else if(args[0]==='clone') {const dir=args.at(-1),branch=args.includes('--branch')?args[args.indexOf('--branch')+1]:'main';branches.set(dir,branch);mkdirSync(args.includes('--mirror') || args.includes('--bare')?dir:join(dir,'.git'),{recursive:true});if(args.includes('--mirror') || args.includes('--bare'))writeFileSync(join(dir,'HEAD'),`ref: refs/heads/${branch}`);}
+  else if(args[0]==='ls-remote') stdout=args.includes('--symref') ? `ref: refs/heads/${providerHead}\tHEAD\n${advertised.get(`refs/heads/${providerHead}`)||'f'.repeat(40)}\tHEAD\n` : args.at(-1)===job.gitUrl ? (pushed||populated?(missingTag?fullRefs.split('\n')[0]:fullRefs):'') : fullRefs;
   else if(args.includes('fetch') && args[1]?.includes('restored-') && restoreFailure) throw new Error('bounded restore failed');
   else if(args.includes('show-ref')) stdout=fullRefs;
   else if(args.includes('--is-bare-repository')) stdout='true';
   else if(args.includes('push')) pushed=true;
   else if(args.includes('--git-common-dir')) stdout='.git';
   else if(args.includes('get-url')) stdout=args[1]?.includes('-restore-') || args[1]?.includes('/restored-') ? job.gitUrl : origin;
-  else if(args.includes('symbolic-ref')) stdout=args.length===4 ? args.at(-1)==='HEAD' ? 'refs/heads/main' : 'refs/remotes/origin/main' : '';
+  else if(args.includes('symbolic-ref')) {if(args.length===5)remoteHeads.set(args[1],args.at(-1));else stdout=args.at(-1)==='HEAD'?`refs/heads/${branches.get(args[1])||'main'}`:remoteHeads.get(args[1])||`refs/remotes/origin/${branches.get(args[1])||'main'}`;}
   else if(args.includes('--get') && args.includes('remote.origin.fetch')) stdout='+refs/heads/*:refs/remotes/origin/*';
-  else if(args.includes('rev-parse') && args.includes('HEAD')) stdout='a'.repeat(40);
-  else if(args.includes('for-each-ref')) stdout=`${'a'.repeat(40)} refs/remotes/origin/HEAD\n`+fullRefs.trim().split('\n').flatMap(line=>{const [id,ref]=line.split(/\s+/);return ref.startsWith('refs/heads/') ? [`${id} refs/remotes/origin/${ref.slice('refs/heads/'.length)}`] : ref.startsWith('refs/tags/') ? [`${id} ${ref}`] : [];}).join('\n');
+  else if(args.includes('rev-parse') && args.includes('HEAD')) stdout=advertised.get(`refs/heads/${branches.get(args[1])||'main'}`)||'a'.repeat(40);
+  else if(args.includes('for-each-ref')) stdout=`${advertised.get(`refs/heads/${branches.get(args[1])||'main'}`)} refs/remotes/origin/HEAD\n`+fullRefs.trim().split('\n').flatMap(line=>{const [id,ref]=line.split(/\s+/);return ref.startsWith('refs/heads/') ? [`${id} refs/remotes/origin/${ref.slice('refs/heads/'.length)}`] : ref.startsWith('refs/tags/') ? [`${id} ${ref}`] : [];}).join('\n');
   else if(args.includes('set-url')) origin=args.at(-1);
   return {stdout,stderr:''};
  };
@@ -387,4 +387,32 @@ test('full-ref parsing preserves Git-valid closing brackets and a dot at the end
  const s=restoreFixture({unusual:true});
  try {await restoreArtifacts(job.gitUrl,s.dir,s.exec);assert.equal(s.local.get('refs/heads/bracket]/component./tip'),'e'.repeat(40));assert.deepEqual(s.local,s.advertised);}
  finally{rmSync(s.home,{recursive:true,force:true});}
+});
+
+test('fresh populated workspaces choose publication main over a conflicting verified provider HEAD',async()=>{
+ const home=mkdtempSync(join(tmpdir(),'hosted-canonical-main-')),dir=join(home,'fresh'),restored=join(home,'independent.git');
+ const fullRefs=refs+`${'c'.repeat(40)}\trefs/heads/develop\n`,fake=commands(home,{populated:true,fullRefs,providerHead:'develop'});
+ try {
+  await cloneArtifacts(job.gitUrl,dir,restored,fake.exec);
+  const seed=fake.calls.find(args=>args[0]==='clone' && args.at(-1)===restored),working=fake.calls.find(args=>args[0]==='clone' && args.at(-1)===dir);
+  assert.equal(seed[seed.indexOf('--branch')+1],'develop','independent restore may seed the actual provider HEAD');
+  assert.equal(working[working.indexOf('--branch')+1],'main','working clone must start from publication main');
+  assert.equal((await fake.exec('git',['-C',dir,'symbolic-ref','HEAD'])).stdout,'refs/heads/main');
+  assert.equal((await fake.exec('git',['-C',dir,'rev-parse','HEAD'])).stdout,'a'.repeat(40));
+  assert.equal((await fake.exec('git',['-C',dir,'symbolic-ref','refs/remotes/origin/HEAD'])).stdout,'refs/remotes/origin/main');
+  assert.ok(fake.calls.some(args=>args[1]===dir && args.includes('+refs/heads/develop:refs/remotes/origin/develop')));
+  assert.equal(fake.calls.filter(args=>args.includes('fsck')).length,2);
+ }finally{rmSync(home,{recursive:true,force:true});}
+});
+test('a fresh working clone without main retains the verified advertised default-head fallback',async()=>{
+ const home=mkdtempSync(join(tmpdir(),'hosted-default-fallback-')),dir=join(home,'fresh'),restored=join(home,'independent.git');
+ const fullRefs=`${'b'.repeat(40)}\trefs/tags/v1\n${'c'.repeat(40)}\trefs/heads/develop\n`,fake=commands(home,{populated:true,fullRefs,providerHead:'develop'});
+ try {
+  await cloneArtifacts(job.gitUrl,dir,restored,fake.exec);
+  const working=fake.calls.find(args=>args[0]==='clone' && args.at(-1)===dir);
+  assert.equal(working[working.indexOf('--branch')+1],'develop');
+  assert.equal((await fake.exec('git',['-C',dir,'symbolic-ref','HEAD'])).stdout,'refs/heads/develop');
+  assert.equal((await fake.exec('git',['-C',dir,'symbolic-ref','refs/remotes/origin/HEAD'])).stdout,'refs/remotes/origin/develop');
+  assert.equal((await fake.exec('git',['-C',dir,'rev-parse','HEAD'])).stdout,'c'.repeat(40));
+ }finally{rmSync(home,{recursive:true,force:true});}
 });

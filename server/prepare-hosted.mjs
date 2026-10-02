@@ -61,11 +61,13 @@ export async function restoreArtifacts(url,dir,exec,{expected}={}) {
   await git(['-C',dir,'fsck','--full']);
   return advertised;
 }
-async function cloneArtifacts(url,dir,restored,exec) {
+export async function cloneArtifacts(url,dir,restored,exec) {
   const git=args=>exec('git',args), advertised=(await git(['ls-remote','--refs',url])).stdout, inventory=refs(advertised);
   if(!inventory.size) {await git(['clone',url,dir]);return;}
   await restoreArtifacts(url,restored,exec,{expected:advertised});
-  const head=await advertisedHead(url,inventory,git);
+  // Hosted publication advances main. A conflicting provider HEAD is metadata
+  // evidence, never authority to select a feature branch for a fresh workspace.
+  const head=inventory.has('refs/heads/main') ? 'refs/heads/main' : await advertisedHead(url,inventory,git);
   if(!head) throw new Error('working clone requires an advertised branch');
   await git(['clone','--single-branch','--no-tags','--branch',head.slice('refs/heads/'.length),url,dir]);
   const specs=[...inventory.keys()].flatMap(ref=>ref.startsWith('refs/heads/') ? [`+${ref}:refs/remotes/origin/${ref.slice('refs/heads/'.length)}`] : ref.startsWith('refs/tags/') ? [`+${ref}:${ref}`] : []);
