@@ -19,6 +19,13 @@ async function fixture(t, options) {
   const f = await ownerCandidateFixture(t, options);
   f.candidate = await f.create((await f.csrf()).csrfToken);
   f.calls.length = 0;
+  // The shared fixture returns a copy; assigning its intercept field cannot
+  // reach the original fixture closure. Wrap the actual callback for this test.
+  const cloudflare = f.operator.cloudflare;
+  f.operator.cloudflare = async (...args) => {
+    const answer = await f.intercept?.(...args);
+    return answer === undefined ? cloudflare(...args) : answer;
+  };
   f.input = { installation: f.installation, candidateId: f.candidate.candidateId };
   f.read = (input = f.input) => readMemoryOwnerReview(f.operator, input);
   return f;
@@ -113,10 +120,15 @@ test('authorization and pin changes during provider readback invalidate the pend
     'UPDATE memory_installation_configuration SET pin_revision = pin_revision + 1',
     "UPDATE memory_login_candidates SET state = 'revoked'"]) {
     const f = await fixture(t);
+    let mutations = 0;
     f.intercept = (method, path) => {
-      if (method === 'GET' && path.endsWith('/access/organizations')) f.db.exec(sql);
+      if (method === 'GET' && path.endsWith('/access/organizations')) {
+        f.db.exec(sql);
+        mutations++;
+      }
     };
     await denied(f.read(), 'candidate-unavailable');
+    assert.equal(mutations, 1);
   }
 });
 
@@ -141,14 +153,21 @@ test('review requires actual production resource pins and current protected huma
 test('provider permission and response errors are safe and never grant fallback authority', async t => {
   for (const [status, code] of [[403, 'operator-denied'], [404, 'target-mismatch'], [500, 'provider-unavailable']]) {
     const f = await fixture(t);
-    f.intercept = () => { throw Object.assign(new Error('private token/provider body'), { status }); };
+    let failures = 0;
+    f.intercept = () => { failures++; throw Object.assign(new Error('private token/provider body'), { status }); };
     await denied(f.read(), code);
+    assert.equal(failures, 1);
   }
   const f = await fixture(t);
+  let substitutions = 0;
   f.intercept = (method, path, body) => {
-    if (method === 'POST' && body.sql.includes('FROM memory_login_candidates')) return [{ success: true, results: [{ id: f.candidate.candidateId }] }];
+    if (method === 'POST' && body.sql.includes('FROM memory_login_candidates')) {
+      substitutions++;
+      return [{ success: true, results: [{ id: f.candidate.candidateId }] }];
+    }
   };
   await denied(f.read(), 'candidate-unavailable');
+  assert.equal(substitutions, 1);
 });
 
 test('confirmation preparation requires explicit review flags and normalizes only the displayed code format', async t => {
