@@ -1,10 +1,10 @@
 # Try Cloudflare Artifacts for hosted projects
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** github-artifacts
 
-**Open questions:** Can one CI runner plus direct Worker version upload complete consecutive previews and approved publication reliably?
+**Open questions:** none for this disposable trial. Customer adoption requires a representative hosted-app trial and runner recovery work.
 
 ## Why
 
@@ -106,3 +106,5 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 - **2026-10-02** — Two consecutive main previews passed (8.843s and 9.214s); deliberate red checks caused no upload, stale approval was refused, staging writes stayed out of production, and Git/memory removal passed. Approved publication exposed a legacy upload-response mismatch: the successful production PUT returned `deployment_id` but no `version_id`, so the adapter retained its reservation and did not finish publication. Switch only the direct backend to explicit version upload and exact-version deployment; prove the final source in a fresh run after cleanup rather than resetting the existing reservation.
 
 - **2026-10-02** — Source `215dc0d` passed all checks and 972 script cases. Fresh run `a1002e8k6` passed its first-ever preview in 27.794s, the next in 9.761s, red checks without upload and a third preview in 12.881s. The exact approved production version was deployed, but the API returned an ID-only POST acknowledgment, which our validator rejected before its detailed GET. Independent GET showed the expected version at 100%. Accept that observed response shape and retain mandatory exact-ID/version/percentage readback; preserve and clean the diagnostic reservation, then repeat from fresh resources.
+
+- **2026-10-02** — Final source `e43c070` passed all remote gates and 972 script cases. Fresh run `a1002f9m2` proved two consecutive previews, blocked red/stale/outdated-base publication, exact owner-approved publication through the Workers API with no deployment runner, isolated databases, duplicate suppression, access removal and full-ref export. One candidate suffered a Sandbox interruption; a fresh commit passed without source changes. This proves feasibility, not production reliability. All fifteen resources and fourteen credentials were removed with no leftovers. Keep the tooling unmerged for review and recommend a representative hosted-app pilot before customer migration. A separate WongStack fork adds no useful isolation over this branch plus disposable Artifacts repositories; hosted-service integration belongs in its own repository.
