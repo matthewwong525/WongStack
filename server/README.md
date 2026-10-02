@@ -175,14 +175,14 @@ The host does this at first boot, in order:
 
 The agent runs that copy for the server's life. Rebuilding the server is the only way it gets a newer agent.
 
-### Contract 2
+### Contract 3
 
 `agent.mjs` exports `CONTRACT = 3`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
 
 **The poll.** Every `interval` seconds (10 by default) the agent sends `POST /api/agent/poll`:
 
 ```json
-{ "contract": 2, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
+{ "contract": 3, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
 ```
 
 `paseo` is `up` when `paseo.service` is active, else `down`. The reply is `{ jobs, interval }`, each job `{ id, type, payload }`. A reply without them means no work and the default wait.
@@ -194,6 +194,7 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `pair` | none | The Paseo relay pairing link. |
 | `suspend` | none | none; stops `paseo.service`. |
 | `resume` | none | none; starts `paseo.service`. |
+| `artifacts` | [The scoped project handoff](#artifacts-preparation-contract-3), plus optional `githubRepo` for owner import or `legacyRepo` for an already verified migration. | `hosted: { projectId, sourceCommit, verified: true, dir }`; prepares the private repo and global setup skill, preserving local work. No payload or site is installed. |
 | `github` | `{ token, repo, name, email, invited }` | none; signs `gh` in, sets git's name and email, clones `repo` once, and sets up Paseo. An `invited` teammate's server accepts the owner's invitation first, or fails with `repo`. |
 | `cloudflare` | [The installer's job](#the-job), plus `sourceRepo` and `sourceCommit`, the pinned clone. The agent adds `openWithoutLogin: true` itself. | none; `rolled` says whether it swapped the pasted token's value for one only the server holds. A failure carries the installer's `reason`, and `detail` when the line before it matches `CLOUDFLARE_CALL`. |
 | `team-add` | `{ repo, login }` | none; gives the GitHub `login` push access to the owner's `repo`. |
@@ -202,9 +203,9 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `copy-send` | `{ copyId, publicKey, port, peer, pullToken }` | none; sends the home folder, locked to `publicKey`, to the one connection from `peer` that proves `pullToken`. |
 | `copy-restore` | `{ copyId, host, port, pullToken }` | none; pulls the copy from `host`, unlocks it, and unpacks it as the workspace user. |
 
-A job of any other type is `rejected` and runs nothing. `cloudflare`, `copy-send`, and `copy-restore` run in the background, one of each type at a time, so the poll goes on around them.
+A job of any other type is `rejected` and runs nothing. `cloudflare`, `artifacts`, `copy-send`, and `copy-restore` run in the background, one of each type at a time, so the poll goes on around them.
 
-**The job result.** The agent sends `POST /api/agent/jobs/:id` with `{ status, result?, reason?, detail?, rolled? }`, where `status` is `done`, `failed`, or `rejected`. For a `cloudflare` job, the host answers `{ ok: true }`, or the agent keeps the outcome and sends it again.
+**The job result.** The agent sends `POST /api/agent/jobs/:id` with `{ status, result?, reason?, detail?, rolled?, hosted? }`, where `status` is `done`, `failed`, or `rejected`. For a `cloudflare` job, the host answers `{ ok: true }`, or the agent keeps the outcome and sends it again.
 
 **The access result.** After a `cloudflare` job with a `managementResult`, the agent reads the [private management result](#the-private-management-result), restricted or open, from its exact path, checks it against the job, and sends it to `POST /api/agent/jobs/:id/access`. It keeps a private journal under `/var/lib/wongstack/access-jobs` so a restart resends it rather than installing again.
 
@@ -212,7 +213,9 @@ A job of any other type is `rejected` and runs nothing. `cloudflare`, `copy-send
 
 A change to any of these shapes raises `CONTRACT`. The host supports the new number first; then the source releases it.
 
-**What changed from contract 1.** The agent asks the installer for [the open finish](#the-open-finish), so a `cloudflare` job on an account without a card ends `done`, and the access result may be the open one. A contract-1 agent never asks, so its server still stops with `cloudflare`, and the host never gets an open result from it.
+**What changed from contract 2.** Contract 3 adds scoped Artifacts preparation and the verified `hosted` acknowledgment. Existing GitHub, Cloudflare and copy job shapes remain compatible. Contracts 1 and 2 receive no Artifacts jobs; the host requests a rebuild first.
+
+**What changed from contract 1 to 2.** The agent asks the installer for [the open finish](#the-open-finish), so a `cloudflare` job on an account without a card ends `done`, and the access result may be the open one. A contract-1 agent never asks, so its server still stops with `cloudflare`, and the host never gets an open result from it.
 
 ### What the agent never does
 

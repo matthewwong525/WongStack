@@ -1,0 +1,65 @@
+# Hosted repository service
+
+This source-only Cloudflare Worker owns Artifacts repositories, private remote builds and exact approved publication. Customer VMs receive project grants; platform credentials stay here. Deploy it separately from the public template app and from the cloud dashboard.
+
+## Deploy in staging first
+
+Pass `config.mjs config input.json output.json` to generate a private Wrangler config; `config.mjs inventory input.json inventory.json` records the exact finite resource plan. Inputs are `account`, a fresh `namespace`, a unique `prefix` of 3–10 lowercase characters, HTTPS `serviceUrl` and `cloudUrl`, a reviewed `sourceRepos` allowlist, and up to four UUID `projectIds` for the trial inventory. Full UUID project names fit Worker and R2 name limits. Staging and production service deployments must use different accounts or prefixes, namespaces, buckets, state and credentials.
+
+The shared inventory is an Artifacts namespace, service Worker, Workflow, Sandbox container application (at most two instances), private cache R2 and private immutable-bundle R2. Wrangler creates the `HostedProject` and `CiSandbox` Durable Object namespaces; retain their actual receipt IDs. Each prepared project initially has only one empty Artifacts repo. Its first `/wong-setup` creates three Workers, three distinct D1 databases, one memory R2 bucket, and one Access application with two policies and a separate verification service token. Access destinations use the provider's actual Worker IDs and protect their separate origins. No repository push subscription is installed: the authenticated installed client requests candidates explicitly, so ordinary unapproved pushes never publish.
+
+Use the locked dependencies in this folder (`npm ci` during the deployment job). Generate the config, provision only absent namespace/cache/bundle names, then deploy it with pinned Wrangler 4.146.0. Record Worker, Workflow, container and DO receipts immediately; an uncertain resource create cannot be retried or adopted automatically. Source checks/builds run remotely before live deployment. Service bootstrap upload is infrastructure deployment; candidate app builds always use remote CI.
+
+Private service secrets are `ADMIN_TOKEN`, `CF_TOKEN`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. The last two are scoped to the cache bucket for the CI SDK's workspace snapshots. The Cloudflare service token needs the explicitly selected account's Artifacts, Workers scripts, D1, R2 management, Workflows, containers/DO and Access app/policy/service-token privileges. Read the existing platform Access organization and email PIN provider; setup stops if either is unavailable. Do not alter billing, broaden a customer's token, create another organization or expose these credentials to a VM, build, browser, log or response. The cloud control plane stores `WONGSTACK_HOSTED_URL` and `WONGSTACK_HOSTED_ADMIN_TOKEN` privately. It pins the reviewed WongStack source before invoking server contract 3.
+
+Keep the infrastructure ownership manifest outside git at mode 0600. Capture each resource intent before creation, actual ID afterward, issued credential IDs and teardown readbacks. The generated inventory is a plan, never proof of existence, ownership or absence. Trials are limited to four projects, sixteen pending candidates per project, three remote attempts per commit, thirty minutes per runner, two concurrent Sandbox instances, 64 MiB decoded bundle bytes, 128 modules, 10,000 assets and 256 migrations. Account/container prices and platform entitlement must be checked for the chosen account before running; these limits are execution bounds, not a spend cap.
+
+## APIs
+
+Every response is `Cache-Control: no-store`; errors are sanitized. Use HTTPS without credential-bearing URLs or redirects. Admin routes require `Authorization: Bearer ADMIN_TOKEN`:
+
+| Route | Input | Result |
+| --- | --- | --- |
+| `POST /v1/projects` | `{id,owner:{id,email},source:{repo,commit}}` | Reviewed exact source and empty project repo; repeat only with identical identity. Unsupported source returns 422. |
+| `POST /v1/projects/:id/access` | `{subject,email,role,vmId}` | Private `{serviceUrl,projectId,token,gitUrl,sourceRepo,sourceCommit,ownerEmail,subject,role}` handoff. |
+| `DELETE /v1/projects/:id/access/:vmId` | None | Disable grant first, revoke every issued Git token, update Access human policy and revoke that project's sessions. Partial failure remains pending and cannot issue new access. |
+| `GET /v1/projects/:id/status` | None | Safe setup, candidates, reservation, production, resource receipts, `productionUrl`, `previews`, `accessVerified`. |
+| `POST /v1/projects/:id/site` | `{sha:null}` or `{sha}` | `{projectId,sha,url,accessVerified:true}`. Redirect only to this protected tenant origin; never proxy candidate JS onto the dashboard origin. |
+| `POST /v1/projects/:id/stop` | `{}` | Disable new work and terminate tracked queued/running Workflows. |
+| `POST /v1/projects/:id/export-receipt` | Exact account/namespace/project/git URL, SHA-256 `refsDigest`, `refsIdentical:true`, `fsckPassed:true`, `independentRestore:true`, recent `completedAt` | Private durable operator receipt, accepted only after quiescence. |
+| `POST /v1/projects/:id/cleanup` | `{}` | Delete only created receipt-owned resources after verified export, read back absence, and remove this project's private bundles. |
+
+Opaque machine tokens carry a project routing ID plus 256 random bits; only their SHA-256 hashes are stored. Live grants derive subject and role; caller body fields never confer a role. Project routes require `Authorization: Bearer <scoped token>`:
+
+| Route | Input | Result |
+| --- | --- | --- |
+| `GET /v1/workspace` | None | Exact project/source/Git/subject/role plus setup and memory status; no secrets. |
+| `POST /v1/git-token` | `{}` | Tracked repository-only write token, `gitUrl`, username and thirty-minute expiry, delivered only to the credential helper. |
+| `POST /v1/setup` | `{}` | Owner-only idempotent owned Wrangler config, install-record memory location, private `env`, memory setup status and Access readback. |
+| `POST /v1/candidates` | `{sha,ref}` | Exact authoritative branch-head queued candidate, deduplicated by branch and commit. |
+| `GET /v1/candidates/:sha?ref=...` | Full branch ref | `queued`, `checking`, `passed`, `failed`, `error` or `cancelled`; exact checks and private preview URL. |
+| `POST /v1/approvals` | `{sha,ref}` | Owner approval bound to exact bundle digest, current branch, main and production bases. |
+| `POST /v1/publications` | `{approvalId}` | Published only after exact stored bytes, Worker receipt and guarded main advancement: `{sha,status:'published',version,defaultRef:'refs/heads/main',defaultSha:sha}`. |
+| `GET /v1/status` | None | Safe project state. |
+
+Candidate uploads use one candidate/attempt-scoped expiring-in-practice capability at `PUT /v1/bundles/:projectId/:sha?ref=...`. It can store only that immutable checked artifact; it cannot read another project, mint credentials, deploy, approve or publish. SHA-256 validation covers every module, static asset, migration and the canonical serialized bundle. The remote command installs the app's lockfile, generates binding types, runs existing app checks and `build:app`, and packages the actual Vite output. It never invokes credentialed migration/deploy scripts. A red check never uploads a Worker. Large bundles go directly into private R2; runner/Workflow receipts contain only bounded digests and identities.
+
+Trusted service code uploads assets using the provider's manifest/JWT/completion flow and Worker modules with explicit owned bindings. Staging has only its staging DB and assets. Only approved production gets production DB and memory bindings. Production and memory version preview URLs remain disabled; only staging exposes immutable private previews. The service-owned outer entry validates a real Access JWT independently of candidate code, strips its runtime secret before business code and serves a secret-protected exact identity endpoint. Public `/_memory/` never falls through to candidate business code.
+
+## Memory integration remains pending
+
+The coordinated installation-owned memory implementation is a required integration task, not a passed setup test. The current runtime returns `protocolVersion:1`, independent installation/repository IDs, pinned app and memory origins, `status:'pending-owner'`, `reason:'owner-unconfirmed'`, and an explicit operator-reviewed `/apps/devices/` action. It issues no memory key and seeds no memory role from cloud ownership, verified email alone or VM credentials. After an owner exists, absence of a valid requesting-machine proof must report pending-device, never ready.
+
+The separate canonical memory Worker and protected Devices UI must use the generic installation-operator library once its reviewed implementation exists. Initialization, fresh owner-candidate review and explicit owner confirmation happen through private authenticated operator transport; no cloud admin HTTP route may impersonate that confirmation. Device connection and memory membership removal remain installation-owned actions. Cloud offboarding immediately disables its VM grant, repository access and Access sessions, while its result explicitly identifies independent memory membership work. The unavailable memory response is visible incomplete work and cannot count as live memory acceptance.
+
+## Publication, recovery and teardown
+
+Approvals live outside the candidate repo. The service independently rereads branch, main and production base, proves actual parent-linked ancestry, and persists a publication reservation before any production migration/upload. It uploads the approved bytes without rebuilding, observes the exact deployed version at 100%, then advances main with Git smart HTTP's atomic old-SHA/new-SHA receive-pack update. Existing objects require only a correctly checksummed empty PACK. Report-status and an independent authoritative main readback are required. The trusted repository-only write token is tracked before use and revoked even on network failure. Divergent or stale main is never overwritten; already-current main is an authoritative no-op.
+
+A network error or default-ref failure after deployment leaves a durable `deployed-awaiting-main`/reserved publication and does not report success. Stop new publication and reconcile provider version, deployment, Git ref and credential receipts against the recorded SHA/digest. Do not reset approval, replay an ambiguous upload or discard the reservation. Production migrations can leave partial state after an uncertain provider response; reconciliation must consider database state as well as the Worker. Read-only status is safe throughout. No automatic publication retry exists.
+
+Candidate Workflows recover through bounded alarms. A failed creation acknowledgment retains the same Workflow ID. Pure runner interruptions before an artifact exists can retry at most three times; uploaded preview failures require a new exact candidate or operator inspection. Sixty unreadable status polls stop automatic recovery and retain the tracked runner identity for operator action. Never claim an UNKNOWN runner/deployment as passing.
+
+Before removal, stop candidates, terminate Workflows and independently restore every advertised branch/tag/object ID into another bare Git destination with `git fsck --full`. Submit the exact export receipt, complete installation-owned memory offboarding, empty the owned memory transcript bucket, then run project cleanup. It refuses active publication, missing export or ambiguous creates. Retain every deletion and token absence readback. Only after all project resources are absent should the operator drain the shared private cache/bundle buckets, remove the service Worker/Workflow/container applications and verify their DO namespaces are absent. Namespace deletion refusal is an exact reported leftover, never a passed cleanup. Keep old GitHub repositories as migration backups.
+
+Promote only after both WongStack and cloud commits pass their remote gates and the real staging trial proves empty repo → `/wong-setup` → real assets/migrations/approved memory → private preview → approved publication → next branch from updated main, plus isolation, revocation, migration/export and cleanup. Unfinished memory protocol or untested provider behavior leaves merge readiness incomplete.

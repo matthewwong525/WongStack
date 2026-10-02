@@ -1,0 +1,19 @@
+# Hosted migration staging trial
+
+This is the current bounded verification plan, not live acceptance evidence. Earlier fixture trials remain in their original reports.
+
+The explicit account is 040f88e2bf4f25fb0b91b7cb24f3d442. Use unique prefix wh1002 and namespace wongstack-hosted-wh1002; never adopt or remove the existing user namespace wongstack. The private ownership manifest lives in the ignored .scratch/hosted-wh1002 folder and records actual resource and credential receipts before cleanup.
+
+Shared resources: namespace, wh1002-service Worker, wh1002-pipeline Workflow, wh1002-runner container application (two instances maximum), wh1002-cache and wh1002-bundles R2 buckets, plus the service-created HostedProject and CiSandbox Durable Object namespaces.
+
+Primary project a13a2202-3ea0-41b9-96b2-4c0b14235c31: one repo; production, staging and memory Workers and D1 databases under wh1002-<project>-<environment>; one memory R2 bucket; one project Access application, human and verification policies, and its verification service token. Second project c1b7db67-9e30-46aa-9a8c-82c96bca4210: only an empty repo and scoped grant, for cross-project refusal.
+
+No Artifacts push subscription is installed: authenticated save requests enqueue candidates. Cap the trial at two projects, twelve total runner attempts, thirty minutes per attempt and two concurrent runners. Each candidate can recover at most three times within that total; 64 MiB decoded bundle limit. Stop ambiguous publication, preserve reservations, and reconcile before any retry. No billing or existing-token widening is authorized. Customer projects and original GitHub backups are retained.
+
+Provider preflight on 2026-10-02 verified Workers Paid, existing Zero Trust organization and email PIN provider, Workers subdomain and Artifacts namespace access. Newly minted six-hour account-scoped management permission initially returned Artifacts HTTP 401 before becoming readable on the next inspection; no permission widening was used. Cache credentials will be bucket-scoped and temporary. All secret values stay in private live files or service bindings, never this report.
+
+At full standard-1 allocation (0.5 vCPU, 4 GiB memory, 8 GB disk), twelve thirty-minute attempts cost approximately $0.44 for runner CPU/memory/disk before included usage. This is an estimate, not a spend cap; network, Workers, Workflows, Durable Objects, D1, R2, logs and shared account usage are separate. Pricing checked 2026-10-02: [Containers](https://developers.cloudflare.com/containers/platform/pricing/) and [Artifacts](https://developers.cloudflare.com/artifacts/platform/pricing/). Artifacts currently requires Workers Paid and operations/storage billing begins October 14; record actual operations/storage separately.
+
+Require both source and cloud remote gates before deployment. Exercise the real installed scaffold and immutable Vite assets, isolated application databases, canonical memory setup and machine approval, human private login, remote failed/green/stale candidates, explicit owner publication with exact main advancement, another change from main, GitHub migration preserving all refs/objects/local work, export/restore, team removal and cleanup. A pending operator library, failed or untested core scenario stays incomplete. Simulated grants cannot prove human login or device approval.
+
+Before teardown, stop work, independently export/restore advertised refs and run full object verification, submit the project-bound export receipt, finish memory offboarding and drain only owned storage. Delete created receipt-owned resources and revoke issued credentials with absence readbacks; report any exact leftover. Never turn an estimate, intended resource, expired credential assumption or untested case into PASS.

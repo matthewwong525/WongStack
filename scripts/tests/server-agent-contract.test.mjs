@@ -45,15 +45,21 @@ test('a row missing from the table, or an extra one, is named', () => {
   const withoutPair = readme.replace(/^\| `pair` \|.*\n/m, '');
   assert.notEqual(withoutPair, readme);
   assert.deepEqual(differences(documentedTypes(withoutPair), handled), ["the agent handles `pair`, which server/README.md's job table does not list"]);
+  const withoutArtifacts = readme.replace(/^\| `artifacts` \|.*\n/m, '');
+  assert.notEqual(withoutArtifacts, readme);
+  assert.deepEqual(differences(documentedTypes(withoutArtifacts), handled), ["the agent handles `artifacts`, which server/README.md's job table does not list"]);
   const withShell = readme.replace(/^(\| `pair` \|.*\n)/m, '$1| `shell` | none | none |\n');
   assert.deepEqual(differences(documentedTypes(withShell), handled), ['server/README.md lists `shell`, which the agent does not handle']);
 });
 
 test('the README names the contract the agent declares', () => {
-  assert.equal(CONTRACT, 2);
+  assert.equal(CONTRACT, 3);
   const readme = read('server/README.md');
   assert.match(readme, new RegExp(`^### Contract ${CONTRACT}$`, 'm'));
   assert.ok(readme.includes(`\`CONTRACT = ${CONTRACT}\``));
+  const pollExample = /```json\n(\{ "contract": [^\n]+\})\n```/.exec(readme)?.[1];
+  assert.ok(pollExample, 'the README documents its polling request');
+  assert.equal(JSON.parse(pollExample).contract, CONTRACT);
   const behind = readme.replace(`### Contract ${CONTRACT}\n`, `### Contract ${CONTRACT - 1}\n`);
   assert.deepEqual(documentedTypes(behind), [], 'a heading that does not match CONTRACT finds no job table');
 });

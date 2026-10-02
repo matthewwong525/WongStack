@@ -5,10 +5,14 @@
 
 ## Next (major) — Approve memory access in your own WongStack
 
-Work is underway to let each installation's people approve their computers through its own login. The first step prepares identity, device and historical ownership records without activating new access or changing existing keys.
+This coordinated release is still in progress. The memory checkpoint prepares identity, device and historical ownership records; it does not yet activate the new approval flow or replace existing keys.
 
-**Updating.** This major change will require working app login, confirmation of the initial owner, review of historical ownership, and reconnection of each computer. Memory may pause while those steps are unfinished. The preparatory migrations alone do not complete that move; follow the coordinated migration instructions when the feature is ready.
+- Each installation will use its own app login to confirm its owner and approve computers for memory. This works in regular WongStack without a hosted account. Hosted project roles do not grant memory membership.
+- Hosted setup prepares an Artifacts repository and the AI workspace first. The person signs into their AI and runs the same `/wong-setup` command used on their own computer to install WongStack and start site and memory setup.
+- Hosted sites and previews use private platform-managed hosting, without a customer Cloudflare account or token. Saves run remote checks; publishing requires explicit approval of the passing result.
+- Existing hosted GitHub projects move only through an explicit migration that verifies every advertised branch, tag and object before changing the repository address. The GitHub repository and backup remote remain available; migration does not delete them.
 
+**Updating.** For the memory change, enable app login, confirm the initial owner, review historical ownership and reconnect each computer. Memory may pause until those steps are complete; hosted setup also stays pending until separate owner and device approval finishes. Preparatory migrations alone do not complete the move. Hosted operators must rebuild older server agents with contract 3 before sending Artifacts preparation jobs, and coordinate the platform and toolkit rollout. Existing GitHub projects keep their current workflow until their verified migration is explicitly requested. Follow the completed migration instructions when this release is ready.
 
 ## 29.8.0 — Make WongStack your own
 

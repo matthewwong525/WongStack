@@ -54,6 +54,10 @@ jobs:
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
         run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: scripts/pilots/artifacts
+      - name: Install hosted service SDK for migration contracts
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: server/hosted
       - name: Lint scripts
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
         run: scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts .agents/skills/memory/worker .github/scripts server
