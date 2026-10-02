@@ -3,16 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Approve memory access in your own WongStack
+## Next (major) — Prepare hosted workspaces on Artifacts
 
-This coordinated release is still in progress. The memory checkpoint prepares identity, device and historical ownership records; it does not yet activate the new approval flow or replace existing keys.
+This hosted migration is still in progress. Cloud preparation gets the repository and AI workspace ready; users then run the same `/wong-setup` flow used on their own computer.
 
-- Each installation will use its own app login to confirm its owner and approve computers for memory. This works in regular WongStack without a hosted account. Hosted project roles do not grant memory membership.
-- Hosted setup prepares an Artifacts repository and the AI workspace first. The person signs into their AI and runs the same `/wong-setup` command used on their own computer to install WongStack and start site and memory setup.
-- Hosted sites and previews use private platform-managed hosting, without a customer Cloudflare account or token. Saves run remote checks; publishing requires explicit approval of the passing result.
-- Existing hosted GitHub projects move only through an explicit migration that verifies every advertised branch, tag and object before changing the repository address. The GitHub repository and backup remote remain available; migration does not delete them.
+- New hosted workspaces use Artifacts repository storage and private platform-managed hosting, without a customer GitHub or Cloudflare account/token.
+- Saves run remote checks, and publishing requires explicit approval of the exact passing result.
+- Existing hosted GitHub projects move only through an explicit migration that verifies every advertised branch, tag and object before changing the repository address. The GitHub repository and backup remote remain available.
 
-**Updating.** For the memory change, enable app login, confirm the initial owner, review historical ownership and reconnect each computer. Memory may pause until those steps are complete; hosted setup also stays pending until separate owner and device approval finishes. Preparatory migrations alone do not complete the move. Hosted operators must rebuild older server agents with contract 3 before sending Artifacts preparation jobs, and coordinate the platform and toolkit rollout. Existing GitHub projects keep their current workflow until their verified migration is explicitly requested. Follow the completed migration instructions when this release is ready.
+**Updating.** Hosted operators must rebuild older server agents with contract 3 and coordinate the platform/toolkit rollout. Existing GitHub projects keep their current workflow until a verified migration is explicitly requested. Installation-owned memory and Devices are a separate unfinished feature; cloud roles do not grant memory authority, and setup must report unavailable or pending memory truthfully until that feature and its integration are delivered. Follow the completed migration instructions when this release is ready.
 
 ## 29.9.0 — Windows setup handles folder links
 

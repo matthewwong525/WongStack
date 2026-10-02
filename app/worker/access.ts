@@ -33,15 +33,6 @@ export interface AccessIdentity {
   claims: AccessClaims;
 }
 
-/** Verified login evidence, not a principal or a grant of memory membership. */
-export interface AccessHumanIdentity {
-  issuer: string;
-  audience: string;
-  subject: string;
-  /** Provider-verified email metadata; never use it as an ownership key. */
-  email: string;
-}
-
 interface AccessClaims {
   aud: string | string[];
   iss: string;
@@ -218,44 +209,4 @@ export async function getAccessIdentity(
     // Malformed token, unreachable certs endpoint, bad JSON — all fail closed.
     return null;
   }
-}
-
-/** Reject malformed claim types that the compatible app display path tolerates. */
-function hasHumanClaimShape(claims: AccessClaims): boolean {
-  const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-  return audiences.every((audience) => typeof audience === "string") &&
-    Number.isFinite(claims.exp) &&
-    (claims.nbf === undefined || Number.isFinite(claims.nbf)) &&
-    (claims.iat === undefined || (Number.isFinite(claims.iat) && claims.iat <= Math.floor(Date.now() / 1000)));
-}
-
-/**
- * Strict human proof for core memory handlers. Always verifies the request;
- * callers cannot supply decoded claims or an email header as proof. The core
- * must still resolve an active provider configuration, binding and membership,
- * and review changed email metadata before authorizing privileged actions.
- * Access subjects are scoped login bindings, not immutable person IDs.
- */
-export async function getAccessHumanIdentity(
-  request: Request,
-  env: AccessEnv,
-): Promise<AccessHumanIdentity | null> {
-  if (env.WORKSPACE_LOGIN === "off") return null;
-  const identity = await getAccessIdentity(request, env);
-  if (!identity || identity.kind !== "user") return null;
-  const { claims } = identity;
-  if (claims.type !== "app" || "common_name" in claims) return null;
-  if (typeof claims.sub !== "string" || !claims.sub.trim()) return null;
-  if (typeof claims.email !== "string" || claims.email.trim() !== claims.email ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claims.email)) return null;
-  if (!hasHumanClaimShape(claims)) return null;
-
-  // Only signed application assertions reach here: the local synthetic
-  // identity has neither an application token type nor a subject.
-  return {
-    issuer: claims.iss,
-    audience: env.CF_ACCESS_AUD!,
-    subject: claims.sub,
-    email: claims.email,
-  };
 }
