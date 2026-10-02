@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.9.0 — Windows setup handles folder links
+
+- Setup readies Windows folder links automatically, turning on the needed setting when links fail. Approve Windows' permission window if it appears; the assistant runs the commands and checks the links before installing.
+- The README's copied message includes the setup guide's address, so the assistant can start before it finds the setup command.
+
+**Updating.** No action needed. This changes fresh setup; existing projects keep their settings.
+
 ## 29.8.0 — Make WongStack your own
 
 - A guide explains how to customize a fork's defaults, install it with one request, and keep projects updated from it.
