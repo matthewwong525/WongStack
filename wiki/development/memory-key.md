@@ -66,4 +66,12 @@ After a WongStack update that adds a memory migration, the admin runs `memory.mj
 
 The route's URL, `https://<worker>.<subdomain>.workers.dev/_memory`, is recorded as `components.memory.worker`; it is not a secret. Memory reads it from your main checkout's record, like `.env`, never a linked worktree's, so a branch that changes it can not send your key or GitHub token elsewhere. The session start ignores the branch's address and says so. Only a memory key goes there: `wongm_<the email, base64url>.<random>`. A value of any other shape counts as a Cloudflare token and goes to the Cloudflare API, so a test key must carry an email too. An older store whose `CLOUDFLARE_MEMORY_TOKEN` is still a Cloudflare token keeps using the Cloudflare API until [setup's runbook moves it](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store).
 
+## Preparing installation-owned access
+
+The [identity migration](../../.agents/skills/memory/migrations/0007_installation_identity.sql) and [ownership migration](../../.agents/skills/memory/migrations/0008_principal_ownership.sql) prepare empty identity and device tables. Running them does not activate a new owner, retire existing keys, or assign old notes by email. The later reviewed cutover must establish the owner and replace old access together; prepared tables alone do not mean memory is ready.
+
+Old fact text, author names, session attribution and transcript locations stay intact. Unassigned ownership stays empty. Each historical ownership review records an exact fact, session or object with its evidence; corrections append a review instead of deleting the earlier one. Once a fact or session has a principal owner, that owner cannot be replaced or cleared.
+
+Each new migration records completion inside its own database transaction. If the response is lost after the transaction commits, rerunning the migration command sees the recorded version and skips it. A failed transaction leaves neither half-added columns nor a success marker.
+
 Back to [session memory](memory.md).

@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
+import { Worker } from 'node:worker_threads';
+import { identityFixture, approvedRequest, activateSql, activationParams, REQUEST, DEVICE, HASH } from './fixtures/memory/identity.mjs';
 import { handleMemory, hashKey, KEY_LIMIT, MAX_TRANSCRIPT_BYTES, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { ADMIN_WRITES, batchRefusal, FTS_HITS, memberRefusal, readRefusal, shadowCtes, shadowRead, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
@@ -1207,4 +1209,70 @@ test('outside a team, nothing is shadowed', async t => {
   const response = await call(url, anaKey, { sql: 'SELECT f.body FROM facts f JOIN facts_fts ON facts_fts.rowid = f.id WHERE facts_fts MATCH ?', params: ['tabs'] });
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).result[0].results, [{ body: 'someone prefers tabs' }]);
+});
+
+
+test('device schema atomically consumes approval and rejects a changed credential commitment', t => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('PRAGMA foreign_keys = ON');
+  const now = identityFixture(db);
+  approvedRequest(db, now);
+  db.exec('BEGIN');
+  db.prepare(activateSql).run(...activationParams(now));
+  assert.throws(() => db.prepare('INSERT INTO memory_credentials (hash, device_id, generation, issued_at, expires_at) VALUES (?, ?, 1, ?, ?)')
+    .run('c'.repeat(64), DEVICE, now, now + 2592000), /initiating machine commitment/);
+  db.exec('ROLLBACK');
+  assert.equal(db.prepare('SELECT state FROM memory_device_requests WHERE id = ?').get(REQUEST).state, 'approved');
+  db.exec('BEGIN');
+  db.prepare(activateSql).run(...activationParams(now));
+  db.prepare('INSERT INTO memory_credentials (hash, device_id, generation, issued_at, expires_at) VALUES (?, ?, 1, ?, ?)')
+    .run(HASH, DEVICE, now, now + 2592000);
+  db.exec('COMMIT');
+  assert.equal(db.prepare('SELECT state FROM memory_device_requests WHERE id = ?').get(REQUEST).state, 'claimed');
+  assert.throws(() => db.prepare(activateSql).run(...activationParams(now, 'e'.repeat(32))), /stale|UNIQUE/);
+  assert.throws(() => db.exec("UPDATE memory_device_requests SET state = 'pending'"), /invalid device request transition/);
+  db.exec('DELETE FROM memory_device_requests');
+  assert.equal(db.prepare('SELECT count(*) AS n FROM memory_devices').get().n, 1, 'request cleanup preserves the durable device receipt');
+  assert.equal(db.prepare('SELECT count(*) AS n FROM memory_credentials').get().n, 1);
+});
+
+test('two database connections racing device activation have exactly one winner', async t => {
+  const file = join(tempDir(t, 'activation-race'), 'memory.sqlite');
+  const db = new DatabaseSync(file);
+  const now = identityFixture(db);
+  approvedRequest(db, now);
+  db.close();
+  const script = `
+    const { parentPort, workerData } = require('node:worker_threads');
+    const { DatabaseSync } = require('node:sqlite');
+    const database = new DatabaseSync(workerData.file);
+    database.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000');
+    parentPort.once('message', () => {
+      try { database.prepare(workerData.sql).run(...workerData.params); parentPort.postMessage({ won: true }); }
+      catch (error) { parentPort.postMessage({ won: false, message: error.message }); }
+      finally { database.close(); }
+    });
+    parentPort.postMessage({ ready: true });
+  `;
+  const workers = ['d', 'e'].map(letter => new Worker(script, { eval: true,
+    workerData: { file, sql: activateSql, params: activationParams(now, letter.repeat(32)) } }));
+  t.after(() => Promise.all(workers.map(worker => worker.terminate())));
+  await Promise.all(workers.map(worker => new Promise((resolve, reject) => {
+    worker.once('error', reject);
+    worker.once('message', message => { assert.equal(message.ready, true); resolve(); });
+  })));
+  const results = workers.map(worker => new Promise((resolve, reject) => {
+    worker.once('error', reject);
+    worker.once('message', resolve);
+  }));
+  for (const worker of workers) worker.postMessage('activate');
+  const outcomes = await Promise.all(results);
+  assert.equal(outcomes.filter(outcome => outcome.won).length, 1);
+  assert.match(outcomes.find(outcome => !outcome.won).message, /stale|UNIQUE/);
+  const check = new DatabaseSync(file);
+  try {
+    assert.equal(check.prepare('SELECT count(*) AS n FROM memory_devices').get().n, 1);
+    assert.equal(check.prepare('SELECT state FROM memory_device_requests').get().state, 'claimed');
+  } finally { check.close(); }
 });

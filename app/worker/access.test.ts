@@ -40,9 +40,10 @@ afterEach(() => {
 // path that did not truly run.
 describe("getAccessIdentity — rejections that need no key", () => {
   let getAccessIdentity: typeof import("./access").getAccessIdentity;
+  let getAccessHumanIdentity: typeof import("./access").getAccessHumanIdentity;
 
   beforeEach(async () => {
-    ({ getAccessIdentity } = await loadAccess());
+    ({ getAccessIdentity, getAccessHumanIdentity } = await loadAccess());
     // Any key fetch in this block is a defect, not a setup gap.
     vi.stubGlobal(
       "fetch",
@@ -71,6 +72,21 @@ describe("getAccessIdentity — rejections that need no key", () => {
 
   it("does not treat a request header as the bypass", async () => {
     expect(await getAccessIdentity(requestWith({ "X-Skip-Auth": "true" }), ENV)).toBeNull();
+  });
+
+  it("never substitutes local, open-app or email-header identities for a memory human", async () => {
+    for (const environment of [undefined, "local", "staging", "production"]) {
+      for (const url of ["http://localhost/", "https://app.example.com/"]) {
+        expect(await getAccessHumanIdentity(new Request(url), {
+          ...ENV, WONG_ENVIRONMENT: environment, SKIP_AUTH: true,
+        })).toBeNull();
+      }
+    }
+    expect(await getAccessHumanIdentity(requestWith(), { WORKSPACE_LOGIN: "off" })).toBeNull();
+    expect(await getAccessHumanIdentity(requestWith({
+      "Cf-Access-Authenticated-User-Email": "owner@example.com",
+    }), ENV)).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("rejects authentication substitution on deployed hosts and environments", async () => {
@@ -156,6 +172,7 @@ describe("getAccessIdentity — verified assertions", () => {
   };
 
   let getAccessIdentity: typeof import("./access").getAccessIdentity;
+  let getAccessHumanIdentity: typeof import("./access").getAccessHumanIdentity;
   let signingKey: CryptoKeyPair;
   let otherKey: CryptoKeyPair;
   let publicJwk: JsonWebKey & { kid: string };
@@ -173,14 +190,15 @@ describe("getAccessIdentity — verified assertions", () => {
    */
   async function signToken(
     header: Record<string, unknown>,
-    payload: Record<string, unknown>,
+    payload: Record<string, unknown> | string,
     privateKey = signingKey.privateKey,
   ): Promise<string> {
     for (let jti = 0; ; jti++) {
-      const input = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify({ ...payload, jti }))}`;
+      const body = typeof payload === "string" ? payload : JSON.stringify({ ...payload, jti });
+      const input = `${base64Url(JSON.stringify(header))}.${base64Url(body)}`;
       const bytes = await crypto.subtle.sign(RS256.name, privateKey, new TextEncoder().encode(input));
       const signature = Buffer.from(bytes).toString("base64url");
-      if (signature.includes("-") && signature.includes("_")) return `${input}.${signature}`;
+      if (typeof payload === "string" || (signature.includes("-") && signature.includes("_"))) return `${input}.${signature}`;
     }
   }
 
@@ -193,7 +211,7 @@ describe("getAccessIdentity — verified assertions", () => {
   });
 
   beforeEach(async () => {
-    ({ getAccessIdentity } = await loadAccess());
+    ({ getAccessIdentity, getAccessHumanIdentity } = await loadAccess());
     serveCerts([publicJwk]);
   });
 
@@ -202,6 +220,79 @@ describe("getAccessIdentity — verified assertions", () => {
     iss: `https://${TEAM_DOMAIN}`,
     exp: Math.floor(Date.now() / 1000) + 600,
     ...extra,
+  });
+
+  const humanClaims = (extra: Record<string, unknown> = {}) => claims({
+    type: "app", sub: "access-user-1", email: "human@example.com", ...extra,
+  });
+  const humanRequest = async (extra: Record<string, unknown> = {}) =>
+    bearer(await signToken({ alg: "RS256", kid: KID }, humanClaims(extra)));
+
+  it("returns scoped human evidence consistently across refreshed signed assertions", async () => {
+    const expected = {
+      issuer: `https://${TEAM_DOMAIN}`, audience: AUD, subject: "access-user-1", email: "human@example.com",
+    };
+    for (const extra of [{}, { aud: ["another-app", AUD], iat: 1, nbf: 0, exp: 9_000_000_000 }]) {
+      const request = await humanRequest(extra);
+      expect(await getAccessHumanIdentity(request, ENV)).toEqual(expected);
+      expect(await getAccessIdentity(request, ENV)).toMatchObject({ id: expected.email, kind: "user" });
+    }
+    const token = await signToken({ alg: "RS256", kid: KID }, humanClaims());
+    expect(await getAccessHumanIdentity(requestWith({ Cookie: `CF_Authorization=${token}` }), ENV)).toEqual(expected);
+  });
+
+  it("preserves subject, issuer and email changes for explicit binding review", async () => {
+    const original = await getAccessHumanIdentity(await humanRequest(), ENV);
+    const subject = await getAccessHumanIdentity(await humanRequest({ sub: "re-added-user" }), ENV);
+    const email = await getAccessHumanIdentity(await humanRequest({ email: "changed@example.com" }), ENV);
+    const otherTeam = "replacement-team.cloudflareaccess.com";
+    const request = await humanRequest({ iss: `https://${otherTeam}` });
+    expect(await getAccessHumanIdentity(request, ENV)).toBeNull();
+    const issuer = await getAccessHumanIdentity(request, { ...ENV, CF_ACCESS_TEAM_DOMAIN: otherTeam });
+    expect(subject).toEqual({ ...original, subject: "re-added-user" });
+    expect(email).toEqual({ ...original, email: "changed@example.com" });
+    expect(issuer).toEqual({ ...original, issuer: `https://${otherTeam}` });
+  });
+
+  it("denies a valid human JWT when login is explicitly off, even with stale Access configuration", async () => {
+    const request = await humanRequest();
+    const mixedEnv = { ...ENV, WORKSPACE_LOGIN: "off" };
+    expect(await getAccessIdentity(request, mixedEnv)).toMatchObject({ kind: "user" });
+    expect(await getAccessHumanIdentity(request, mixedEnv)).toBeNull();
+  });
+
+  it.each([
+    { sub: undefined }, { sub: "" }, { sub: "  " }, { sub: 123 }, { sub: {} },
+    { email: undefined }, { email: "" }, { email: 123 }, { email: "missing-at.example.com" },
+    { email: "person@example.com\n" }, { email: "person@@example.com" },
+    { type: undefined }, { type: "org" }, { type: 1 },
+    { common_name: "client-id" }, { common_name: "" }, { common_name: null },
+    { email: undefined, common_name: "client-id", sub: "" },
+    { aud: "wrong-app" }, { aud: [AUD, 42] }, { iss: `https://${TEAM_DOMAIN}/` },
+    { exp: 0 }, { exp: "9000000000" },
+    { nbf: "0" }, { nbf: null }, { nbf: 9_000_000_000 },
+    { iat: "0" }, { iat: null }, { iat: 9_000_000_000 },
+  ])("denies malformed, mixed or invalid signed human claims: %j", async (extra) => {
+    expect(await getAccessHumanIdentity(await humanRequest(extra), ENV)).toBeNull();
+  });
+
+  it.each([["exp", "1e400"], ["nbf", "-1e400"], ["iat", "1e400"]])(
+    "rejects a signed JSON numeric overflow in %s", async (name, value) => {
+      const raw = JSON.stringify(humanClaims({ [name]: 0 })).replace(`"${name}":0`, `"${name}":${value}`);
+      const token = await signToken({ alg: "RS256", kid: KID }, raw);
+      expect(await getAccessHumanIdentity(bearer(token), ENV)).toBeNull();
+    },
+  );
+
+  it("refuses forged signatures and requires human reauthentication at expiry", async () => {
+    const forged = await signToken({ alg: "RS256", kid: KID }, humanClaims(), otherKey.privateKey);
+    expect(await getAccessHumanIdentity(bearer(forged), ENV)).toBeNull();
+    const now = 1_800_000_000;
+    const request = await humanRequest({ exp: now });
+    vi.spyOn(Date, "now").mockReturnValue((now - 1) * 1000);
+    expect(await getAccessHumanIdentity(request, ENV)).not.toBeNull();
+    vi.mocked(Date.now).mockReturnValue(now * 1000);
+    expect(await getAccessHumanIdentity(request, ENV)).toBeNull();
   });
 
   it("resolves a common_name with no email to a service identity", async () => {

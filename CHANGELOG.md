@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Approve memory access in your own WongStack
+
+This feature is still in progress. The current source prepares identity, ownership reviews and guarded operator setup; it does not activate the new approval flow or replace existing memory keys.
+
+- Each installation will use its own app login to confirm its owner and approve computers for memory, without a hosted account. Repository hosting and cloud project roles do not grant memory membership.
+- People will retain internal identities across reviewed login changes. Historical notes and transcripts keep their original text and attribution; ownership changes require explicit evidence.
+
+**Updating.** When this feature is ready, enable app login, confirm the initial owner, review historical ownership and reconnect each computer. Memory may pause until those steps are complete. Preparatory migrations alone do not complete the move; existing memory access remains in place until the separately verified cutover.
+
 ## 29.10.0 — Task chats coordinate directly
 
 - Chats find overlapping work by current titles and confirmed task context, then exchange brief messages with its owner. Each keeps its own task and publishing approval; agreements stay in existing plans.
