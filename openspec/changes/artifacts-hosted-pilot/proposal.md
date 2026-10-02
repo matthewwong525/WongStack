@@ -4,7 +4,7 @@
 
 **Branch:** github-artifacts
 
-**Open questions:** unused staging owner mailbox for login codes; separate memory/Devices PR #242 delivery and hosted integration; live setup/deployment evidence remain required before merge readiness.
+**Open questions:** unused staging owner mailbox for login codes; live setup/deployment evidence remain required before merge readiness. Memory/Devices delivery and ready-memory acceptance remain separate in PR #242 and its later integration.
 
 ## Why
 
@@ -19,7 +19,7 @@ Hosted setup should get a person into their repo and AI quickly. They should fin
                               ▼
                         repo + AI ready
   ```
-- **Use one setup flow.** The cloud prepares the empty repo and coding agents. The person signs into their AI and sends `/wong-setup`; that installs the assistant and starts its site and memory. Personal computers use the same setup command with their own hosting.
+- **Use one setup flow.** The cloud prepares the empty repo and coding agents. The person signs into their AI and sends `/wong-setup`; that installs the assistant and starts its site, reporting memory as unavailable or pending. Personal computers use the same setup command with their own hosting.
   ```text
   cloud workspace       personal computer
           │                     │
@@ -28,9 +28,9 @@ Hosted setup should get a person into their repo and AI quickly. They should fin
                /wong-setup
                     │
                     ▼
-          assistant + site + memory
+          assistant + site; memory pending
   ```
-- **Save and publish the real app.** Remote checks build the actual site, including its assets and memory bindings. A passing preview identifies its exact commit; only an owner-approved passing result can publish. Failed or uncertain work stays unpublished.
+- **Save and publish the real app.** Remote checks build the actual site, including its assets and trusted bindings. Memory remains unavailable/pending until its separate feature and integration are delivered; no usable Devices or machine grant is claimed. A passing preview identifies its exact commit; only an owner-approved passing result can publish. Failed or uncertain work stays unpublished.
   ```text
   save ──▶ remote checks ──▶ private preview
                                    │ owner approves
@@ -154,3 +154,7 @@ Payload client, setup and delivery skills; server agent and source-only hosted s
 - **2026-10-02** — User requested moving the full installation-owned memory/Devices feature out of this oversized PR. New draft [PR #242](https://github.com/matthewwong525/WongStack/pull/242) is based directly on main `3d9f248` and carries all54 memory-only additions, four memory-only modified-file diffs, memory probe coverage and its own release entry. Remove them here by a forward commit; retain all Artifacts storage/runtime/setup code, the hosted area mapping, and historical exact combined source/live evidence. No history rewrite, source receipt relabeling, runtime activation or feature completion is inferred. Each split revision requires a fresh independent remote gate. Full hosted memory integration remains pending that separate feature; this PR does not claim usable Devices or a machine grant.
 
 - **2026-10-02** — Check: `scripts/tests/.c8rc.json` removes only `scripts/pilots/memory-rest/*.mjs` here because those measured probe files and their tests moved to PR #242, which retains that include. This PR retains `server/hosted/*.mjs`; all other includes, exclusions, source roots and coverage floors are unchanged. Historical combined-coverage decisions remain intact.
+
+- **2026-10-02** — User confirmed memory work is separate. Current #238 acceptance requires the actual hosted site, assets, migrations, private login, exact publication, migration/revocation and cleanup, with memory accurately unavailable/pending and no usable Devices or machine grants. Ready-memory acceptance belongs to independent PR #242 and its later integration; do not import or activate it here. Existing source `827f9ebf64d03c63d50412b69b030b1f3bc4ca0a` passed build 37059581885, payload 37059581659 and test 37059581727, including 1,086 script cases. Source inspection and that gate complete tasks 9.1, 9.3 and 10.1–10.3. Task 9.2 and section 11 remain pending observed actual-site/live evidence and the final coordinated gate; historical decisions and combined evidence retain their original scope.
+
+- **2026-10-02** — Resume apply after the split. Preserve main 29.10.0 and its direct-chat coordination changes while retaining hosted delivery. Real staging email sign-in succeeded for the selected account, whose existing legacy repository/subscription record is retained and whose VM is absent. The closed trial is not reused. Current parent credential is active but Artifacts read returns HTTP401 and Containers read HTTP403; actual-site execution requires fresh isolated service credentials/resources and a current exact source/cloud gate. No ready-memory acceptance or PR242 work is pulled into this apply.

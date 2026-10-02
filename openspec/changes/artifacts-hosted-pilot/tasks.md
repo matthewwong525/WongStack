@@ -66,19 +66,19 @@
 
 ## 9. Hosted runtime and representative pipeline
 
-- [ ] 9.1 Implement the source-only hosted service and documented admin/client APIs with tenant-isolated lifecycle, scoped credentials and revocation; add meaningful remote contract coverage.
-- [ ] 9.2 Package and remotely build the real app with assets, migrations and memory; deploy exact immutable bundles using trusted runtime bindings and platform-managed Access and private site URLs, with regression tests for red checks, corruption, wrong tenant and stale approval/base.
-- [ ] 9.3 Add bounded candidate queue/recovery, preserving ambiguous publication reservations; document service deployment, secrets, rollout and cleanup.
+- [x] 9.1 Implement the source-only hosted service and documented admin/client APIs with tenant-isolated lifecycle, scoped credentials and revocation; add meaningful remote contract coverage.
+- [ ] 9.2 Package and remotely build the real app with assets and migrations; verify memory is accurately unavailable/pending with no usable Devices or machine grants, and deploy exact immutable bundles using trusted runtime bindings and platform-managed Access and private site URLs, with regression tests for red checks, corruption, wrong tenant and stale approval/base. Ready-memory acceptance belongs to independent PR #242 and its later integration.
+- [x] 9.3 Add bounded candidate queue/recovery, preserving ambiguous publication reservations; document service deployment, secrets, rollout and cleanup.
 
 ## 10. Prepared workspace and installed workflow
 
-- [ ] 10.1 Add contract-3 Artifacts preparation and verified GitHub mirror migration to the server agent, preserving existing jobs and private credentials; add meaningful bootstrap/reconnect/migration tests and server docs.
-- [ ] 10.2 Add the hosted client and route setup/save/ship/continue/apply/verify before GitHub-specific requirements; include installed context/credential handling, payload inventory, release entry and downstream contract tests.
-- [ ] 10.3 Update specs and wiki for one setup flow and hosted delivery; run payload links, OpenSpec config and context-budget checks.
+- [x] 10.1 Add contract-3 Artifacts preparation and verified GitHub mirror migration to the server agent, preserving existing jobs and private credentials; add meaningful bootstrap/reconnect/migration tests and server docs.
+- [x] 10.2 Add the hosted client and route setup/save/ship/continue/apply/verify before GitHub-specific requirements; include installed context/credential handling, payload inventory, release entry and downstream contract tests.
+- [x] 10.3 Update specs and wiki for one setup flow and hosted delivery; run payload links, OpenSpec config and context-budget checks.
 
 ## 11. Coordinated remote gate and live verification
 
 - [ ] 11.1 Run /save for #238 and its cloud companion, require all remote checks, and fix failures.
-- [ ] 11.2 Deploy isolated staging service/control-plane integration and run real empty-repo preparation → /wong-setup payload → remote actual-app build → private preview → owner-approved publish → next change; prove memory, assets, tenant isolation and failed/stale publication safeguards with recorded exact heads.
+- [ ] 11.2 Deploy isolated staging service/control-plane integration and run real empty-repo preparation → /wong-setup payload → remote actual-app build → private preview → owner-approved publish → next change; prove assets, tenant isolation, failed/stale publication safeguards and accurately unavailable/pending memory with no usable Devices or grants, using recorded exact heads. Ready-memory acceptance remains separate in PR #242 and its later integration.
 - [ ] 11.3 Verify GitHub-to-Artifacts full-ref migration/export, scoped teammate access/removal and old-agent fallback; record PASS/FAIL/UNKNOWN, clean only owned trial resources with absence readbacks, and checkpoint final evidence.
 - [ ] 11.4 Report both merge gates and rollout order, refresh review pages, and leave production publication/merge for the user.

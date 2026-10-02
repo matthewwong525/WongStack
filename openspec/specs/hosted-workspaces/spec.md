@@ -13,7 +13,8 @@ A hosted workspace SHALL prepare an empty Artifacts repository and coding-agent 
 #### Scenario: New cloud workspace
 
 - **WHEN** a cloud owner opens their prepared workspace and runs `/wong-setup`
-- **THEN** the assistant, site and memory are installed in that repository, without creating a second repository or asking for customer platform credentials
+- **THEN** the assistant and site are installed in that repository, without creating a second repository or asking for customer platform credentials
+- **AND** memory is accurately reported as unavailable or pending until its independent feature and installation-owned enrollment are delivered and verified
 
 #### Scenario: Teammate resumes an installed project
 
@@ -28,7 +29,7 @@ A hosted workspace SHALL prepare an empty Artifacts repository and coding-agent 
 
 ### Requirement: Hosted delivery gates the exact real application
 
-Hosted save SHALL remotely check and build the exact saved commit's real application, including assets and memory. Hosted publication SHALL use those immutable checked bytes after an owner approval and authoritative head/base checks. Failed, stale, unreadable and uncertain results SHALL never become a successful publication.
+Hosted save SHALL remotely check and build the exact saved commit's real application, including assets and migrations. Hosted publication SHALL use those immutable checked bytes after an owner approval and authoritative head/base checks. Failed, stale, unreadable and uncertain results SHALL never become a successful publication. Site acceptance SHALL verify truthful unavailable/pending memory while the independent memory feature and its integration are absent, and SHALL NOT claim usable Devices or machine grants. Ready-memory acceptance SHALL remain separate.
 
 #### Scenario: A passing real application
 
