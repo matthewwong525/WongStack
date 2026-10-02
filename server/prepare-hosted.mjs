@@ -9,8 +9,8 @@ import { copyPayload, installRecord, run, SOURCE } from './install-wongstack.mjs
 function refs(text) {
   const result=new Map();
   for (const line of text.trim().split('\n').filter(Boolean)) {
-    const [sha,ref]=line.split(/\s+/);
-    if (!/^[a-f0-9]{40}$/.test(sha) || !ref?.startsWith('refs/') || result.has(ref)) throw new Error('invalid advertised refs');
+    const fields=line.split(/\s+/), [sha,ref]=fields;
+    if (fields.length!==2 || !/^[a-f0-9]{40}$/.test(sha) || !ref?.startsWith('refs/') || /[\\\x00-\x20\x7f~^:?*\[]/.test(ref) || ref.includes('..') || ref.includes('@{') || ref.includes('//') || ref.endsWith('.') || ref.split('/').some(part=>!part || part.startsWith('.') || part.endsWith('.lock')) || result.has(ref)) throw new Error('invalid advertised refs');
     result.set(ref,sha);
   }
   return result;
@@ -19,6 +19,69 @@ export function verifyRefs(expected,actual) {
   const a=refs(expected), b=refs(actual);
   if (a.size!==b.size || [...a].some(([ref,sha])=>b.get(ref)!==sha)) throw new Error('migration refs differ');
   return true;
+}
+async function advertisedHead(url,inventory,git) {
+  const text=(await git(['ls-remote','--symref',url,'HEAD'])).stdout;
+  const name=/^ref: (refs\/heads\/[^\s]+)\s+HEAD$/m.exec(text)?.[1];
+  const object=/^([a-f0-9]{40})\s+HEAD$/m.exec(text)?.[1];
+  if(name && object && inventory.get(name)===object) return name;
+  return inventory.has('refs/heads/main') ? 'refs/heads/main' : [...inventory.keys()].find(ref=>ref.startsWith('refs/heads/'));
+}
+async function fetchBatches(dir,specs,git) {
+  for(let offset=0;offset<specs.length;offset+=32) await git(['-C',dir,'fetch','--no-tags','origin',...specs.slice(offset,offset+32)]);
+}
+// Dedicated verification cache only. Never prune or overwrite a working clone.
+export async function restoreArtifacts(url,dir,exec,{expected}={}) {
+  const git=args=>exec('git',args);
+  privatePath(join(dir,'HEAD'));
+  const advertised=(await git(['ls-remote','--refs',url])).stdout, inventory=refs(advertised);
+  if(expected!==undefined) verifyRefs(expected,advertised);
+  if(!inventory.size) throw new Error('full-ref restore requires a populated repository');
+  if(existsSync(join(dir,'HEAD'))) {
+    if((await git(['-C',dir,'rev-parse','--is-bare-repository'])).stdout.trim()!=='true' || (await git(['-C',dir,'remote','get-url','origin'])).stdout.trim()!==url) throw new Error('restore cache belongs to another repository');
+  } else {
+    if(existsSync(dir)) throw new Error('restore cache needs reconciliation');
+    const head=await advertisedHead(url,inventory,git);
+    mkdirSync(dirname(dir),{recursive:true});
+    if(head) await git(['clone','--bare','--single-branch','--no-tags','--branch',head.slice('refs/heads/'.length),url,dir]);
+    else {
+      // Tag-only or other ref namespaces still require complete export support.
+      await git(['init','--bare',dir]);
+      await git(['-C',dir,'remote','add','origin',url]);
+      const first=inventory.keys().next().value;
+      await fetchBatches(dir,[`+${first}:${first}`],git);
+    }
+  }
+  await fetchBatches(dir,[...inventory.keys()].map(ref=>`+${ref}:${ref}`),git);
+  const local=refs((await git(['-C',dir,'show-ref'])).stdout);
+  // Preserve --prune semantics only inside this origin-verified bare cache.
+  for(const [ref,sha]of local) if(!inventory.has(ref)) await git(['-C',dir,'update-ref','-d',ref,sha]);
+  verifyRefs(advertised,(await git(['ls-remote','--refs',url])).stdout);
+  verifyRefs(advertised,(await git(['-C',dir,'show-ref'])).stdout);
+  await git(['-C',dir,'fsck','--full']);
+  return advertised;
+}
+async function cloneArtifacts(url,dir,restored,exec) {
+  const git=args=>exec('git',args), advertised=(await git(['ls-remote','--refs',url])).stdout, inventory=refs(advertised);
+  if(!inventory.size) {await git(['clone',url,dir]);return;}
+  await restoreArtifacts(url,restored,exec,{expected:advertised});
+  const head=await advertisedHead(url,inventory,git);
+  if(!head) throw new Error('working clone requires an advertised branch');
+  await git(['clone','--single-branch','--no-tags','--branch',head.slice('refs/heads/'.length),url,dir]);
+  const specs=[...inventory.keys()].flatMap(ref=>ref.startsWith('refs/heads/') ? [`+${ref}:refs/remotes/origin/${ref.slice('refs/heads/'.length)}`] : ref.startsWith('refs/tags/') ? [`+${ref}:${ref}`] : []);
+  await fetchBatches(dir,specs,git);
+  verifyRefs(advertised,(await git(['ls-remote','--refs',url])).stdout);
+  // Match a normal clone's visible branches/tags and default remote HEAD.
+  // This local setting does not make later wildcard fetches bounded.
+  await git(['-C',dir,'config','remote.origin.fetch','+refs/heads/*:refs/remotes/origin/*']);
+  await git(['-C',dir,'symbolic-ref','refs/remotes/origin/HEAD',`refs/remotes/origin/${head.slice('refs/heads/'.length)}`]);
+  if((await git(['-C',dir,'symbolic-ref','HEAD'])).stdout.trim()!==head || (await git(['-C',dir,'rev-parse','HEAD'])).stdout.trim()!==inventory.get(head) || (await git(['-C',dir,'config','--get','remote.origin.fetch'])).stdout.trim()!=='+refs/heads/*:refs/remotes/origin/*' || (await git(['-C',dir,'symbolic-ref','refs/remotes/origin/HEAD'])).stdout.trim()!==`refs/remotes/origin/${head.slice('refs/heads/'.length)}`) throw new Error('working clone branch tracking differs');
+  const visible=refs((await git(['-C',dir,'for-each-ref','--format=%(objectname) %(refname)','refs/remotes/origin/','refs/tags/'])).stdout);
+  visible.delete('refs/remotes/origin/HEAD');
+  const wanted=[...inventory].flatMap(([ref,sha])=>ref.startsWith('refs/heads/') ? [[`refs/remotes/origin/${ref.slice('refs/heads/'.length)}`,sha]] : ref.startsWith('refs/tags/') ? [[ref,sha]] : []);
+  const lines=map=>[...map].map(([ref,sha])=>`${sha}\t${ref}`).join('\n');
+  verifyRefs(lines(wanted),lines(visible));
+  await git(['-C',dir,'fsck','--full']);
 }
 function privateJson(file,value) {
   privatePath(file);mkdirSync(dirname(file),{recursive:true,mode:0o700});privateWrite(file,`${JSON.stringify(value,null,2)}\n`);
@@ -78,24 +141,19 @@ if(process.argv[2]==='get') {try {
     await git(['-C',mirror,'push','--mirror',job.gitUrl]);
     verifyRefs(expected,(await git(['ls-remote','--refs',job.gitUrl])).stdout);
     const restored=join(home,'.cache','wong-stack',`restored-${job.projectId}`);
-    if (existsSync(join(restored,'HEAD'))) await git(['-C',restored,'fetch','--prune','origin']);
-    else await git(['clone','--mirror',job.gitUrl,restored]);
-    await git(['-C',restored,'fsck','--full']);
-    verifyRefs(expected,(await git(['-C',restored,'show-ref'])).stdout);
+    await restoreArtifacts(job.gitUrl,restored,exec,{expected});
+    verifyRefs(expected,(await git(['ls-remote','--refs',source])).stdout);
   }
   if (job.legacyRepo && !job.githubRepo && existsSync(join(dir,'.git'))) {
     // Owner migration is already acknowledged by the cloud. This machine only
     // verifies the backup's advertised objects; it cannot push or rewrite them.
     const restored=join(home,'.cache','wong-stack',`member-restore-${job.projectId}`);
-    mkdirSync(dirname(restored),{recursive:true});
-    if(existsSync(join(restored,'HEAD'))) await git(['-C',restored,'fetch','--prune','origin']);
-    else await git(['clone','--mirror',job.gitUrl,restored]);
-    await git(['-C',restored,'fsck','--full']);
+    await restoreArtifacts(job.gitUrl,restored,exec);
     const sourceRefs=refs((await git(['ls-remote','--refs',`https://github.com/${job.legacyRepo}.git`])).stdout);
     for(const sha of new Set(sourceRefs.values())) await git(['-C',restored,'cat-file','-e',sha]);
-    await git(['-C',dir,'fetch',job.gitUrl]);
+    // The cache proves backup-object preservation without changing user refs/files.
   }
-  if (!existsSync(join(dir,'.git'))) await git(['clone',job.gitUrl,dir]);
+  if (!existsSync(join(dir,'.git'))) await cloneArtifacts(job.gitUrl,dir,join(home,'.cache','wong-stack',`workspace-restore-${job.projectId}`),exec);
   else {
     const origin=(await git(['-C',dir,'remote','get-url','origin'])).stdout.trim();
     if (origin!==job.gitUrl) {

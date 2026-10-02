@@ -1,6 +1,6 @@
 # Disposable REST transport and initialization probe
 
-Source preparation for task 1.3b, not execution authorization. The initializer source passed at `b2ba7f45cdfa7c0b9bd2c3b2d3b7298ae009b7b1`; this new probe still needs its own exact source gate. No target has been selected or initialized by this change. The coordinating session owns private transport, provider mutations, resource receipts and all git/PR actions.
+Source preparation for task 1.3b, not execution authorization. The initializer source passed at `b2ba7f45cdfa7c0b9bd2c3b2d3b7298ae009b7b1`; the probe source also passed at `3a6b9b6f1241cc926b9b9fb48b6a8cd3a0198614` (required build 37039809409, payload/scripts 37039809449, app tests 37039809448). Both live phases remain pending separate coordination. No target has been selected or initialized by this change. The coordinating session owns private transport, provider mutations, resource receipts and all git/PR actions.
 
 ## Target and ownership
 
