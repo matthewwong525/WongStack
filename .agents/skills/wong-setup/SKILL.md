@@ -6,7 +6,7 @@ user-invocable: true
 
 # /wong-setup
 
-Pick the target, source, tools, and token, then invoke `/explore`. An installed target uses `/wong-sync` and its recorded source; an install request never switches it.
+First detect [hosted workspaces](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first) from the verified source. A prepared target finishes through that page’s setup procedure before folder selection or personal prerequisites. Installed hosted migrations finish the same hosted setup plan; personal installed targets use `/wong-sync`. Otherwise follow below.
 
 ## Pick the folder
 
@@ -16,7 +16,7 @@ Pick the target before anything else, never writing into an existing project:
 2. It is empty, or holds only a `.git` with no commits → install here.
 3. Otherwise the target is `~/wongstack`: missing or empty → use it; holding an install record → `/wong-sync` there; holding anything else → try `~/wongstack-2`, `~/wongstack-3`, and so on.
 
-Name the target in one plain line, with no question: *"This folder already has files, so I'll set up WongStack in ~/wongstack."* Make it with `mkdir -p` only at the first write, after the tools and the token. Every later step uses the target's absolute path.
+Name the absolute target without asking; create it only after tools and token readiness.
 
 ## Get the computer ready
 
@@ -38,7 +38,7 @@ Before writing, ask whether the user has the Cloudflare user token, saying what 
 
 Use the source checkout's `.claude/skills/<verb>/SKILL.md`, starting with [`explore`](../explore/SKILL.md), and resolve their references there while you work in the target. This skill stays source-only.
 
-Run Step 1 of the source's [provisioning runbook](references/cloudflare.md). Run `openspec init --tools none` when needed, using the source config rules. Commit and push only after installation.
+Run [provisioning Step 1](references/cloudflare.md) and `openspec init --tools none` when needed. Commit after installation.
 
 Invoke `/explore` with this description, filled in, plus the user's intent:
 
@@ -50,4 +50,4 @@ Invoke `/explore` with this description, filled in, plus the user's intent:
 
 [The payload inventory and install record](../wong-sync/references/payload-manifest.md) own the install details. Make [the agent folder](../wong-sync/references/payload-manifest.md#the-agent-folder) with `ln -s .agents .claude`, `ln -s .agents .codex`, and, after writing the rules to a real `AGENTS.md`, `ln -s AGENTS.md CLAUDE.md`. On Windows, prefix each with `MSYS=winsymlinks:nativestrict`, so a refused link fails instead of becoming a copy. Include `wiki/README.md`, `wiki/development/README.md`, and `.gitignore` rules for `.env*` and `.dev.vars*` with their `.example` exceptions, plus `.scratch/`.
 
-Evaluation stays in exploration. A request to install continues through `/plan`, `/apply`, and `/save`, with no setup interview or approval sequence. After `/save` reports the first deploy, close with the runbook's [Step 5](references/cloudflare.md#step-5--the-closing-report), and say which Paseo presets [`presets.mjs`](../routine/scripts/presets.mjs) added, kept, or skipped, or that Paseo is not set up.
+Evaluation stays in exploration; installation continues through `/plan`, `/apply`, `/save` without another interview. Close with [Step 5](references/cloudflare.md#step-5--the-closing-report) and report the Paseo presets outcome.

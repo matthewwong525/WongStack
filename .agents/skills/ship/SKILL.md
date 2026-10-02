@@ -6,6 +6,8 @@ user-invocable: true
 
 # /ship
 
+First detect [hosted workspaces](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first). Hosted access uses that page’s ship procedure before GitHub or Cloudflare requirements; keep this skill’s record and validation duties.
+
 Invoking `/ship` authorizes every step below without a prompt: archive, checkpoint, walk, merge, remote-branch deletion, sync, and [the pull-in](#the-pull-in-nothing-to-ship-yet) with any save a task needs. It never authorizes archiving unchecked tasks; [Step 2](#step-2--archive-the-change) finishes them. Confirm anything else (a force push, `--no-verify`, `git reset --hard`, `checkout .`) in [the shared ask format](../explore/references/asking-the-user.md).
 
 [The change loop](../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate); PR review owns cleanliness, consolidation, and downstream breakage. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).

@@ -25,7 +25,7 @@ import { createManagementStore } from "./management.mjs";
 const managementStore = createManagementStore();
 
 /** The contract this agent follows with the control plane: server/README.md#the-agent. A changed message shape raises it. */
-export const CONTRACT = 2;
+export const CONTRACT = 3;
 const PASEO_HOME = "/home/wong/.paseo";
 /** The installer beside this agent, in the same unpacked source, which wong can read. */
 const INSTALLER = fileURLToPath(new URL("../install-wongstack.mjs", import.meta.url));
@@ -44,7 +44,7 @@ const MEMORY = ".agents/skills/memory/scripts/memory.mjs";
 const MEMBERS = ".agents/skills/memory/scripts/lib/members.mjs";
 
 /** Job types that run in the background, one of each type at a time, so polling goes on around them. */
-const BACKGROUND = new Set(["cloudflare", "copy-send", "copy-restore"]);
+const BACKGROUND = new Set(["cloudflare", "artifacts", "copy-send", "copy-restore"]);
 /** A full git commit, as the host records `SOURCE_COMMIT`. */
 const COMMIT = /^[0-9a-f]{40}$/;
 
@@ -265,6 +265,20 @@ export async function runJob(job, exec, log = () => {}, sleep, fetchFn) {
     case "resume":
       await exec("systemctl", ["start", "paseo.service"]);
       return { status: "done" };
+    case "artifacts": {
+      const payload = job.payload;
+      let installer;
+      try { installer = await sourceInstaller(payload, (args) => asWong(exec, ["env", "-u", "AGENT_TOKEN", ...args])); }
+      catch { return { status: "failed", reason: "repo" }; }
+      const prepare = installer.replace(/install-wongstack\.mjs$/, "prepare-hosted.mjs");
+      try {
+        const result = await asWong(exec, ["env", "-u", "AGENT_TOKEN", "node", prepare], { input: JSON.stringify(payload), timeout: INSTALL_TIMEOUT_MS });
+        const hosted = JSON.parse(result.stdout.trim().split("\n").at(-1));
+        if (hosted.projectId !== payload.projectId || hosted.sourceCommit !== payload.sourceCommit || hosted.verified !== true || !/^\/home\/wong\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(hosted.dir || "")) throw new Error("bad acknowledgment");
+        await setUpPaseo(hosted.dir, exec, log);
+        return { status: "done", hosted };
+      } catch { return { status: "failed", reason: "repo" }; }
+    }
     case "github":
       return connectGitHub(job.payload ?? {}, exec, log, sleep);
     case "cloudflare":

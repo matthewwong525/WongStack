@@ -141,6 +141,8 @@ Update `provision.mjs`, setup runbook, `server/install-wongstack.mjs`, `server/R
 
 #### Setup result contract (version 1)
 
+The planned trusted-process exports and exact typed inputs/results are in [operator-contract.md](operator-contract.md). They are not implemented by the schema checkpoint. This contract adds no public confirmation endpoint.
+
 Both standalone setup and a hosted backend return this nonsecret `memory` object. The hosted backend provisions Access with its private operator credential; a customer needs no Cloudflare account or token. This changes who operates the infrastructure, not human authentication or ownership. Hosting is optional. Per-project Access protects isolated production/staging/memory origins and immutable preview addresses. The dashboard opens only the backend-reported private app URL; it never serves candidate code on its own origin. Access email-policy/session updates and repository grants do not create memory principals or roles. Memory removal remains a separate explicit installation-owner operation.
 
 ```json

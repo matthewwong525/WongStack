@@ -6,6 +6,8 @@ user-invocable: true
 
 # /continue
 
+First detect [hosted workspaces](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first). Hosted access uses that page’s continue procedure before GitHub or Cloudflare requirements; keep this skill’s record and validation duties.
+
 Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context.
 
 This skill owns the checkout; `openspec` only reads ([the change loop](../../../wiki/development/the-change-loop.md)). The repo is whatever `gh` resolves; never hardcode owner/repo. Check [the preconditions](../save/references/preconditions.md) before the first `git` or `gh` command. `main` means [the default branch](../save/references/git-gate.md#the-default-branch).

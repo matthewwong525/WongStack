@@ -6,6 +6,8 @@ user-invocable: true
 
 # /apply
 
+First detect [hosted workspaces](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first). Hosted access uses that page’s apply procedure before GitHub or Cloudflare requirements; keep this skill’s record and validation duties.
+
 `/apply` is the **implement stage** of [the change loop](../../../wiki/development/the-change-loop.md), OpenSpec's **apply** step.
 
 ## Pick the path by the work

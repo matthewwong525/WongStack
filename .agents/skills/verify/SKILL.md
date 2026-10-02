@@ -6,6 +6,8 @@ user-invocable: true
 
 # /verify
 
+First detect [hosted workspaces](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first). Hosted access uses that page’s verify procedure before GitHub or Cloudflare requirements; keep this skill’s record and validation duties.
+
 Show, with evidence from this commit's deployed preview, **whether the change does what its scenarios promise**, and name what you could not check. You choose how to probe each scenario: [the walkthrough reference](references/walkthrough.md) holds the tools and the grading bar, and [the staging walkthrough](../../../wiki/development/staging-walkthrough.md) the reasons. `/verify` runs any time, in any repo, and gates nothing.
 
 Invoking `/verify` authorizes, without a prompt: `/save` with its commit, push, and PR; the machine-level browser install; the Access service-token mint; and the staging reset after a failure. Confirm anything else in [the shared ask format](../explore/references/asking-the-user.md).

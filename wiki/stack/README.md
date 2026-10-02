@@ -24,3 +24,5 @@ It fits AI-driven dev because **merge = deploy**: one runtime, cheap per-branch 
 Every install takes the pack. Standing it up is [setup's provisioning step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md), which runs once when `/wong-setup` installs WongStack, from any folder. A login wall is [Cloudflare Access](cloudflare-access.md#turning-it-on-through-an-agent), and removing everything is the [teardown](getting-started.md#teardown).
 
 > Session memory is not part of this pack: every repo gets it, and [its page](../development/memory.md) lives with the core process docs.
+
+[Hosted workspaces](hosted-workspaces.md) explains cloud preparation, the shared setup entry point and private remote delivery.

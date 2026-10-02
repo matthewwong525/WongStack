@@ -8,7 +8,7 @@ Decide when saved work may merge and how it gets there: `/save` checkpoints and 
 
 ### Requirement: The gate is CI when present, else PR review
 
-`/ship` SHALL merge only when `/save`'s gate result is `SUCCESS` (checks passed) or `NONE` (the repo has no checks, so PR review is the gate); `UNKNOWN`, `TIMEOUT`, or `FAILURE` SHALL stop the merge. `/ship` SHALL NOT bypass, repeat, or reinterpret that result, and SHALL NOT start while the default branch's own checks are failing or unreadable.
+On GitHub, `/ship` SHALL merge only when `/save`'s gate result is `SUCCESS` (checks passed) or `NONE` (the repo has no checks, so PR review is the gate); `UNKNOWN`, `TIMEOUT`, or `FAILURE` SHALL stop the merge. `/ship` SHALL NOT bypass, repeat, or reinterpret that result, and SHALL NOT start while the default branch's own checks are failing or unreadable.
 
 #### Scenario: Checks fail on the branch
 
@@ -20,6 +20,14 @@ Decide when saved work may merge and how it gets there: `/save` checkpoints and 
 
 - **WHEN** the repo has no CI workflow
 - **THEN** `/save` reports `NONE` and `/ship` merges on PR review
+
+
+For verified Artifacts hosted context, the gate SHALL be remote checks on the saved commit and its review record. Hosted `/ship` SHALL require explicit owner approval and publish only the exact successful immutable candidate after authoritative head and production-base checks; missing, failed, stale or unreadable checks SHALL stop publication.
+
+#### Scenario: Hosted checks are unreadable
+
+- **WHEN** the hosted service cannot prove passing checks for the exact saved commit
+- **THEN** the result is unverified and publication is refused
 
 ### Requirement: The gate reads the pushed commit
 
@@ -51,7 +59,7 @@ No skill SHALL compile, run a test suite, lint, or type-check as a condition of 
 
 ### Requirement: The gate doctrine has one owner
 
-`wiki/development/the-change-loop.md` SHALL state the gate and the ladder (CI when present, then merge, a skipped rung never a failure); other surfaces SHALL link to it, except one summary line in `AGENTS.md`. No surface SHALL call CI required, present the walkthrough as a condition of the merge, or describe a save route that depends on which paths changed.
+`wiki/development/the-change-loop.md` SHALL state the gate and the ladder (CI when present, then GitHub merge or approved hosted publication, a skipped rung never a failure); other surfaces SHALL link to it, except one summary line in `AGENTS.md`. No surface SHALL call CI required, present the walkthrough as a condition of the merge, or describe a save route that depends on which paths changed.
 
 #### Scenario: A surface restates the gate differently
 
@@ -60,7 +68,7 @@ No skill SHALL compile, run a test suite, lint, or type-check as a condition of 
 
 ### Requirement: Save checkpoints and never merges
 
-`/save` SHALL commit, push, open or update the pull request, and wait on the gate, and SHALL NOT merge, force-push, or bypass hooks. The pull request body SHALL show the change's current Status, its exact task checklist, and review and preview links when they exist, and no live credential value SHALL reach a commit, fact, pull request, or report.
+`/save` SHALL commit, push, open or update the GitHub pull request or hosted review record according to verified repository context, and wait on the gate, and SHALL NOT merge, force-push, or bypass hooks. The pull request or hosted review record SHALL show the change's current Status, its exact task checklist, and review and preview links when they exist, and no live credential value SHALL reach a commit, fact, pull request, or report.
 
 #### Scenario: A normal save
 
@@ -69,7 +77,7 @@ No skill SHALL compile, run a test suite, lint, or type-check as a condition of 
 
 ### Requirement: Git verbs check their preconditions first
 
-`/save`, `/continue`, and `/ship` SHALL check that `gh` is signed in, an `origin` remote exists, and the `openspec` CLI runs, before any git or GitHub action. A failed check SHALL stop the verb with the command that fixes it, and a sign-in failure SHALL NOT be read as "no PR".
+`/save`, `/continue`, and `/ship` SHALL detect verified hosted context before checking route-specific preconditions. Both routes SHALL require an `origin` remote and working `openspec` CLI. GitHub routes SHALL require signed-in `gh`; Artifacts hosted routes SHALL require valid scoped service access and verified repository identity without customer `gh` or Cloudflare credentials. A failed check SHALL stop the verb with the command that fixes it, and a sign-in failure SHALL NOT be read as "no PR".
 
 #### Scenario: gh is signed out
 
@@ -156,12 +164,12 @@ After the merge, `/ship` SHALL fast-forward the default branch of the primary ch
 
 ### Requirement: Every file edit takes the same route
 
-Every save that changes a repository file SHALL take a feature branch, a pull request, and the gate, whatever paths or file types it changes. `/save` SHALL author an OpenSpec change only for code or a plan for code; a save with no change SHALL get a pull request body that describes the edit in plain words. A save whose only output is facts SHALL make no commit.
+Every save that changes a repository file SHALL take a feature branch, a GitHub pull request or hosted review record, and the appropriate remote gate, whatever paths or file types it changes. `/save` SHALL author an OpenSpec change only for code or a plan for code; a save with no change SHALL get a pull request body that describes the edit in plain words. A save whose only output is facts SHALL make no commit.
 
 #### Scenario: A wiki-only save
 
 - **WHEN** `/save` runs and the only changed file is a wiki page
-- **THEN** it opens a pull request with a plain body and waits on the gate, with no OpenSpec change
+- **THEN** it opens a GitHub pull request or hosted review record with a plain body and waits on the remote gate, with no OpenSpec change
 - **AND** nothing is pushed to the default branch
 
 #### Scenario: A facts-only save

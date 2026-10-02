@@ -25,7 +25,7 @@ Each is a **tool, not a toolchain**: nothing is added to your repository — no 
 
 **With Paseo, WongStack sets two things.** Paseo keeps settings in two places: the repo's `paseo.json` travels with every clone, and `~/.paseo/config.json` stays on each computer (`paseo reload` rereads it). The repo's [`paseo.json`](../../paseo.json) copies your secrets into each new workspace ([the secrets convention](secrets.md)) and tells Paseo to name workspaces, branches, commits, and pull requests the way [`/save` and `/ship`](the-change-loop.md) do. Setup and the server installer also add four agent presets, *Explore / Plan* and *Apply / Ship* for Claude and for Codex, with [`presets.mjs`](../../.agents/skills/routine/scripts/presets.mjs). It adds only the missing ones, never changes one you have, and skips an agent that is not installed. Everything else stays yours: new workspaces start from `main` already, Paseo's app remembers whether you pick a new worktree or local, workspaces stay open after a merge (the session-start [tidy-up](../../.agents/skills/routine/scripts/tidy.mjs) closes saved ones idle three days), and the agent browser stays off. On a new computer, ask your agent to run `node .claude/skills/routine/scripts/presets.mjs add` once; `--dry-run` shows what it would add.
 
-**Setup adds one account: Cloudflare.** Every repo keeps its [memory store](memory.md) there, and every new install hosts its app there.
+**Personal setup adds one account: Cloudflare.** [Hosted workspaces](../stack/hosted-workspaces.md) use platform hosting and scoped project access, with no customer GitHub or Cloudflare sign-in. Every repo keeps its [memory store](memory.md) there.
 
 | Need | Why |
 |---|---|

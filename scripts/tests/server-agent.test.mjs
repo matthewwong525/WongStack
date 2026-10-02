@@ -102,15 +102,15 @@ test("a poll sends the contract, the source commit, and health with the token, a
   pollReply = { status: 200, body: { jobs: [], interval: 2 } };
   const interval = await tick({ appUrl, token: "tok", commit: SOURCE_COMMIT, fetch, exec: fakeExec().exec, log: () => {} });
   assert.equal(interval, 2);
-  assert.equal(CONTRACT, 2);
-  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 2, commit: SOURCE_COMMIT, paseo: "up" } }]);
+  assert.equal(CONTRACT, 3);
+  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 3, commit: SOURCE_COMMIT, paseo: "up" } }]);
 });
 
 test("a poll sends a null commit when SOURCE_COMMIT is missing or not a full commit", async () => {
   for (const commit of [undefined, "", "abc1234", SOURCE_COMMIT.toUpperCase(), `${SOURCE_COMMIT}\n`]) {
     requests = [];
     await tick({ appUrl, token: "tok", commit, fetch, exec: fakeExec({ fail: ["is-active"] }).exec, log: () => {} });
-    assert.deepEqual(requests[0].body, { contract: 2, commit: null, paseo: "down" }, String(commit));
+    assert.deepEqual(requests[0].body, { contract: 3, commit: null, paseo: "down" }, String(commit));
   }
 });
 
@@ -174,7 +174,7 @@ test("main polls in a loop, waits the hinted interval, and keeps going after an 
   assert.deepEqual(lines, ["poll error: network down"]);
   assert.equal(requests.length, 2);
   assert.equal(requests[0].auth, "Bearer tok");
-  assert.deepEqual(requests[0].body, { contract: 2, commit: SOURCE_COMMIT, paseo: "up" });
+  assert.deepEqual(requests[0].body, { contract: 3, commit: SOURCE_COMMIT, paseo: "up" });
 });
 
 test("github signs gh in with the token on stdin, sets git up, and clones the repo", async () => {
@@ -645,4 +645,25 @@ test("an owner's own github job does not wait for an invitation", async () => {
   const box = ghExec([["test -d", { fail: "" }], [" paseo ", { fail: "" }]]);
   await runJob({ type: "github", payload: { ...GITHUB, invited: false } }, box.exec, () => {}, async () => assert.fail("no wait"));
   assert.ok(!box.lines().some((l) => l.includes("repo view") || l.includes("invitations")));
+});
+
+test('Artifacts preparation runs only pinned source as wong without the agent token and registers its actual clone', async () => {
+  const payload = { serviceUrl: 'https://service.example.com', projectId: '11111111-1111-1111-1111-111111111111', token: 'private-project-grant', gitUrl: 'https://git.example.com/account/project.git', sourceRepo: 'matthewwong525/WongStack', sourceCommit: SOURCE_COMMIT, ownerEmail: 'owner@example.com', subject: 'owner', role: 'owner' };
+  const hosted = { projectId: payload.projectId, sourceCommit: SOURCE_COMMIT, verified: true, dir: '/home/wong/Existing' };
+  const calls = [];
+  const exec = async (file,args,options) => {
+    calls.push({file,args,options});
+    const command=args.join(' ');
+    if(command.includes('remote get-url origin')) return {stdout:'https://github.com/matthewwong525/WongStack.git'};
+    if(command.includes('rev-parse HEAD')) return {stdout:SOURCE_COMMIT};
+    if(command.includes('prepare-hosted.mjs')) return {stdout:JSON.stringify(hosted)};
+    if(command.includes('project ls')) return {stdout:JSON.stringify([{path:hosted.dir}])};
+    return {stdout:''};
+  };
+  assert.deepEqual(await runJob({type:'artifacts',payload},exec),{status:'done',hosted});
+  const preparation=calls.find(call=>call.args.includes(INSTALLER_PATH.replace('install-wongstack.mjs','prepare-hosted.mjs')));
+  assert.ok(preparation.args.includes('-u'));assert.ok(preparation.args.includes('AGENT_TOKEN'));
+  assert.equal(preparation.options.input,JSON.stringify(payload));
+  assert.equal(calls.some(call=>call.args.includes(payload.token)),false);
+  assert.equal(calls.some(call=>call.args.includes('gh')),false);
 });

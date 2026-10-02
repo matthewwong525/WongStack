@@ -1,69 +1,62 @@
-# Try Cloudflare Artifacts for hosted projects
+# Move hosted WongStack projects to Artifacts
 
-**Status:** ready-to-ship
+**Status:** in-progress
 
 **Branch:** github-artifacts
 
-**Open questions:** none for this disposable trial. Customer adoption requires a representative hosted-app trial and runner recovery work.
+**Open questions:** none; live deployment evidence is required before merge readiness.
 
 ## Why
 
-Hosted WongStack could create and manage a customer's project without asking them to set up GitHub. A disposable trial will show whether Cloudflare Artifacts can support the full change-and-publish flow before we move customer projects.
+Hosted setup should get a person into their repo and AI quickly. They should finish with `/wong-setup`, the same entry point used on their own computer, and save and publish without connecting GitHub.
 
 ## What Changes
 
-- **Build once, then upload the result directly.** One CI runner tests and builds the exact saved change. The trusted controller uploads its output to a Worker preview through the API. Publishing still requires the owner's approval. This bypasses the refused managed-build connection and the failing second deployment container.
+- **Store hosted projects in Artifacts.** New cloud workspaces get their own project and scoped access. Existing GitHub projects can move with all branches, tags, and history verified before their remote changes.
   ```text
-  Artifacts push ──▶ CI tests + build
-                            │ passing output
-                            ▼
-                       Workers API
-                            │
-                            ▼
-                       exact preview
-                            │ owner approves
-                            ▼
-                       trial publication
-  ```
-
-- **Try one project in the platform's Cloudflare account.** Use made-up people and data, with a second empty repository to check that access stays inside the right project. The trial does not change customer signup or existing projects.
-  ```text
-  public WongStack template
-             │
-             ▼
-  disposable hosted project
-             │
-     agent makes a change
-             │
-             ▼
-  checks ──▶ preview ──▶ owner approves
+  cloud sign-in ──▶ personal Artifacts repo
                               │
                               ▼
-                      trial site updates
+                        repo + AI ready
   ```
-- **Prove publishing needs the owner's approval.** A passing preview must identify the exact change. A failed check, a newer change, or a direct push without approval must not update the trial's published site.
-- **Prove access can be removed.** A trial teammate can work on the project and use its test memory without GitHub. Removing them must stop their existing project and memory keys while the owner keeps access.
-- **Prove the project can leave Artifacts.** Export its branches, tags, and history with ordinary Git, check the restored copy, and remove only the resources the trial created.
-- **Give a clear adoption report.** Record what passed, failed, or could not be tested, the observed build times and usage, and the remaining work to connect this to the hosted service. Recommend migration only from live evidence.
+- **Use one setup flow.** The cloud prepares the empty repo and coding agents. The person signs into their AI and sends `/wong-setup`; that installs the assistant and starts its site and memory. Personal computers use the same setup command with their own hosting.
+  ```text
+  cloud workspace       personal computer
+          │                     │
+          └─────────┬───────────┘
+                    ▼
+               /wong-setup
+                    │
+                    ▼
+          assistant + site + memory
+  ```
+- **Save and publish the real app.** Remote checks build the actual site, including its assets and memory bindings. A passing preview identifies its exact commit; only an owner-approved passing result can publish. Failed or uncertain work stays unpublished.
+  ```text
+  save ──▶ remote checks ──▶ private preview
+                                   │ owner approves
+                                   ▼
+                               publish
+  ```
+- **Keep each workspace private and removable.** Each project's login protects its site and previews. Project credentials cannot reach another project; removing a teammate revokes their repository and memory access.
+- **Prove the migration before merging.** Keep the disposable pilot reports and add representative setup, build, preview, publication, migration, revocation and cleanup evidence. Failed and untested cases remain visible.
 
-**Non-goals:** customer signup or billing changes; moving existing projects; replacing the public WongStack repository; shipping Artifacts support to ordinary installs; building a review dashboard; proving a production identity system with test people.
+**Non-goals:** moving the public template off GitHub, changing billing, deleting existing customer GitHub repositories, or merging before the integrated checks and live trial pass.
 
 ## Capabilities
 
 ### New Capabilities
 
-None. This is internal experiment tooling, opted out of spec deltas with `skip_specs: true`; it creates no supported product contract.
+- `hosted-workspaces`: Artifacts-backed setup, remote checks, approval, privacy, and portable project access.
 
 ### Modified Capabilities
 
-None. The existing stack-pack, delivery-gate, memory, and managed-workspace-access promises continue to apply to supported installations. The experiment runs separately.
+- `install-onboarding`: hosted setup uses its prepared empty repo and service authority.
+- `server-agent`: contract 3 adds scoped Artifacts workspace preparation.
+- `delivery-gate`: hosted repositories use the service gate while retaining exact-commit and approval guarantees.
 
 ## Impact
 
-- Meta-only experiment files under `scripts/pilots/artifacts/` and tests under `scripts/tests/`, outside the payload inventory. The retry adds one dependency-install step to the meta-only payload check workflow so its regression exercises the real pinned SDK. No shipped workflow, release or payload change is needed.
-- Disposable Artifacts repositories, a controller/pipeline Worker, trial production and staging Workers, test D1 databases, and any pipeline-owned cache/container/workflow resources, all recorded by ID in one run manifest.
-- Existing Cloudflare deployment helpers and memory request handling may be imported without changing their supported behavior; the experiment supplies its own identity entry point and credentials.
-- A future product migration belongs in `wongstack-cloud`; this plan neither edits that repo nor changes its login, team membership, or installer.
+Payload client, setup and delivery skills; server agent and source-only hosted service runtime; representative app build packaging; release notes. The companion `artifacts-storage-onboarding` change in wongstack-cloud owns dashboard, tenant membership and orchestration. Both releases form one coordinated migration; this PR alone is not ready until that integration is verified.
 
 ## Decision log
 
@@ -108,3 +101,15 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 - **2026-10-02** — Source `215dc0d` passed all checks and 972 script cases. Fresh run `a1002e8k6` passed its first-ever preview in 27.794s, the next in 9.761s, red checks without upload and a third preview in 12.881s. The exact approved production version was deployed, but the API returned an ID-only POST acknowledgment, which our validator rejected before its detailed GET. Independent GET showed the expected version at 100%. Accept that observed response shape and retain mandatory exact-ID/version/percentage readback; preserve and clean the diagnostic reservation, then repeat from fresh resources.
 
 - **2026-10-02** — Final source `e43c070` passed all remote gates and 972 script cases. Fresh run `a1002f9m2` proved two consecutive previews, blocked red/stale/outdated-base publication, exact owner-approved publication through the Workers API with no deployment runner, isolated databases, duplicate suppression, access removal and full-ref export. One candidate suffered a Sandbox interruption; a fresh commit passed without source changes. This proves feasibility, not production reliability. All fifteen resources and fourteen credentials were removed with no leftovers. Keep the tooling unmerged for review and recommend a representative hosted-app pilot before customer migration. A separate WongStack fork adds no useful isolation over this branch plus disposable Artifacts repositories; hosted-service integration belongs in its own repository.
+
+- **2026-10-02** — Asked whether this work should adopt Artifacts or keep customer repositories on GitHub → the user confirmed merging #238 must be the storage migration, superseding the disposable-only scope.
+- **2026-10-02** — Assumed: keep the public source on GitHub and preserve existing customer repositories as migration backups, because the request replaces hosted storage rather than the source distribution.
+- **2026-10-02** — Assumed: use a source-only hosted backend with scoped service APIs and an installed client, because the platform's deployment authority must never enter candidate builds or customer VMs.
+- **2026-10-02** — Assumed: cloud login protects proxied hosted sites and previews, with a trusted entry wrapper denying direct Worker access, because customer business content must remain private without per-customer Cloudflare setup.
+
+- **2026-10-02** — Assumed: use platform-managed Cloudflare Access on isolated project Worker origins, because source verified app login supports installation-owned Devices and candidate JavaScript must never share the dashboard origin.
+- **2026-10-02** — Assumed: memory starts pending owner/device approval through the concurrent installation-owned-memory-devices change, because cloud or service grants are not memory membership authority.
+
+- **2026-10-02** — Check: `.github/workflows/payload.yml` installs the hosted service’s locked SDK without install scripts so its remote contracts exercise the pinned runtime. Existing checks and thresholds remain in place.
+
+- **2026-10-02** — Checkpoint the prepared workspace/client and strict human Access adapter together to validate contract 3, hosted workflow routing and signed human evidence remotely. The dedicated hosted service, operator library, memory handler/Devices and integrated live acceptance remain incomplete; this slice is not merge readiness. Memory-owned files are included only from the explicit seven-path frozen handoff.

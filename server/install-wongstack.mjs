@@ -154,7 +154,7 @@ const isLink = (path) => {
 };
 
 /** Copies the payload, the `WONG-STACK` block, the source's `.env.example`, the two hubs, and OpenSpec's home. */
-async function copyPayload(dir, exec) {
+export async function copyPayload(dir, exec) {
   const manifest = readJson(join(SOURCE, '.agents', 'skills', 'wong-sync', 'references', 'payload-files.json'));
   for (const path of payloadFiles(manifest, await sourceFiles(exec))) {
     const from = join(SOURCE, path);
@@ -184,7 +184,7 @@ export function upstreamUrl(remote) {
 }
 
 /** The install record `/wong-sync` reads: this clone's version, commit, and origin. */
-async function installRecord(manifest, exec, today) {
+export async function installRecord(manifest, exec, today) {
   const version = readFileSync(join(SOURCE, 'VERSION'), 'utf8').trim();
   const commit = (await exec('git', ['-C', SOURCE, 'rev-parse', 'HEAD'])).stdout.trim();
   const origin = await exec('git', ['-C', SOURCE, 'remote', 'get-url', 'origin']).then(({ stdout }) => upstreamUrl(stdout), () => UPSTREAM);

@@ -1,5 +1,7 @@
 # Design
 
+The first sections record the completed disposable pilot. The **Hosted migration extension** below supersedes its experimental scope for the current production implementation; all original evidence remains historical evidence, not proof of the new integration.
+
 ## Context
 
 See [proposal.md](proposal.md) for the chosen scope. WongStack's supported workflow discovers checks and previews through GitHub, publishes through `gh pr merge`, and joins memory through GitHub account and repository permissions. Those are separate migration surfaces from Git storage. The hosted control plane in `/root/wongstack-cloud` also uses GitHub sign-in; this experiment edits no file there.
@@ -163,3 +165,49 @@ The next fresh run `a1002e8k6` proved cold-start and consecutive previews, then 
 ### Completed direct API trial
 
 Final source `e43c070` passed its remote gate and the full disposable acceptance flow in run `a1002f9m2`; see [the results and limits](direct-api-evidence.md). An ID-only deployment POST acknowledgment is accepted only before mandatory exact-ID/version/100% GET verification. One remaining single-runner interruption required a fresh-commit retry, so the evidence proves feasibility rather than production reliability. All resources and run credentials were removed. Earlier pending statements above describe their dated stages, not outstanding trial tasks.
+
+## Hosted migration extension
+
+## Coordinated service contract
+
+Source-only service in `server/hosted/` runs separately from the public template app. It owns platform Cloudflare credentials, Artifacts namespace/repositories, project runtime resources, remote CI and approval state. The cloud control plane reaches it using `WONGSTACK_HOSTED_URL` and `WONGSTACK_HOSTED_ADMIN_TOKEN` (private secrets); customer VMs receive only scoped project access. Deployment environments use separate namespaces, Workers, state and credentials.
+
+Admin APIs (Authorization Bearer admin token):
+- `POST /v1/projects` body `{id, owner:{id,email}, source:{repo,commit}}` idempotently prepares the project, returning `{id, gitUrl, sourceRepo, sourceCommit}`. IDs are UUIDs; source is a reviewed GitHub repo and 40-hex commit.
+- `POST /v1/projects/:id/access` body `{subject,email,role,vmId}` returns a private handoff `{serviceUrl, projectId, token, gitUrl, sourceRepo, sourceCommit, ownerEmail, subject, role}`. `role` is owner/member; trusted cloud membership supplies it. No raw token reaches a browser or logs.
+- `DELETE /v1/projects/:id/access/:vmId` immediately disables the scoped service grant and revokes every issued Git/memory credential; incomplete provider revocation stays pending.
+- `GET /v1/projects/:id/status` returns safe project setup/candidate/publication state.
+- `POST /v1/projects/:id/site` body `{sha}` returns only the backend-reported, project-bound private Worker URL (null sha selects production), after checking the recorded immutable version. Cloud authenticates the owner or active teammate before opening it. Cloud serves no candidate content on its own origin.
+
+Project client APIs (Authorization Bearer scoped machine token, tenant from grant rather than caller identity):
+- `GET /v1/workspace` reports project/source/role/git URL and setup state without secrets.
+- `POST /v1/git-token` issues a 30-minute repository-only write token (read tokens for CI); values go only to a Git credential helper.
+- `POST /v1/setup` idempotently provisions the project's production/staging Workers, app DBs, memory DB/bucket and trusted configuration. Returns target-owned `wrangler`, `installRecordMemory`, memory installation status/action URL and hosting settings. Memory is pending-owner/device until the installation-owned human/operator/device protocol completes; no cloud ID or service grant creates memory membership or mints a memory key. This runs only when `/wong-setup` requests it.
+- `POST /v1/candidates` body `{sha,ref}` starts checks against an independently read Artifacts branch head; return `{sha,ref,status}`. `GET /v1/candidates/:sha?ref=...` returns exact checks, status and reported private preview URL. Queued/busy runners must retain the candidate for bounded recovery rather than lose an event.
+- `POST /v1/approvals` body `{sha,ref}` requires owner role and current passing preview/head/base, returning approval ID. `POST /v1/publications` body `{approvalId}` publishes exact stored bytes after rechecking the authoritative head and production base; never rebuild on publication. Publication uncertainty retains the reservation.
+- `GET /v1/status` reports safe setup, candidates and production status.
+
+All errors are sanitized and carry no credentials; all API responses are no-store. Service/client adapters may refine additive response fields but must coordinate explicitly across the three build surfaces. HTTPS URLs only, no URL credentials or redirects carrying credentials; source pins and Git URL identity verified before execution. Candidate code never sees service/admin/deployment secrets.
+
+## Workspace bootstrap and installed client
+
+Contract 3 adds an `artifacts` agent job using the private access handoff above and optional owner-only `githubRepo` for mirror migration and trusted `legacyRepo` for preserving owner/member clones. The agent fetches and verifies the pinned source separately, runs its fixed preparation script as wong without AGENT_TOKEN, configures expiring Git credentials through a source credential helper, clones the Artifacts repo into `/home/wong/wongstack` for new projects or preserves the trusted existing GitHub clone folder for migrations, and registers existing Paseo sign-ins/Start here. Preparation leaves payload/site/memory absent. State under `.git/wongstack-hosted.json` is mode 0600 outside tracked content; global Claude/Codex `/wong-setup` points at the verified source skill. Reconnects preserve work. Migration mirrors and verifies every GitHub ref/object ID before changing origin, retaining GitHub as backup; no automatic deletion.
+
+An installed hosted client under `.agents/skills/save/scripts/hosted.mjs` resolves the primary-worktree context, handles `context`, `credential`, `setup`, `candidate`, `wait`, `approve`, `publish`, `status` and migration/bootstrap support as needed. It never prints tokens except Git's credential protocol. After installation, hosted context is nonsecret, repository/service credentials persist in ignored mode-0600 .env. Memory credentials use the installation-owned Devices protocol and per-OS-user private device store; do not copy them into worktrees or mint them from service grants. Personal GitHub installs continue their existing path. Setup and save/ship/continue/apply/verify must select the detected hosted route before any gh/Cloudflare-user-token requirement; source updates still use the recorded GitHub source. A first install is only committed/pushed by /save. Publication remains explicitly authorized by /ship.
+
+## Real application build and privacy
+
+Replace the fixture-only single-module/result limit with bounded modules, static assets and migration packaging from the actual Vite output. The credential-free CI runner installs locked dependencies in app/, runs the existing checks and builds without remote database migration or candidate-controlled deploy scripts. It validates exact SHA and stores immutable SHA-256 digested bundle bytes in private storage. Trusted deployment uploads assets with the Workers asset upload protocol and modules with explicit allowlisted bindings; no candidate configuration may select platform resources. Stage migrations/data stay in staging; approved production migration operates only on the owned production DB. Memory runs the unchanged shared handler using project-owned memory storage and subject-derived keys.
+
+Hosted sites use the existing source Cloudflare Access guard on distinct per-project production, staging and memory Worker origins, including immutable version/alias preview addresses. The platform backend provisions exact project-owned Access applications/policies and retains safe app/audience/team-domain receipts; its credential stays private. No customer Cloudflare token/account or custom DNS wildcard is required. Setup is fail-closed if platform protection cannot be verified; there is no platform login-off fallback. Backend-reported private Worker URLs are the site's and preview's addresses. The cloud authenticates live owner/team membership before returning a project URL and never serves candidate JavaScript on its own origin, proxies cloud cookies, or grants deployment authority to candidate code. Owner/team email policy changes and session revocation are project-scoped and observed. The app independently verifies Access human claims and follows installation-owned principal/bootstrap/device approval; cloud identity or service authority never seeds memory roles.
+
+The concurrent `installation-owned-memory-devices` change in #238 owns memory worker/CLI/hooks/migrations/Devices UI and memory-specific provisioning. Its version-1 setup result uses `protocolVersion`, `installationId`, `repositoryId`, exact trusted `appUrl` and `memoryOrigin`, `status`, enumerated safe `reason`, and nullable `action` containing `kind`, canonical app `/apps/devices/` URL and `operatorConfirmationRequired`. Ready requires current requesting-machine grant introspection; provisioning alone returns pending-device after owner confirmation. Memory removal is a separate explicit installation-owner operation, never inferred from cloud email-policy removal. Runtime/setup consume that result; do not mint old memory keys or introduce legacy fallback. Both changes and the cloud companion must pass the combined gate before migration readiness.
+## Migration and rollout
+
+Deploy the dedicated service and its isolated staging resources, configure the cloud staging secrets, and verify there first. The cloud accepts contracts 1/2/3; artifacts jobs require 3, old servers get a rebuild prompt rather than unsupported jobs. Pin cloud builds to the verified #238 release commit after it is available. New installs default to Artifacts; existing repos have an explicit migration action that verifies export/import before origin changes and updates cloud records only after acknowledgment. Team invitation/removal and server deletion revoke scoped service grants before reporting completion. Existing GitHub workflows and legacy Cloudflare jobs stay compatible for unmigrated customers. Production promotion remains the final publish approval, with explicit rollout order and no silent customer migration.
+
+## Risks / Trade-offs
+
+- Provider runner interruptions: bounded check-only retries with immutable SHA and preserved queue; never retry ambiguous uploads/publications.
+- Cross-repo releases: both heads must be green and staging integration proven before declaring ready; report any untested live scenario UNKNOWN.
+- Static assets, memory and migration complexity: build the real shipped scaffold, not a hand-coded stand-in, and prove browser/HTTP routes, private keys and database isolation.

@@ -62,3 +62,23 @@
 - [x] 8.3 Run the fresh live trial in the authorized platform account; prove consecutive green previews, red-check/upload isolation, unchanged production before approval, failed/stale approval refusal, exact approved publication, D1 isolation, duplicate events and access removal. Diagnose and correct failures, repeat boundedly until a working route is proven or an intervention-only blocker remains; preserve actual evidence.
 - [x] 8.4 Quiesce, export and restore all refs/history, revoke all issued credentials and delete only owned trial resources with absence readbacks. Write `direct-api-evidence.md` with timings, limits, failures, outcomes, adoption recommendation and exact leftovers if any.
 - [x] 8.5 Refresh the review page and checkpoint the finished trial via `/save`, require final remote checks, and keep tooling unmerged for review.
+
+
+## 9. Hosted runtime and representative pipeline
+
+- [ ] 9.1 Implement the source-only hosted service and documented admin/client APIs with tenant-isolated lifecycle, scoped credentials and revocation; add meaningful remote contract coverage.
+- [ ] 9.2 Package and remotely build the real app with assets, migrations and memory; deploy exact immutable bundles using trusted runtime bindings and platform-managed Access and private site URLs, with regression tests for red checks, corruption, wrong tenant and stale approval/base.
+- [ ] 9.3 Add bounded candidate queue/recovery, preserving ambiguous publication reservations; document service deployment, secrets, rollout and cleanup.
+
+## 10. Prepared workspace and installed workflow
+
+- [ ] 10.1 Add contract-3 Artifacts preparation and verified GitHub mirror migration to the server agent, preserving existing jobs and private credentials; add meaningful bootstrap/reconnect/migration tests and server docs.
+- [ ] 10.2 Add the hosted client and route setup/save/ship/continue/apply/verify before GitHub-specific requirements; include installed context/credential handling, payload inventory, release entry and downstream contract tests.
+- [ ] 10.3 Update specs and wiki for one setup flow and hosted delivery; run payload links, OpenSpec config and context-budget checks.
+
+## 11. Coordinated remote gate and live verification
+
+- [ ] 11.1 Run /save for #238 and its cloud companion, require all remote checks, and fix failures.
+- [ ] 11.2 Deploy isolated staging service/control-plane integration and run real empty-repo preparation → /wong-setup payload → remote actual-app build → private preview → owner-approved publish → next change; prove memory, assets, tenant isolation and failed/stale publication safeguards with recorded exact heads.
+- [ ] 11.3 Verify GitHub-to-Artifacts full-ref migration/export, scoped teammate access/removal and old-agent fallback; record PASS/FAIL/UNKNOWN, clean only owned trial resources with absence readbacks, and checkpoint final evidence.
+- [ ] 11.4 Report both merge gates and rollout order, refresh review pages, and leave production publication/merge for the user.

@@ -1,6 +1,6 @@
 # Git preconditions
 
-`/save`, `/continue`, and `/ship` run these checks once, before their first git or GitHub action. A failed check stops the verb with its fix. Never guess: a signed-out `gh` looks like "no PR", and a missing `origin` like "nothing pushed".
+Detect [hosted access](../../../../wiki/stack/hosted-workspaces.md#detect-the-route-first) first. Hosted verbs check context, origin and OpenSpec without `gh`. Personal verbs run these checks once before git or GitHub; failure stops with its fix.
 
 | Check | Fails when | Fix |
 |---|---|---|

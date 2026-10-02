@@ -177,7 +177,7 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 
 ### Contract 2
 
-`agent.mjs` exports `CONTRACT = 2`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
+`agent.mjs` exports `CONTRACT = 3`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
 
 **The poll.** Every `interval` seconds (10 by default) the agent sends `POST /api/agent/poll`:
 
@@ -223,7 +223,7 @@ A change to any of these shapes raises `CONTRACT`. The host supports the new num
 
 ### Change the agent in your fork
 
-Your fork's servers run your fork's agent. Change it as you like, and keep contract 2, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
+Your fork's servers run your fork's agent. Change it as you like, and keep contract 3, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
 
 ## Test a change on a real server
 
@@ -241,3 +241,15 @@ The source's tests use a pretend Cloudflare. Before you ship a change to either 
 Fork WongStack and edit `setup.sh` to change what every server gets: add a tool, pin a version, or remove one you do not use. Keep the contract above, and keep the final check honest. A host that pairs devices needs `paseo`, and removing it breaks chat there. Change the payload, and `install-wongstack.mjs` installs your version: your fork's tests install it into a practice repo, so a file it misses fails there first. Neither the scripts nor the agent is in the [payload](../.agents/skills/wong-sync/references/payload-manifest.md#not-copied), so installed repos never get them; the template belongs to the source you fork.
 
 [Required tools](../wiki/development/required-tools.md) owns what WongStack needs on your own machine.
+
+## Artifacts preparation (contract 3)
+
+The existing GitHub, Cloudflare and team jobs retain their shapes. Contract 3 adds the background `artifacts` job with a private payload `{serviceUrl, projectId, token, gitUrl, sourceRepo, sourceCommit, ownerEmail, subject, role, githubRepo?, legacyRepo?}`. The cloud service issues the scoped project token; it is never an agent or platform token. The host verifies the reviewed GitHub source and exact commit using the existing source loader, then executes `server/prepare-hosted.mjs` as wong with the handoff on stdin and `AGENT_TOKEN` removed.
+
+Preparation clones into `/home/wong/wongstack`, registers the existing sign-in and Start here workspaces, and globally registers the pinned `/wong-setup` for Claude and Codex. It leaves the repository empty: no installed payload, site, database or memory. The first message is `/wong-setup`. A reconnect preserves work, rotates scoped access and updates the pinned setup entry point. Git's credential helper obtains fresh repository-only grants, supplies them only for the matching HTTPS host and path, and never prints them outside Git's protocol. Private context and helper state are mode 0600. Installed credentials live in the primary worktree's ignored `.env`.
+
+With `githubRepo`, preparation mirrors all advertised refs, verifies independent restored refs/object IDs and `git fsck`, and only then changes a matching working repository's origin. It preserves uncommitted work and the original `github-backup` remote. The source repository is not deleted. Conflicting destination history or a missing ref stops migration before the working origin changes.
+
+Completion is `{status:"done", hosted:{projectId,sourceCommit,verified:true,dir}}`. Failure is a sanitized `{status:"failed",reason:"repo"}`; no command output or token reaches the control plane. The cloud must require this verified acknowledgment before selecting the Artifacts backend for an existing project. Older agents require a rebuild rather than receiving unsupported jobs. See [the hosted workflow](../wiki/stack/hosted-workspaces.md).
+
+After the owner’s verified migration, `legacyRepo` from the trusted cloud record locates an existing owner or member clone without importing again. This route independently fetches Artifacts and verifies every advertised backup object before changing that machine’s origin, preserving its dirty work and GitHub backup; members never mirror-push.
