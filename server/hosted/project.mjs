@@ -1,6 +1,7 @@
 import { need, shaOK, uuidOK, refName, digest, randomToken, publicCandidate } from './security.mjs';
 import { accessSetup, policies, revokeHuman } from './access.mjs';
 import { proveAncestry } from './git.mjs';
+import { wireBootstrap } from './bootstrap.mjs';
 
 export const initialProject = () => ({ version: 1, grants: {}, candidates: {}, approvals: {}, resources: [], production: null, publication: null, stopped: false });
 const keyOf = (sha, ref) => `${ref}:${sha}`;
@@ -74,14 +75,17 @@ export class ProjectController {
       }
       await this.resource('r2', 'memory');
       await accessSetup(s, this.a.provider, () => this.save());
-      const production = s.resources.find(row => row.kind === 'worker' && row.environment === 'production');
-      s.productionUrl = await this.a.provider.routing(production.name);
+      const origins = await wireBootstrap(s, this.a.provider, () => this.save());
+      s.productionUrl = origins.appUrl;
       // The separate memory Devices change installs the canonical schema and its verified-login
       // operator bootstrap. Cloud machine grants must never seed memory roles or credentials.
-      const memoryWorker = s.resources.find(row => row.kind === 'worker' && row.environment === 'memory');
-      const memoryOrigin = await this.a.provider.routing(memoryWorker.name);
-      s.memory = { protocolVersion: 1, installationId: crypto.randomUUID(), repositoryId: crypto.randomUUID(), appUrl: s.productionUrl, memoryOrigin, status: 'pending-owner', reason: 'owner-unconfirmed', action: { kind: 'confirm-owner', url: `${s.productionUrl}/apps/devices/`, operatorConfirmationRequired: true } };
+      need(!s.memory || s.memory.appUrl === origins.appUrl && s.memory.memoryOrigin === origins.memoryOrigin, 'Pinned installation origins differ');
+      s.memory ||= { protocolVersion: 1, installationId: crypto.randomUUID(), repositoryId: crypto.randomUUID(), appUrl: origins.appUrl, memoryOrigin: origins.memoryOrigin, status: 'pending-owner', reason: 'owner-unconfirmed', action: { kind: 'confirm-owner', url: `${origins.appUrl}/apps/devices/`, operatorConfirmationRequired: true } };
       s.setup = 'ready'; await this.save();
+    } else {
+      await accessSetup(s, this.a.provider, () => this.save());
+      const origins = await wireBootstrap(s, this.a.provider, () => this.save());
+      need(s.memory?.appUrl === origins.appUrl && s.memory.memoryOrigin === origins.memoryOrigin, 'Pinned installation origins differ');
     }
     const db = environment => s.resources.find(row => row.kind === 'd1' && row.environment === environment);
     const worker = environment => s.resources.find(row => row.kind === 'worker' && row.environment === environment).name;

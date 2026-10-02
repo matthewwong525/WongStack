@@ -95,3 +95,66 @@ test('only an unborn local main with no remote refs selects initial main save',a
  await assert.rejects(initialBranch(local,{exec:run({headError:128})}),/no HEAD/);
  await assert.rejects(initialBranch(local,{exec:run({remoteError:true})}),/inaccessible/);
 });
+
+function detectorFixture({remote='https://github.com/owner/project.git',record=null,failure=null,committed=true}={}) {
+ const root=mkdtempSync(join(tmpdir(),'hosted-detect-')),common=join(root,'.git');mkdirSync(common);
+ const exec=async(_file,args)=>{
+  if(args.includes('--git-common-dir')) return {stdout:`${root}\n${common}\n${common}`};
+  if(args.includes('--show-toplevel')) return {stdout:root};
+  if(args.includes('remote') && !args.includes('get-url')) return {stdout:remote===null?'':'origin'};
+  if(args.includes('get-url')) {if(failure==='origin') throw new Error('origin inspection failed');return {stdout:remote};}
+  if(args.includes('--verify')) {if(!committed)throw Object.assign(new Error('unborn HEAD'),{code:1});return {stdout:'a'.repeat(40)};}
+  if(args.includes('ls-tree')) {if(failure==='record') throw new Error('record inspection failed');return {stdout:record===null?'':'.agents/.wong-stack.json'};}
+  if(args.includes('show')) return {stdout:JSON.stringify(record)};
+  throw new Error('unexpected inspection');
+ };
+ return {root,exec,clean:()=>rmSync(root,{recursive:true,force:true})};
+}
+test('a confirmed plain folder outside Git selects personal setup, while corrupt/inaccessible Git fails closed',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'outside-git-'));
+ const absent=()=>Promise.reject(Object.assign(new Error('Git discovery failed'),{code:128,stderr:'fatal: not a git repository (or any of the parent directories): .git\n'}));
+ try {
+  assert.equal(await loadContext({cwd:root,exec:absent}),null);
+  const boundary=()=>Promise.reject(Object.assign(new Error('Git discovery boundary'),{code:128,stderr:`fatal: not a git repository (or any parent up to mount point ${root})\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n`}));
+  assert.equal(await loadContext({cwd:root,exec:boundary}),null);
+  mkdirSync(join(root,'.git'));
+  await assert.rejects(loadContext({cwd:root,exec:absent}),/Git discovery failed/);
+  rmSync(join(root,'.git'),{recursive:true,force:true});
+  const corrupt=()=>Promise.reject(Object.assign(new Error('corrupt Git marker'),{code:128,stderr:'fatal: invalid gitfile format\n'}));
+  await assert.rejects(loadContext({cwd:root,exec:corrupt}),/corrupt Git marker/);
+  const inaccessible=()=>Promise.reject(Object.assign(new Error('permission denied'),{code:128,stderr:'fatal: unable to access .git: Permission denied\n'}));
+  await assert.rejects(loadContext({cwd:root,exec:inaccessible}),/permission denied/);
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
+test('personal Git and unborn repositories remain personal after authoritative negative inspections',async()=>{
+ for(const options of [{},{remote:null,committed:false},{remote:'/tmp/personal-backup.git',committed:false},{record:{components:{memory:{}}}}]) {
+  const s=detectorFixture(options);
+  try {assert.equal(await loadContext({cwd:s.root,exec:s.exec,env:{}}),null);}finally{s.clean();}
+ }
+});
+test('missing hosted context refuses Artifacts origins or committed hosted hints without making API calls',async()=>{
+ const oldFetch=globalThis.fetch;let calls=0;globalThis.fetch=async()=>{calls++;throw new Error('must not authorize from hints');};
+ try {
+  for(const options of [
+   {remote:'https://account.artifacts.cloudflare.net/git/namespace/project.git'},
+   {remote:'git@account.artifacts.cloudflare.net:git/namespace/project.git'},
+   {remote:'ssh://git@account.artifacts.cloudflare.net/git/namespace/project.git'},
+   {record:{hosted:{...context,serviceUrl:'https://attacker.example.com',token:'untrusted-committed-token'}}}
+  ]) {
+   const s=detectorFixture(options);
+   try {await assert.rejects(loadContext({cwd:s.root,exec:s.exec,env:{WONGSTACK_HOSTED_TOKEN:'not-authority-from-hints'}}),/hosted access missing; reconnect/);}finally{s.clean();}
+  }
+  assert.equal(calls,0);
+ }finally{globalThis.fetch=oldFetch;}
+});
+test('failed origin or committed-record inspection never becomes a personal fallback',async()=>{
+ for(const failure of ['origin','record']) {
+  const s=detectorFixture({failure});
+  try {await assert.rejects(loadContext({cwd:s.root,exec:s.exec,env:{}}),/inspection failed/);}finally{s.clean();}
+ }
+});
+
+test('a broken private context symlink is an error, even with an otherwise personal origin',async()=>{
+ const s=detectorFixture();symlinkSync(join(s.root,'missing-private-file'),join(s.root,'.git','wongstack-hosted.json'));
+ try {await assert.rejects(loadContext({cwd:s.root,exec:s.exec,env:{}}),/unsafe credential file/);}finally{s.clean();}
+});

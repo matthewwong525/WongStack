@@ -67,7 +67,11 @@ export class HostedProvider {
       const form = new FormData();
       form.set('metadata', new Blob([JSON.stringify({ main_module: 'entry.mjs', compatibility_date: '2026-10-01' })], { type: 'application/json' }));
       form.set('entry.mjs', new Blob(['export default {fetch(){return new Response("Setup pending",{status:503})}}'], { type: 'application/javascript+module' }), 'entry.mjs');
-      await this.request(this.path(`workers/scripts/${part(name)}`), 'PUT', form); return name;
+      await this.request(this.path(`workers/scripts/${part(name)}`), 'PUT', form);
+      const initial = await this.currentDeployment(name);
+      row.initialVersion = initial.versions[0].version_id; row.initialDeployment = initial.id;
+      await this.verifyVersion(name, row.initialVersion, []);
+      return name;
     }
     throw new Error('Unsupported owned resource');
   }
@@ -77,10 +81,10 @@ export class HostedProvider {
     need(Array.isArray(rows) && rows.length > 0 && rows.every(x => x.success !== false), 'Database query unreadable', 502);
     return rows;
   }
-  async routing(name, version) {
+  async routing(name, version, readOnly = false) {
     const previews = name.endsWith('-staging');
     need(!version || previews, 'Production/memory version previews are forbidden');
-    await this.request(this.path(`workers/scripts/${part(name)}/subdomain`), 'POST', { enabled: true, previews_enabled: previews });
+    if (!readOnly) await this.request(this.path(`workers/scripts/${part(name)}/subdomain`), 'POST', { enabled: true, previews_enabled: previews });
     const row = await this.request(this.path(`workers/workers/${part(name)}`));
     need(row?.subdomain?.enabled && row.subdomain.previews_enabled === previews, 'Worker private routing state differs', 502);
     const value = version ? `https://${version.slice(0, 8)}${row.subdomain.preview_url_suffix}` : row.subdomain.url;
@@ -95,11 +99,21 @@ export class HostedProvider {
     for (const module of modules) form.set(module.name, new Blob([from64(module.content)], { type: module.type }), module.name);
     const row = await this.request(this.path(`workers/scripts/${part(target)}/versions?bindings_inherit=strict`), 'POST', form);
     need(uuidOK(row?.id), 'Immutable Worker receipt missing', 502);
-    const observed = await this.request(this.path(`workers/scripts/${part(target)}/versions/${row.id}`));
-    need(observed?.id === row.id, 'Worker version readback mismatch', 502);
-    const actual = observed.resources?.bindings;
-    need(Array.isArray(actual) && actual.length === bindings.length && bindings.every(binding => actual.some(b => b.name === binding.name && b.type === binding.type && (binding.id === undefined || b.id === binding.id) && (binding.bucket_name === undefined || b.bucket_name === binding.bucket_name))), 'Unexpected version bindings', 502);
+    await this.verifyVersion(target, row.id, bindings);
     return row.id;
+  }
+  async verifyVersion(target, version, bindings) {
+    const observed = await this.request(this.path(`workers/scripts/${part(target)}/versions/${version}`));
+    need(observed?.id === version, 'Worker version readback mismatch', 502);
+    const actual = observed.resources?.bindings;
+    need(Array.isArray(actual) && actual.length === bindings.length && new Set(actual.map(binding => binding.name)).size === actual.length && bindings.every(binding => actual.some(b => b.name === binding.name && b.type === binding.type && (binding.id === undefined || b.id === binding.id) && (binding.bucket_name === undefined || b.bucket_name === binding.bucket_name) && (binding.type !== 'plain_text' || b.text === binding.text))), 'Unexpected version bindings', 502);
+    return observed;
+  }
+  async currentDeployment(target) {
+    const row = await this.request(this.path(`workers/scripts/${part(target)}/deployments?per_page=1`));
+    const current = row?.deployments?.[0];
+    need(uuidOK(current?.id) && current.strategy === 'percentage' && current.versions?.length === 1 && uuidOK(current.versions[0].version_id) && current.versions[0].percentage === 100, 'Current deployment readback mismatch', 502);
+    return current;
   }
   async deploy(target, version) {
     const base = this.path(`workers/scripts/${part(target)}/deployments`);

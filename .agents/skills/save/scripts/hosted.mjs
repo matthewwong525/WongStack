@@ -54,14 +54,55 @@ function envValues(file) {
   if (!existsSync(file)) return {};
   return Object.fromEntries(readFileSync(file,'utf8').split('\n').map(line=>/^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*)$/.exec(line)).filter(Boolean).map(match=>[match[1],match[2]]));
 }
-export async function loadContext({cwd, exec, env=process.env}={}) {
-  const paths = await primary(cwd, exec);
+function confirmedOutsideGit(error,cwd) {
+  const stderr=String(error.stderr || '');
+  const plain=/^fatal: not a git repository \(or any of the parent directories\): \.git\s*$/.test(stderr);
+  const boundary=/^fatal: not a git repository \(or any parent up to mount point [^\r\n)]+\)\r?\nStopping at filesystem boundary \(GIT_DISCOVERY_ACROSS_FILESYSTEM not set\)\.\s*$/.test(stderr);
+  if(error.code!==128 || !(plain || boundary)) return false;
+  let directory=resolve(cwd || process.cwd());
+  // Git can report the same discovery failure for an unreadable/broken marker.
+  // Confirm absence independently, never classify that uncertainty as personal.
+  if(!lstatSync(directory).isDirectory()) return false;
+  for (;;) {
+    try {lstatSync(join(directory,'.git'));return false;}
+    catch(failure) {if(failure.code!=='ENOENT') throw failure;}
+    const parent=dirname(directory);if(parent===directory) return true;directory=parent;
+  }
+}
+async function missingHostedContext(paths,exec) {
+  const git=async args=>(await exec('git',['-C',paths.primary,...args])).stdout.trim();
+  const remotes=await git(['remote']);
+  if(remotes.split('\n').includes('origin')) {
+    const origin=await git(['remote','get-url','origin']);
+    let hostname;
+    try {hostname=new URL(origin).hostname;}
+    catch {hostname=/^(?:[^@]+@)?([^:/]+):[^/]/.exec(origin)?.[1];}
+    if(!origin || /[\r\n\0]/.test(origin)) throw new Error('repository origin is unreadable');
+    if((hostname || '').toLowerCase().endsWith('.artifacts.cloudflare.net')) throw Object.assign(new Error('hosted access missing; reconnect through the cloud or obtain an operator private handoff'),{code:'HOSTED_ACCESS_MISSING'});
+  }
+  let committed=false;
+  try {const head=await git(['rev-parse','--quiet','--verify','HEAD']);if(!SHA.test(head)) throw new Error('local commit identity unreadable');committed=true;}
+  catch(error) {if(error.code!==1) throw error;}
+  if(committed) {
+    const records=await git(['ls-tree','-r','--name-only','HEAD','--','.agents/.wong-stack.json','.claude/.wong-stack.json']);
+    for(const path of records.split('\n').filter(Boolean)) {
+      if(!['.agents/.wong-stack.json','.claude/.wong-stack.json'].includes(path)) throw new Error('installation record inspection is unreadable');
+      const record=JSON.parse(await git(['show',`HEAD:${path}`]));
+      if(record.hosted!==undefined && record.hosted!==null) throw Object.assign(new Error('hosted access missing; reconnect through the cloud or obtain an operator private handoff'),{code:'HOSTED_ACCESS_MISSING'});
+    }
+  }
+  return null;
+}
+export async function loadContext({cwd, exec=execute, env=process.env}={}) {
+  let paths;
+  try {paths=await primary(cwd,exec);}
+  catch(error) {if(confirmedOutsideGit(error,cwd)) return null;throw error;}
   const file = join(paths.common,'wongstack-hosted.json');
-  if (!existsSync(file)) return null;
   privatePath(file);
+  if (!existsSync(file)) return missingHostedContext(paths,exec);
   const saved = validateContext(JSON.parse(readFileSync(file,'utf8')));
   const token = env.WONGSTACK_HOSTED_TOKEN || envValues(join(paths.primary,'.env')).WONGSTACK_HOSTED_TOKEN || saved.token;
-  if (!token) throw new Error('hosted access missing; reconnect this workspace');
+  if (!token) throw Object.assign(new Error('hosted access missing; reconnect this workspace'),{code:'HOSTED_ACCESS_MISSING'});
   return { ...saved, token, ...paths };
 }
 export function safeContext(context) {
@@ -170,4 +211,4 @@ async function main() {
   }
   console.log(JSON.stringify(await command(action,args,context)));
 }
-if (process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) main().catch(()=>{console.error('Hosted operation failed; check access and service status.');process.exitCode=1;});
+if (process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) main().catch(error=>{console.error(error.code==='HOSTED_ACCESS_MISSING' ? 'Hosted access is missing. Reconnect through WongStack Cloud or obtain an operator private handoff.' : 'Hosted operation failed; check access and service status.');process.exitCode=1;});

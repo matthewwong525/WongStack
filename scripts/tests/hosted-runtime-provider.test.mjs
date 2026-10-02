@@ -60,13 +60,15 @@ test('owned resource provisioning rejects adoption and validates all receipts', 
   const calls = [];
   const provider = providerWith(async (url, input) => {
     calls.push({ url, input });
+    if (url.includes('/deployments?')) return api({ deployments: [{ id: projectId, strategy: 'percentage', versions: [{ version_id: versionId, percentage: 100 }] }] });
+    if (url.includes(`/versions/${versionId}`)) return api({ id: versionId, resources: { bindings: [] } });
     if (input.method === 'GET') return url.includes('d1/database?') ? api([]) : absent();
     return api({ uuid: projectId });
   });
   assert.equal(await provider.resource({ kind: 'd1', name: 'owned' }), projectId);
   assert.equal(await provider.resource({ kind: 'r2', name: 'owned' }), 'owned');
   assert.equal(await provider.resource({ kind: 'worker', name: 'owned' }), 'owned');
-  assert((await calls.at(-1).input.body.get('entry.mjs').text()).includes('Setup pending'));
+  assert((await calls.find(row => row.input.method === 'PUT').input.body.get('entry.mjs').text()).includes('Setup pending'));
   await assert.rejects(provider.resource({ kind: 'other', name: 'owned' }), /Unsupported/);
 });
 test('owned resource deletion requires receipt and independent absence', async () => {
@@ -104,6 +106,10 @@ test('version uploads read back exact owned bindings and reject missing version 
   assert.equal(metadata.assets.config.run_worker_first, true);
   await assert.rejects(providerWith(async (_url, input) => input.method === 'POST' ? api({ id: versionId }) : api({ id: versionId, resources: { bindings: [{ ...binding, id: versionId }] } })).version('owned-staging', b.modules, [binding]), /bindings/);
   await assert.rejects(providerWith(async () => api({ id: 'missing' })).version('owned-staging', b.modules, [binding]), /receipt/);
+  const environment = { type: 'plain_text', name: 'WONG_ENVIRONMENT', text: 'production' };
+  for (const actual of [[{ ...environment, text: 'staging' }], [environment, { type: 'plain_text', name: 'SKIP_AUTH', text: 'true' }], [environment, environment]]) {
+    await assert.rejects(providerWith(async () => api({ id: versionId, resources: { bindings: actual } })).verifyVersion('owned-memory', versionId, [environment]), /bindings/);
+  }
 });
 test('production deployment verifies exact ID-only acknowledgment with 100 percent readback', async () => {
   const provider = providerWith(async (_url, input) => input.method === 'POST' ? api({ id: projectId }) : api({ id: projectId, strategy: 'percentage', versions: [{ version_id: versionId, percentage: 100 }] }));
@@ -296,7 +302,19 @@ test('setup provisions only owned resources and returns operator/device action w
   const f = await fixture(); const a = accessProvider();
   f.state.setup = 'pending';
   f.provider.path = a.p.path; f.provider.request = a.p.request;
-  f.provider.resource = async row => row.kind === 'd1' ? row.environment === 'production' ? projectId : row.environment === 'staging' ? versionId : '77777777-7777-7777-7777-777777777777' : row.name;
+  const active = new Map(), versions = new Map();
+  f.provider.resource = async row => {
+    if (row.kind === 'worker') {
+      row.initialVersion = versionId; row.initialDeployment = projectId;
+      active.set(row.name, { id: projectId, versions: [{ version_id: versionId }] });
+      versions.set(`${row.name}:${versionId}`, []);
+    }
+    return row.kind === 'd1' ? row.environment === 'production' ? projectId : row.environment === 'staging' ? versionId : '77777777-7777-7777-7777-777777777777' : row.name;
+  };
+  f.provider.currentDeployment = async name => active.get(name);
+  f.provider.verifyVersion = async (name, version, bindings) => assert.deepEqual(versions.get(`${name}:${version}`), bindings);
+  f.provider.version = async (name, _modules, bindings) => { const id = '99999999-9999-4999-8999-999999999999'; versions.set(`${name}:${id}`, bindings); return id; };
+  f.provider.deploy = async (name, version) => { active.set(name, { id: projectId, versions: [{ version_id: version }] }); return projectId; };
   f.provider.routing = async name => `https://${name}.team.workers.dev`;
   const result = await f.controller.setup(f.owner);
   assert.equal(result.memory.protocolVersion, 1); assert.equal(result.memory.status, 'pending-owner'); assert.equal(result.memory.reason, 'owner-unconfirmed');

@@ -50,7 +50,7 @@ The README SHALL carry the numbered install steps, and no other page SHALL repea
 
 ### Requirement: Setup readies the computer before it writes anything
 
-Before it clones the source or writes in the folder, setup SHALL detect verified hosted context and ready the tools it needs, the git name and email, and on Windows real symbolic links, asking before each install. Personal installations SHALL also require one GitHub sign-in with the `workflow` and `user:email` scopes; hosted installations SHALL use scoped repository access without requiring customer GitHub sign-in; the person SHALL type no command. The same install question SHALL also cover the agent's browser tool and Cloudflare's tunnel tool when absent. Setup SHALL never install a package manager. A decline or failure SHALL stop setup with nothing written, except that a failed browser or tunnel install SHALL be reported and skipped, and an existing git identity SHALL stay unchanged.
+Before it clones the source or writes in the folder, setup SHALL detect verified hosted context and ready the tools it needs, the git name and email, and on Windows real symbolic links, asking before each install. Required Node.js and Git readiness SHALL precede executable route detection. A positively confirmed folder outside Git SHALL select personal setup; hosted repository/committed-install hints without private verified access SHALL stop for reconnect, and uncertain or corrupt Git inspection SHALL NOT become personal setup. Committed hints SHALL NOT grant authority or reconstruct credentials. Personal installations SHALL also require one GitHub sign-in with the `workflow` and `user:email` scopes; hosted installations SHALL use scoped repository access without requiring customer GitHub sign-in; the person SHALL type no command. The same install question SHALL also cover the agent's browser tool and Cloudflare's tunnel tool when absent. Setup SHALL never install a package manager. A decline or failure SHALL stop setup with nothing written, except that a failed browser or tunnel install SHALL be reported and skipped, and an existing git identity SHALL stay unchanged.
 
 #### Scenario: A new computer
 
@@ -71,6 +71,21 @@ Before it clones the source or writes in the folder, setup SHALL detect verified
 
 - **WHEN** the browser tool or the tunnel tool fails to install during setup
 - **THEN** setup names it, says it will be offered again at first need, and continues
+
+#### Scenario: Plain folder before installation
+
+- **WHEN** required Node.js and Git are ready and setup positively confirms the folder is outside a Git repository
+- **THEN** setup continues through the personal workflow
+
+#### Scenario: Hosted clone without its private handoff
+
+- **WHEN** the origin or committed install record identifies hosted storage but the private verified context is missing
+- **THEN** setup stops with reconnect guidance without making authenticated calls from committed hints or selecting personal hosting
+
+#### Scenario: Uncertain repository inspection
+
+- **WHEN** Git inspection fails without positively establishing that the folder is outside Git
+- **THEN** setup stops and preserves the folder instead of selecting personal setup
 
 ### Requirement: Setup waits for the Cloudflare token
 
