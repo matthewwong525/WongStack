@@ -2,7 +2,13 @@ import { accessConflicts } from '../../scripts/lib-access-config.mjs';
 import { need } from './security.mjs';
 
 const fieldsMatch = (row, expected) => Object.entries(expected).every(([key, value]) => JSON.stringify(row?.[key]) === JSON.stringify(value));
+function closedDestinations(destinations, workers) {
+  return Array.isArray(destinations) && destinations.length === workers.length && new Set(workers.map(worker => worker.id)).size === workers.length && new Set(destinations.map(row => row.worker_id)).size === workers.length && destinations.every(row => row.type === 'worker' && workers.some(worker => worker.id === row.worker_id) && (row.overrides === undefined || Array.isArray(row.overrides) && row.overrides.length === 0));
+}
 export async function accessSetup(state, provider, checkpoint) {
+  // A previous successful receipt does not authorize a newly changed provider
+  // policy. Keep redirects/setup fail-closed until the new readback succeeds.
+  if (state.access) { state.access.verified = false; await checkpoint(); }
   const root = provider.path('access');
   const organization = await provider.request(`${root}/organizations`);
   need(/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(organization?.auth_domain || ''), 'Platform Zero Trust organization is unavailable', 502);
@@ -16,6 +22,7 @@ export async function accessSetup(state, provider, checkpoint) {
     need(row?.name === name && /^[a-f0-9]{32}$/.test(row.id), 'Owned Worker identity unreadable', 502);
     workers.push({ name, id: row.id });
   }
+  need(new Set(workers.map(worker => worker.id)).size === workers.length, 'Owned Access Worker identities must be unique', 502);
   const subdomain = await provider.request(provider.path('workers/subdomain'));
   need(/^[a-z0-9-]+$/.test(subdomain?.subdomain || ''), 'Platform Workers subdomain unavailable', 502);
   const apps = await list(provider, `${root}/apps`);
@@ -30,13 +37,14 @@ export async function accessSetup(state, provider, checkpoint) {
     await checkpoint();
     app = await provider.request(`${root}/apps`, 'POST', { name: appName, type: 'self_hosted', session_duration: '24h', domain: `${workers[0].name}.${subdomain.subdomain}.workers.dev`, destinations: workers.map(worker => ({ type: 'worker', worker_id: worker.id })), allowed_idps: [pin.id], policies: [] });
   }
-  need(app?.id && app.aud && workers.every(worker => app.destinations?.some(row => row.worker_id === worker.id)), 'Access application receipt missing', 502);
+  need(app?.id && app.aud, 'Access application receipt missing', 502);
+  need(closedDestinations(app.destinations, workers), 'Closed Access destinations contain an unreviewed override or identity', 502);
   state.access = { ...state.access, appId: app.id, audience: app.aud, teamDomain: organization.auth_domain, workers, domain: app.domain };
   delete state.access.pendingName;
   await checkpoint();
   await policies(state, provider, checkpoint);
   const observed = await provider.request(`${root}/apps/${app.id}`);
-  need(observed?.id === app.id && observed.aud === app.aud && observed.name === appName && observed.type === 'self_hosted' && observed.domain === app.domain && Array.isArray(observed.destinations) && observed.destinations.length === workers.length && workers.every(worker => observed.destinations.some(row => row.type === 'worker' && row.worker_id === worker.id)) && Array.isArray(observed.allowed_idps) && observed.allowed_idps.length === 1 && observed.allowed_idps[0] === pin.id, 'Exact Access application readback failed', 502);
+  need(observed?.id === app.id && observed.aud === app.aud && observed.name === appName && observed.type === 'self_hosted' && observed.domain === app.domain && closedDestinations(observed.destinations, workers) && Array.isArray(observed.allowed_idps) && observed.allowed_idps.length === 1 && observed.allowed_idps[0] === pin.id, 'Exact Access application readback failed', 502);
   state.access.verified = true;
   await checkpoint();
   return state.access;

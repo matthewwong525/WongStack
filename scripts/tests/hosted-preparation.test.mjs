@@ -242,7 +242,8 @@ test('resume rejects a different committed project and unverified service identi
   if(scenario==='missing-memory') delete s.status.memory;
   writeFileSync(join(s.root,'.agents','.wong-stack.json'),JSON.stringify(s.record));
   try {
-   await assert.rejects(configureHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn}),/differs|missing/);
+   const message=scenario.startsWith('record-') ? 'installed hosted project differs' : scenario==='grant-subject' ? 'workspace grant differs' : scenario==='status-project' ? 'hosted status project differs' : scenario==='missing-memory' ? 'hosted memory pins are missing' : 'hosted production pins differ';
+   await assert.rejects(configureHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn}),{message});
    assert.equal(s.calls.some(row=>row.method!=='GET'),false);
   }finally{rmSync(s.home,{recursive:true,force:true});}
  }

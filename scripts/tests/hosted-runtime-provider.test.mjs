@@ -242,6 +242,51 @@ test('Access configuration rejects missing login, unknown policy and unverifiabl
   a.policyRows.pop(); delete f.state.access.clientSecret;
   await assert.rejects(policies(f.state, a.p, () => f.controller.save()), /reconciliation/);
 });
+test('closed Access rejects unreviewed list destinations before policy mutation and invalidates stale verification', async () => {
+  for (const mutate of [
+    app => { app.destinations[0].overrides = [{ behavior: 'public', path_pattern: '/*' }]; },
+    app => { app.destinations[2].overrides = [{ behavior: 'public', path_pattern: '/_memory/*' }]; },
+    app => { app.destinations[1].overrides = null; },
+    app => { app.destinations[1] = { ...app.destinations[0] }; },
+    app => { app.destinations[1].worker_id = 'f'.repeat(32); },
+    app => { app.destinations.push({ type: 'public', uri: 'memory.example.com', overrides: [{ behavior: 'public', path_pattern: '/_memory/*' }] }); },
+  ]) {
+    const f = await fixture(); const a = accessProvider();
+    f.state.resources = a.workers.map(row => ({ ...row, environment: row.name.split('-').at(-1), kind: 'worker' }));
+    await accessSetup(f.state, a.p, () => f.controller.save());
+    mutate(a.apps[0]); const after = a.calls.length;
+    await assert.rejects(accessSetup(f.state, a.p, () => f.controller.save()), /unreviewed override/);
+    assert.equal(f.state.access.verified, false);
+    assert(a.calls.slice(after).every(row => row.method === 'GET'));
+  }
+});
+test('closed Access validates create and independent readback receipts and accepts explicit empty overrides', async () => {
+  for (const phase of ['create', 'readback']) {
+    const f = await fixture(); const a = accessProvider(); const request = a.p.request;
+    f.state.resources = a.workers.map(row => ({ ...row, environment: row.name.split('-').at(-1), kind: 'worker' }));
+    a.p.request = async (path, method = 'GET', body) => {
+      const row = await request(path, method, body);
+      if (phase === 'create' && path.endsWith('/apps') && method === 'POST' || phase === 'readback' && path.endsWith('/apps/app-id')) {
+        return { ...row, destinations: row.destinations.map((destination, index) => index ? destination : { ...destination, overrides: [{ behavior: 'public', path_pattern: '/*' }] }) };
+      }
+      return row;
+    };
+    await assert.rejects(accessSetup(f.state, a.p, () => f.controller.save()), phase === 'create' ? /unreviewed override/ : /readback failed/);
+    assert.notEqual(f.state.access.verified, true);
+    if (phase === 'create') assert.equal(a.policyRows.length, 0);
+  }
+  const f = await fixture(); const a = accessProvider();
+  f.state.resources = a.workers.map(row => ({ ...row, environment: row.name.split('-').at(-1), kind: 'worker' }));
+  await accessSetup(f.state, a.p, () => f.controller.save());
+  for (const destination of a.apps[0].destinations) destination.overrides = [];
+  const after = a.calls.length; await accessSetup(f.state, a.p, () => f.controller.save());
+  assert.equal(f.state.access.verified, true); assert(a.calls.slice(after).every(row => row.method === 'GET'));
+  const g = await fixture(); const duplicate = accessProvider();
+  g.state.resources = duplicate.workers.map(row => ({ ...row, environment: row.name.split('-').at(-1), kind: 'worker' }));
+  duplicate.workers[1].id = duplicate.workers[0].id;
+  await assert.rejects(accessSetup(g.state, duplicate.p, () => g.controller.save()), /identities must be unique/);
+  assert(duplicate.calls.every(row => row.method === 'GET'));
+});
 
 function storageFor(state) {
   const store = new Map([['state', structuredClone(state)]]); const alarms = [];
