@@ -1,10 +1,10 @@
 # Try Cloudflare Artifacts for hosted projects
 
-**Status:** implementing
+**Status:** blocked
 
 **Branch:** github-artifacts
 
-**Open questions:** none
+**Open questions:** An observed native Artifacts-to-Workers-Builds connection path is required before the split trial can execute.
 
 ## Why
 
@@ -94,3 +94,4 @@ None. The existing stack-pack, delivery-gate, memory, and managed-workspace-acce
 - **2026-10-01** — The retry is complete: three candidate attempts (one unchanged, two patched) all failed previews after green fixture checks. All fifteen logical resources, both old/new container applications and all eleven tracked credentials were verified removed/revoked, with no leftovers. Export restored branches, tag and object integrity. Keep customer adoption deferred and checkpoint the tooling plus both reports for review; no live trial preview remains.
 
 - **2026-10-02** — User chose tests in CI Workflows and builds/previews in Workers Builds, and authorized implementing and running that split against fresh disposable resources. This supersedes the earlier restriction against pipeline substitution for the new run only. Preserve both prior reports and their failures. Keep the same explicit platform account, no customer changes, finite attempts, owner approval and full cleanup; tooling stays unmerged.
+- **2026-10-02** — The revised harness passed every remote check at `e71b364` (959 script cases). Fresh split run `a1002b7e4` reached native repository connection setup, then the exact Artifacts request returned HTTP 400 / error 12002, `Invalid request body`, without a connection ID. The public provider enum omits Artifacts, but the response does not prove which field failed and the dashboard guide documents Artifacts support. Available browser routes stopped at security challenges without an authenticated session. Stop setup and keep green/red previews and publication UNKNOWN until an observed native connection path is available. All advertised Git refs/history were restored; all three created resources and four issued credentials were removed/revoked, with no leftovers. See [the split report](workers-builds-evidence.md); keep the tooling unmerged and adoption deferred.
