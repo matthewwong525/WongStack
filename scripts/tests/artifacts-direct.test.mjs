@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
 import { DirectUpload } from '../pilots/artifacts/direct.mjs';
 import { initialState, PilotController } from '../pilots/artifacts/core.mjs';
 import { runPipeline } from '../pilots/artifacts/pipeline.mjs';
@@ -153,4 +156,15 @@ test('direct manifest/config uses original resource inventory and twelve seriali
     for (let n = 0; n < bound; n++) { const id = n.toString(16).padStart(40, '0'); c.start({ ...params, sha: id }, `job-${n}`); c.fail(id, ref); }
     assert.throws(() => c.start({ ...params, sha: later }, 'over-bound'), /bound reached/);
   }
+});
+
+
+test('direct durable steps satisfy the installed Workflows runtime configuration schema', async () => {
+  const require = createRequire(new URL('../pilots/artifacts/node_modules/miniflare/package.json', import.meta.url));
+  const runtime = readFileSync(new URL('../pilots/artifacts/node_modules/miniflare/dist/src/workers/workflows/binding.worker.js', import.meta.url), 'utf8');
+  const expression = runtime.match(/var STEP_CONFIG_SCHEMA = ([\s\S]*?);\nfunction isValidStepConfig/)[1];
+  const schema = runInNewContext(expression, { z: require('zod'), SENSITIVE_STEP_OUTPUT: 'output' });
+  assert.equal(schema.safeParse({ retries: { limit: 0 }, timeout: '2 minutes' }).success, false);
+  const h = harness(); await h.api.preview(await artifact(), sha);
+  for (const { settings } of h.steps) assert.equal(schema.safeParse(settings).success, true);
 });

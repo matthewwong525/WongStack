@@ -16,7 +16,7 @@ export class DirectUpload {
     return `/accounts/${c.account}/workers/scripts/${encodeURIComponent(c[environment])}`;
   }
   call(path, method = 'GET', body) { return this.request(path, method, body, false, 'deployment'); }
-  once(name, fn) { return this.step.do(name, { retries: { limit: 0 }, timeout: '2 minutes' }, fn); }
+  once(name, fn) { return this.step.do(name, { retries: { limit: 0, delay: 1000 }, timeout: '2 minutes' }, fn); }
   async form(artifact, sha, environment) {
     this.target(environment);
     const bytes = await artifactBytes(artifact, sha);

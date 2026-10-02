@@ -54,8 +54,8 @@
 
 ## 8. One runner and direct API deployment
 
-- [ ] 8.1 Implement the opt-in `direct-api` backend and trusted version-upload adapter; document configuration and add meaningful contracts for one credential-free runner, red checks causing no upload, artifact integrity, immutable preview identity/bindings, production approval and no second Sandbox deployment. Preserve prior backends.
-- [ ] 8.2 Run `/save` and require all remote checks before live execution; fix demonstrated source failures without local test/build gates.
+- [x] 8.1 Implement the opt-in `direct-api` backend and trusted version-upload adapter; document configuration and add meaningful contracts for one credential-free runner, red checks causing no upload, artifact integrity, immutable preview identity/bindings, production approval and no second Sandbox deployment. Preserve prior backends.
+- [x] 8.2 Run `/save` and require all remote checks before live execution; fix demonstrated source failures without local test/build gates.
 - [ ] 8.3 Run the fresh live trial in the authorized platform account; prove consecutive green previews, red-check/upload isolation, unchanged production before approval, failed/stale approval refusal, exact approved publication, D1 isolation, duplicate events and access removal. Diagnose and correct failures, repeat boundedly until a working route is proven or an intervention-only blocker remains; preserve actual evidence.
 - [ ] 8.4 Quiesce, export and restore all refs/history, revoke all issued credentials and delete only owned trial resources with absence readbacks. Write `direct-api-evidence.md` with timings, limits, failures, outcomes, adoption recommendation and exact leftovers if any.
 - [ ] 8.5 Refresh the review page and checkpoint the finished trial via `/save`, require final remote checks, and keep tooling unmerged for review.
