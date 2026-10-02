@@ -5,16 +5,20 @@ import { ProjectService, safeRoute } from './service.mjs';
 import { HostedProvider } from './provider.mjs';
 import { runHostedPipeline } from './pipeline.mjs';
 import { reply } from './security.mjs';
+import { ProjectOperations } from './serialization.mjs';
 
 export class HostedProject extends DurableObject {
+  operations = new ProjectOperations();
   async fetch(request) {
-    return this.ctx.blockConcurrencyWhile(async () => {
-      const service = new ProjectService(this.ctx, this.env);
-      try { return reply(await service.dispatch(request)); }
-      catch (error) { return reply({ error: error.status && error.status < 500 ? error.message : 'Hosted project operation failed; inspect safe status' }, error.status || 502); }
-    });
+    try {
+      const pending = this.operations.run(() => new ProjectService(this.ctx, this.env).dispatch(request));
+      // Continue durable checkpoints if the requesting client disconnects. This
+      // does not release serialization or turn an uncertain write into success.
+      this.ctx.waitUntil(pending.catch(() => {}));
+      return reply(await pending);
+    } catch (error) { return reply({ error: error.status && error.status < 500 ? error.message : 'Hosted project operation failed; inspect safe status' }, error.status || 502); }
   }
-  async alarm() { return this.ctx.blockConcurrencyWhile(() => new ProjectService(this.ctx, this.env).recover()); }
+  async alarm() { return this.operations.run(() => new ProjectService(this.ctx, this.env).recover()); }
 }
 export class HostedCI extends CIWorkflow {
   async pipeline(event, step, ci) {

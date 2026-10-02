@@ -83,7 +83,7 @@ Personal setup SHALL ask whether the person has the Cloudflare user token before
 
 ### Requirement: Setup installs through the normal workflow
 
-Setup SHALL carry the person's intent through `/explore`, `/plan`, `/apply`, and `/save`, with no setup-only interview or approval. `/save` SHALL own commits and pushes; personal setup SHALL create the private GitHub repository and `origin`, or use an existing `origin`. Hosted setup SHALL use the prepared Artifacts repository and pinned source without creating a second repository, then run the hosted remote checks and review flow. Setup SHALL NOT publish hosted production without explicit owner approval.
+Setup SHALL carry the person's intent through `/explore`, `/plan`, `/apply`, and `/save`, with no setup-only interview or approval. `/save` SHALL own commits and pushes; personal setup SHALL create the private GitHub repository and `origin`, or use an existing `origin`. Hosted setup SHALL use the prepared Artifacts repository and pinned source without creating a second repository, then run the hosted remote checks and review flow. For a verified empty hosted repository with no local commits or advertised remote refs, the first `/save` SHALL create its initial commit on `main`; subsequent changes SHALL use their ordinary feature branches. An owner's explicit request to install a new hosted site SHALL authorize its first publication through `/ship` after successful exact checks and private preview verification; preparation alone SHALL NOT authorize publication. Existing-site changes and migrations SHALL retain their normal explicit publication approval. Setup SHALL report first-site publication separately from pending memory ownership and requesting-machine enrollment.
 
 #### Scenario: Evaluate only
 
@@ -94,6 +94,17 @@ Setup SHALL carry the person's intent through `/explore`, `/plan`, `/apply`, and
 
 - **WHEN** a person asks to install
 - **THEN** setup continues through the plan, build, and save, whose personal push starts the first deploy or whose hosted push starts private remote checks and preview
+
+#### Scenario: First hosted private site
+
+- **WHEN** the owner explicitly installs into a prepared empty hosted repository
+- **THEN** setup preserves its own plan, saves the first commit on `main`, runs the remote checks, verifies the private preview, and publishes the first exact site through `/ship` before opening the canonical owner/device action
+- **AND** it reports pending memory until the requesting machine's current grant is verified
+
+#### Scenario: Preparation without installation
+
+- **WHEN** cloud preparation finishes without an explicit install request
+- **THEN** only the repository and AI entry point exist and no production site is published
 
 ### Requirement: A finished install is complete and recorded
 

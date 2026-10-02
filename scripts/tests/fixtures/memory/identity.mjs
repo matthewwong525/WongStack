@@ -12,7 +12,7 @@ const migrations = new URL('../../../../.agents/skills/memory/migrations/', impo
 export const migrationFiles = () => readdirSync(migrations).filter(name => name.endsWith('.sql')).sort();
 export const migrationSql = file => readFileSync(new URL(file, migrations), 'utf8');
 
-export function applyMigrations(db, through = 8) {
+export function applyMigrations(db, through = 9) {
   for (const file of migrationFiles().filter(name => parseInt(name, 10) <= through)) {
     const version = parseInt(file, 10);
     if (db.prepare("SELECT name FROM sqlite_master WHERE name = 'schema_migrations'").get()

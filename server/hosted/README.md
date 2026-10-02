@@ -33,7 +33,7 @@ Opaque machine tokens carry a project routing ID plus 256 random bits; only thei
 
 | Route | Input | Result |
 | --- | --- | --- |
-| `GET /v1/workspace` | None | Exact project/source/Git/subject/role plus setup and memory status; no secrets. |
+| `GET /v1/workspace` | None | Exact project/source/Git/subject/subjectEmail/role plus setup and memory status; no secrets. |
 | `POST /v1/git-token` | `{}` | Tracked repository-only write token, `gitUrl`, username and thirty-minute expiry, delivered only to the credential helper. |
 | `POST /v1/setup` | `{}` | Owner-only idempotent owned Wrangler config, install-record memory location, private `env`, memory setup status and Access readback. |
 | `POST /v1/candidates` | `{sha,ref}` | Exact authoritative branch-head queued candidate, deduplicated by branch and commit. |
@@ -60,6 +60,10 @@ A network error or default-ref failure after deployment leaves a durable `deploy
 
 Candidate Workflows recover through bounded alarms. A failed creation acknowledgment retains the same Workflow ID. Pure runner interruptions before an artifact exists can retry at most three times; uploaded preview failures require a new exact candidate or operator inspection. Sixty unreadable status polls stop automatic recovery and retain the tracked runner identity for operator action. Never claim an UNKNOWN runner/deployment as passing.
 
+Requests, internal Workflow callbacks and alarms share one FIFO operation queue per project object. Provider operations do not hold `blockConcurrencyWhile`, whose 30-second timeout resets an object. Every operation loads the latest durable state after its predecessor settles, including after rejection. At most 64 operations are admitted; waiting requests expire after 30 seconds with a safe 503 and never start later. An active operation retains its slot until it settles, so timeout handling cannot overlap uncertain provider writes. Request work uses `waitUntil` to continue checkpoints after client disconnect; provider ambiguity still requires reconciliation. See [Cloudflare's DurableObjectState contract](https://developers.cloudflare.com/durable-objects/api/state/).
+
 Before removal, stop candidates, terminate Workflows and independently restore every advertised branch/tag/object ID into another bare Git destination with `git fsck --full`. Submit the exact export receipt, complete installation-owned memory offboarding, empty the owned memory transcript bucket, then run project cleanup. It refuses active publication, missing export or ambiguous creates. Retain every deletion and token absence readback. Only after all project resources are absent should the operator drain the shared private cache/bundle buckets, remove the service Worker/Workflow/container applications and verify their DO namespaces are absent. Namespace deletion refusal is an exact reported leftover, never a passed cleanup. Keep old GitHub repositories as migration backups.
+
+The canonical memory integration remains unfinished. Before that integration can pass acceptance, cleanup must enforce an explicit installation-owned memory-offboarding receipt; the current operator instruction alone does not enforce that prerequisite.
 
 Promote only after both WongStack and cloud commits pass their remote gates and the real staging trial proves empty repo → `/wong-setup` → real assets/migrations/approved memory → private preview → approved publication → next branch from updated main, plus isolation, revocation, migration/export and cleanup. Unfinished memory protocol or untested provider behavior leaves merge readiness incomplete.

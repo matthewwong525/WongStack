@@ -22,7 +22,7 @@ export class ProjectController {
   }
   workspace(actor) {
     const s = this.state;
-    return { id: s.id, projectId: s.id, gitUrl: s.gitUrl, sourceRepo: s.sourceRepo, sourceCommit: s.sourceCommit, ownerEmail: s.owner?.email, ...(actor ? { subject: actor.subject, role: actor.role } : {}), setup: s.setup, memory: s.memory || { status: 'pending-owner' } };
+    return { id: s.id, projectId: s.id, gitUrl: s.gitUrl, sourceRepo: s.sourceRepo, sourceCommit: s.sourceCommit, ownerEmail: s.owner?.email, ...(actor ? { subject: actor.subject, subjectEmail: actor.email, role: actor.role } : {}), setup: s.setup, memory: s.memory || { status: 'pending-owner' } };
   }
   owner(actor) { need(actor?.role === 'owner' && actor.subject === this.state.owner.id && actor.status === 'active', 'Owner approval required', 403); }
   async actor(token) {

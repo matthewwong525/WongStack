@@ -3,9 +3,9 @@ import { test } from 'node:test';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, statSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { credential, command, request, safeContext, validateContext, loadContext, writeSecrets } from '../../.agents/skills/save/scripts/hosted.mjs';
+import { credential, command, request, safeContext, validateContext, loadContext, writeSecrets, initialBranch } from '../../.agents/skills/save/scripts/hosted.mjs';
 import { verifyRefs } from '../../server/prepare-hosted.mjs';
-const context={serviceUrl:'https://hosted.example.com',projectId:'11111111-1111-1111-1111-111111111111',token:'private-machine-token',gitUrl:'https://git.example.com/account/namespace/repo.git',sourceRepo:'owner/WongStack',sourceCommit:'a'.repeat(40),ownerEmail:'owner@example.com',subject:'owner-1',role:'owner'};
+const context={serviceUrl:'https://hosted.example.com',projectId:'11111111-1111-1111-1111-111111111111',token:'private-machine-token',gitUrl:'https://git.example.com/account/namespace/repo.git',sourceRepo:'owner/WongStack',sourceCommit:'a'.repeat(40),ownerEmail:'owner@example.com',subject:'owner-1',subjectEmail:'owner@example.com',role:'owner'};
 const response=value=>({ok:true,status:200,json:async()=>value});
 test('context rejects unsafe destinations and leaves credentials out of reports',()=>{
   for(const url of ['http://hosted.example.com','https://user:secret@hosted.example.com','https://hosted.example.com/?secret']) assert.throws(()=>validateContext({...context,serviceUrl:url}));
@@ -78,4 +78,20 @@ test('publication requires exact approved SHA and verified default-ref advanceme
   assert.deepEqual(await command('publish',['approval-1',sha],context,{fetchFn:async()=>response(receipt)}),receipt);
   for(const bad of [{...receipt,defaultSha:'b'.repeat(40)},{...receipt,sha:'b'.repeat(40)},{...receipt,status:'deployed-awaiting-main'},{...receipt,defaultRef:'refs/heads/other'},{sha,status:'published',version:'version-1'}]) await assert.rejects(command('publish',['approval-1',sha],context,{fetchFn:async()=>response(bad)}),/acknowledgment is incomplete/);
   await assert.rejects(command('publish',['approval-1'],context),/approved commit required/);
+});
+
+test('only an unborn local main with no remote refs selects initial main save',async()=>{
+ const run=({head=null,remote='',branch='refs/heads/main',headError=1,remoteError=false}={})=>async(_file,args)=>{
+  if(args.includes('--verify')) {if(head===null) throw Object.assign(new Error('no HEAD'),{code:headError});return {stdout:head};}
+  if(args.includes('ls-remote')) {if(remoteError) throw new Error('repository inaccessible');return {stdout:remote};}
+  if(args.includes('symbolic-ref')) return {stdout:branch};
+  throw new Error('unexpected Git operation');
+ };
+ const local={...context,root:'/prepared/project'};
+ assert.deepEqual(await initialBranch(local,{exec:run()}),{initial:true,branch:'main'});
+ assert.deepEqual(await initialBranch(local,{exec:run({head:'a'.repeat(40)})}),{initial:false});
+ assert.deepEqual(await initialBranch(local,{exec:run({remote:`${'a'.repeat(40)}\trefs/heads/main`})}),{initial:false});
+ assert.deepEqual(await initialBranch(local,{exec:run({branch:'refs/heads/user-work'})}),{initial:false,reason:'preserve-selected-branch'});
+ await assert.rejects(initialBranch(local,{exec:run({headError:128})}),/no HEAD/);
+ await assert.rejects(initialBranch(local,{exec:run({remoteError:true})}),/inaccessible/);
 });

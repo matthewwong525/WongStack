@@ -30,10 +30,12 @@ export async function prepare(job,{home=process.env.HOME,exec=run,fetchFn}={}) {
   if (job.githubRepo && (!/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(job.githubRepo) || job.role!=='owner')) throw new Error('invalid migration');
   if(job.legacyRepo && !/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(job.legacyRepo)) throw new Error('invalid legacy repository');
   const verified=await request(job,'/v1/workspace',undefined,{fetchFn});
-  for (const key of ['projectId','gitUrl','sourceRepo','sourceCommit','role','subject']) if(verified[key]!==job[key]) throw new Error('workspace grant differs');
+  for (const key of ['projectId','gitUrl','sourceRepo','sourceCommit','role','subject','subjectEmail']) if(verified[key]!==job[key]) throw new Error('workspace grant differs');
   const previousRepo=job.githubRepo || job.legacyRepo;
   const legacy=previousRepo && join(home,previousRepo.split('/')[1]);
-  const dir=legacy && existsSync(join(legacy,'.git')) ? legacy : join(home,'wongstack');
+  const existingLegacy=legacy && existsSync(join(legacy,'.git'));
+  const dir=existingLegacy ? legacy : join(home,'wongstack');
+  const existingWorkspace=existsSync(join(dir,'.git'));
   privatePath(join(dir,'.git','wongstack-hosted.json'));
   // Preflight the two global entry points before any origin switch.
   for (const agent of ['.claude','.codex']) {
@@ -111,9 +113,9 @@ if(process.argv[2]==='get') {try {
     symlinkSync(join(SOURCE,'.agents','skills','wong-setup'),skill);
   }
   if (existsSync(join(dir,'.agents','.wong-stack.json'))) writeSecrets({primary:dirname(common)}, {WONGSTACK_HOSTED_TOKEN:job.token});
-  if (!legacy) {
-    await git(['-C',dir,'config','user.email',job.ownerEmail]);
-    await git(['-C',dir,'config','user.name',job.ownerEmail.split('@')[0]]);
+  if (!existingWorkspace) {
+    await git(['-C',dir,'config','user.email',verified.subjectEmail]);
+    await git(['-C',dir,'config','user.name',verified.subjectEmail.split('@')[0]]);
   }
   return {projectId:job.projectId,sourceCommit:job.sourceCommit,verified:true,dir};
 }
@@ -127,7 +129,14 @@ export async function installHosted({cwd=process.cwd(),exec=run,today=new Date()
   privatePath(pendingPath);
   const pending=existsSync(pendingPath) ? JSON.parse(readFileSync(pendingPath,'utf8')) : null;
   if (pending && pending.sourceCommit!==context.sourceCommit) throw new Error('pending install has a different source');
-  if (!pending && readdirSync(context.root).some(name=>!['.git','.env'].includes(name))) throw new Error('workspace has files; preserve them and plan migration');
+  if (!pending) {
+    for (const name of readdirSync(context.root)) {
+      if (['.git','.env'].includes(name)) continue;
+      if (!['openspec','.scratch'].includes(name)) throw new Error('workspace has files; preserve them and plan migration');
+      const stat=lstatSync(join(context.root,name));
+      if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('unsafe setup planning directory');
+    }
+  }
   // The source is fixed by trusted preparation, never a candidate-selected repository.
   const actual=(await exec('git',['-C',SOURCE,'rev-parse','HEAD'])).stdout.trim();
   if (actual!==context.sourceCommit) throw new Error('setup source differs from prepared source');
@@ -143,8 +152,9 @@ export async function installHosted({cwd=process.cwd(),exec=run,today=new Date()
   const record=await installRecord(manifest,exec,today);
   record.components.memory=result.installRecordMemory;
   record.hosted=safeContext(context);
-  privateJson(recordPath,record);
   privateJson(join(context.root,'app','wrangler.jsonc'),result.wrangler);
+  // This record is the completion marker: config must be durable first.
+  privateJson(recordPath,record);
   unlinkSync(pendingPath);
   return {installed:true,projectId:context.projectId,...(result.memory && {memory:result.memory})};
 }

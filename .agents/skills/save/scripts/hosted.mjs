@@ -17,7 +17,7 @@ export function https(value) {
 export function validateContext(value) {
   if (https(value.serviceUrl).pathname!=='/') throw new Error('invalid hosted service root');
   const git = https(value.gitUrl);
-  if (!UUID.test(value.projectId) || !SHA.test(value.sourceCommit) || !REPO.test(value.sourceRepo) || !['owner','member'].includes(value.role) || !value.subject || !value.ownerEmail || !git.pathname.endsWith('.git')) throw new Error('invalid hosted context');
+  if (!UUID.test(value.projectId) || !SHA.test(value.sourceCommit) || !REPO.test(value.sourceRepo) || !['owner','member'].includes(value.role) || !value.subject || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.subjectEmail || '') || !value.ownerEmail || !git.pathname.endsWith('.git')) throw new Error('invalid hosted context');
   return value;
 }
 export async function primary(cwd = process.cwd(), exec = execute) {
@@ -65,8 +65,8 @@ export async function loadContext({cwd, exec, env=process.env}={}) {
   return { ...saved, token, ...paths };
 }
 export function safeContext(context) {
-  const {serviceUrl,projectId,gitUrl,sourceRepo,sourceCommit,ownerEmail,subject,role}=context;
-  return {serviceUrl,projectId,gitUrl,sourceRepo,sourceCommit,ownerEmail,subject,role};
+  const {serviceUrl,projectId,gitUrl,sourceRepo,sourceCommit,ownerEmail,subject,subjectEmail,role}=context;
+  return {serviceUrl,projectId,gitUrl,sourceRepo,sourceCommit,ownerEmail,subject,subjectEmail,role};
 }
 export async function request(context,path,body,{fetchFn=fetch}={}) {
   if (!/^\/v1\/[a-z0-9/?=&%._-]+$/i.test(path)) throw new Error('invalid hosted operation');
@@ -97,7 +97,20 @@ export async function credential(context,input,options) {
   if (!/^[A-Za-z0-9_-]{1,100}$/.test(username)) throw new Error('invalid git username');
   return `username=${username}\npassword=${value.token}\n\n`;
 }
+export async function initialBranch(context,{exec=execute}={}) {
+  const git=async args=>(await exec('git',['-C',context.root,...args])).stdout.trim();
+  try {
+    const head=await git(['rev-parse','--quiet','--verify','HEAD']);
+    if(!SHA.test(head)) throw new Error('local commit identity unreadable');
+    return {initial:false};
+  } catch(error) {if(error.code!==1) throw error;}
+  const remote=await git(['ls-remote','--refs','origin']);
+  if(remote) return {initial:false};
+  const branch=await git(['symbolic-ref','--quiet','HEAD']);
+  return branch==='refs/heads/main' ? {initial:true,branch:'main'} : {initial:false,reason:'preserve-selected-branch'};
+}
 export async function command(action,args,context,options={}) {
+  if (action==='initial-branch') return initialBranch(context,options);
   if (action==='context') return safeContext(context);
   if (action==='status') return request(context,'/v1/status',undefined,options);
   if (action==='setup') {

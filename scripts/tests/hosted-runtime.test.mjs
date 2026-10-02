@@ -24,6 +24,7 @@ test('opaque machine grants do not trust caller role or subject and workspace ex
   await assert.rejects(f.controller.actor(f.handoff.token + '0'), /unavailable/);
   const context = f.controller.workspace(f.owner);
   assert.equal(context.subject, 'owner-subject'); assert.equal(context.role, 'owner');
+  assert.equal(context.subjectEmail, 'owner@example.com');
   assert(!JSON.stringify(context).includes(f.handoff.token));
   assert.equal(f.writes[0].preparation, 'creating');
 });
@@ -45,6 +46,9 @@ test('a member may save but cannot approve, provision, or publish', async () => 
   const f = await fixture();
   const handoff = await f.controller.access({ subject: 'member', email: 'member@example.com', role: 'member', vmId: 'vm-member' });
   const member = await f.controller.actor(handoff.token);
+  assert.equal(handoff.subjectEmail, 'member@example.com');
+  assert.equal(f.controller.workspace(member).subjectEmail, member.email);
+  assert.notEqual(handoff.subjectEmail, handoff.ownerEmail);
   await passing(f);
   await assert.rejects(f.controller.approve(member, { sha, ref }), /Owner/);
   await assert.rejects(f.controller.setup(member), /Owner/);
