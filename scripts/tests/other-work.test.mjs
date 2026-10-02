@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -52,6 +52,7 @@ function fakeTools(base) {
   mkdirSync(bin);
   writeFileSync(path.join(bin, 'paseo'), `#!${process.execPath}
 const args = process.argv.slice(2).filter(a => a !== '--json');
+if (process.env.FAKE_PASEO_CALLS) require('node:fs').appendFileSync(process.env.FAKE_PASEO_CALLS, JSON.stringify(args) + '\\n');
 if (process.env.FAKE_PASEO_DOWN) { console.error('Cannot connect to daemon'); process.exit(1); }
 if (args[0] === 'workspace' && args[1] === 'ls') { console.log(process.env.FAKE_WORKSPACES ?? '[]'); process.exit(0); }
 if (args[0] === 'ls') { console.log(process.env.FAKE_AGENTS ?? '[]'); process.exit(0); }
@@ -108,9 +109,9 @@ function setup(t) {
       { workspaceId: 'w3', project: 'other', name: 'Other project', isolation: 'local', cwd: other },
     ]),
     FAKE_AGENTS: JSON.stringify([
-      { id: 'a1', status: 'running', cwd: '~/wt/busy' },
-      { id: 'a2', status: 'idle', cwd: dirs.published },
-      { id: 'a3', status: 'running', cwd: other },
+      { id: 'a1', name: 'Current task', status: 'running', cwd: '~/wt/busy' },
+      { id: 'a2', name: 'Idle task', status: 'idle', cwd: dirs.published },
+      { id: 'a3', name: 'Unrelated task', status: 'running', cwd: other },
     ]),
     FAKE_GH_PR: JSON.stringify([
       { number: 1, title: 'Add a login page', headRefName: 'teammate', author: { login: 'pat', is_bot: false }, url: 'u1',
@@ -188,7 +189,7 @@ test('lists only this repo\'s live work, with names, busy state, plans, and pull
   assert.equal(json.ok, true);
   assert.deepEqual(json.notes, []);
   const byPath = Object.fromEntries(json.workspaces.map(ws => [ws.path, ws]));
-  assert.deepEqual(Object.keys(byPath).sort(), [s.dirs.busy, s.dirs.feature, s.dirs.planning].sort());
+  assert.deepEqual(Object.keys(byPath).sort(), [s.dirs.busy, s.dirs.feature, s.dirs.planning, s.dirs.published].sort());
   assert.equal(byPath[s.dirs.planning].name, 'Fix the installer');
   assert.deepEqual(byPath[s.dirs.planning].changes, [
     { name: 'fix-installer', title: 'Fix the installer' }, { name: 'no-proposal', title: null },
@@ -207,6 +208,58 @@ test('lists only this repo\'s live work, with names, busy state, plans, and pull
   assert.doesNotMatch(JSON.stringify(json), /elsewhere|Other project/);
 });
 
+test('keeps duplicate and stale chat titles distinct, excluding current, archived, and unrelated sessions', t => {
+  const s = setup(t);
+  const nested = path.join(s.dirs.planning, 'nested-project');
+  execFileSync('git', ['init', '-q', nested]);
+  const agents = [
+    { id: 'peer-a', name: 'Same title', status: 'idle', cwd: s.dirs.planning },
+    { id: 'peer-b', name: 'Same title', status: 'running', cwd: path.join(s.dirs.planning, 'openspec') },
+    { id: 'stale', name: 'Old task title', status: 'idle', cwd: s.dirs.planning },
+    { id: 'self', name: 'Same title', status: 'running', cwd: s.dirs.current },
+    { id: 'archived', name: 'Same title', status: 'running', cwd: s.dirs.planning, archivedAt: '2026-01-01' },
+    { id: 'archived-flag', name: 'Same title', status: 'running', cwd: s.dirs.planning, archived: true },
+    { id: 'archived-status', name: 'Same title', status: 'archived', cwd: s.dirs.planning },
+    { id: 'unrelated', name: 'Same title', status: 'running', cwd: s.other },
+    { id: 'nested', name: 'Same title', status: 'running', cwd: nested },
+    { id: 'missing', name: 'Same title', status: 'running', cwd: path.join(s.base, 'missing') },
+  ];
+  const { json } = run(s.dirs.current, s.env({ PASEO_AGENT_ID: 'self', FAKE_AGENTS: JSON.stringify(agents) }));
+  const planning = json.workspaces.find(ws => ws.path === s.dirs.planning);
+  assert.deepEqual(planning.chats, agents.slice(0, 3).map(({ id, name, status, cwd }) => ({ id, title: name, status, cwd })));
+  assert.equal(planning.busy, true);
+  assert.equal(planning.changes[0].title, 'Fix the installer');
+  assert.ok(!json.workspaces.some(ws => ws.path === s.dirs.current));
+  assert.deepEqual(json.workspaces.flatMap(ws => ws.chats.map(chat => chat.id)), ['peer-a', 'peer-b', 'stale']);
+});
+
+test('routes discovery to the explicit daemon, with host taking precedence over home', t => {
+  const s = setup(t);
+  for (const [name, extra, route] of [
+    ['home', { PASEO_HOST: '', PASEO_HOME: '/selected-home' }, ['--home', '/selected-home']],
+    ['host', { PASEO_HOST: 'socket:/selected.sock', PASEO_HOME: '/selected-home' }, ['--host', 'socket:/selected.sock']],
+  ]) {
+    const calls = path.join(s.base, name + '-calls');
+    const { json } = run(s.dirs.current, s.env({ ...extra, FAKE_PASEO_CALLS: calls }));
+    assert.deepEqual(json.notes, []);
+    assert.deepEqual(readFileSync(calls, 'utf8').trim().split('\n').map(JSON.parse), [
+      ['workspace', 'ls', ...route], ['ls', '-g', ...route],
+    ]);
+  }
+});
+
+test('discovers a peer in the current workspace without listing the current chat', t => {
+  const s = setup(t);
+  const agents = [
+    { id: 'self', name: 'My task', status: 'running', cwd: s.dirs.current },
+    { id: 'peer', name: 'Peer task', status: 'idle', cwd: s.dirs.current },
+  ];
+  const { json } = run(s.dirs.current, s.env({ PASEO_AGENT_ID: 'self', FAKE_AGENTS: JSON.stringify(agents) }));
+  const current = json.workspaces.find(ws => ws.path === s.dirs.current);
+  assert.deepEqual(current.chats, [{ id: 'peer', title: 'Peer task', status: 'idle', cwd: s.dirs.current }]);
+  assert.equal(current.busy, false);
+});
+
 test('from the primary, the primary itself is left out and the other worktree takes its pull request', t => {
   const s = setup(t);
   const { json } = run(s.primary, s.env());
@@ -222,7 +275,7 @@ test('a gh failure leaves a one-line note and still lists the local work', t => 
   assert.equal(status, 0);
   assert.deepEqual(json.pullRequests, []);
   assert.deepEqual(json.notes, ['Open pull requests were not checked: HTTP 502: Bad Gateway.']);
-  assert.equal(json.workspaces.length, 3);
+  assert.equal(json.workspaces.length, 4);
 });
 
 test('gh printing something other than a list is a note too', t => {
@@ -238,6 +291,7 @@ test('works from git alone without Paseo, and notes a stopped or changed Paseo',
   assert.match(missing.json.notes[0], /Paseo is not installed/);
   const names = missing.json.workspaces.map(ws => ws.name).sort();
   assert.deepEqual(names, ['feature', 'planning']);
+  assert.ok(missing.json.workspaces.every(ws => ws.chats.length === 0));
   const down = run(s.dirs.current, s.env({ FAKE_PASEO_DOWN: '1' }));
   assert.match(down.json.notes[0], /not checked: The Paseo daemon does not answer/);
   const changed = run(s.dirs.current, s.env({ FAKE_AGENTS: '[{"id":"a1"}]' }));

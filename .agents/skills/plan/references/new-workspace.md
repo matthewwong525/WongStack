@@ -14,7 +14,7 @@ Ask at four points, in [the shared format](../../explore/references/asking-the-u
 - **`/explore`'s [exit round](../../explore/SKILL.md#the-exit-round)**: the request holds several parts, or a new change is asked for in a workspace that holds another.
 - **[`/continue`](../../continue/SKILL.md#3-check-out-the-branch)**: checking out the change would leave other unpublished work here ([pick up saved work](#pick-up-saved-work)).
 - **[`/ship`](../../ship/SKILL.md)'s closing question**: more work is left ([next work](#next-work)).
-- **[`/explore`'s check for other work](../../explore/SKILL.md#check-for-other-work)**: other work in this repo overlaps the request.
+- **Unresolved overlap after [owner coordination](../../../../wiki/development/the-change-loop.md#chats-coordinate-directly)**: owners cannot settle the outcome, or an unreachable owner blocks affected work.
 
 List the parts by short titles in the person's words, then ask:
 
@@ -38,7 +38,7 @@ A new change asked for where another is unpublished asks instead:
 
 On option 1, `/plan` opens the workspace, reports it, and stops, drafting nothing here.
 
-When [the check for other work](../../explore/SKILL.md#check-for-other-work) finds an overlap, name the other work and the overlap, then ask:
+After [direct coordination](../../../../wiki/development/the-change-loop.md#chats-coordinate-directly) leaves an overlap unresolved, name the remaining choice, then ask:
 
 ```text
 1. Keep going here (Recommended)

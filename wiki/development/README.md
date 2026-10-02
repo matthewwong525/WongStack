@@ -5,6 +5,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 ## Processes
 
 - [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /ship`, with `/continue` to pick saved work back up, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
+- [Coordinate task chats](task-chats.md) — brief messages between task owners, current titles, and agreements in existing plans.
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
 - [Repository improvement](repository-improvement.md) — run or schedule `/improve` to find and ship one useful improvement through the normal change loop.
 - [Scheduled routines](../../.agents/skills/routine/SKILL.md) — `/routine` puts any prompt or verb on a Paseo schedule, each run in its own worktree.
