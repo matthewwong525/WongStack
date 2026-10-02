@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Approve memory access in your own WongStack
+
+Work is underway to let each installation's people approve their computers through its own login. The first step prepares identity, device and historical ownership records without activating new access or changing existing keys.
+
+**Updating.** This major change will require working app login, confirmation of the initial owner, review of historical ownership, and reconnection of each computer. Memory may pause while those steps are unfinished. The preparatory migrations alone do not complete that move; follow the coordinated migration instructions when the feature is ready.
+
+
 ## 29.8.0 — Make WongStack your own
 
 - A guide explains how to customize a fork's defaults, install it with one request, and keep projects updated from it.
