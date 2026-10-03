@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { legacyFixture, hash } from './fixtures/memory/legacy-cutover.mjs';
 import { inspectLegacyMemory, legacySchemaContract, legacyHash } from '../../.agents/skills/memory/scripts/lib/machine-legacy-inventory.mjs';
 import { publicMachineContext } from '../../.agents/skills/memory/worker/machine-context.mjs';
 import { coreFixture } from './fixtures/memory/core.mjs';
 import { MemoryOperatorError } from '../../.agents/skills/memory/scripts/lib/installation-validation.mjs';
+import { LEGACY_PROJECTION_BYTES } from '../../.agents/skills/memory/scripts/lib/machine-legacy-closure.mjs';
 const rejected = code => error => error.code === code;
 const inspect = f => inspectLegacyMemory(f.adapter, { target: f.target, selection: f.selection });
 
@@ -22,13 +24,80 @@ for (const version of [1, 2, 3, 4, 5, 6, 10, 11]) test(`exact historical${versio
 });
 test('schema14 inventory validates genuine baseline receipts without relabeling captures', async t => {
  const f = await coreFixture(t), legacy = await legacyFixture(t);
- const adapter = { ...legacy.adapter, machineContext: f.context, read: async (sql, params = []) => f.db.prepare(sql).all(...params).map(row => ({ ...row })) };
+ const responses = [];
+ const adapter = { ...legacy.adapter, machineContext: f.context, read: async (sql, params = []) => {
+  const rows = f.db.prepare(sql).all(...params).map(row => ({ ...row })), bytes = Buffer.byteLength(JSON.stringify(rows));
+  assert.ok(bytes <= LEGACY_PROJECTION_BYTES); responses.push({ sql, params, bytes, count: rows.length }); return rows;
+ } };
  legacy.source.targetHash = await legacyHash(f.target);
  legacy.source.credentials = legacy.source.credentials.filter(row => row.kind !== 'memory-key');
+ const wholeDdl = f.db.prepare('SELECT name,type,sql FROM sqlite_master ORDER BY name').all();
+ assert.ok(Buffer.byteLength(JSON.stringify(wholeDdl)) > LEGACY_PROJECTION_BYTES);
+ const expected = await legacySchemaContract(adapter.readMigration, 14), objects = [];
+ for (const name of Object.keys(expected).sort()) objects.push({ name, objectHash: await legacyHash(expected[name]) });
+ assert.ok(Buffer.byteLength(JSON.stringify(objects)) <= LEGACY_PROJECTION_BYTES);
  const inventory = await inspectLegacyMemory(adapter, { target: f.target, selection: { factIds: [], sessionIds: [], rawKeys: [] } });
  assert.equal(inventory.history.kind, 'completed14'); assert.equal(inventory.history.installationId, f.installation.installationId);
+ assert.equal(inventory.schemaHash, await legacyHash(objects));
+ assert.ok(responses.some(row => row.sql === 'SELECT name,type FROM sqlite_master ORDER BY name'));
+ const ddlResponses = responses.filter(row => row.sql.includes('sql FROM sqlite_master'));
+ assert.equal(ddlResponses.length, Object.keys(expected).length + 4);
+ assert.ok(ddlResponses.every(row => row.sql === 'SELECT name,type,sql FROM sqlite_master WHERE name=? AND type=?' && row.params.length === 2 && row.count === 1));
+ assert.deepEqual(new Set(ddlResponses.map(row => row.params[0])), new Set([...Object.keys(expected), 'facts_fts_data', 'facts_fts_idx', 'facts_fts_docsize', 'facts_fts_config']));
  const publicContext = publicMachineContext(f.env.MEMORY_DB, f.installation);
  await assert.rejects(inspectLegacyMemory({ ...adapter, machineContext: publicContext }, { target: f.target, selection: { factIds: [], sessionIds: [], rawKeys: [] } }), rejected('machine-context-denied'));
+});
+test('an oversized single-object DDL response refuses without lifting the projection cap', async t => {
+ const f = await legacyFixture(t), before = f.db.prepare('SELECT name,type,sql FROM sqlite_master ORDER BY name').all();
+ let oversizedBytes = 0;
+ const adapter = { ...f.adapter, read: async (sql, params = []) => {
+  const rows = await f.adapter.read(sql, params);
+  if (sql === 'SELECT name,type,sql FROM sqlite_master WHERE name=? AND type=?' && params[0] === 'facts') {
+   rows[0].sql += 'é'.repeat(LEGACY_PROJECTION_BYTES / 2); oversizedBytes = Buffer.byteLength(JSON.stringify(rows));
+  }
+  return rows;
+ } };
+ await assert.rejects(inspectLegacyMemory(adapter, { target: f.target, selection: f.selection }), rejected('legacy-projection-too-large'));
+ assert.ok(oversizedBytes > LEGACY_PROJECTION_BYTES);
+ assert.deepEqual(f.db.prepare('SELECT name,type,sql FROM sqlite_master ORDER BY name').all(), before);
+ assert.ok(f.reads.every(row => row.sql.startsWith('SELECT ')));
+});
+test('single-object DDL readbacks must retain the exact object and release definition', async t => {
+ const f = await legacyFixture(t);
+ for (const mutate of [() => [], rows => [...rows, ...rows], rows => [{ ...rows[0], name: 'foreign_table' }],
+  rows => [{ ...rows[0], type: 'view' }], rows => [{ ...rows[0], sql: 'CREATE TABLE facts(id INTEGER)' }]]) {
+  const adapter = { ...f.adapter, read: async (sql, params = []) => {
+   const rows = await f.adapter.read(sql, params);
+   return sql === 'SELECT name,type,sql FROM sqlite_master WHERE name=? AND type=?' && params[0] === 'facts' ? mutate(rows) : rows;
+  } };
+  await assert.rejects(inspectLegacyMemory(adapter, { target: f.target, selection: f.selection }), rejected('legacy-schema-conflict'));
+ }
+});
+test('schema commitments are deterministic across metadata order and bind every exact definition', async t => {
+ const f = await legacyFixture(t), first = await inspect(f), expected = await legacySchemaContract(f.adapter.readMigration, 6);
+ const sha256 = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+ const objects = Object.keys(expected).sort().map(name => ({ name, objectHash: sha256({ sql: expected[name].sql, type: expected[name].type }) }));
+ assert.equal(first.schemaHash, sha256(objects));
+ const reversed = { ...f.adapter, read: async (sql, params = []) => {
+  const rows = await f.adapter.read(sql, params); return sql === 'SELECT name,type FROM sqlite_master ORDER BY name' ? rows.reverse() : rows;
+ } };
+ const second = await inspectLegacyMemory(reversed, { target: f.target, selection: f.selection });
+ assert.equal(second.schemaHash, first.schemaHash); assert.equal(second.inventoryHash, first.inventoryHash);
+ const changed = objects.map(row => row.name === 'facts' ? { ...row, objectHash: sha256({ sql: expected.facts.sql + ' changed', type: expected.facts.type }) } : row);
+ assert.notEqual(first.schemaHash, sha256(changed));
+});
+test('malformed, duplicate, missing and foreign schema metadata refuse before reading object SQL', async t => {
+ const f = await legacyFixture(t);
+ for (const mutate of [rows => [{ ...rows[0], name: null }, ...rows.slice(1)], rows => [{ ...rows[0], type: null }, ...rows.slice(1)],
+  rows => [...rows, rows[0]], rows => rows.filter(row => row.name !== 'facts'), rows => [...rows, { name: 'foreign_table', type: 'table' }]]) {
+  let ddlReads = 0;
+  const adapter = { ...f.adapter, read: async (sql, params = []) => {
+   if (sql.includes('sql FROM sqlite_master')) ddlReads++;
+   const rows = await f.adapter.read(sql, params); return sql === 'SELECT name,type FROM sqlite_master ORDER BY name' ? mutate(rows) : rows;
+  } };
+  await assert.rejects(inspectLegacyMemory(adapter, { target: f.target, selection: f.selection }), rejected('legacy-schema-conflict'));
+  assert.equal(ddlReads, 0);
+ }
 });
 test('gaps, incomplete installation, future or foreign schema refuse with no writes', async t => {
  for (const mutate of [f => f.db.exec('DELETE FROM schema_migrations WHERE version=3'),

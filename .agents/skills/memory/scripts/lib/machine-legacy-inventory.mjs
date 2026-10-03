@@ -55,6 +55,28 @@ async function readRows(adapter, sql, params = []) {
  requireValue(Array.isArray(rows) && rows.length <= 1000 && rows.every(row => row && typeof row === 'object' && !Array.isArray(row)), 'legacy-inventory-incomplete');
  return rows;
 }
+async function inspectSchema(adapter, expected) {
+ const metadata = await readRows(adapter, 'SELECT name,type FROM sqlite_master ORDER BY name');
+ requireValue(metadata.every(row => typeof row.name === 'string' && typeof row.type === 'string')
+  && new Set(metadata.map(row => row.name)).size === metadata.length, 'legacy-schema-conflict');
+ const actual = metadata.filter(row => !row.name.startsWith('sqlite_') && !row.name.startsWith('_cf_'));
+ const ordinary = actual.filter(row => !shadowNames.includes(row.name));
+ requireValue(ordinary.length === Object.keys(expected).length && ordinary.every(row => expected[row.name]?.type === row.type)
+  && shadowNames.every(name => actual.filter(row => row.name === name && row.type === 'table').length === 1), 'legacy-schema-conflict');
+ const objects = [];
+ // Each response and hash input retains its own projection bound. These
+ // sequential reads are review evidence, not a transaction snapshot; the
+ // eventual15 mutation must independently revalidate the reviewed schema.
+ for (const object of actual) {
+  const rows = await readRows(adapter, 'SELECT name,type,sql FROM sqlite_master WHERE name=? AND type=?', [object.name, object.type]);
+  requireValue(rows.length === 1 && rows[0].name === object.name && rows[0].type === object.type, 'legacy-schema-conflict');
+  if (shadowNames.includes(object.name)) continue;
+  const row = rows[0];
+  requireValue(typeof row.sql === 'string' && normalizeCoreDdl(row.sql) === expected[row.name].sql, 'legacy-schema-conflict');
+  objects.push({ name: row.name, objectHash: await legacyHash(expected[row.name]) });
+ }
+ return legacyHash(objects.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+}
 async function completedHistory(adapter, target, version) {
  const authority = {};
  for (const table of [...(version >= 2 ? ['memory_keys'] : []), ...(version >= 5 ? ['memory_admins'] : []),
@@ -143,18 +165,14 @@ export async function inspectLegacyMemory(adapter, input) {
  const version = versions.length;
  requireValue(supported.includes(version) && versions.every((row, index) => row.version === index + 1), 'schema-unsupported');
  const expected = await legacySchemaContract(adapter.readMigration, version);
- const actual = (await readRows(adapter, 'SELECT name,type,sql FROM sqlite_master ORDER BY name')).filter(row => !row.name.startsWith('sqlite_') && !row.name.startsWith('_cf_'));
- const ordinary = actual.filter(row => !shadowNames.includes(row.name));
- requireValue(ordinary.length === Object.keys(expected).length && ordinary.every(row => expected[row.name]?.type === row.type
-  && typeof row.sql === 'string' && normalizeCoreDdl(row.sql) === expected[row.name].sql)
-  && shadowNames.every(name => actual.filter(row => row.name === name && row.type === 'table').length === 1), 'legacy-schema-conflict');
+ const schemaHash = await inspectSchema(adapter, expected);
  const keys = version >= 2 ? await readRows(adapter, 'SELECT hash FROM memory_keys ORDER BY hash') : [];
  const devices = version >= 10 ? await readRows(adapter, 'SELECT hash FROM memory_credentials ORDER BY hash') : [];
  for (const [kind, rows] of [['memory-key', keys], ['legacy-device', devices]]) {
   const ids = source.credentials.filter(row => row.kind === kind).map(row => row.id);
   requireValue(ids.length === rows.length && rows.every(row => ids.includes(row.hash)), 'legacy-credential-inventory-incomplete');
  }
- const schemaHash = await legacyHash(expected), history = await completedHistory(adapter, target, version);
+ const history = await completedHistory(adapter, target, version);
  const records = [], sessions = new Map();
  for (const id of input.selection.sessionIds) {
   const rows = await readRows(adapter, 'SELECT * FROM sessions WHERE id=?', [id]); requireValue(rows.length === 1, 'legacy-selection-missing'); sessions.set(id, rows[0]);
