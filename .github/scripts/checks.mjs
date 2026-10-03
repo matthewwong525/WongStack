@@ -107,6 +107,9 @@ export function run({ verbs, plan = false, root = ROOT, env = process.env, exec 
   // CLOUDFLARE_ENV selects the build's environment. Tests and binding types
   // read the top-level config, as they do under cf-build.sh.
   const { CLOUDFLARE_ENV: _build, ...plain } = env;
+  // Knip’s normal parser avoids its multi-gigabyte raw-transfer allocation.
+  // This preserves the same complete analysis on GitHub and small hosted runners.
+  plain.KNIP_DISABLE_RAW_TRANSFER = '1';
   const installed = new Set();
   const say = line => out(`${line}\n`);
   const summary = text => {
@@ -237,7 +240,7 @@ export function run({ verbs, plan = false, root = ROOT, env = process.env, exec 
     }
     // A wired pack repo has build:app (build is the cf-build.sh wrapper, which
     // would try to migrate). An unwired repo just has build.
-    const building = step('npm', ['run', scripts(dir)['build:app'] ? 'build:app' : 'build'], dir, env);
+    const building = step('npm', ['run', scripts(dir)['build:app'] ? 'build:app' : 'build'], dir, { ...env, KNIP_DISABLE_RAW_TRANSFER: '1' });
     if (building !== 0) failed.push(building);
     return failed[0] ?? 0;
   };

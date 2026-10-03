@@ -226,3 +226,17 @@ test('neither workflow nor the hosted runner names a check command of its own', 
   assert.match(deploy, /run: bash scripts\/cf-build\.sh\n/);
   assert.match(deploy, /run: bash scripts\/cf-deploy\.sh\n/);
 });
+
+
+test('both callers use the normal Knip parser without dropping any check or caller build input', t => {
+  for (const event of ['pull_request', '']) {
+    const h = harness(t, { files: SUITE, env: { GITHUB_EVENT_NAME: event, CHECKS_BASE: BASE, CLOUDFLARE_ENV: 'staging', KNIP_DISABLE_RAW_TRANSFER: '0' } });
+    assert.equal(h.go(['test', 'build']), 0);
+    assert.deepEqual(h.names(), ['scope', INSTALL, 'npm test', 'loosened', 'wiki', 'scope', 'app-dir', 'parity', 'types', 'npm run build:app']);
+    for (const call of h.calls) {
+      assert.equal(call.env.KNIP_DISABLE_RAW_TRANSFER, '1', call.name);
+      assert.equal(call.env.CLOUDFLARE_ENV, call.name === 'npm run build:app' ? 'staging' : undefined);
+    }
+    assert.equal(h.calls.find(call => call.name === 'loosened').args.at(-1), BASE);
+  }
+});

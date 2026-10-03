@@ -45,11 +45,10 @@ export class ProjectService {
         return;
       }
       if (['errored', 'terminated', 'complete'].includes(status.status)) {
-        delete row.workflow;
         await this.controller.fail(row.sha, row.ref, status.status !== 'complete');
       } else if (Date.now() - (row.startedAt || row.createdAt) > this.config.candidateTimeoutMs + 60000) {
         await (await this.env.CI_WORKFLOW.get(row.workflow)).terminate();
-        delete row.workflow; await this.controller.fail(row.sha, row.ref, true);
+        await this.controller.fail(row.sha, row.ref, true);
       }
     }
     await this.enqueue();
@@ -88,6 +87,9 @@ export class ProjectService {
     if (path.startsWith('/internal/')) {
       const operation = path.slice(10);
       if (operation === 'start') return c.start(input.sha, input.ref, input.workflow);
+      if (operation === 'prepare-git') return c.prepareGit(input.sha, input.ref, input.workflow);
+      if (operation === 'git-checkout') return c.gitCheckout(input.sha);
+      if (operation === 'ready-git') return c.readyGit(input.sha, input.ref, input.receipt);
       if (operation === 'passed') return c.passed(input.sha, input.ref, input.result);
       if (operation === 'fail') { await c.fail(input.sha, input.ref, input.retryable); return { failed: true }; }
       if (operation === 'bundle') return this.loadBundle(input.sha, input.ref, input.digest);
@@ -107,9 +109,11 @@ export class ProjectService {
     }
     if (path === '/admin/stop' && request.method === 'POST') {
       this.state.stopped = true; await c.save();
-      for (const row of Object.values(this.state.candidates).filter(each => ['checking', 'queued'].includes(each.status) && each.workflow)) {
-        await (await this.env.CI_WORKFLOW.get(row.workflow)).terminate(); row.status = 'cancelled';
+      for (const row of Object.values(this.state.candidates).filter(each => ['checking', 'queued'].includes(each.status))) {
+        if (row.workflow) await (await this.env.CI_WORKFLOW.get(row.workflow)).terminate();
+        await c.revokeGit(row); row.status = 'cancelled';
       }
+      for (const row of Object.values(this.state.candidates)) await c.revokeGit(row);
       this.state.active = null; await c.save(); return c.status();
     }
     if (path === '/admin/cleanup' && request.method === 'POST') return this.cleanup();
@@ -137,6 +141,7 @@ export class ProjectService {
     for (const vmId of Object.keys(s.grants)) await this.controller.remove(vmId);
     // Memory's independently owned memberships/devices are revoked by its operator before deleting
     // its resources. Cleanup is a destructive, explicit admin operation after Git export evidence.
+    for (const row of Object.values(s.candidates)) await this.controller.revokeGit(row);
     need(s.exportVerified === true, 'Verified Git export receipt required before deleting repository');
     need(!s.resources.some(row => row.status === 'creating'), 'Reconcile ambiguous resource creation before cleanup');
     for (const row of [...s.resources].reverse().filter(row => row.status === 'created')) {

@@ -106,11 +106,15 @@ test('internal start, alarm and pass share serialized latest-state reads', async
   const start = queue.run(() => stored.create().dispatch(request('start', { sha, ref, workflow: 'job' })));
   await checkingHead.promise;
   const alarm = queue.run(() => stored.create().recover());
+  const preparation = queue.run(async () => {
+    await stored.create().dispatch(request('prepare-git', { sha, ref, workflow: 'job' }));
+    await stored.create().dispatch(request('ready-git', { sha, ref, receipt: { sha, projectId, base: 'b'.repeat(40), prepared: true } }));
+  });
   const passed = queue.run(() => stored.create().dispatch(request('passed', { sha, ref, result: { sha, projectId, digest: c.bundleDigest, exitCode: 0, version: versionId, url: 'https://private-preview.workers.dev' } })));
   assert.equal(stored.loads.length, 1); assert(!stored.read().active);
-  gate.resolve(); await start; await alarm;
+  gate.resolve(); await start; await alarm; await preparation;
   assert.equal((await passed).status, 'passed');
-  assert.equal(stored.loads.length, 3);
+  assert.equal(stored.loads.length, 5);
   assert.equal(stored.loads[1].active, `${ref}:${sha}`);
   assert.equal(stored.read().active, null);
   assert.equal(stored.read().candidates[`${ref}:${sha}`].checks, 'PASS');

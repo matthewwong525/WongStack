@@ -112,4 +112,9 @@ Current wh1005 acceptance: user-dependent checks are explicitly waived and SKIPP
 
 - [x] 12.10 Repair the observed Cloudflare Access code 12130 failure using exactly the protected canonical hostname anchor plus the three actual Worker IDs; require the exact remote source gate before isolated service update, then retry actual customer setup. Keep all negative protection assertions.
 
-- [ ] 12.11 Resolve the installed hosted CLI entry through its real filesystem path and prove direct and `.claude` directory-alias execution with a subprocess test; require an exact remote source gate.
+- [x] 12.11 Resolve the installed hosted CLI entry through its real filesystem path and prove direct and `.claude` directory-alias execution with a subprocess test; require an exact remote source gate.
+
+wh1005 CLOSED before its bound: actual setup and repository push succeeded; actual remote app assertions passed but normal parser/Git context defects failed the candidate. Export/restore, native cancellation/revocation and full owned teardown passed. See [actual closeout](hosted-migration-evidence.md#wh1005-actual-shared-setup-trial-closed). No preview/publication or complete end-to-end acceptance is claimed.
+
+- [ ] 12.12 Repair the demonstrated Knip allocation and missing Git context failures; source-gate trusted metadata preparation, exact base selection, tracked/revoked read credentials, failure/stop handling and an independently credential-free build snapshot. Preserve every shared analysis/audit and run full checks for an initial main save.
+- [ ] 12.13 Separately validate the corrected actual remote pipeline under a newly reviewed finite trial, then finish private preview, automated privacy/publication/next-change acceptance and cleanup. Human-participation cases stay waived and SKIPPED/UNVERIFIED. No closed wh1005 resources or credentials are reused.

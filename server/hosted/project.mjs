@@ -127,14 +127,49 @@ export class ProjectController {
     c.status = 'checking'; c.attempts++; c.workflow = workflow; c.startedAt = Date.now(); c.uploadHash = await digest(uploadToken);
     this.state.active = keyOf(sha, ref); await this.save(); return { ...c, uploadToken };
   }
+  async prepareGit(sha, ref, workflow) {
+    const c = this.getCandidate(sha, ref);
+    need(!this.state.stopped && c.status === 'checking' && this.state.active === keyOf(sha, ref) && c.workflow === workflow, 'Active exact runner required');
+    need(!c.gitPreparation || c.gitPreparation.attempt < c.attempts && c.gitPreparation.revoked === true, 'Git preparation intent requires reconciliation');
+    c.gitPreparation = { attempt: c.attempts, workflow, status: 'minting', revoked: false };
+    await this.save();
+    const credential = await this.a.provider.gitToken(this.state, 'read');
+    Object.assign(c.gitPreparation, { status: 'issued', id: credential.id, expiresAt: credential.expiresAt, token: credential.token });
+    await this.save();
+    need(typeof credential.id === 'string' && typeof credential.token === 'string' && credential.token.length > 0 && !/[\r\n\0]/.test(credential.token) && Date.parse(credential.expiresAt) > Date.now(), 'Tracked Git receipt unavailable');
+    return { remote: this.state.gitUrl, token: credential.token };
+  }
+  gitCheckout(sha) {
+    const c = this.state.candidates[this.state.active];
+    const prep = c?.gitPreparation;
+    need(!this.state.stopped && c?.status === 'checking' && c.sha === sha && prep?.attempt === c.attempts && ['issued', 'ready'].includes(prep.status), 'Tracked checkout unavailable');
+    need(prep.status === 'ready' ? prep.revoked === true && !prep.token : typeof prep.token === 'string' && Date.parse(prep.expiresAt) > Date.now(), 'Tracked checkout grant expired or unresolved');
+    return { sha, remote: this.state.gitUrl, token: prep.status === 'ready' ? '' : prep.token, snapshotOnly: prep.status === 'ready' };
+  }
+  async revokeGit(c) {
+    const prep = c.gitPreparation;
+    if (!prep || prep.revoked) return;
+    need(prep.id && prep.status !== 'minting', 'Ambiguous Git mint requires operator reconciliation');
+    prep.status = 'revocation-pending'; await this.save();
+    await this.a.provider.revoke(this.state, prep.id);
+    delete prep.token; prep.revoked = true; prep.status = 'revoked'; await this.save();
+  }
+  async readyGit(sha, ref, receipt) {
+    const c = this.getCandidate(sha, ref);
+    need(!this.state.stopped && c.status === 'checking' && this.state.active === keyOf(sha, ref) && c.gitPreparation?.status === 'issued' && receipt.prepared === true && receipt.sha === sha && receipt.projectId === this.state.id && receipt.base === (c.mainBase === c.sha ? c.base : c.mainBase), 'Git preparation receipt differs');
+    await this.revokeGit(c);
+    c.gitPreparation.status = 'ready'; await this.save(); return { ready: true };
+  }
   async passed(sha, ref, result) {
     const c = this.getCandidate(sha, ref);
-    need(this.state.active === keyOf(sha, ref) && c.status === 'checking' && c.bundleDigest === result.digest && c.uploadKey && result.sha === sha && result.exitCode === 0 && result.projectId === this.state.id && uuidOK(result.version), 'Passing immutable artifact receipt mismatch');
+    need(this.state.active === keyOf(sha, ref) && c.status === 'checking' && c.gitPreparation?.status === 'ready' && c.gitPreparation.revoked === true && c.bundleDigest === result.digest && c.uploadKey && result.sha === sha && result.exitCode === 0 && result.projectId === this.state.id && uuidOK(result.version), 'Passing immutable artifact receipt mismatch');
     c.status = 'passed'; c.checks = 'PASS'; c.version = result.version; c.url = result.url; c.previewUrl = result.url; delete c.uploadHash;
     this.state.active = null; await this.save(); await this.a.enqueue(); return publicCandidate(c);
   }
   async fail(sha, ref, retryable = false) {
     const c = this.getCandidate(sha, ref);
+    await this.revokeGit(c);
+    delete c.workflow;
     c.status = retryable && c.attempts < this.a.config.maxAttempts && !c.uploadKey ? 'queued' : 'failed'; c.checks = c.status === 'queued' ? 'UNKNOWN' : 'FAIL'; c.failure = retryable ? 'Remote runner interrupted' : 'Remote checks or immutable preview failed';
     if (this.state.active === keyOf(sha, ref)) this.state.active = null;
     delete c.uploadHash; await this.save(); await this.a.enqueue();

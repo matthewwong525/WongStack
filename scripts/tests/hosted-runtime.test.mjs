@@ -77,6 +77,8 @@ test('runner interruption retries are bounded and uploaded bytes prevent automat
 });
 test('passing state rejects mismatched tenant, digest and unreadable receipt', async () => {
   const f = await fixture(); await f.controller.candidate({ sha, ref }); await f.controller.start(sha, ref, 'job');
+  await f.controller.prepareGit(sha, ref, 'job');
+  await f.controller.readyGit(sha, ref, { sha, projectId, base: older, prepared: true });
   const c = f.controller.getCandidate(sha, ref); c.bundleDigest = 'd'.repeat(64); c.uploadKey = 'stored';
   const receipt = { sha, projectId, digest: c.bundleDigest, exitCode: 0, version: versionId, url: 'https://private-preview.workers.dev' };
   for (const change of [{ projectId: versionId }, { digest: 'e'.repeat(64) }, { exitCode: 1 }, { version: 'unknown' }]) await assert.rejects(f.controller.passed(sha, ref, { ...receipt, ...change }), /receipt mismatch/);
@@ -162,19 +164,39 @@ test('trusted build never migrates remotely or invokes candidate deploy wrappers
   const row = { sha, projectId, digest: 'a'.repeat(64) };
   assert.equal((await readResult({ stdout: 'HOSTED_RESULT=' + JSON.stringify(row), stderr: '' }, sha, projectId, 0)).sha, sha);
 });
+function pipelineHarness(build) {
+  const operations = [], calls = [];
+  const candidate = { sha, mainBase: older, base: null, attempts: 1, uploadToken: 'scoped-upload' };
+  return { operations, calls, candidate,
+    ci: { runner: async options => {
+      calls.push(options);
+      return { exitCode: 0, logs: { stdout: 'HOSTED_GIT_CONTEXT=' + JSON.stringify({ sha, base: candidate.mainBase === sha ? candidate.base : candidate.mainBase, projectId, prepared: true }) }, runner: async options => { calls.push(options); return build(options); } };
+    } },
+    adapters: { config, call: async (op, value) => {
+      operations.push([op, value]);
+      return op === 'start' ? candidate : op === 'prepare-git' ? { token: 'private-read', remote: `https://${config.account}.artifacts.cloudflare.net/git/${config.namespace}/${projectId}.git` } : { ready: true };
+    }, loadBundle: async () => { throw new Error('red checks reached artifact upload'); } },
+  };
+}
+const pipelineEvent = { instanceId: 'job', payload: { provider: 'cloudflare-artifacts', providerData: { namespace: config.namespace }, owner: config.namespace, repo: projectId, sha, ref } };
 test('red checks and interruption never reach trusted upload or publication', async () => {
   for (const interruption of [false, true]) {
-    const operations = [];
-    const event = { instanceId: 'job', payload: { provider: 'cloudflare-artifacts', providerData: { namespace: config.namespace }, owner: config.namespace, repo: projectId, sha, ref } };
-    await runHostedPipeline(event, { runner: async options => { assert.equal(options.cloudflareCredentials, false); assert.equal(options.sourceControlCredentials, false); if (interruption) throw new Error('Sandbox stopped'); return { exitCode: 1, logs: { stdout: '', stderr: '' } }; } }, { config, call: async (op, value) => { operations.push([op, value]); return { attempts: 1, uploadToken: 'scoped-upload' }; }, loadBundle: async () => { throw new Error('red checks reached artifact upload'); } });
-    assert.deepEqual(operations.map(row => row[0]), ['start', 'fail']); assert.equal(operations[1][1].retryable, interruption);
+    const h = pipelineHarness(async options => { assert.equal(options.cloudflareCredentials, false); assert.equal(options.sourceControlCredentials, false); if (interruption) throw new Error('Sandbox stopped'); return { exitCode: 1, logs: { stdout: '', stderr: '' } }; });
+    await runHostedPipeline(pipelineEvent, h.ci, h.adapters);
+    assert.deepEqual(h.operations.map(row => row[0]), ['start', 'prepare-git', 'ready-git', 'fail']); assert.equal(h.operations.at(-1)[1].retryable, false);
+    assert.equal(h.calls[0].env.HOSTED_GIT_READ_TOKEN, 'private-read');
+    assert.deepEqual(Object.keys(h.calls[1].env).sort(), ['HOSTED_UPLOAD_TOKEN', 'HOSTED_UPLOAD_URL']);
+    assert(!JSON.stringify(h.calls[1]).includes('private-read'));
   }
 });
 // The runner command itself, in a folder standing in for the exact commit's checkout.
 function checkout(entry) {
   const root = mkdtempSync(join(tmpdir(), 'hosted-command-'));
   if (entry !== undefined) { mkdirSync(join(root, '.github/scripts'), { recursive: true }); writeFileSync(join(root, '.github/scripts/checks.mjs'), entry); }
-  const runCommand = base => spawnSync('bash', ['-c', buildCommand(sha, projectId, base)], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: root } });
+  const git = args => { const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' }); assert.equal(result.status, 0, result.stderr); return result.stdout.trim(); };
+  git(['init', '-q']); git(['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'fixture', '--allow-empty']);
+  const actualSha = git(['rev-parse', 'HEAD']);
+  const runCommand = base => spawnSync('bash', ['-c', buildCommand(actualSha, projectId, base)], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: root } });
   return { root, runCommand };
 }
 test('a commit without the check entry point fails its checks and packs nothing', async () => {
@@ -193,10 +215,9 @@ test('a red entry point stops before the pack, so nothing is uploaded', async ()
   try {
     const result = c.runCommand(older);
     assert.equal(result.status, 7); assert.match(result.stdout, /checks ran: test build/); assert(!result.stdout.includes('HOSTED_RESULT='));
-    const operations = [];
-    const event = { instanceId: 'job', payload: { provider: 'cloudflare-artifacts', providerData: { namespace: config.namespace }, owner: config.namespace, repo: projectId, sha, ref } };
-    await runHostedPipeline(event, { runner: async () => ({ exitCode: result.status, logs: { stdout: result.stdout, stderr: result.stderr } }) }, { config, call: async (op, value) => { operations.push([op, value]); return { attempts: 1, uploadToken: 'scoped-upload', mainBase: older }; }, loadBundle: async () => { throw new Error('red checks reached artifact upload'); } });
-    assert.deepEqual(operations.map(row => row[0]), ['start', 'fail']); assert.equal(operations[1][1].retryable, false);
+    const h = pipelineHarness(async () => ({ exitCode: result.status, logs: { stdout: result.stdout, stderr: result.stderr } }));
+    await runHostedPipeline(pipelineEvent, h.ci, h.adapters);
+    assert.deepEqual(h.operations.map(row => row[0]), ['start', 'prepare-git', 'ready-git', 'fail']); assert.equal(h.operations.at(-1)[1].retryable, false);
   } finally { rmSync(c.root, { recursive: true, force: true }); }
 });
 test('the entry point receives the candidate base and the build inputs from the environment', async () => {
@@ -206,10 +227,13 @@ test('the entry point receives the candidate base and the build inputs from the 
     assert.match(c.runCommand(null).stdout, /INPUTS=\[null,"main","always","staging"\]/, 'a first commit has no base: everything runs');
     assert.throws(() => buildCommand(sha, projectId, "main'; curl evil"), /Exact project and commit/);
     // The service passes the base it recorded when the candidate was queued.
-    let command;
-    const event = { instanceId: 'job', payload: { provider: 'cloudflare-artifacts', providerData: { namespace: config.namespace }, owner: config.namespace, repo: projectId, sha, ref } };
-    await runHostedPipeline(event, { runner: async options => { command = options.command; return { exitCode: 1, logs: { stdout: '', stderr: '' } }; } }, { config, call: async () => ({ attempts: 1, uploadToken: 'scoped-upload', mainBase: older }), loadBundle: async () => { throw new Error('unreachable'); } });
-    assert.equal(command, buildCommand(sha, projectId, older)); assert(command.includes(`CHECKS_BASE='${older}'`));
+    const h = pipelineHarness(async () => ({ exitCode: 1, logs: { stdout: '', stderr: '' } }));
+    await runHostedPipeline(pipelineEvent, h.ci, h.adapters);
+    assert.equal(h.calls[1].command, buildCommand(sha, projectId, older)); assert(h.calls[1].command.includes(`CHECKS_BASE='${older}'`));
+    const initial = pipelineHarness(async () => ({ exitCode: 1, logs: { stdout: '', stderr: '' } })); initial.candidate.mainBase = sha;
+    await runHostedPipeline(pipelineEvent, initial.ci, initial.adapters);
+    assert.equal(initial.calls[1].command, buildCommand(sha, projectId, null));
+    assert(!initial.calls[1].command.includes('CHECKS_BASE='), 'initial pushed main runs full checks');
   } finally { rmSync(c.root, { recursive: true, force: true }); }
 });
 test('service configuration has explicit bounded ownership and no customer deployment token', () => {

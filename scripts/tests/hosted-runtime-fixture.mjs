@@ -27,6 +27,8 @@ export async function fixture() {
 export async function passing(f) {
   await f.controller.candidate({ sha, ref });
   await f.controller.start(sha, ref, 'workflow-id');
+  await f.controller.prepareGit(sha, ref, 'workflow-id');
+  await f.controller.readyGit(sha, ref, { sha, projectId, base: older, prepared: true });
   const candidate = f.controller.getCandidate(sha, ref);
   candidate.bundleDigest = 'd'.repeat(64); candidate.uploadKey = `${projectId}/bundles/${sha}/${candidate.bundleDigest}`;
   await f.controller.passed(sha, ref, { sha, projectId, digest: candidate.bundleDigest, exitCode: 0, version: versionId, url: 'https://private-preview.workers.dev' });
