@@ -48,14 +48,14 @@ export async function setup(t,{bucket=true,scope}={}) {
 }
 export function node(repo,fake,script,args=[],{input,env={}}={}) {
  const childEnv={...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1',WONG_TIDY:'0',WONG_MEMORY_CLAUDE_HOME:repo.claudeHome,WONG_MEMORY_CODEX_HOME:repo.codexHome,...env,NODE_OPTIONS:transportOptions(env.NODE_OPTIONS??process.env.NODE_OPTIONS)};
- return new Promise(done=>{const child=execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),join(SCRIPTS,script),...args],{cwd:repo.root,env:childEnv,encoding:'utf8'},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr}));child.stdin.end(input);});
+ return new Promise(done=>{const child=execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),join(SCRIPTS,script),...args],{cwd:repo.root,env:childEnv,encoding:'utf8',timeout:60000},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr:error?[stderr,`fixture child failed: ${script} ${args[0]||''} (code=${error.code??'none'}, signal=${error.signal||'none'}, killed=${Boolean(error.killed)})`].filter(Boolean).join('\n'):stderr}));child.stdin.end(input);});
 }
 export const memory=(repo,fake,args,options)=>node(repo,fake,'memory.mjs',args,options);
 export const rows=(env,sql,...params)=>env.fake.db.prepare(sql).all(...params).map(row=>({...row}));
 
 export function register(repo,entry){
  const url=new URL('../../../../.agents/skills/memory/scripts/lib/transcripts.mjs',import.meta.url).href;
- execFileSync(process.execPath,['--input-type=module','-e',`import {registerSession} from ${JSON.stringify(url)};await registerSession({stateDir:${JSON.stringify(repo.stateDir)}},${JSON.stringify(entry)});`],{env:{...process.env,HOME:repo.home,USERPROFILE:repo.home},stdio:'pipe'});
+ execFileSync(process.execPath,['--input-type=module','-e',`import {registerSession} from ${JSON.stringify(url)};await registerSession({stateDir:${JSON.stringify(repo.stateDir)}},${JSON.stringify(entry)});`],{env:{...process.env,HOME:repo.home,USERPROFILE:repo.home},stdio:'pipe',timeout:15000});
 }
 
 // Test-only child module entry preserves the same private HOME and HTTPS fixture transport.
