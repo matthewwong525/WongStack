@@ -5,7 +5,7 @@
 
 ## Next (major) — Approve memory access in your own WongStack
 
-This feature is still in progress. The current source prepares identity, ownership reviews and guarded operator setup; it does not activate the new approval flow or replace existing memory keys.
+This feature is still in progress. The current source prepares identity, ownership reviews, guarded operator setup and the Devices screens. Missing protected handlers leave Devices unavailable; this does not activate the new approval flow or replace existing memory keys.
 
 - Each installation will use its own app login to confirm its owner and approve computers for memory, without a hosted account. Repository hosting and cloud project roles do not grant memory membership.
 - People will retain internal identities across reviewed login changes. Historical notes and transcripts keep their original text and attribution; ownership changes require explicit evidence.

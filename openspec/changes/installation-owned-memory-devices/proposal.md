@@ -23,9 +23,9 @@ Connecting a computer to memory currently depends on GitHub accounts and reposit
                        your repo's memory
 
   FIRST OWNER                    LOGIN OFF
-  Sign in to finish setup        Memory setup pending
-  Compare setup code: 82K6        Enable app login first
-  Confirm on setup computer      [Setup instructions]
+  Finish owner setup             Login required
+  J6KN-7DPR                      Enable app login
+  Waiting for operator           [Setup instructions]
 
   LOGIN NEEDS REVIEW
   This login is not linked yet
@@ -49,18 +49,19 @@ Connecting a computer to memory currently depends on GitHub accounts and reposit
    this computer connects once
 
   DEVICES / APPROVE
-  Your workspace · ana@example.com
-  Laptop · name supplied by requester
-  Code: H7KM-42PT
-  Compare this with your chat
-  Read team notes and your private notes
-  Save notes as you · expires in 30 days
-  [ ] This is my request; the code matches
-  [Approve computer]     Deny
+  Connect Laptop?
+  As ana@example.com
+  H7KM-42PT · 7 minutes left
+  Match this code in chat
+  Read team + your private notes
+  Save notes as you
+  [ ] My request; code matches
+  [Approve]              Deny
+  > Access details
 
   APPROVED                    DENIED / EXPIRED
-  Waiting for the computer     This request has ended
-  [View devices]              Start again in chat
+  Waiting for computer        Request ended
+  [View devices]              New request in chat
                               [View devices]
   ```
 
@@ -72,15 +73,15 @@ Connecting a computer to memory currently depends on GitHub accounts and reposit
   [Review request]
 
   Connected 2
-  Laptop · used today · member
-  Renews automatically · approve by Jan 1
+  Laptop · Connected
+  Used today · approve by Jan 1
   Revoke
-  Desktop · expires Oct 30 · member
+  Desktop · Connected
   Revoke
 
   REVOKE LAPTOP?
-  It will stop reading and saving memory
-  [Revoke computer]       Cancel
+  Memory access will stop
+  [Revoke]                Cancel
 
   OWNER / PEOPLE
   Ana · owner
@@ -128,13 +129,13 @@ Connecting a computer to memory currently depends on GitHub accounts and reposit
                        your login and memory
 
   NO DEVICES                 LOADING
-  Connect from your chat     Checking your requests…
-  [Copy connection request]  Actions wait
+  Connect from chat          Loading devices…
+  [Copy request]             Actions wait
 
   COULD NOT LOAD             WRONG ACCOUNT / REQUEST
-  Your devices were not     Request unavailable here
-  changed                   Check app address and login
-  [Try again]               [Back to devices]
+  Devices unavailable       Request unavailable
+  [Retry]                   Check app and login
+                            [Back to devices]
   ```
 
 ## Capabilities
@@ -204,3 +205,7 @@ Non-goals: production publication without a later ship instruction; Git hosting 
 - **2026-10-02** — User requested moving the full memory/Devices change out of #238 because the combined PR is too large. Transplant all54 memory-only additions and four memory-only modified-file diffs onto fresh main `3d9f248`; split coverage and release notes, preserving all implementation bytes, prior source receipts and both accepted postgate documents. This is the complete unfinished feature, not a finished-foundation rescope. Keep status in-progress and remaining tasks unchecked; open a separate draft PR and require its independent exact remote gate. Merge only when the feature and human/live acceptance are ready. Artifacts hosting and Git storage stay in #238.
 
 - **2026-10-02** — Check: `scripts/tests/.c8rc.json` adds only `scripts/pilots/memory-rest/*.mjs` to measured source for this standalone memory change. Existing source roots, includes, exclusions and coverage floors remain unchanged; the Artifacts-only hosted service include stays in #238.
+
+- **2026-10-02** — User confirmed Devices should remain a mini app and asked for less screen text, then `/apply`. Keep signed-in account, matching code, requested access and expiry visible; use short actions and optional details for lifetime/logout explanations. Implement the frontend independently while core/runtime/live gates remain pending; absent protected handlers show unavailable and never a simulated grant.
+
+- **2026-10-03** — User transferred saves and remote checks for separate PR #242 to this session. Checkpoint the concise Devices frontend, its tests/distribution docs and the three previously accepted postgate documents. Include open-page deadline updates and exact displayed code/scope confirmation; keep source gates distinct from runtime/human acceptance. Full capability reconciliation and areas mapping stay deferred with unfinished runtime, preserving the previously agreed source-only checkpoint boundary. Provider/private snapshots/live phases remain unreleased; no owner/device grant or full-feature readiness follows from this save. Session facts skipped because these decisions are recorded here.

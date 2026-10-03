@@ -4,6 +4,12 @@ Source preparation for task 1.3b, not execution authorization. The old schema-10
 
 This schema-11/protocol-2 source passed its exact required push gate at `2206f32d63931d969cb55d22fce57e84a4e33efd`; the [source acceptance record](owner-receipt-design.md#source-acceptance-record) names the checks, unchanged handoff and coverage evidence. Only the source freeze was released. The parent is materializing and independently rehashing a wholly new exact-SHA SQL/assets/import snapshot; no newly owned target or executed phase exists at this checkpoint. Original owned new-target POST receipts, actual active Worker/Access/binding/origin pins and individually reviewed concrete phase plans remain required. The old private runner/input is not automatically reused, relabeled or mixed with current files. The parent owns private transport, resource receipts, provider mutations and all git/PR actions. Source PASS never authorizes execution or integration; task 1.3b remains unchecked.
 
+## Current independent source snapshot
+
+The preceding 2206 record retains its historical combined-branch scope. The independent main-based memory branch subsequently passed its own source gate at `32a61b9c686905c09a2778dea8ec388265cd08f0`; the [independent acceptance record](owner-receipt-design.md#independent-main-based-source-gate) contains exact push checks, suite results and the parent's newly materialized schema-11 snapshot receipt. That new snapshot is source evidence only. Old exact-3a and exact-2206 snapshots/private history remain unchanged and provide no new-branch execution authority or live evidence.
+
+No owned target/resources, private phase execution or integration handoff followed from the split or source PASS. The parent retains snapshot revalidation, original-POST-owned target and active-pin verification, and separate coordination of each concrete phase. The human mailbox remains pending. Tasks 1.3b and 1.4 are still unchecked; a source snapshot never supplies an owner or machine grant.
+
 ## Target and ownership
 
 Use only a newly authorized planned project resource with `kind: d1` and `environment: memory`, after creation and its receipt are recorded. Production and staging business databases are excluded. No extra database, Worker, bucket, project or VM is needed. The probe cannot create or delete infrastructure, alter Access, deploy code, clear an entire DB or recreate a resource.

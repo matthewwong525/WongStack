@@ -188,6 +188,8 @@ Opening a request link shows that pending request before approval. The page may 
 
 One filled action per focused state: Review request on list, Approve on detail, Revoke/Remove on their confirmation, Create invitation on invitation form, Confirm identity link on owner review, Copy connection request when empty, Retry on error. Deny/cancel/navigation are secondary. Scope and matching code precede approval. Pending network actions disable repeat submission; no optimistic approval/revocation. Loading is announced and controls stay disabled; terminal denied/expired states direct the person back to chat. Errors preserve forms and never display private fields from other people's requests.
 
+Screen copy is brief: one action and one short instruction per focused state. Keep the verified account, matching code, visible read/write permissions and expiry beside approval. Move renewal/reapproval and browser logout explanations into an optional “Access details” disclosure. Lists use computer, status, last use and reapproval date; revoke confirmation says “Memory access will stop.” Account and permission review must never be hidden behind the disclosure. Initial owner setup stays a separate one-time pending-operator state, not a second login or a browser confirmation shortcut.
+
 ### Review
 
 [review.html](review.html) shows What Changes #1 (owner/pending/recovery), #2 (approval and terminal states), #3 (list/revoke/people forms), #4 (migration flow), and #5 (empty/loading/error/wrong-account states). Identity-link, role-change and success/pending confirmations are also sketched in What Changes #3. No new navigation framework or design library.

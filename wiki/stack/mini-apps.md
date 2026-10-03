@@ -49,6 +49,8 @@ Above the list sit a workspace heading and a removable welcome, *Make it yours*.
 
 Every page, each app's included, shares the look in `/style.css` (`app/public/style.css`): the device's font, light or dark to match the device, a narrow column, neutral surfaces, black or white primary actions, and visible keyboard focus. The frame's editable WongStack name and colored W mark sit on every page; tap either to return home. Ask in chat to change this default identity. A reviewed update preserves or explicitly adapts your own branding. Hello keeps its form styles beside its page, with the name label above the field and the greeting below the action.
 
-In the WongStack source repo, only the example app `hello` is payload, so a change to it is a release. Any other app there, such as `tips`, is built like in any repo and never ships to other repos.
+The WongStack payload includes the `hello` example and the built-in `devices` mini app. Changes to either are releases. Source-only apps, such as `tips`, must be excluded in the payload inventory.
+
+Devices uses the main app's login and calls narrowly privileged core memory/auth routes; it has no ordinary mini-app server handler. Other mini apps still cannot access memory bindings. When the protected core handlers are unavailable, Devices shows an unavailable state and permits no approvals. A preview never connects to production memory.
 
 Part of [the Cloudflare stack](README.md).

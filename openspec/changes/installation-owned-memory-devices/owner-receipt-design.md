@@ -1,6 +1,6 @@
 # Durable first-owner review and confirmation
 
-The nineteen-path source implementation passed its exact remote gate as recorded below. The operator preparation source gate passed at `c52c1efc63eef6a5c37872221b78fccb79abb664`; [its acceptance record](owner-operator-preparation.md) retains the exact checks and test repair. Tasks 1.4 and 1.3b remain unchecked. The approved source boundary remains the twelve original plus seven additional paths below. Only postgate change-local acceptance documentation is now released; committed implementation and shared files remain unchanged pending coordination. No live call, private snapshot/runner mutation or provider operation is authorized for this session.
+The current source passed its independent main-based gate as recorded below; the earlier nineteen-path combined-branch gate retains its original scope. The operator preparation source gate passed at `c52c1efc63eef6a5c37872221b78fccb79abb664`; [its acceptance record](owner-operator-preparation.md) retains the exact checks and test repair. Tasks 1.4 and 1.3b remain unchecked. The approved source boundary remains the twelve original plus seven additional paths below. Only postgate change-local acceptance documentation is now released; committed implementation and shared files remain unchanged pending coordination. No live call, private snapshot/runner mutation or provider operation is authorized for this session.
 
 ## Source acceptance record
 
@@ -9,6 +9,27 @@ The checkpoint owner reported `SOURCE_GATE_RESULT=SUCCESS` at exact revision `22
 All nineteen implementation handoff hashes and the separately held preparation document hash were committed unchanged. SQL 0001–0010 was verified byte-identical to exact `3a6b9b6f1241cc926b9b9fb48b6a8cd3a0198614`. Working `areas.json` remained untouched and unstaged. The gate validates the committed source and fixture behavior; it does not establish live REST transaction behavior, human ownership or device readiness.
 
 Only the source freeze was released. The parent is materializing a wholly new exact-2206 snapshot with independently rehashed extracted files and exact check receipts. No newly owned target exists at this checkpoint, and no private live runner/input has been relabeled or executed. Original-POST-owned target receipts, actual active Worker/Access/binding/origin pins and individually reviewed transport, initializer and owner-confirmation phase plans remain prerequisites. The old exact-3a snapshot/private history remains immutable and **UNEXECUTED/PENDING**. The real unused human mailbox remains pending and must not be inferred or seeded. No route, consumer, CLI or device activation, owner grant, provider call or live integration handoff follows from this source result; tasks 1.4 and 1.3b remain unchecked.
+
+### Independent main-based source gate
+
+The full unfinished feature moved to branch `installation-owned-memory-devices` and [draft PR #242](https://github.com/matthewwong525/WongStack/pull/242). Exact initial source `32a61b9c686905c09a2778dea8ec388265cd08f0` has sole parent `3d9f248d439d7108ec0d56fa0ac352f7aa0cdaf9`, main 29.10.0. The checkpoint owner reported `SOURCE_GATE_RESULT=SUCCESS`: required actual push [build 37059282914](https://github.com/matthewwong525/WongStack/actions/runs/37059282914), [payload/scripts 37059282894](https://github.com/matthewwong525/WongStack/actions/runs/37059282894) and [app tests 37059282933](https://github.com/matthewwong525/WongStack/actions/runs/37059282933) all passed. The script suite passed 1,104 of 1,104 tests with zero failures or skips; coverage was 92.71% statements/lines, 89.48% branches and 94.53% functions, with unchanged floors. This is the independent memory branch's suite, excluding the Artifacts-only implementation and tests retained in #238. No local suites, builds or lint were run.
+
+The split contains 54 additions, four memory-only modified files, the memory coverage include and the memory release entry: 60 changed paths. All implementation bytes and the two accepted postgate documents were preserved; only current proposal/design/tasks placement and the generated review changed. The full feature remains in progress, rather than being redefined as a finished foundation. This branch's `areas.json` is clean main baseline; the old worktree's unapproved planned mappings were neither transplanted nor staged.
+
+The checkpoint owner reported materializing a wholly new private exact-32a snapshot, checking 1,878 tracked files against exact git blobs and all eleven SQL hashes against that snapshot's trusted manifest. Its independently rehashed receipt is:
+
+```json
+{
+  "sourceRevision": "32a61b9c686905c09a2778dea8ec388265cd08f0",
+  "schemaVersion": 11,
+  "manifestHash": "e35e2678a21e15691a975cd4b3dc1731d1744174272a20ea0d3fd6d209ad4ee1",
+  "assetDigest": "9dce975b20c9165814b65f851dc3a1c4c74dd6a3e240ce5e28bf518575e6af8c"
+}
+```
+
+The parent owns snapshot materialization and revalidation; this documentation update neither modifies nor independently executes the private snapshot. Exact-3a and exact-2206 snapshots, authority records and historical source receipts remain unchanged. Neither old snapshot supplies execution evidence for the new branch, and their live phases remain **UNEXECUTED/PENDING**.
+
+Only the source freeze was released. No newly owned target/resources, live phase, owner grant, route/consumer/CLI/device activation or integration handoff exists at this checkpoint. Original successful POST ownership receipts, active Worker/Access/binding/origin pins, reviewed individual transport/initializer/owner-confirmation plans and real human verification remain pending prerequisites. The unused human mailbox is still pending; no identity is inferred or seeded. Tasks 1.4 and 1.3b remain unchecked, and draft #242 is not ready to merge. Parent ownership of git/PR/provider/private phases continues.
 
 ## Chosen compatibility boundary
 
