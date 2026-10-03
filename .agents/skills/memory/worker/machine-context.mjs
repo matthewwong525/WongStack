@@ -1,7 +1,7 @@
 // Separate D1 and trusted-provider capabilities. Neither context is a public result.
 import { normalizeCoreDdl, coreProtectionDdl, coreTableColumns, CORE_D1_LIMIT } from './machine-core-contract.mjs';
 import { resourceTarget, requireValue, MemoryOperatorError } from '../scripts/lib/installation-validation.mjs';
-import { legacyDdl,legacyTableColumns } from './machine-legacy-contract.mjs';
+import { legacyDdl,legacyRetainedDdl,legacyTableColumns } from './machine-legacy-contract.mjs';
 const contexts = new WeakMap();
 export function publicMachineContext(db, installation, execution = null) {
   const target = resourceTarget(installation, true);
@@ -93,7 +93,7 @@ export async function runtimeSnapshotContext(context) {
  const image={...JSON.parse(base[0].value),deployments:rows.filter(r=>r.kind==='deployment').map(r=>JSON.parse(r.value)),memory_data_deployments:rows.filter(r=>r.kind==='deployment-raw').map(r=>JSON.parse(r.value))};
  requireValue(image.versions.length===(legacy?15:14)&&image.versions.every((row,index)=>row.version===index+1),'schema-unsupported');
  // DDL bodies, not merely protection names. This check is fresh after every await.
- for(const [name,expected] of Object.entries({...coreProtectionDdl,...(legacy?legacyDdl:{})})) {
+ for(const [name,expected] of Object.entries({...coreProtectionDdl,...(legacy?{...legacyRetainedDdl,...legacyDdl}:{})})) {
   const actual=image.schema.find(row=>row.name===name);
   requireValue(actual&&actual.type===expected.type&&normalizeCoreDdl(actual.sql)===expected.sql,'installation-conflict');
  }

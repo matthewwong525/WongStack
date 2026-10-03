@@ -1,7 +1,7 @@
 // Exact15 validation. Historical14 receipts and request frames remain distinct.
 import { runtimeContext } from '../../worker/machine-context.mjs';
 import { coreProtectionDdl,normalizeCoreDdl,compiledCoreHashes } from '../../worker/machine-core-contract.mjs';
-import { legacyDdl,compiledLegacyHashes } from '../../worker/machine-legacy-contract.mjs';
+import { legacyDdl,legacyRetainedDdl,compiledLegacyHashes } from '../../worker/machine-legacy-contract.mjs';
 import { machineLegacyMigrations } from './machine-legacy-migrations.mjs';
 import { machineDataMigrations } from './machine-data-migrations.mjs';
 import { machineHash } from './machine-state.mjs';
@@ -9,11 +9,11 @@ import { legacyHash,legacyDigest } from './machine-legacy-inventory.mjs';
 import { boundLegacyProjection } from './machine-legacy-closure.mjs';
 import { digest,requireValue } from './installation-validation.mjs';
 export const legacyManifestHash=()=>digest(JSON.stringify(machineLegacyMigrations));
-export const legacySchemaHash=()=>digest(JSON.stringify({...coreProtectionDdl,...legacyDdl}));
+export const legacySchemaHash=()=>digest(JSON.stringify({...coreProtectionDdl,...legacyRetainedDdl,...legacyDdl}));
 const parse=value=>{const result=JSON.parse(value);boundLegacyProjection(result);return result;};
 const one=(rows,code='machine-operation-incomplete')=>{requireValue(rows.length===1,code);return rows[0];};
 export async function validateLegacySchema(read) {
- const metadata=await read('SELECT name,type FROM sqlite_master ORDER BY name'),expected={...coreProtectionDdl,...legacyDdl};boundLegacyProjection(metadata);
+ const metadata=await read('SELECT name,type FROM sqlite_master ORDER BY name'),expected={...coreProtectionDdl,...legacyRetainedDdl,...legacyDdl};boundLegacyProjection(metadata);
  const shadows=['facts_fts_data','facts_fts_idx','facts_fts_docsize','facts_fts_config'];
  requireValue(metadata.every(row=>typeof row.name==='string'&&typeof row.type==='string')&&new Set(metadata.map(row=>row.name)).size===metadata.length,'legacy-schema-conflict');
  const ordinary=metadata.filter(row=>!row.name.startsWith('sqlite_')&&!row.name.startsWith('_cf_')&&!shadows.includes(row.name));

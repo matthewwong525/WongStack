@@ -51,7 +51,7 @@ test('all custom/authority SQL operations are retired even for data-admin',async
 test('late activation await revocation and final-guard maintenance deny every returned fact',async t=>{
  for(const stage of ['activation','final']) {
   const f=await coreFixture(t);await captured(f);let fired=false,readFacts=false,hooks=0;
-  f.beforeRead=async sql=>{if(sql.startsWith('SELECT f.id'))readFacts=true;if(fired||!readFacts)return;if(stage==='activation'?sql.startsWith('SELECT x.* FROM memory_runtime_activations'):sql.startsWith('SELECT name,type,sql FROM sqlite_master WHERE EXISTS')){fired=true;hooks++;await revokeRuntimeMachine(f.context,{attemptId:attempt('late-revoke-'+stage),expected:await f.runtimeExpected(),payload:{machineId:MACHINE,grantId:GRANT,machineRevision:1,grantRevision:2}});}};
+  f.beforeRead=async sql=>{if(sql.startsWith('SELECT f.id'))readFacts=true;if(fired||!readFacts)return;if(stage==='activation'?sql.startsWith('SELECT x.* FROM memory_runtime_activations'):(sql.startsWith('SELECT name,type,sql FROM sqlite_master WHERE ')&&sql.includes('memory_runtime_activations')&&sql.includes('k.expires_at>unixepoch()'))){fired=true;hooks++;await revokeRuntimeMachine(f.context,{attemptId:attempt('late-revoke-'+stage),expected:await f.runtimeExpected(),payload:{machineId:MACHINE,grantId:GRANT,machineRevision:1,grantRevision:2}});}};
   const response=await query(f);assert.equal(response.status,403);assert.doesNotMatch(JSON.stringify(await response.json()),/Every preview route/);assert.equal(fired,true);assert.equal(readFacts,true);assert.equal(hooks,1);
  }
 });

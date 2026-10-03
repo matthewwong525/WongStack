@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { migrationSql,migrationFiles,applyMigrations } from './fixtures/memory/identity.mjs';
 import { machineLegacyMigrations } from '../../.agents/skills/memory/scripts/lib/machine-legacy-migrations.mjs';
 import { machineDataMigrations } from '../../.agents/skills/memory/scripts/lib/machine-data-migrations.mjs';
-import { legacyDdl,legacyReplacementNames,compiledLegacyHashes } from '../../.agents/skills/memory/worker/machine-legacy-contract.mjs';
+import { legacyDdl,legacyRetainedDdl,legacyReplacementNames,compiledLegacyHashes } from '../../.agents/skills/memory/worker/machine-legacy-contract.mjs';
 import { compiledCoreHashes,coreProtectionDdl,normalizeCoreDdl,CORE_D1_LIMIT } from '../../.agents/skills/memory/worker/machine-core-contract.mjs';
 import { digest } from '../../.agents/skills/memory/scripts/lib/installation-validation.mjs';
 import { validateLegacySchema } from '../../.agents/skills/memory/scripts/lib/machine-legacy-state.mjs';
@@ -29,3 +29,17 @@ test('SQL15 changes only the declared dependent guards and creates no compatibil
 
 import { sqlFunctionArguments } from './fixtures/memory/legacy-import.mjs';
 test('every SQL15 function call stays within the actual D1 argument limit',()=>{const calls=sqlFunctionArguments(migrationSql('0015_legacy_cutover.sql'));assert.ok(calls.length>0);for(const call of calls)assert.ok(call.args<=32,`${call.name}: ${call.args}`);});
+
+for(const name of ['memory_current_binding','memory_pending_invitation','memory_first_fact_mapping','memory_first_session_mapping','memory_first_object_mapping','memory_data_run_attempt','memory_data_fact_ordinal'])test(`complete15 schema validates retained UNIQUE index ${name} exactly`,async t=>{
+ const db=new DatabaseSync(':memory:');t.after(()=>db.close());applyMigrations(db,14);db.exec(migrationSql('0015_legacy_cutover.sql'));
+ const read=async(sql,params=[])=>db.prepare(sql).all(...params).map(row=>({...row}));
+ assert.equal(normalizeCoreDdl(db.prepare('SELECT sql FROM sqlite_master WHERE name=?').get(name).sql),legacyRetainedDdl[name].sql);
+ await validateLegacySchema(read);db.exec(`DROP INDEX ${name}`);await assert.rejects(validateLegacySchema(read),/legacy-schema-conflict/);
+ db.exec(`CREATE UNIQUE INDEX ${name} ON schema_migrations(version)`);await assert.rejects(validateLegacySchema(read),/legacy-schema-conflict/);
+ db.exec(`DROP INDEX ${name}`);db.exec(legacyRetainedDdl[name].sql);await validateLegacySchema(read);
+});
+test('complete15 schema rejects an unrelated additional authority object',async t=>{
+ const db=new DatabaseSync(':memory:');t.after(()=>db.close());applyMigrations(db,14);db.exec(migrationSql('0015_legacy_cutover.sql'));
+ const read=async(sql,params=[])=>db.prepare(sql).all(...params).map(row=>({...row}));await validateLegacySchema(read);
+ db.exec('CREATE TABLE unrelated_authority(id TEXT PRIMARY KEY,capability TEXT)');await assert.rejects(validateLegacySchema(read),/legacy-schema-conflict/);
+});

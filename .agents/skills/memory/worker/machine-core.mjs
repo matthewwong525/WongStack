@@ -7,7 +7,7 @@ import { dataSnapshot } from '../scripts/lib/machine-data-state.mjs';
 import { enrollRuntimeMachine, renewRuntimeMachine, readSignedMachineSnapshot, readSignedEnrollmentSnapshot, validateRuntimeBearer } from '../scripts/lib/machine-runtime-operator.mjs';
 import { captureMachineData, readSignedMachineDataStatus } from '../scripts/lib/machine-data-operator.mjs';
 import { legacyExposureGuard,auditLegacyAccess } from '../scripts/lib/machine-legacy-state.mjs';
-import { legacyDdl,compiledLegacyHashes } from './machine-legacy-contract.mjs';
+import { legacyDdl,legacyRetainedDdl,compiledLegacyHashes } from './machine-legacy-contract.mjs';
 import { verifyMachineProof } from './machine-proof.mjs';
 import { machineHash } from '../scripts/lib/machine-state.mjs';
 import { handleCoreTranscript } from './machine-core-transcripts.mjs';
@@ -91,7 +91,7 @@ export async function finalCoreGuard(context,machineId,credentialHash,own=null,p
  const rows=state.legacy?await read(`SELECT name,type,sql FROM sqlite_master WHERE ${guard.sql} AND EXISTS(SELECT 1 FROM memory_legacy_deployments d JOIN memory_legacy_exposure e ON e.installation_id=? JOIN memory_legacy_protocol_transitions t ON t.attempt_id=e.attempt_id WHERE d.id=? AND d.evidence_json=? AND t.protocol_hash=? AND t.route_contract_hash=?)`,[...guard.params,state.installation.installationId,state.data.head.id,JSON.stringify(state.data.head.evidence),hashes.protocolHash,hashes.routeContractHash]):await read(`SELECT name,type,sql FROM sqlite_master WHERE ${guard.sql} AND ${head} AND ${activation} AND ${evidence}`,
  [...guard.params,state.data.head.id,state.installation.installationId,state.baselineHash,state.runtime.pin_hash,hashes.protocolHash,hashes.routeContractHash,state.data.head.id,state.data.head.id,JSON.stringify(state.data.head.evidence)]);
  requireValue(rows.length>0,'machine-proof-denied');
- for(const [name,expected] of Object.entries({...coreProtectionDdl,...(state.legacy?legacyDdl:{})})){const row=rows.find(r=>r.name===name);requireValue(row&&row.type===expected.type&&normalizeCoreDdl(row.sql)===expected.sql,'installation-conflict');}
+ for(const [name,expected] of Object.entries({...coreProtectionDdl,...(state.legacy?{...legacyRetainedDdl,...legacyDdl}:{})})){const row=rows.find(r=>r.name===name);requireValue(row&&row.type===expected.type&&normalizeCoreDdl(row.sql)===expected.sql,'installation-conflict');}
  // No crypto, storage or network await may follow this guard before returning.
 }
 const privacy=(machineId,admin)=>({sql:`(f.owner_principal_id=?${admin?' OR 1=1':" OR (f.shared=1 AND f.type NOT IN ('user','feedback'))"}) AND EXISTS(SELECT 1 FROM memory_data_fact_links l JOIN memory_data_completions c ON c.attempt_id=l.attempt_id WHERE l.fact_id=f.id)`,params:[machineId]});

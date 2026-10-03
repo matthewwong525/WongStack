@@ -37,7 +37,8 @@ test('index intent precedes journal write, unsafe adoption denies, and exact ret
 // isolated child clock changes only while creating the original proof.
 async function prepareQueuedFact(e,{expired=false,attempted=false,visibility='private'}={}) {
  const id=crypto.randomUUID(),url=name=>new URL(`../../.agents/skills/memory/scripts/lib/${name}.mjs`,import.meta.url).href;
- const notes={visibility,source:'save',newTags:[],session:null,facts:[{slug:'business',type:'project',body:'The original queued decision remains bound to its machine.',tags:[],supersedes:[]}],run:null};
+ const session={id:`codex:manual:${id}`,agent:'codex',status:'captured',reason:null,previousCursor:null,nextCursor:null,updatedAt:new Date().toISOString(),branch:null,cwd:null,startedAt:null,endedAt:null};
+ const notes={visibility,source:'save',newTags:[],session,facts:[{slug:'business',type:'project',body:'The original queued decision remains bound to its machine.',tags:[],supersedes:[]}],run:null};
  const code=`import {enqueueCapture} from ${JSON.stringify(url('machine-client-queue'))};
  import {privateRead,privateWrite} from ${JSON.stringify(url('machine-client-state'))};
  import {signClient,clientHash} from ${JSON.stringify(url('machine-client'))};
