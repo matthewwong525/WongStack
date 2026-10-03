@@ -1,6 +1,6 @@
 # Preserve an existing workspace server
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** preserve-existing-workspace
 
@@ -58,3 +58,7 @@ Existing server setup overwrites shared tools and the Paseo service, while the s
 - **2026-10-03** — Updater fixtures now name every pin explicitly, including preservation setup, so the fresh and preserved OpenSpec checks continue updating together without positional fixture assumptions.
 
 - **2026-10-03** — Project preparation checks an owned, regular, tracked `.nvmrc` when present and requires its supported Node major (22 or 24) to match the effective workspace runtime before npm ci. Dirty declarations refuse; runtime declarations participate in the retry fingerprint. A mismatch requests input without replacing global Node.
+
+- **2026-10-03** — Required gate passed at `b371bac`: remote test, deploy and payload checks all succeeded, including full script coverage and release checks. Archive checkpoint records the finished source prerequisite before numbering its release.
+
+- **2026-10-03** — Archive checkpoint: release 29.11.0 is numbered from main 29.10.0. The exact archived revision must pass the required gate before merge; the source has no hosted browser preview and its integrated terminal walk belongs to the cloud change.

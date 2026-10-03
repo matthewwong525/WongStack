@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Keep an existing server and private project
+## 29.11.0 — Keep an existing server and private project
 
 - Hosts can check and prepare an existing Ubuntu workspace without replacing compatible tools, services, files or GitHub identities.
 - The source agent supports a chosen workspace account and reports private-project dependencies, configuration and Paseo separately, with safe retries.

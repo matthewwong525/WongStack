@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · preserve-existing-workspace</title>
+<title>Review · 2026-10-03-preserve-existing-workspace</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="preserve-existing-workspace">
+<body data-change="2026-10-03-preserve-existing-workspace">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>preserve-existing-workspace</h1>
+  <h1>2026-10-03-preserve-existing-workspace</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -135,6 +135,8 @@
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>Preserved project readiness includes the same fixed Claude/Codex sign-in workspaces and terminals as fresh setup. Retry looks up workspace/terminal metadata, keeps existing terminals untouched, and records newly created terminals before delivering their fixed sign-in command; no terminal contents or AI credentials are read.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>Updater fixtures now name every pin explicitly, including preservation setup, so the fresh and preserved OpenSpec checks continue updating together without positional fixture assumptions.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>Project preparation checks an owned, regular, tracked <code>.nvmrc</code> when present and requires its supported Node major (22 or 24) to match the effective workspace runtime before npm ci. Dirty declarations refuse; runtime declarations participate in the retry fingerprint. A mismatch requests input without replacing global Node.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>Required gate passed at <code>b371bac</code>: remote test, deploy and payload checks all succeeded, including full script coverage and release checks. Archive checkpoint records the finished source prerequisite before numbering its release.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-03</p>Archive checkpoint: release 29.11.0 is numbered from main 29.10.0. The exact archived revision must pass the required gate before merge; the source has no hosted browser preview and its integrated terminal walk belongs to the cloud change.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
