@@ -1,5 +1,5 @@
 import { need, uuidOK, digest, to64 } from './security.mjs';
-import { runtimeFetch } from './runtime.mjs';
+import { runtimeSource } from './runtime.mjs';
 
 export function bootstrapBindings(state, environment, published = false) {
   need(['production', 'memory'].includes(environment) && state.access?.verified === true, 'Protected production bootstrap target required');
@@ -33,7 +33,7 @@ export function bootstrapBindings(state, environment, published = false) {
 }
 
 export function bootstrapModule(projectId) {
-  return `${runtimeFetch.toString()}\nconst pending={fetch(){return new Response('Installation setup is pending',{status:503,headers:{'Cache-Control':'no-store'}})}};\nexport default {fetch(request,env,ctx){return runtimeFetch(request,{...env,__WONGSTACK_SHA:'bootstrap',__WONGSTACK_PROJECT:${JSON.stringify(projectId)}},ctx,pending)}};`;
+  return `${runtimeSource}\nconst pending={fetch(){return new Response('Installation setup is pending',{status:503,headers:{'Cache-Control':'no-store'}})}};\nexport default {fetch(request,env,ctx){return runtimeFetch(request,{...env,__WONGSTACK_SHA:'bootstrap',__WONGSTACK_PROJECT:${JSON.stringify(projectId)}},ctx,pending)}};`;
 }
 
 // Receipt-bound initial wiring only. Uncertain uploads/deployments never replay;

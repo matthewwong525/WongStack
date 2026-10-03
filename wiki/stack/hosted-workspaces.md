@@ -47,6 +47,12 @@ The remote checks are the project's own [check list](github-actions.md#one-check
 
 The returned SHA and ref must match. Only `status: passed`, `checks: PASS`, and a reported private preview is `SAVE_GATE_RESULT=SUCCESS`. Failure is `FAILURE`; unreadable, busy or timed-out work is `UNKNOWN` or `TIMEOUT`, never no checks. Fix demonstrated source failures through the ordinary save loop, at most three times. Candidate requests are idempotent; a lost wait can resume without publishing. Report the service's URL and status instead of a GitHub PR. Keep the usual plan link and closing question.
 
+## Service-owned remote code
+
+The hosted service generates trusted Git preparation, packing and runtime-protection code. Keep that code as canonical source text owned by the service. Do not extract it with `function.toString()`: deployment bundling can rename lexical imports and inject helpers such as esbuild's `__name`, leaving the generated command with unavailable identifiers. Body-local imports alone do not prevent helper injection.
+
+Regression checks must bundle the service with deployment's pinned bundler and `keepNames`, then execute its generated commands and modules. Cover import collisions, packing refusal and signed runtime protection; source-only tests cannot establish that the deployed generator works. The [service source](https://github.com/matthewwong525/WongStack/tree/main/server/hosted) owns these bytes. A completed outer Workflow does not establish a passing candidate: use the candidate's exact checks and preview result described [above](#save-and-check).
+
 ## Publish approved work
 
 `/ship` keeps its task completion, strict validation, delta reconciliation and archive steps, then runs `/save` on the finished archive. No GitHub release numbering or PR merge is needed for an installed hosted project. Require a passing exact commit and the same preview; an unknown or failed check stops publication. Walk the reported private preview through the cloud login. Evidence stays with the change and is checkpointed through `/save`; private login blocks remain unverified.

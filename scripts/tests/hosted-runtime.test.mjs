@@ -3,14 +3,17 @@ import assert from 'node:assert/strict';
 import { fixture, passing, sha, older, ref, versionId, projectId, config, bundle } from './hosted-runtime-fixture.mjs';
 import { validateBundle, applyMigrations, uploadBundle, verifyIdentity, entryModule } from '../../server/hosted/bundle.mjs';
 import { buildCommand, readResult, runHostedPipeline, publishBundle } from '../../server/hosted/pipeline.mjs';
-import { runtimeFetch } from '../../server/hosted/runtime.mjs';
+import { runtimeSource } from '../../server/hosted/runtime.mjs';
 import { digest, to64, from64, safePath, siteHeaders, https, refName } from '../../server/hosted/security.mjs';
 import { serviceConfig, inventory } from '../../server/hosted/config.mjs';
-import { packApplication } from '../../server/hosted/pack.mjs';
+import { packSource } from '../../server/hosted/pack.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
+
+const { runtimeFetch } = await import('data:text/javascript;base64,' + Buffer.from(runtimeSource + '\nexport { runtimeFetch };').toString('base64'));
+const { packApplication } = await import('data:text/javascript;base64,' + Buffer.from(packSource + '\nexport { packApplication };').toString('base64'));
 
 test('preparation is idempotent only for the reviewed exact project/source/owner', async () => {
   const f = await fixture();

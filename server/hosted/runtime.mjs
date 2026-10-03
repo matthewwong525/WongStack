@@ -1,35 +1,38 @@
-// This module is copied as service-owned bytes into every candidate bundle's outer entry.
-// It verifies Cloudflare's signature itself, even if candidate application code removes its guard.
-export async function runtimeFetch(request, env, ctx, candidate) {
-  const url = new URL(request.url);
-  const trusted = request.headers.get('X-WongStack-Runtime') === env.__WONGSTACK_RUNTIME;
-  if (url.pathname === '/__wongstack/identity') return trusted ? Response.json({ sha: env.__WONGSTACK_SHA, projectId: env.__WONGSTACK_PROJECT }) : new Response('Unauthorized', { status: 401 });
-  // Business application code never handles a public machine-memory exception. The independent
-  // canonical memory Worker owns it; until owner/device bootstrap completes this stays unavailable.
-  if (url.pathname.startsWith('/_memory/')) return new Response('Memory device setup is pending', { status: 503, headers: { 'Cache-Control': 'no-store' } });
-  if (!url.pathname.startsWith('/_memory/')) {
-    let valid = false;
-    try {
-      const token = request.headers.get('Cf-Access-Jwt-Assertion');
-      const parts = token?.split('.');
-      if (parts?.length !== 3 || token.length > 16384) throw new Error('No verified Access identity');
-      const decode = text => Uint8Array.from(atob(text.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0));
-      const header = JSON.parse(new TextDecoder().decode(decode(parts[0])));
-      const claims = JSON.parse(new TextDecoder().decode(decode(parts[1])));
-      const now = Math.floor(Date.now() / 1000);
-      const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-      if (header.alg !== 'RS256' || !header.kid || claims.iss !== `https://${env.CF_ACCESS_TEAM_DOMAIN}` || !audiences.every(value => typeof value === 'string') || !audiences.includes(env.CF_ACCESS_AUD) || claims.type !== 'app' || 'common_name' in claims || 'service_token_id' in claims || 'service_token_status' in claims || !Number.isFinite(claims.exp) || claims.exp <= now || claims.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf > now) || claims.iat !== undefined && (!Number.isFinite(claims.iat) || claims.iat > now) || typeof claims.sub !== 'string' || !claims.sub.trim() || typeof claims.email !== 'string' || claims.email.trim() !== claims.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claims.email)) throw new Error('Invalid human Access assertion');
-      const response = await fetch(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`, { redirect: 'manual' });
-      if (!response.ok) throw new Error('Access signing keys unreadable');
-      const keys = await response.json();
-      const key = keys.keys?.find(row => row.kid === header.kid && row.kty === 'RSA');
-      if (!key) throw new Error('No Access signing key');
-      const imported = await crypto.subtle.importKey('jwk', key, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-      valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', imported, decode(parts[2]), new TextEncoder().encode(parts[0] + '.' + parts[1]));
-    } catch { valid = false; }
-    if (!valid) return new Response('Unauthorized', { status: 401, headers: { 'Cache-Control': 'no-store' } });
-  }
-  const { __WONGSTACK_RUNTIME, __WONGSTACK_SHA, __WONGSTACK_PROJECT, ...safeEnv } = env;
-  const headers = new Headers(request.headers); headers.delete('X-WongStack-Runtime');
-  return candidate.fetch(new Request(request, { headers }), safeEnv, ctx);
-}
+// Canonical outer-runtime source: the Worker embeds these unchanged bytes into app and bootstrap modules.
+export const runtimeSource = [
+  "// This module is copied as service-owned bytes into every candidate bundle's outer entry.",
+  "// It verifies Cloudflare's signature itself, even if candidate application code removes its guard.",
+  "async function runtimeFetch(request, env, ctx, candidate) {",
+  "  const url = new URL(request.url);",
+  "  const trusted = request.headers.get('X-WongStack-Runtime') === env.__WONGSTACK_RUNTIME;",
+  "  if (url.pathname === '/__wongstack/identity') return trusted ? Response.json({ sha: env.__WONGSTACK_SHA, projectId: env.__WONGSTACK_PROJECT }) : new Response('Unauthorized', { status: 401 });",
+  "  // Business application code never handles a public machine-memory exception. The independent",
+  "  // canonical memory Worker owns it; until owner/device bootstrap completes this stays unavailable.",
+  "  if (url.pathname.startsWith('/_memory/')) return new Response('Memory device setup is pending', { status: 503, headers: { 'Cache-Control': 'no-store' } });",
+  "  if (!url.pathname.startsWith('/_memory/')) {",
+  "    let valid = false;",
+  "    try {",
+  "      const token = request.headers.get('Cf-Access-Jwt-Assertion');",
+  "      const parts = token?.split('.');",
+  "      if (parts?.length !== 3 || token.length > 16384) throw new Error('No verified Access identity');",
+  "      const decode = text => Uint8Array.from(atob(text.replaceAll('-', '+').replaceAll('_', '/')), c => c.charCodeAt(0));",
+  "      const header = JSON.parse(new TextDecoder().decode(decode(parts[0])));",
+  "      const claims = JSON.parse(new TextDecoder().decode(decode(parts[1])));",
+  "      const now = Math.floor(Date.now() / 1000);",
+  "      const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];",
+  "      if (header.alg !== 'RS256' || !header.kid || claims.iss !== `https://${env.CF_ACCESS_TEAM_DOMAIN}` || !audiences.every(value => typeof value === 'string') || !audiences.includes(env.CF_ACCESS_AUD) || claims.type !== 'app' || 'common_name' in claims || 'service_token_id' in claims || 'service_token_status' in claims || !Number.isFinite(claims.exp) || claims.exp <= now || claims.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf > now) || claims.iat !== undefined && (!Number.isFinite(claims.iat) || claims.iat > now) || typeof claims.sub !== 'string' || !claims.sub.trim() || typeof claims.email !== 'string' || claims.email.trim() !== claims.email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(claims.email)) throw new Error('Invalid human Access assertion');",
+  "      const response = await fetch(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`, { redirect: 'manual' });",
+  "      if (!response.ok) throw new Error('Access signing keys unreadable');",
+  "      const keys = await response.json();",
+  "      const key = keys.keys?.find(row => row.kid === header.kid && row.kty === 'RSA');",
+  "      if (!key) throw new Error('No Access signing key');",
+  "      const imported = await crypto.subtle.importKey('jwk', key, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);",
+  "      valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', imported, decode(parts[2]), new TextEncoder().encode(parts[0] + '.' + parts[1]));",
+  "    } catch { valid = false; }",
+  "    if (!valid) return new Response('Unauthorized', { status: 401, headers: { 'Cache-Control': 'no-store' } });",
+  "  }",
+  "  const { __WONGSTACK_RUNTIME, __WONGSTACK_SHA, __WONGSTACK_PROJECT, ...safeEnv } = env;",
+  "  const headers = new Headers(request.headers); headers.delete('X-WongStack-Runtime');",
+  "  return candidate.fetch(new Request(request, { headers }), safeEnv, ctx);",
+  "}",
+].join('\n');

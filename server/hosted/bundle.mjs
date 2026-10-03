@@ -1,6 +1,6 @@
 import { need, shaOK, digest, from64, to64 } from './security.mjs';
 import { verificationHeaders } from './access.mjs';
-import { runtimeFetch } from './runtime.mjs';
+import { runtimeSource } from './runtime.mjs';
 
 export const BUNDLE_LIMIT = 64 * 1024 * 1024;
 const fileOK = name => typeof name === 'string' && /^[A-Za-z0-9_.@/-]{1,240}$/.test(name) && !name.includes('..') && !name.startsWith('/') && !name.startsWith('__wongstack_');
@@ -27,7 +27,7 @@ export async function validateBundle(bundle, sha, projectId) {
 // This outer module belongs to the service, never to the candidate. Candidate code cannot select
 // resource bindings or impersonate another tenant by overriding its own Wrangler configuration.
 export function entryModule(bundle, projectId) {
-  return `import candidate from './${bundle.main}';\n${runtimeFetch.toString()}\nexport default {fetch(request,env,ctx){return runtimeFetch(request,{...env,__WONGSTACK_SHA:${JSON.stringify(bundle.sha)},__WONGSTACK_PROJECT:${JSON.stringify(projectId)}},ctx,candidate)}};`;
+  return `import candidate from './${bundle.main}';\n${runtimeSource}\nexport default {fetch(request,env,ctx){return runtimeFetch(request,{...env,__WONGSTACK_SHA:${JSON.stringify(bundle.sha)},__WONGSTACK_PROJECT:${JSON.stringify(projectId)}},ctx,candidate)}};`;
 }
 
 export async function applyMigrations(state, provider, bundle, environment) {

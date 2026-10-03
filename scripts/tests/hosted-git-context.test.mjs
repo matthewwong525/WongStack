@@ -4,11 +4,13 @@ import { mkdtempSync, mkdirSync, cpSync, rmSync, readFileSync, writeFileSync, sy
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { prepareGitContext, prepareGitCommand, checksBase, readGitContext } from '../../server/hosted/git-context.mjs';
+import { gitContextSource, prepareGitCommand, checksBase, readGitContext } from '../../server/hosted/git-context.mjs';
 import { trackedSourceAdapter } from '../../server/hosted/source-checkout.mjs';
 import { buildCommand, runHostedPipeline, readResult } from '../../server/hosted/pipeline.mjs';
 import { fixture, sha, older, ref, projectId, config } from './hosted-runtime-fixture.mjs';
 import { ProjectService } from '../../server/hosted/service.mjs';
+
+const { prepareGitContext } = await import('data:text/javascript;base64,' + Buffer.from(gitContextSource + '\nexport { prepareGitContext };').toString('base64'));
 
 function git(cwd, args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } });

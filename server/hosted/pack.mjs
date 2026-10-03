@@ -1,56 +1,55 @@
-// Runs only inside the credential-free remote runner. Its source is embedded in the trusted
-// command, so a candidate cannot replace a package/deploy script to obtain platform authority.
-import { readFileSync, readdirSync, realpathSync } from 'node:fs';
-import { join, relative, resolve, dirname, extname } from 'node:path';
-import { createHash } from 'node:crypto';
+// Canonical service-owned Node packer bytes. No candidate script or serialized function is used.
+export const packSource = [
+  "import { readFileSync, readdirSync, realpathSync } from 'node:fs';",
+  "import { join, relative, resolve, dirname, extname } from 'node:path';",
+  "import { createHash } from 'node:crypto';",
+  "",
+  "async function packApplication(root, { sha, projectId }, request = fetch) {",
+  "  const app = resolve(root, 'app');",
+  "  const dist = resolve(app, 'dist');",
+  "  const configs = files(dist).filter(path => path.endsWith('/wrangler.json'));",
+  "  if (configs.length !== 1) throw new Error('Expected one actual Vite Worker output');",
+  "  const config = JSON.parse(readFileSync(configs[0], 'utf8'));",
+  "  const workerRoot = dirname(configs[0]);",
+  "  const mainPath = resolve(workerRoot, config.main);",
+  "  inside(workerRoot, mainPath);",
+  "  const moduleFiles = files(workerRoot).filter(file => file !== configs[0] && !file.endsWith('.map') && !file.endsWith('.json'));",
+  "  const record = (path, name, type) => {",
+  "    const bytes = readFileSync(path);",
+  "    return { name, type, digest: createHash('sha256').update(bytes).digest('hex'), content: bytes.toString('base64') };",
+  "  };",
+  "  const moduleType = path => ['.js', '.mjs'].includes(extname(path)) ? 'application/javascript+module' : extname(path) === '.wasm' ? 'application/wasm' : extname(path) === '.txt' ? 'text/plain' : 'application/octet-stream';",
+  "  const mime = path => ({ '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2' }[extname(path)] || 'application/octet-stream');",
+  "  const assetsRoot = resolve(workerRoot, config.assets?.directory || '../client');",
+  "  inside(dist, assetsRoot);",
+  "  const modules = moduleFiles.map(path => record(path, relative(workerRoot, path), moduleType(path)));",
+  "  const assets = files(assetsRoot).map(path => { const { name, ...row } = record(path, '/' + relative(assetsRoot, path), mime(path)); return { ...row, path: name }; });",
+  "  const migrationRoot = resolve(app, 'migrations');",
+  "  let migrations = [];",
+  "  try { migrations = files(migrationRoot).filter(path => path.endsWith('.sql')).map(path => record(path, relative(migrationRoot, path), 'text/plain')); }",
+  "  catch (error) { if (error.code !== 'ENOENT') throw error; }",
+  "  const bundle = { format: 1, sha, projectId, main: relative(workerRoot, mainPath), modules, assets, migrations };",
+  "  const json = JSON.stringify(bundle);",
+  "  if (Buffer.byteLength(json) > 90 * 1024 * 1024) throw new Error('Encoded build bundle exceeds bound');",
+  "  const hash = createHash('sha256').update(json).digest('hex');",
+  "  const response = await request(process.env.HOSTED_UPLOAD_URL, { method: 'PUT', redirect: 'manual', headers: { Authorization: `Bearer ${process.env.HOSTED_UPLOAD_TOKEN}`, 'Content-Type': 'application/json' }, body: json });",
+  "  const receipt = await response.json();",
+  "  if (!response.ok || receipt.digest !== hash || receipt.sha !== sha || receipt.projectId !== projectId) throw new Error('Immutable bundle storage receipt mismatch');",
+  "  return { sha, projectId, digest: hash };",
+  "}",
+  "function inside(root, path) {",
+  "  if (!realpathSync(path).startsWith(realpathSync(root) + '/')) throw new Error('Build file escaped owned output directory');",
+  "}",
+  "function files(root) {",
+  "  const out = [];",
+  "  for (const item of readdirSync(root, { withFileTypes: true })) {",
+  "    const path = join(root, item.name);",
+  "    if (item.isSymbolicLink()) throw new Error('Build symlinks are refused');",
+  "    if (item.isDirectory()) out.push(...files(path)); else if (item.isFile()) out.push(path);",
+  "    if (out.length > 10500) throw new Error('Build output exceeds file bound');",
+  "  }",
+  "  return out.sort();",
+  "}",
+].join('\n');
 
-export async function packApplication(root, { sha, projectId }, request = fetch) {
-  const app = resolve(root, 'app');
-  const dist = resolve(app, 'dist');
-  const configs = files(dist).filter(path => path.endsWith('/wrangler.json'));
-  if (configs.length !== 1) throw new Error('Expected one actual Vite Worker output');
-  const config = JSON.parse(readFileSync(configs[0], 'utf8'));
-  const workerRoot = dirname(configs[0]);
-  const mainPath = resolve(workerRoot, config.main);
-  inside(workerRoot, mainPath);
-  const moduleFiles = files(workerRoot).filter(file => file !== configs[0] && !file.endsWith('.map') && !file.endsWith('.json'));
-  const record = (path, name, type) => {
-    const bytes = readFileSync(path);
-    return { name, type, digest: createHash('sha256').update(bytes).digest('hex'), content: bytes.toString('base64') };
-  };
-  const moduleType = path => ['.js', '.mjs'].includes(extname(path)) ? 'application/javascript+module' : extname(path) === '.wasm' ? 'application/wasm' : extname(path) === '.txt' ? 'text/plain' : 'application/octet-stream';
-  const mime = path => ({ '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2' }[extname(path)] || 'application/octet-stream');
-  const assetsRoot = resolve(workerRoot, config.assets?.directory || '../client');
-  inside(dist, assetsRoot);
-  const modules = moduleFiles.map(path => record(path, relative(workerRoot, path), moduleType(path)));
-  const assets = files(assetsRoot).map(path => { const { name, ...row } = record(path, '/' + relative(assetsRoot, path), mime(path)); return { ...row, path: name }; });
-  const migrationRoot = resolve(app, 'migrations');
-  let migrations = [];
-  try { migrations = files(migrationRoot).filter(path => path.endsWith('.sql')).map(path => record(path, relative(migrationRoot, path), 'text/plain')); }
-  catch (error) { if (error.code !== 'ENOENT') throw error; }
-  const bundle = { format: 1, sha, projectId, main: relative(workerRoot, mainPath), modules, assets, migrations };
-  const json = JSON.stringify(bundle);
-  if (Buffer.byteLength(json) > 90 * 1024 * 1024) throw new Error('Encoded build bundle exceeds bound');
-  const hash = createHash('sha256').update(json).digest('hex');
-  const response = await request(process.env.HOSTED_UPLOAD_URL, { method: 'PUT', redirect: 'manual', headers: { Authorization: `Bearer ${process.env.HOSTED_UPLOAD_TOKEN}`, 'Content-Type': 'application/json' }, body: json });
-  const receipt = await response.json();
-  if (!response.ok || receipt.digest !== hash || receipt.sha !== sha || receipt.projectId !== projectId) throw new Error('Immutable bundle storage receipt mismatch');
-  return { sha, projectId, digest: hash };
-}
-function inside(root, path) {
-  if (!realpathSync(path).startsWith(realpathSync(root) + '/')) throw new Error('Build file escaped owned output directory');
-}
-function files(root) {
-  const out = [];
-  for (const item of readdirSync(root, { withFileTypes: true })) {
-    const path = join(root, item.name);
-    if (item.isSymbolicLink()) throw new Error('Build symlinks are refused');
-    if (item.isDirectory()) out.push(...files(path)); else if (item.isFile()) out.push(path);
-    if (out.length > 10500) throw new Error('Build output exceeds file bound');
-  }
-  return out.sort();
-}
-export function packScript() {
-  // Deployment reads this source as text once; no candidate filesystem script is evaluated.
-  return [packApplication, inside, files].map(fn => fn.toString()).join('\n');
-}
+export function packScript() { return packSource; }

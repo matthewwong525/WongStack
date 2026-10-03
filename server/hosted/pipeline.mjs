@@ -11,7 +11,7 @@ export const runnerConfig = { retries: { limit: 0, delay: 1000 }, timeout: 18000
 const CHECKS = '.github/scripts/checks.mjs';
 export function buildCommand(sha, projectId, base) {
   need(shaOK(sha) && uuidOK(projectId) && (base === undefined || base === null || shaOK(base)), 'Exact project and commit required');
-  const pack = `import {readFileSync,readdirSync,realpathSync} from 'node:fs';import {join,relative,resolve,dirname,extname} from 'node:path';import {createHash} from 'node:crypto';\n${packScript()}\nconst result=await packApplication(process.cwd(),${JSON.stringify({ sha, projectId })});console.log('HOSTED_RESULT='+JSON.stringify(result));`;
+  const pack = `${packScript()}\nconst result=await packApplication(process.cwd(),${JSON.stringify({ sha, projectId })});console.log('HOSTED_RESULT='+JSON.stringify(result));`;
   // A commit without the entry point has no checks to pass, so it fails. The base scopes the
   // skip rules; the pack needs a staging build of every commit, docs-only ones included.
   const inputs = `${base ? `CHECKS_BASE=${quote(base)} ` : ''}GITHUB_EVENT_NAME=workflow_dispatch DEFAULT_BRANCH=main CHECKS_BUILD=always CLOUDFLARE_ENV=staging`;
