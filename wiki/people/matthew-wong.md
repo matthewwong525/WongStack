@@ -8,4 +8,6 @@ Matthew Wong owns WongStack and runs his own repos on it.
 - **Asked to improve something, he wants it improved, not only measured.** Say early when nothing is fixed yet, and fold a fix the measuring finds into the same change, not a follow-up.
 - **A shared file is no reason to wait.** When another chat's unpublished work only edits the same files as yours, and yours needs none of its code, say so and build now, not after it. Whichever publishes second brings the other in ([chats coordinate directly](../development/the-change-loop.md#chats-coordinate-directly)).
 
+- **Service connections should stay free and generic.** He does not want a paid connection service or service-specific integrations stored in WongStack. If tap-to-sign-in is revisited, he prefers an open-source service hosted inside WongStack cloud ([connection choices](../../openspec/changes/archive/2026-10-03-smoother-key-link/proposal.md#decision-log)).
+
 Back to [people](README.md).
