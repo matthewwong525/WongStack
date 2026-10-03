@@ -21,7 +21,7 @@ Each repo's memory is its own: nothing goes to another repo, and nothing loads f
 | A reader's facts, of any type | the reader | no | yes |
 | Your chats (transcripts) | yes | no | yes |
 
-- **The store holds back what a teammate may not see**, however they ask: the route answers a member's or reader's read only with the facts above. Only the admin's `--everyone` on `search`, `show`, or `live` shows all.
+- **The store holds back what a teammate may not see**, however they ask: the route answers a member's or reader's read only with the facts above. Only the admin's `--everyone` on `search`, `brief`, `show`, or `live` shows all.
 - **The admin's own view starts narrow too.** Their digest and search show only their own `user` and `feedback` facts, matched on every email on their [people page](../wiki-style.md#people), until they add `--everyone`.
 - **Something personal you say in a work chat stays in that repo**, where the admin can read it. For anything no one else should see, use a repo only you use: there, you are the admin.
 - A repo where only one email holds a key is not a team, and nothing is filtered by person.
@@ -33,6 +33,22 @@ When a session starts or resumes, the `SessionStart` hook prints a **digest** of
 **Before the first edit in a folder**, a `PreToolUse` hook shows that [area's](#facts-by-code-area) open threads, then its newest live facts, eight lines at most, as [who sees what](#who-sees-what) allows. It fires on Claude Code's edit tools and Codex's `apply_patch`, once per area per session, so a plain request gets the folder's warnings without the agent remembering to search. It never holds up the edit: an unmapped file, an area already shown, no key, or a store that doesn't answer within 3 seconds shows nothing. Reading a file loads nothing.
 
 A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/skills/explore/SKILL.md) searches before it asks a question, `/continue` reads the change's facts, and [`/close`](../../.agents/skills/close/SKILL.md) distills them into the wiki.
+
+## Facts with evidence
+
+`memory.mjs search <terms> --json` returns a version 1 object with `filters` and `facts`. Each fact keeps its `id`, `slug`, `type`, original `body`, `author`, `created_at`, `session_id` (or `null`), `superseded_by`, and checkout-derived `state`. Text and JSON select the same facts, with the same filters, permissions, ordering, and default 30-fact limit. `filters` records the terms, requested filters, limit, and whether personal filtering applied. Neither format reads transcript bytes or exposes storage keys.
+
+`memory.mjs brief <terms>` groups current facts as open threads, feedback, project decisions, user facts, and references. Terms can be omitted with a scope filter: `brief --slug release-window` or `brief --tag memory`. It supports search's filters except `--all`; a topic or filter is required. It uses each fact's original words and adds its date, author, fact ID, source session (or an explicit absence), and `source <id>` follow-up. For example, a synthetic entry reads:
+
+```text
+Fact #7 · 2026-10-01T00:00:00Z · author: dev@example.com
+Session evidence stays traceable.
+Source session: claude:example; follow up: source 7
+```
+
+Every brief reads current memory and shows its generation time and scope. It selects at most 20 live facts, then keeps whole entries within 6,144 UTF-8 bytes, including its header and footer. The footer counts entries omitted from that selected set; it cannot count all other matches. Empty successful reads say no matching live facts. Unavailable or denied reads fail visibly. There is no model call, inferred conclusion, saved brief, or cache fallback; startup loading stays unchanged.
+
+A pointer identifies evidence without granting access. A visible team fact may cite a private session; `source <id>` still checks that source's permissions and availability, including [stores without R2](#without-r2).
 
 ## How facts are captured
 
@@ -72,5 +88,7 @@ R2 needs a payment method on file, even inside its free tier. Without it, the st
 ## When to add embeddings
 
 Search is keyword search (FTS5) with tags. It matches a word's other forms through the porter stemmer, so *previews* finds *preview*, and filler words like *how* and *should* never match on their own. It matches forms, not meanings: *how should previews be checked* misses a fact that says *probe every route on the preview*, so search with the words the fact would use. A shipped set of real-shaped questions, `scripts/tests/fixtures/memory-search-questions.json`, runs in CI, each with the fact it must rank in the top three, so a change can't quietly break search; a question that should have matched and didn't belongs there first. That is enough at hundreds to low thousands of facts, because the write gate asks a model about paraphrases, and consolidation merges what the gate missed. Add embeddings when `memory.mjs stats` reports the trigger as met: more than 2,000 live facts, or merged duplicates growing across three consolidations. Search stays behind the one script, so nothing else changes.
+
+In WongStack's source repo, the [evaluation runner](https://github.com/matthewwong525/WongStack/blob/main/scripts/evaluate-memory-search.mjs), `node scripts/evaluate-memory-search.mjs [--json]`, migrates a temporary synthetic store and queries the ordinary structured CLI. It uses no live store or production credentials and cleans its fixtures after success or failure. It reports target ranks, top-three hits, unexpected results, and totals by category. Original regression misses fail the run; separate diagnostic misses count known limits. Forbidden hidden or replaced results and infrastructure failures always fail. Visibility diagnostics measure the admin's default client scope and explicit `--everyone`; Worker tests separately enforce member and reader permissions. A passing gate with synonym misses demonstrates compatibility, without establishing semantic retrieval or improved accuracy.
 
 Back to [development](README.md).

@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — See memory facts with their evidence
+
+- Ask for a fresh, bounded brief of current facts, grouped by kind with dates and source pointers. Facts keep their original words, and source access keeps its existing permissions.
+- Structured search returns the same selected facts as ordinary search. A source-repo evaluation reports keyword matches and harder wording misses separately; it makes no claim that retrieval accuracy improved.
+
+**Updating.** No action needed. The memory commands arrive with the usual update; no data, configuration, or startup change is required.
+
 ## 29.16.0 — Finish safe preview checks before asking for help
 
 - Preview checks complete every independent safe check before bringing you in. One help list names the remaining checks, the login, permission, or manual action needed, and what each should show.
