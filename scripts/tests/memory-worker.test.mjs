@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
 import { Worker } from 'node:worker_threads';
-import { identityFixture, approvedRequest, activateSql, activationParams, REQUEST, DEVICE, HASH } from './fixtures/memory/identity.mjs';
+import { identityFixture, approvedRequest, activateSql, activationParams, REQUEST, DEVICE, HASH, applyMigrations } from './fixtures/memory/identity.mjs';
 import { handleMemory, hashKey, KEY_LIMIT, MAX_TRANSCRIPT_BYTES, MEMORY_PREFIX } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { ADMIN_WRITES, batchRefusal, FTS_HITS, memberRefusal, readRefusal, shadowCtes, shadowRead, supersedeSql, WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
 import { personalFilter } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
@@ -393,10 +393,34 @@ async function addKey(db, email, role, { machine = null, expiresAt = null, githu
   return key;
 }
 
-// Put a migrated store back before schema 5, holding a key made the old way: no machine and no end date.
+// Rebuild genuine schema4 on this isolated empty fixture DB, retaining only synthetic legacy keys.
 function beforeSchema5(env) {
-  env.fake.db.exec('DROP TABLE memory_admins; ALTER TABLE memory_keys DROP COLUMN github_id; DELETE FROM schema_migrations WHERE version = 5');
-  return addKey(env.fake.db, 'bo@example.com', 'member');
+  const db = env.fake.db;
+  const quote = name => `"${name.replaceAll('"', '""')}"`;
+  const memoryTables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'memory_%' AND name NOT IN ('memory_keys', 'memory_admins')").all();
+  for (const name of ['facts', 'sessions', 'tags', 'fact_tags', 'runs', ...memoryTables.map(row => row.name)])
+    assert.equal(db.prepare(`SELECT count(*) n FROM ${quote(name)}`).get().n, 0, `${name} must be empty before historical fixture reset`);
+  assert.equal(env.fake.objects.size, 0, 'historical fixture reset must contain no transcripts');
+  const keys = db.prepare('SELECT hash, email, role, created_at, machine, expires_at, reader FROM memory_keys').all();
+  db.exec('BEGIN');
+  try {
+    for (const type of ['view', 'trigger']) {
+      const objects = db.prepare('SELECT name FROM sqlite_master WHERE type = ?').all(type);
+      for (const row of objects) db.exec(`DROP ${type.toUpperCase()} ${quote(row.name)}`);
+    }
+    const virtualTables = db.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table'").all()
+      .filter(row => /^CREATE\s+VIRTUAL\s+TABLE/i.test(row.sql ?? ''));
+    for (const row of virtualTables) db.exec(`DROP TABLE ${quote(row.name)}`); // Drops their shadow tables too.
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY rowid DESC").all();
+    for (const row of tables) db.exec(`DROP TABLE ${quote(row.name)}`);
+    db.exec('COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  applyMigrations(db, 4);
+  const insert = db.prepare('INSERT INTO memory_keys(hash, email, role, created_at, machine, expires_at, reader) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  for (const row of keys) insert.run(row.hash, row.email, row.role, row.created_at, row.machine, row.expires_at, row.reader);
+  assert.deepEqual(db.prepare('SELECT version FROM schema_migrations ORDER BY version').all().map(row => row.version), [1, 2, 3, 4]);
+  assert.deepEqual(db.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'memory_runtime_%' OR name LIKE 'memory_machine_%' OR name = 'memory_admins'").all(), []);
+  return addKey(db, 'bo@example.com', 'member');
 }
 
 test('migrate applies schema 5: every key without an end date stops, and the running admin\'s GitHub account is linked', async t => {

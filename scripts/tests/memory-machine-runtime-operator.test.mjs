@@ -29,7 +29,7 @@ test('completed12 exact13 retries use original baseline and refuse receipt/table
     g=>g.db.exec('CREATE TABLE foreign_table(id TEXT)'),g=>corruptRuntime(g,'memory_machine_manifest_receipts','UPDATE memory_machine_manifest_receipts SET manifest_hash=?',['0'.repeat(64)]),
     g=>corruptRuntime(g,'memory_machine_audit',"UPDATE memory_machine_audit SET target_id='wrong' WHERE action='bootstrap'"),
     g=>corruptRuntime(g,'memory_runtime_bootstrap',"UPDATE memory_runtime_bootstrap SET baseline_hash='wrong'"),
-    g=>corruptRuntime(g,'memory_runtime_manifests',"UPDATE memory_runtime_manifests SET manifest_hash='wrong'")]) {
+    g=>corruptRuntime(g,'memory_runtime_manifests','UPDATE memory_runtime_manifests SET manifest_hash=?',['0'.repeat(64)])]) {
     const g=await runtimeFixture(t,{activate:false});mutate(g);const before=g.snapshot(),writes=g.batches;
     await assert.rejects(readMachineRuntimeStatus(g.context));await assert.rejects(prepareMachineRuntime(g.context,g.upgrade));
     assert.deepEqual(g.snapshot(),before);assert.equal(g.batches,writes);
@@ -184,7 +184,9 @@ test('reader private staged capture, shared refusal, publication ownership and s
   const reader=await enrolledRuntimeFixture(t,{scope:'memory:read'});
   await stageRuntimeTranscript(reader.public,await transcriptInput(reader));
   await publishRuntimeTranscript(reader.public,await transcriptInput(reader,'publish'));
-  await assert.rejects(stageRuntimeTranscript(reader.public,await transcriptInput(reader,'stage',{objectHash:'8'.repeat(64),visibility:'shared'})),rejected('machine-proof-denied'));
+  const shared=await transcriptInput(reader,'stage',{objectHash:'8'.repeat(64),visibility:'shared'});
+  const freshShared=await signed(reader,'stage',{...shared,attemptId:attempt('reader-shared-stage')});
+  await assert.rejects(stageRuntimeTranscript(reader.public,freshShared),rejected('machine-proof-denied'));
   const f=await enrolledRuntimeFixture(t);await stageRuntimeTranscript(f.public,await transcriptInput(f,'stage',{visibility:'shared'}));
   await publishRuntimeTranscript(f.public,await transcriptInput(f,'publish',{visibility:'shared'}));
   assert.equal((await readRuntimeTranscriptOwner(f.public,{machineId:MACHINE,grantId:GRANT,credentialHash:f.enroll.payload.credentialHash,objectHash:'c'.repeat(64)})).machineId,MACHINE);

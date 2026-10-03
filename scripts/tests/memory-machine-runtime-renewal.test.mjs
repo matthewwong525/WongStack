@@ -92,7 +92,9 @@ test('lost renewal response cannot recover removed authority; every credential g
   f.loseResponse=true;const revocation=await revokeRuntimeMachine(f.context,await revokeInput(f));assert.equal(revocation.operation.completed,true);
   const before=f.snapshot(),writes=f.batches;
   await assert.rejects(renewRuntimeMachine(f.public,input),rejected('machine-operation-incomplete'));
-  await assert.rejects(renewRuntimeMachine(f.public,await renewalInput(f)),rejected('machine-proof-denied'));
+  const fresh=await renewalInput(f);
+  const freshRevoked=await signed(f,'renew',{...fresh,attemptId:attempt('fresh-revoked-renew')});
+  await assert.rejects(renewRuntimeMachine(f.public,freshRevoked),rejected('machine-proof-denied'));
   for(const credentialHash of [f.enroll.payload.credentialHash,input.payload.credentialHash])await assert.rejects(validateRuntimeBearer(f.public,{machineId:MACHINE,credentialHash}),rejected('machine-proof-denied'));
   assert.deepEqual(f.snapshot(),before);assert.equal(f.batches,writes);
 });
