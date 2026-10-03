@@ -242,6 +242,8 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
     body: { name: `${app.name} verification`, decision: 'non_identity', include: [{ service_token: { token_id: machine.id } }], exclude: [], require: [] },
   });
   state.access.machinePolicyId = service.id;
+  // This records configured edge coverage only; the503 placeholder grants no memory.
+  state.memoryExceptionPhase = 'configured-closed';
   checkpoint();
   const destinations = access.workers.map((worker, index) => ({ type: 'worker', worker_id: worker.id, ...(index === 0 ? { overrides: MEMORY_OVERRIDE } : {}) }));
   destinations.push({ type: 'public', uri: app.domain, overrides: MEMORY_OVERRIDE });

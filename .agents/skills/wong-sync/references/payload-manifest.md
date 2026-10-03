@@ -95,3 +95,6 @@ Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/`
 ## Install record
 
 Create a fresh `.claude/.wong-stack.json`: `upstream.repo` names the repository actually installed, including a fork; version and commit come from that checkout, and `upstream.clone` hints at its cache. Later sync follows this source. Record the target's memory store ids, local skill names, and install/update dates; never copy the source's record, memory bindings, or live config. Advance it only after agreed changes and any generated-layer migration. It holds no mode.
+
+
+The memory core includes generic setup, private setup-state and strict public result libraries under the copied memory skill. The pack explicitly ships the four memory publication scripts with `cf-deploy.sh`; their imports stay inside the copied core/pack closure. Setup’s source-only provisioning adapter owns the original D1 creation receipt and the reviewed generated configuration/install-record publication. An installed caller loads only routing metadata from that record and proves its own private machine before use. GitHub Actions supplies durable nonsecret artifact delivery; other hosts require the explicit [private journal adapter](../../../../wiki/stack/d1-pipeline.md#memory-publication). Existing-store migration and live integration remain separate verification.

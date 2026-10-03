@@ -88,6 +88,10 @@
     "files": [
       "scripts/cf-build.sh",
       "scripts/cf-deploy.sh",
+      "scripts/memory-deploy.mjs",
+      "scripts/lib-memory-publication.mjs",
+      "scripts/memory-deploy-journal.mjs",
+      "scripts/memory-deploy-pipeline.mjs",
       "scripts/reset-staging-d1.mjs",
       "scripts/cf-secrets.mjs",
       "scripts/lib-access-config.mjs",

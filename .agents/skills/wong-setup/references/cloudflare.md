@@ -1,6 +1,6 @@
 # Provision Cloudflare
 
-This runbook turns a fresh WongStack install into a running app with closed memory resources. Full trusted machine admission and legacy migration remain pending. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
+This runbook turns a fresh WongStack install into a running app with closed memory resources. Trusted machine admission completes after reviewed production publication; existing-store migration stays separate. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
 
 **Idempotent.** Reuse existing owned resources; resume a stopped run from the top.
 
@@ -8,7 +8,7 @@ This runbook turns a fresh WongStack install into a running app with closed memo
 
 ## Boundaries
 
-- **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`.
+- **Initial publication stays with `/save`.** Step 1a makes the GitHub repository; the initial install lands uncommitted for `/save`. The sole completion exception is the pre-reviewed, retained generated two-file delta in `app/wrangler.jsonc` and `.claude/.wong-stack.json`, published by the trusted completion adapter. It never commits business code or arbitrary staged work and preserves the install record’s upstream source pin.
 - **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)); the server installer runs it too. Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
@@ -120,10 +120,10 @@ Resolve a reachable owner email before provisioning; reject `.invalid` and GitHu
 [The memory convention](../../../../wiki/development/memory-key.md) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
 
 1. **Is R2 on?** An error listing R2 buckets that says to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
-2. **The database.** It reuses or creates `<repo>-memory`.
+2. **The database.** It creates `<repo>-memory` only when the name is free, retaining the original POST receipt before any managed retry. A retry reuses only that exact owned UUID/name/account receipt. Existing stores without it require separate reviewed legacy cutover; matching names and GET results cannot adopt them.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None is secret.
-5. **Keep memory closed.** Record protocol version 2 and `pending-setup`; never run the retired ordinary migration or mint an email/GitHub key. Installation IDs and grants come only from the reviewed trusted machine setup, which is unfinished.
+5. **Keep memory closed before publication.** Record protocol version 2 and `pending-setup`; never run the retired ordinary migration or mint an email/GitHub key. Preserve the original memory D1 creation receipt outside git. Missing or ambiguous ownership stops; a matching resource name cannot adopt it.
 
 Re-runs may create an optional missing bucket and update deployment configuration, but never infer authority from a clone, old resource name, email or cloud identity. Legacy stores require reviewed ownership cutover; a broad account token never substitutes for a machine credential. Memory readiness must be reported separately from successful app provisioning.
 
@@ -161,7 +161,17 @@ Use the report's production URL. Treat preview URLs as patterns until CI returns
 
 ### 4g. Smoke-test what you built
 
-After `/save` reports the first deploy, fetch the production URL once; never report a URL you did not fetch.
+After `/save` reports the first deploy, continue automatically from the selected source checkout, without another interview:
+
+```sh
+node <source>/.agents/skills/wong-setup/scripts/provision.mjs complete-memory --dir <target> --repo <owner/name>
+```
+
+This trusted completion uses the ignored target `.env` transport and private OS-user journal. It waits for the exact first Actions source/artifact receipt (publication A), verifies active settings, actual 100% Worker versions, protection and genuine version metadata, then activates the full core before grants. It retains the generated installation IDs in the owned `app/wrangler.jsonc` and install-record delta, commits only those two files, and pushes publication B through the same reviewed delivery process. The reviewed plan includes this generated delta; it preserves business code and unrelated staged work. After the exact schema14 successor receipt, it creates this computer's private key, issues its key-bound one-use grant, enrolls, and performs an allowed operation. This completion adapter owns only that retained configuration publication; the initial install publication stays with `/save`.
+
+Actions receipts bind the authenticated artifact archive digest to the actual JSON bytes. A normal in-progress run is polled for up to ten minutes; a timeout remains pending and rerunning the same command resumes the retained source and exact attempts. A changed source, target or owned delta stops for review. Other Git hosts and Workers Builds require an explicitly supplied trusted publication adapter and private durable journal; the default command reports pending rather than inventing a receipt. See [the delivery boundary](../../../../wiki/stack/d1-pipeline.md#memory-publication).
+
+Then fetch the production URL once; never report a URL you did not fetch.
 
 The check runs itself; never ask the person to sign in by email code on each site:
 
@@ -176,7 +186,7 @@ Report memory as pending until trusted setup has verified actual binding IDs, ac
 
 State, in plain words:
 
-- Session memory: pending trusted setup. Do not report it active because app deployment or resource creation succeeded.
+- Session memory: report the strict version2 completion result. Only this computer’s successful allowed operation can report ready; a remote installer’s ready result leaves another computer pending.
 - The production URL, and the preview pattern with one branch filled in
 - What was created, and what was reused
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)

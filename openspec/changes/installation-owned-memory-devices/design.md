@@ -2,11 +2,11 @@
 
 ## Context
 
-See [proposal.md](proposal.md). The user replaced person-owned memory and browser device approval with machine-private memory plus shared team memory. The app frontend can be removed now; existing runtime still uses the older GitHub/key model and has not been cut over. Prepared schema11/operator modules and source tests target the superseded human-owner design, remain unwired, and cannot establish the new behavior.
+See [proposal.md](proposal.md). The user replaced person-owned memory and browser device approval with machine-private memory plus shared team memory. The app frontend is removed. The strict machine runtime, private client and automatic capture have passed their source gate; trusted setup and safe legacy cutover remain unfinished. Prepared schema11/operator modules and source tests target the superseded human-owner design, remain unwired, and cannot establish the new behavior.
 
 ## Goals / Non-Goals
 
-Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. The removal slice is complete. The user has invoked /ship, which resumes pending source implementation before archive/merge. Current bounded source work converts strict machine-memory routes, finite private/shared data operations and automatic private clients/hooks. No provider writes, private runner changes, new live credentials or migration execution is authorized by this source slice. Newly implemented handlers stay closed on real unprepared stores until separately coordinated trusted setup and acceptance.
+Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. The removal slice is complete. The user has invoked /ship, which resumes pending source implementation before archive/merge. The strict machine routes, finite private/shared operations and automatic private clients/hooks have passed the source gate. Current bounded source work completes trusted setup and durable deployment consumers. No provider writes, private runner changes, new live credentials or migration execution is authorized by this source slice. Newly implemented handlers stay closed on real unprepared stores until separately coordinated trusted setup and acceptance.
 
 ## Decisions
 
@@ -451,3 +451,55 @@ The downstream contract test's sole additional change retains the setup account/
 The credentials owning page joins this reservation only to retire the ordinary memory-token slot and the obsolete standing-authorization wording about writing a memory key. Account token provisioning, widening, CI secret boundaries and private-link instructions stay intact. Machine access comes from separately reviewed trusted setup and private OS-user state, never from a provider token.
 
 The security credential inventory joins only to replace its obsolete memory-key row and associated token count/link wording with private OS-user machine credentials and data scopes. Provider-token risks and CI boundaries remain accurate; ordinary mini apps receive no memory bindings.
+
+## Current core source acceptance
+
+Tasks3.1–3.4 passed the full exact remote source gate atce8436196e8c0a80b8b4e3e1bb2f647e26dda6b4 (PUSH build37130651220, payload37130651264, app37130651228;1272 scripts). All SQL1–14, original manifests/proof frames/receipts, compiled protection DDL and historical snapshots remain unchanged. This is source acceptance only: no actual memory target, initialized store, grant or machine exists in this trial. Task4.1 must connect the existing generic operator primitives to trusted ordinary setup and its publication/retry/removal lifecycle before any ready claim.
+
+## Coordinated task4.1 trusted setup and delivery source boundary
+
+At exact core gatece8436196e8c0a80b8b4e3e1bb2f647e26dda6b4, root reserves the following33 consumer/test/document paths for source-only task4.1. All SQL1–14, manifests, compiled schema/protocol hashes, proof frames, original bootstrap pins/IDs and mutation semantics remain immutable. Root owns current change-local documents, git/index/PR and remote gates. No provider execution, private snapshot/runner change, credential/grant creation or live phase follows from this release. No local suites/build/lint/SQL.
+
+- `.agents/skills/memory/scripts/lib/machine-setup.mjs`
+- `.agents/skills/memory/scripts/lib/machine-setup-state.mjs`
+- `.agents/skills/memory/scripts/lib/memory-result.mjs`
+- `.agents/skills/wong-setup/scripts/provision.mjs`
+- `.agents/skills/memory/scripts/lib/machine-client.mjs`
+- `server/install-wongstack.mjs`
+- `server/agent/agent.mjs`
+- `scripts/tests/memory-machine-setup.test.mjs`
+- `scripts/tests/memory-setup-result.test.mjs`
+- `scripts/tests/fixtures/memory/setup.mjs`
+- `scripts/tests/provision.test.mjs`
+- `scripts/tests/server-install.test.mjs`
+- `scripts/tests/server-agent.test.mjs`
+- `.agents/skills/wong-setup/references/cloudflare.md`
+- `.agents/skills/wong-setup/SKILL.md`
+- `server/README.md`
+- `wiki/development/memory-key.md`
+- `.agents/skills/wong-setup/scripts/private-access.mjs`
+- `scripts/memory-deploy.mjs`
+- `scripts/lib-memory-publication.mjs`
+- `scripts/memory-deploy-journal.mjs`
+- `scripts/memory-deploy-pipeline.mjs`
+- `scripts/cf-deploy.sh`
+- `scripts/tests/memory-deploy.test.mjs`
+- `scripts/tests/access-coverage.test.mjs`
+- `scripts/tests/wrangler-config.test.mjs`
+- `.github/workflows/deploy.yml`
+- `.agents/skills/memory/scripts/lib/machine-data-operator.mjs`
+- `scripts/tests/memory-machine-data-deployment.test.mjs`
+- `.agents/skills/wong-sync/references/payload-files.json`
+- `.agents/skills/wong-sync/references/payload-manifest.md`
+- `wiki/stack/d1-pipeline.md`
+- `scripts/tests/downstream-contract.test.mjs`
+
+Trusted setup retains the ORIGINAL owned D1 POST receipt and resource-bound private phase journal before retry; GET/name matches cannot adopt missing or ambiguous ownership. Library code ships under the memory skill, with explicit pack closure for new deployment scripts. Fresh setup is closed publication A → exact12/13 full-core activation/14 genesis A → generated-ID/config-only reviewed publication B → exact14 successor → persistent private machine key/key-bound one-use grant → enrollment → an allowed operation by THIS machine. Every mutation candidate, capability and response-loss recovery input is durable before HTTP. Existing IDs, completed receipts and phase inputs are never reset or repinned. The ordinary post-save completion caller and server installer share this orchestration. Publication B owns only the generated-ID configuration and installation-record metadata hunks; the record contains the exact installation tuple needed by ordinary startup hooks, while its public status stays pending for other machines. Reruns preserve business code and stage only those retained exact configuration/record deltas; no clone/email/cloud-role/service-token admission or legacy adoption. Installation removal requires an explicitly supplied private exact installation/repository/machine/grant tuple plus trusted revocation receipt. Missing evidence remains pending.
+
+Verify actual single100% serving deployment, exact Worker/resource/origin pins and genuine CF_VERSION_METADATA version_metadata type in BOTH settings and active-version readbacks. This supplemental proof never changes old pin projections. The existing503 bootstrap can keep its narrow paired production memory exception because it serves no memory; staging/preview have none. No open machine route becomes ready until strict full-core code and target/binding readbacks are verified. Human app Access remains separate from memory authorization.
+
+Ordinary production publication uses the existing reviewed trusted delivery process, never a new owner identity or signing key. The generic library requires retained exact source/target/predecessor intent and an explicit private durable-journal adapter before upload. GitHubActions retains nonsecret intents/candidates/receipts as independently verified owned artifacts, binding the downloaded archive bytes and extracted expected JSON to the retained digest rather than accepting a digest warning or matching artifact name; retry restores the same exact run/commit/target inputs before any upload or authority call. WorkersBuilds/other delivery callers supply the same trusted persistence contract; configured-memory publication refuses before upload when no durable adapter exists. This is an explicit adapter prerequisite, not a claim that stateless WorkersBuilds has turnkey recovery or requires a hosted WongStack account. No new resource or business/memory table is created for the journal.
+
+After publication, a narrow trusted READONLY pending-deployment inspector may read existing complete14 state with the same allowed stale-provider-pin semantics already used by recordMachineDeployment. Fresh expected authority/data revisions may be chosen only before the own acknowledgment attempt exists, while retained source/target/predecessor and current revocations still match. Persist the exact chosen candidate before the first authority write. Once attempted, use unchanged14 maintenance-barrier mutation and exact receipt recovery only; partial/conflicting writes close, and no retry resurrects a grant or fabricates completion from a provider envelope. Stage/preview never reads or writes production memory. Unsupported protocols/foreign targets/refusals remain explicit.
+
+Tests cover phase interruptions/lost responses/concurrent and stale attempts; original POST vs GET adoption; malformed/version1/secret/action result refusal; wrong machine readiness and enrollment recovery; removed credentials/renewal; private files, permissions/links; changed business code/custom configuration; missing/wrong version_metadata types; wrong source/Worker/origin/bindings; artifact ID/digest/run/target mismatch and ambiguous input; preview/unconfigured isolation; explicit WorkersBuilds missing-adapter refusal; exact append-only successor/rollback and no raw secrets. Coverage floors/exclusions and prior assertions stay intact. Generic adapter interfaces are callable source only after the full exact remote gate; actual transport, initialization, enrollment and deployment acceptance remain independently coordinated task5.

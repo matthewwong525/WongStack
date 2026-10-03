@@ -104,7 +104,7 @@ test('the check prints one open warning and lets an open deploy through', t => {
 });
 
 test('both CI backends and host previews fail before a content command when provider protection is missing', t => {
-  const scripts = ['cf-deploy.sh', 'cf-preview.sh', 'check-private-access.mjs', 'lib-access-config.mjs', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs'];
+  const scripts = ['cf-deploy.sh', 'memory-deploy.mjs', 'cf-preview.sh', 'check-private-access.mjs', 'lib-access-config.mjs', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs'];
   const fixture = pack(t, { scripts, config: JSON.stringify(config), tools: { npx: logger('npx '), npm: logger('npm ') } });
   fixture.write('deny.mjs', "globalThis.fetch = async () => ({ok:false,status:403,json:async()=>({success:false})});\n");
   const common = { CLOUDFLARE_API_TOKEN: 'private-fixture', NODE_OPTIONS: `--import=${fixture.root}/deny.mjs` };
@@ -118,4 +118,9 @@ test('both CI backends and host previews fail before a content command when prov
   const preview = fixture.run('cf-preview.sh', ['--alias', 'test'], { env: common });
   assert.equal(preview.status, 1, preview.out);
   assert.deepEqual(preview.calls, [], 'protection fails before dependency install, migrations or build');
+});
+
+test('closed bootstrap coverage still requires both narrow production exceptions and no staging exception',async()=>{
+ for(const index of [0,2]){const data=resources();delete data['/access/apps/app'].destinations[index].overrides;await assert.rejects(checkPrivateAccess(config,'production',provider(data)));}
+ const data=resources();data['/access/apps/app'].destinations[1].overrides=memory;await assert.rejects(checkPrivateAccess(config,'staging',provider(data)));
 });

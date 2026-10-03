@@ -14,9 +14,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { isMain } from '../.agents/skills/memory/scripts/lib/cli.mjs';
-import { ProvisionError, names, provision, run, widen } from '../.agents/skills/wong-setup/scripts/provision.mjs';
+import { ProvisionError, names, provision, run, widen, cloudflare as cloudflareTransport, readEnv, installationPublication } from '../.agents/skills/wong-setup/scripts/provision.mjs';
 import { ownerIdentity } from '../.agents/skills/wong-setup/scripts/private-access.mjs';
 import { checkedOutSource, managementDestination, validateExistingManagementResult, writeManagementResult } from './access-result.mjs';
+import { setupStore,persistSetup } from '../.agents/skills/memory/scripts/lib/machine-setup-state.mjs';
+import { setupOperator,trustedMachineSetup,removeSetupMachine } from '../.agents/skills/memory/scripts/lib/machine-setup.mjs';
+import { memoryResult } from '../.agents/skills/memory/scripts/lib/memory-result.mjs';
+import { parseConfig } from '../scripts/lib-wrangler-config.mjs';
 
 export { run };
 
@@ -220,8 +224,16 @@ const loginOff = (dir) => {
   return existsSync(config) && /"WORKSPACE_LOGIN"\s*:\s*"off"/.test(readFileSync(config, 'utf8'));
 };
 
+export { installationPublication } from "../.agents/skills/wong-setup/scripts/provision.mjs";
+
+export async function removeInstalledMachine({dir,accountId,repo,tuple,fetch,env=process.env,store=setupStore(accountId,repo)}) {
+ const token=readEnv(join(dir,'.env')).CLOUDFLARE_API_TOKEN;
+ if(!token)throw new ProvisionError('cloudflare','trusted removal transport is missing');
+ return removeSetupMachine({operator:setupOperator(cloudflareTransport(token,{api:env.WONG_CLOUDFLARE_API,fetch})),store,tuple});
+}
+
 /** Installs, provisions, commits, pushes, then adds the Paseo presets. Throws a ProvisionError with the reason. */
-export async function install({ token, accountId, repo, ownerEmail, managementResult, openWithoutLogin }, { dir, env = process.env, fetch, sleep, today, exec = run, log = () => {} }) {
+export async function install({ token, accountId, repo, ownerEmail, managementResult, openWithoutLogin }, { dir, env = process.env, fetch, sleep, today, exec = run, log = () => {}, memorySetupStore, memoryPublication }) {
   const quiet = (file, args, options = {}) => exec(file, args, { env, ...options });
   const loginEmail = await step('repo', () => ownerIdentity(ownerEmail));
   const destination = managementDestination(managementResult, { home: env.HOME, repoDir: dir, sourceDir: SOURCE });
@@ -243,7 +255,7 @@ export async function install({ token, accountId, repo, ownerEmail, managementRe
   if (record) writeJson(join(dir, '.claude', '.wong-stack.json'), record);
   // An open install reruns without keepConfig, so a Zero Trust organization that now works turns it private.
   const keepConfig = mode === 'installed' && !loginOff(dir);
-  const report = await step('cloudflare', () => provision({ ...cloudflare, base, today, ownerEmail: loginEmail, keepConfig, openWithoutLogin: open }));
+  const report = await step('cloudflare', () => provision({ ...cloudflare, base, today, ownerEmail: loginEmail, keepConfig, openWithoutLogin: open, memorySetupStore }));
   await step('cloudflare', () => writeManagementResult({ destination, source, report, accountId, ownerEmail: loginEmail, repo, token, api: env.WONG_CLOUDFLARE_API, fetch, dir, exec: quiet }));
 
   await step('push', async () => {
@@ -257,11 +269,19 @@ export async function install({ token, accountId, repo, ownerEmail, managementRe
     }
     await git(['push', '-q', '-u', 'origin', 'main']);
   });
+  const store=memorySetupStore??setupStore(accountId,repo);
+  const publication=memoryPublication??await installationPublication({dir,repo,exec:quiet,store,sleep});
+  if(publication&&report.access.mode!=='open') {
+    const config=parseConfig(join(dir,'app/wrangler.jsonc'));
+    try {report.memory=await trustedMachineSetup({operator:setupOperator(cloudflareTransport(token,{api:env.WONG_CLOUDFLARE_API,fetch})),store,target:{accountId,databaseId:config.d1_databases.find(b=>b.binding==='MEMORY_DB').database_id,bucketName:config.r2_buckets?.find(b=>b.binding==='MEMORY_BUCKET')?.bucket_name??null,appWorkerName:config.name,memoryWorkerName:config.name,appUrl:report.urls.production,memoryOrigin:report.urls.production},access:{providerConfigurationId:report.access.appId,issuer:`https://${report.access.teamDomain}`,audience:report.access.audience,appApplicationId:report.access.appId,memoryApplicationId:report.access.appId},publication});}
+    catch(error){if(error.code!=='publication-required')throw error;report.memory=memoryResult(null,'pending-setup','publication-required');}
+  }
   await addPresets(dir, quiet, log);
+  return report.memory;
 }
 
 /** Reads the job from stdin and prints `done` or the reason. Returns the exit code. */
-export async function main({ stdin, env = process.env, fetch, sleep, now = () => new Date(), out = console.log, err = console.error, exec }) {
+export async function main({ stdin, env = process.env, fetch, sleep, now = () => new Date(), out = console.log, err = console.error, exec, memorySetupStore, memoryPublication }) {
   let job = {};
   try {
     job = JSON.parse(stdin);
@@ -275,7 +295,7 @@ export async function main({ stdin, env = process.env, fetch, sleep, now = () =>
     return 1;
   }
   try {
-    await install(job, { dir: join(env.HOME, folder), env, fetch, sleep, exec, log: err, today: now().toISOString().slice(0, 10) });
+    await install(job, { dir: join(env.HOME, folder), env, fetch, sleep, exec, memorySetupStore, memoryPublication, log: err, today: now().toISOString().slice(0, 10) });
     out('done');
     return 0;
   } catch (error) {

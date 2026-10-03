@@ -80,6 +80,7 @@ wong_resolve_wrangler_config "$ROOT"
 echo "cf-deploy: branch=$BRANCH (production branch: $PRODUCTION_BRANCH)"
 
 if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
+  export CF_BRANCH="$BRANCH" CF_PRODUCTION_BRANCH="$PRODUCTION_BRANCH"
   echo "cf-deploy: production branch — deploying the production Worker"
   # Recent wrangler warns here that environments are defined but none was
   # named. Expected and harmless: with no `--env` it binds the top-level
@@ -87,7 +88,17 @@ if [ "$BRANCH" = "$PRODUCTION_BRANCH" ]; then
   # printed bindings. `--env=""` silences it but is a newer wrangler
   # semantic, and the pack pins no wrangler version, so we don't rely on it.
   node "$SCRIPT_DIR/check-private-access.mjs" --environment production
-  (cd "$APP_DIR" && npx wrangler deploy)
+  if [ "${WONG_MEMORY_PHASED:-}" != "1" ]; then
+    node "$SCRIPT_DIR/memory-deploy.mjs" prepare
+  fi
+  MEMORY_BEFORE=$(node "$SCRIPT_DIR/memory-deploy.mjs" before)
+  if [[ "$MEMORY_BEFORE" != *'"skipDeploy":true'* ]]; then
+    (cd "$APP_DIR" && npx wrangler deploy)
+  fi
+  if [ "${WONG_MEMORY_PHASED:-}" != "1" ]; then
+    node "$SCRIPT_DIR/memory-deploy.mjs" candidate
+    node "$SCRIPT_DIR/memory-deploy.mjs" ack
+  fi
   exit 0
 fi
 

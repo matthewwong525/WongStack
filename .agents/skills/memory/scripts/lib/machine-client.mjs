@@ -99,7 +99,7 @@ export async function enrollClient(ctx,installation,{grantId,capability,scope,ex
   if(state.credential){
    const proof=await signClient(state,'self-status',{attemptId:randomUUID(),expected:runtimeSnapshot(state.snapshot),payload:{machineId:state.machineId,grantId,machineCommitment:state.commitment}});
    const own=await machineCall(state,'self-status',proof);if(own.result?.credential?.hash!==state.credential.hash||own.result.credential.generation!==state.credential.generation||own.result.credential.expiresAt<=Math.floor(Date.now()/1000)||state.candidate)throw clientError('credential-unconfirmed');
-   await machineCall(state,'query',{operation:'sessions',params:{ids:[]}});state.snapshot=own.result.snapshot;state.dataSnapshot=own.dataSnapshot;writeMachineState(ctx,state);return {status:'connected',machineId:state.machineId};
+   state.snapshot=own.result.snapshot;state.dataSnapshot=own.dataSnapshot;writeMachineState(ctx,state);await machineCall(state,'query',{operation:'sessions',params:{ids:[]}});return {status:'connected',machineId:state.machineId};
   }
   if(state.candidate) {
    const headers={'Wong-Memory-Attempt':state.candidate.input.attemptId,'Wong-Memory-Candidate':state.candidate.hash};
@@ -107,7 +107,7 @@ export async function enrollClient(ctx,installation,{grantId,capability,scope,ex
    try {
     const own=await machineCall(state,'self-status',self,{headers});
     if(own.result?.credential?.attemptId===state.candidate.input.attemptId&&own.result.credential.hash===state.candidate.hash&&own.candidate?.completed===true&&own.candidate.action==='enroll'&&own.candidate.attemptId===state.candidate.input.attemptId&&own.candidate.candidateHash===state.candidate.hash&&own.candidate.requestHash===state.candidate.requestHash) {
-     state.credential={token:state.candidate.token,hash:state.candidate.hash,generation:own.result.credential.generation,expiresAt:own.result.credential.expiresAt};state.snapshot=own.result.snapshot;state.dataSnapshot=own.dataSnapshot;delete state.candidate;writeMachineState(ctx,state);return {status:'connected',machineId:state.machineId};
+     state.credential={token:state.candidate.token,hash:state.candidate.hash,generation:own.result.credential.generation,expiresAt:own.result.credential.expiresAt};state.snapshot=own.result.snapshot;state.dataSnapshot=own.dataSnapshot;delete state.candidate;writeMachineState(ctx,state);await machineCall(state,'query',{operation:'sessions',params:{ids:[]}});return {status:'connected',machineId:state.machineId};
     }
    } catch(error){if(error.code!=='machine-proof-denied')throw error;}
    const pending=await signClient(state,'enrollment-status',{attemptId:randomUUID(),expected:runtimeSnapshot(state.snapshot),payload:{machineId:state.machineId,grantId,machineCommitment:state.commitment,capabilityHash:await clientHash(capability)},capability});
@@ -125,6 +125,7 @@ export async function enrollClient(ctx,installation,{grantId,capability,scope,ex
   const result=(await machineCall(state,'enroll',state.candidate.input)).result;
   exactRuntimeReceipt(result,'enroll',state.candidate);
   state.credential={token:state.candidate.token,hash:state.candidate.hash,generation:1,expiresAt:state.candidate.expiresAt};state.snapshot=result.snapshot;delete state.candidate;writeMachineState(ctx,state);
+  await machineCall(state,'query',{operation:'sessions',params:{ids:[]}});
   return {status:'connected',machineId:state.machineId};
  });
 }

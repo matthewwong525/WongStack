@@ -16,6 +16,7 @@ import { databaseName, parseConfig, workerName } from '../lib-wrangler-config.mj
 import { ACCOUNT, TOKEN, fakeCloudflare, fakeGh } from './fixtures/cloudflare.mjs';
 import { checkedOutSource } from '../../server/access-result.mjs';
 import { privateDeployment } from '../lib-access-config.mjs';
+import { retainedStore,publicationArchive } from './fixtures/memory/setup.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const INSTALLER = join(repoRoot, 'server/install-wongstack.mjs');
@@ -73,11 +74,12 @@ async function setup(t, { email = 'ada@example.com' } = {}) {
     calls.push([file, ...args].join(' '));
     return run(file, args, options);
   };
+  const memorySetupStore=retainedStore(null,join(home,'private-setup-fixture'));
   /** One run of the installer in this process; returns its exit code and printed lines. */
   const install = async (job = JOB, { fetch } = {}) => {
     const out = [];
     const err = [];
-    const code = await main({ stdin: typeof job === 'string' ? job : JSON.stringify(job), env, exec, fetch, sleep: async () => {}, now: () => new Date('2026-09-27T12:00:00Z'), out: (line) => out.push(line), err: (line) => err.push(line) });
+    const code = await main({ stdin: typeof job === 'string' ? job : JSON.stringify(job), env, exec, fetch, memorySetupStore, sleep: async () => {}, now: () => new Date('2026-09-27T12:00:00Z'), out: (line) => out.push(line), err: (line) => err.push(line) });
     return { code, out, err, last: out.at(-1) };
   };
   const pushed = () => tryGit('--git-dir', origin, 'rev-parse', '-q', '--verify', 'refs/heads/main');
@@ -576,4 +578,68 @@ test('setEnv replaces only its own lines and keeps the rest', (t) => {
   setEnv(file, { A: '2', B: 'x' });
   assert.equal(readFileSync(file, 'utf8'), 'A=2\nB=x\n');
   assert.equal(statSync(file).mode & 0o777, 0o600);
+});
+
+// Reviewed delivery is tested through the real adapter, with local git and exact
+// authenticated artifact bytes. The transport never contacts GitHub or Cloudflare.
+async function publicationFixture(t) {
+ const root=mkdtempSync(join(tmpdir(),'wong-installer-publication-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
+ const dir=join(root,'repo'),origin=join(root,'origin.git');git('init','-q','--bare','-b','main',origin);git('clone','-q',origin,dir);
+ git('-C',dir,'config','user.email','ada@example.com');git('-C',dir,'config','user.name','Ada');mkdirSync(join(dir,'app'));mkdirSync(join(dir,'.claude'));
+ writeFileSync(join(dir,'app/wrangler.jsonc'),JSON.stringify({name:'fixture',vars:{MEMORY_INSTALLATION:'',MEMORY_DATABASE_ID:'',MEMORY_BUCKET_NAME:'',MEMORY_WORKER_NAME:''}},null,2)+'\n');
+ writeFileSync(join(dir,'.claude/.wong-stack.json'),JSON.stringify({version:'source-pin',commit:'preserved',components:{memory:{status:'pending-setup'},access:{mode:'private'}}},null,2)+'\n');
+ git('-C',dir,'add','.');git('-C',dir,'commit','-qm','initial');git('-C',dir,'push','-qu','origin','main');
+ const store=retainedStore({publications:{}},join(root,'private')),calls=[];let mode='progress',polls=0,observation=null,artifact=null,archiveBytes=null,loss=null;
+ const installation={accountId:ACCOUNT,databaseId:'11111111-2222-3333-4444-555555555555',bucketName:null,appWorkerName:'fixture',memoryWorkerName:'fixture',appUrl:'https://fixture.example.com',memoryOrigin:'https://fixture.example.com',installationId:'i'.repeat(32),repositoryId:'r'.repeat(32)};
+ const exec=async(file,args,options)=>{
+  calls.push([file,...args]);
+  if(file==='git'&&args.includes('get-url'))return {stdout:`https://github.com/${REPO}.git\n`};
+  if(file==='gh'){
+   const revision=git('-C',dir,'rev-parse','HEAD');
+   if(args[0]==='run'&&args[1]==='list'){polls++;return {stdout:JSON.stringify(mode==='timeout'||mode==='progress'&&polls<3?[]:[{databaseId:9,status:'completed',conclusion:'success',headSha:revision}])};}
+   if(args[0]==='api'){
+    if(args[1].includes('/artifacts?'))return {stdout:JSON.stringify({artifacts:[artifact]})};
+    if(args[1].includes('/artifacts/'))return {stdout:JSON.stringify(mode==='foreign'?{...artifact,workflow_run:{id:8,head_sha:revision}}:artifact)};
+    return {stdout:JSON.stringify({id:9,run_attempt:1,head_sha:revision,event:'push',path:'.github/workflows/deploy.yml',repository:{full_name:REPO}})};
+   }
+   if(args[1]==='download'){const folder=args[args.indexOf('-D')+1];mkdirSync(folder,{recursive:true});writeFileSync(join(folder,'published.json'),JSON.stringify(observation));return {stdout:''};}
+  }
+  const result=await run(file,args,options);if(file==='git'&&loss&&args.includes(loss)){loss=null;throw new Error('synthetic lost response after success');}return result;
+ };
+ const core=await compiledCoreHashes();
+ const refresh=()=>{const source=publicationSource(dir,git('-C',dir,'rev-parse','HEAD'));observation={verified:true,sourceRevision:source.revision,sourceHash:source.digest,target:Object.fromEntries(Object.entries(installation).filter(([key])=>!['installationId','repositoryId'].includes(key))),...core,workerVersions:{fixture:'11111111-1111-4111-8111-111111111111'},deploymentReceipt:null};archiveBytes=publicationArchive(observation,'published.json',{deflated:true});artifact={id:31,name:'memory-publication-9-1-published',digest:'sha256:'+createHash('sha256').update(archiveBytes).digest('hex'),expired:false,workflow_run:{id:9,head_sha:source.revision}};};refresh();
+ const adapter=await installer.installationPublication({dir,repo:REPO,exec,store,polls:4,sleep:async()=>{},archive:async()=>archiveBytes});
+ return {dir,store,calls,installation,adapter,refresh,setMode:value=>{mode=value;},lose:value=>{loss=value;},tamper:()=>{archiveBytes=Buffer.from('tampered');},booleanOnly:()=>{observation={verified:true,sourceRevision:observation.sourceRevision,sourceHash:observation.sourceHash};archiveBytes=publicationArchive(observation,'published.json');artifact.digest='sha256:'+createHash('sha256').update(archiveBytes).digest('hex');}};
+}
+import { publicationSource } from '../lib-memory-publication.mjs';
+import { createHash } from 'node:crypto';
+import { compiledCoreHashes } from '../../.agents/skills/memory/worker/machine-core-contract.mjs';
+import { loadConfig } from '../../.agents/skills/memory/scripts/lib/store.mjs';
+
+test('installer waits through a normal publication, binds exact A, and commits owned config and installed caller routing before push',async t=>{
+ const x=await publicationFixture(t),a=await x.adapter.wait('a');assert.equal(a.proof.kind,'github-actions');assert.deepEqual((await x.store.read()).publications.a.source,{revision:a.sourceRevision,digest:a.sourceHash});
+ const result=await x.adapter.configure(x.installation),state=await x.store.read();assert.equal(state.publications.b.revision,result.revision);
+ const commit=x.calls.findIndex(c=>c.includes('commit')),push=x.calls.findIndex(c=>c.includes('push'));assert.ok(commit>=0&&push>commit);
+ assert.deepEqual(git('-C',x.dir,'diff-tree','--no-commit-id','--name-only','-r','HEAD').split('\n').sort(),['.claude/.wong-stack.json','app/wrangler.jsonc']);
+ const config=loadConfig({root:x.dir});assert.deepEqual(config.installation,x.installation);
+ const record=JSON.parse(readFileSync(join(x.dir,'.claude/.wong-stack.json')));assert.equal(record.components.memory.status,'pending-setup');assert.equal(record.commit,'preserved');
+ x.refresh();assert.equal((await x.adapter.wait('b')).sourceRevision,result.revision);
+});
+test('installer recovers exact lost config commit and push responses without another commit',async t=>{
+ for(const operation of ['commit','push']){
+  const x=await publicationFixture(t);x.lose(operation);await assert.rejects(x.adapter.configure(x.installation),/lost response/);
+  const head=git('-C',x.dir,'rev-parse','HEAD'),result=await x.adapter.configure(x.installation);assert.equal(result.revision,head);assert.equal(git('-C',x.dir,'rev-list','--count','HEAD'),'2');
+ }
+});
+test('installer refuses foreign or tampered artifacts, retained source changes, unrelated staged work and business config edits',async t=>{
+ const flag=await publicationFixture(t);flag.booleanOnly();await assert.rejects(flag.adapter.wait('a'),/exact reviewed source contract/);
+ const x=await publicationFixture(t);x.setMode('foreign');await assert.rejects(x.adapter.wait('a'));x.setMode('success');x.tamper();await assert.rejects(x.adapter.wait('a'),e=>e.code==='publication-artifact-unverified');
+ writeFileSync(join(x.dir,'business.txt'),'preserve me');git('-C',x.dir,'add','business.txt');await assert.rejects(x.adapter.configure(x.installation),/staged business work/);
+ git('-C',x.dir,'reset','-q');await x.adapter.configure(x.installation);writeFileSync(join(x.dir,'app/wrangler.jsonc'),'changed business configuration');await assert.rejects(x.adapter.configure(x.installation),/business configuration changed/);
+ await assert.rejects(x.adapter.wait('a'),/retained publication candidate/);
+});
+test('normal publication timeout remains pending and resumes the original A; non-GitHub needs its explicit adapter',async t=>{
+ const x=await publicationFixture(t);x.setMode('timeout');await assert.rejects(x.adapter.wait('a'),e=>e.code==='publication-required');const source=(await x.store.read()).publications.a.source;
+ x.setMode('success');assert.equal((await x.adapter.wait('a')).sourceRevision,source.revision);
+ assert.equal(await installer.installationPublication({dir:x.dir,repo:REPO,store:x.store,exec:async()=>({stdout:'https://example.com/ada/recipe-box.git'})}),null);
 });

@@ -18,12 +18,12 @@ This historical heading preserves existing links. GitHub joining and email-based
 
 ## Add or remove a teammate
 
-Human app/GitHub membership and memory grants are separate. `member` and email-wide removal are retired. A trusted installation operator must issue or revoke the exact machine grant; server team removal reports that work pending.
+Human app/GitHub membership and memory grants are separate. `member` and email-wide removal are retired. A trusted installation operator must issue or revoke the exact machine grant; server team removal requires the privately retained exact installation/repository/machine/grant tuple and verified revocation receipt. A login or email cannot supply that tuple.
 
 ## Preparing installation-owned access
 
-Current provisioning creates or reuses closed resources and reports `pending-setup`. Full unattended trusted setup and legacy migration remain unfinished. Missing pins and unsupported activations deny; never infer installation IDs from old resources or adopt an old store automatically.
+Provisioning retains its original owned D1 POST receipt privately and reports `pending-setup`. The source setup completion adapter follows reviewed publication A, activates the full core, publishes only the owned installation configuration B, verifies its deployment successor, and enrolls this computer. Existing-store migration remains a separate reviewed operation. Missing pins and unsupported activations deny; never infer installation IDs from old resources or adopt an old store automatically.
 
-Trusted setup must verify active Worker settings and genuine `version_metadata` binding type, then prepare exact schema/deployment evidence and compiled full-core activation before issuing grants. The immutable pin projection excludes version metadata: source hashes alone cannot certify deployment. Ordinary use needs no browser approval app, human login or cloud identity.
+Trusted setup must verify active Worker settings and genuine `version_metadata` binding type, then prepare exact schema/deployment evidence and compiled full-core activation before issuing grants. The immutable pin projection excludes version metadata: source hashes alone cannot certify deployment. Ordinary use needs no browser approval app, human login or cloud identity. A successful allowed operation with this computer’s exact key and grant is required before ready. Public install metadata holds routing and generated IDs, never a universal readiness proof or capability. A server’s ready observation cannot admit a desktop; another computer supplies its own generated private-key commitment and receives a private one-use grant through the trusted operator channel. Normal production updates retain and acknowledge an exact [publication journal](../stack/d1-pipeline.md#memory-publication); previews never do.
 
 Back to [development](README.md).

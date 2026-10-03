@@ -54,6 +54,14 @@ export async function prepareMachineData(context,input) {
  &&d.state==='pending','machine-operation-incomplete');return dataPending(state);
 }
 export const readMachineDataStatus=async context=>{runtimeContext(context,true);return dataPending(await readRuntimeState(context,{inspectDataMaintenance:true}));};
+// Trusted delivery can inspect a complete predecessor after its reviewed candidate
+// is published. This read never admits data or changes deployment authority.
+export async function inspectPendingMachineDeployment(context) {
+ const internal=runtimeContext(context,true);
+ const state=await readRuntimeState(context,{inspectDeployment:false,inspectDataMaintenance:true});
+ requireValue(state.data&&state.data.configuration.state==='pending'&&state.configuration.state==='pending'&&state.runtime.state==='pending','machine-operation-incomplete');
+ return {installation:state.installation,snapshot:await dataSnapshot(state),head:state.data.head,evidence:await internal.inspectDeployment()};
+}
 const integer=n=>Number.isSafeInteger(n)&&n>=1;
 const text=(s,max)=>typeof s==='string'&&s.length>0&&s.length<=max&&!s.includes('\0');
 function inputShape(input,proof) {

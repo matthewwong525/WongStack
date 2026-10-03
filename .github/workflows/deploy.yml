@@ -96,6 +96,7 @@ jobs:
       # Needed by "Publish the preview URL" — creating a Deployment and its
       # status is the only write this workflow makes to GitHub.
       deployments: write
+      actions: read
     env:
       # head_ref is the source branch on pull_request; ref_name is the branch on
       # push. The scripts treat this as "we are in CI" — empty means local, and
@@ -107,6 +108,8 @@ jobs:
       # and stays in the host's .env. See wiki/stack/cloudflare-credentials.md.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GITHUB_TOKEN: ${{ github.token }}
+      WONG_MEMORY_PHASED: '1'
 
     steps:
       # Full history: the untouched check compares the whole branch with its base.
@@ -201,10 +204,99 @@ jobs:
         if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' }}
         run: bash scripts/cf-build.sh
 
+      # Nonsecret exact attempts are retained before upload and authority writes.
+      - name: Detect machine memory publication
+        id: memory
+        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        run: node scripts/memory-deploy.mjs configured
+
+      - name: Restore this run's memory publication artifacts
+        if: ${{ steps.memory.outputs.configured == 'true' && github.run_attempt > 1 }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: memory-publication-${{ github.run_id }}-*
+          path: ${{ runner.temp }}/memory-publication-restored
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+
+      - name: Verify restored exact publication inputs
+        if: ${{ steps.memory.outputs.configured == 'true' && github.run_attempt > 1 }}
+        run: node scripts/memory-deploy.mjs restore "$RUNNER_TEMP/memory-publication-restored"
+
+      - name: Prepare memory publication intent
+        id: memory_intent
+        if: ${{ steps.memory.outputs.configured == 'true' }}
+        run: node scripts/memory-deploy.mjs prepare
+
+      - name: Retain memory publication intent
+        id: memory_intent_artifact
+        if: ${{ steps.memory.outputs.configured == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.memory_intent.outputs.name }}
+          path: ${{ steps.memory_intent.outputs.artifact }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify retained memory intent
+        if: ${{ steps.memory.outputs.configured == 'true' }}
+        env:
+          MEMORY_ARTIFACT_ID: ${{ steps.memory_intent_artifact.outputs.artifact-id }}
+          MEMORY_ARTIFACT_DIGEST: ${{ steps.memory_intent_artifact.outputs.artifact-digest }}
+        run: node scripts/memory-deploy.mjs bind intent "$MEMORY_ARTIFACT_ID" "$MEMORY_ARTIFACT_DIGEST"
+
       - name: Deploy
         id: deploy
         if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' }}
         run: bash scripts/cf-deploy.sh
+
+      - name: Prepare exact memory deployment acknowledgement
+        id: memory_candidate
+        if: ${{ steps.memory.outputs.configured == 'true' }}
+        run: node scripts/memory-deploy.mjs candidate
+
+      - name: Retain exact memory acknowledgement candidate
+        id: memory_candidate_artifact
+        if: ${{ steps.memory.outputs.configured == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.memory_candidate.outputs.name }}
+          path: ${{ steps.memory_candidate.outputs.artifact }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify candidate and acknowledge this deployment
+        id: memory_receipt
+        if: ${{ steps.memory.outputs.configured == 'true' }}
+        env:
+          MEMORY_ARTIFACT_ID: ${{ steps.memory_candidate_artifact.outputs.artifact-id }}
+          MEMORY_ARTIFACT_DIGEST: ${{ steps.memory_candidate_artifact.outputs.artifact-digest }}
+        run: |
+          node scripts/memory-deploy.mjs bind candidate "$MEMORY_ARTIFACT_ID" "$MEMORY_ARTIFACT_DIGEST"
+          node scripts/memory-deploy.mjs ack
+
+      - name: Retain exact completed memory receipt
+        if: ${{ steps.memory.outputs.configured == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.memory_receipt.outputs.name }}
+          path: ${{ steps.memory_receipt.outputs.artifact }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Observe reviewed production publication
+        id: memory_published
+        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        run: node scripts/memory-deploy.mjs published
+
+      - name: Retain nonsecret production publication observation
+        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.memory_published.outputs.name }}
+          path: ${{ steps.memory_published.outputs.artifact }}
+          if-no-files-found: error
+          retention-days: 90
 
       # Publish the preview URL where the tooling can find it.
       #

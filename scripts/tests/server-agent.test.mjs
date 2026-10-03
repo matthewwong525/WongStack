@@ -1,3 +1,4 @@
+import { memoryResult } from '../../.agents/skills/memory/scripts/lib/memory-result.mjs';
 // Tests for server/agent/agent.mjs against a fake control plane: a local HTTP server that
 // records every request and answers polls from a script.
 import assert from "node:assert/strict";
@@ -518,7 +519,7 @@ const INVITATIONS = JSON.stringify([
 
 test("team-remove withdraws the pending invitation and removes access, and leaves memory alone where it has no members", async () => {
   const box = ghExec([["api repos/shop/wongstack/invitations", INVITATIONS], ["test -f", { fail: "" }]]);
-  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), {status:'done',memory:{protocolVersion:2,status:'pending-setup',reason:'exact-machine-revocation-required'}});
+  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), {status:'done',memory:memoryResult(null,'pending-setup','exact-machine-revocation-required')});
   assert.deepEqual(box.lines(), [
     `${GH_API} repos/shop/wongstack/invitations`,
     `${GH_API} -X DELETE repos/shop/wongstack/invitations/11`,
@@ -527,12 +528,12 @@ test("team-remove withdraws the pending invitation and removes access, and leave
 });
 
 test("team-remove reports exact machine revocation pending and never infers memory identity from email or GitHub",async()=>{
- const box=ghExec([["invitations","[]"],["users/ana-gh","9\n"]]);assert.deepEqual(await runJob({type:"team-remove",payload:TEAM},box.exec),{status:'done',memory:{protocolVersion:2,status:'pending-setup',reason:'exact-machine-revocation-required'}});assert.deepEqual(box.lines(),[`${GH_API} repos/shop/wongstack/invitations`,`${GH_API} -X DELETE repos/shop/wongstack/collaborators/ana-gh`]);assert.ok(!box.lines().some(line=>/memory\.mjs|users\//.test(line)));
+ const box=ghExec([["invitations","[]"],["users/ana-gh","9\n"]]);assert.deepEqual(await runJob({type:"team-remove",payload:TEAM},box.exec),{status:'done',memory:memoryResult(null,'pending-setup','exact-machine-revocation-required')});assert.deepEqual(box.lines(),[`${GH_API} repos/shop/wongstack/invitations`,`${GH_API} -X DELETE repos/shop/wongstack/collaborators/ana-gh`]);assert.ok(!box.lines().some(line=>/memory\.mjs|users\//.test(line)));
 });
 
 test("team-remove counts a login that is no longer a collaborator as done", async () => {
   const box = ghExec([["invitations", "[]"], ["collaborators", { fail: '{"message":"Not Found","status":"404"}' }], ["test -f", { fail: "" }]]);
-  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), {status:'done',memory:{protocolVersion:2,status:'pending-setup',reason:'exact-machine-revocation-required'}});
+  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), {status:'done',memory:memoryResult(null,'pending-setup','exact-machine-revocation-required')});
 });
 
 test("a failed team job is reported as failed with no command output", async () => {
@@ -656,4 +657,14 @@ test('fresh mode retains retry on poll 401 and preserved mode retries other tran
    fetch:async()=>{polls++;return Response.json({}, {status});},exec:async()=>({stdout:''}),log:()=>{},sleep:async()=>{sleeps++;throw stop;}}),stop);
   assert.equal(polls,1);assert.equal(sleeps,1);
  }
+});
+
+test('team removal passes only the privately supplied exact tuple to trusted removal and validates its bounded result',async()=>{
+ const tuple={installationId:'i'.repeat(32),repositoryId:'r'.repeat(32),machineId:'m'.repeat(32),grantId:'g'.repeat(32),machineRevision:1,grantRevision:2},memory=memoryResult(null,'blocked','machine-revoked');
+ const box=ghExec([['invitations','[]'],['--input-type=module',JSON.stringify(memory)]]);
+ const result=await runJob({type:'team-remove',payload:{...TEAM,memoryRemoval:{accountId:'a'.repeat(32),tuple}}},box.exec);assert.deepEqual(result,{status:'done',memory});
+ const call=box.calls.find(c=>c.line.includes('--input-type=module'));assert.ok(call.line.includes('env -u AGENT_TOKEN'));assert.deepEqual(JSON.parse(call.options.input).tuple,tuple);assert.ok(!call.line.includes(tuple.machineId));
+ const invalid=ghExec([['invitations','[]'],['--input-type=module',JSON.stringify({...memory,token:'not-allowed'})]]);
+ assert.equal((await runJob({type:'team-remove',payload:{...TEAM,memoryRemoval:{accountId:'a'.repeat(32),tuple}}},invalid.exec)).status,'failed');
+ const missing=ghExec([['invitations','[]']]);assert.equal((await runJob({type:'team-remove',payload:{...TEAM,memoryRemoval:{accountId:'wrong',tuple}}},missing.exec)).status,'failed');assert.ok(!missing.lines().some(c=>c.includes('--input-type=module')));
 });

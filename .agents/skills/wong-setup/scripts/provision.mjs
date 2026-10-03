@@ -8,7 +8,7 @@
 // environment or the target's .env. WONG_CLOUDFLARE_API points every call at another API base, for tests.
 // Every step checks before it acts, so a run that stopped runs again from the top.
 import { spawn } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
@@ -18,6 +18,15 @@ import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-
 import { AccessSetupError, accessOrganization, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
 import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
+import { setupStore,createOwnedMemoryDatabase,persistSetup } from '../../memory/scripts/lib/machine-setup-state.mjs';
+import { memoryResult } from '../../memory/scripts/lib/memory-result.mjs';
+import { setupOperator,trustedMachineSetup } from '../../memory/scripts/lib/machine-setup.mjs';
+
+import { verifyArtifactReceipt,verifyArtifactBytes,readPublicationArchive } from '../../../../scripts/memory-deploy-journal.mjs';
+import { publicationSource } from '../../../../scripts/lib-memory-publication.mjs';
+import { resourceTarget } from '../../memory/scripts/lib/installation-validation.mjs';
+import { compiledCoreHashes } from '../../memory/worker/machine-core-contract.mjs';
+import { createHash } from 'node:crypto';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-fragments.md');
@@ -530,7 +539,7 @@ async function deployToken(cf, account, name, rows, groups, { secretSet, setSecr
  * on without Access; a site already private never opens, and a rerun that gets the organization turns an
  * open config private.
  */
-export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep: _sleep = wait, exec = run, env = process.env }) {
+export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, memorySetupStore, publication, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep: _sleep = wait, exec = run, env = process.env }) {
   const cf = cloudflare(token, { api, fetch });
   const n = namesFor(base);
   const report = { base, names: n, r2: false, created: [], reused: [], updated: [], todo: [] };
@@ -566,7 +575,9 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
   // The memory store: is R2 on, the database, then the bucket.
   const buckets = await step('cloudflare', () => r2Buckets(cf, account));
   report.r2 = buckets !== null;
-  const memoryId = await step('cloudflare', () => database(cf, account, n.memory, note));
+  const privateSetup=memorySetupStore??setupStore(account,repo);
+  const memoryId = await step('cloudflare', () => createOwnedMemoryDatabase(cf,{account,name:n.memory,store:privateSetup}));
+  note('reused', `owned memory database ${n.memory}`);
   let bucket = null;
   if (buckets && (!keepConfig || recordedBucket)) {
     bucket = n.memory;
@@ -657,14 +668,119 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     note('created', 'GitHub secret CLOUDFLARE_ACCOUNT_ID');
   }
 
-  report.memory = { protocolVersion:2,status:'pending-setup',reason:'trusted-machine-setup-required',database:n.memory,bucket,worker };
+  report.memory=memoryResult({appUrl:`https://${n.worker}.${sub}.workers.dev`,memoryOrigin:`https://${n.worker}.${sub}.workers.dev`});
+  if(publication&&!open)report.memory=await trustedMachineSetup({operator:setupOperator(cf),store:privateSetup,target:{accountId:account,databaseId:memoryId,bucketName:bucket,appWorkerName:n.worker,memoryWorkerName:n.worker,appUrl:`https://${n.worker}.${sub}.workers.dev`,memoryOrigin:`https://${n.worker}.${sub}.workers.dev`},access:{providerConfigurationId:report.access.appId,issuer:`https://${report.access.teamDomain}`,audience:report.access.audience,appApplicationId:report.access.appId,memoryApplicationId:report.access.appId},publication});
   report.urls = { production: `https://${n.worker}.${sub}.workers.dev`, previews: `https://<branch>-${n.staging}.${sub}.workers.dev` };
   return report;
 }
 
 // ── the command line ────────────────────────────────────────────────────────
 
+/** Ordinary Actions publication adapter. A local/non-GitHub remote needs its
+ * own trusted publication adapter; it cannot manufacture a CI receipt. */
+export async function installationPublication({dir,repo,exec=run,store,archive,extractArchive,polls=300,sleep=ms=>new Promise(r=>setTimeout(r,ms))}) {
+ const git=args=>exec('git',['-C',dir,...args]);
+ const remote=(await git(['remote','get-url','origin'])).stdout.trim().replace(/\.git$/,'');
+ if(![`https://github.com/${repo}`,`git@github.com:${repo}`].includes(remote))return null;
+ const gh=(args)=>exec('gh',[...args,'-R',repo],{cwd:dir,timeout:args[1]==='download'?60000:15000});
+ const get=async path=>JSON.parse((await exec('gh',['api',path],{cwd:dir,timeout:15000})).stdout);
+ const wait=async phase=>{
+  const state=await store.read(),revision=phase==='b'?state.publications?.b?.revision:(await git(['rev-parse','HEAD'])).stdout.trim();
+  const expectedSource=publicationSource(dir,revision);
+  const retained=state.publications?.[phase]?.source;
+  if(retained&&!isDeepStrictEqual(retained,expectedSource))throw new ProvisionError('repo','source differs from the retained publication candidate');
+  state.publications={...state.publications,[phase]:{...state.publications?.[phase],source:expectedSource}};await persistSetup(store,state);
+  const deadline=Date.now()+Math.min(polls*2000,600000);
+  for(let poll=0;poll<polls&&Date.now()<deadline;poll++) {
+   const runs=JSON.parse((await gh(['run','list','--workflow','deploy.yml','--commit',revision,'--json','databaseId,status,conclusion,headSha'])).stdout);
+   const run=runs.find(r=>r.headSha===revision&&r.status==='completed'&&r.conclusion==='success');
+   if(run) {
+    const actual=await get(`/repos/${repo}/actions/runs/${run.databaseId}`);
+    const name=`memory-publication-${run.databaseId}-${actual.run_attempt}-published`;
+    const list=await get(`/repos/${repo}/actions/runs/${run.databaseId}/artifacts?per_page=100`),items=list.artifacts.filter(a=>a.name===name&&!a.expired);
+    if(items.length!==1)throw Object.assign(new Error('publication-required'),{code:'publication-required'});
+    await verifyArtifactReceipt(items[0],{repository:repo,runId:run.databaseId,revision,artifactName:name},get);
+    const folder=join(store.dir,'published',String(run.databaseId));mkdirSync(folder,{recursive:true,mode:0o700});
+    const file=join(folder,'published.json');
+    if(!existsSync(file))await gh(['run','download',String(run.databaseId),'-n',name,'-D',folder]);
+    if(lstatSync(file).isSymbolicLink()||!lstatSync(file).isFile())throw new ProvisionError('repo','publication artifact is not a regular file');
+    const download=archive??(async id=>{
+     const token=process.env.GITHUB_TOKEN||(await exec('gh',['auth','token'],{cwd:dir,timeout:15000})).stdout.trim();
+     const response=await globalThis.fetch(`https://api.github.com/repos/${repo}/actions/artifacts/${id}/zip`,{headers:{Authorization:`Bearer ${token}`},redirect:'manual',signal:AbortSignal.timeout(15000)});
+     if(response.status!==302)throw new ProvisionError('repo','artifact archive transport failed');
+     const location=new URL(response.headers.get('location'));if(location.protocol!=='https:'||location.username||location.password)throw new ProvisionError('repo','artifact archive transport is not HTTPS');
+     const bytes=await globalThis.fetch(location,{redirect:'error',signal:AbortSignal.timeout(15000)});if(!bytes.ok)throw new ProvisionError('repo','artifact archive download failed');return Buffer.from(await bytes.arrayBuffer());
+    });
+    const bytes=await download(items[0].id);verifyArtifactBytes(bytes,items[0]);
+    const extract=extractArchive??(bytes=>readPublicationArchive(bytes,'published.json').toString('utf8'));
+    const verified=JSON.parse(await extract(bytes));
+    const result=JSON.parse(readFileSync(file,'utf8'));
+    if(!isDeepStrictEqual(verified,result))throw new ProvisionError('repo','downloaded publication bytes differ from the authenticated archive');
+    const core=await compiledCoreHashes();
+    if(Object.keys(result).sort().join(',')!=='deploymentReceipt,protocolHash,routeContractHash,sourceHash,sourceRevision,target,verified,workerVersions'||result.protocolHash!==core.protocolHash||result.routeContractHash!==core.routeContractHash||!result.workerVersions||Object.keys(result.workerVersions).length<1||Object.values(result.workerVersions).some(v=>typeof v!=='string'||!/^[a-f0-9-]{36}$/.test(v)))throw new ProvisionError('repo','publication artifact lacks the exact reviewed source contract');
+    resourceTarget(result.target);
+    if(result.sourceRevision!==revision||result.sourceHash!==expectedSource.digest||result.verified!==true)throw new ProvisionError('repo','publication artifact belongs to another source');
+    return {...result,proof:{kind:'github-actions',receiptId:items[0].id,digest:items[0].digest,sourceRevision:revision,sourceHash:expectedSource.digest}};
+   }
+   await sleep(2000);
+  }
+  throw Object.assign(new Error('publication-required'),{code:'publication-required'});
+ };
+ return {wait,configure:async installation=>{
+  let state=await store.read(),record=state.publications?.b;
+  const file=join(dir,'app/wrangler.jsonc'),current=readFileSync(file,'utf8');
+  if(!record) {
+   const parsed=parseConfig(file);if(parsed.vars.MEMORY_INSTALLATION)throw new ProvisionError('repo','memory configuration belongs to another setup attempt');
+   let next=current;
+   for(const [key,value] of Object.entries({MEMORY_INSTALLATION:JSON.stringify(installation),MEMORY_DATABASE_ID:installation.databaseId,MEMORY_BUCKET_NAME:installation.bucketName??'',MEMORY_WORKER_NAME:installation.memoryWorkerName})) {
+    const pattern=new RegExp(`"${key}"\\s*:\\s*"(?:[^"\\\\]|\\\\.)*"`,'g');
+    if([...next.matchAll(pattern)].length!==1)throw new ProvisionError('repo','custom memory configuration needs an explicit reviewed edit');
+    next=next.replace(pattern,`"${key}": ${JSON.stringify(value)}`);
+   }
+   const installPath='.claude/.wong-stack.json',installBefore=readFileSync(join(dir,installPath),'utf8'),installed=JSON.parse(installBefore);
+   if(installed.components?.memory?.installation&&!isDeepStrictEqual(installed.components.memory.installation,installation))throw new ProvisionError('repo','install record belongs to another installation');
+   const installAfter=JSON.stringify({...installed,components:{...installed.components,memory:{...installed.components?.memory,installation,protocolVersion:2,status:'pending-setup',reason:'trusted-machine-setup-required'}}},null,2)+'\n';
+   const staged=(await git(['diff','--cached','--name-only'])).stdout.trim();
+   if(staged)throw new ProvisionError('repo','preserve staged business work before the owned configuration publication');
+   record={path:'app/wrangler.jsonc',installPath,installBefore,installAfter,before:current,after:next,beforeHash:createHash('sha256').update(current).digest('hex'),afterHash:createHash('sha256').update(next).digest('hex'),beforeRevision:(await git(['rev-parse','HEAD'])).stdout.trim(),revision:null};
+   state={...state,publications:{...state.publications,b:record}};await persistSetup(store,state);
+  }
+  const currentInstall=readFileSync(join(dir,record.installPath),'utf8');
+  if(currentInstall!==record.installBefore&&currentInstall!==record.installAfter)throw new ProvisionError('repo','install record changed outside the owned setup delta');
+  if(current!==record.before&&current!==record.after)throw new ProvisionError('repo','business configuration changed; review the retained setup delta');
+  if(!record.revision) {
+   const head=(await git(['rev-parse','HEAD'])).stdout.trim();
+   if(head!==record.beforeRevision) {
+    const parent=(await git(['rev-parse','HEAD^'])).stdout.trim(),paths=(await git(['diff-tree','--no-commit-id','--name-only','-r','HEAD'])).stdout.trim();
+    const after=(await git(['show',`HEAD:${record.path}`])).stdout;
+    if(parent!==record.beforeRevision||paths.split('\n').sort().join('\n')!==[record.path,record.installPath].sort().join('\n')||after!==record.after||(await git(['show',`HEAD:${record.installPath}`])).stdout!==record.installAfter)throw new ProvisionError('repo','source advanced beyond the retained configuration candidate');
+    record.revision=head;await persistSetup(store,state);
+   }
+  }
+  if(!record.revision) {
+   if(current===record.before)writeFileSync(file,record.after);
+   if(currentInstall===record.installBefore)writeFileSync(join(dir,record.installPath),record.installAfter);
+   const staged=(await git(['diff','--cached','--name-only'])).stdout.trim();if(staged&&staged.split('\n').some(path=>![record.path,record.installPath].includes(path)))throw new ProvisionError('repo','preserve staged business work before the owned configuration publication');
+   await git(['add','--',record.path,record.installPath]);await git(['commit','-m','feat: bind trusted machine memory','--',record.path,record.installPath]);
+   record.revision=(await git(['rev-parse','HEAD'])).stdout.trim();await persistSetup(store,state);
+  }
+  if((await git(['rev-parse','HEAD'])).stdout.trim()!==record.revision)throw new ProvisionError('repo','source advanced beyond the owned setup publication; preserve it for review');
+  await git(['push','-u','origin','main']);return {revision:record.revision,afterHash:record.afterHash};
+ }};
+}
+
+/** Completes the first reviewed publication using this machine's retained private setup journal. */
+export async function completeMachineSetup({dir='.',account,repo,token,api,fetch,exec=run,sleep,store=setupStore(account,repo),publication,operator}) {
+ const record=readJson(recordFile(dir)),config=parseConfig(join(dir,'app/wrangler.jsonc')),access=record?.components?.access;
+ if(!access||access.mode==='open')return memoryResult(null,'pending-setup','trusted-machine-setup-required');
+ const adapter=publication??await installationPublication({dir,repo,exec,store,sleep});
+ if(!adapter)return memoryResult(null,'pending-setup','publication-required');
+ const memory=record.components.memory,origin=new URL(memory.worker).origin;
+ try{return await trustedMachineSetup({operator:operator??setupOperator(cloudflare(token,{api,fetch})),store,target:{accountId:account,databaseId:memory.databaseId,bucketName:memory.bucket??null,appWorkerName:config.name,memoryWorkerName:config.name,appUrl:origin,memoryOrigin:origin},access:{providerConfigurationId:access.appId,issuer:`https://${access.teamDomain}`,audience:access.audience,appApplicationId:access.appId,memoryApplicationId:access.appId},publication:adapter});}catch(error){if(error.code!=='publication-required')throw error;return memoryResult((await store.read())?.installation??null,'pending-setup','publication-required');}
+}
+
 const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>]
+  complete-memory --repo <owner/name>      finish retained machine setup after the first reviewed publication
   widen                                   grant the token a normal provision's groups, then wait until they work
   accounts                                list the accounts the token sees
   names --repo <owner/name>               derive the names; report each as free, ours, or taken, and the first free base
@@ -674,7 +790,7 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>]
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,
 from the environment or the target's .env. Each command prints one JSON report, never a token.`;
 
-const NEEDS = { widen: [], accounts: [], names: ['account', 'repo'], provision: ['account', 'repo', 'base'] };
+const NEEDS = { widen: [], accounts: [], names: ['account', 'repo'], provision: ['account', 'repo', 'base'], 'complete-memory': ['account','repo'] };
 
 /** Runs one command and returns the exit code: 0 done, 1 stopped (with a JSON reason), 2 usage. */
 export async function cli(argv, { env = process.env, out = console.log, err = console.error, fetch, sleep } = {}) {
@@ -718,6 +834,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   if (options.account && !ACCOUNT.test(options.account)) return stop('token', 'the account id is not 32 hex characters');
   const common = { token, api: env.WONG_CLOUDFLARE_API, fetch, account: options.account, repo: options.repo, dir, env, ...(sleep && { sleep }) };
   const commands = {
+    'complete-memory':()=>completeMachineSetup(common),
     widen: () => widen(common),
     accounts: () => accounts(common),
     names: () => names(common),

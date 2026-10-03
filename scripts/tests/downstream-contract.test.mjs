@@ -123,3 +123,16 @@ test('every npm ci WongStack runs skips the audit request', () => {
   }
   assert.ok(installs > 0, 'found no npm ci line to check; the scan paths moved');
 });
+
+test('memory publication scripts ship with closed core imports and pinned artifact delivery phases',()=>{
+ const files=JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json')).pack.files;
+ const scripts=['scripts/memory-deploy.mjs','scripts/lib-memory-publication.mjs','scripts/memory-deploy-journal.mjs','scripts/memory-deploy-pipeline.mjs'];
+ for(const path of scripts){assert.ok(files.includes(path),path);assert.doesNotMatch(read(path),/from ['"][^'"]*(?:wong-setup|server\/)/,path);}
+ for(const file of ['machine-setup.mjs','machine-setup-state.mjs','memory-result.mjs'])assert.doesNotMatch(read(`.agents/skills/memory/scripts/lib/${file}`),/from ['"][^'"]*(?:wong-setup|server\/)/);
+ const workflow=read('.github/workflows/deploy.yml');
+ assert.match(workflow,/actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/);assert.match(workflow,/actions\/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093/);
+ for(const phase of ['prepare','restore','bind','candidate','ack','published'])assert.match(workflow,new RegExp(`memory-deploy\\.mjs ${phase}`));
+ assert.doesNotMatch(workflow,/(?:MEMORY_(?:TOKEN|KEY|CAPABILITY)|PRIVATE_KEY|serviceJWT)/);
+ assert.match(read(`${setup}/references/cloudflare.md`),/complete-memory --dir <target> --repo <owner\/name>/);
+ assert.match(read(`${setup}/scripts/provision.mjs`),/installPath='\.claude\/\.wong-stack\.json'/);
+});

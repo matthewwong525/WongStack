@@ -25,6 +25,7 @@ import { createManagementStore } from "./management.mjs";
 const managementStore = createManagementStore();
 import { asWorkspace, workspaceOf, validateWorkspace, workspaceExec } from "./workspace.mjs";
 import { preserveGitHub } from "./github.mjs";
+import { memoryResult,validateMemoryResult } from "../../.agents/skills/memory/scripts/lib/memory-result.mjs";
 import { prepareProjectJob, createProjectStore } from "./project.mjs";
 const projectStore = createProjectStore();
 
@@ -143,8 +144,8 @@ const gone = (error) => {
 
 /**
  * An owner's server: withdraws the teammate's pending invitation, removes
- * their push access, and, where the repo's memory supports it, stops their
- * memory keys by their GitHub noreply address, the one they commit with.
+ * their push access. Memory removal additionally requires the private exact
+ * machine tuple, verified against the local trusted setup receipt.
  */
 async function removeTeammate(job, exec) {
   const folder = teamFolder(job);
@@ -154,7 +155,16 @@ async function removeTeammate(job, exec) {
     await ghApi(exec, ["-X", "DELETE", `repos/${repo}/invitations/${Number(invite.id)}`]);
   }
   await ghApi(exec, ["-X", "DELETE", `repos/${repo}/collaborators/${login}`]).catch(gone);
-  return { status: "done", memory: { protocolVersion: 2, status: "pending-setup", reason: "exact-machine-revocation-required" } };
+  if(job.memoryRemoval) {
+    const input=job.memoryRemoval;
+    if(!/^[a-f0-9]{32}$/.test(input.accountId??'')||!input.tuple)return {status:'failed',memory:memoryResult(null,'blocked','exact-machine-revocation-required')};
+    const script=`import {removeInstalledMachine} from ${JSON.stringify(pathToFileURL(INSTALLER).href)};let text='';for await(const chunk of process.stdin)text+=chunk;console.log(JSON.stringify(await removeInstalledMachine(JSON.parse(text))));`;
+    try {
+      const result=await asWong(exec,['env','-u','AGENT_TOKEN','node','--input-type=module','-e',script],{input:JSON.stringify({dir:`${workspaceOf(exec).home}/${folder}`,repo,accountId:input.accountId,tuple:input.tuple})});
+      return {status:'done',memory:validateMemoryResult(JSON.parse(result.stdout))};
+    } catch{return {status:'failed',memory:memoryResult(null,'blocked','exact-machine-revocation-required')};}
+  }
+  return {status:'done',memory:memoryResult(null,'pending-setup','exact-machine-revocation-required')};
 }
 
 /** A Cloudflare token's id. */

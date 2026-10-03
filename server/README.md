@@ -75,7 +75,7 @@ A reviewed `requiredSettings: []` means no settings are required for this code w
 
 ## Install WongStack into a repo
 
-`install-wongstack.mjs` installs WongStack into a person's empty GitHub repo with no question: the payload, the app's Cloudflare hosting, and closed memory resources awaiting trusted setup, then one commit on `main`, pushed. Last, it adds WongStack's agent presets to the workspace user's Paseo with [`presets.mjs`](../.agents/skills/routine/scripts/presets.mjs), when Paseo is set up. A failure there goes to stderr and never changes the last line. It installs the clone it runs from, so the version is the commit you checked out, and a fork installs itself.
+`install-wongstack.mjs` installs WongStack into a person's empty GitHub repo with no question: the payload, the app's Cloudflare hosting, and closed memory resources, then the initial commit on `main`, pushed. Its trusted completion adapter waits for reviewed Actions publication A, activates the full core, publishes the owned configuration and install-record delta B, verifies the exact deployment receipt, and admits only the initiating server machine. Last, it adds WongStack's agent presets to the workspace user's Paseo with [`presets.mjs`](../.agents/skills/routine/scripts/presets.mjs), when Paseo is set up. A failure there goes to stderr and never changes the last line. It installs the clone it runs from, so the version is the commit you checked out, and a fork installs itself.
 
 ### Run it
 
@@ -185,7 +185,7 @@ A host that runs the installer may import these names from it, and nothing else:
 | `CLOUDFLARE_CALL` | The pattern the refused-call line matches. |
 | `setEnv` | Replaces each key's own line in a `.env` file, or adds it, and leaves the file mode 0600. |
 
-Run it again after any stop. It finishes what the last run began and makes no second copy of anything. On a repo it already pushed, it restores `.env` and the secrets and commits nothing; on one it installed open, it may turn the config private, uncommitted.
+Run it again after any stop. It finishes what the last run began and makes no second copy of anything. On a repo it already pushed, it restores `.env` and the secrets, and completes only a retained owned memory configuration publication when necessary; on one it installed open, it may turn the config private, uncommitted.
 
 ### What the installer never does
 
@@ -285,3 +285,14 @@ The source's tests use a pretend Cloudflare. Before you ship a change to either 
 Fork WongStack and edit `setup.sh` to change what every server gets: add a tool, pin a version, or remove one you do not use. Keep the contract above, and keep the final check honest. A host that pairs devices needs `paseo`, and removing it breaks chat there. Change the payload, and `install-wongstack.mjs` installs your version: your fork's tests install it into a practice repo, so a file it misses fails there first. Neither the scripts nor the agent is in the [payload](../.agents/skills/wong-sync/references/payload-manifest.md#not-copied), so installed repos never get them; the template belongs to the source you fork.
 
 [Required tools](../wiki/development/required-tools.md) owns what WongStack needs on your own machine.
+
+
+## Machine setup observations
+
+The public version2 memory result contains exactly `protocolVersion`, `installationId`, `repositoryId`, `appUrl`, `memoryOrigin`, `status`, `reason` and `instruction`. Origins are canonical HTTPS origins without a memory path. No result includes provider credentials, enrollment capabilities, private keys or an action URL. `ready` requires an allowed operation by the initiating local machine; a desktop receiving that server observation stays pending until its own private-key-bound enrollment and operation succeed.
+
+Setup journals live in private OS-user state outside git. Every mutation candidate is retained before HTTP; recovery requires its exact completed receipt. The original owned D1 POST receipt cannot be reconstructed from a GET or matching name. Missing, conflicting or incomplete receipts stay closed. The ordinary GitHub Actions adapter binds exact source revision/digest, repository, run and artifact archive digest. It polls an in-progress publication for up to ten minutes, then reports pending so the same retained job can resume. A non-GitHub target requires an explicitly supplied trusted publication adapter; Workers Builds additionally requires its private durable journal adapter. No WongStack hosted account is required. These are source contracts; native Windows and live backend integration need their separate verification.
+
+The generated B commit owns only `app/wrangler.jsonc` and `.claude/.wong-stack.json`. The install record retains the immutable installation/resource tuple as pending routing metadata while preserving its source version and business fields. Lost commit or push replies recover that exact commit, and unrelated staged work or changed business configuration stops. Startup hooks load that routing tuple and independently prove the current machine’s private state.
+
+A `team-remove` job may supply `memoryRemoval: {accountId, tuple}` privately, where `tuple` is the retained exact installation/repository/machine/grant identity and revisions. Revocation acknowledges the exact tuple before reporting blocked/revoked. Human email or GitHub removal alone reports machine revocation pending.

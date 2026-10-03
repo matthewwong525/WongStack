@@ -16,6 +16,7 @@ import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangl
 import { ACCOUNT, GROUPS, TOKEN, fakeCloudflare, fakeGh, groupId, startingPolicies } from './fixtures/cloudflare.mjs';
 import { humanEmails } from '../../.agents/skills/wong-setup/scripts/private-access.mjs';
 import { privateDeployment } from '../lib-access-config.mjs';
+import { retainedStore } from './fixtures/memory/setup.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SCRIPT = join(repoRoot, '.agents/skills/wong-setup/scripts/provision.mjs');
@@ -467,7 +468,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
   delete env.CLOUDFLARE_API_TOKEN;
   delete env.CLOUDFLARE_ACCOUNT_ID;
   const sleeps = [];
-  const base = { token: TOKEN, api: fake.api, account: ACCOUNT, repo: REPO, dir, env, sleep: async (ms) => sleeps.push(ms) };
+  const base = { token: TOKEN, api: fake.api, account: ACCOUNT, repo: REPO, dir, env, memorySetupStore:retainedStore(null,root), sleep: async (ms) => sleeps.push(ms) };
   return {
     root, dir, fake, gh, env, sleeps,
     provision: (options = {}) => provision({ ...base, base: 'recipe-box', today: TODAY, ...options }),
@@ -997,7 +998,7 @@ test('the script runs end to end as a process, and prints no secret', async (t) 
   const { base } = JSON.parse(found.stdout);
   const made = await cli(['provision', '--repo', REPO, '--base', base]);
   assert.equal(made.code, 0, made.stderr);
-  assert.equal(JSON.parse(made.stdout).memory.worker, 'https://recipe-box.ada.workers.dev/_memory');
+  assert.equal(JSON.parse(made.stdout).memory.memoryOrigin, 'https://recipe-box.ada.workers.dev');
   assertNoSecret(env, made.stdout, made.stderr, found.stdout);
 });
 
@@ -1007,4 +1008,23 @@ test('a memory bucket pin variable is not an R2 binding and custom R2 configurat
 });
 test('an existing different memory bucket binding remains unchanged and receives exact correction guidance',async t=>{
  const e=await setup(t);await e.provision();const file=join(e.dir,'app/wrangler.jsonc'),custom=readFileSync(file,'utf8').replace('"bucket_name": "recipe-box-memory"','"bucket_name": "custom-memory"');writeFileSync(file,custom);const report=await e.provision();assert.equal(readFileSync(file,'utf8'),custom);assert.ok(report.todo.includes('set MEMORY_BUCKET bucket_name to recipe-box-memory in app/wrangler.jsonc'));assert.deepEqual(e.config().r2_buckets,[{binding:'MEMORY_BUCKET',bucket_name:'custom-memory'}]);
+});
+
+
+import { completeMachineSetup } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
+import { setupFixture } from './fixtures/memory/setup.mjs';
+import { loadConfig,openStore } from '../../.agents/skills/memory/scripts/lib/store.mjs';
+import { machineStateDirectory } from '../../.agents/skills/memory/scripts/lib/machine-client-state.mjs';
+
+test('ordinary post-publication completion connects the installed startup caller with its own private machine',async t=>{
+ const f=await setupFixture(t),dir=f.store.dir;mkdirSync(join(dir,'app'));mkdirSync(join(dir,'.claude'));
+ const file=join(dir,'.claude/.wong-stack.json'),origin=f.target.memoryOrigin;
+ writeFileSync(join(dir,'app/wrangler.jsonc'),JSON.stringify({name:f.target.appWorkerName}));
+ writeFileSync(file,JSON.stringify({version:'preserved',components:{memory:{databaseId:f.target.databaseId,bucket:f.target.bucketName,worker:origin+'/_memory'},access:{mode:'private',appId:f.access.appApplicationId,teamDomain:f.access.issuer.slice(8),audience:f.access.audience}}}));
+ const configure=f.publication.configure;f.publication.configure=async installation=>{const record=JSON.parse(readFileSync(file));record.components.memory.installation=installation;record.components.memory.status='pending-setup';writeFileSync(file,JSON.stringify(record));return configure(installation);};
+ const result=await completeMachineSetup({dir,account:f.target.accountId,repo:'fixture/repo',store:f.store,publication:f.publication,operator:f.operator});assert.equal(result.status,'ready');
+ const ctx={root:dir,stateDir:machineStateDirectory(f.installation)},config=loadConfig(ctx);assert.deepEqual(config.installation,f.installation);
+ const store=openStore(ctx);await store.ready();assert.deepEqual(await store.operation('sessions',{ids:[]}),[]);
+ assert.equal(JSON.parse(readFileSync(file)).components.memory.status,'pending-setup');
+ assert.equal((await completeMachineSetup({dir,account:f.target.accountId,repo:'fixture/repo',store:f.store,publication:f.publication,operator:f.operator})).status,'ready');
 });

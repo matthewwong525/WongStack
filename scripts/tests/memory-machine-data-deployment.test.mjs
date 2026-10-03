@@ -1,12 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dataFixture,deployFixtureVersion,successorInput,attempt,captureInput } from './fixtures/memory/data.mjs';
-import { recordMachineDeployment,readMachineDataStatus,captureMachineData } from '../../.agents/skills/memory/scripts/lib/machine-data-operator.mjs';
+import { recordMachineDeployment,readMachineDataStatus,captureMachineData,inspectPendingMachineDeployment } from '../../.agents/skills/memory/scripts/lib/machine-data-operator.mjs';
 import { readRuntimeState } from '../../.agents/skills/memory/scripts/lib/machine-runtime-state.mjs';
 import { runtimeContext } from '../../.agents/skills/memory/worker/machine-context.mjs';
 import { readMachineRuntimeStatus,renewRuntimeMachine } from '../../.agents/skills/memory/scripts/lib/machine-runtime-operator.mjs';
 import { renewalInput } from './fixtures/memory/runtime.mjs';
 const denied=e=>['target-mismatch','unreviewed-deployment','machine-operation-incomplete','machine-attempt-conflict','machine-authority-stale'].includes(e.code);
+
+test('pending deployment inspection is trusted and read-only even after an unacknowledged actual version',async t=>{
+ const f=await dataFixture(t),evidence=await deployFixtureVersion(f),before=f.snapshot();
+ const result=await inspectPendingMachineDeployment(f.context);assert.equal(result.evidence.pinHash,evidence.pinHash);assert.equal(result.head.pinHash,f.dataUpgrade.genesis.pinHash);assert.deepEqual(f.snapshot(),before);
+ await assert.rejects(inspectPendingMachineDeployment(f.public),e=>e.code==='machine-context-denied');assert.deepEqual(f.snapshot(),before);
+});
 
 test('unreviewed actual version blocks reads; exact reviewed successor accepts without old version current',async t=>{
  const f=await dataFixture(t),oldMachine=f.db.prepare('SELECT * FROM memory_machine_configuration').get(),oldRuntime=f.db.prepare('SELECT * FROM memory_runtime_configuration').get();

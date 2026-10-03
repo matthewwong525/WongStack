@@ -101,7 +101,7 @@ function originHead(root, branch) {
 // Worker; `remoteDefault` names the remote's default branch. `env` adds to or,
 // with `undefined`, removes from the script's environment.
 function deploy(t, { branch, generated, remoteDefault, config = deployConfig, env = {} } = {}) {
-  const fixture = pack(t, { scripts: ['cf-deploy.sh', ...LIB], config, tools: { npx: deployNpx }, prefix: 'cf-deploy-' });
+  const fixture = pack(t, { scripts: ['cf-deploy.sh', 'memory-deploy.mjs', ...LIB], config, tools: { npx: deployNpx }, prefix: 'cf-deploy-' });
   fixture.write('scripts/check-private-access.mjs', '// Routing-only fixture: provider enforcement has its own integration tests.\n');
   if (remoteDefault) originHead(fixture.root, remoteDefault);
   if (generated) {
