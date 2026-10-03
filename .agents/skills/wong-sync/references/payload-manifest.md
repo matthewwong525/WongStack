@@ -1,21 +1,21 @@
 # The payload manifest
 
-[`payload-files.json`](payload-files.json) lists the files install, sync, and the payload link check use; this page owns its rules. Copy only selected entries. Adapt a file the target already has through plan and apply; never overwrite it unreviewed.
+[`payload-files.json`](payload-files.json) lists install, sync, and link-check files; this page owns the rules. Copy selected entries; plan and apply adaptations to existing files, never overwrite them unreviewed.
 
 ## Categories
 
 Every install starts empty and takes **every** category.
 
-- **Core** always ships: WongStack workflow skills with their whole `references/` and `scripts/` folders, the browser discovery skill, the hidden `hand-over` skill whose scripts open the private links, the hidden `browser` skill that runs Cloudflare's cloud browser when a site blocks the agent's own, `/improve` for one useful improvement, the `/routine` Paseo scheduler and its scripts, the `memory` skill with its session-start and pre-edit hooks for Claude (`.claude/settings.json`) and Codex (`.claude/hooks.json`), Codex project settings (`.claude/config.toml`), the Paseo project file (`paseo.json`), path rules, process pages, CI's `.nvmrc`, test workflow, scripts (the wiki check among them) and shared change-scope action, and the `WONG-STACK` block of `CLAUDE.md`.
+- **Core** always ships: whole workflow skill folders (`references/` and `scripts/`), browser discovery, hidden `hand-over` private links and `browser` Cloudflare browser for blocked sites, `/improve`, `/routine` Paseo scheduling, `memory` with Claude session-start/pre-edit hooks (`.claude/settings.json`) and Codex hooks (`.claude/hooks.json`), Codex settings (`.claude/config.toml`), `paseo.json`, path rules, process pages, CI's `.nvmrc`, test workflow, scripts including the wiki check, shared change-scope action, and `CLAUDE.md`'s `WONG-STACK` block.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds the pipeline scripts, workflow, schema, and `wiki/stack/` pages.
 - **Scaffold** adds `app/`, except `app/wrangler.jsonc`, which holds source-repo database IDs.
 
 ## The agent folder
 
-A target keeps the payload in one real `.agents/` folder, linked as `.claude` and `.codex`, as here. The inventory's logical `.claude/` paths install under `.agents/`: `.claude/hooks.json` is Codex's `.codex/hooks.json`, and `.claude/config.toml` its `.codex/config.toml`, which turns on Default-mode questions. Codex loads `.agents/skills` natively, so each agent loads a skill once.
+Keep one real `.agents/` folder linked as `.claude` and `.codex`. Inventory paths are logical `.claude/`, installed under `.agents/`: Codex reads `.claude/hooks.json` as `.codex/hooks.json` and `.claude/config.toml` as `.codex/config.toml` for Default-mode questions. Native `.agents/skills` discovery loads each skill once.
 
-Likewise a real `AGENTS.md` holds the `WONG-STACK` block and `CLAUDE.md` links to it: Codex reads only `AGENTS.md` and Claude Code reads `CLAUDE.md`, so one file serves both and no copy drifts. The inventory's block unit stays `CLAUDE.md`, read through the link. A sync plans the move, keeping every line of the target's own text:
+A real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex reads the former, Claude Code the latter; the inventory's block unit remains `CLAUDE.md` through the link. Sync plans the move, preserving all target text:
 
 - a real `CLAUDE.md` and no `AGENTS.md` — `git mv CLAUDE.md AGENTS.md`, then `ln -s AGENTS.md CLAUDE.md`;
 - a real `CLAUDE.md` and a real `AGENTS.md` — a reviewed task merges both into `AGENTS.md` with one `WONG-STACK` block, then links `CLAUDE.md`; never overwrite either file;
@@ -25,15 +25,15 @@ On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`,
 
 An install from before 19.0.0 may still have a real `.claude/` or `.codex/` folder, or `AGENTS.md` linking to a real `CLAUDE.md`. [Catching up an older install](catch-up.md) owns those moves, and the rest such an install missed.
 
-A skill installed under a local name keeps it: the record's `components.skills` mapping beats defaults. The inventory limits copying, not how far exploration follows a named dependency or impact. Never copy target-owned notes, app code, business docs, or OpenSpec records. No install seeds `wiki/people/` or other knowledge sections; they grow from use.
+The record's `components.skills` mapping preserves local skill names. Inventory limits copying, not exploration of named dependencies or impacts. Never copy target-owned notes, app code, business docs, or OpenSpec records, or seed `wiki/people/` or other knowledge sections; those grow from use.
 
 Setup also copies the source's values-blank `.env.example`. It is not in `payload-files.json`, so a sync never updates it.
 
 ## Deterministic sync preflight
 
-[`preflight.mjs`](../scripts/preflight.mjs) compares one target's payload at the record's `commit` and at the refreshed source `HEAD`, over the union of both commits' `payload-files.json`, so every addition, removal, folder entry, exclusion, and manifest edit shows. It always selects `core`, `ui`, `pack`, and `scaffold`; `seededBySetup` is not payload.
+[`preflight.mjs`](../scripts/preflight.mjs) compares the record's `commit` with refreshed source `HEAD` over both commits' `payload-files.json` union, including additions, removals, folders, exclusions, and manifest edits. It selects `core`, `ui`, `pack`, and `scaffold`; `seededBySetup` is not payload.
 
-The record's skill names map upstream `.claude/skills/<name>/` to local folders: a string array maps each to itself; an object, or source-and-local pairs, keeps renames. A new upstream skill keeps its name until implementation records another. Paths are logical `.claude/`, even from `.agents/`.
+The record maps upstream `.claude/skills/<name>/` to local folders: string arrays keep names; objects or source/local pairs keep renames. New skills keep upstream names until implementation records another. Paths remain logical `.claude/`, including from `.agents/`.
 
 A source symlink is read one hop by Git path (this source's `CLAUDE.md` links to `AGENTS.md`); a link to a folder, a link, or nothing is no unit, and a real file beats a link at the same path.
 
@@ -66,7 +66,9 @@ Every `/wong-sync`, however old, reads this page from the source, so the plan's 
 
 ## The memory store and its hooks
 
-**memory** ships as one folder on OpenSpec's Node.js: script, schema migrations, the Worker's route module, runbook, and [writing bar](../../memory/references/writing-facts.md). Merge its `SessionStart` and `PreToolUse` hooks into a target's own `.claude/settings.json` or `.claude/hooks.json`; never replace the file. Codex asks once to trust a new hook. Plan the store by [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). A sync adding a migration requires a reviewed trusted migration after deployment; ordinary CLI SQL migration is retired. Full unattended trusted setup and legacy cutover remain pending. The folder also ships finite core modules and private client state/queue modules; mini apps receive no memory configuration. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+**memory** ships on OpenSpec's Node.js: script, migrations, Worker route, runbook, [writing bar](../../memory/references/writing-facts.md), finite core, private client state/queue, generic setup, private setup-state, and strict public results. Merge `SessionStart`/`PreToolUse` into the target's `.claude/settings.json` or `.claude/hooks.json`; never replace either. Codex asks once to trust a new hook. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require reviewed trusted migration after deployment; ordinary CLI SQL migration is retired. Mini apps receive no memory configuration. [The memory convention](../../../../wiki/development/memory.md) owns the rest.
+
+The pack explicitly ships four memory publication scripts with `cf-deploy.sh`, keeping imports inside copied core/pack. Source-only provisioning retains the original D1 creation receipt and publishes reviewed generated config/install-record changes. Callers use only record routing metadata and prove their own private machine. GitHub Actions delivers durable nonsecret artifacts; other hosts need the explicit [private journal adapter](../../../../wiki/stack/d1-pipeline.md#memory-publication). Existing-store migration and live integration require separate verification.
 
 ## The Paseo project file
 
@@ -74,7 +76,7 @@ Every `/wong-sync`, however old, reads this page from the source, so the plan's 
 
 ## The stack pack
 
-Every install takes the pack. Drop-in files follow copy-or-adapt; config fragments merge into target-owned files through [`stack-pack-fragments.md`](stack-pack-fragments.md). All of [`wiki/stack/`](../../../../wiki/stack/README.md) ships with it; the [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core, because `/verify` works on other hosts too.
+Every install takes the pack: copy or adapt drop-ins; merge config fragments by [`stack-pack-fragments.md`](stack-pack-fragments.md). All [`wiki/stack/`](../../../../wiki/stack/README.md) ships. The [staging walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core for `/verify` on other hosts.
 
 Create live database IDs and secrets in the target; never copy them. No copied file may carry a live `database_id` or source-repo database name, so the source's `app/wrangler.jsonc` stays out and [provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) builds the target's from a fragment.
 
@@ -95,6 +97,3 @@ Outside the target inventory: `wong-setup`, `update-dependencies`, the `server/`
 ## Install record
 
 Create a fresh `.claude/.wong-stack.json`: `upstream.repo` names the repository actually installed, including a fork; version and commit come from that checkout, and `upstream.clone` hints at its cache. Later sync follows this source. Record the target's memory store ids, local skill names, and install/update dates; never copy the source's record, memory bindings, or live config. Advance it only after agreed changes and any generated-layer migration. It holds no mode.
-
-
-The memory core includes generic setup, private setup-state and strict public result libraries under the copied memory skill. The pack explicitly ships the four memory publication scripts with `cf-deploy.sh`; their imports stay inside the copied core/pack closure. Setup’s source-only provisioning adapter owns the original D1 creation receipt and the reviewed generated configuration/install-record publication. An installed caller loads only routing metadata from that record and proves its own private machine before use. GitHub Actions supplies durable nonsecret artifact delivery; other hosts require the explicit [private journal adapter](../../../../wiki/stack/d1-pipeline.md#memory-publication). Existing-store migration and live integration remain separate verification.
