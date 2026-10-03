@@ -20,7 +20,9 @@ async function site(t) {
   t.after(close);
   const get = path => fetch(url + path).then(response => response.text());
   const api = async (method, path, body) => {
-    const response = await fetch(url + path, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+    const init = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) init.body = JSON.stringify(body);
+    const response = await fetch(url + path, init);
     return { status: response.status, text: await response.text() };
   };
   // A form post, then the page the redirect lands on, as a browser would show it.
