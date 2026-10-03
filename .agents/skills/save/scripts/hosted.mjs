@@ -2,7 +2,7 @@
 // Project access only: platform credentials never reach this client.
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { existsSync, readFileSync, lstatSync, openSync, closeSync, fchmodSync, fstatSync, writeFileSync, constants } from 'node:fs';
+import { existsSync, readFileSync, lstatSync, openSync, closeSync, fchmodSync, fstatSync, writeFileSync, realpathSync, constants } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const execute = promisify(execFile);
@@ -211,4 +211,4 @@ async function main() {
   }
   console.log(JSON.stringify(await command(action,args,context)));
 }
-if (process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) main().catch(error=>{console.error(error.code==='HOSTED_ACCESS_MISSING' ? 'Hosted access is missing. Reconnect through WongStack Cloud or obtain an operator private handoff.' : 'Hosted operation failed; check access and service status.');process.exitCode=1;});
+if (process.argv[1] && import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href) main().catch(error=>{console.error(error.code==='HOSTED_ACCESS_MISSING' ? 'Hosted access is missing. Reconnect through WongStack Cloud or obtain an operator private handoff.' : 'Hosted operation failed; check access and service status.');process.exitCode=1;});

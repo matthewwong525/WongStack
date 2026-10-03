@@ -3,10 +3,28 @@ import { test } from 'node:test';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, statSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { credential, command, request, safeContext, validateContext, loadContext, writeSecrets, initialBranch } from '../../.agents/skills/save/scripts/hosted.mjs';
 import { verifyRefs } from '../../server/prepare-hosted.mjs';
 const context={serviceUrl:'https://hosted.example.com',projectId:'11111111-1111-1111-1111-111111111111',token:'private-machine-token',gitUrl:'https://git.example.com/account/namespace/repo.git',sourceRepo:'owner/WongStack',sourceCommit:'a'.repeat(40),ownerEmail:'owner@example.com',subject:'owner-1',subjectEmail:'owner@example.com',role:'owner'};
 const response=value=>({ok:true,status:200,json:async()=>value});
+test('installed hosted CLI executes through the .claude skill directory symlink',()=>{
+  const root=mkdtempSync(join(tmpdir(),'hosted-cli-alias-'));
+  try {
+    assert.equal(spawnSync('git',['init','--quiet',root]).status,0);
+    const agents=join(root,'.agents','skills','save','scripts');mkdirSync(agents,{recursive:true});
+    const target=fileURLToPath(new URL('../../.agents/skills/save/scripts/hosted.mjs',import.meta.url));
+    symlinkSync(target,join(agents,'hosted.mjs'));
+    symlinkSync(join(root,'.agents'),join(root,'.claude'));
+    for(const entry of [target,join(root,'.claude','skills','save','scripts','hosted.mjs')]) {
+      const result=spawnSync(process.execPath,[entry,'context'],{cwd:root,encoding:'utf8'});
+      assert.equal(result.status,0,result.stderr);
+      assert.deepEqual(JSON.parse(result.stdout),{hosted:false});
+      assert.equal(result.stderr,'');
+    }
+  } finally {rmSync(root,{recursive:true,force:true});}
+});
 test('context rejects unsafe destinations and leaves credentials out of reports',()=>{
   for(const url of ['http://hosted.example.com','https://user:secret@hosted.example.com','https://hosted.example.com/?secret']) assert.throws(()=>validateContext({...context,serviceUrl:url}));
   assert.throws(()=>validateContext({...context,sourceCommit:'main'}));

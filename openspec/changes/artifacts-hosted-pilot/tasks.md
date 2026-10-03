@@ -110,4 +110,6 @@ wh1005 renewed trial (2026-10-03) is LIVE on exact source1bb2bae/cloud9059b32 af
 
 Current wh1005 acceptance: user-dependent checks are explicitly waived and SKIPPED/UNVERIFIED. Automated shared setup is blocked by an actual HTTP 502 during protected hosting configuration; remaining automatic acceptance tasks stay unchecked. Exact staging code/config was restored after external drift, with production unchanged.
 
-- [ ] 12.10 Repair the observed Cloudflare Access code 12130 failure using exactly the protected canonical hostname anchor plus the three actual Worker IDs; require the exact remote source gate before isolated service update, then retry actual customer setup. Keep all negative protection assertions.
+- [x] 12.10 Repair the observed Cloudflare Access code 12130 failure using exactly the protected canonical hostname anchor plus the three actual Worker IDs; require the exact remote source gate before isolated service update, then retry actual customer setup. Keep all negative protection assertions.
+
+- [ ] 12.11 Resolve the installed hosted CLI entry through its real filesystem path and prove direct and `.claude` directory-alias execution with a subprocess test; require an exact remote source gate.
