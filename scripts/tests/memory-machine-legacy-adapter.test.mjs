@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { importFixture,hash } from './fixtures/memory/legacy-import.mjs';
 import { trustedLegacyAdapter,legacyCapability,closeLegacyAuthority,readLegacyDenial,enumerateLegacyAuthority,mutateLegacyAuthority } from '../../.agents/skills/memory/scripts/lib/machine-legacy-adapter.mjs';
-import { legacyHash } from '../../.agents/skills/memory/scripts/lib/machine-legacy-inventory.mjs';
 const binding=f=>({attemptId:f.intent.attemptId,requestHash:f.intent.requestHash,universeHash:f.intent.universeHash});
 test('adapter has no default transport and management is independent of former ordinary credentials',async t=>{
  const f=await importFixture(t);assert.throws(()=>trustedLegacyAdapter({target:f.target,authorization:f.authorization,callbacks:{},journal:{}}));

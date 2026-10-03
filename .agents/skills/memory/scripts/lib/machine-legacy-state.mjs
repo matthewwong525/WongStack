@@ -1,7 +1,7 @@
 // Exact15 validation. Historical14 receipts and request frames remain distinct.
 import { runtimeContext } from '../../worker/machine-context.mjs';
 import { coreProtectionDdl,normalizeCoreDdl,compiledCoreHashes } from '../../worker/machine-core-contract.mjs';
-import { legacyDdl,legacyTables,compiledLegacyHashes } from '../../worker/machine-legacy-contract.mjs';
+import { legacyDdl,compiledLegacyHashes } from '../../worker/machine-legacy-contract.mjs';
 import { machineLegacyMigrations } from './machine-legacy-migrations.mjs';
 import { machineDataMigrations } from './machine-data-migrations.mjs';
 import { machineHash } from './machine-state.mjs';

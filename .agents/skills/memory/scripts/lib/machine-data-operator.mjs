@@ -1,5 +1,4 @@
 // Inactive source entrypoints; no routes, CLI, hooks, setup integration or resource creation.
-import { legacyExposureGuard } from './machine-legacy-state.mjs';
 import { compiledLegacyHashes } from '../../worker/machine-legacy-contract.mjs';
 import { runtimeContext,providerMachineContext,dataInspectionContext } from '../../worker/machine-context.mjs';
 import { inspectMachinePins,sameMachineValue,machineDigest } from './machine-operator.mjs';

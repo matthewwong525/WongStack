@@ -106,7 +106,7 @@ export async function removeSetupMachine({operator,store,tuple}) {
 // signed candidate privately. Public connectivity is proved only after final15 exposure.
 import { readMachineState,writeMachineState,withMachineLock } from './machine-client-state.mjs';
 import { signClient,clientRuntimeRequestHash,exactRuntimeReceipt,machineCall } from './machine-client.mjs';
-import { enrollRuntimeMachine,validateRuntimeBearer } from './machine-runtime-operator.mjs';
+import { validateRuntimeBearer } from './machine-runtime-operator.mjs';
 import { readLegacyState } from './machine-legacy-state.mjs';
 import { runtimeContext } from '../../worker/machine-context.mjs';
 export async function prepareLegacySetupEnrollment({ctx,context,installation,destination,capability,snapshot}) {

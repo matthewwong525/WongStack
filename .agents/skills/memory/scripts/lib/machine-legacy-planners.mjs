@@ -3,7 +3,6 @@ import { machineHash } from './machine-state.mjs';
 import { legacyHash } from './machine-legacy-inventory.mjs';
 import { legacyManifestHash,legacySchemaHash } from './machine-legacy-state.mjs';
 import { compiledLegacyHashes } from '../../worker/machine-legacy-contract.mjs';
-import { machineManifestHash } from './machine-state.mjs';
 import { runtimeManifestHash } from './machine-runtime-state.mjs';
 import { dataManifestHash } from './machine-data-state.mjs';
 import { digest } from './installation-validation.mjs';

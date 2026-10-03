@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { importFixture,completedImportFixture,hash } from './fixtures/memory/legacy-import.mjs';
-import { applyLegacyCutover,prepareLegacyCutover } from '../../.agents/skills/memory/scripts/lib/machine-legacy-operator.mjs';
+import { prepareLegacyCutover } from '../../.agents/skills/memory/scripts/lib/machine-legacy-operator.mjs';
 import { readLegacyState } from '../../.agents/skills/memory/scripts/lib/machine-legacy-state.mjs';
 import { readMachineRuntimeStatus } from '../../.agents/skills/memory/scripts/lib/machine-runtime-operator.mjs';
 test('exact completed source retry independently proves closure/current source/pins and never reports ready',async t=>{

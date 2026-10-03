@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { completedImportFixture,importFixture,additionalImportMachine,MACHINE,GRANT,TOKEN,hash } from './fixtures/memory/legacy-import.mjs';
+import { completedImportFixture,importFixture,additionalImportMachine,GRANT,hash } from './fixtures/memory/legacy-import.mjs';
 import { originalLegacyUniverse,correctLegacyOwnership } from '../../.agents/skills/memory/scripts/lib/machine-legacy-operator.mjs';
 import { readLegacyState } from '../../.agents/skills/memory/scripts/lib/machine-legacy-state.mjs';
 import { digest } from '../../.agents/skills/memory/scripts/lib/installation-validation.mjs';

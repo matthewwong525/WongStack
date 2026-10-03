@@ -1,6 +1,6 @@
 // Finite, separately authorized trusted process. No default provider or network transport.
 import { exactKeys,requireValue,resourceTarget,opaqueId } from './installation-validation.mjs';
-import { legacyHash,legacyDigest,retainedLegacyInventory,freezeLegacy } from './machine-legacy-inventory.mjs';
+import { legacyHash,legacyDigest,freezeLegacy } from './machine-legacy-inventory.mjs';
 import { boundLegacyProjection,legacyReadback,inspectLegacyClosure } from './machine-legacy-closure.mjs';
 const adapters=new WeakMap();
 const kinds=Object.freeze(['accounts','zones','workers','versions','domains','routes','previews','bindings','credentials','bucketOrigins']);
