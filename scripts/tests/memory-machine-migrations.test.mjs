@@ -11,7 +11,7 @@ import { enrolledMachineFixture, MACHINE } from './fixtures/memory/machines.mjs'
 test('separate schema12 manifest covers all SQL bytes and preserves historical11 manifest', async () => {
   assert.equal(memoryMigrations.length, 11);
   assert.deepEqual(machineMigrations.slice(0, 11), memoryMigrations);
-  assert.deepEqual(machineMigrations.map(row => row.filename), migrationFiles());
+  assert.deepEqual(machineMigrations.map(row => row.filename), migrationFiles().filter(name => parseInt(name, 10) <= 12));
   for (const [index, row] of machineMigrations.entries()) {
     assert.equal(row.version, index + 1);
     assert.equal(await digest(migrationSql(row.filename)), row.sha256);
