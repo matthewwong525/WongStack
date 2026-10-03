@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Smoother key link
+## 29.14.0 — Smoother key link
 
 Giving your assistant a key now takes one page and about a minute.
 
