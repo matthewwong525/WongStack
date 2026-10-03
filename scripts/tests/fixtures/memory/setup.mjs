@@ -9,19 +9,22 @@ import { machineStateDirectory } from '../../../../.agents/skills/memory/scripts
 import { trustedMachineDataContext,readMachineDataStatus,inspectMachineDeployment,recordMachineDeployment } from '../../../../.agents/skills/memory/scripts/lib/machine-data-operator.mjs';
 import { compiledCoreHashes } from '../../../../.agents/skills/memory/worker/machine-core-contract.mjs';
 import { handleMemory } from '../../../../.agents/skills/memory/worker/memory-worker.mjs';
+import { fixtureProgress } from './lifecycle.mjs';
 export function retainedStore(value=null,dir=null) {
  let state=value,chain=Promise.resolve();const history=[];
  return {dir,history,read:async()=>state&&structuredClone(state),write:async next=>{state=structuredClone(next);history.push(structuredClone(next));},lock:async work=>{const old=chain;let unlock;chain=new Promise(r=>{unlock=r;});await old;try{return await work();}finally{unlock();}}};
 }
 const fixtureTransports=new WeakMap();
 export async function setupFixture(t) {
+ const testLabel=t.name;fixtureProgress('trusted-setup-start',testLabel);
  const f=machineFixture(t,{standalone:true});f.scope='memory:read memory:write';
  const dir=mkdtempSync(join(tmpdir(),'wong-setup-fixture-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
  f.store=retainedStore({target:{account:f.target.accountId,name:'fixture-memory'},database:{method:'POST',id:f.target.databaseId,name:'fixture-memory',path:`/accounts/${f.target.accountId}/d1/database`}},dir);
  for(const name of f.workers.keys())f.setBinding(name,'CF_VERSION_METADATA',{type:'version_metadata'});
  f.observation=async()=>{const evidence=await inspectMachineDeployment(f.operator,f.target);return {verified:true,sourceHash:'a'.repeat(64),sourceRevision:'1'.repeat(40),proof:{kind:'trusted-private-adapter',receiptId:'fixture-publication'.padEnd(32,'0'),sourceHash:'a'.repeat(64),sourceRevision:'1'.repeat(40)},target:f.target,...await compiledCoreHashes(),workerVersions:Object.fromEntries(evidence.projection.workers.map(w=>[w.name,w.versionId])),deploymentReceipt:f.deploymentReceipt??null};};
- f.publication={wait:async()=>f.observation(),configure:async installation=>{
-  if(f.deploymentReceipt)return {revision:'1'.repeat(40)};
+ f.publication={wait:async()=>{fixtureProgress('publication-wait-start',testLabel);const result=await f.observation();fixtureProgress('publication-wait-complete',testLabel);return result;},configure:async installation=>{
+  fixtureProgress('publication-configure-start',testLabel);
+  if(f.deploymentReceipt){fixtureProgress('publication-configure-complete',testLabel);return {revision:'1'.repeat(40)};}
   f.installation=installation;f.context=await trustedMachineDataContext(f.operator,installation);f.beforeDeploymentSnapshot=(await readMachineDataStatus(f.context)).snapshot;
   f.dataUpgrade=(await f.store.read()).steps.data.input;
   const version='22222222-2222-4222-8222-222222222222';
@@ -29,12 +32,13 @@ export async function setupFixture(t) {
   f.deploymentReceipt=(await recordMachineDeployment(f.context,await successorInput(f,await inspectMachineDeployment(f.operator,f.target)))).operation;
   f.env={WONG_ENVIRONMENT:'production',MEMORY_DB:d1Fixture(f),MEMORY_INSTALLATION:JSON.stringify(installation),MEMORY_DATABASE_ID:f.target.databaseId,MEMORY_BUCKET_NAME:f.target.bucketName,MEMORY_WORKER_NAME:f.target.memoryWorkerName,CF_VERSION_METADATA:{id:version}};
   const objects=new Map();f.env.MEMORY_BUCKET={get:async key=>objects.get(key),put:async(key,bytes)=>{objects.set(key,{body:bytes});}};
-  return {revision:'1'.repeat(40)};
+  fixtureProgress('publication-configure-complete',testLabel);return {revision:'1'.repeat(40)};
  }};
  if(!fixtureTransports.has(t))fixtureTransports.set(t,globalThis.fetch);
  const original=fixtureTransports.get(t);
- globalThis.fetch=async(url,options)=>{if(f.denyRead&&String(url).endsWith('/query'))return Response.json({success:false,code:'machine-proof-denied'},{status:403});return handleMemory(new Request(url,options),f.env);};
- t.after(()=>{globalThis.fetch=original;if(f.installation)rmSync(machineStateDirectory(f.installation),{recursive:true,force:true});});
+ globalThis.fetch=async(url,options)=>{fixtureProgress('setup-request-start',testLabel);try{if(f.denyRead&&String(url).endsWith('/query'))return Response.json({success:false,code:'machine-proof-denied'},{status:403});return await handleMemory(new Request(url,options),f.env);}finally{fixtureProgress('setup-request-finished',testLabel);}};
+ t.after(()=>{fixtureProgress('trusted-setup-teardown-start',testLabel);globalThis.fetch=original;if(f.installation)rmSync(machineStateDirectory(f.installation),{recursive:true,force:true});fixtureProgress('trusted-setup-teardown-complete',testLabel);});
+ fixtureProgress('trusted-setup-ready',testLabel);
  return f;
 }
 

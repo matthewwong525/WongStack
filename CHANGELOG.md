@@ -13,6 +13,19 @@ This feature is still in progress. The Devices approval mini app has been remove
 
 **Updating.** When this feature is ready, use trusted machine setup and the reviewed legacy migration. Memory may pause during cutover. Old keys will be retired only after verified replacement, and a clone, typed email or machine name will never claim old private notes.
 
+## 29.14.0 — Smoother key link
+
+Giving your assistant a key now takes one page and about a minute.
+
+- **Everything is on the link's page.** It shows a plain name for the key, a button that opens the service's key page, and a few short steps, above the box. The assistant writes them for that service when it sends the link; nothing per service is stored. With no steps, the page looks as before.
+- **The link comes straight away and stays open for 30 minutes**, up from 10, with no *Ready?* question. The page shows the time left. A link you haven't opened closes early when another private link is needed on the same computer; the assistant then offers a new one.
+- **The key is tested when you save.** When the assistant knows a harmless request that proves a key works, the page tries it once and says *Works*. A key the service refuses is not saved unless you tap *Save anyway*. With no test, or no answer, the key is saved and the page says it was not tested. The page names the address it tests against.
+- **Paste with one tap, and long keys work.** *Paste* fills the box from your clipboard. A key over several lines, or a small key file such as Google's, is accepted: paste it, or pick the file, which your device reads itself.
+
+The password link and the live browser link keep their *Ready?* question and their 10 minutes. A key still never passes through the chat, a log, or a published file.
+
+**Updating.** No action needed. The link's scripts and guides arrive with the usual update.
+
 ## 29.13.1 — A check that needs the published change is a thread
 
 - The preview check page says what to do with a check only the published change can pass: record it as an open thread and run it right after publishing, not as a task that can never be ticked.

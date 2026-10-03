@@ -8,15 +8,18 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { coreFixture,MACHINE,GRANT,TOKEN } from './core.mjs';
 import { handleMemory } from '../../../../.agents/skills/memory/worker/memory-worker.mjs';
+import { fixtureProgress,trackFixtureChild } from './lifecycle.mjs';
 const REPO=resolve(fileURLToPath(new URL('../../../..',import.meta.url))),SCRIPTS=join(REPO,'.agents/skills/memory/scripts');
 // NODE_OPTIONS reaches detached startup/run/drain descendants as well as this child.
 const transportOptions=options=>`${options||''} --import ${JSON.stringify(join(REPO,'scripts/tests/fixtures/memory/transport.mjs'))}`;
 export const SECRET='super-secret-value-123';
-export function tempDir(t,prefix){const dir=mkdtempSync(join(tmpdir(),'wong-test-'+prefix));t.after(()=>rmSync(dir,{recursive:true,force:true}));return dir;}
+export function tempDir(t,prefix){const testLabel=t.name;fixtureProgress('temp-directory-start',testLabel);const dir=mkdtempSync(join(tmpdir(),'wong-test-'+prefix));t.after(()=>{fixtureProgress('temp-directory-teardown-start',testLabel);rmSync(dir,{recursive:true,force:true});fixtureProgress('temp-directory-teardown-complete',testLabel);});fixtureProgress('temp-directory-ready',testLabel);return dir;}
 const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
 export function writeJsonFile(dir,name,value){const file=join(dir,name);writeFileSync(file,JSON.stringify(value));return file;}
 export async function setup(t,{bucket=true,scope}={}) {
+ const testLabel=t.name;fixtureProgress('core-setup-start',testLabel);
  const f=await coreFixture(t,{bucket,scope}),root=tempDir(t,'memory-repo-'),home=tempDir(t,'memory-home-');
+ fixtureProgress('core-setup-ready',testLabel);
  git(root,'init','-q','-b','main');git(root,'config','user.email','dev@example.com');git(root,'config','user.name','Dev');
  mkdirSync(join(root,'.claude'),{recursive:true});writeFileSync(join(root,'.claude','.wong-stack.json'),JSON.stringify({components:{memory:{installation:f.installation}}}));
  writeFileSync(join(root,'.env'),`CLOUDFLARE_MEMORY_TOKEN=retired-no-authority\nSERVICE_TOKEN=${SECRET}\n`);writeFileSync(join(root,'README.md'),'fixture\n');git(root,'add','README.md');git(root,'commit','-q','-m','fixture');
@@ -27,6 +30,7 @@ export async function setup(t,{bucket=true,scope}={}) {
  writeFileSync(join(stateDir,'machine.json'),JSON.stringify(state),{mode:0o600});
  let offline=false,dropAfter=null,delay=0,reply=null;const calls=[],unexpected=[];
  const server=createServer(async(req,res)=>{
+  fixtureProgress('http-request-start',testLabel);
   try {
    // Consume the body before an artificial delay so a timeout does not leave an
    // unobserved aborted IncomingMessage rejection in the fixture callback.
@@ -40,25 +44,29 @@ export async function setup(t,{bucket=true,scope}={}) {
   } catch(error) {
    if(req.aborted&&(error.code==='ECONNRESET'||error.message==='aborted'))return;
    unexpected.push(error);res.destroy();
-  }
+  } finally {fixtureProgress('http-request-finished',testLabel);}
  });
- await new Promise(done=>server.listen(0,'127.0.0.1',done));t.after(async()=>{await new Promise(done=>{server.closeAllConnections();server.close(done);});if(unexpected.length)throw new AggregateError(unexpected,'unexpected actual-core fixture HTTP error');});
+ fixtureProgress('http-listen-start',testLabel);
+ await new Promise(done=>server.listen(0,'127.0.0.1',done));fixtureProgress('http-listen-ready',testLabel);
+ t.after(async()=>{fixtureProgress('http-shutdown-start',testLabel);await new Promise(done=>{server.closeAllConnections();server.close(done);});fixtureProgress('http-shutdown-complete',testLabel);if(unexpected.length)throw new AggregateError(unexpected,'unexpected actual-core fixture HTTP error');});
  const repo={root,home,claudeHome:join(home,'claude'),codexHome:join(home,'codex'),stateDir};
  const fake={...f,api:`http://127.0.0.1:${server.address().port}`,calls,setOffline:value=>{offline=value;},dropNext:value=>{dropAfter=value;},setDelay:value=>{delay=value;},setReply:value=>{reply=value;},close:()=>{}};return {repo,fake};
 }
 export function node(repo,fake,script,args=[],{input,env={}}={}) {
  const childEnv={...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1',WONG_TIDY:'0',WONG_MEMORY_CLAUDE_HOME:repo.claudeHome,WONG_MEMORY_CODEX_HOME:repo.codexHome,...env,NODE_OPTIONS:transportOptions(env.NODE_OPTIONS??process.env.NODE_OPTIONS)};
- return new Promise(done=>{const child=execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),join(SCRIPTS,script),...args],{cwd:repo.root,env:childEnv,encoding:'utf8',timeout:60000},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr:error?[stderr,`fixture child failed: ${script} ${args[0]||''} (code=${error.code??'none'}, signal=${error.signal||'none'}, killed=${Boolean(error.killed)})`].filter(Boolean).join('\n'):stderr}));child.stdin.end(input);});
+ return new Promise(done=>{const child=execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),join(SCRIPTS,script),...args],{cwd:repo.root,env:childEnv,encoding:'utf8',timeout:60000},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr:error?[stderr,`fixture child failed: ${script} ${args[0]||''} (code=${error.code??'none'}, signal=${error.signal||'none'}, killed=${Boolean(error.killed)})`].filter(Boolean).join('\n'):stderr}));trackFixtureChild(child);child.stdin.end(input);});
 }
 export const memory=(repo,fake,args,options)=>node(repo,fake,'memory.mjs',args,options);
 export const rows=(env,sql,...params)=>env.fake.db.prepare(sql).all(...params).map(row=>({...row}));
 
 export function register(repo,entry){
+ fixtureProgress('registry-child-start');
  const url=new URL('../../../../.agents/skills/memory/scripts/lib/transcripts.mjs',import.meta.url).href;
  execFileSync(process.execPath,['--input-type=module','-e',`import {registerSession} from ${JSON.stringify(url)};await registerSession({stateDir:${JSON.stringify(repo.stateDir)}},${JSON.stringify(entry)});`],{env:{...process.env,HOME:repo.home,USERPROFILE:repo.home},stdio:'pipe',timeout:15000});
+ fixtureProgress('registry-child-complete');
 }
 
 // Test-only child module entry preserves the same private HOME and HTTPS fixture transport.
 export function clientScript(repo,fake,body){
- return new Promise(done=>execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),'--input-type=module','-e',body],{cwd:repo.root,env:{...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1',NODE_OPTIONS:transportOptions(process.env.NODE_OPTIONS)},timeout:15000,encoding:'utf8'},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr})));
+ return new Promise(done=>{const child=execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),'--input-type=module','-e',body],{cwd:repo.root,env:{...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1',NODE_OPTIONS:transportOptions(process.env.NODE_OPTIONS)},timeout:15000,encoding:'utf8'},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr}));trackFixtureChild(child);});
 }
