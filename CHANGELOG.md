@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Keep the pictures from a preview check
+## 29.13.0 — Keep the pictures from a preview check
 
 - A preview check keeps its pictures. They go into the private storage that holds the chat transcripts, and the report on the pull request links each one. Only people who can log in to your app can open a link.
 - Ask in chat for a past check's pictures, and the assistant shows them again.
