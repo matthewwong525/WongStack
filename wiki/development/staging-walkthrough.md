@@ -36,6 +36,7 @@ A scenario **no probe reaches** is **listed by name as unverified**, never silen
 - **Evidence is scrubbed before it leaves the machine.** The driver adds the Access token to every request, so a journey that lists requests copies it into evidence; one did. Every `.env` value and token-shaped string in the run folder's text is replaced before the comment is posted. Pictures can't be read, so a journey never captures request headers.
 - **The comment links each picture and shows none inline,** because GitHub fetches a picture without the reader's login and would get nothing. Only a public bucket's pictures can sit in the comment.
 - **A plain check posts nothing unless you ask.** A screenshot or a click-through with no change behind it has no promise to grade, and a pull-request comment reports a change's verdict.
+- **A check only the published change can pass is a thread, not a task.** An unticked task stops [`/ship`](../../.agents/skills/ship/SKILL.md)'s archive, and this one can't be ticked before the merge: *a kept picture opens on the live site*. Record it as an open `verify` thread in [memory](memory.md), run it right after the merge, and write the result on the thread.
 
 ### Walk the app the way a person does
 
