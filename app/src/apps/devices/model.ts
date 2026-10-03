@@ -47,7 +47,7 @@ type Rule = (value: unknown) => boolean
 const record = (value: unknown): value is RecordValue => typeof value === 'object' && value !== null && !Array.isArray(value)
 const shape = (value: unknown, rules: Record<string, Rule>): value is RecordValue =>
   record(value) && Object.keys(value).length === Object.keys(rules).length && Object.entries(rules).every(([key, rule]) => rule(value[key]))
-const text: Rule = (value) => typeof value === 'string' && value.length > 0 && value.length <= 100 && !/[\u0000-\u001f\u007f]/.test(value)
+const text: Rule = (value) => typeof value === 'string' && value.length > 0 && value.length <= 100 && !/\p{Cc}/u.test(value)
 const id: Rule = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value)
 const nullable = (rule: Rule): Rule => (value) => value === null || rule(value)
 const oneOf = (values: readonly string[]): Rule => (value) => typeof value === 'string' && values.includes(value)

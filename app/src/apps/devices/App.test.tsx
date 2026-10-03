@@ -41,7 +41,7 @@ function pending<T>() {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no })
   return { promise, resolve, reject }
 }
-const click = async (name: string) => { await act(async () => { fireEvent.click(screen.getByRole('button', { name, exact: true })) }) }
+const click = async (name: string) => { await act(async () => { fireEvent.click(screen.getByRole('button', { name })) }) }
 const match = () => fireEvent.click(screen.getByRole('checkbox', { name: 'My request; code matches' }))
 
 it('uses the main frame and appears in the home list without an extra login or People controls', async () => {
@@ -248,6 +248,45 @@ it('lists personal pending requests and follows a new link in the same tab with 
   expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false)
 })
 
+it('starts refresh in loading and clears acknowledgement when the same request returns', async () => {
+  const { fetchMock } = await open(undefined, requestPage)
+  match()
+  const wait = pending<Response>()
+  fetchMock.mockImplementation(async (url) => url === root + 'session' ? wait.promise : json(url === root + `requests/${request.id}` ? request : []))
+  await click('Refresh')
+  expect(screen.getByText('Checking devices…')).toBeTruthy()
+  expect(screen.queryByText(request.code)).toBeNull()
+  await act(async () => { wait.resolve(json(session)) })
+  expect(screen.getByText(request.code)).toBeTruthy()
+  expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false)
+})
+
+it('clears an open request on invalid same-tab navigation without another fetch', async () => {
+  const { fetchMock, router } = await open(undefined, requestPage)
+  match()
+  const fetchCount = fetchMock.mock.calls.length
+  await act(async () => { await router.navigate(`${requestPage}&secret=bad`) })
+  expect(screen.getByText('Devices unavailable here.')).toBeTruthy()
+  expect(screen.queryByText(request.code)).toBeNull()
+  expect(fetchMock).toHaveBeenCalledTimes(fetchCount)
+  await act(async () => { await router.navigate(requestPage) })
+  expect(screen.getByText(request.code)).toBeTruthy()
+  expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false)
+})
+
+it('closes revoke confirmation when its session proof expires', async () => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date(Date.parse(future) - 86_400_000))
+  const { fetchMock } = await open(answers({ devices: [device], session: { ...session, csrfExpiresAt: new Date(Date.now() + 1000).toISOString() } }))
+  await click('Revoke Laptop')
+  expect(screen.getByRole('heading', { name: 'Revoke Laptop?' })).toBeTruthy()
+  const fetchCount = fetchMock.mock.calls.length
+  await act(async () => { vi.advanceTimersByTime(1000) })
+  expect(screen.queryByRole('button', { name: 'Revoke' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Revoke Laptop' })).toBeNull()
+  expect(fetchMock).toHaveBeenCalledTimes(fetchCount)
+})
+
 it('confirms revocation inline, preserves connected state on failure, and only adopts a server tombstone', async () => {
   const wait = pending<Response>()
   const mutation = vi.fn(async () => json({}, 500))
@@ -271,6 +310,18 @@ it('confirms revocation inline, preserves connected state on failure, and only a
   await act(async () => { wait.resolve(json({ ...device, status: 'revoked' })) })
   expect(screen.getByText('Revoked')).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Revoke Laptop' })).toBeNull()
+})
+
+it('confirms one computer at a time and leaves other computers connected after revocation', async () => {
+  const desktop = { ...device, id: 'device_desktop_1234567890123456789', label: 'Desktop' }
+  await open(answers({ devices: [device, desktop] }, async () => json({ ...desktop, status: 'revoked' })))
+  await click('Revoke Laptop')
+  await click('Revoke Desktop')
+  expect(screen.queryByRole('heading', { name: 'Revoke Laptop?' })).toBeNull()
+  expect(screen.getByRole('heading', { name: 'Revoke Desktop?' })).toBeTruthy()
+  await click('Revoke')
+  expect(within(screen.getByText('Laptop').closest('li')!).getByText('Connected')).toBeTruthy()
+  expect(within(screen.getByText('Desktop').closest('li')!).getByText('Revoked')).toBeTruthy()
 })
 
 it('shows dates, renewal/reapproval and ten-device guidance; removed authority has no revoke control', async () => {

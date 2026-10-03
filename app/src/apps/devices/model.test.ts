@@ -11,7 +11,7 @@ it('accepts only sanitized exact projections and bounded unique scopes', () => {
   expect(displayDate(future)).toBeTruthy()
   for (const value of [null, [], 'text', {}, { ...request, privateSecret: 'never render this' }, { ...request, id: 'short' }, { ...request, id: null },
     { ...request, label: '' }, { ...request, label: 'x'.repeat(101) }, { ...request, label: 'bad\nlabel' },
-    { ...request, label: 5 }, { ...request, code: 'not a code' }, { ...request, code: 3 },
+    { ...request, label: 'bad\u0085label' }, { ...request, label: 5 }, { ...request, code: 'not a code' }, { ...request, code: 3 },
     { ...request, scopes: [] }, { ...request, scopes: 'team-read' }, { ...request, scopes: ['team-read', 'team-read'] },
     { ...request, scopes: ['unknown'] }, { ...request, scopes: [false] }, { ...request, scopes: Array(5).fill('team-read') },
     { ...request, expiresAt: 'tomorrow' }, { ...request, expiresAt: '2026-99-99T00:00:00Z' }, { ...request, expiresAt: 1 },
