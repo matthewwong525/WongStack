@@ -17,7 +17,7 @@ import { isMain } from '../.agents/skills/memory/scripts/lib/cli.mjs';
 import { ProvisionError, names, provision, run, widen, cloudflare as cloudflareTransport, readEnv, installationPublication } from '../.agents/skills/wong-setup/scripts/provision.mjs';
 import { ownerIdentity } from '../.agents/skills/wong-setup/scripts/private-access.mjs';
 import { checkedOutSource, managementDestination, validateExistingManagementResult, writeManagementResult } from './access-result.mjs';
-import { setupStore,persistSetup } from '../.agents/skills/memory/scripts/lib/machine-setup-state.mjs';
+import { setupStore } from '../.agents/skills/memory/scripts/lib/machine-setup-state.mjs';
 import { setupOperator,trustedMachineSetup,removeSetupMachine } from '../.agents/skills/memory/scripts/lib/machine-setup.mjs';
 import { memoryResult } from '../.agents/skills/memory/scripts/lib/memory-result.mjs';
 import { parseConfig } from '../scripts/lib-wrangler-config.mjs';

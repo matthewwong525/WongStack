@@ -7,10 +7,9 @@ import { trustedMachineDataContext,prepareMachineData,inspectMachineDeployment,r
 import { inspectResources,inspectProtection } from './installation-resources.mjs';
 import { resourceTarget,requireValue,rows } from './installation-validation.mjs';
 import { compiledCoreHashes } from '../../worker/machine-core-contract.mjs';
-import { machineHash } from './machine-state.mjs';
 import { persistSetup } from './machine-setup-state.mjs';
-import { machineStateDirectory,readMachineState } from './machine-client-state.mjs';
-import { prepareClientKey,enrollClient,refreshMachine,machineCall,clientHash,runtimeSnapshot } from './machine-client.mjs';
+import { machineStateDirectory } from './machine-client-state.mjs';
+import { prepareClientKey,enrollClient,refreshMachine,clientHash,runtimeSnapshot } from './machine-client.mjs';
 import { memoryResult,observeMachineMemory } from './memory-result.mjs';
 
 export function setupOperator(cloudflare) {

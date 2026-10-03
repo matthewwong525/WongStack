@@ -9,7 +9,7 @@ import { deployFixtureVersion } from './fixtures/memory/data.mjs';
 import { retainedStore,publicationArchive } from './fixtures/memory/setup.mjs';
 import { preparePublication,preparePublicationAcknowledgment,acknowledgePublication,durablePublication } from '../lib-memory-publication.mjs';
 import { validatePublicationJournal,verifyArtifactReceipt,readPublicationArchive,verifyArtifactBytes } from '../memory-deploy-journal.mjs';
-import { publicationConfiguration,artifactName,pipelineContext,runPublicationPhase,bindArtifact,restorePublication,publishedObservation,verifyActualPublication } from '../memory-deploy-pipeline.mjs';
+import { publicationConfiguration,artifactName,pipelineContext,runPublicationPhase,bindArtifact,restorePublication,publishedObservation } from '../memory-deploy-pipeline.mjs';
 const source={revision:'1'.repeat(40),digest:'2'.repeat(64)};
 function journal() {const store=retainedStore();return {read:store.read,persist:async value=>store.write(validatePublicationJournal(value))};}
 const params=(f,j)=>({context:f.context,journal:j,installation:f.installation,source,verify:async evidence=>assert.equal(evidence.targetJson,JSON.stringify(f.target))});
