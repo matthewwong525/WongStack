@@ -695,7 +695,7 @@ test('a fresh provision with R2 on makes closed memory resources, both databases
     accountId: ACCOUNT, databaseId: 'uuid-recipe-box-memory', database: 'recipe-box-memory', bucket: 'recipe-box-memory',
     worker:'https://recipe-box.ada.workers.dev/_memory',protocolVersion:2,status:'pending-setup',reason:'trusted-machine-setup-required',
   });
-  assert.deepEqual(env.fake.rows('recipe-box-memory',"SELECT name FROM sqlite_master WHERE name LIKE 'memory_%'"),[],'pending memory has no opened fake database');assert.ok(!env.fake.calls.some(call=>/\/d1\/database\/uuid-recipe-box-memory\/query$/.test(call.path)),'no memory SQL/schema calls before trusted setup');
+  assert.deepEqual(env.fake.rows('recipe-box-memory',"SELECT name FROM sqlite_master WHERE name LIKE 'memory_%'"),[],'pending memory has no opened fake database');assert.ok(!env.fake.calls.some(call=>call.path.endsWith('/d1/database/uuid-recipe-box-memory/query')),'no memory SQL/schema calls before trusted setup');
   assert.equal(readEnv(join(env.dir,'.env')).CLOUDFLARE_MEMORY_TOKEN,undefined);
   assert.equal(report.memory.status,'pending-setup');
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_API_TOKEN, TOKEN, 'the other .env lines stay');
@@ -815,7 +815,7 @@ for (const [where, refuse] of [
     assert.equal(env.fake.state.databases.length, 3);
     assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
     assert.equal(env.fake.state.accountTokens.length, 1);
-    assert.deepEqual(env.fake.rows('recipe-box-memory',"SELECT name FROM sqlite_master WHERE name='memory_keys'"),[]);assert.ok(!env.fake.calls.some(call=>/\/d1\/database\/uuid-recipe-box-memory\/query$/.test(call.path)),'retry never runs a memory schema or authority query');
+    assert.deepEqual(env.fake.rows('recipe-box-memory',"SELECT name FROM sqlite_master WHERE name='memory_keys'"),[]);assert.ok(!env.fake.calls.some(call=>call.path.endsWith('/d1/database/uuid-recipe-box-memory/query')),'retry never runs a memory schema or authority query');
     assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-1));
     assert.ok(env.config().name);
   });
