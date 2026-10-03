@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -28,6 +28,7 @@ function fixture(t) {
 [ "$3" = "set" ] && printf '%s' "$5" > "${root}/headers.json" && printf '%s' "$CLOUDFLARE_API_TOKEN" > "${root}/token"
 [ "$3" = "get" ] && echo "http://127.0.0.1/"
 [ "$3" = "open" ] && printf '%s' "$AGENT_BROWSER_PROFILE" > "${root}/profile"
+[ "$3" = "batch" ] && [ -n "$LIST_REQUESTS" ] && printf '{"requests":[{"headers":%s}]}' "$(cat "${root}/headers.json")"
 exit 0
 `);
   chmodSync(join(bin, 'agent-browser'), 0o755);
@@ -53,6 +54,97 @@ test('the walk reads .env through the memory parser and escapes the Access heade
   assert.equal(seen[0]['cf-access-client-secret'], SECRET);
   assert.deepEqual(JSON.parse(readFileSync(join(root, 'headers.json'), 'utf8')), { 'CF-Access-Client-Id': 'client-id.access', 'CF-Access-Client-Secret': SECRET });
   assert.equal(readFileSync(join(root, 'token'), 'utf8'), 'tok=en==');
+  assert.match(stdout, /^REDACTED=0$/m, 'a walk whose evidence holds no credential changes no file');
+});
+
+// ── The scrub ─────────────────────────────────────────────────────────────────
+
+const GITHUB_TOKEN = 'ghp_abcdefghijklmnopqrstuvwxyz0123';
+const asJson = value => JSON.stringify(value).slice(1, -1);
+const CREDENTIALS = [SECRET, asJson(SECRET), 'client-id.access', GITHUB_TOKEN];
+const holdsCredential = text => CREDENTIALS.some(value => text.includes(value));
+
+// Every regular file under the run folder; a link is left out, as the scrub leaves it.
+const filesUnder = dir => readdirSync(dir, { recursive: true }).map(name => join(dir, name)).filter(file => lstatSync(file).isFile());
+
+function assertScrubbed(run, { stdout, stderr }) {
+  for (const file of filesUnder(run)) assert.equal(holdsCredential(readFileSync(file, 'latin1')), false, `${file} still holds a credential`);
+  assert.equal(holdsCredential(stdout + stderr), false, 'the script printed a credential');
+}
+
+const walk = (args, options) => new Promise((done, fail) => execFile('bash', [script, ...args], { encoding: 'utf8', ...options },
+  (error, stdout, stderr) => (error ? fail(new Error(`exit ${error.code}`)) : done({ stdout, stderr }))));
+
+// The failure the scrub exists for: the driver adds the Access token to every request, a journey lists
+// the requests the browser made, an endpoint echoes its headers, and the token lands in evidence.
+test('run scrubs the Access token it sent out of the evidence, and prints no value', async t => {
+  const { root, work, bin, run } = fixture(t);
+  const server = createServer((req, res) => res.end(JSON.stringify(req.headers)));
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => server.close());
+  mkdirSync(join(run, 'evidence/page'), { recursive: true });
+  writeFileSync(join(run, 'evidence/page/network.txt'), `CF-Access-Client-Secret: ${SECRET}\nAuthorization: token ${GITHUB_TOKEN}\n`);
+  const picture = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x00, 0x0d, 0xff, 0xfe]);
+  writeFileSync(join(run, 'evidence/page/01.png'), picture);
+  writeFileSync(join(root, 'outside.txt'), SECRET);
+  symlinkSync(join(root, 'outside.txt'), join(run, 'evidence/page/linked.txt'));
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, LIST_REQUESTS: '1' };
+  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN']) delete env[key];
+
+  const output = await walk(['run', run, `http://127.0.0.1:${server.address().port}`], { cwd: work, env });
+
+  assert.match(output.stdout, /RESULT: WALKED/);
+  // The echoed response, the listed requests, and the planted file. The picture and the link are not text files.
+  assert.match(output.stdout, /^REDACTED=3$/m);
+  assertScrubbed(run, output);
+  const listed = JSON.parse(readFileSync(join(run, 'evidence/page.result.json'), 'utf8'));
+  assert.deepEqual(listed.requests[0].headers, { 'CF-Access-Client-Id': '[redacted:.env]', 'CF-Access-Client-Secret': '[redacted:.env]' });
+  assert.match(readFileSync(join(run, 'evidence/api/01-response.txt'), 'utf8'), /"cf-access-client-secret":"\[redacted:\.env\]"/);
+  assert.equal(readFileSync(join(run, 'evidence/page/network.txt'), 'utf8'), 'CF-Access-Client-Secret: [redacted:.env]\nAuthorization: token [redacted:token]\n');
+  assert.deepEqual(readFileSync(join(run, 'evidence/page/01.png')), picture);
+  assert.equal(readFileSync(join(root, 'outside.txt'), 'utf8'), SECRET, 'a file outside the run folder was rewritten');
+});
+
+// State-probe evidence and the comment are written after `run`, so `publish` scrubs again, bucket or not.
+test('publish scrubs the comment, a result file, and later evidence before its bucket check', t => {
+  const { work, run } = fixture(t);
+  mkdirSync(join(run, 'evidence/state'), { recursive: true });
+  writeFileSync(join(run, 'comment.md'), `## Staging walkthrough\n\nSent \`CF-Access-Client-Secret: ${SECRET}\`.\n`);
+  writeFileSync(join(run, 'evidence/state.result.json'), JSON.stringify({ headers: { 'CF-Access-Client-Secret': SECRET } }));
+  writeFileSync(join(run, 'evidence/state/01-query.txt'), `secret=${SECRET} id=client-id.access\n`);
+  const env = { ...process.env };
+  for (const key of ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CLOUDFLARE_API_TOKEN', 'WALK_MEDIA_BUCKET', 'WALK_MEDIA_BASE_URL']) delete env[key];
+  const publish = () => spawnSync('bash', [script, 'publish', run], { cwd: work, env, encoding: 'utf8' });
+
+  const first = publish();
+  assert.match(first.stdout, /RESULT: NONE\n {2}no WALK_MEDIA_BUCKET.*\nREDACTED=3\n$/);
+  assertScrubbed(run, first);
+  assert.equal(readFileSync(join(run, 'comment.md'), 'utf8'), '## Staging walkthrough\n\nSent `CF-Access-Client-Secret: [redacted:.env]`.\n');
+  assert.deepEqual(JSON.parse(readFileSync(join(run, 'evidence/state.result.json'), 'utf8')), { headers: { 'CF-Access-Client-Secret': '[redacted:.env]' } });
+  assert.match(publish().stdout, /^REDACTED=0$/m, 'a second pass finds nothing left');
+});
+
+test('outside a checkout, publish still scrubs an exported Access token and token shapes', t => {
+  const { root, run } = fixture(t);
+  const exported = 'exported-access-secret-0123456789';
+  writeFileSync(join(run, 'comment.md'), `secret ${exported} and ${GITHUB_TOKEN}\n`);
+  const env = { ...process.env, CF_ACCESS_CLIENT_SECRET: exported, WALK_MEDIA_BUCKET: 'walks' };
+  for (const key of ['CF_ACCESS_CLIENT_ID', 'CLOUDFLARE_API_TOKEN', 'WALK_MEDIA_BASE_URL']) delete env[key];
+
+  const noBase = spawnSync('bash', [script, 'publish', run], { cwd: root, env, encoding: 'utf8' });
+  assert.match(noBase.stdout, /RESULT: UNKNOWN\n[\s\S]+\nREDACTED=1\n$/);
+  assert.equal(readFileSync(join(run, 'comment.md'), 'utf8'), 'secret [redacted:.env] and [redacted:token]\n');
+  assert.equal((noBase.stdout + noBase.stderr).includes(exported), false);
+
+  const uploaded = spawnSync('bash', [script, 'publish', run], { cwd: root, env: { ...env, WALK_MEDIA_BASE_URL: 'https://media.example' }, encoding: 'utf8' });
+  assert.match(uploaded.stdout, /RESULT: WALKED\nREDACTED=0\n$/);
+});
+
+// A scrub that could not run must never read as a clean one.
+test('a scrub that cannot run reports unknown, not a count', t => {
+  const { root, work } = fixture(t);
+  const result = spawnSync('bash', [script, 'publish', join(root, 'no-such-run')], { cwd: work, encoding: 'utf8' });
+  assert.match(result.stdout, /^REDACTED=unknown$/m);
 });
 
 test('a request that never answers times out, and HEAD probes return headers', async t => {
