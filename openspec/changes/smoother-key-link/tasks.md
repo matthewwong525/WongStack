@@ -23,5 +23,5 @@
 
 ## 4. Integration
 
-- [ ] 4.1 Run `/save` and confirm CI passes on the pull request.
-- [ ] 4.2 Run `/verify`: from a scratch Git checkout that declares a dummy key, open the real tunnel link with a guide and walk it at 390×844 through *Works* (a test address that accepts anything), a refusal, *Save anyway*, a picked JSON file, the time left, and an unopened link giving way; post the pictures, confirm the scratch file's line reads back through `dotenv`, and close memory thread #508.
+- [x] 4.1 Run `/save` and confirm CI passes on the pull request.
+- [x] 4.2 Run `/verify`: from a scratch Git checkout that declares a dummy key, open the real tunnel link with a guide and walk it at 390×844 through *Works* (a test address that accepts anything), a refusal, *Save anyway*, a picked JSON file, the time left, and an unopened link giving way; post the pictures, confirm the scratch file's line reads back through `dotenv`, and close memory thread #508.

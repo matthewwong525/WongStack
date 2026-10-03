@@ -209,10 +209,13 @@ export async function checkKey(check, value, ask = globalThis.fetch) {
 // ---------------------------------------------------------------------------
 // Writing a key
 
-/** Text over several lines as one storable value: JSON compacted, other text as it is. */
+/**
+ * Text over several lines as one storable value: JSON compacted, other text as it is. A `'` inside the
+ * JSON is written as its `\u0027` escape, the same data, so single quotes hold any key file.
+ */
 function compact(text) {
   try {
-    return JSON.stringify(JSON.parse(text));
+    return JSON.stringify(JSON.parse(text)).replaceAll("'", '\\u0027');
   } catch {
     return text;
   }

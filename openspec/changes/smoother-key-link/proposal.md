@@ -1,6 +1,6 @@
 # Smoother key link
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** simplify-credential-input
 **Open questions:** none
 
@@ -123,3 +123,5 @@ None.
 - **2026-10-03** — Assumed: built tasks 1.1–3.2; the key-link steps on the secrets page were kept short and the person's detail put on the API keys page, because that page is at its size limit.
 - **2026-10-03** — Assumed: six failing tests in the server-project file are not from this change, because the same six fail on the published version on this computer.
 - **2026-10-03** — Assumed: saved for the automatic checks with tasks 1.1–3.2 built and the main specs brought in line with this change; the phone-size walk (4.2) is still to do.
+- **2026-10-03** — Assumed: an apostrophe inside a JSON key file is stored as its escape, because the phone-size walk showed such a file could not be saved, and the escape reads back as the same data.
+- **2026-10-03** — Assumed: every task is done, because the walk at phone size passed after that fix. One thing it found is left alone: a link opened in the very second it is made can show Cloudflare's error page, which was already so before this change.

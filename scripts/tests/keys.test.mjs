@@ -487,6 +487,10 @@ test('a key over several lines is stored on one line that reads back with the sa
   assert.ok(json.startsWith("K='{\"type\":\"service_account\","), 'compacted, in single quotes');
   assert.ok(!json.includes('\n'));
   assert.deepEqual(JSON.parse(dotenvValue(json)), KEY_FILE, 'the same data');
+  const quoted = { ...KEY_FILE, note: "it's \"ours\"" };
+  const apostrophe = formatLine('K', cleanValue(JSON.stringify(quoted, null, 2)));
+  assert.ok(apostrophe.startsWith("K='{") && !apostrophe.slice(3, -1).includes("'"), 'an apostrophe is escaped, so single quotes still hold it');
+  assert.deepEqual(JSON.parse(dotenvValue(apostrophe)), quoted, 'the same data');
 
   for (const text of [PEM, PEM.replaceAll('\n', '\r\n'), `  ${PEM}\n\n`, "it's a key\nover two lines #1"]) {
     const line = formatLine('K', cleanValue(text));
