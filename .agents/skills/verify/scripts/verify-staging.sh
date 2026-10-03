@@ -3,13 +3,18 @@
 # same every time, so the only thing the agent authors per run is the journeys
 # themselves.
 #
-# `/verify` calls this, in four phases:
+# `/verify` calls this, in five phases:
 #
 #   verify-staging.sh scout-check          → can a walk start at all? (no network)
 #   verify-staging.sh preflight [--no-browser]
 #                                          → can we walk, and what do we walk?
 #   verify-staging.sh run <run-dir> <url>  → drive the journeys, capture evidence
+#   verify-staging.sh publish <run-dir>    → keep the screenshots, or say why not
 #   verify-staging.sh cleanup <run-dir>    → leave no trace
+#
+# and, for a walk that already ran:
+#
+#   verify-staging.sh pictures <pr>        → fetch that walk's kept screenshots
 #
 # `scout-check` exists so that "there is nothing to walk" costs nothing. It
 # answers the one question the scout needs before spending anything — are we in
@@ -53,10 +58,27 @@
 # This script DOES install its own tool, and says so. It never installs a
 # language runtime: that still asks first, per the toolchain convention.
 #
+# ── Where the screenshots go ──────────────────────────────────────────────────
+# `publish` prints a `<local-path><TAB><url>` line per kept screenshot, then
+# says how they were kept:
+#
+#   MEDIA=private  — kept by the production site at /_walk/, behind its login.
+#                    The default: it needs no setting, only the memory store's
+#                    bucket and the app's login.
+#   MEDIA=public   — WALK_MEDIA_BUCKET is set: uploaded to that public bucket,
+#                    so the comment can show them inline.
+#   MEDIA=none     — nothing was kept. A REASON= line says why, in the words
+#                    the comment repeats; with no REASON there was no
+#                    screenshot to keep.
+#
+# `pictures <pr>` reads the kept links back out of a pull request's comments
+# and downloads them into a fresh run directory, for `cleanup` to remove. The
+# Access token goes only to the recorded production site, and is never printed.
+#
 # Depends on: git, curl, node; agent-browser only when a browser journey exists.
-# (`publish` additionally uses wrangler, and is optional and stack-pack-only —
-# nothing else here needs it. Its WALK_MEDIA_* variables keep their historical
-# names: renaming a variable users already set breaks them silently.)
+# (`pictures` additionally uses gh. The public-bucket path of `publish` uses
+# wrangler and is stack-pack-only. Its WALK_MEDIA_* variables keep their
+# historical names: renaming a variable users already set breaks them silently.)
 set -uo pipefail
 
 CMD="${1:-preflight}"
@@ -94,6 +116,83 @@ load_credentials() {
       CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET)
   fi
   export CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
+}
+
+has_access_token() { [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; }
+
+# The production site's address: the Worker the memory store records, read
+# through the memory skill so a linked worktree gets the primary checkout's.
+# Prints nothing when no store is recorded.
+production_origin() {
+  node --input-type=module -e '
+    const [store, root] = process.argv.slice(1);
+    const { loadConfig, repoContext } = await import((await import("node:url")).pathToFileURL(store));
+    const worker = loadConfig(repoContext(root)).worker;
+    if (worker) console.log(new URL(worker).origin);
+  ' "$1/.claude/skills/memory/scripts/lib/store.mjs" "$1" 2>/dev/null
+}
+
+# The names the picture route keeps (.claude/skills/verify/worker/walk-pictures.mjs).
+# Checked here too, so a path the route would not keep is never sent.
+WALK_NAME='[a-z0-9][a-z0-9._-]*'
+WALK_FILE="^$WALK_NAME/$WALK_NAME\\.png\$"
+WALK_KEPT="^[0-9a-f]{7,40}/[0-9]{8}T[0-9]{6}Z/$WALK_NAME/$WALK_NAME\\.png\$"
+
+# Why the site turned the first upload away, from its status and body.
+refusal_reason() {
+  case "$1:$2" in
+    404:*no_bucket*) echo "the Cloudflare account has no storage (it needs a payment method)" ;;
+    404:*no_login*)  echo "the site has no login yet, so pictures would be open to anyone" ;;
+    401:*|403:*|30?:*) echo "the live site refused the access token" ;;
+    000:*|5??:*)     echo "the live site did not answer" ;;
+    # An older site hands /_walk/ to its page shell, which answers no JSON.
+    *)               echo "the live site does not serve pictures yet (it does after the next publish)" ;;
+  esac
+}
+
+# Keep the run's screenshots on the production site, behind its login. The
+# first upload decides: when the site turns it away, nothing is kept and
+# REASON says why. A later failure costs that picture only.
+publish_private() {
+  local run_dir="$1" origin="" sha stamp f rel target out status kept=0 failed=0 reason=""
+  if [ -z "$(find "$run_dir/evidence" -type f -name '*.png' 2>/dev/null | head -1)" ]; then
+    emit NONE; note "no screenshot to keep"; echo "MEDIA=none"; return
+  fi
+  [ -n "$ROOT" ] && origin=$(production_origin "$ROOT")
+  [ -n "$ROOT" ] && load_credentials "$ROOT"
+  if [ -z "$origin" ]; then
+    reason="no memory store is set up for this repo"
+  elif ! has_access_token; then
+    reason="this machine has no access token for the site"
+  fi
+  sha=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+  # One stamp per publish, so a repeat walk of this commit gets its own folder.
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  while [ -z "$reason" ] && IFS= read -r f; do
+    rel="${f#"$run_dir"/evidence/}"
+    if ! [[ "$rel" =~ $WALK_FILE ]]; then failed=$((failed + 1)); continue; fi
+    target="$origin/_walk/$sha/$stamp/$rel"
+    out=$(curl -sS --max-time 60 -X PUT --data-binary "@$f" -H 'Content-Type: image/png' \
+      -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+      -w '\n%{http_code}' "$target" 2>/dev/null) || out=$'\n000'
+    status="${out##*$'\n'}"
+    case "$status" in
+      201) printf '%s\t%s\n' "$f" "$target"; kept=$((kept + 1)) ;;
+      # This picture only: already kept, too large, or not a PNG.
+      409|413|415) failed=$((failed + 1)) ;;
+      *) if [ "$kept" -eq 0 ]; then reason=$(refusal_reason "$status" "${out%$'\n'*}"); else failed=$((failed + 1)); fi ;;
+    esac
+  done < <(find "$run_dir/evidence" -type f -name '*.png' 2>/dev/null | sort)
+  if [ "$kept" -eq 0 ]; then
+    emit NONE
+    echo "MEDIA=none"
+    echo "REASON=${reason:-the live site took none of them (wrong name, too large, or not a picture)}"
+    return
+  fi
+  # A picture that was not kept costs the picture, never the verdict.
+  [ "$failed" -gt 0 ] && note "$failed picture(s) were not kept — leave them out of the comment"
+  emit WALKED
+  echo "MEDIA=private"
 }
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -240,25 +339,31 @@ run)
   ;;
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Optional, and stack-pack-only. Uploads the run's screenshots to a public
-# bucket so the PR comment can show them instead of naming local paths, and
-# prints a `<local-path><TAB><public-url>` line per file for the caller to
-# substitute. Request- and state-probe evidence is text, quoted inline in the
-# comment, and never uploaded.
+# Keeps the run's screenshots where the PR comment can link them, and prints a
+# `<local-path><TAB><url>` line per kept file for the caller to substitute,
+# then MEDIA= (and REASON= when nothing was kept): see the header. Request- and
+# state-probe evidence is text, quoted inline in the comment, and never
+# uploaded.
 #
-# Nothing depends on this. With no bucket configured the comment cites local
-# paths, which is a rung down, not a failure — the prose carries the record and
-# the pictures only corroborate it.
+# Nothing depends on this. Pictures that were not kept cost the pictures, never
+# the verdict — the prose carries the record and the pictures only corroborate
+# it. The comment then says why, and never names a local path: `cleanup`
+# deletes those.
+#
+# With no WALK_MEDIA_BUCKET the production site keeps them privately. With one,
+# the public-bucket path below runs as it always has, and is stack-pack-only.
 publish)
   RUN_DIR="${2:-}"
   if [ -z "${WALK_MEDIA_BUCKET:-}" ]; then
-    emit NONE; note "no WALK_MEDIA_BUCKET — the comment will cite local paths"; exit 0
+    publish_private "$RUN_DIR"; exit 0
   fi
   BASE="${WALK_MEDIA_BASE_URL:-}"
   if [ -z "$BASE" ]; then
     emit UNKNOWN
     note "WALK_MEDIA_BUCKET is set but WALK_MEDIA_BASE_URL is not — an uploaded"
     note "object with no public base URL cannot be linked. See .env.example."
+    echo "MEDIA=none"
+    echo "REASON=the public picture folder has no web address set (WALK_MEDIA_BASE_URL)"
     exit 0
   fi
   PREFIX="walkthrough/$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -274,9 +379,73 @@ publish)
   # A failed upload costs the pictures, never the verdict: the judgement was
   # already made from evidence on disk, and the written comment stands alone.
   if [ "$FAILED" -gt 0 ]; then
-    note "$FAILED file(s) failed to upload — those cite local paths instead"
+    note "$FAILED file(s) failed to upload — leave them out of the comment"
   fi
   emit WALKED
+  echo "MEDIA=public"
+  ;;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# A past walk's kept screenshots, found from the links in the pull request's
+# comments: the comment already lists them, so there is no separate index.
+# Prints a `<local-path><TAB><label>` line per downloaded file, then RUN_DIR=
+# for `cleanup`.
+#
+#   RESULT: WALKED   — at least one picture is on disk.
+#   RESULT: NONE     — the comments link no kept picture.
+#   RESULT: UNKNOWN  — the links exist but could not be fetched.
+pictures)
+  PR="${2:-}"
+  case "$PR" in
+    ''|*[!0-9]*) emit UNKNOWN; note "usage: verify-staging.sh pictures <pr-number>"; exit 0 ;;
+  esac
+  ORIGIN=""
+  [ -n "$ROOT" ] && ORIGIN=$(production_origin "$ROOT")
+  if [ -z "$ORIGIN" ]; then
+    emit UNKNOWN; note "no memory store is set up for this repo, so no kept picture can be found"; exit 0
+  fi
+  if ! BODIES=$(gh pr view "$PR" --json comments --jq '.comments[].body' 2>/dev/null); then
+    emit UNKNOWN; note "could not read the comments on pull request #$PR"; exit 0
+  fi
+  # Only a link on the recorded production site is followed, so a crafted
+  # comment can not send the Access token to another host.
+  WANTED=()
+  while IFS= read -r link; do
+    URL="${link##*](}"; URL="${URL%)}"
+    REL="${URL#"$ORIGIN"/_walk/}"
+    LABEL="${link#[}"; LABEL="${LABEL%%](*}"
+    [ "$REL" != "$URL" ] && [[ "$REL" =~ $WALK_KEPT ]] && WANTED+=("$REL"$'\t'"$LABEL")
+  done < <(printf '%s\n' "$BODIES" | grep -oE '\[[^]]*\]\([^)[:space:]]*/_walk/[^)[:space:]]*\)')
+  if [ "${#WANTED[@]}" -eq 0 ]; then
+    emit NONE; note "no check on pull request #$PR kept a picture"; exit 0
+  fi
+  load_credentials "$ROOT"
+  if ! has_access_token; then
+    emit UNKNOWN; note "this machine has no access token for the site"; exit 0
+  fi
+  RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX")
+  GOT=0
+  ANSWER=""
+  for want in "${WANTED[@]}"; do
+    REL="${want%%$'\t'*}"
+    FILE="$RUN_DIR/evidence/$REL"
+    [ -e "$FILE" ] && continue   # the same link, quoted twice
+    mkdir -p "$(dirname "$FILE")"
+    ANSWER=$(curl -sS --max-time 60 -o "$FILE" -w '%{http_code} %{content_type}' \
+      -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+      "$ORIGIN/_walk/$REL" 2>/dev/null) || ANSWER="000"
+    if [ "$ANSWER" = "200 image/png" ]; then
+      printf '%s\t%s\n' "$FILE" "${want#*$'\t'}"; GOT=$((GOT + 1))
+    else
+      rm -f "$FILE"
+    fi
+  done
+  if [ "$GOT" -gt 0 ]; then
+    emit WALKED
+  else
+    emit UNKNOWN; note "the live site did not return the pictures (HTTP ${ANSWER%% *})"
+  fi
+  echo "RUN_DIR=$RUN_DIR"
   ;;
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -301,7 +470,7 @@ cleanup)
   ;;
 
 *)
-  echo "usage: verify-staging.sh {scout-check|preflight [--no-browser]|run <run-dir> <url> [minutes]|publish <run-dir>|cleanup <run-dir>}" >&2
+  echo "usage: verify-staging.sh {scout-check|preflight [--no-browser]|run <run-dir> <url> [minutes]|publish <run-dir>|pictures <pr>|cleanup <run-dir>}" >&2
   exit 1
   ;;
 esac

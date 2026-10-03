@@ -8,27 +8,27 @@
 
 ## 2. Build on the agreed base
 
-- [ ] 2.1 Confirm PR #244's follow-up (partly shown promises, evidence scrub) is on `main` and note that `/save` brings `main` into this branch before the tasks below; verify `verify-staging.sh publish` starts with its scrub and `walkthrough.md` section f carries its summary line. If it is not published, stop and report the unmet prerequisite.
-- [ ] 2.2 Re-copy "Evidence is posted on every verdict" from the main spec into this change's MODIFIED block if `main` changed it, reapplying the screenshot sentences and the third scenario; verify `openspec validate "keep-walk-pictures" --strict --no-interactive` passes.
+- [x] 2.1 Build on `main` as it stands: the person chose on 2026-10-03 not to wait for PR #244. Keep this change's edits to the `publish` case below its opening lines, the new `pictures` case, and section f's publish block, result bullets, and picture lines, so PR #244's scrub (the top of `publish`) and its section d and summary-line edits can merge beside them; verify the finished diff touches neither section d nor the `run` case.
+- [x] 2.2 Re-copy "Evidence is posted on every verdict" from the main spec into this change's MODIFIED block if `main` changed it, reapplying the screenshot sentences and the third scenario; verify `openspec validate "keep-walk-pictures" --strict --no-interactive` passes.
 
 ## 3. The walk script
 
-- [ ] 3.1 Rework `publish` in `.agents/skills/verify/scripts/verify-staging.sh` into the design's three outcomes, leaving PR #244's scrub and the `WALK_MEDIA_BUCKET` path as they are and adding the `MEDIA=` and `REASON=` lines; verify the script's header comment and usage line describe them.
-- [ ] 3.2 Add the `pictures <pr>` subcommand as the design's "A past walk's pictures" says; verify it downloads only links on the recorded production origin and that `cleanup` removes its run folder.
-- [ ] 3.3 Extend `scripts/tests/verify-scripts.test.mjs` with a local HTTP server standing in for production and a fake `gh`; verify it covers: private upload prints one URL line per PNG, sends both Access headers, and never prints the secret; each `REASON=` row of the design's table; `WALK_MEDIA_BUCKET` set still takes the public path with a fake `wrangler`; two `publish` runs on one commit use different run folders; `pictures` skips a link on another host and reports `NONE` for a comment with no picture.
+- [x] 3.1 Rework `publish` in `.agents/skills/verify/scripts/verify-staging.sh` into the design's three outcomes, leaving the `WALK_MEDIA_BUCKET` path as it is and adding the `MEDIA=` and `REASON=` lines; verify the script's header comment and usage line describe them.
+- [x] 3.2 Add the `pictures <pr>` subcommand as the design's "A past walk's pictures" says; verify it downloads only links on the recorded production origin and that `cleanup` removes its run folder.
+- [x] 3.3 Extend `scripts/tests/verify-scripts.test.mjs` with a local HTTP server standing in for production and a fake `gh`; verify it covers: private upload prints one URL line per PNG, sends both Access headers, and never prints the secret; each `REASON=` row of the design's table; `WALK_MEDIA_BUCKET` set still takes the public path with a fake `wrangler`; two `publish` runs on one commit use different run folders; `pictures` skips a link on another host and reports `NONE` for a comment with no picture.
 
 ## 4. The skill's instructions
 
-- [ ] 4.1 Edit `.agents/skills/verify/references/walkthrough.md` section f only where this change owns it: the comment template's two picture lines, the "Publish the screenshots" block, and its result bullets, now keyed on `MEDIA`; verify section d, the summary line, and PR #244's blocks are byte-identical to `main`.
-- [ ] 4.2 Add one sentence to the plain-checks paragraph of `.agents/skills/verify/SKILL.md` for a past walk's pictures, with an offsetting cut; verify `node scripts/measure-context.mjs --check` passes.
+- [x] 4.1 Edit `.agents/skills/verify/references/walkthrough.md` section f only where this change owns it: the comment template's two picture lines, the "Publish the screenshots" block, and its result bullets, now keyed on `MEDIA`; verify section d and the comment's summary line are byte-identical to `main`.
+- [x] 4.2 Add one sentence to the plain-checks paragraph of `.agents/skills/verify/SKILL.md` for a past walk's pictures, with an offsetting cut; verify `node scripts/measure-context.mjs --check` passes.
 
 ## 5. Docs and release
 
-- [ ] 5.1 Rewrite the bucket bullet under "What a walk needs" in `wiki/development/staging-walkthrough.md` (kept privately by default, who can open them, when they are not kept, the public bucket as the inline option) and add one "why" bullet for links over inline pictures; add the one-clause exception to `wiki/development/memory-key.md` and `wiki/stack/mini-apps.md`; add pictures to "Without R2" in `wiki/development/memory.md`; verify each fact sits on one page and the others link to it.
-- [ ] 5.2 Update the walkthrough block in `.env.example` (no variable is needed for private pictures; `WALK_MEDIA_*` stay, for inline public ones), the app-scaffold paragraph in `.agents/skills/wong-sync/references/payload-manifest.md` (`index.ts` also sends `/_walk/` to the verify skill's route module), and the card list's cost line in `.agents/skills/wong-setup/references/cloudflare.md`; verify no variable was renamed.
-- [ ] 5.3 Add the `## Next (minor) — Keep the pictures from a preview check` entry to `CHANGELOG.md`, with an **Updating.** note in plain words: the update adds two lines to the app's entry file, pictures are kept after the next publish, and a public picture folder keeps working; verify `VERSION` is untouched.
-- [ ] 5.4 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/check-retired-names.mjs`; verify all three pass.
-- [ ] 5.5 Widen the script lint's path from `.agents/skills/memory/worker` to `.agents/skills/*/worker` wherever `main` then keeps the check list (today `.github/workflows/payload.yml`; PR #238 moves it to `.github/scripts/checks.mjs`), so the picture route is linted; verify the lint step names the new folder and passes.
+- [x] 5.1 Rewrite the bucket bullet under "What a walk needs" in `wiki/development/staging-walkthrough.md` (kept privately by default, who can open them, when they are not kept, the public bucket as the inline option) and add one "why" bullet for links over inline pictures; add the one-clause exception to `wiki/development/memory-key.md` and `wiki/stack/mini-apps.md`; add pictures to "Without R2" in `wiki/development/memory.md`; verify each fact sits on one page and the others link to it.
+- [x] 5.2 Update the walkthrough block in `.env.example` (no variable is needed for private pictures; `WALK_MEDIA_*` stay, for inline public ones), the app-scaffold paragraph in `.agents/skills/wong-sync/references/payload-manifest.md` (`index.ts` also sends `/_walk/` to the verify skill's route module), and the card list's cost line in `.agents/skills/wong-setup/references/cloudflare.md`; verify no variable was renamed.
+- [x] 5.3 Add the `## Next (minor) — Keep the pictures from a preview check` entry to `CHANGELOG.md`, with an **Updating.** note in plain words: the update adds two lines to the app's entry file, pictures are kept after the next publish, and a public picture folder keeps working; verify `VERSION` is untouched.
+- [x] 5.4 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/check-retired-names.mjs`; verify all three pass.
+- [x] 5.5 Widen the script lint's path from `.agents/skills/memory/worker` to `.agents/skills/*/worker` wherever `main` then keeps the check list (today `.github/workflows/payload.yml`; PR #238 moves it to `.github/scripts/checks.mjs`), so the picture route is linted; verify the lint step names the new folder and passes.
 
 ## 6. Gate and live check
 

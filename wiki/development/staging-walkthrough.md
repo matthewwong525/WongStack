@@ -20,7 +20,7 @@ A scenario **no probe reaches** is **listed by name as unverified**, never silen
 
 - **A browser, only for a UI journey.** `/verify` installs it on the machine and says so ([required tools](required-tools.md)).
 - **A preview URL.** The walk asks GitHub what was deployed for this commit, so Vercel, Netlify, Cloudflare, Render, Fly, and GitHub Pages previews are found the same way. It never builds a URL from a naming convention: that URL can address a commit that was never deployed and still answer `200`. A repo whose CI doesn't deploy gets `UNKNOWN`.
-- **Optional: a public bucket** (`WALK_MEDIA_BUCKET`, `WALK_MEDIA_BASE_URL`) to show screenshots in the comment. Without it the comment cites local paths, which is not a failure. The `WALK_` names stay, because renaming a variable users already set breaks them silently.
+- **Nothing for its pictures.** A walk keeps its screenshots in the [memory store](memory.md)'s private bucket, in their own `walks/` folder, with no end date; the comment links each one. The live site serves them at `/_walk/` behind its login: anyone who can log in to the app can open a link, only the walk's own access token can add a picture, and none is replaced. The route is handed the bucket alone and builds every key under `walks/`, so no link reaches a transcript. They are not kept when the Cloudflare account has no storage ([without R2](memory.md#without-r2)), the site has no login yet (they would be open to anyone), the machine has no access token, or the live site doesn't serve them yet; the comment then says why and names no file, and the verdict stands. Ask in chat for a past check's pictures, and `/verify` fetches them from the comment's links. A public bucket (`WALK_MEDIA_BUCKET`, `WALK_MEDIA_BASE_URL`) shows them inline instead; the `WALK_` names stay, because renaming a variable users already set breaks them silently.
 - **An Access service token**, provisioned automatically when [Cloudflare Access](../stack/cloudflare-access.md#5-create-the-service-token-do-it-now) gates your previews. `/verify` mints one if you have none: [when the walk can't get in](#when-the-walk-cant-get-in).
 - **A seed, on a seeded stack.** Where staging is a [seeded fixture database](../stack/d1-pipeline.md#seeded-staging-production-untouched), `schema/seed.sql` ships empty. Journeys then have nothing to act on, and fail for a reason that isn't a bug.
 
@@ -32,6 +32,7 @@ A scenario **no probe reaches** is **listed by name as unverified**, never silen
 - **Journeys hold no assertions,** because an assertion written moments before it is deleted encodes a guess at correctness, and "nothing errored" is not "the thing worked".
 - **Every navigating step waits before its screenshot,** because a screenshot taken before the page paints captures the page you left: one two-step journey produced two byte-identical screenshots of it.
 - **Every report names each journey's probe and where it ran.** A walk driven on one machine depended on that machine, and a reader comparing two walks needs to know.
+- **The comment links each picture and shows none inline,** because GitHub fetches a picture without the reader's login and would get nothing. Only a public bucket's pictures can sit in the comment.
 - **A plain check posts nothing unless you ask.** A screenshot or a click-through with no change behind it has no promise to grade, and a pull-request comment reports a change's verdict.
 
 ### Walk the app the way a person does
@@ -82,6 +83,7 @@ It fixes only an [in-scope](../../.agents/skills/verify/references/walkthrough.m
 - [The change loop](the-change-loop.md) — the loop `/verify` sits beside, and the gate ladder it is deliberately not part of.
 - [Required tools](required-tools.md) — what the toolkit needs, and what `/verify` adds to that.
 - [Secrets](secrets.md) — where the optional variables above live.
+- [Memory](memory.md) — the private store a walk's pictures share with the chat transcripts.
 - [Cloudflare Access](../stack/cloudflare-access.md) — the login wall, and the service token the heal produces.
 - [Deploy and data pipeline](../stack/d1-pipeline.md) — what publishes the preview URL, and where `db:reset:staging` comes from.
 

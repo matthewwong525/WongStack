@@ -1,6 +1,6 @@
 # Keep the pictures from a preview check
 
-**Status:** blocked (PR #244 publishes first)
+**Status:** in-progress
 
 **Branch:** idiotic-turkey
 
@@ -99,3 +99,8 @@ None.
 - **2026-10-03** — Assumed: the picture route is built first and the rest waits, because PR #244 is not published yet and the route is the one part that shares no file with it.
 - **2026-10-03** — Built the picture route (tasks 1.1 to 1.3): the live site keeps and shows a check's pictures behind the login, with seven tests passing on this machine. The app's own new test first runs on GitHub. The check does not upload or link pictures yet: tasks 2.1 onward wait for PR #244 to publish.
 - **2026-10-03** — Assumed: the automatic code-style check should also cover the picture route's folder, because today it reads only the memory route's folder and the new code went unchecked; added as task 5.5.
+- **2026-10-03** — Asked whether to keep waiting for PR #244 → chose to build the rest now. Its fixes are not published yet, and the cost is a clash in two spots that whichever publishes second sorts out.
+- **2026-10-03** — Check: `.github/workflows/payload.yml` now runs the code-style check on every skill's `worker` folder, because the picture route's folder went unchecked. The check covers more, not less.
+- **2026-10-03** — Assumed: when the live site turns the pictures away for a reason the plan did not list (it does not answer, or it takes none of them), the report still gives a reason, because a report with no pictures must say why.
+- **2026-10-03** — Assumed: a public picture folder with no web address set also reports its pictures as not kept, with that reason, because the report may no longer name a deleted file.
+- **2026-10-03** — Built the rest (tasks 2.1 to 5.5): the check uploads its pictures, links them in its report or says why none were kept, and brings a past check's pictures up in chat. Its tests pass on this machine. Left: the checks on GitHub, a check of this change's own preview, and a live check after the merge (tasks 6.1 to 6.3).

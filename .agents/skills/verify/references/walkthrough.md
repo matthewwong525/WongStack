@@ -119,7 +119,7 @@ Verified <N> scenario(s) against <url> at `<short-sha>` — <n> in a local Chrom
 `landing` → `empty form` → `after submitting empty`
 The message appears and the list is unchanged.
 
-![after submitting empty](<url-or-path>)
+Pictures (log in to open): [landing](<url>) · [empty form](<url>) · [after submitting empty](<url>)
 
 ### ✅ Creating without a title answers 422 — request
 > **THEN** the endpoint answers 422 and no note is created
@@ -132,7 +132,7 @@ The message appears and the list is unchanged.
 `landing` → `open note` → `after delete`
 The note is still listed and the count still reads 3.
 
-![after delete](<url-or-path>)
+Pictures (log in to open): [landing](<url>) · [open note](<url>) · [after delete](<url>)
 
 ### ⛔ Unverified
 - *Imports are processed from the queue* — no existing command reads the queue's effect; its e2e home is a CI test.
@@ -148,6 +148,10 @@ gh pr comment --body-file "$RUN_DIR/comment.md"
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" cleanup "$RUN_DIR"
 ```
 
-- **`RESULT: WALKED`** → it printed `<local-path>\t<public-url>` per file; substitute them into the comment before posting, so screenshots render inline.
-- **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths; **not** a failure.
+`publish` prints `<local-path>\t<url>` per kept screenshot, then `MEDIA=`. Finish the comment by it before posting:
+
+- **`MEDIA=private`** → the live site keeps them behind its login. Fill each journey's `Pictures` line with one link per kept file, labelled from its file name (`02-empty-form.png` → `empty form`).
+- **`MEDIA=public`** (`WALK_MEDIA_BUCKET` is set) → replace each `Pictures` line with one `![<label>](<url>)` per file, so they render inline.
+- **`MEDIA=none`** → drop every `Pictures` line. With a `REASON=` line, write `Pictures were not kept: <reason>.` under the comment's summary and in the chat report; **not** a failure.
+- A screenshot with no URL line was not kept: leave it out. **Never cite a local path**: `cleanup` deletes it.
 - Request- and state-probe evidence is text, quoted inline; only screenshots go through `publish`. The walk records no video.

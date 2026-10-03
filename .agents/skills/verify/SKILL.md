@@ -34,7 +34,7 @@ A block that survives its retry → `UNKNOWN`, naming what you tried.
 
 ## Plain checks
 
-A screenshot, a request, or a click through the app with no change behind it skips the scout. Probe the address the person names, in a run folder from `mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX"`; with none, save and `preflight`, and report a missing preview as not checked. Show the evidence in the chat, post nothing unless asked, and run `cleanup`.
+A screenshot, request, or click-through with no change behind it skips the scout. Probe the address the person names, in a `mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX"` folder; with none, save and `preflight`, reporting a missing preview as not checked. For a past walk's pictures, run `verify-staging.sh pictures <pr>`. Show the evidence in chat, post nothing unless asked, and run `cleanup`.
 
 ## Verdicts
 

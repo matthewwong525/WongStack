@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Keep the pictures from a preview check
+
+- A preview check keeps its pictures. They go into the private storage that holds the chat transcripts, and the report on the pull request links each one. Only people who can log in to your app can open a link.
+- Ask in chat for a past check's pictures, and the assistant shows them again.
+- When pictures aren't kept, the report says so and why: the Cloudflare account has no storage, the site has no login yet, or the live site doesn't serve them yet. It no longer names a file that is already deleted, and the verdict is unaffected.
+
+**Updating.** The update adds two lines to the app's entry file, `app/worker/index.ts`: one loads the picture route, and one sends `/_walk/` addresses to it after the login check. Pictures are kept from the first check after your next publish; until then the report says the live site doesn't serve them yet. A public picture folder (`WALK_MEDIA_BUCKET` and `WALK_MEDIA_BASE_URL`) keeps working and still shows its pictures inside the report.
+
 ## 29.11.0 — Keep an existing server and private project
 
 - Hosts can check and prepare an existing Ubuntu workspace without replacing compatible tools, services, files or GitHub identities.

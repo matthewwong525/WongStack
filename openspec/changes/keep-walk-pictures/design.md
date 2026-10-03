@@ -53,7 +53,7 @@ Uploaded bytes are served from the app's origin, so the signature check, the fix
 
 ### `publish` picks one of three outcomes
 
-After PR #244's scrub, in this order:
+In this order (PR #244's scrub, when it lands, runs above all three):
 
 1. **`WALK_MEDIA_BUCKET` set:** today's path, unchanged, including `UNKNOWN` when `WALK_MEDIA_BASE_URL` is missing. It adds `MEDIA=public`.
 2. **Else, private:** resolve the production origin with a `node` one-liner on the memory skill's `loadConfig`, as `load_credentials` already borrows `parseEnv`. Call `load_credentials`, then PUT each PNG under `$RUN_DIR/evidence` with `curl --data-binary` and the two Access headers to `<origin>/_walk/<short-sha>/<run-stamp>/<journey>/<file>`. Print `<local-path>\t<url>` per kept file, then `RESULT: WALKED` and `MEDIA=private`.
@@ -103,7 +103,7 @@ A new `pictures <pr>` subcommand: reads the pull request's comments with `gh pr 
 
 ## Migration Plan
 
-1. PR #244's follow-up publishes first (agreed with its owner on 2026-10-03). Before building, bring `main` in; if it changed "Evidence is posted on every verdict", copy the new text into this change's MODIFIED block and reapply the screenshot sentences.
+1. PR #244's follow-up: its owner agreed on 2026-10-03 to publish first, then the person chose to build this change without waiting. Whichever publishes second brings `main` in. This change keeps to the `publish` case below its opening lines, the `pictures` case, and section f's publish block, result bullets, and picture lines; PR #244's scrub goes at the top of `publish`, above the upload. If `main` changes "Evidence is posted on every verdict" first, copy the new text into this change's MODIFIED block and reapply the screenshot sentences.
 2. PR #242: no agreed order. This change imports nothing from the memory Worker and edits two wiki sentences and one entry-file branch that PR #242 also touches. Whichever publishes second brings `main` in and keeps both branches in `app/worker/index.ts`; the `/_walk/` branch stays after the identity check.
 3. Rollback is a revert: kept objects stay in the bucket, unreachable, and `publish` reports "does not serve pictures yet".
 
