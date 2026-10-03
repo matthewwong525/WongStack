@@ -1,6 +1,6 @@
 # Writing facts
 
-A fact is the smallest thing a cold reader needs to act as this session would: one or two sentences, at most 400 characters, reason included. It carries only what the transcript and the Decision log don't make easy to find.
+A fact lets a cold reader act as this session would: one or two sentences, at most 400 characters, with its reason. Keep what the transcript and Decision log make hard to find.
 
 ## Keep
 
@@ -15,7 +15,7 @@ A fact is the smallest thing a cold reader needs to act as this session would: o
 - tool-call mechanics and file dumps
 - the assistant's route to a conclusion
 - anything already in the repo or the change's Decision log
-- credential values, always, including private keys, current/candidate bearers and one-use capabilities. A fact may say `SERVICE_TOKEN` rotated and where it comes from, never the value.
+- credentials, including private keys, current/candidate bearers and one-use capabilities. Record `SERVICE_TOKEN`'s source or rotation, never its value.
 
 ## One fact, one claim
 
