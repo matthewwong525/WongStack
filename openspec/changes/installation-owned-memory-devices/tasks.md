@@ -1,6 +1,6 @@
 # Tasks
 
-Current intent: automatic machine-private memory and shared team memory, with no Devices mini app or human approval workflow. Draft PR #242 remains the full unfinished feature. Current authorization covers UI removal/planning and its remote source gate only; shared schema/operator/runtime dependencies and all provider/private phases require their next exact coordinated boundary. No local suites/build/lint. Old foundations are historical source preparation, not checked completion of the new machine model.
+Current intent: automatic machine-private memory and shared team memory, with no Devices mini app or human approval workflow. Draft PR #242 remains the full unfinished feature. The user has invoked /ship, which resumes source implementation through /apply before archive/merge. This session owns the isolated source branch; its next bounded source reservation is recorded in design.md. All provider/private phases still require their independently coordinated authority and target receipts. No local suites/build/lint. Old foundations are historical source preparation, not checked completion of the new machine model.
 
 ## 1. Retire approval UI and update the active plan
 
@@ -10,7 +10,7 @@ Current intent: automatic machine-private memory and shared team memory, with no
 
 ## 2. Machine authorization schema and operator contract
 
-- [ ] 2.1 Coordinate exact next schema/operator/manifest/probe paths and trusted provisioning authority before edits. Deliver a forward compatibility plan for fresh/completed10/completed11 stores, stable machine principals, one-use grants, revocation generations, maintenance barriers and durable exact-attempt receipts; preserve prior immutable snapshots.
+- [x] 2.1 Coordinate exact next schema/operator/manifest/probe paths and trusted provisioning authority before edits. Deliver a forward compatibility plan for fresh/completed10/completed11 stores, stable machine principals, one-use grants, revocation generations, maintenance barriers and durable exact-attempt receipts; preserve prior immutable snapshots.
 - [ ] 2.2 Implement the reviewed forward migration, machine authorization and trusted setup exports with source fixtures/tests and contract docs. Verify private namespace isolation, scope ceilings, partial/foreign/future schema refusal, expired/replayed/wrong-target grants, stale authority and nontransactional partial failure at every authority mutation point through /save.
 - [ ] 2.3 Test competing/identical attempts and exact lost-response recovery without resurrecting removed authority; pass a full exact remote source gate before extracting a new digest-bound SQL/assets snapshot. Keep provider success separate from completed receipt proof.
 
@@ -49,3 +49,5 @@ The probe source gate passed at `3a6b9b6f1241cc926b9b9fb48b6a8cd3a0198614`: [bui
 The independent split source gate passed at32a61b9c686905c09a2778dea8ec388265cd08f0 (1104 scripts, app build/test). The former Devices UI source gate passed ate9b5db6378c422355183cfe27b1aabbf309c8195: push build37093784686, app test37093784742 (148 tests,100% coverage), payload37093784828 attempt2 (1104 tests). The first payload attempt hit an existing review-page browser timeout; exact failed-job rerun passed without source changes. These receipts remain true but the UI is now intentionally retired.
 
 Removal source gate passed at6ebd11d61ef3edf533b66f5f2fe09225e8bb5722: actual push build37098029358, app test37098029362 (117 tests,100% coverage), payload37098029380 (1104 tests,0 failures), all SUCCESS. Duplicate skipped PR runs are excluded. This completes current task1.3 only; all machine-runtime and live acceptance tasks remain pending. The three inactive version1 URL references are explicitly scoped exceptions in the retirement inventory until reviewed version2 replacement. No runtime, provider, new snapshot or consumer activation followed.
+
+Task2.1 source boundary was reviewed at593924d: separate fresh schema12 machine modules/receipts/manifest and machine probe plan; historical11 exports stay intact, completed10/11 are refused unchanged until task4.2. Legacy Worker maintenance ignorance and direct SQL migration discovery are explicit cutover dependencies, not solved by additive schema alone. Source-only work is released by /ship; no provider/private target or phase is released.

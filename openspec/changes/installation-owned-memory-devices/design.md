@@ -6,7 +6,7 @@ See [proposal.md](proposal.md). The user replaced person-owned memory and browse
 
 ## Goals / Non-Goals
 
-Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. This source slice removes UI and updates the design only. No schema/runtime/CLI activation, provider writes, private runner changes, new live credentials or migration execution is authorized here.
+Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. The removal slice is complete. The user has invoked /ship, which resumes pending source implementation before archive/merge. Current bounded source work prepares machine authorization; no live/runtime activation, provider writes, private runner changes, new live credentials or migration execution is authorized by the source slice.
 
 ## Decisions
 
@@ -61,6 +61,22 @@ The historical protocolVersion:1 pending-owner/pending-device result and /apps/d
 Remote app/payload/scripts checks first validate removal, unchanged generic app behavior, source foundations and intact coverage floors. Future tests must exercise trusted first enrollment, untrusted clone/anonymous/wrong-install rejection, one-use grant expiry/replay, exact retry/concurrent attempts and deliberate partial writes. Test auto capture and durable queue on restart/offline; two machines see shared facts but not each other's private facts/transcripts through every route/query shape. Test forged machine ownership, service-token denial, login-off without anonymous enrollment, credential expiry/rotation, revocation/removal races, lost-response recovery without resurrected grants, migration/quarantine and rollback/old Worker denial.
 
 Live transport/initializer/grant phases use newly owned disposable memory resources with original POST ownership receipts, exact gated SQL/assets and active Worker/Access/bindings/origin pins. Each phase is separately reviewed; a source PASS or initializer probe PASS does not authorize the next phase. Real acceptance is trusted setup → automatic private/shared capture → other machine privacy check → automatic renewal → revoke → data/renewal denied. No human mailbox is required merely to use machine memory. Shared setup/installer/wiki runtime work and all provider/private phases remain excluded until coordinated.
+
+## Reviewed next source boundary under /ship
+
+Task2.1 reserves this bounded source preparation on the isolated memory branch. Provider/private ownership and all live phases remain separate. No route/CLI/caller wiring occurs in this first slice.
+
+- Add `.agents/skills/memory/migrations/0012_machine_authorization.sql` with inactive machine setup/grant/credential/revision/attempt/audit/completion tables. SQL0001–0011 remains byte-identical. Do not mutate the immutable schema11 receipt or fabricate an old bootstrap/owner.
+- Add `.agents/skills/memory/scripts/lib/machine-migrations.mjs`, `machine-state.mjs`, `machine-operator.mjs` and `machine-enrollment.mjs`. A separate schema12 manifest pins every SQL hash; historical schema11 exports remain intact. Trusted in-process operator capability verifies exact resource/origin/deployment pins; no public owner-confirm endpoint or cloud-role seed.
+- Add `scripts/tests/memory-machine-migrations.test.mjs`, `memory-machine-operator.test.mjs`, `memory-machine-enrollment.test.mjs` and `scripts/tests/fixtures/memory/machines.mjs`. Adapt only the all-migration inventory assertion in `scripts/tests/memory-operator.test.mjs` to distinguish the complete new manifest from the historical11 fixture, retaining all previous refusal/failure checks.
+- Add `scripts/pilots/memory-rest/machine-plan.mjs` and `scripts/tests/memory-machine-probe-plan.test.mjs` for a separately versioned, digest-bound schema12 plan that rejects old/mixed source and evidence. Do not mutate old source snapshots, plan inputs or runners. Real transport/initializer/grant execution remains task5.
+- Record signatures, completion guards and source limitations in `machine-source-contract.md` in this change. The parent owns proposal/design/tasks/review and source scope validation.
+
+Fresh schema12 initialization uses new machine configuration/bootstrap receipts and emits only machine-scoped pending-setup. It requires exact current deployment/resource pins and trusted operator transport, with no email/human principal seed. Completed10/11, partial/foreign/future stores refuse without writes or ID changes in this slice; separately reviewed adoption/upgrade stays task4.2. Managed completed12 retries verify manifest, immutable bootstrap/audit receipts, exact request/target/pin and auth revisions. Provider success alone never completes setup or grants.
+
+One-use grants bind installation/repository, machine commitment, permission ceiling, expiry, attempt and revisions. Every grant/credential mutation requires exact current snapshot guards plus maintenance barrier and immutable completion/audit receipts. Deliberately nontransactional partial mutations stay closed and do not auto-repair. Concurrent identical/competing attempts and lost-response retries must establish the same exact durable outcome without reopening revoked grants. No ready result follows until later core proof and successful permitted operation for THIS machine.
+
+Adding SQL must not itself activate grants, clear keys or make machine memory ready. The old Worker ignores maintenance/auth revisions and the old migrate command discovers SQL directly; safe legacy retirement and retained-version denial belong to the coordinated runtime/CLI cutover, with tests and live proof before activation. New source PASS cannot validate that cutover.
 
 ## Historical source preparation (superseded, not current requirements)
 
