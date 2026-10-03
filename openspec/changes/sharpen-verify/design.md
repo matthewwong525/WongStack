@@ -126,6 +126,17 @@ The fresh-grader candidate hands its helper only `meta.json` and the evidence, n
 
 Limits: notes are a weaker anchor than a session that really built the code, so a gain here is a floor, and no gain is not proof the bias is absent.
 
+### Re-check past real walks, in place of the candidates
+
+Baseline v2 left no room for the candidates ([evidence.md](evidence.md)), and the person chose to test the real worry on real walks instead. The candidates are not run and no skill file changes.
+
+Six merged PRs carry a passed walk: #201, #212, #213, #222, #225, #228, 21 journeys in all. Their pictures are gone: only #212's comment references images, by local paths that `cleanup` deleted, and this repo sets no `WALK_MEDIA_BUCKET`. So "re-grade the evidence" becomes two checks:
+
+1. **The record.** A fresh agent gets each journey's `THEN` and the comment's evidence text, verdict marks removed, and says per claim whether the text reports an observation of it. This audits what a reviewer can see, not the app.
+2. **The walk.** The six branch previews still answer behind Access. Fresh agents, given only scenario names, `THEN`s, and the address, walk the journeys again with the live reference and the stored service token. They never see the original comment. A disagreement is read by hand before it counts.
+
+Limits: read-only, so a journey that must write data is skipped by name. A preview alias shows the branch's last deployed commit, assumed to be the walked one. A fresh walker failing what the builder passed can be a stricter reading, not a builder's blind spot; each such case is judged on its evidence.
+
 ## Risks / Trade-offs
 
 - **Three runs are noisy** → the 2-of-15 margin, and the rule fixed in advance. A near miss is reported as "no clear gain".

@@ -16,22 +16,19 @@
 - [x] 2.2 Apply keep rule 1 to the baseline and record the verdict in `evidence.md`: 15 of 15 caught with 0 false alarms, so the practice set is hardened once
 - [x] 2.3 Harden the practice set by design.md § Hardening: the five v2 site behaviors, the two longer `THEN`s in `change/specs/notes/spec.md`, `build-notes.md`, and `--framing builder|none` in `scripts/eval-verify.mjs`; verify `scripts/tests/verify-eval.test.mjs` asserts each v2 mistake shows on the site, each control still works, the notes reach the work folder only under `--framing builder`, and the key and site source still never do
 - [x] 2.4 Update `wiki/maintaining/measure-a-skill-change.md` for `--framing builder` and why it exists (an agent that did not build the site already grades with fresh eyes); verify the wiki link checks pass
-- [ ] 2.5 Run `/save` and confirm CI passes with the hardened set
-- [ ] 2.6 Run `node scripts/eval-verify.mjs --label baseline-v2 --framing builder --runs 3`; record the table in `evidence.md`; still 15 of 15 with at most 1 false alarm → skip groups 3 and 4, do 5.1, and report that the skill stays as it is
+- [x] 2.5 Run `/save` and confirm CI passes with the hardened set
+- [x] 2.6 Run `node scripts/eval-verify.mjs --label baseline-v2 --framing builder --runs 3` and record the table in `evidence.md`: 12 caught, 3 asked, 0 missed, 0 false alarms; the person chose the next step
 
-## 3. Candidates (change folder only, no skill file yet)
+## 3. Re-check past real walks (by hand, fresh agents, read-only)
 
-- [ ] 3.1 Write `candidates/proof-bar.md` from `walkthrough.md` with the proof-bar text in § b and § d; run it three times with `--reference` and `--framing builder`; verify its table is in `evidence.md`
-- [ ] 3.2 Write `candidates/proof-bar-grader.md` adding the fresh-grader text to § d; run it three times with `--framing builder`; verify its table is in `evidence.md` with the added minutes per run beside the proof bar's
-- [ ] 3.3 Write the verdict under the tables by keep rules 2 to 4, one line per candidate with its counts; verify each line cites the rule it used
+- [x] 3.1 Record in `evidence.md` what survives of the six passed walks on PRs #201, #212, #213, #222, #225, and #228: the comment text, any pictures, and whether each preview still answers; verify each PR has a line
+- [x] 3.2 Have a fresh agent, given each journey's `THEN` and the comment's evidence text with the verdict marks removed, say for each claim in the `THEN` whether the text reports an observation of it; verify `evidence.md` holds a row per journey
+- [x] 3.3 Have fresh agents walk the same journeys again on the still-live previews, given only the scenario names, the `THEN`s, and the address, changing no data; verify `evidence.md` holds agree, disagree, or could-not-walk per journey with the reason, and that every run folder is cleaned up
+- [x] 3.4 Write the verdict under the tables: what the re-check shows about an agent grading its own build, and about the record a walk leaves; verify each line cites its counts
 
-## 4. Adopt what won (skill, wiki, changelog)
+## 4. Record the result (wiki, spec, changelog)
 
-- [ ] 4.1 If the proof bar won: move its text into `.agents/skills/verify/references/walkthrough.md` § b and § d with offsetting cuts; verify `node scripts/measure-context.mjs --check` and `node scripts/check-payload-links.mjs` pass
-- [ ] 4.2 If the grader won: stop and ask the person, showing the three tables and the added minutes; on yes, re-`/plan` for the declined-options delta and the § d text; on no, record the choice in the Decision log
-- [ ] 4.3 Update the "No second judging agent" bullet in `wiki/development/staging-walkthrough.md` with the measured result and a link to `wiki/maintaining/measure-a-skill-change.md`; verify the wiki link checks pass
-- [ ] 4.4 If any payload file changed: add a `## Next (minor)` entry at the top of `CHANGELOG.md` in plain words with its **Updating.** note; if none changed, drop the MODIFIED requirement from this change's delta and verify `openspec validate "sharpen-verify" --strict --no-interactive` passes
-
-## 5. Integration
-
-- [ ] 5.1 Rerun the winning reference once after adoption (`--runs 1`, live path) and confirm its counts sit inside the candidate's three-run range; then run `/save` and confirm CI passes
+- [x] 4.1 Update the "No second judging agent" bullet in `wiki/development/staging-walkthrough.md` with the measured result and a link to `wiki/maintaining/measure-a-skill-change.md`; verify `node scripts/check-payload-links.mjs` and the wiki link checks pass
+- [x] 4.2 Settle the MODIFIED requirement in this change's delta by the evidence (keep it only if the walks show the behavior today) and log the choice; verify `openspec validate "sharpen-verify" --strict --no-interactive` passes and the main spec matches the delta
+- [x] 4.3 Add a `## Next (patch)` entry at the top of `CHANGELOG.md` in plain words for the wiki page's change; verify the entry has its **Updating.** note
+- [x] 4.4 Run `/save` and confirm CI passes

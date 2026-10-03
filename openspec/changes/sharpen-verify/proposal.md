@@ -1,6 +1,6 @@
 # Catch more mistakes when checking the preview
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** improve-verify-skill-2
 
@@ -12,30 +12,32 @@ The last 11 preview checks found nothing wrong: 6 passed, 5 had nothing to check
 
 ## What Changes
 
-- **A practice site with planted mistakes.** A small notes site with nine promises: five quietly broken, four that work. The checking agent sees the promises and the site, never the answers. Each run reports mistakes caught, mistakes missed, false alarms, and how long it took.
+- **A practice site with planted mistakes.** A small notes site with nine promises: five quietly broken, four that work. The checking agent sees the promises and the site, never the answers, and can be told it built the site. Each run reports mistakes caught, mistakes missed, false alarms, and how long it took.
   ```text
-    PRACTICE SITE
-    ══════════════════════════════
-    9 promises: 5 broken, 4 fine
-               │
-      ┌────────┼─────────┐
-      ▼        ▼         ▼
-    today   sharper   sharper
-             proof    + fresh
-                       grader
-      │        │         │
-      └────────┼─────────┘
-               ▼
-    caught · missed · false alarm
+    HOW THE CHECK WAS MEASURED
+    ══════════════════════════════════
+    practice site        past real checks
+    9 promises,          6 passed checks,
+    5 broken             21 promises
+         │                     │
+         ▼                     ▼
+    today's check        fresh agents read
+    runs 6 times         the records and
+         │               walk them again
+         ▼                     │
+    30 planted                 ▼
+    mistakes,            20 agree, 0 differ
+    0 passed             14 records thin
   ```
-- **Today's check is measured first.** It runs three times against the practice site, so every idea after it is compared with a real number.
-- **A sharper bar for proof.** The instructions say what a pass needs: every part of the promise shown, a before and an after where the promise is about a change, and one honest try at breaking it. Today they say only that "no error" is not a pass.
-- **A fresh grader, only if it earns its place.** A second helper that sees just the promise and the evidence, not the build, grades each result. It is measured against the sharper bar alone.
-- **Only what wins is kept.** An idea goes into the check only if it catches clearly more planted mistakes without more false alarms. If today's check already catches everything, the planted mistakes are made harder once; if it still does, the check stays as it is and you keep the practice site.
-- **You decide on the grader.** If the grader wins, you see the numbers and the extra minutes per publish before it goes in, because it reverses an earlier choice not to use a second judge.
-- **The record gets the numbers.** The page that explains why the check works this way states what was measured, whichever way it goes.
+- **Today's check was measured, and it held.** Across six runs it passed none of 30 planted mistakes and raised no false alarm, even when told it had built the site.
+- **Past real checks were checked again.** Fresh agents walked the six real checks that passed on recent publishes. They disagreed with none of 20; one could not be walked.
+- **The check's instructions do not change.** The sharper bar for proof and the fresh grader were not run: with nothing missed, there was no room to show either helping.
+- **The record gets the numbers.** The page that explains why the check works this way now says what was measured about a second judge.
+- **You keep the practice site**, and a page on how to measure a change to a skill, for the next time the check's instructions are edited.
 
-**Non-goals:** Checking promises that run on a person's computer or in the chat (a later, separate change). Running several helpers at once for speed. Running the practice test on every publish. Changing when publishing runs a check, or the scripts that find the preview and drive the browser.
+**Found, and left for follow-up:** 14 of the 21 passed records leave part of their promise unshown; no picture from any of the six checks can be opened today; and one walk copied its own access token into its evidence, which was caught and removed before anything was posted.
+
+**Non-goals:** Fixing those three findings here. Checking promises that run on a person's computer or in the chat. Running several helpers at once for speed. Running the practice test on every publish. Changing when publishing runs a check, or the scripts that find the preview and drive the browser.
 
 ## Capabilities
 
@@ -45,11 +47,11 @@ None.
 
 ### Modified Capabilities
 
-- `staging-walkthrough`: a pass needs every part of the `THEN` shown; adds that a change to the grading instructions is measured against planted mistakes first.
+- `staging-walkthrough`: adds that a change to the grading instructions is measured against planted mistakes first.
 
 ## Impact
 
-New, meta-repo only (not in the payload): `scripts/eval-verify.mjs`, `scripts/fixtures/verify-eval/` (the practice site, its scenarios, the answer key), `scripts/tests/verify-eval.test.mjs`, and a `wiki/maintaining/` page on measuring a skill change. Conditional on the results: `.agents/skills/verify/references/walkthrough.md` § b and § d, `.agents/skills/verify/SKILL.md` only if the grader ships, `wiki/development/staging-walkthrough.md`'s declined-options note, and a `CHANGELOG.md` entry (minor) when any payload file changes. Added skill words are offset by cuts. Nine headless agent runs, by hand. No app, dependency, or CI workflow change.
+New, meta-repo only (not in the payload): `scripts/eval-verify.mjs`, `scripts/fixtures/verify-eval/` (the practice site, its scenarios, the build notes, the answer key), `scripts/tests/verify-eval.test.mjs`, and `wiki/maintaining/measure-a-skill-change.md`. Payload: one bullet in `wiki/development/staging-walkthrough.md`, with a `CHANGELOG.md` patch entry. No skill file, app, dependency, or CI workflow change. Results are in `evidence.md`.
 
 ## Decision log
 
@@ -70,3 +72,11 @@ New, meta-repo only (not in the payload): `scripts/eval-verify.mjs`, `scripts/fi
 - **2026-10-03** — Assumed: the harder set also tells the agent it built the site and believes it works, because the first runs used an agent that never built anything, so it already had fresh eyes and no version could have shown the fresh grader helping.
 - **2026-10-03** — Assumed: the harder mistakes replace the first set, not sit beside it, because one practice set with one answer key is simpler to keep true.
 - **2026-10-03** — Built the harder practice set and the builder's point of view (tasks 2.3 and 2.4). Changed one planted mistake from the plan: a new note loses its last character after a reload, not its capitals, because a title typed all in lower case would have hidden the mistake.
+- **2026-10-03** — Harder baseline measured: 12 of 15 caught, 3 sent to a person, none missed, no false alarms ($11.31). The three were one case, a message one word off its quoted text, where asking is what the instructions say to do.
+- **2026-10-03** — Asked what to do after today's check missed nothing on the practice site → chose to re-check the six past real passes with fresh agents. The two candidates are not run, and the check's instructions stay as they are.
+- **2026-10-03** — Assumed: the re-check walks the old previews again as well as reading the posted records, because the pictures from those checks no longer exist and the previews still answer, so a record alone holds only the builder's own words.
+- **2026-10-03** — Assumed: the re-walk changes no data on the previews, because they share a test database and a passed check is not worth disturbing it.
+- **2026-10-03** — Re-check done: fresh agents agreed with all 20 past journeys they could walk, so a second judging agent stays declined, now on numbers. The posted records were thinner than their verdicts: 14 of 21 leave a claim unshown.
+- **2026-10-03** — Assumed: the rule that a pass needs every part of the promise shown is taken back out of this change, because real checks do not behave that way today and a rule the check does not follow is a false record. It is left for the follow-up that fixes it.
+- **2026-10-03** — Assumed: the three findings (thin records, lost pictures, a token copied into evidence) are follow-up work, because each changes how the check behaves and this change was to measure first.
+- **2026-10-03** — One helper printed the access token once in its own local transcript. The value was replaced there, nothing was posted or uploaded, and a scan finds no other copy; the token was not rotated.

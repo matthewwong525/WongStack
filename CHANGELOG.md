@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — The preview check's "no second judge" note has numbers
+
+- The page that explains how the preview check works now says what was measured: fresh agents walked 20 past checks again and disagreed with none, and the check passed none of 30 planted mistakes.
+
+**Updating.** No action needed. Only the wording of one wiki page changed.
+
 ## 29.10.0 — Task chats coordinate directly
 
 - Chats find overlapping work by current titles and confirmed task context, then exchange brief messages with its owner. Each keeps its own task and publishing approval; agreements stay in existing plans.

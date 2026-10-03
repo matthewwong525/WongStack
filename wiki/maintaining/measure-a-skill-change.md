@@ -64,4 +64,13 @@ Write the rule down before the first run: a rule chosen after the numbers bends 
 
 Put each table in the change's record with the date, the model, and the cost, whichever way it goes.
 
+## Check real walks too
+
+A practice site measures only what its promises let it. Its promises are written so every claim can be checked, so it can't show a pass that rests on a claim nobody observed. Go back over real walks as well:
+
+- **Read the record.** Hand a fresh agent each journey's `THEN` and the posted evidence text, verdict marks removed. It says, claim by claim, whether the text states an observation.
+- **Walk it again.** Branch previews outlive their pull requests. Hand fresh agents the scenario names, the `THEN`s copied word for word, and the address; they never see the first verdict. Change no data.
+
+The first run, on 2026-10-03, found no verdict a second judge would change, and found that 14 of 21 passed records left a claim unshown. [The staging walkthrough](../development/staging-walkthrough.md#what-it-is-not) records the first; the second came from reading real walks, not from the practice site.
+
 Part of [maintaining WongStack](README.md).

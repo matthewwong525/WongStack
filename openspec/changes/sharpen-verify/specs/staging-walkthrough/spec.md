@@ -1,21 +1,5 @@
 # Spec Delta
 
-## MODIFIED Requirements
-
-### Requirement: The evidence is graded against the THEN
-
-Each journey SHALL pass only when its evidence shows every part of what its `THEN` describes; a run with no error, a bare `200`, or evidence for only some of the `THEN` SHALL NOT pass. When the evidence is ambiguous, the walk SHALL stop and ask the person, showing the evidence beside the `THEN`.
-
-#### Scenario: A bare 200
-
-- **WHEN** a request probe returns `200` with a body that does not show the `THEN`
-- **THEN** the journey fails
-
-#### Scenario: Half of the THEN
-
-- **WHEN** a `THEN` promises a message and that nothing is saved, and the evidence shows the message but not the unchanged list
-- **THEN** the journey does not pass
-
 ## ADDED Requirements
 
 ### Requirement: A grading change is measured first
