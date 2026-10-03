@@ -1,6 +1,8 @@
 // The practice site scripts/eval-verify.mjs checks /verify's instructions against: a small notes
-// app whose nine promises are in change/specs/notes/spec.md. Five are quietly broken, four work;
-// key.json holds the answers. State is in memory, so each start is a fresh site.
+// app whose twelve promises are in change/specs/notes/spec.md. Five are quietly broken, four work,
+// and three work in the part a page can show and add a part no page or address can: an email to
+// the owner, an audit-log entry, a nightly re-index. The site does none of those three and has no
+// address for them. key.json holds the answers. State is in memory, so each start is a fresh site.
 // Meta-only: no target receives it. Nothing the site serves may name a planted mistake.
 //
 // The planted mistakes:

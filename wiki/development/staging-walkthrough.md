@@ -32,6 +32,8 @@ A scenario **no probe reaches** is **listed by name as unverified**, never silen
 - **Journeys hold no assertions,** because an assertion written moments before it is deleted encodes a guess at correctness, and "nothing errored" is not "the thing worked".
 - **Every navigating step waits before its screenshot,** because a screenshot taken before the page paints captures the page you left: one two-step journey produced two byte-identical screenshots of it.
 - **Every report names each journey's probe and where it ran.** A walk driven on one machine depended on that machine, and a reader comparing two walks needs to know.
+- **A pass says how much it showed.** A journey with a claim no probe can observe is marked *partly shown*, naming the claim, because a plain pass hides the gap: 14 of 21 passed journeys on six real walks left a claim unshown. It doesn't change the verdict; most real promises hold a part a preview can't show, and failing them would make every walk fail.
+- **Evidence is scrubbed before it leaves the machine.** The driver adds the Access token to every request, so a journey that lists requests copies it into evidence; one did. Every `.env` value and token-shaped string in the run folder's text is replaced before the comment is posted. Pictures can't be read, so a journey never captures request headers.
 - **A plain check posts nothing unless you ask.** A screenshot or a click-through with no change behind it has no promise to grade, and a pull-request comment reports a change's verdict.
 
 ### Walk the app the way a person does

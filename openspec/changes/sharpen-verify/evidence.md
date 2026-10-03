@@ -111,3 +111,35 @@ Two faults in this re-check, both mine or the tooling's:
 The practice site could not have shown the second finding: its promises are written so every claim is reachable. The last three are follow-up work, not this change's.
 
 Spend: about $21 on six practice runs; the four re-check agents ran inside this session and report no separate cost.
+
+## Partly shown: today's wording against a longer one
+
+2026-10-03 · `claude-opus-5` · `--framing builder` · twelve promises: 5 planted, 4 working, 3 with a part nothing can show (a nightly re-index, an audit-log entry, an email to the owner). Two runs per version, by the Decision log's rule for this measure.
+
+**Today's wording** (`baseline-v3`, the live reference at `096e7e7`):
+
+| run | caught | missed | false alarms | asked | named | overclaimed | other | minutes | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 4/5 | 0 | 0/4 | 1 | 3/3 | 0 | 0 | 21.0 | $6.77 |
+| 2 | 4/5 | 0 | 0/4 | 1 | 3/3 | 0 | 0 | 11.5 | $3.36 |
+| total | 8/10 | 0 | 0/8 | 2 | 6/6 | 0 | 0 | 32.5 | $10.13 |
+
+**The longer wording** (`partly-shown`: the live reference plus a "grade claim by claim" paragraph in § d, about 190 words in all with § f's mark):
+
+| run | caught | missed | false alarms | asked | named | overclaimed | other | minutes | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 4/5 | 0 | 0/4 | 1 | 3/3 | 0 | 0 | 5.9 | $2.77 |
+| 2 | 4/5 | 0 | 0/4 | 1 | 3/3 | 0 | 0 | 12.2 | $4.22 |
+| total | 8/10 | 0 | 0/8 | 2 | 6/6 | 0 | 0 | 18.1 | $6.99 |
+
+Both asked on the same near-miss message as before, and nothing else differs.
+
+**Verdict, by the keep rule:** the longer wording names 0 more of 6. It is not kept, and its file is deleted.
+
+**What the tie shows.** Today's wording named every unshowable part as soon as it had a way to say so: the harness lists `partial` among the allowed verdicts for both versions. A real walk has no such word. Its comment offers a journey only `✅` or `❌`, which is why 14 of 21 real passes hid a gap and why fresh walkers wrote *pass* beside a part they named as unshown. The judgment was already there; the report had no place for it.
+
+**What goes in, then:** the place, not the lecture. § f gains the `◐` mark and the full/part count, and § d gains three sentences that define *partly shown*. The claim-by-claim paragraph stays out.
+
+**Limit.** This harness scores a verdict file, not the comment a walk writes, so the shipped § f text is not itself measured here. The first real `/verify` after this lands is its check.
+
+Spend on the practice site: $38.17 over ten runs ($9.74, $11.31, $10.13, $6.99).

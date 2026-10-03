@@ -72,6 +72,7 @@ Evidence rules:
 - **Screenshot wherever a human would look**, to a numbered absolute path under `$RUN_DIR/evidence/<id>/`: `--full` for the whole page, `--annotate` when numbered element labels help.
 - **Address elements semantically** (`find role`, `find text`, `find label`, preferred for anything a person could name) or by `@eN` refs from a `snapshot` in the same batch; re-`snapshot` after anything that navigates or re-renders, because refs go stale.
 - **Write no assertions**: a journey produces evidence; it does not decide.
+- **Never capture request headers** (`network requests`, a HAR): the driver adds the Access token to every request, and it would land in the evidence.
 - Write preflight's preview URL in full: a batch file has no base URL. Only request-probe paths resolve against it.
 
 ## c — run it
@@ -82,15 +83,20 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" run "$RUN_DIR" "$UR
 
 The driver runs every journey in order: batch files through `agent-browser`, each in its own browser session, and request files through `curl`. Then do any state-probe reads (§ b) before grading.
 
+`run` and `publish` each end with `REDACTED=<n>`: the driver replaced a credential in `<n>` text files under the run folder. Above 0, say so in the comment and the report. `unknown` means the scrub could not run: read the text evidence and `comment.md` for a credential yourself before posting.
+
 ## d — grade against the written expectation
 
 For each journey, read the evidence beside the `then` in `<id>.meta.json` — screenshots and `$RUN_DIR/evidence/<id>.result.json` for a browser journey, the numbered response captures for a request probe, the command output for a state probe — and decide whether it shows what the `THEN` describes.
+
+**A `THEN` often holds several claims.** Where the evidence shows some, and no probe on this preview can observe the rest (an email sent, a screen reader speaking), the journey is **partly shown**: neither a failure nor a plain pass. Name each claim not shown and why. It leaves the walk's verdict alone.
 
 **Show a browser journey's screenshots in the chat as you grade it**, before its verdict: open each numbered screenshot in walk order with your image tool, one plain line above each saying what it shows. [Show what the browser is doing](../../../../wiki/development/browsing.md#show-what-the-browser-is-doing) owns the how; the walk's screenshots are already taken, so skip its `screenshot` step.
 
 - **"No error" is not a pass, and neither is a bare `200`.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does a `200` without the body the `THEN` describes.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
 - A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is a defect in the journey, not the app.
+- `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
 - **Genuinely ambiguous → stop and ask the user**, showing the evidence and the `THEN` side by side, the readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks). Never resolve it yourself.
 
 ## e — after a failure
@@ -106,12 +112,12 @@ Three failures are almost always **out of scope**, however fixable they look: no
 
 ## f — post the evidence, then clean up
 
-One comment per invocation, not per journey; verifying again appends a new comment, never edits the first. Make it complete as prose for a reader with no images: title it by verdict, name each journey's probe and **where it ran**, and list unverifiable scenarios by name. Write `$RUN_DIR/comment.md` in this shape:
+One comment per invocation, not per journey; verifying again appends a new comment, never edits the first. Make it complete as prose for a reader with no images: title it by verdict, name each journey's probe and **where it ran**, mark a partly shown journey `◐` with what was and was not shown, and list unverifiable scenarios by name. Write `$RUN_DIR/comment.md` in this shape:
 
 ```markdown
 ## Staging walkthrough — <verdict>
 
-Verified <N> scenario(s) against <url> at `<short-sha>` — <n> in a local Chrome on the machine that ran `/verify`, <m> by direct request.
+Verified <N> scenario(s) against <url> at `<short-sha>`, <f> shown in full and <p> in part — <n> in a local Chrome on the machine that ran `/verify`, <m> by direct request.
 
 ### ✅ Submitting with no title is rejected — browser
 > **THEN** the form shows "Title is required" and nothing is saved
@@ -125,6 +131,15 @@ The message appears and the list is unchanged.
 > **THEN** the endpoint answers 422 and no note is created
 
 `POST /api/notes {"title":""}` → `422`, body names the missing title; `GET /api/notes` → the list is unchanged.
+
+### ◐ A greeting is requested — browser
+> **THEN** the greeting appears beneath the action and is announced without losing the entered name
+
+`landing` → `after submit`
+**Shown:** "Hello, Sam!" sits under the button, and the field still holds "Sam".
+**Not shown:** *announced* — the page marks the greeting for screen readers, but nothing here can hear it.
+
+![after submit](<url-or-path>)
 
 ### ❌ A note can be deleted — browser
 > **THEN** the note disappears from the list and the count drops to 2

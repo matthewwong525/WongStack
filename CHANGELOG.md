@@ -3,11 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The preview check's "no second judge" note has numbers
+## Next (minor) — The preview check says how much it showed
 
-- The page that explains how the preview check works now says what was measured: fresh agents walked 20 past checks again and disagreed with none, and the check passed none of 30 planted mistakes.
+- When part of a promise can't be shown on the preview, such as an email being sent, the check marks that promise *partly shown* and names the part, in place of a plain pass. The overall result is still a pass when nothing was contradicted.
+- Passwords, keys, and tokens are removed from a check's evidence and its report before anything is posted.
+- The page that explains how the check works states what was measured: fresh agents walked 20 past checks again and disagreed with none, and the check passed none of 30 planted mistakes.
 
-**Updating.** No action needed. Only the wording of one wiki page changed.
+**Updating.** No action needed. Reports on your pull requests gain a "partly shown" mark and, when something was removed, a line saying so.
 
 ## 29.10.0 — Task chats coordinate directly
 

@@ -21,7 +21,7 @@ Each line makes three runs. Add `--runs 1` for a smoke test.
 
 A run does this:
 
-1. Starts [the practice site](../../scripts/fixtures/verify-eval/site.mjs), a small notes app that makes [nine promises](../../scripts/fixtures/verify-eval/change/specs/notes/spec.md). Five are quietly broken; four work.
+1. Starts [the practice site](../../scripts/fixtures/verify-eval/site.mjs), a small notes app that makes [twelve promises](../../scripts/fixtures/verify-eval/change/specs/notes/spec.md). Five are quietly broken; four work; three work and add a part no page can show, like an email sent to the owner.
 2. Hands a headless agent the promises, the site, and the reference, in a temp folder outside the repo. The agent never sees [the answers](../../scripts/fixtures/verify-eval/key.json).
 3. Scores the agent's verdicts against the answers.
 
@@ -31,7 +31,7 @@ A run does this:
 node scripts/eval-verify.mjs --label baseline --framing builder
 ```
 
-`--framing builder` tells the agent it built the site, and hands it [build notes](../../scripts/fixtures/verify-eval/build-notes.md) that say all nine promises work. The notes are right about the four that work and wrong about the five that don't.
+`--framing builder` tells the agent it built the site, and hands it [build notes](../../scripts/fixtures/verify-eval/build-notes.md) that say all twelve promises work. The notes are right about the four that work, wrong about the five that don't, and sure of the three parts nobody can see.
 
 Use it to measure an idea about who grades, such as a second, fresh grader. Without it the agent never built the site, so it already grades with fresh eyes, and no version can show a fresh grader helping. Compare versions only under the same framing.
 
@@ -39,17 +39,20 @@ Notes pull less than a session that really built the code. A gain here is the le
 
 ## Read the table
 
-| run | caught | missed | false alarms | asked | minutes | cost |
-|---|---|---|---|---|---|---|
-| 1 | 3/5 | 2 | 0/4 | 0 | 6.2 | $1.10 |
-| 2 | 2/5 | 2 | 1/4 | 1 | 5.8 | $1.05 |
-| 3 | 4/5 | 1 | 0/4 | 0 | 6.9 | $1.25 |
-| total | 9/15 | 5 | 1/12 | 1 | 18.9 | $3.40 |
+| run | caught | missed | false alarms | asked | named | overclaimed | other | minutes | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 3/5 | 2 | 0/4 | 0 | 2/3 | 1 | 0 | 6.2 | $1.10 |
+| 2 | 2/5 | 2 | 1/4 | 1 | 1/3 | 2 | 0 | 5.8 | $1.05 |
+| 3 | 4/5 | 1 | 0/4 | 0 | 2/3 | 0 | 1 | 6.9 | $1.25 |
+| total | 9/15 | 5 | 1/12 | 1 | 5/9 | 3 | 1 | 18.9 | $3.40 |
 
 - **caught**: broken promises the agent failed. Higher is better.
-- **missed**: broken promises it passed, or never graded.
-- **false alarms**: working promises it failed. One working promise is slow on purpose, so a journey that doesn't wait shows up here.
+- **missed**: broken promises it passed, called partly shown, or never graded.
+- **false alarms**: working promises it failed or called partly shown. One working promise is slow on purpose, so a journey that doesn't wait shows up here.
 - **asked**: promises it sent to a person. Counted apart, never as caught.
+- **named**: promises with a part no page can show that it called partly shown (`partial`). Higher is better.
+- **overclaimed**: those same promises given a plain pass.
+- **other**: those same promises failed, sent to a person, or never graded.
 - **minutes** and **cost**: the wall time, and what the agent reported spending.
 
 The last line printed names `results.json`, which holds each promise's verdict. Each run's verdicts and agent output sit beside it.
@@ -66,7 +69,7 @@ Put each table in the change's record with the date, the model, and the cost, wh
 
 ## Check real walks too
 
-A practice site measures only what its promises let it. Its promises are written so every claim can be checked, so it can't show a pass that rests on a claim nobody observed. Go back over real walks as well:
+A practice site measures only what its promises let it. Nine of its twelve promises are written so every claim can be checked, and the other three cover one kind of gap: a part no page can show. Go back over real walks as well:
 
 - **Read the record.** Hand a fresh agent each journey's `THEN` and the posted evidence text, verdict marks removed. It says, claim by claim, whether the text states an observation.
 - **Walk it again.** Branch previews outlive their pull requests. Hand fresh agents the scenario names, the `THEN`s copied word for word, and the address; they never see the first verdict. Change no data.

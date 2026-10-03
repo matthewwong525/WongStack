@@ -31,13 +31,26 @@ The last 11 preview checks found nothing wrong: 6 passed, 5 had nothing to check
   ```
 - **Today's check was measured, and it held.** Across six runs it passed none of 30 planted mistakes and raised no false alarm, even when told it had built the site.
 - **Past real checks were checked again.** Fresh agents walked the six real checks that passed on recent publishes. They disagreed with none of 20; one could not be walked.
-- **The check's instructions do not change.** The sharper bar for proof and the fresh grader were not run: with nothing missed, there was no room to show either helping.
+- **A pass says how much it showed.** When part of a promise can't be shown on the preview, the report marks that promise *partly shown* and names the part, in place of a plain pass. The overall result is still a pass when nothing was contradicted, so publishing is not held up.
+  ```text
+     BEFORE                AFTER
+  ┌──────────────────┐  ┌──────────────────┐
+  │ PASSED: Greeting │  │ PARTLY: Greeting │
+  │ appears and is   │  │ Shown: appears,  │
+  │ announced        │  │ keeps the name   │
+  │                  │  │ Not shown:       │
+  │ "Hello, Sam!"    │  │ announced (no    │
+  │ shows            │  │ way to hear it)  │
+  └──────────────────┘  └──────────────────┘
+  ```
+- **A check's evidence is scrubbed before it leaves the machine.** Saved passwords, keys, and tokens found in what a walk gathered or wrote are replaced with a placeholder before anything is posted or uploaded, and the report says so.
+- **No second judge, and no fan-out.** The fresh grader was not built: with nothing missed, a second judge had nothing to add.
 - **The record gets the numbers.** The page that explains why the check works this way now says what was measured about a second judge.
 - **You keep the practice site**, and a page on how to measure a change to a skill, for the next time the check's instructions are edited.
 
-**Found, and left for follow-up:** 14 of the 21 passed records leave part of their promise unshown; no picture from any of the six checks can be opened today; and one walk copied its own access token into its evidence, which was caught and removed before anything was posted.
+**Left for its own change:** keeping a check's pictures where a reviewer can open them. None of the six past checks left one. It is planned in the workspace "Keep preview check pictures with the transcripts".
 
-**Non-goals:** Fixing those three findings here. Checking promises that run on a person's computer or in the chat. Running several helpers at once for speed. Running the practice test on every publish. Changing when publishing runs a check, or the scripts that find the preview and drive the browser.
+**Non-goals:** Keeping pictures. Holding up a publish over a partly shown promise. Checking promises that run on a person's computer or in the chat. Running several helpers at once for speed. Running the practice test on every publish. Changing when publishing runs a check, or the scripts that find the preview and drive the browser.
 
 ## Capabilities
 
@@ -47,11 +60,11 @@ None.
 
 ### Modified Capabilities
 
-- `staging-walkthrough`: adds that a change to the grading instructions is measured against planted mistakes first.
+- `staging-walkthrough`: a journey whose `THEN` is only partly shown is reported as partly shown; evidence carries no credential when it is posted; a change to the grading instructions is measured against planted mistakes first.
 
 ## Impact
 
-New, meta-repo only (not in the payload): `scripts/eval-verify.mjs`, `scripts/fixtures/verify-eval/` (the practice site, its scenarios, the build notes, the answer key), `scripts/tests/verify-eval.test.mjs`, and `wiki/maintaining/measure-a-skill-change.md`. Payload: one bullet in `wiki/development/staging-walkthrough.md`, with a `CHANGELOG.md` patch entry. No skill file, app, dependency, or CI workflow change. Results are in `evidence.md`.
+New, meta-repo only (not in the payload): `scripts/eval-verify.mjs`, `scripts/fixtures/verify-eval/` (the practice site, its scenarios, the build notes, the answer key), `scripts/tests/verify-eval.test.mjs`, and `wiki/maintaining/measure-a-skill-change.md`. Payload: `.agents/skills/verify/references/walkthrough.md` (§ b, § d, § f), `.agents/skills/verify/SKILL.md`'s verdict table, `.agents/skills/verify/scripts/verify-staging.sh` (the scrub), `scripts/tests/verify-scripts.test.mjs`, `wiki/development/staging-walkthrough.md`, and a `CHANGELOG.md` minor entry. No app, dependency, or CI workflow change. Results are in `evidence.md`.
 
 ## Decision log
 
@@ -80,3 +93,17 @@ New, meta-repo only (not in the payload): `scripts/eval-verify.mjs`, `scripts/fi
 - **2026-10-03** — Assumed: the rule that a pass needs every part of the promise shown is taken back out of this change, because real checks do not behave that way today and a rule the check does not follow is a false record. It is left for the follow-up that fixes it.
 - **2026-10-03** — Assumed: the three findings (thin records, lost pictures, a token copied into evidence) are follow-up work, because each changes how the check behaves and this change was to measure first.
 - **2026-10-03** — One helper printed the access token once in its own local transcript. The value was replaced there, nothing was posted or uploaded, and a scan finds no other copy; the token was not rotated.
+- **2026-10-03** — The person asked whether the check itself was fixed; it was not. Asked how to handle the three findings → chose to fix all three, then, told the pictures touch code two other open changes are rewriting, chose a new workspace for the pictures and the other two fixes here.
+- **2026-10-03** — Asked what the overall result should be when part of a promise can't be shown → chose still a pass, with the gap named.
+- **2026-10-03** — Asked where pictures should be kept → chose Cloudflare, with the transcripts; planned in the new workspace, not here.
+- **2026-10-03** — Assumed: the partly-shown wording is measured before it goes in, on three new practice promises that each hold a part no page or address can show, because that is the rule this change set for itself.
+- **2026-10-03** — Assumed: two runs per version for this measure, not three, because the expected gap is large (today's check has no word for a partly shown promise) and the person was told roughly $10 to $15; a third run is added only if the two disagree.
+- **2026-10-03** — Assumed: the wording is kept if it names at least 2 more of the 6 partly-showable promises than today's check, catches no fewer than one less of the 10 planted mistakes, and raises false alarms by at most 1, counting a fully shown working promise marked "partly" as a false alarm.
+- **2026-10-03** — Assumed: the scrub reuses the one that already cleans transcripts, because one list of what counts as a secret is easier to keep right than two.
+- **2026-10-03** — Assumed: pictures are not scanned for secrets, because a picture's text can't be read by the scrub; the instructions tell a walk not to capture request details.
+- **2026-10-03** — Agreed with the chat planning the pictures change: this change publishes first and that one builds on it. This one keeps the grading section, the report's summary line, the partly-shown example, and the scrub; that one keeps the block that uploads pictures and uploads only after the scrub has run.
+- **2026-10-03** — The publishing order agreed with the pictures change (PR #249) no longer holds: the person chose to build that one now, so whichever publishes second brings the other in. The split of who edits what stands: this change keeps the grading section, the report's summary line, the partly-shown example, and the scrub at the top of the upload step; that one keeps the rest of the upload step and the picture lines.
+- **2026-10-03** — Measured the partly-shown wording: today's instructions and a longer version both named all 6 unshowable parts, so the longer version is not kept. Today's check named them as soon as it had a word for it, which a real report lacks. What goes in is that word: a mark in the report and three sentences defining it.
+- **2026-10-03** — Assumed: the report's mark ships though the test could not score it, because the person chose that a partly shown promise be named, real reports show the gap (14 of 21), and the test scores a verdict list, not the report a check writes. The next real check is its test.
+- **2026-10-03** — Assumed: the scrub replaces every value from the secrets file of eight characters or more, secret or not, because a missed secret posted in public costs more than a placeholder where an email address was; the instructions say to read the picture when a placeholder appears.
+- **2026-10-03** — Assumed: the scrub's result line sits with the run step in the instructions, not beside the upload step, so the pictures change can rewrite the upload step without a clash.

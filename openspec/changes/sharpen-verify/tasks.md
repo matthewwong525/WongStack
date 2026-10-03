@@ -32,3 +32,22 @@
 - [x] 4.2 Settle the MODIFIED requirement in this change's delta by the evidence (keep it only if the walks show the behavior today) and log the choice; verify `openspec validate "sharpen-verify" --strict --no-interactive` passes and the main spec matches the delta
 - [x] 4.3 Add a `## Next (patch)` entry at the top of `CHANGELOG.md` in plain words for the wiki page's change; verify the entry has its **Updating.** note
 - [x] 4.4 Run `/save` and confirm CI passes
+
+## 5. Partly shown promises (practice set, skill)
+
+- [x] 5.1 Add three practice promises with a part nothing can show (owner email, audit-log entry, nightly re-index), key `partial`, the `partial` verdict, and the scoring table in design.md § The two fixes to `scripts/fixtures/verify-eval/` and `scripts/eval-verify.mjs`; verify `scripts/tests/verify-eval.test.mjs` asserts named, overclaimed, and both new false-alarm and missed cases with fake agents, and that the build notes claim all twelve
+- [x] 5.2 Run `node scripts/eval-verify.mjs --label baseline-v3 --framing builder --runs 2`; verify its table is in `evidence.md`
+- [x] 5.3 Write `candidates/partly-shown.md` from `walkthrough.md` with the § d and § f text; run it twice with `--reference` and `--framing builder`; verify its table and the keep-rule verdict are in `evidence.md`
+- [x] 5.4 The longer wording tied today's and is not kept; the mark it tied on goes in: `◐` and the full/part count in `.agents/skills/verify/references/walkthrough.md` § f, three sentences defining *partly shown* in § d, and `.agents/skills/verify/SKILL.md`'s verdict table and report line; verify `node scripts/measure-context.mjs --check` and `node scripts/check-payload-links.mjs` pass
+- [x] 5.5 Add the reason to `wiki/development/staging-walkthrough.md` (why a pass names what it showed, with the 14 of 21); verify the wiki link checks pass
+
+## 6. Scrub evidence (verify scripts)
+
+- [x] 6.1 Scrub the run folder's text files at the end of `run` and the start of `publish` in `.agents/skills/verify/scripts/verify-staging.sh`, reusing the memory skill's `redact`, printing `REDACTED=<n>`; verify `scripts/tests/verify-scripts.test.mjs` plants the secret in an evidence file, a result file, and `comment.md` and finds it in none afterwards, nor in stdout or stderr
+- [x] 6.2 Add the no-request-headers evidence rule to `walkthrough.md` § b, the scrub to § f's report line, and the reason to `wiki/development/staging-walkthrough.md`; verify `node scripts/measure-context.mjs --check` and the link checks pass
+
+## 7. Integration
+
+- [x] 7.1 Replace the `## Next (patch)` entry in `CHANGELOG.md` with one `## Next (minor)` entry covering partly shown promises, the scrub, and the measured note, in plain words with its **Updating.** note; verify one `## Next` entry exists
+- [x] 7.2 Run `/save` and confirm CI passes
+

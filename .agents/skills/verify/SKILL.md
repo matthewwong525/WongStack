@@ -24,7 +24,7 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" preflight   # --no-
 2. **Save, then preflight.** Invoke the `save` skill and let it finish; then `preflight`. `UNKNOWN` → report **unverified** with its remedy; stop.
 3. **Walk, grade, and post** by [§§ b–f](references/walkthrough.md#b--write-the-journeys): one comment on every verdict.
 4. **On `FAILURE`**, reset staging in a stack-pack repo (`node "$ROOT/scripts/reset-staging-d1.mjs"`), then judge scope by [§ e](references/walkthrough.md#e--after-a-failure). In scope → fix, `/save`, and walk again, **at most twice**. Out of scope → report what failed and stop.
-5. **Report** the verdict, each journey's probe and **where it ran**, the comment link, anything **installed**, **healed**, or **fixed** (each fix commit), your scope judgement, and each **unverifiable** scenario with why. On `UNKNOWN`, say it was **not verified** and what would make it runnable. Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ship it, fix what the walk found, or walk again. Inside `/ship`, return the verdict instead.
+5. **Report** the verdict, each journey's probe and **where it ran**, the comment link, anything **installed**, **healed**, or **fixed** (each fix commit), your scope judgement, each **partly shown** scenario with the part not shown, and each **unverifiable** scenario with why. On `UNKNOWN`, say it was **not verified** and what would make it runnable. Close with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): ship it, fix what the walk found, or walk again. Inside `/ship`, return the verdict instead.
 
 ## When a block stops the walk
 
@@ -41,7 +41,7 @@ A screenshot, a request, or a click through the app with no change behind it ski
 | Verdict | Meaning | What `/verify` reports |
 |---|---|---|
 | **NONE** | no scenario reachable by any probe | one line on what was there instead |
-| **SUCCESS** | every journey satisfied its `THEN` | the evidence comment |
+| **SUCCESS** | no journey contradicted its `THEN` | the evidence comment, naming each journey only [partly shown](references/walkthrough.md#d--grade-against-the-written-expectation) |
 | **FAILURE** | a journey contradicted its `THEN` | the evidence comment, then reset + fix-in-scope or stop |
 | **UNKNOWN** | the walk could not run or be trusted, after any heal | **unverified**, and why |
 | **TIMEOUT** | the walk exceeded its budget | **unverified**: what completed, where it stopped |

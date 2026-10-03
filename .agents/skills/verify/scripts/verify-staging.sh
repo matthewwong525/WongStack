@@ -41,6 +41,9 @@
 #   RESULT: TIMEOUT  — the walk did not finish inside its budget.
 #
 # After RESULT come indented human lines, then KEY=VALUE facts for the caller.
+# `run` and `publish` end with REDACTED=<n>: the number of files under the run
+# folder that had a credential replaced, or `unknown` when the scrub could not
+# run and the evidence must be read before it is posted.
 #
 # ── There is no adoption to detect ────────────────────────────────────────────
 # The walk used to read `playwright-core` in the app's devDependencies as the
@@ -95,6 +98,49 @@ load_credentials() {
   fi
   export CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
 }
+
+# Replace credentials in every text file under the run folder, so nothing that is
+# posted or uploaded from it carries one. The runner adds the Access token to
+# every request, so a journey that lists the browser's requests copies the token
+# into its evidence. The memory skill's scrub does the replacing: every .env
+# value, the walk's own credentials, and token-shaped strings. Each value is
+# also matched the way JSON writes it, because most evidence is JSON. A file
+# with a NUL byte is a picture and is left alone, and so is a link, which could
+# point outside the folder.
+#
+# Sets REDACTED to the number of files changed; it stays empty when the scrub
+# could not run, and the caller prints that as `unknown`. Never prints a value:
+# node's own errors are dropped too, since one could quote what it was matching.
+scrub() {
+  REDACTED=$(node --input-type=module -e '
+    import { lstatSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+    import { join } from "node:path";
+    import { pathToFileURL } from "node:url";
+    const [lib, runDir] = process.argv.slice(1);
+    const load = name => import(pathToFileURL(join(lib, name)));
+    const { redact, secretValues } = await load("scan.mjs");
+    const { loadEnv, repoContext } = await load("store.mjs");
+    let env = {};
+    try { env = loadEnv(repoContext()); } catch { /* not in a checkout: no .env to read */ }
+    const walk = ["CLOUDFLARE_API_TOKEN", "CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET"].map(key => process.env[key]);
+    const known = [...Object.values(env), ...walk].filter(value => typeof value === "string");
+    const values = secretValues(known.flatMap(value => [value, JSON.stringify(value).slice(1, -1)]));
+    let changed = 0;
+    for (const name of readdirSync(runDir, { recursive: true })) {
+      const file = join(runDir, name);
+      if (!lstatSync(file).isFile()) continue;
+      const bytes = readFileSync(file);
+      if (bytes.includes(0)) continue;
+      const text = bytes.toString("utf8");
+      const clean = redact(text, values);
+      if (clean === text) continue;
+      writeFileSync(file, clean);
+      changed += 1;
+    }
+    console.log(changed);
+  ' "$(dirname "${BASH_SOURCE[0]}")/../../memory/scripts/lib" "$1" 2>/dev/null) || REDACTED=""
+}
+scrubbed() { echo "REDACTED=${REDACTED:-unknown}"; }
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 
@@ -216,6 +262,8 @@ run)
   VERIFY_URL="$URL" \
   timeout "${BUDGET}m" bash "$(dirname "${BASH_SOURCE[0]}")/verify-runner.sh" "$RUN_DIR"
   STATUS=$?
+  # Whatever the driver's exit, the evidence it left is on disk and may be read.
+  scrub "$RUN_DIR"
 
   case "$STATUS" in
     0)   emit WALKED
@@ -237,6 +285,7 @@ run)
          note "Either way this is UNVERIFIED, never a graded login page." ;;
     *)   emit UNKNOWN; note "the driver exited $STATUS before finishing" ;;
   esac
+  scrubbed
   ;;
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -251,14 +300,19 @@ run)
 # the pictures only corroborate it.
 publish)
   RUN_DIR="${2:-}"
+  # Before the bucket check, so a walk with no bucket is scrubbed too: `publish`
+  # is the one step every walk runs between writing its comment and posting it,
+  # and state-probe evidence is written after `run` has already scrubbed.
+  scrub "$RUN_DIR"
   if [ -z "${WALK_MEDIA_BUCKET:-}" ]; then
-    emit NONE; note "no WALK_MEDIA_BUCKET — the comment will cite local paths"; exit 0
+    emit NONE; note "no WALK_MEDIA_BUCKET — the comment will cite local paths"; scrubbed; exit 0
   fi
   BASE="${WALK_MEDIA_BASE_URL:-}"
   if [ -z "$BASE" ]; then
     emit UNKNOWN
     note "WALK_MEDIA_BUCKET is set but WALK_MEDIA_BASE_URL is not — an uploaded"
     note "object with no public base URL cannot be linked. See .env.example."
+    scrubbed
     exit 0
   fi
   PREFIX="walkthrough/$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -277,6 +331,7 @@ publish)
     note "$FAILED file(s) failed to upload — those cite local paths instead"
   fi
   emit WALKED
+  scrubbed
   ;;
 
 # ──────────────────────────────────────────────────────────────────────────────

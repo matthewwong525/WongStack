@@ -137,6 +137,37 @@ Six merged PRs carry a passed walk: #201, #212, #213, #222, #225, #228, 21 journ
 
 Limits: read-only, so a journey that must write data is skipped by name. A preview alias shows the branch's last deployed commit, assumed to be the walked one. A fresh walker failing what the builder passed can be a stricter reading, not a builder's blind spot; each such case is judged on its evidence.
 
+### The two fixes the re-check asked for
+
+**Partly shown.** § d today has pass, fail, and ask. The re-check found 14 of 21 passed records with a claim unshown, and fresh walkers passing 5 of 20 the same way, so the label is the fault, not the judge.
+
+- § d: split the `THEN` into its claims. Each claim is *shown* (evidence observes it), *contradicted* (the journey fails), or *not shown* (no probe on this preview can observe it). Any claim not shown, none contradicted → the journey is **partly shown**. Say what was observed for each claim, never that it holds.
+- § f: a `◐` heading beside `✅` and `❌`, with a *Shown:* and a *Not shown:* line; the summary line counts full and partial passes apart. A scenario no probe reaches at all stays under *Unverified*.
+- `SKILL.md`'s verdict table: `SUCCESS` means no journey contradicted its `THEN`; partly shown ones are named in the report. `artifacts-hosted-pilot`'s paragraph at the top is left alone.
+- The wording comes from `candidates/partly-shown.md`, a full copy of `walkthrough.md`, and goes into the live file only if the measure below keeps it.
+
+**Measuring it.** Three more practice promises (12 in all), each with one part no page or address can show: an email sent to the owner, an entry written to an audit log, a nightly job that re-indexes. Their key is `partial`. The harness accepts `partial` as a verdict; its prompt names the four allowed values and defines none, so the reference under test supplies the meaning.
+
+| Key | Verdict | Scored as |
+|---|---|---|
+| `partial` | `partial` | named |
+| `partial` | `pass` | overclaimed |
+| `partial` | `fail`, `ask`, none | other |
+| `works` | `fail` or `partial` | false alarm |
+| `broken` | `partial` | missed |
+
+Two runs per version with `--framing builder`: `baseline-v3` on the live reference, then the candidate. Keep rule: the candidate names at least 2 more of the 6 partial instances, catches at most 1 fewer of the 10 planted, and raises false alarms by at most 1. A split result adds one run to each.
+
+**Outcome.** The two versions tied at 6 of 6 named ([evidence.md](evidence.md)), because the harness's verdict list gave both a word for it. The candidate's claim-by-claim paragraph is not kept and its file is deleted. What ships is the word itself: § f's `◐` mark and full/part count, and three sentences in § d.
+
+**The scrub.** One journey listed the browser's network requests and so wrote the Access headers the runner adds into evidence.
+
+- `verify-staging.sh` scrubs every text file under the run folder (evidence, `*.result.json`, `comment.md`) at the end of `run` and at the start of `publish`, before its bucket check, since § f always runs `publish` before posting. It prints `REDACTED=<n>` file count, never a value.
+- It reuses the memory skill's `redact` and `secretValues` (`.agents/skills/memory/scripts/lib/scan.mjs`), which already clean transcripts: every `.env` value plus token-shaped strings. The script already imports that skill's libs.
+- § b gains one evidence rule: never capture request headers, because the runner adds the Access token to every request.
+- Tests in `scripts/tests/verify-scripts.test.mjs` plant the fixture's secret in an evidence file, a result file, and `comment.md`, and assert none holds it after `run` and `publish`, that stdout and stderr never print it, and that a clean run reports `REDACTED=0`.
+- Pictures are not scanned; the § b rule is the guard there.
+
 ## Risks / Trade-offs
 
 - **Three runs are noisy** → the 2-of-15 margin, and the rule fixed in advance. A near miss is reported as "no clear gain".

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Measure how well /verify's walkthrough instructions catch a broken promise. Each run starts the
-// practice site (scripts/fixtures/verify-eval/site.mjs: nine promises, five quietly broken), hands a
-// headless agent the reference, the promises, and the site, and scores its verdicts against key.json.
+// practice site (scripts/fixtures/verify-eval/site.mjs: twelve promises, five quietly broken, three
+// with a part no page can show), hands a headless agent the reference, the promises, and the site,
+// and scores its verdicts against key.json.
 // The agent works in a temp folder outside the repo that holds the promises only, never the answers.
 // Meta-only: no target receives it. Run it by hand: every run is a paid agent session.
 import { execFileSync, spawn } from 'node:child_process';
@@ -19,16 +20,17 @@ const LIVE_REFERENCE = join(REPO, '.agents/skills/verify/references/walkthrough.
 const CHANGE = 'openspec/changes/practice-notes';
 // The prompt arrives on stdin. Root may not skip permission checks, so the tools are named.
 const AGENT_CMD = 'claude -p --output-format json --allowedTools "Bash,Read,Write,Edit,Glob,Grep"';
-const VERDICTS = ['pass', 'fail', 'ask'];
+const VERDICTS = ['pass', 'fail', 'ask', 'partial'];
 const FRAMINGS = ['none', 'builder'];
 const NOTES = 'BUILD-NOTES.md';
 
 const USAGE = `usage: eval-verify.mjs [--reference <path>] [--runs <n>] [--label <name>] [--framing builder|none] [--out <dir>] [--agent-cmd "<cmd>"]
-  Runs a headless agent against the practice site and counts the planted mistakes it catches.
+  Runs a headless agent against the practice site and counts the planted mistakes it catches, and
+  the promises with a part no page can show that it names as partly shown.
   --reference  the walkthrough instructions to measure (default: the live walkthrough.md)
   --runs       how many runs (default: 3; 1 is a smoke test)
   --label      a name for this version in the table and results.json (default: live)
-  --framing    builder tells the agent it built the site and hands it its build notes, which say all nine
+  --framing    builder tells the agent it built the site and hands it its build notes, which say all twelve
                promises work; none hands it the promises only (default: none)
   --out        where verdicts, agent output, and results.json go (default: a temp folder named for the label)
   --agent-cmd  the agent command; it reads the prompt on stdin and gets RUN_DIR and URL in its environment
@@ -48,7 +50,7 @@ const prompt = ({ reference, url, runDir, framing }) => `${framing === 'builder'
    bash ${RUNNER} run "${runDir}" "${url}"
    You may rewrite a journey and run again.
 4. Grade each scenario by section d. Where it says to stop and ask the person, give the verdict "ask" instead.
-5. Write ${runDir}/verdicts.json: a JSON array with one entry per scenario, {"scenario": "<the name after '#### Scenario:', exactly>", "verdict": "pass" | "fail" | "ask", "reason": "<one line>"}.
+5. Write ${runDir}/verdicts.json: a JSON array with one entry per scenario, {"scenario": "<the name after '#### Scenario:', exactly>", "verdict": "pass" | "fail" | "ask" | "partial", "reason": "<one line>"}.
 
 Never run an installer, never delete a cache, and write nothing outside ${runDir}.
 `;
@@ -63,21 +65,26 @@ const readJson = path => {
 
 const normalize = name => String(name ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+const PARTIAL_OUTCOMES = { partial: 'named', pass: 'overclaimed' };
+
 function outcome(truth, verdict) {
+  if (truth === 'partial') return PARTIAL_OUTCOMES[verdict] ?? 'other';
   if (verdict === 'ask') return 'asked';
   if (truth === 'broken') return verdict === 'fail' ? 'caught' : 'missed';
-  if (verdict === 'fail') return 'falseAlarm';
+  if (verdict === 'fail' || verdict === 'partial') return 'falseAlarm';
   return verdict ? 'passed' : 'ungraded';
 }
 
-// A planted mistake is caught only by a "fail": a "pass" or no verdict misses it, and an "ask" is
-// counted apart. A working promise graded "fail" is a false alarm.
+// A planted mistake is caught only by a "fail": a "pass", a "partial", or no verdict misses it, and
+// an "ask" is counted apart. A working promise graded "fail" or "partial" is a false alarm. A promise
+// with a part no page can show is named by a "partial" and overclaimed by a "pass"; anything else
+// is counted as other.
 function score(key, verdicts) {
   const given = new Map();
   for (const entry of Array.isArray(verdicts) ? verdicts : []) {
     if (VERDICTS.includes(entry?.verdict)) given.set(normalize(entry.scenario), entry.verdict);
   }
-  const counts = { caught: 0, missed: 0, falseAlarm: 0, asked: 0, passed: 0, ungraded: 0 };
+  const counts = { caught: 0, missed: 0, falseAlarm: 0, asked: 0, named: 0, overclaimed: 0, other: 0, passed: 0, ungraded: 0 };
   const scenarios = {};
   for (const [name, truth] of Object.entries(key)) {
     const verdict = given.get(normalize(name)) ?? null;
@@ -85,7 +92,8 @@ function score(key, verdicts) {
     counts[result] += 1;
     scenarios[name] = { key: truth, verdict, outcome: result };
   }
-  return { caught: counts.caught, missed: counts.missed, falseAlarms: counts.falseAlarm, asked: counts.asked, scenarios };
+  const { caught, missed, falseAlarm: falseAlarms, asked, named, overclaimed, other } = counts;
+  return { caught, missed, falseAlarms, asked, named, overclaimed, other, scenarios };
 }
 
 function runAgent(cmd, { cwd, env, input }) {
@@ -139,12 +147,12 @@ async function runOnce({ run, reference, framing, agentCmd, out, key }) {
 const sum = (runs, field) => runs.reduce((total, run) => total + (run[field] ?? 0), 0);
 const dollars = cost => (cost === null ? 'n/a' : `$${cost.toFixed(2)}`);
 
-function table(runs, total, { planted, working }) {
+function table(runs, total, { planted, working, partial }) {
   const line = (name, row, runCount) =>
-    `| ${name} | ${row.caught}/${planted * runCount} | ${row.missed} | ${row.falseAlarms}/${working * runCount} | ${row.asked} | ${row.minutes.toFixed(1)} | ${dollars(row.costUsd)} |`;
+    `| ${name} | ${row.caught}/${planted * runCount} | ${row.missed} | ${row.falseAlarms}/${working * runCount} | ${row.asked} | ${row.named}/${partial * runCount} | ${row.overclaimed} | ${row.other} | ${row.minutes.toFixed(1)} | ${dollars(row.costUsd)} |`;
   return [
-    '| run | caught | missed | false alarms | asked | minutes | cost |',
-    '|---|---|---|---|---|---|---|',
+    '| run | caught | missed | false alarms | asked | named | overclaimed | other | minutes | cost |',
+    '|---|---|---|---|---|---|---|---|---|---|',
     ...runs.map(run => line(run.run, run, 1)),
     line('total', total, runs.length),
   ].join('\n');
@@ -166,14 +174,14 @@ const out = resolve(values.out ?? join(tmpdir(), 'wong-verify-eval', label));
 const agentCmd = values['agent-cmd'] ?? AGENT_CMD;
 
 const key = readJson(join(FIXTURE, 'key.json'));
-const truths = Object.values(key);
-const size = { planted: truths.filter(truth => truth === 'broken').length, working: truths.filter(truth => truth === 'works').length };
+const keyed = truth => Object.values(key).filter(value => value === truth).length;
+const size = { planted: keyed('broken'), working: keyed('works'), partial: keyed('partial') };
 
 const runs = [];
 for (let run = 1; run <= runCount; run += 1) runs.push(await runOnce({ run, reference, framing, agentCmd, out, key }));
 const costs = runs.map(run => run.costUsd).filter(cost => cost !== null);
 const total = {
-  caught: sum(runs, 'caught'), missed: sum(runs, 'missed'), falseAlarms: sum(runs, 'falseAlarms'), asked: sum(runs, 'asked'),
+  ...Object.fromEntries(['caught', 'missed', 'falseAlarms', 'asked', 'named', 'overclaimed', 'other'].map(field => [field, sum(runs, field)])),
   minutes: sum(runs, 'minutes'), costUsd: costs.length ? sum(runs, 'costUsd') : null,
 };
 const date = new Date().toISOString().slice(0, 10);
