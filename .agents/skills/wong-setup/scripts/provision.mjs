@@ -201,7 +201,7 @@ async function recordedBase(dir, exec) {
 }
 
 /**
- * The primary checkout's .env: where the durable secrets and the admin memory key live. Stops when the
+ * The primary checkout's .env: where the deployment and verification secrets live. Stops when the
  * primary is unknown, rather than write the keys into a worktree that may be deleted.
  */
 function durableEnv(dir) {
@@ -518,11 +518,10 @@ async function deployToken(cf, account, name, rows, groups, { secretSet, setSecr
   note('updated', `deploy token ${name}: new value sent to GitHub`);
 }
 
-const hasKey = (env) => (env.CLOUDFLARE_MEMORY_TOKEN ?? '').startsWith('wongm_');
 
 /**
  * Everything after the one billable ask, under `base`: the memory store (R2 check, database, bucket),
- * the subdomain, the record's `components.memory`, the memory schema, the admin key, both app databases,
+ * the subdomain, the record's `components.memory`, closed machine-memory setup status, both app databases,
  * the config, and the deploy token in the GitHub secret. `keepConfig` leaves an installed repo's
  * committed files as they are, and adds no new bucket they would need. `openWithoutLogin` lets a Zero
  * Trust organization Cloudflare refuses (onboarding, usually a card) record `access.mode: 'open'` and go
@@ -536,10 +535,7 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
   const note = (list, what) => report[list].push(what);
   const git = (args) => exec('git', ['-C', dir, ...args], { env });
   const envFile = durableEnv(dir);
-  const needsKey = !hasKey(readEnv(envFile));
-  const email = needsKey ? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout.trim() : null;
-  if (needsKey && !email) throw new ProvisionError('repo', 'git has no user.email here, and the admin memory key is made for it; set it with `git config --global user.email <your email>` and run again');
-  const loginEmail = ownerIdentity(ownerEmail ?? email ?? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout);
+  const loginEmail=ownerIdentity(ownerEmail ?? (await git(['config','user.email']).catch(()=>({stdout:''}))).stdout);
   const provisionStateFile = await stateFile(dir, exec);
   const state = readJson(provisionStateFile, {});
   if (state.account && (state.account !== account || state.repo !== repo || state.base !== base)) {
@@ -612,17 +608,9 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     }
   }
   const worker = `https://${n.worker}.${sub}.workers.dev/_memory`;
-  recordMemory(dir, { accountId: account, databaseId: memoryId, database: n.memory, bucket, worker }, note);
+  recordMemory(dir, { accountId: account, databaseId: memoryId, database: n.memory, bucket, worker,protocolVersion:2,status:'pending-setup',reason:'trusted-machine-setup-required' }, note);
 
-  // The schema, retried while a new database or a widened token takes effect, then the admin key.
-  const memory = join(dir, '.claude', 'skills', 'memory', 'scripts', 'memory.mjs');
-  const admin = { cwd: dir, env: { ...env, CLOUDFLARE_API_TOKEN: token } };
-  await step('cloudflare', () => retry(() => exec('node', [memory, 'migrate'], admin), sleep, () => true));
-  if (needsKey) {
-    await step('cloudflare', () => exec('node', [memory, 'member', 'admin'], admin));
-    note('created', `admin memory key for ${email}, in .env`);
-  } else note('reused', 'admin memory key in .env');
-
+  report.todo.push('Memory awaits trusted machine setup after the published core and exact bindings are verified.');
   // The app's databases and config.
   const db = await step('cloudflare', () => database(cf, account, n.db, note));
   const stagingDb = await step('cloudflare', () => database(cf, account, n.stagingDb, note));
@@ -661,7 +649,7 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     note('created', 'GitHub secret CLOUDFLARE_ACCOUNT_ID');
   }
 
-  report.memory = { database: n.memory, bucket, worker };
+  report.memory = { protocolVersion:2,status:'pending-setup',reason:'trusted-machine-setup-required',database:n.memory,bucket,worker };
   report.urls = { production: `https://${n.worker}.${sub}.workers.dev`, previews: `https://<branch>-${n.staging}.${sub}.workers.dev` };
   return report;
 }

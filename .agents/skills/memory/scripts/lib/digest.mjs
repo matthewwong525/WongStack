@@ -1,7 +1,8 @@
 // The session-start digest: one batch of named statements, bounded output, and a local cache for offline starts.
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { readHead, SCRIPT, statePath } from './store.mjs';
+import { readMachineState } from './machine-client-state.mjs';
+import { readHead, SCRIPT, statePath, readJson, writeJson } from './store.mjs';
 
 export const MAX_LINES = 40;
 export const MAX_BYTES = 6 * 1024;
@@ -10,42 +11,16 @@ export const PERSON_MAX_BYTES = 1536;
 // Topic tags named after a verb or skill. An open thread carries the one whose next run should check it;
 // the digest counts other changes' threads by these, and a verb loads its own when it starts.
 export const VERB_TAGS = ['explore', 'plan', 'apply', 'save', 'ship', 'continue', 'verify', 'routine', 'sync', 'setup', 'close', 'improve'];
-const FETCH_LIMIT = 60;
 const CONSOLIDATE_AFTER_MS = 24 * 60 * 60 * 1000;
 const CONSOLIDATE_AFTER_SESSIONS = 5;
 const SEARCH = `${SCRIPT} search <terms>`;
-const TYPE_ORDER = "CASE f.type WHEN 'feedback' THEN 1 WHEN 'project' THEN 2 WHEN 'reference' THEN 3 WHEN 'user' THEN 4 ELSE 5 END";
-
-export const FACT_COLUMNS = 'id, slug, type, body, author, created_at, session_id, superseded_by';
-const F_COLUMNS = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
-
-// Whether the store carries the reader schema (migration 4), read once per store.
-const READER_SCHEMA = ['SELECT count(*) AS n FROM schema_migrations WHERE version = 4'];
-const hasReaders = store => (store.readerSchema ??= store.query(...READER_SCHEMA).then(([row]) => Number(row?.n) > 0));
-
-// In a team, `user` and `feedback` facts are personal: show only the current person's, matched on every
-// email on their people page, their git email, and their memory key's email. Other types come from everyone,
-// except a fact a reader key wrote, which only its author sees; a store before the reader schema has none.
-// The memory Worker already keeps a member's or reader's view to this; for the admin, it narrows the default
-// view to their own. Returns a WHERE clause on alias `f` with its params, or null when the repo is not a team.
-// `page` is the person's page when the caller already read it.
-export async function personalFilter(ctx, store, page = personPage(ctx)) {
-  if (!store.config.team) return null;
-  const emails = new Set([(ctx.author || '').toLowerCase(), store.email].filter(email => email?.includes('@')));
-  for (const email of page?.text.toLowerCase().match(EMAIL) || []) emails.add(email);
-  const list = emails.size ? [...emails] : [''];
-  const own = `lower(f.author) IN (${list.map(() => '?').join(', ')})`;
-  const personal = { clause: `(f.type NOT IN ('user', 'feedback') OR ${own})`, params: list };
-  if (!await hasReaders(store)) return personal;
-  return { clause: `${personal.clause} AND (f.shared = 1 OR ${own})`, params: [...list, ...list] };
-}
+export const FACT_COLUMNS='id, slug, type, body, author, created_at, session_id, superseded_by';
+// The server applies machine ownership, even for the last machine. Wiki aliases
+// and git email are display metadata and never enter a memory authorization filter.
+export async function personalFilter() {return null;}
 
 // When consolidation last ran, and how many sessions were captured since.
-const LAST_CONSOLIDATION = "(SELECT max(finished_at) FROM runs WHERE kind = 'consolidation' AND status = 'ok')";
-export const CONSOLIDATION_STATE = [`SELECT ${LAST_CONSOLIDATION} AS last_consolidation,
-  (SELECT count(*) FROM sessions WHERE status = 'captured' AND updated_at > coalesce(${LAST_CONSOLIDATION}, '')) AS captured_since,
-  (SELECT min(created_at) FROM facts) AS first_fact`];
+export const CONSOLIDATION_STATE={operation:'consolidation',params:{}};
 
 // The change whose proposal records the current branch.
 export function currentSlug(root, branch) {
@@ -162,41 +137,20 @@ export function buildDigest({ facts, live = facts.length, threads = [], steps = 
 
 // The digest's statements, and how to turn their results into the text, the cache, and the consolidation state.
 // Writers append these to their own batch, so the refreshed digest sees their writes in the same round trip.
-export async function digestPlan(ctx, store) {
-  const slug = currentSlug(ctx.root, ctx.branch);
-  const person = personPage(ctx);
-  const personal = await personalFilter(ctx, store, person);
-  const where = `f.superseded_by IS NULL${personal ? ` AND ${personal.clause}` : ''}`;
-  const params = personal?.params || [];
-  const verbTags = VERB_TAGS.map(tag => `'${tag}'`).join(', ');
-  const statements = [
-    // Other changes' open threads by verb tag: one with two counts under each, and the untagged come back as a null tag.
-    [`SELECT ft.tag, count(*) AS n FROM facts f LEFT JOIN fact_tags ft ON ft.fact_id = f.id AND ft.tag IN (${verbTags}) WHERE ${where} AND f.type = 'thread' AND f.slug != ? GROUP BY ft.tag`, [...params, slug || '']],
-    [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type != 'thread' ORDER BY ${TYPE_ORDER}, f.created_at DESC, f.id DESC LIMIT ${FETCH_LIMIT}`, params],
-    [`SELECT count(*) AS live FROM facts f WHERE ${where}`, params],
-    [`SELECT ${F_COLUMNS} FROM facts f WHERE ${where} AND f.type = 'thread' AND f.slug = ? ORDER BY f.created_at DESC`, [...params, slug || '']],
-    ['SELECT kind, host, started_at, finished_at, status, reason, counts FROM runs ORDER BY id DESC LIMIT 1'],
-    CONSOLIDATION_STATE,
-  ];
-  const finish = results => {
-    const [steps, facts, [count], threads, [run], [state]] = results.slice(-statements.length);
-    const text = buildDigest({ facts, live: count?.live ?? facts.length, threads, steps, person, run, slug, personal: Boolean(personal), admin: store.role === 'admin' });
-    writeFileSync(statePath(ctx, 'digest.md'), text);
-    return { text, due: consolidationDue(state) };
-  };
-  return { statements, finish };
+export async function digestPlan(ctx,store) {
+ const slug=currentSlug(ctx.root,ctx.branch),person=personPage(ctx);
+ const finish=({facts,live,threads,steps,runs,consolidation})=>{
+  const local=readJson(statePath(ctx,'last-run.json'),null),run=local||runs[0];
+  const text=buildDigest({facts,live,threads,steps,person,run,slug,personal:true,admin:store.role==='admin'});
+  const machine=readMachineState(ctx);writeJson(statePath(ctx,'digest.json'),{text,machineId:machine?.machineId,grantId:machine?.grantId,installation:machine?.installation});return {text,due:consolidationDue(consolidation)};
+ };
+ return {finish,operations:[['digest',{slug}]]};
 }
-
-export async function loadDigest(ctx, store, budget) {
-  const plan = await digestPlan(ctx, store);
-  return plan.finish(await store.batch(plan.statements, budget));
+export async function loadDigest(ctx,store) {
+ const plan=await digestPlan(ctx,store);return plan.finish(await store.operation('digest',plan.operations[0][1]));
 }
-
-export function readCache(ctx, now = Date.now()) {
-  const file = join(ctx.stateDir, 'digest.md');
-  if (!existsSync(file)) return null;
-  const text = readFileSync(file, 'utf8');
-  return text.trim() ? { text, age: ageDays(new Date(statSync(file).mtimeMs).toISOString(), now) } : null;
+export function readCache(ctx,now=Date.now()) {
+ const file=join(ctx.stateDir,'digest.json'),cache=readJson(file,null);const machine=readMachineState(ctx);if(!cache?.text||!machine||machine.quarantined||cache.machineId!==machine.machineId||cache.grantId!==machine.grantId||JSON.stringify(cache.installation)!==JSON.stringify(machine.installation))return null;return {text:cache.text,age:ageDays(new Date(statSync(file).mtimeMs).toISOString(),now)};
 }
 
 // ---------- the person's page ----------

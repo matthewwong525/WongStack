@@ -3,7 +3,7 @@ import { machineRuntimeMigrations } from './machine-runtime-migrations.mjs';
 import { machineTables, machineTriggers, machineHash, machineManifestHash } from './machine-state.mjs';
 import { digest, requireValue } from './installation-validation.mjs';
 import { dataTables, dataTriggers, dataViews, validateDataExtension } from './machine-data-state.mjs';
-import { runtimeContext } from '../../worker/machine-context.mjs';
+import { runtimeContext, runtimeSnapshotContext } from '../../worker/machine-context.mjs';
 
 export const runtimeManifestHash = () => digest(JSON.stringify(machineRuntimeMigrations));
 export const runtimeTables = Object.freeze(['configuration','manifests','bootstrap','attempts','audit','completions','proofs','keys','rotations','transcripts','activations'].map(name => `memory_runtime_${name}`));
@@ -79,6 +79,7 @@ export async function validateCompleted12(context) {
 }
 
 export async function readRuntimeState(context, options = {}) {
+  context = await runtimeSnapshotContext(context);
   requireValue(Object.keys(options).every(key => ['inspectDeployment','inspectDataMaintenance'].includes(key)), 'invalid-input');
   if (options.inspectDeployment === false) runtimeContext(context, true);
   if (options.inspectDataMaintenance === true) requireValue(runtimeContext(context).dataInspection === true || context.kind === 'trusted-machine-operator', 'machine-context-denied');

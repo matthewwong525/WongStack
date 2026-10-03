@@ -15,7 +15,7 @@ A fact is the smallest thing a cold reader needs to act as this session would: o
 - tool-call mechanics and file dumps
 - the assistant's route to a conclusion
 - anything already in the repo or the change's Decision log
-- credential values, always. A fact may say `SERVICE_TOKEN` rotated and where it comes from, never the value.
+- credential values, always, including private keys, current/candidate bearers and one-use capabilities. A fact may say `SERVICE_TOKEN` rotated and where it comes from, never the value.
 
 ## One fact, one claim
 

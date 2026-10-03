@@ -1,8 +1,7 @@
 // Upkeep: the tidying that needs no judgment, decided in plain code after every write and background run. It
 // closes threads nobody checked in 30 days, adds the area and verb tags a fact's own words name, and keeps
-// area tags' definitions and aliases equal to references/areas.json. memory.mjs reads the store and writes
+// new area tags from references/areas.json without replacing existing meanings. memory.mjs reads the store and writes
 // the plan; this file only decides.
-import { WRITES, ADMIN_WRITES } from '../../worker/statements.mjs';
 import { areasOf } from './areas.mjs';
 
 // Restates per pass: the rest wait for the next write, so one batch stays within the route's limits.
@@ -31,20 +30,10 @@ export function closingBody(thread) {
   return text.length <= MAX_BODY ? text : `${text.slice(0, MAX_BODY - 1).replace(/\s+\S*$/, '')}…`;
 }
 
-// Statements that set each area tag's definition and aliases to the list's. A listed alias the store lacks
-// is skipped; one that other tags point at is skipped too, so aliases stay one level deep.
-export function tagSync(tagRows, areas, { author, now }) {
-  const byName = new Map(tagRows.map(row => [row.name, row]));
-  const statements = [];
-  for (const [name, area] of Object.entries(areas)) {
-    const tag = byName.get(name);
-    if (tag && tag.definition !== area.definition) statements.push([ADMIN_WRITES.tagUpdate.sql, [area.definition, tag.alias_of, name]]);
-    const aliases = (area.aliases || []).map(alias => byName.get(alias))
-      .filter(row => row && row.alias_of !== name && !tagRows.some(other => other.alias_of === row.name));
-    if (aliases.length && !tag) statements.push([WRITES.tag.sql, [name, area.definition, null, author, now]]);
-    for (const row of aliases) statements.push([ADMIN_WRITES.tagUpdate.sql, [row.definition, name, row.name]]);
-  }
-  return statements;
+// Define missing area tags. Existing definitions and aliases retain their meaning.
+export function tagSync(tagRows,areas) {
+ // Definitions and aliases are immutable. Existing meanings are never rewritten.
+ return Object.entries(areas).filter(([name])=>!tagRows.some(t=>t.name===name)).map(([name,area])=>({name,definition:area.definition,aliasOf:null}));
 }
 
 // What one pass does, from the live facts the key may change (each with its `tags`): the threads to close,

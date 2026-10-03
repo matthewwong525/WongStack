@@ -6,7 +6,7 @@ See [proposal.md](proposal.md). The user replaced person-owned memory and browse
 
 ## Goals / Non-Goals
 
-Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. The removal slice is complete. The user has invoked /ship, which resumes pending source implementation before archive/merge. Current bounded source work prepares machine authorization; no live/runtime activation, provider writes, private runner changes, new live credentials or migration execution is authorized by the source slice.
+Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. The removal slice is complete. The user has invoked /ship, which resumes pending source implementation before archive/merge. Current bounded source work converts strict machine-memory routes, finite private/shared data operations and automatic private clients/hooks. No provider writes, private runner changes, new live credentials or migration execution is authorized by this source slice. Newly implemented handlers stay closed on real unprepared stores until separately coordinated trusted setup and acceptance.
 
 ## Decisions
 
@@ -340,6 +340,10 @@ The ordinary Node-free operator library now prepares initialization/status with 
 
 Activation requires the serialized source gate plus a manifest-owned disposable REST DDL/metadata rollback/concurrency probe. SQLite fixture transaction tests and successful REST request shapes are not REST atomicity evidence; a live pass is observed behavior, not a future provider guarantee. The completion receipt remains required after either normal response or retry. Legacy adoption, Access enablement/repinning, owner candidate/CLI, handlers and Devices stay separate unfinished tasks.
 
+# Current machine source continuation
+
+The retained historical design ends above. The following reservations and source gates implement the current machine-first decisions; they do not revive human ownership or Devices approval.
+
 ## Reviewed capture and deployment prerequisite under /ship
 
 Task3.0c/3.0d prepares an inactive schema14 before the coordinated route/data/client conversion. Source13 primitives passed their exact remote gate; this additional dependency does not activate them. Preserve all SQL0001–0013, original bootstrap pin hashes/version IDs, manifests, revocations, historical receipts and private snapshots. Existing fixtures remain genuine completed12/13 installations.
@@ -355,3 +359,95 @@ Following this exact source gate, reserve the strict production routes, finite r
 Schema14 retains its compiled capture/capture-status contract pair as historical supported source, not a complete public route activation. The following route/client gate will record the full-core public protocol and complete allowlist hashes in immutable schema13 activation during fresh trusted setup, before grant activation. Schema14 successors continue acknowledging their retained base14 capability; readiness requires the full13 activation pair and actual executing version matching the completed14 head. Existing activated13 stores with an unsupported activation pair refuse unchanged until a separately reviewed compatibility path exists. Neither SQL14 nor retained activation/capture/deployment receipts may be rewritten or relabelled. [Cloudflare version metadata](https://developers.cloudflare.com/workers/runtime-apis/bindings/version-metadata/) provides the actual runtime version ID. The later core must also budget all validation and write queries against [D1 invocation limits](https://developers.cloudflare.com/d1/platform/limits/); bounded source inputs alone are not live or free-tier proof.
 
 Signed own capture status distinguishes exact completed receipt, own absent attempt and incomplete/conflicting attempts. Absence is not access or readiness: it permits the later client to prepare a new attempt only for the same still-active machine/grant and unchanged queued notes after refresh. Partial writes remain closed and never auto-resume; rotation cannot move a queue to another grant or identity. No secret, foreign outcome or directory enters this response.
+
+## Coordinated core and automatic-client source reservation
+
+After the exact903d38e gate, source-only tasks3.1–3.4 proceed as one coherent conversion, including minimal fail-closed setup/installer retirement consumers. This is not provider or live authority. The following67 paths are reserved to a fresh build helper; root alone owns change-local design/tasks/proposal/review/runtime/data-contract acceptance and all git/checks. Stop and coordinate any further dependency before editing it. Preserve SQL0001–0014, all historical manifests/proof frames/receipts and snapshots.
+
+- `.agents/skills/memory/worker/memory-worker.mjs`
+- `.agents/skills/memory/worker/memory-worker.d.mts`
+- `.agents/skills/memory/worker/statements.mjs`
+- `.agents/skills/memory/worker/machine-context.mjs`
+- `.agents/skills/memory/worker/machine-core-contract.mjs`
+- `.agents/skills/memory/worker/machine-core.mjs`
+- `.agents/skills/memory/worker/machine-core-transcripts.mjs`
+- `.agents/skills/memory/scripts/memory.mjs`
+- `.agents/skills/memory/scripts/session-start.mjs`
+- `.agents/skills/memory/scripts/before-edit.mjs`
+- `.agents/skills/memory/scripts/run.mjs`
+- `.agents/skills/memory/scripts/lib/store.mjs`
+- `.agents/skills/memory/scripts/lib/digest.mjs`
+- `.agents/skills/memory/scripts/lib/transcripts.mjs`
+- `.agents/skills/memory/scripts/lib/upkeep.mjs`
+- `.agents/skills/memory/scripts/lib/scan.mjs`
+- `.agents/skills/memory/scripts/lib/join.mjs`
+- `.agents/skills/memory/scripts/lib/members.mjs`
+- `.agents/skills/memory/scripts/lib/machine-runtime-state.mjs`
+- `.agents/skills/memory/scripts/lib/machine-data-state.mjs`
+- `.agents/skills/memory/scripts/lib/machine-runtime-operator.mjs`
+- `.agents/skills/memory/scripts/lib/machine-data-operator.mjs`
+- `.agents/skills/memory/scripts/lib/machine-client.mjs`
+- `.agents/skills/memory/scripts/lib/machine-client-state.mjs`
+- `.agents/skills/memory/scripts/lib/machine-client-queue.mjs`
+- `app/worker/index.ts`
+- `app/worker/index.test.ts`
+- `app/worker/apps/index.ts`
+- `app/worker/apps/index.test.ts`
+- `app/worker-configuration.d.ts`
+- `app/wrangler.jsonc`
+- `.agents/skills/wong-sync/references/stack-pack-fragments.md`
+- `.agents/skills/wong-setup/scripts/provision.mjs`
+- `scripts/tests/provision.test.mjs`
+- `scripts/tests/server-install.test.mjs`
+- `scripts/tests/server-agent.test.mjs`
+- `server/agent/agent.mjs`
+- `scripts/tests/memory-store.test.mjs`
+- `scripts/tests/memory-capture.test.mjs`
+- `scripts/tests/memory-areas.test.mjs`
+- `scripts/tests/memory-worker.test.mjs`
+- `scripts/tests/memory-machine-runtime-operator.test.mjs`
+- `scripts/tests/memory-machine-core.test.mjs`
+- `scripts/tests/memory-machine-client.test.mjs`
+- `scripts/tests/memory-machine-client-state.test.mjs`
+- `scripts/tests/memory-machine-client-queue.test.mjs`
+- `scripts/tests/fixtures/memory/harness.mjs`
+- `scripts/tests/fixtures/memory/core.mjs`
+- `scripts/tests/fixtures/memory/transport.mjs`
+- `scripts/tests/fixtures/memory/legacy/memory-worker.mjs`
+- `scripts/tests/fixtures/memory/legacy/statements.mjs`
+- `.agents/skills/memory/SKILL.md`
+- `.agents/skills/memory/references/writing-facts.md`
+- `wiki/development/memory.md`
+- `wiki/development/memory-key.md`
+- `wiki/development/required-tools.md`
+- `wiki/stack/cloudflare-access.md`
+- `.agents/skills/wong-sync/references/payload-manifest.md`
+- `.agents/skills/wong-setup/references/cloudflare.md`
+- `server/README.md`
+- `.env.example`
+- `scripts/retired-names.json`
+- `scripts/cf-deploy.sh`
+- `scripts/tests/wrangler-config.test.mjs`
+- `scripts/tests/downstream-contract.test.mjs`
+- `wiki/stack/cloudflare-credentials.md`
+- `SECURITY.md`
+
+The fresh fixture records the full-core protocol/allowlist pair in schema13 activation before grants; source14 retains its immutable base pair. Unsupported previously activated pairs refuse unchanged. Canonical production handlers verify exact target/installation/repository/resource/environment/origin plus actual CF_VERSION_METADATA.id matching the completed14 deployment head. Reject unknown/malformed/encoded routes, anonymous/service-JWT/legacy keys and all authority SQL; no asset fallback. Strip MEMORY_* configuration/bindings from mini-app env. Closed/missing setup remains pending, never ready from another machine.
+
+Choose a conservative budget of50 total D1 statements per invocation, including every statement in a batch, before writing a barrier. Reuse only immutable validation within that request; fresh consolidated schema/receipt/revision/barrier/deployment/active-grant/credential checks must guard data after awaits. No cross-request cached authority. Match critical protection DDL against trusted compiled source, not only trigger names. Client chunking must retain same machine/grant/target and acknowledge the final seen/cursor/tallies only after every exact receipt; intermediate session cursor compares can retain the previous cursor. No partial mutation is automatically resumed. Provider deployment observation remains separate from runtime version binding.
+
+Sessionless/manual/consolidation facts use durable owned synthetic sessions. Retag appends an actor-authored correction/provenance while retaining the old authored row and default privacy; members correct only their own, explicit data-admin can correct installation data without auth powers. Definitions/aliases are immutable new names; attempts to replace existing meaning get clear guidance. Failed/differed run bookkeeping stays honest and machine-private locally; completed shared consolidation metrics derive from exact source=consolidation capture receipts. Preserve meaningful business/capture/digest/upkeep tests while removing arbitrary SQL, email filters, GitHub admission and account-token fallback. Exact-byte old Worker/statements remain only under test fixtures for retained-version retirement evidence.
+
+Private OS-user signing keys, bearer candidates, queues, cursors and caches live outside git with verified ownership/modes/symlink refusal, locking and fsynced atomic writes. Clone/install metadata routes requests but grants nothing. Trusted setup supplies a short-lived exact machine-key-bound capability once; hooks renew from the same active persistent key, without a Devices app or memory login. Original13 proof/retry semantics remain unchanged: fresh proof re-signing changes mutation request hashes, so retained candidates recover through signed own status and matching attempt/hash;14 signed receipt-only absence permits a new exact refreshed attempt on the same active grant. No silent reenrollment or queue rebinding.
+
+The limited provision/server changes retire old migrate/member-admin/email-remove effects and return explicit pending-setup; task4.1 still owes complete unattended trusted setup after actual published core/binding readback. Source PASS does not release any provider/private/live phase or complete setup/migration/distribution/live tasks.
+
+Task4.1 must verify genuine version_metadata binding type in both active-version/settings readbacks; the retained12/14 pin algorithm deliberately does not include CF_VERSION metadata, so no old pin may be silently rehashed. Trusted setup and deployment acknowledgements separately prove that binding before a full-core activation or successor can be used. Removal of an installed workspace must use a persisted exact installation/repository/machine/grant tuple and trusted revocation receipt, never inferred email/Git identity; a pending-only legacy retirement consumer is not proof of removal. No full setup/removal acceptance is claimed by task3.1–3.4.
+
+Private-state locking uses a namespace-derived exclusive loopback socket held only for the operation. The OS releases it on process exit; no stale lock file is deleted, and a collision can only cause a bounded busy refusal. It accepts no application data and requires no installed locking tool. Linux/macOS validate private ownership/modes and refuse symlinks, hardlinks and writable foreign parent paths. Windows uses a narrow built-in native ACL adapter to establish and verify current-user storage, with only documented privileged OS identities excepted; POSIX mode bits are not Windows security evidence. Source fixtures must cover adapter refusal and real subprocess contention/crash release. Actual supported-platform acceptance remains part of distribution checks.
+
+The downstream contract test's sole additional change retains the setup account/API-token declarations and CI-secret limits while replacing its obsolete required memory-token declaration with a negative guard. Memory credentials must stay outside `.env` and CI. This adapts the contract to the implemented retirement rather than retaining a misleading credential slot or weakening deploy/payload checks.
+
+The credentials owning page joins this reservation only to retire the ordinary memory-token slot and the obsolete standing-authorization wording about writing a memory key. Account token provisioning, widening, CI secret boundaries and private-link instructions stay intact. Machine access comes from separately reviewed trusted setup and private OS-user state, never from a provider token.
+
+The security credential inventory joins only to replace its obsolete memory-key row and associated token count/link wording with private OS-user machine credentials and data scopes. Provider-token risks and CI boundaries remain accurate; ordinary mini apps receive no memory bindings.

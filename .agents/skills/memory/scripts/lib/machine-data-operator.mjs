@@ -123,18 +123,17 @@ async function captureEvidence(context,state,payload) {
    &&owners[0].machine_id===payload.machineId&&rows[0].owner_principal_id===payload.machineId&&rows[0].agent===payload.session.agent&&rows[0].read_through===payload.session.previousCursor,'machine-proof-denied');
   } else requireValue(payload.session.previousCursor===null,'machine-proof-denied');
  }
+ const definitions=await read(`SELECT name,definition,alias_of FROM tags WHERE name IN (SELECT json_extract(value,'$.name') FROM json_each(?))`,[JSON.stringify(payload.newTags)]);
  for(const tag of payload.newTags) {
-  const rows=await read('SELECT definition,alias_of FROM tags WHERE name=?',[tag.name]);
-  requireValue(!rows.length||(rows.length===1&&rows[0].definition===tag.definition&&rows[0].alias_of===tag.aliasOf),'machine-proof-denied');
+  const row=definitions.find(r=>r.name===tag.name);requireValue(!row||(row.definition===tag.definition&&row.alias_of===tag.aliasOf),'tag-meaning-immutable-use-new-name');
  }
- for(const fact of payload.facts)for(const id of fact.supersedes) {
-  const rows=await read(`SELECT f.owner_principal_id,f.superseded_by,owner.installation_id,owner.repository_id FROM facts f
-   JOIN memory_data_fact_links l ON l.fact_id=f.id JOIN memory_data_attempts a ON a.id=l.attempt_id
-   JOIN memory_data_completions c ON c.attempt_id=a.id JOIN memory_machine_principals owner ON owner.id=f.owner_principal_id
-   WHERE f.id=? AND a.installation_id=?`,[id,state.installation.installationId]);
-  requireValue(rows.length===1&&rows[0].superseded_by===null&&rows[0].installation_id===state.installation.installationId&&rows[0].repository_id===state.installation.repositoryId
-  &&(rows[0].owner_principal_id===payload.machineId||machine.scope==='memory:read memory:write memory:admin'),'machine-proof-denied');
- }
+ const ids=payload.facts.flatMap(f=>f.supersedes);
+ const rows=await read(`SELECT f.id,f.owner_principal_id,f.superseded_by,owner.installation_id,owner.repository_id FROM facts f
+ JOIN memory_data_fact_links l ON l.fact_id=f.id JOIN memory_data_attempts a ON a.id=l.attempt_id
+ JOIN memory_data_completions c ON c.attempt_id=a.id JOIN memory_machine_principals owner ON owner.id=f.owner_principal_id
+ WHERE f.id IN (SELECT value FROM json_each(?)) AND a.installation_id=?`,[JSON.stringify(ids),state.installation.installationId]);
+ requireValue(rows.length===ids.length&&rows.every(r=>r.superseded_by===null&&r.installation_id===state.installation.installationId&&r.repository_id===state.installation.repositoryId
+ &&(r.owner_principal_id===payload.machineId||machine.scope==='memory:read memory:write memory:admin')),'machine-proof-denied');
 }
 async function captureOutcome(context,input,payload) {
  const {read}=runtimeContext(context),id=input.attemptId;
@@ -143,6 +142,21 @@ async function captureOutcome(context,input,payload) {
  requireValue(links.length===payload.facts.length&&links.every((l,i)=>l.ordinal===i)&&sessions.length===(payload.session?1:0)&&runs.length===(payload.run?1:0),'machine-operation-incomplete');
  return {action:'capture',attemptId:id,tags:payload.newTags,facts:links.map(l=>({ordinal:l.ordinal,factId:l.fact_id})),session:payload.session?{id:payload.session.id,previousCursor:payload.session.previousCursor,nextCursor:payload.session.nextCursor}:null,
  supersedes:payload.facts.flatMap((f,ordinal)=>f.supersedes.map(factId=>({factId,ordinal,newFactId:links[ordinal].fact_id}))),run:payload.run?{id:runs[0].run_id,counts:payload.run.counts}:null};
+}
+function compactCapturePlan(plans) {
+ const result=[];
+ for(let i=0;i<plans.length;) {
+  const first=plans[i],insert=/^(INSERT INTO (?:fact_tags|memory_data_tag_links|memory_data_supersedes)[\s\S]*?) SELECT /.exec(first.sql);
+  if(!insert){result.push(first);i++;continue;}
+  const target=insert[1].split('(')[0],alternating=target==='INSERT INTO fact_tags';
+  const group=[],partners=[];
+  while(i<plans.length&&plans[i].sql.startsWith(insert[1]+' SELECT ')) {
+   group.push(plans[i++]);if(alternating&&plans[i]?.sql.startsWith('INSERT INTO memory_data_tag_links'))partners.push(plans[i++]);
+  }
+  const merge=rows=>({sql:rows[0].sql.slice(0,rows[0].sql.indexOf(' SELECT '))+ ' '+rows.map(r=>r.sql.slice(r.sql.indexOf(' SELECT ')+1)).join(' UNION ALL '),params:rows.flatMap(r=>r.params)});
+  result.push(merge(group));if(partners.length)result.push(merge(partners));
+ }
+ return result;
 }
 export async function captureMachineData(context,input) {
  runtimeContext(context);context=dataInspectionContext(context);inputShape(input,true);captureShape(input.payload);let state=await readRuntimeState(context,{inspectDataMaintenance:true});
@@ -157,7 +171,10 @@ export async function captureMachineData(context,input) {
  requireValue(sameMachineValue(await dataSnapshot(state),input.expected),'machine-authority-stale');
  await captureEvidence(context,state,payload);
  const auditId=crypto.randomUUID(),internal=runtimeContext(context);
- try {await internal.write([planDataAttempt(state,input,'capture',payload,requestHash,auditId,verified),...planDataCapture(input,payload,auditId)]);
+ const writes=[planDataAttempt(state,input,'capture',payload,requestHash,auditId,verified),...compactCapturePlan(planDataCapture(input,payload,auditId))];
+ // Reserve all remaining write, receipt and post-await validation statements before closing a barrier.
+ internal.reserve?.(writes.length+3+20);
+ try {await internal.write(writes);
   await captureAuthority(context,await readRuntimeState(context,{inspectDataMaintenance:true}),payload);
   const outcome=await captureOutcome(context,input,payload);
   await internal.write(planDataCompletion(input,auditId,requestHash,outcome));

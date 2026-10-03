@@ -2,7 +2,7 @@
 
 WongStack setup protects the business app automatically. The owner signs in with a code sent to their reachable email. Exact teammate emails can be allowed too; arbitrary domains and synthetic `.invalid` identities receive no grant. Pages, scripts, styles, APIs, mini apps, staging, and version previews share the same protection.
 
-Production version URLs run the production version and inherit its bindings, including independently keyed memory. Staging and CI branch previews have no memory bindings. Keep every version protected by the same Worker-scoped wall.
+Production version URLs run the production version and inherit its bindings, including independent machine memory. Staging and CI branch previews have no memory bindings. Keep every version protected by the same Worker-scoped wall.
 
 ## Turning it on through an agent
 
@@ -17,7 +17,7 @@ Cloudflare turns on Zero Trust only once the account has a card on file. [`/wong
 - **The switch is committed config, not a secret.** Production's and staging's `vars` carry `WORKSPACE_LOGIN: "off"`, with the `CF_ACCESS_*` ids blank, so a reviewer sees it. A secret would hide it from review.
 - **The Worker honors it only while no Access id is set.** Once `CF_ACCESS_TEAM_DOMAIN` or `CF_ACCESS_AUD` has a value, a request without a valid assertion is refused, so a leftover switch can't weaken a private site.
 - **The deploy check accepts only this exact state.** Both environments must carry the switch and no Access ids; the Worker names and the secrets rule still hold. Every publish prints one warning that the site is open. The switch beside Access ids fails the check.
-- **Memory stays private.** `/_memory/*` checks its own key either way.
+- **Memory stays private.** `/_memory/*` checks its own installation/machine grant either way.
 - **Anyone with the link sees production, staging, and previews.** Staging binds no production data or memory.
 
 **Turning it private later:** the person adds the card from [the card list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#the-card-list), and the runbook's [adding the card later](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#adding-the-card-later) reruns `provision`. It makes the Access app over the deployed Workers, fills the ids, and removes the switch in `app/wrangler.jsonc`, ready for `/save` to publish. The deploy check then runs in full. On a hosted server, the host reruns the installer instead; it leaves the same edit uncommitted for the person's assistant to publish.
@@ -26,7 +26,7 @@ Cloudflare turns on Zero Trust only once the account has a card on file. [`/wong
 
 ```text
 visitor → Access email or machine authentication → Worker signed-JWT verification → app
-memory client → production /_memory/* → independent memory-key verification
+memory client → production /_memory/* → independent installation/machine verification
 ```
 
 Native Worker destinations cover each actual Worker ID, including default addresses, custom domains, and old/new version previews. The Worker also verifies the signed assertion's audience, issuer, signature, and expiration. A forged email header gives no identity.
@@ -61,7 +61,7 @@ New applications and human policies default to `720h` (30 days). This is the app
 
 ### 4. Bypass the public surface
 
-Only production `/_memory/*` has a public destination override, on the production Worker and its default-hostname anchor. It remains protected by the memory route's own key/GitHub checks. Staging binds no production memory and gets no public override. A destination override lets a request reach the Worker; it never disables the memory key check.
+Only production `/_memory/*` has a public destination override, on the production Worker and its default-hostname anchor. It remains protected by the memory route's own private-key/grant checks. Staging binds no production memory and gets no public override. A destination override lets a request reach the Worker; it never disables machine authorization.
 
 Other public paths need their own reviewed design. A blanket bypass, account-wide wildcard, or permissive human selector fails the deployment check.
 
@@ -73,7 +73,7 @@ The service token authenticates automated previews. Its default lifetime is sepa
 
 ## Verify it works — in a browser
 
-Check anonymous denial, machine access, memory-key access, and real email login independently. The machine walk cannot substitute for a human login. Open production, staging, an existing version/alias, and a fresh branch preview in a browser with the allowed email, on default and configured custom addresses; confirm the app renders after PIN login. Capture credential-free evidence, keeping cookies and tokens in private files.
+Check anonymous denial, machine access, memory-machine access, and real email login independently. The machine walk cannot substitute for a human login. Open production, staging, an existing version/alias, and a fresh branch preview in a browser with the allowed email, on default and configured custom addresses; confirm the app renders after PIN login. Capture credential-free evidence, keeping cookies and tokens in private files.
 
 Repeat the status probes with saved ignored credentials:
 
@@ -82,7 +82,7 @@ node scripts/probe-private-access.mjs --url https://your-worker.your-subdomain.w
 node scripts/probe-private-access.mjs --url https://your-preview.your-subdomain.workers.dev/style.css
 ```
 
-The output includes only independent anonymous/machine statuses and leaves human login unverified. Anonymous requests should receive an Access redirect or a closed denial, and machine requests should render the app. Check memory separately with `memory.mjs digest` and its own key. Also test teammate removal using an already active human session and preserve owner/machine access; report pending provider propagation or retry honestly.
+The output includes only independent anonymous/machine statuses and leaves human login unverified. Anonymous requests should receive an Access redirect or a closed denial, and machine requests should render the app. Check memory separately with `memory.mjs digest` and its own admitted machine identity. Also test teammate removal using an already active human session and preserve owner/machine access; report pending provider propagation or retry honestly.
 
 ## The auth model: verify the signed assertion
 

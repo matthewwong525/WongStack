@@ -44,9 +44,6 @@ const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 /** A teammate's server looks for the owner's invitation this often, this many times: 10 minutes. */
 export const INVITE_POLL_MS = 10_000;
 export const INVITE_TRIES = 60;
-/** The repo's memory, and the file that shows it supports `member remove` (WongStack after 20.0.0). */
-const MEMORY = ".agents/skills/memory/scripts/memory.mjs";
-const MEMBERS = ".agents/skills/memory/scripts/lib/members.mjs";
 
 /** Job types that run in the background, one of each type at a time, so polling goes on around them. */
 const BACKGROUND = new Set(["cloudflare", "copy-send", "copy-restore", "project-prepare"]);
@@ -157,12 +154,7 @@ async function removeTeammate(job, exec) {
     await ghApi(exec, ["-X", "DELETE", `repos/${repo}/invitations/${Number(invite.id)}`]);
   }
   await ghApi(exec, ["-X", "DELETE", `repos/${repo}/collaborators/${login}`]).catch(gone);
-  const dir = `${workspaceOf(exec).home}/${folder}`;
-  if (await exec("test", ["-f", `${dir}/${MEMBERS}`]).then(() => true, () => false)) {
-    const id = Number(await ghApi(exec, [`users/${login}`, "--jq", ".id"]));
-    await asWong(exec, ["node", MEMORY, "member", "remove", `${id}+${login}@users.noreply.github.com`], { cwd: dir });
-  }
-  return { status: "done" };
+  return { status: "done", memory: { protocolVersion: 2, status: "pending-setup", reason: "exact-machine-revocation-required" } };
 }
 
 /** A Cloudflare token's id. */

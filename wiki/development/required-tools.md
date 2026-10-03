@@ -1,6 +1,6 @@
 # Required tools
 
-WongStack runs on a deliberately small toolchain. A repo that has installed the payload needs exactly five commands on PATH, plus a resolving `origin` remote:
+WongStack runs on a deliberately small toolchain. A repo that has installed the payload uses five workflow commands on PATH, plus a resolving `origin` remote:
 
 | Tool | Why |
 |---|---|
@@ -19,7 +19,7 @@ Beyond them, no core payload script or skill invokes another runtime: **no `jq`,
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 | `cloudflared` | Cloudflare's free tunnel tool, which puts the agent's browser behind a private link when it [hands you the browser](browsing.md#hand-the-browser-over) on your phone or another computer. Setup offers it up front, in the same question, and the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md) installs it. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time such a hand-over needs it. A hand-over at this computer never needs it. |
 
-Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
+Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify` or hands the browser over acquires neither, and workflow verbs use the five commands above, alongside the Windows native storage adapter documented below. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
 **Paseo is where you chat.** [Paseo](https://paseo.sh) runs Claude Code or Codex on your own computer and reaches it from your phone; [the README's steps](https://github.com/matthewwong525/WongStack#start-in-three-steps) start there, and setup points to it when it's missing ([the check](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md#paseo-point-to-it-never-install-it)). No verb needs it except two: [`/routine`](../../.agents/skills/routine/SKILL.md) schedules recurring runs through it, and a request with several separate parts can [open a new workspace per part](the-change-loop.md#several-parts-several-workspaces). WongStack still never installs Paseo on your computer, because it is a desktop download with its own window; the one place it installs Paseo is the [server setup script](https://github.com/matthewwong525/WongStack/blob/main/server/README.md), for a server you give to agents. Without Paseo, `/routine` says so and changes nothing, the parts of a request are done one at a time, and work happens in your main folder. You also lose chatting from your phone, `/close` archiving the workspace, a finished browser hand-over waking the chat (you type *continue* instead), and the session-start tidy-up of idle workspaces. Every other verb works as before. The script uses Paseo's own daemon client, because `paseo schedule create` cannot set worktree isolation. A Paseo update that changes that client makes `/routine` stop and give the steps for the Paseo app.
 
@@ -30,8 +30,8 @@ Each is a **tool, not a toolchain**: nothing is added to your repository — no 
 | Need | Why |
 |---|---|
 | A Cloudflare account | Holds the memory database and hosts the app. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) creates both from one user token. |
-| The user token, `CLOUDFLARE_API_TOKEN` in `.env` | Provisions everything, manages memory keys, and mints the CI deploy token. It stays on your computer. The [credentials page](../stack/cloudflare-credentials.md) owns how to make it. |
-| The memory key, `CLOUDFLARE_MEMORY_TOKEN` | Opens this repo's store through the production Worker's memory route. [The memory page](memory-key.md) owns its name and what it reaches. |
+| The user token, `CLOUDFLARE_API_TOKEN` in `.env` | Provisions hosting and mints the CI deploy token. It stays on your computer. The [credentials page](../stack/cloudflare-credentials.md) owns how to make it. |
+| Private machine identity | An admitted machine uses an OS-user private key and rotating bearer; [machine access](memory-key.md) owns renewal. |
 | R2, optional | Keeps raw transcripts. It needs a payment method on file; without it, memory works and keeps no transcripts. |
 
 ## Symbolic links in the agent folder
@@ -57,7 +57,9 @@ The pack's deploy workflow is the file that trips this, so every install needs t
 
 ## `gh` needs the `user:email` scope for memory
 
-A teammate gets their memory key by [joining through GitHub](memory-key.md#joining-through-github), which reads their verified emails. `gh`'s default scopes cannot. Add the scope once: `gh auth refresh -h github.com -s user:email`, or `--scopes workflow,user:email` on a fresh `gh auth login`. Without it, `join` names this command and makes no key.
+This historical heading preserves links. Memory no longer uses GitHub or email scopes. Human repository and app workflows keep their own permissions.
+
+Windows private memory storage uses built-in Windows PowerShell only as a native security adapter. Fixed encoded code checks current SID, owner, protected inheritance, allow rules and reparse paths; it initializes only new private storage. SYSTEM and Administrators are privileged exceptions; other users' write access is refused. Unknown results deny. It never runs on Linux/macOS. Actual Windows ACL/filesystem acceptance remains a platform gate; source boundary checks prove no native enforcement.
 
 ## Runtimes install at the point of need
 
@@ -91,7 +93,7 @@ One exception, and its tools stay in CI. Every new install takes the Cloudflare 
 
 That's why provisioning is `curl`-first even though `npx wrangler` would be shorter: reaching for it would add an app dependency to the one flow that has to work on a fresh computer.
 
-So the five-command guarantee stays literally true for every repo: the pack adds tools to *its* repo's deploy pipeline, not to WongStack.
+The workflow tools stay small, with the Windows native security adapter above: the pack adds tools to *its* repo's deploy pipeline, not to WongStack.
 
 ## Working with JSON
 

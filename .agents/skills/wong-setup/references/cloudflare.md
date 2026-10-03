@@ -1,6 +1,6 @@
 # Provision Cloudflare
 
-This runbook turns a fresh WongStack install into a running app with session memory. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
+This runbook turns a fresh WongStack install into a running app with closed memory resources. Full trusted machine admission and legacy migration remain pending. [`/wong-setup`](../SKILL.md) runs Step 1 before it plans the install, `/apply` runs Steps 2–5 after the payload lands, and `/wong-sync` follows the parts an update adds.
 
 **Idempotent.** Reuse existing owned resources; resume a stopped run from the top.
 
@@ -111,9 +111,9 @@ After the one ask, one command runs 4b through 4d:
 $P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email> --open-without-login
 ```
 
-Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
+Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. App verification service credentials are saved to ignored primary/branch `.env`; public Access identifiers go in `components.access`. Memory identity lives in separate private OS-user storage after trusted admission. See [Access](../../../../wiki/stack/cloudflare-access.md).
 
-**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly, then go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key. I'll show you how to add the card at the end."* Any other Access stop still stops setup, and a site that is already private never opens. The server installer passes it only when its host asks, and stops otherwise.
+**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly, then go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Memory stays closed until trusted machine setup. I'll show you how to add the card at the end."* Any other Access stop still stops setup, and a site that is already private never opens. The server installer passes it only when its host asks, and stops otherwise.
 
 ### 4b. The memory store
 
@@ -123,19 +123,9 @@ Resolve a reachable owner email before provisioning; reject `.invalid` and GitHu
 2. **The database.** It reuses or creates `<repo>-memory`.
 3. **The bucket, only when R2 is on.** It reuses or creates `<repo>-memory`, never with public access.
 4. **Record.** It writes `components.memory` in `.claude/.wong-stack.json`: `accountId`, `databaseId`, `database`, `bucket` (or `null`), and the memory URL as `worker`, `https://<worker>.<subdomain>.workers.dev/_memory`. An account with no `workers.dev` subdomain gets one named for the GitHub owner. None is secret.
-5. **Apply the schema.** It runs the target's `memory.mjs migrate` with `CLOUDFLARE_API_TOKEN`, retrying while the new store takes effect. On a new store, it also links the GitHub account `gh` is signed in as, making it the admin.
-6. **The admin key.** With no memory key in `.env`, it runs `memory.mjs member admin`, which writes a 30-day, self-renewing admin key, never printed, to `CLOUDFLARE_MEMORY_TOKEN` in the primary checkout's `.env`. No git email stops it with `repo`: ask the user to set one. A signed-out `gh` stops it with `cloudflare`: ask them to run `gh auth login`. Teammates [join through GitHub](../../../../wiki/development/memory-key.md#joining-through-github) once production is deployed. **Never** make the key a GitHub secret.
+5. **Keep memory closed.** Record protocol version 2 and `pending-setup`; never run the retired ordinary migration or mint an email/GitHub key. Installation IDs and grants come only from the reviewed trusted machine setup, which is unfinished.
 
-Memory answers once CI deploys production; until then, facts wait in the local spool. By hand, the memory commands are `$M`, with `M="node $(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"`.
-
-**Re-runs.** A store that verifies is current. A store with no bucket, on an account that now has R2, gets one: the script creates and records it, adds `MEMORY_BUCKET` to the production config, and gives `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key stays. Make by hand any edit the report's `todo` lists.
-
-**Moving an older store.** A store whose `CLOUDFLARE_MEMORY_TOKEN` is an old `<repo>-memory` Cloudflare token, not a `wongm_` key, moves to the production Worker; the old token works until the last step.
-1. In the sync change: the memory route in `app/worker/index.ts` (the [app scaffold](../../wong-sync/references/payload-manifest.md#the-app-scaffold)'s one import and branch), `MEMORY_DB` and `MEMORY_BUCKET` in the production config as in 4c, `worker` in the install record as in step 4, the R2 row on `<repo>-deploy` when the store has a bucket, and `$M migrate`.
-2. Once that change merges and production deploys, run step 6's `$M member admin` by hand, then check `$M digest` through the Worker.
-3. Only when that passes, delete the old token: find `<repo>-memory` in `GET /user/tokens`, then `DELETE /user/tokens/{id}`.
-
-If the check fails, put the old token back in `.env` and stop. Teammates who held the old token get a key next session by [joining through GitHub](../../../../wiki/development/memory-key.md#joining-through-github); nobody makes one by hand, so give GitHub access to anyone who lacks it.
+Re-runs may create an optional missing bucket and update deployment configuration, but never infer authority from a clone, old resource name, email or cloud identity. Legacy stores require reviewed ownership cutover; a broad account token never substitutes for a machine credential. Memory readiness must be reported separately from successful app provisioning.
 
 ### 4c. The two app databases and the config
 
@@ -180,13 +170,13 @@ The check runs itself; never ask the person to sign in by email code on each sit
 
 Retry propagation; name a real failure. Human login stays unverified until Step 5's human check. The [browser runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) is for `/verify` and later changes, not setup.
 
-Once production has deployed, check memory with `$M digest`, through the production Worker with 4b's admin key; before, it reports the Worker does not answer.
+Report memory as pending until trusted setup has verified actual binding IDs, active version settings and genuine version metadata, activated the full core before grants, and admitted this machine. A source activation hash alone does not prove provider deployment. Ordinary digest checks follow that separate gate.
 
 ## Step 5 — the closing report
 
 State, in plain words:
 
-- Session memory: on, with or without transcripts, only when 4g's digest answered. Otherwise: *"Memory starts once your site first goes live; until then, what I learn waits on this computer."*
+- Session memory: pending trusted setup. Do not report it active because app deployment or resource creation succeeded.
 - The production URL, and the preview pattern with one branch filled in
 - What was created, and what was reused
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)

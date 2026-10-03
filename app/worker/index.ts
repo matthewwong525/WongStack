@@ -1,4 +1,4 @@
-// Verify signed Access identity before all business content; memory keeps its own keys.
+// Business content uses Access; the strict production memory API uses machine grants.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
@@ -8,11 +8,19 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Session memory, served from the memory skill on the production Worker's
-    // MEMORY_DB and MEMORY_BUCKET; staging binds neither and answers 404. A
-    // memory key authenticates each call: wiki/development/memory.md.
-    if (url.pathname.startsWith(MEMORY_PREFIX)) {
-      return handleMemory(request, env);
+    // All reserved prefixes, including encoded forms, stay with the closed core.
+    let memoryPath = url.pathname;
+    let segment = memoryPath.split("/")[1] ?? "";
+    for (let depth = 0; depth < 32; depth++) {
+      if (memoryPath.startsWith(MEMORY_PREFIX) || segment.startsWith(MEMORY_PREFIX.slice(1))) return handleMemory(request, env);
+      let decoded = memoryPath;
+      let decodedSegment = segment;
+      try { decoded = decodeURIComponent(memoryPath); } catch { /* inspect prefix independently */ }
+      try { decodedSegment = decodeURIComponent(segment); } catch { /* malformed prefix stays closed below */ }
+      if (decoded === memoryPath && decodedSegment === segment) break;
+      memoryPath = decoded;
+      segment = decodedSegment;
+      if (depth === 31) return new Response("Not found", {status:404,headers:{"Cache-Control":"no-store"}});
     }
 
     const identity = await getAccessIdentity(request, env);

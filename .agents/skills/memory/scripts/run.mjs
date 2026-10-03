@@ -2,32 +2,16 @@
 // The detached background run: one per clone at a time. It starts the calling agent's headless CLI
 // with the agent's default model; it may only run the memory script and write its JSON input into one temp folder.
 import { spawnSync } from 'node:child_process';
-import { closeSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { isMain, repoContext, RUN_TALLY, SCRIPT, statePath } from './lib/store.mjs';
+import { isMain, repoContext, RUN_TALLY, SCRIPT, statePath, writeJson } from './lib/store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const STALE_MS = 2 * 60 * 60 * 1000;
+import { withMachineLock } from './lib/machine-client-state.mjs';
 const RUN_TIMEOUT_MS = 30 * 60 * 1000;
-
-export function takeLock(file, now = Date.now()) {
-  try {
-    const fd = openSync(file, 'wx');
-    writeSync(fd, String(process.pid));
-    closeSync(fd);
-    return true;
-  } catch (error) {
-    if (error.code !== 'EEXIST') return false;
-    // The lock may vanish between open and stat: then it is free, and the retry takes it.
-    const info = statSync(file, { throwIfNoEntry: false });
-    if (info && now - info.mtimeMs < STALE_MS) return false;
-    rmSync(file, { force: true });
-    return takeLock(file, now);
-  }
-}
 
 // The run's input folder: outside the repo, because Claude Code denies every write under .git/, and a
 // folder in the worktree would show in git status. Resolved, because the permission check matches the
@@ -75,14 +59,14 @@ export function runbook(exclude, inputDir) {
 
 const USAGE = 'usage: run.mjs [--agent claude|codex]   the detached background run the session-start hook starts';
 
-function main(agent) {
+async function main(agent) {
   const ctx = repoContext();
-  const lock = statePath(ctx, 'run.lock');
-  if (!takeLock(lock)) return;
+  return withMachineLock(ctx.stateDir,async()=>{
   // The run's tally: memory.mjs adds what each write stored, and finish-run records it instead of the model's own report.
   const tally = statePath(ctx, RUN_TALLY);
   try {
-    writeFileSync(tally, '{}\n');
+    writeJson(tally,{});
+    spawnSync(process.execPath,[join(HERE,'memory.mjs'),'drain'],{cwd:ctx.root,stdio:'ignore',timeout:120000});
     const [command, result] = withInputDir(dir => {
       const [cmd, args] = agentCommand(agent, runbook(process.env.WONG_MEMORY_EXCLUDE || '(none)', dir), ctx.stateDir, dir);
       return [cmd, spawnSync(cmd, args, { cwd: ctx.root, stdio: 'ignore', timeout: RUN_TIMEOUT_MS, env: { ...process.env, WONG_MEMORY_RUN: '1' } })];
@@ -95,8 +79,9 @@ function main(agent) {
     spawnSync(process.execPath, [join(HERE, 'memory.mjs'), 'upkeep'], { cwd: ctx.root, stdio: 'ignore' });
   } finally {
     rmSync(tally, { force: true });
-    rmSync(lock, { force: true });
+
   }
+  },'run.lock');
 }
 
 if (isMain(import.meta.url)) {
@@ -105,5 +90,5 @@ if (isMain(import.meta.url)) {
     args = parseArgs({ options: { agent: { type: 'string' }, help: { type: 'boolean' } }, strict: true });
   } catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
   if (args.values.help) { console.log(USAGE); process.exit(0); }
-  main(args.values.agent === 'codex' ? 'codex' : 'claude');
+  main(args.values.agent === 'codex' ? 'codex' : 'claude').catch(()=>{});
 }

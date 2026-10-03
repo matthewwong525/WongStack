@@ -236,7 +236,7 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
   assert.equal(record.commit, git('-C', repoRoot, 'rev-parse', 'HEAD'));
   assert.deepEqual(record.upstream, { repo: upstreamUrl(tryGit('-C', repoRoot, 'remote', 'get-url', 'origin') ?? ''), fork: null, clone: '~/.cache/wong-stack/WongStack' });
   assert.deepEqual(record.components.skills, manifest.core.skillDirs);
-  assert.equal(record.components.memory.worker, 'https://recipe-box.ada.workers.dev/_memory');
+  assert.equal(record.components.memory.worker,'https://recipe-box.ada.workers.dev/_memory');assert.equal(record.components.memory.status,'pending-setup');
   assert.equal(record.installedAt, '2026-09-27');
 
   // Hosting: the config the pipeline reads, the deploy token in GitHub; memory: the admin key in .env.
@@ -247,7 +247,7 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
   const env = readEnv(join(s.dir, '.env'));
   assert.equal(env.CLOUDFLARE_API_TOKEN, TOKEN);
   assert.equal(env.CLOUDFLARE_ACCOUNT_ID, ACCOUNT);
-  assert.match(env.CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
+  assert.equal(env.CLOUDFLARE_MEMORY_TOKEN,undefined);
   assert.equal(statSync(join(s.dir, '.env')).mode & 0o777, 0o600);
   assert.equal(readFileSync(join(s.dir, '.git/info/exclude'), 'utf8').split('\n').filter((line) => line && !line.startsWith('#')).join(' '), '.env* !.env.example .dev.vars* !.dev.vars.example');
 
@@ -283,8 +283,8 @@ test('a pushed repo on a rebuilt server gets its .env and secrets again, and not
   assert.equal(s.fake.state.databases.length, 3);
   const env = readEnv(join(s.dir, '.env'));
   assert.equal(env.CLOUDFLARE_API_TOKEN, TOKEN);
-  assert.match(env.CLOUDFLARE_MEMORY_TOKEN, /^wongm_/);
-  assert.notEqual(env.CLOUDFLARE_MEMORY_TOKEN, key, 'the lost key is replaced with a new one');
+  assert.equal(env.CLOUDFLARE_MEMORY_TOKEN,undefined);
+  assert.equal(env.CLOUDFLARE_MEMORY_TOKEN,key,'a rebuilt host never mints legacy memory authority');
   for (const secret of secretsOf(s)) assert.ok(!`${result.stdout}${result.stderr}`.includes(secret));
 });
 
@@ -314,7 +314,7 @@ test('a run stopped by Cloudflare finishes on the next run with no duplicate', a
   assert.equal((await s.install()).last, 'done');
   assert.equal(s.fake.state.databases.length, 3);
   assert.equal(s.fake.state.accountTokens.length, 1);
-  assert.equal(s.fake.rows('recipe-box-memory', 'SELECT count(*) AS n FROM memory_keys')[0].n, 1);
+  assert.equal(s.fake.rows('recipe-box-memory',"SELECT count(*) n FROM sqlite_master WHERE name='memory_keys'")[0].n,0);
   assert.ok(s.pushed());
 });
 

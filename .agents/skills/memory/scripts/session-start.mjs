@@ -8,9 +8,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { loadDigest, readCache } from './lib/digest.mjs';
-import { joinErrorFile, RENEW_DAYS } from './lib/join.mjs';
-import { keyFile } from './lib/members.mjs';
-import { isMain, loadConfig, loadEnv, openStore, readJson, repoContext, spoolList } from './lib/store.mjs';
+import { isMain, loadConfig, openStore, repoContext, spoolList, pendingQueues } from './lib/store.mjs';
+import { boundMachine } from './lib/machine-client.mjs';
 import { pending, registerSession } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,29 +29,6 @@ function startRun(ctx, agent, sessionId) {
     child.unref();
     return true;
   } catch { return false; }
-}
-
-// Start `memory.mjs join` detached when this machine has no memory key, or its joined key expires within
-// RENEW_DAYS or already has; it makes the network calls to GitHub, so the hook never waits for it. A refusal
-// the person must fix stops the retries: the hook shows it until they run join themselves. Returns a line.
-function startJoin(ctx, expired) {
-  try {
-    const config = loadConfig(ctx);
-    if (!config.worker) return '';
-    const failed = readJson(joinErrorFile(ctx), null);
-    if (failed) return `Memory: could not join through GitHub: ${failed.message}. Then run \`node .claude/skills/memory/scripts/memory.mjs join\`.`;
-    const token = process.env.CLOUDFLARE_MEMORY_TOKEN || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN;
-    const expiresAt = Date.parse(readJson(keyFile(ctx), {}).expiresAt);
-    const renew = Boolean(token) && (expired || expiresAt - Date.now() < RENEW_DAYS * 86400000);
-    if (token && !renew) return '';
-    if (process.env.WONG_MEMORY_NO_HEADLESS === '1') return '';
-    const child = spawn(process.execPath, [join(HERE, 'memory.mjs'), 'join', '--background'], { cwd: ctx.root, detached: true, stdio: 'ignore' });
-    child.on('error', () => {});
-    child.unref();
-    return renew
-      ? 'Memory: renewing this machine\'s memory key through GitHub.'
-      : 'Memory: setting up this repo\'s memory through your GitHub access; it loads next session.';
-  } catch { return ''; }
 }
 
 // The last tidy-up's one line, read and cleared in-process, then the next tidy-up, detached; WONG_TIDY=0
@@ -81,18 +57,19 @@ function branchWorkerLine(ctx) {
 const USAGE = 'usage: session-start.mjs [--agent claude|codex]   the SessionStart hook; reads the hook\'s JSON on stdin';
 
 async function main(agent) {
+  const deadline=Date.now()+BUDGET_MS;
   let input = {};
   try { input = JSON.parse(readFileSync(0, 'utf8') || '{}'); } catch { /* no input */ }
   const ctx = repoContext(input.cwd || process.cwd());
   const sessionId = `${agent}:${input.session_id || 'unknown'}`;
   const background = process.env.WONG_MEMORY_RUN === '1';
-  registerSession(ctx, { id: sessionId, agent, transcript: input.transcript_path || null, cwd: input.cwd || ctx.root, startedAt: new Date().toISOString(), ...(background ? { background } : {}) });
+  await registerSession(ctx, { id: sessionId, agent, transcript: input.transcript_path || null, cwd: input.cwd || ctx.root, startedAt: new Date().toISOString(), ...(background ? { background } : {}) });
   if (background) return '';
 
   // The digest fetch runs while local discovery reads the disk.
-  const digest = (async () => loadDigest(ctx, openStore(ctx, { timeoutMs: BUDGET_MS }), BUDGET_MS))().catch(error => ({ error }));
+  const digest = (async () => loadDigest(ctx, openStore(ctx, { timeoutMs: BUDGET_MS,deadline }), BUDGET_MS))().catch(error => ({ error }));
   const tidy = tidyUp(ctx);
-  const localWork = spoolList(ctx).length > 0 || pending(ctx, { exclude: [sessionId] }).length > 0;
+  const localWork = pendingQueues(ctx)>0 || spoolList(ctx).length > 0 || pending(ctx, { exclude: [sessionId] }).length > 0;
   const result = await digest;
 
   const out = [];
@@ -100,14 +77,13 @@ async function main(agent) {
   if (tidied) out.push(tidied);
   const redirected = branchWorkerLine(ctx);
   if (redirected) out.push(redirected);
-  const joining = startJoin(ctx, Boolean(result.error?.expired));
-  if (joining) out.push(joining);
   if (result.error) {
-    const cache = readCache(ctx);
+    const cache = result.error.kind==='network'?readCache(ctx):null;
     if (cache) out.push(`${cache.text}\n(This digest is cached and ${cache.age} old: the memory store did not answer.)`);
     out.push(`Memory: skipped the store (${result.error.reason || result.error.message}).`);
   } else if (result.text) out.push(result.text);
-  if (!result.error && (result.due || localWork) && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));
+  let retry=false;try{retry=result.error?.kind==='network'&&Boolean(boundMachine(ctx,loadConfig(ctx).installation));}catch{/* closed */}
+  if ((!result.error||retry) && (result.due || localWork) && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));
   return out.length ? `${out.join('\n\n')}\n` : '';
 }
 

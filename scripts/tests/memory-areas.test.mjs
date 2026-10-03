@@ -1,7 +1,6 @@
 // Code areas: the shipped list and its docs, path matching, `memory.mjs areas` with its docs, past changes, and
 // backlinks, `retag`, and area tags that define themselves.
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -81,20 +80,6 @@ test("areas loads a change's facts by the folders it names: threads first, cappe
   assert.equal(none.stdout.trim(), 'No mapped area for these paths.');
 });
 
-test("areas keeps the team filter: a teammate's feedback stays theirs", async t => {
-  const env = await setup(t);
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
-  execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
-  await put(env, { source: 'save', slug: 'prefs', facts: [
-    { action: 'add', type: 'feedback', body: 'Bo wants Worker changes split by route.', tags: ['worker'] },
-    { action: 'add', type: 'project', body: 'The Worker serves assets first.', tags: ['worker'] },
-  ] });
-  execFileSync('git', ['config', 'user.email', 'dev@example.com'], { cwd: env.repo.root });
-  const mine = await memory(env.repo, env.fake, ['areas', 'app/worker/index.ts']);
-  assert.deepEqual(factLines(mine).map(line => line.slice(0, 30)), ['- [project] The Worker serves ']);
-});
-
 test('areas says memory was not loaded and exits 0 when the store is unreachable', async t => {
   const env = await setup(t);
   env.fake.setOffline(true);
@@ -110,27 +95,6 @@ test('an area tag defines itself from the list on its first write', async t => {
   assert.deepEqual(rows(env, "SELECT name, definition FROM tags WHERE name = 'worker'"), [{ name: 'worker', definition: AREAS.worker.definition }]);
   const unknown = await put(env, { source: 'save', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'A fact.', tags: ['not-an-area'] }] });
   assert.match(unknown.stderr, /tag not-an-area does not exist/);
-});
-
-test('retag restates a fact with its body, date, session, author, and old tags, and skips what it cannot', async t => {
-  const env = await setup(t);
-  const db = env.fake.db;
-  db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES ('claude:s', 'claude', 'matthew@example.com', 'captured', 'now')").run();
-  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('ci', 'GitHub Actions.', 'now')").run();
-  const insert = db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES (?, 'feedback', ?, 'claude:s', 'save', '2026-09-30T10:00:00Z', 'matthew@example.com') RETURNING id");
-  const old = insert.get('routing', 'Test every route, not only the new one.').id;
-  const tagged = insert.get('routing', 'Already tagged.').id;
-  db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'ci'), (?, 'ci')").run(old, tagged);
-  const result = await retag(env, { retag: [{ id: old, tags: ['worker'] }, { id: tagged, tags: ['ci'] }, { id: 9999, tags: ['worker'] }] });
-  assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.stdout.trim(), `retagged: 1\nskipped #${tagged}: already carries every tag\nskipped #9999: not found`);
-  const [restated] = rows(env, 'SELECT id, slug, type, body, session_id, source, created_at, author FROM facts WHERE superseded_by IS NULL AND body LIKE ?', 'Test every%');
-  assert.deepEqual({ ...restated, id: undefined }, { id: undefined, slug: 'routing', type: 'feedback', body: 'Test every route, not only the new one.', session_id: 'claude:s', source: 'consolidation', created_at: '2026-09-30T10:00:00Z', author: 'matthew@example.com' });
-  assert.deepEqual(rows(env, 'SELECT tag FROM fact_tags WHERE fact_id = ? ORDER BY tag', restated.id).map(row => row.tag), ['ci', 'worker']);
-  assert.equal(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', old)[0].superseded_by, restated.id);
-  assert.equal(rows(env, "SELECT definition FROM tags WHERE name = 'worker'")[0].definition, AREAS.worker.definition, 'the area tag defined itself');
-  const again = await retag(env, { retag: [{ id: old, tags: ['memory'] }] });
-  assert.equal(again.stdout.trim(), `retagged: 0\nskipped #${old}: superseded by #${restated.id}`);
 });
 
 test('areas prints docs, past changes, and backlinks before the facts, even with the store unreachable', async t => {
@@ -156,7 +120,7 @@ test('areas prints docs, past changes, and backlinks before the facts, even with
   env.fake.setOffline(true);
   const unreachable = await memory(env.repo, env.fake, ['areas', 'app/worker/apps/hello/index.ts']);
   assert.equal(unreachable.code, 0, unreachable.stderr);
-  assert.deepEqual(unreachable.stdout.trim().split('\n'), [...expected, 'Memory was not loaded (memory store unreachable (network)); go on without it.']);
+  assert.deepEqual(unreachable.stdout.trim().split('\n'), [...expected, 'Memory was not loaded (machine-unreachable); go on without it.']);
 });
 
 test('past changes: those naming the path first, then those sharing an area, newest first, five at most', async t => {
@@ -203,76 +167,14 @@ test('a topic name loads its area, unless a file has that name', async t => {
   assert.equal(file.stdout.trim(), 'No mapped area for these paths.');
 });
 
+const edit=(env,file,session='s1')=>node(env.repo,env.fake,'before-edit.mjs',[],{input:JSON.stringify({cwd:env.repo.root,session_id:session,tool_input:{file_path:join(env.repo.root,file)}})});
 const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const upkeep = env => memory(env.repo, env.fake, ['upkeep']);
-const tagsOf = (env, id) => rows(env, 'SELECT tag FROM fact_tags WHERE fact_id = ? ORDER BY tag', id).map(row => row.tag);
-
-test('upkeep closes a thread unchecked for 30 days, keeping its tags and naming its id', async t => {
-  const env = await setup(t);
-  const db = env.fake.db;
-  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('verify', 'The /verify walk.', 'now')").run();
-  const insert = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('checks', 'thread', ?, 'save', ?, 'dev@example.com') RETURNING id");
-  const old = insert.get(`Does the phone view still scroll? ${'Check it on a real phone after the next layout change. '.repeat(6)}`.trim(), daysAgo(31)).id;
-  const fresh = insert.get('Is the new route fast enough?', daysAgo(29)).id;
-  for (const id of [old, fresh]) db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'verify')").run(id);
-  const result = await upkeep(env);
-  assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.stdout.trim(), 'upkeep: closed 1, retagged 0, tags 1');
-  const [closing] = rows(env, 'SELECT id, slug, type, body, source FROM facts WHERE id = (SELECT superseded_by FROM facts WHERE id = ?)', old);
-  assert.match(closing.body, new RegExp(`^Closed unchecked after 30 days \\(thread #${old}, ${daysAgo(31).slice(0, 10)}\\): Does the phone view`));
-  assert.ok(closing.body.length <= 400, `${closing.body.length} characters`);
-  assert.deepEqual({ ...closing, id: undefined, body: undefined }, { id: undefined, body: undefined, slug: 'checks', type: 'project', source: 'consolidation' });
-  assert.deepEqual(tagsOf(env, closing.id), ['verify']);
-  assert.equal(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', fresh)[0].superseded_by, null, 'a 29-day thread stays open');
-  assert.match((await memory(env.repo, env.fake, ['search', 'phone', '--all'])).stdout, /\[thread\] Does the phone view/, 'the thread stays searchable');
-});
-
-test('upkeep adds the area a fact names and the verb a thread names, keeping body, date, session, and author', async t => {
-  const env = await setup(t);
-  const db = env.fake.db;
-  db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES ('claude:s', 'claude', 'matthew@example.com', 'captured', 'now')").run();
-  const insert = db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES ('routes', ?, ?, 'claude:s', 'save', '2026-09-30T10:00:00Z', 'matthew@example.com') RETURNING id");
-  const fact = insert.get('feedback', 'Test every route when `app/worker/index.ts` changes.').id;
-  const thread = insert.get('thread', 'Check on the next real /wong-sync whether the hook merges.').id;
-  const plain = insert.get('project', 'Nothing here names a folder, e.g. this one.').id;
-  const result = await upkeep(env);
-  assert.equal(result.stdout.trim(), 'upkeep: closed 0, retagged 2, tags 0');
-  const restated = id => rows(env, 'SELECT id, type, body, session_id, created_at, author FROM facts WHERE id = (SELECT superseded_by FROM facts WHERE id = ?)', id)[0];
-  assert.deepEqual({ ...restated(fact), id: undefined }, { id: undefined, type: 'feedback', body: 'Test every route when `app/worker/index.ts` changes.', session_id: 'claude:s', created_at: '2026-09-30T10:00:00Z', author: 'matthew@example.com' });
-  assert.deepEqual(tagsOf(env, restated(fact).id), ['worker']);
-  assert.deepEqual(tagsOf(env, restated(thread).id), ['sync']);
-  assert.equal(rows(env, 'SELECT superseded_by FROM facts WHERE id = ?', plain)[0].superseded_by, null);
-  assert.equal((await upkeep(env)).stdout.trim(), 'upkeep: closed 0, retagged 0, tags 0', 'a second pass finds nothing');
-});
-
-test('upkeep sets area tag definitions and aliases to the list, and restates at most 50 per pass', async t => {
-  const env = await setup(t);
-  const db = env.fake.db;
-  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('mini-apps', 'Small apps on their own Worker beside the main app.', 'now'), ('testing', 'Tests.', 'now')").run();
-  const insert = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('many', 'project', ?, 'save', ?, 'dev@example.com')");
-  for (let i = 0; i < 60; i += 1) insert.run(`Route ${i} lives in app/worker/api/r${i}.ts.`, daysAgo(1));
-  const first = await upkeep(env);
-  assert.equal(first.stdout.trim(), 'upkeep: closed 0, retagged 50, tags 2');
-  assert.deepEqual(rows(env, "SELECT name, definition, alias_of FROM tags WHERE name IN ('mini-apps', 'testing', 'tests') ORDER BY name"), [
-    { name: 'mini-apps', definition: AREAS['mini-apps'].definition, alias_of: null },
-    { name: 'testing', definition: 'Tests.', alias_of: 'tests' },
-    { name: 'tests', definition: AREAS.tests.definition, alias_of: null },
-  ]);
-  assert.equal((await upkeep(env)).stdout.trim(), 'upkeep: closed 0, retagged 10, tags 0', 'the rest wait for the next pass');
-});
-
-const edit = (env, path, session = 's1', options = {}) => node(env.repo, env.fake, 'before-edit.mjs', [], {
-  input: JSON.stringify({ session_id: session, cwd: env.repo.root, hook_event_name: 'PreToolUse', tool_name: 'Edit', tool_input: { file_path: join(env.repo.root, path) } }), ...options,
-});
 
 test("the pre-edit hook shows an area's threads, then its newest facts, once per area per session", async t => {
   const env = await setup(t);
-  const db = env.fake.db;
-  db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('worker', 'The Worker.', 'now')").run();
-  const insert = db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('routes', ?, ?, 'save', ?, 'dev@example.com') RETURNING id");
-  for (let i = 0; i < 10; i += 1) db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'worker')").run(insert.get('project', `Route fact ${i}.`, daysAgo(i)).id);
-  db.prepare("INSERT INTO fact_tags (fact_id, tag) VALUES (?, 'worker')").run(insert.get('thread', 'Does every route need a probe?', daysAgo(20)).id);
-  insert.get('project', 'An untagged fact.', daysAgo(0));
+  for(let i=9;i>=0;i--){const result=await put(env,{source:'save',slug:'routes',facts:[{action:'add',type:'project',body:`Route fact ${i}.`,tags:['worker']}]});assert.equal(result.code,0,result.stderr);}
+  await put(env,{source:'save',slug:'routes',facts:[{action:'add',type:'thread',body:'Does every route need a probe?',tags:['worker']},{action:'add',type:'project',body:'An untagged fact.'}]});
   const first = await edit(env, 'app/worker/index.ts');
   assert.equal(first.code, 0, first.stderr);
   const { hookSpecificOutput: output } = JSON.parse(first.stdout);
@@ -290,18 +192,6 @@ test("the pre-edit hook shows an area's threads, then its newest facts, once per
   assert.deepEqual([unmapped.code, unmapped.stdout], [0, '']);
 });
 
-test('the pre-edit hook shows nothing, and exits 0, with no key or no store', async t => {
-  const env = await setup(t);
-  await put(env, { source: 'save', slug: 'routes', facts: [{ action: 'add', type: 'project', body: 'Routes need probes.', tags: ['worker'] }] });
-  env.fake.setOffline('hang');
-  const unreachable = await edit(env, 'app/worker/index.ts');
-  assert.deepEqual([unreachable.code, unreachable.stdout], [0, '']);
-  env.fake.setOffline(false);
-  writeFileSync(join(env.repo.root, '.env'), 'OTHER=1\n');
-  const noKey = await edit(env, 'app/worker/index.ts', 's2');
-  assert.deepEqual([noKey.code, noKey.stdout], [0, '']);
-});
-
 test("the pre-edit hook reads Claude Code's edited file and every file in a Codex patch", () => {
   assert.deepEqual(editedPaths({ tool_input: { file_path: '/r/app/worker/index.ts', old_string: 'a', new_string: 'b' } }), ['/r/app/worker/index.ts']);
   assert.deepEqual(editedPaths({ tool_input: { notebook_path: '/r/n.ipynb' } }), ['/r/n.ipynb']);
@@ -310,4 +200,24 @@ test("the pre-edit hook reads Claude Code's edited file and every file in a Code
   assert.deepEqual(editedPaths({ tool_name: 'apply_patch', tool_input: { command } }), ['/r/app/worker/index.ts', 'wiki/new.md', 'a.txt', 'scripts/tests/b.txt', 'old.md']);
   assert.deepEqual(editedPaths({ tool_input: { command: 'ls -la' } }), []);
   assert.deepEqual(editedPaths({}), []);
+});
+
+test('retag appends an actor correction, retains old history and defaults to the old privacy',async t=>{
+ const e=await setup(t);const first=await put(e,{source:'save',slug:'prefs',facts:[{action:'add',type:'feedback',body:'Always check every preview route.',tags:['worker']}]});assert.equal(first.code,0,first.stderr);
+ const old=rows(e,'SELECT * FROM facts')[0],corrected=await retag(e,{retag:[{id:old.id,tags:['memory']}]});assert.equal(corrected.code,0,corrected.stderr);const all=rows(e,'SELECT * FROM facts ORDER BY id');assert.equal(all.length,2);assert.equal(all[0].body,old.body);assert.equal(all[0].created_at,old.created_at);assert.equal(all[0].author,old.author);assert.equal(all[0].superseded_by,all[1].id);assert.equal(all[1].owner_principal_id,old.owner_principal_id);assert.equal(all[1].shared,0);assert.notEqual(all[1].session_id,old.session_id);
+ const session=rows(e,'SELECT reason FROM sessions WHERE id=?',all[1].session_id)[0];assert.match(session.reason,new RegExp('Correction of fact #'+old.id));assert.deepEqual(rows(e,'SELECT tag FROM fact_tags WHERE fact_id=? ORDER BY tag',all[1].id).map(x=>x.tag),['memory','worker']);
+});
+test('immutable existing tag meanings refuse replacement and preserve their history',async t=>{
+ const e=await setup(t);await put(e,{source:'save',slug:'area',facts:[{action:'add',type:'project',body:'Preview routes are checked.',tags:['worker']}]});const before=rows(e,'SELECT name,definition,alias_of FROM tags');const changed=await memory(e.repo,e.fake,['tag','worker','--definition','A different meaning']);assert.notEqual(changed.code,0);assert.match(changed.stderr,/immutable/);assert.deepEqual(rows(e,'SELECT name,definition,alias_of FROM tags'),before);
+});
+
+test('upkeep closes only threads unchecked for thirty days and caps each actual actor correction pass at fifty',async t=>{
+ const e=await setup(t),oldDate=daysAgo(31),recentDate=daysAgo(29);
+ for(let i=0;i<52;i++){const input=await e.fake.captureInput({visibility:'private',session:{id:'codex:upkeep:'+i,agent:'codex',status:'captured',reason:null,previousCursor:null,nextCursor:'1',updatedAt:i===51?recentDate:oldDate,branch:'main',cwd:null,startedAt:null,endedAt:null},facts:[{slug:'upkeep',type:'thread',body:'An unchecked question number '+i+'?',tags:[],supersedes:[]}]});const response=await e.fake.call('capture',input);assert.equal(response.status,200,await response.clone().text());}
+ const result=await upkeep(e);assert.equal(result.code,0,result.stderr);assert.match(result.stdout,/closed 50/);const all=rows(e,'SELECT * FROM facts ORDER BY id');assert.equal(all.filter(x=>x.type==='thread'&&x.superseded_by!==null).length,50);assert.equal(all.filter(x=>x.type==='thread'&&x.superseded_by===null).length,2);assert.ok(all.filter(x=>x.type==='project').every(x=>x.shared===0&&x.owner_principal_id===all[0].owner_principal_id&&x.session_id!==all[0].session_id));assert.match(all.find(x=>x.type==='project').body,/Closed unchecked after 30 days/);assert.ok(all.slice(0,52).every(x=>x.created_at===(x.id===52?recentDate:oldDate)));
+});
+
+test('busy project history cannot hide an old own unchecked thread from scoped upkeep',async t=>{
+ const e=await setup(t),input=await e.fake.captureInput({visibility:'private',session:{id:'codex:old-upkeep',agent:'codex',status:'captured',reason:null,previousCursor:null,nextCursor:'1',updatedAt:daysAgo(31),branch:'main',cwd:null,startedAt:null,endedAt:null},facts:[{slug:'old-upkeep',type:'thread',body:'An old own question must still be checked?',tags:[],supersedes:[]}]});assert.equal((await e.fake.call('capture',input)).status,200);
+ const busy=await put(e,{source:'save',slug:'busy',facts:Array.from({length:205},(_,i)=>({action:'add',type:'project',body:'Newer project history number '+i}))});assert.equal(busy.code,0,busy.stderr);const old=rows(e,"SELECT superseded_by FROM facts WHERE type='thread'")[0];if(old.superseded_by===null){const result=await upkeep(e);assert.equal(result.code,0,result.stderr);}assert.notEqual(rows(e,"SELECT superseded_by FROM facts WHERE type='thread'")[0].superseded_by,null);assert.equal(rows(e,"SELECT count(*) n FROM facts WHERE body LIKE 'Closed unchecked after 30 days%'")[0].n,1);
 });

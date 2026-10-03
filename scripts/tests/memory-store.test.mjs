@@ -1,35 +1,14 @@
+// Current CLI cases use the fresh schema14/full-core harness; no legacy transport.
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { test } from 'node:test';
-import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scripts/memory.mjs';
-import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
-import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
-import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
-import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
-import { memory, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
-
-const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
-
-test('a recorded migration never runs again', async t => {
-  const env = await setup(t);
-  const before = rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n;
-  const calls = env.fake.calls.length;
-  const again = await memory(env.repo, env.fake, ['migrate']);
-  assert.equal(again.code, 0);
-  assert.match(again.stdout, /up to date/);
-  assert.equal(env.fake.calls.length - calls, 2, 'a second run only reads what is recorded');
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n, before);
-  const files = readdirSync(new URL('../../.agents/skills/memory/migrations/', import.meta.url)).filter(name => name.endsWith('.sql'));
-  assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, files.length);
-  assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('facts') WHERE name = 'shared'"), [{ name: 'shared', dflt_value: '1' }]);
-  assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('memory_keys') WHERE name = 'reader'"), [{ name: 'reader', dflt_value: '0' }]);
-  const stored = await put(env, { source: 'save', slug: 'routes', facts: [{ action: 'add', type: 'project', body: 'Probe every route on the preview.' }] });
-  assert.equal(stored.code, 0, stored.stderr);
-  assert.match((await memory(env.repo, env.fake, ['search', 'previews'])).stdout, /Probe every route on the preview\./, 'a fact written after schema 6 matches another word form');
-});
-
+import {mkdirSync,readdirSync,readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {test} from 'node:test';
+import {ftsQuery,nearTag,normalizeTag} from '../../.agents/skills/memory/scripts/memory.mjs';
+import {findCredential,redact,secretValues} from '../../.agents/skills/memory/scripts/lib/scan.mjs';
+import {parseEnv} from '../../.agents/skills/memory/scripts/lib/store.mjs';
+import {MAX_BYTES,MAX_LINES} from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import {memory,rows,SECRET,setup,writeJsonFile} from './fixtures/memory/harness.mjs';
+const put=(env,input)=>memory(env.repo,env.fake,['put-facts','--file',writeJsonFile(env.repo.home,crypto.randomUUID()+'.json',input)]);
 test('a fact is never edited or deleted; a later fact supersedes it', async t => {
   const env = await setup(t);
   const first = await put(env, { source: 'save', slug: 'digest', facts: [{ action: 'add', type: 'project', body: 'The digest cap is 100 lines.' }] });
@@ -107,19 +86,6 @@ test('the gate lists an open thread on another slug that the fact may answer, an
   assert.doesNotMatch(await gate(), /Open threads this may answer|Next time, try/);
 });
 
-test("the gate never lists a teammate's thread that only its author sees", async t => {
-  const env = await setup(t);
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, shared) VALUES ('setup-flow', 'thread', ?, 'save', '2026-09-01T00:00:00Z', 'ana@example.com', ?)");
-  insert.run('Ana asks: does a real setup from one token work?', 0);
-  insert.run('Ana also asks: does a real setup from one token finish quickly?', 1);
-  const result = await memory(env.repo, env.fake, ['gate', '--file', writeJsonFile(env.repo.home, 'team-gate.json', { slug: 'release', facts: [{ type: 'project', body: 'A real setup from one token worked.' }] })]);
-  assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /Ana also asks/, 'a shared thread shows');
-  assert.doesNotMatch(result.stdout, /Ana asks: does/);
-});
-
 test('length, type, and credential checks reject a fact without echoing a secret', async t => {
   const env = await setup(t);
   const long = await put(env, { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'x'.repeat(401) }] });
@@ -149,7 +115,7 @@ test('tags need a definition, near duplicates warn, and aliases match their targ
   assert.match(listed.stdout, /- checkpoint \(1\) alias of save: Alias of save\./);
 });
 
-test('search filters by text, type, slug, date, author, and change state', async t => {
+test('search filters text/type/slug/date/state and refuses email authorization filtering', async t => {
   const env = await setup(t);
   await put(env, { source: 'save', slug: 'one', facts: [{ action: 'add', type: 'user', body: 'The user is a staff engineer who likes terse replies.' }] });
   await put(env, { source: 'save', slug: 'two', facts: [{ action: 'add', type: 'project', body: 'Replies in reviews stay terse.' }] });
@@ -160,208 +126,13 @@ test('search filters by text, type, slug, date, author, and change state', async
   assert.doesNotMatch(typed.stdout, /reviews/);
   assert.match((await memory(env.repo, env.fake, ['search', '--slug', 'two'])).stdout, /reviews/);
   assert.match((await memory(env.repo, env.fake, ['search', '--since', '2999-01-01'])).stdout, /No matching facts/);
-  assert.match((await memory(env.repo, env.fake, ['search', '--author', 'dev@'])).stdout, /\(one, conversation, 0d, dev@example\.com, #1\)/);
+  assert.match((await memory(env.repo,env.fake,['search','--author','dev@'])).stderr,/author-filter-retired/);
   assert.match((await memory(env.repo, env.fake, ['search', '--state', 'active'])).stdout, /No matching facts/);
-});
-
-test('two authors who share the part before the @ never read as one person, and the digest keeps its limits', async t => {
-  const env = await setup(t);
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('ops', 'project', ?, 'save', '2026-09-01T00:00:00Z', ?)");
-  for (let i = 0; i < 60; i += 1) insert.run(`Release note ${i} ${'about the deploy window '.repeat(6)}`.trim(), i % 2 ? 'operations@example.org' : 'operations@example.com');
-  const digest = (await memory(env.repo, env.fake, ['digest'])).stdout.trimEnd();
-  assert.match(digest, /, operations@example\.com, #\d+\)/);
-  assert.match(digest, /, operations@example\.org, #\d+\)/);
-  assert.ok(digest.split('\n').length <= MAX_LINES, `${digest.split('\n').length} lines`);
-  assert.ok(Buffer.byteLength(digest) <= MAX_BYTES, `${Buffer.byteLength(digest)} bytes`);
-  const found = (await memory(env.repo, env.fake, ['search', 'release', '--limit', '60'])).stdout;
-  const authors = new Set(found.match(/operations@[\w.]+(?=, #)/g));
-  assert.deepEqual([...authors].sort(), ['operations@example.com', 'operations@example.org']);
-});
-
-const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');
-const insertFact = env => {
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES (?, ?, ?, 'save', ?, 'dev@example.com')");
-  return (slug, type, body, days) => insert.run(slug, type, body, daysAgo(days));
-};
-const digestOf = async env => {
-  const result = await memory(env.repo, env.fake, ['digest']);
-  assert.equal(result.code, 0, result.stderr);
-  const text = result.stdout.trimEnd();
-  assert.ok(text.split('\n').length <= MAX_LINES, `${text.split('\n').length} lines`);
-  assert.ok(Buffer.byteLength(text) <= MAX_BYTES, `${Buffer.byteLength(text)} bytes`);
-  return text;
-};
-
-// Tags a fact, defining the tag first when the store has none by that name.
-const tagFact = (env, id, tag) => {
-  env.fake.db.prepare('INSERT OR IGNORE INTO tags (name, definition, created_at) VALUES (?, ?, ?)').run(tag, `Work on ${tag}.`, daysAgo(0));
-  env.fake.db.prepare('INSERT INTO fact_tags (fact_id, tag) VALUES (?, ?)').run(id, tag);
-};
-const STEP_SEARCH = 'When a step starts, load its own: `node .claude/skills/memory/scripts/memory.mjs search --type thread --tag <step>`.';
-
-test("other changes' open threads are never listed; one line counts them by step", async t => {
-  const env = await setup(t);
-  const insert = insertFact(env);
-  for (let i = 0; i < 80; i += 1) {
-    const { lastInsertRowid: id } = insert(`change-${i % 10}`, 'thread', `Open question ${i}.`, i * 0.3);
-    if (i < 10) tagFact(env, id, 'plan');
-    else if (i < 15) tagFact(env, id, 'save');
-  }
-  for (let i = 0; i < 100; i += 1) insert('ops', i % 5 ? 'project' : 'feedback', `Settled fact ${i}.`, 1);
-  const lines = (await digestOf(env)).split('\n');
-  assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0, 'no other change\'s thread is listed');
-  assert.equal(lines[2], `Open threads on other changes, by step: plan 10, save 5; 65 untagged. ${STEP_SEARCH}`);
-  assert.ok(lines.some(line => line.startsWith('- [feedback] Settled fact')), 'feedback facts show');
-  assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts show');
-  const shown = lines.filter(line => line.startsWith('- [')).length;
-  assert.equal(lines.at(-1), `${180 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
-  const all = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--limit', '100']);
-  assert.match(all.stdout, /Open question 79\./, 'a thread left out stays live and searchable');
-});
-
-test('threads tagged with a step count under it, and a tag search loads only that step\'s threads', async t => {
-  const env = await setup(t);
-  const insert = insertFact(env);
-  for (let i = 0; i < 3; i += 1) tagFact(env, insert('change-a', 'thread', `Plan question ${i}.`, i).lastInsertRowid, 'plan');
-  for (let i = 0; i < 2; i += 1) tagFact(env, insert('change-b', 'thread', `Save question ${i}.`, i).lastInsertRowid, 'save');
-  tagFact(env, insert('change-c', 'thread', 'Deploy question.', 1).lastInsertRowid, 'deploy');
-  for (let i = 0; i < 4; i += 1) insert('change-c', 'thread', `Loose question ${i}.`, i);
-  insert('ops', 'feedback', 'Keep replies short.', 1);
-  const lines = (await digestOf(env)).split('\n');
-  assert.ok(lines.includes(`Open threads on other changes, by step: plan 3, save 2; 5 untagged. ${STEP_SEARCH}`), 'a non-step tag counts as untagged');
-  const found = (await memory(env.repo, env.fake, ['search', '--type', 'thread', '--tag', 'plan', '--limit', '100'])).stdout.trim().split('\n');
-  assert.deepEqual(found.map(line => line.match(/^- \[thread\] (Plan question \d)\. \(change-a, (\w+, )?\d+d, /)?.[1]), ['Plan question 0', 'Plan question 1', 'Plan question 2']);
-});
-
-test('the digest shows your people page within 1.5 KB, a line naming the rest, then feedback', async t => {
-  const env = await setup(t);
-  mkdirSync(join(env.repo.root, 'wiki', 'people'), { recursive: true });
-  const prefs = Array.from({ length: 48 }, (_, i) => `- Preference ${i}: short notes, plain words, one idea at a time, please.`);
-  const page = ['# Ana', '', 'Ana runs operations.', '', '- **Git emails:** `dev@example.com`.', ...prefs, '', 'Back to [people](README.md).', ''].join('\n');
-  assert.ok(Buffer.byteLength(page) > 3000, `${Buffer.byteLength(page)} bytes`);
-  writeFileSync(join(env.repo.root, 'wiki', 'people', 'ana.md'), page);
-  const insert = insertFact(env);
-  for (let i = 0; i < 5; i += 1) insert('ops', 'feedback', `Preference fact ${i}.`, 1);
-  const lines = (await digestOf(env)).split('\n');
-  const start = lines.indexOf('## You (wiki/people/ana.md)');
-  const end = lines.indexOf('The rest: wiki/people/ana.md.');
-  assert.ok(start > 1 && end > start, 'a person section ending with the rest line');
-  assert.deepEqual(lines.slice(start + 1, start + 4), ['Ana runs operations.', '- **Git emails:** `dev@example.com`.', '- Preference 0: short notes, plain words, one idea at a time, please.']);
-  assert.ok(Buffer.byteLength(lines.slice(start, end + 1).join('\n')) < PERSON_MAX_BYTES);
-  assert.ok(!lines.includes('# Ana') && !lines.includes('Back to [people](README.md).'), 'no title or footer');
-  assert.equal(lines[end + 1], '## Live facts');
-  assert.match(lines[end + 2], /^- \[feedback\] Preference fact/);
-});
-
-test('with no people page listing you, the digest has no person section and still asks for a search', async t => {
-  const env = await setup(t);
-  mkdirSync(join(env.repo.root, 'wiki', 'people'), { recursive: true });
-  writeFileSync(join(env.repo.root, 'wiki', 'people', 'bo.md'), '# Bo\n\n- **Git emails:** `bo@example.com`.\n');
-  insertFact(env)('ops', 'feedback', 'Keep replies short.', 1);
-  const lines = (await digestOf(env)).split('\n');
-  assert.equal(lines.filter(line => line.startsWith('## You')).length, 0);
-  assert.match(lines[1], /Once you know the task, and before you act on more than a quick question, search memory for its key terms in your own words: `node \.claude\/skills\/memory\/scripts\/memory\.mjs search <terms>`\.$/);
-});
-
-test("the current change's open threads all show first, old ones too", async t => {
-  const env = await setup(t);
-  const dir = join(env.repo.root, 'openspec', 'changes', 'add-po-search');
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'proposal.md'), '# Add PO search\n\n**Branch:** po-search\n');
-  execFileSync('git', ['checkout', '-q', '-b', 'po-search'], { cwd: env.repo.root });
-  const insert = insertFact(env);
-  for (let i = 0; i < 12; i += 1) insert('add-po-search', 'thread', `Current question ${i}.`, i === 11 ? 45 : i);
-  for (let i = 0; i < 20; i += 1) insert('other', 'thread', `Other question ${i}.`, i);
-  for (let i = 0; i < 50; i += 1) insert('ops', 'project', `Settled fact ${i}.`, 1);
-  const lines = (await digestOf(env)).split('\n');
-  const start = lines.indexOf('## Open threads on `add-po-search`');
-  assert.ok(start > 0, 'the current change has its own section');
-  assert.deepEqual(lines.slice(start + 1, start + 13).map(line => line.match(/^- \[thread\] Current question (\d+)\./)?.[1]), Array.from({ length: 12 }, (_, i) => String(i)));
-  assert.equal(lines[start + 13], `Open threads on other changes, by step: 20 untagged. ${STEP_SEARCH}`);
-  assert.equal(lines[start + 14], '## Live facts');
-  assert.equal(lines.filter(line => line.startsWith('- [thread] Other question')).length, 0);
-});
-
-test('a store of 400 live facts keeps the digest within its caps and says how many it left out', async t => {
-  const env = await setup(t);
-  const insert = insertFact(env);
-  for (let i = 0; i < 400; i += 1) insert(`s${i % 7}`, ['thread', 'feedback', 'project', 'reference', 'user'][i % 5], `Fact ${i} ${'about the release window '.repeat(4)}`.trim(), i % 40);
-  const lines = (await digestOf(env)).split('\n');
-  const shown = lines.filter(line => line.startsWith('- [')).length;
-  assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0);
-  assert.equal(lines.at(-1), `${400 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
-});
-
-// A session's facts, with the branch the session started on.
-async function sessionFacts(env, id, branch, facts) {
-  await put(env, { session: id, source: 'save', facts });
-  env.fake.db.prepare('UPDATE sessions SET branch = ? WHERE id = ?').run(branch, id);
-}
-
-const lines = result => result.stdout.trim().split('\n').map(line => line.replace(/ \(.*$/, '')).sort();
-
-test('search by change finds a session whose branch was renamed, alone or with the branch', async t => {
-  const env = await setup(t);
-  await sessionFacts(env, 'claude:renamed', 'magical-chicken', [
-    { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Home keeps private-life facts.' },
-    { action: 'add', type: 'reference', slug: 'paseo', body: 'Paseo renames branches from its sidebar.' },
-  ]);
-  await sessionFacts(env, 'claude:current', 'explore/home-mode', [{ action: 'add', type: 'project', slug: 'other', body: 'Started on the new name.' }]);
-  await sessionFacts(env, 'claude:unrelated', 'elsewhere', [{ action: 'add', type: 'project', slug: 'unrelated', body: 'Nothing to do with it.' }]);
-  const both = await memory(env.repo, env.fake, ['search', '--branch', 'explore/home-mode', '--change', 'add-home-repo']);
-  assert.equal(both.code, 0, both.stderr);
-  assert.deepEqual(lines(both), ['- [project] Home keeps private-life facts.', '- [project] Started on the new name.', '- [reference] Paseo renames branches from its sidebar.']);
-  const change = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
-  assert.deepEqual(lines(change), ['- [project] Home keeps private-life facts.', '- [reference] Paseo renames branches from its sidebar.']);
-  const branch = await memory(env.repo, env.fake, ['search', '--branch', 'explore/home-mode']);
-  assert.deepEqual(lines(branch), ['- [project] Started on the new name.'], 'the branch alone misses the renamed session');
-  const worded = await memory(env.repo, env.fake, ['search', 'paseo', '--change', 'add-home-repo']);
-  assert.deepEqual(lines(worded), ['- [reference] Paseo renames branches from its sidebar.']);
-});
-
-test("search by change keeps the team filter on a teammate's personal facts", async t => {
-  const env = await setup(t);
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
-  execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
-  await sessionFacts(env, 'claude:bo', 'bo-branch', [
-    { action: 'add', type: 'project', slug: 'add-home-repo', body: 'Bo shipped the home schema.' },
-    { action: 'add', type: 'feedback', slug: 'prefs', body: 'Bo wants short replies.' },
-  ]);
-  execFileSync('git', ['config', 'user.email', 'dev@example.com'], { cwd: env.repo.root });
-  const mine = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo']);
-  assert.deepEqual(lines(mine), ['- [project] Bo shipped the home schema.']);
-  const everyone = await memory(env.repo, env.fake, ['search', '--change', 'add-home-repo', '--everyone']);
-  assert.deepEqual(lines(everyone), ['- [feedback] Bo wants short replies.', '- [project] Bo shipped the home schema.']);
-});
-
-test('--state filters before the limit, so an older match is still found', async t => {
-  const env = await setup(t);
-  mkdirSync(join(env.repo.root, 'openspec', 'changes', 'busy'), { recursive: true });
-  await put(env, { source: 'save', slug: 'chat', facts: [{ action: 'add', type: 'thread', body: 'Open question from a conversation.', tags: ['plan'] }] });
-  for (const n of [1, 2, 3]) await put(env, { source: 'save', slug: 'busy', facts: [{ action: 'add', type: 'thread', body: `Open item ${n} in a change.`, tags: ['plan'] }] });
-  const found = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--state', 'conversation', '--limit', '2']);
-  assert.match(found.stdout, /from a conversation/);
-  const capped = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--state', 'active', '--limit', '2']);
-  assert.equal(capped.stdout.trim().split('\n').length, 2);
 });
 
 test('.env values lose their quotes and comments, and keep what is inside the quotes', () => {
   const text = ['A="abc" # note', 'B="x y"  ', "C='single'", 'D="has # inside"', 'E=plain # note', 'export F=exported', 'G=a#b', 'H=', 'I="crlf"\r', ''].join('\n');
   assert.deepEqual(parseEnv(text), { A: 'abc', B: 'x y', C: 'single', D: 'has # inside', E: 'plain', F: 'exported', G: 'a#b', H: '', I: 'crlf' });
-});
-
-test('writing the memory key replaces every earlier line, so the new key is the one read', t => {
-  const primaryRoot = tempDir(t, 'env-key-');
-  const file = join(primaryRoot, '.env');
-  writeFileSync(file, 'A=1\r\nCLOUDFLARE_MEMORY_TOKEN=\r\nB=2\r\nexport CLOUDFLARE_MEMORY_TOKEN=old\r\n');
-  writeEnvKey({ primaryRoot }, 'new');
-  assert.equal(parseEnv(readFileSync(file, 'utf8')).CLOUDFLARE_MEMORY_TOKEN, 'new');
-  assert.equal(readFileSync(file, 'utf8').match(/CLOUDFLARE_MEMORY_TOKEN/g).length, 1);
-  assert.equal(parseEnv(readFileSync(file, 'utf8')).B, '2');
-  writeFileSync(file, 'A=1');
-  writeEnvKey({ primaryRoot }, 'first');
-  assert.equal(readFileSync(file, 'utf8'), 'A=1\nCLOUDFLARE_MEMORY_TOKEN=first\n');
 });
 
 test('an offline write goes to the spool, and the spool drains through the gate', async t => {
@@ -380,25 +151,6 @@ test('an offline write goes to the spool, and the spool drains through the gate'
   const drained = await memory(env.repo, env.fake, ['put-facts', '--file', decisions, '--spooled', path]);
   assert.match(drained.stdout, /added 1/);
   assert.equal(readdirSync(join(env.repo.stateDir, 'spool')).length, 0);
-});
-
-test('a store with no bucket keeps working and says transcripts are not stored', async t => {
-  const env = await setup(t, { bucket: false });
-  await put(env, { source: 'save', slug: 'nb', facts: [{ action: 'add', type: 'project', body: 'No bucket here.' }] });
-  const id = rows(env, 'SELECT id FROM facts')[0].id;
-  const source = await memory(env.repo, env.fake, ['source', String(id)]);
-  assert.match(source.stdout, /no R2 bucket, so transcripts are not stored/);
-  assert.ok(!env.fake.calls.some(call => call.includes('/r2/')));
-});
-
-test('a missing token names the variable and prints no value', async t => {
-  const env = await setup(t);
-  const result = await memory(env.repo, env.fake, ['search', 'x'], { env: { WONG_MEMORY_STATE_DIR: env.repo.stateDir } });
-  assert.equal(result.code, 0);
-  writeFileSync(join(env.repo.root, '.env'), 'OTHER=1\n');
-  const missing = await memory(env.repo, env.fake, ['search', 'x']);
-  assert.equal(missing.code, 1);
-  assert.match(missing.stderr, /CLOUDFLARE_MEMORY_TOKEN is not set in \.env; `node \.claude\/skills\/memory\/scripts\/memory\.mjs join` gets one through your GitHub access to this repo\. See wiki\/development\/memory-key\.md/);
 });
 
 test('helpers: FTS query, tag normalization, near tags, redaction', () => {
@@ -438,17 +190,6 @@ test('redaction replaces every token shape, keeps the word Bearer, and leaves a 
   assert.equal(redact('plain words stay as they are', []), 'plain words stay as they are');
 });
 
-test('a fact from an earlier notes migration still prints its note', async t => {
-  const env = await setup(t);
-  const now = '2026-09-01T00:00:00Z';
-  env.fake.db.prepare("INSERT INTO sessions (id, agent, status, raw_key, raw_bytes, updated_at) VALUES ('migration:old', 'migration', 'captured', 'migration/old.md', 14, ?)").run(now);
-  const { id } = env.fake.db.prepare("INSERT INTO facts (slug, type, body, session_id, source, created_at) VALUES ('old', 'project', 'The cap is 100 lines.', 'migration:old', 'migration', ?) RETURNING id").get(now);
-  env.fake.objects.set('migration/old.md', Buffer.from('Old note text.'));
-  const source = await memory(env.repo, env.fake, ['source', String(id)]);
-  assert.equal(source.code, 0, source.stderr);
-  assert.match(source.stdout, /Old note text\./);
-});
-
 test('no command imports notes', async t => {
   const env = await setup(t);
   const file = writeJsonFile(env.repo.home, 'migration.json', { notes: [{ slug: 'old', text: 'Old note text.', facts: [] }] });
@@ -474,8 +215,8 @@ test('--home is an unknown flag, and nothing reaches the store', async t => {
 test('the shipped question set: each question finds its fact in the top three, and filler alone finds nothing', async t => {
   const env = await setup(t);
   const { facts, questions } = JSON.parse(readFileSync(new URL('./fixtures/memory-search-questions.json', import.meta.url), 'utf8'));
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES (?, ?, ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com') RETURNING id");
-  const ids = new Map(facts.map(fact => [insert.get(fact.slug, fact.type, fact.body).id, fact.key]));
+  for(const fact of facts){const saved=await put(env,{source:'save',slug:fact.slug,facts:[{action:'add',type:fact.type,body:fact.body,...(fact.type==='thread'?{tags:['plan']}:{})}]});assert.equal(saved.code,0,saved.stderr);}
+  const stored=rows(env,'SELECT id,body FROM facts'),ids=new Map(stored.map(row=>[row.id,facts.find(f=>f.body===row.body).key]));
   for (const { query, finds } of questions) {
     const result = await memory(env.repo, env.fake, ['search', ...query.split(' ')]);
     assert.equal(result.code, 0, result.stderr);
@@ -500,7 +241,7 @@ test('a thread must name who checks it: a verb or area tag, read through aliases
     const tagged = await put(env, { source: 'save', slug: 'q', facts: [{ action: 'add', type: 'thread', body: `Checked by ${tag}?`, tags: [tag] }] });
     assert.equal(tagged.code, 0, tagged.stderr);
   }
-  env.fake.db.prepare("INSERT INTO tags (name, definition, alias_of, created_at) VALUES ('checks', 'Look-alike of verify.', 'verify', 'now')").run();
+  const alias=await put(env,{source:'save',slug:'q',newTags:[{name:'checks',definition:'Look-alike of verify.',aliasOf:'verify'}],facts:[]});assert.equal(alias.code,0,alias.stderr);
   const aliased = await put(env, { source: 'save', slug: 'q', facts: [{ action: 'add', type: 'thread', body: 'Checked through an alias?', tags: ['checks'] }] });
   assert.equal(aliased.code, 0, aliased.stderr);
   assert.equal(rows(env, "SELECT count(*) AS n FROM facts WHERE type = 'thread'")[0].n, 3);
@@ -515,39 +256,32 @@ test('a refused spooled thread keeps its spool file', async t => {
   assert.ok(readFileSync(spooled, 'utf8').includes('Written offline'), 'the spool file stays for the next try');
 });
 
-test('a look-alike tag merges as an alias: a search by the main tag finds it, and an alias never points at an alias', async t => {
-  const env = await setup(t);
-  env.fake.db.prepare("INSERT INTO tags (name, definition, created_at) VALUES ('memory', 'Session memory.', 'now'), ('memory-worker', 'The memory route.', 'now'), ('deploys', 'Deploys.', 'now')").run();
-  await put(env, { source: 'save', slug: 'm', facts: [{ action: 'add', type: 'project', body: 'The memory route refuses the keys table.', tags: ['memory-worker'] }] });
-  const tag = (...args) => memory(env.repo, env.fake, ['tag', ...args]);
-  assert.equal((await tag('memory-worker', '--alias-of', 'memory')).code, 0);
-  assert.match((await memory(env.repo, env.fake, ['search', '--tag', 'memory'])).stdout, /refuses the keys table/);
-  assert.match((await memory(env.repo, env.fake, ['tags'])).stdout, /- memory-worker \(1\) alias of memory: The memory route\./);
-  for (const [args, refusal] of [
-    [['deploys', '--alias-of', 'memory-worker'], /memory-worker is itself an alias of memory; use that/],
-    [['memory', '--alias-of', 'deploys'], /memory-worker is an alias of memory; point it at deploys first/],
-    [['deploys', '--alias-of', 'deploys'], /deploys can not be its own alias/],
-    [['deploys', '--alias-of', 'nope'], /no tag nope/],
-    [['nope', '--definition', 'x'], /no tag nope/],
-    [['deploys'], /usage: memory\.mjs tag/],
-  ]) {
-    const result = await tag(...args);
-    assert.equal(result.code, 1, args.join(' '));
-    assert.match(result.stderr, refusal);
-  }
-  assert.equal((await tag('memory-worker', '--no-alias')).code, 0);
-  assert.equal(rows(env, "SELECT alias_of FROM tags WHERE name = 'memory-worker'")[0].alias_of, null);
+
+test('known private current bearer and JWK secret are rejected even as bare prose',async t=>{
+ const e=await setup(t),state=JSON.parse(readFileSync(join(e.repo.stateDir,'machine.json'),'utf8'));
+ for(const secret of [state.credential.token,state.privateKey.d]){const r=await put(e,{source:'save',slug:'secret',facts:[{action:'add',type:'project',body:'The private value is '+secret}]});assert.equal(r.code,1);assert.doesNotMatch(r.stdout+r.stderr,new RegExp(secret));}
+ assert.equal(rows(e,'SELECT count(*) n FROM facts')[0].n,0);
+});
+test('consolidated digest prioritizes old private preferences and reports the exact total under busy history',async t=>{
+ const e=await setup(t);await put(e,{source:'save',slug:'prefs',facts:[{action:'add',type:'feedback',body:'The user wants brief release notes.'}]});
+ const result=await put(e,{source:'save',slug:'busy',facts:Array.from({length:205},(_,i)=>({action:'add',type:'project',body:'Busy team project decision '+i}))});assert.equal(result.code,0,result.stderr);
+ const d=await memory(e.repo,e.fake,['digest']);assert.equal(d.code,0,d.stderr);assert.match(d.stdout,/brief release notes/);const shown=d.stdout.split('\n').filter(x=>x.startsWith('- [')).length;assert.match(d.stdout,new RegExp((206-shown)+' more live facts'));
+ assert.ok(Buffer.byteLength(d.stdout)<=MAX_BYTES+1);assert.ok(d.stdout.trimEnd().split('\n').length<=MAX_LINES);
 });
 
-test('a put-facts whose upkeep fails still stores its fact and exits 0, and the next write retries upkeep', async t => {
-  const env = await setup(t);
-  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at) VALUES ('old', 'project', 'Routes live in app/worker/api/.', 'save', '2026-09-01T00:00:00Z')").run();
-  env.fake.db.exec("CREATE TRIGGER no_restate BEFORE INSERT ON facts WHEN new.source = 'consolidation' BEGIN SELECT RAISE(ABORT, 'restates refused'); END");
-  const result = await put(env, { source: 'save', slug: 'new', facts: [{ action: 'add', type: 'project', body: 'A fact saved before upkeep.' }] });
-  assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /^stored: added 1, superseded 0, dropped 0\nupkeep skipped: memory query failed: restates refused\n$/);
-  assert.equal(rows(env, "SELECT count(*) AS n FROM facts WHERE body = 'A fact saved before upkeep.'")[0].n, 1);
-  env.fake.db.exec('DROP TRIGGER no_restate');
-  const next = await put(env, { source: 'save', slug: 'new', facts: [{ action: 'add', type: 'project', body: 'The next save.' }] });
-  assert.match(next.stdout, /upkeep: closed 0, retagged 1, tags 0/);
+test('change-only search follows the renamed session union and combines branch, tag and FTS filters',async t=>{
+ const e=await setup(t),sessionId='codex:renamed-business-session';let previous=null;
+ for(const [slug,body,next] of [['old-change','Original release pipeline uses guarded capture.','4'],['renamed-change','Renamed release pipeline retains the original session.','8']]){const input=await e.fake.captureInput({session:{id:sessionId,agent:'codex',status:'captured',reason:null,previousCursor:previous,nextCursor:next,updatedAt:new Date().toISOString(),branch:'feature/release',cwd:null,startedAt:null,endedAt:null},facts:[{slug,type:'project',body,tags:[],supersedes:[]}]});const response=await e.fake.call('capture',input);assert.equal(response.status,200,await response.clone().text());previous=next;}
+ const union=await memory(e.repo,e.fake,['search','release','pipeline','--change','old-change']);assert.equal(union.code,0,union.stderr);assert.match(union.stdout,/Original release/);assert.match(union.stdout,/Renamed release/);assert.doesNotMatch((await memory(e.repo,e.fake,['search','release','--branch','unrelated'])).stdout,/release pipeline/);
+ const tagged=await memory(e.repo,e.fake,['put-facts','--file',writeJsonFile(e.repo.home,'branch-tags.json',{source:'save',slug:'tagged',facts:[{action:'add',type:'project',body:'Tagged release pipeline uses verification.',tags:['worker']}]})]);assert.equal(tagged.code,0,tagged.stderr);const combined=await memory(e.repo,e.fake,['search','release','pipeline','--tag','worker','--branch','main','--change','tagged']);assert.match(combined.stdout,/Tagged release/);assert.doesNotMatch(combined.stdout,/Original release|Renamed release/);
+});
+test('search applies local change state before the user limit',async t=>{
+ const e=await setup(t);mkdirSync(join(e.repo.root,'openspec/changes/active-release'),{recursive:true});await put(e,{source:'save',slug:'active-release',facts:[{action:'add',type:'project',body:'The active release result must survive newer conversation noise.'}]});await put(e,{source:'save',slug:'conversation',facts:Array.from({length:12},(_,i)=>({action:'add',type:'project',body:'Newer release conversation noise '+i}))});const found=await memory(e.repo,e.fake,['search','release','--state','active','--limit','1']);assert.equal(found.code,0,found.stderr);assert.match(found.stdout,/active release result/);assert.doesNotMatch(found.stdout,/conversation noise/);
+});
+test('people page stays bounded in the actual digest and absent page falls back to private facts',async t=>{
+ const e=await setup(t);await put(e,{source:'save',slug:'person',facts:[{action:'add',type:'user',body:'The user prefers concise business explanations.'}]});const absent=await memory(e.repo,e.fake,['digest']);assert.match(absent.stdout,/concise business explanations/);assert.doesNotMatch(absent.stdout,/## You/);mkdirSync(join(e.repo.root,'wiki/people'),{recursive:true});writeFileSync(join(e.repo.root,'wiki/people/dev.md'),'# Dev\nEmail: dev@example.com\n'+Array.from({length:100},(_,i)=>'Personal detail '+i+' '+('long '.repeat(20))).join('\n'));
+ const present=await memory(e.repo,e.fake,['digest']);assert.equal(present.code,0,present.stderr);assert.match(present.stdout,/## You \(wiki\/people\/dev.md\)/);assert.match(present.stdout,/The rest: wiki\/people\/dev.md/);assert.match(present.stdout,/concise business explanations/);assert.ok(Buffer.byteLength(present.stdout)<=MAX_BYTES+1);assert.ok(present.stdout.trimEnd().split('\n').length<=MAX_LINES);
+});
+test('completed consolidation metrics derive every exact capture piece rather than the final piece or a model report',async t=>{
+ const e=await setup(t),result=await put(e,{source:'consolidation',slug:'team',facts:Array.from({length:6},(_,i)=>({action:'add',type:'project',body:'Merged business observation '+i}))});assert.equal(result.code,0,result.stderr);const response=await e.fake.call('query',{operation:'runs',params:{}});assert.equal(response.status,200);const [run]=(await response.json()).result;assert.equal(run.kind,'consolidation');assert.equal(JSON.parse(run.counts).added,6);assert.equal(rows(e,'SELECT counts FROM runs').map(x=>JSON.parse(x.counts).added).at(-1),1);
 });

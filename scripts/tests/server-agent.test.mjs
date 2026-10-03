@@ -518,29 +518,21 @@ const INVITATIONS = JSON.stringify([
 
 test("team-remove withdraws the pending invitation and removes access, and leaves memory alone where it has no members", async () => {
   const box = ghExec([["api repos/shop/wongstack/invitations", INVITATIONS], ["test -f", { fail: "" }]]);
-  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), { status: "done" });
+  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), {status:'done',memory:{protocolVersion:2,status:'pending-setup',reason:'exact-machine-revocation-required'}});
   assert.deepEqual(box.lines(), [
     `${GH_API} repos/shop/wongstack/invitations`,
     `${GH_API} -X DELETE repos/shop/wongstack/invitations/11`,
     `${GH_API} -X DELETE repos/shop/wongstack/collaborators/ana-gh`,
-    "test -f /home/wong/wongstack/.agents/skills/memory/scripts/lib/members.mjs",
   ]);
 });
 
-test("team-remove stops the teammate's memory keys by their noreply address where the repo's memory has members", async () => {
-  const box = ghExec([["invitations", "[]"], ["users/ana-gh", "9\n"]]);
-  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), { status: "done" });
-  assert.deepEqual(box.lines().slice(2), [
-    "test -f /home/wong/wongstack/.agents/skills/memory/scripts/lib/members.mjs",
-    `${GH_API} users/ana-gh --jq .id`,
-    `${AS_WONG} node .agents/skills/memory/scripts/memory.mjs member remove 9+ana-gh@users.noreply.github.com`,
-  ]);
-  assert.deepEqual(box.calls.at(-1).options, { cwd: "/home/wong/wongstack" });
+test("team-remove reports exact machine revocation pending and never infers memory identity from email or GitHub",async()=>{
+ const box=ghExec([["invitations","[]"],["users/ana-gh","9\n"]]);assert.deepEqual(await runJob({type:"team-remove",payload:TEAM},box.exec),{status:'done',memory:{protocolVersion:2,status:'pending-setup',reason:'exact-machine-revocation-required'}});assert.deepEqual(box.lines(),[`${GH_API} repos/shop/wongstack/invitations`,`${GH_API} -X DELETE repos/shop/wongstack/collaborators/ana-gh`]);assert.ok(!box.lines().some(line=>/memory\.mjs|users\//.test(line)));
 });
 
 test("team-remove counts a login that is no longer a collaborator as done", async () => {
   const box = ghExec([["invitations", "[]"], ["collaborators", { fail: '{"message":"Not Found","status":"404"}' }], ["test -f", { fail: "" }]]);
-  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), { status: "done" });
+  assert.deepEqual(await runJob({ type: "team-remove", payload: TEAM }, box.exec), {status:'done',memory:{protocolVersion:2,status:'pending-setup',reason:'exact-machine-revocation-required'}});
 });
 
 test("a failed team job is reported as failed with no command output", async () => {

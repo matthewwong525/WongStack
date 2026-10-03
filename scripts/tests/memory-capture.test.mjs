@@ -1,17 +1,16 @@
 import assert from 'node:assert/strict';
-import { execFile, execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { pathToFileURL } from 'node:url';
 import { buildDigest, consolidationDue, currentSlug, formatRun, MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
-import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
+import { codexDayDir, escapeClaude } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/worker/memory-worker.mjs';
-import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
-import { memory, node, rows, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { agentCommand, runbook, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
+import { memory, node, rows, register as registerPrivate, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
 const age = (file, ms) => { const time = new Date(Date.now() - ms); utimesSync(file, time, time); };
@@ -41,7 +40,7 @@ function codexSession(env, n, messages) {
   return { id: `codex:${id}`, file };
 }
 
-const register = (env, entry) => registerSession({ stateDir: env.repo.stateDir }, entry);
+const register = (env, entry) => registerPrivate(env.repo,entry);
 
 test('discovery claims live checkouts and the registry, and skips subagents, background runs, deleted worktrees, and fresh sessions', async t => {
   const env = await setup(t);
@@ -78,7 +77,7 @@ test('strip redacts and uploads the raw file, drops injected text, and a save ma
   assert.match(stripped.stdout, /pushed with \[redacted:token\] and read billing's memory with \[redacted:token\]\./);
   assert.match(stripped.stdout, /\[error\] Error: ENOENT/);
   assert.doesNotMatch(stripped.stdout, /ignore me|super-secret|ghp_|wongm_/);
-  const object = env.fake.objects.get(`sessions/dev@example.com/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
+  const object = [...env.fake.objects.values()][0].toString('utf8');
   assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
   assert.ok(object.includes('[redacted:token]') && !object.includes(github) && !object.includes(otherKey));
   for (const line of object.trim().split('\n')) JSON.parse(line);
@@ -94,28 +93,6 @@ test('strip redacts and uploads the raw file, drops injected text, and a save ma
   assert.doesNotMatch(again.stdout, /Noted\./);
 });
 
-test('a session over 50 MB keeps its facts but not its transcript, and source says why', async t => {
-  const env = await setup(t);
-  const session = claudeSession(env, 1, [['user', 'Load the export.'], ['assistant', [{ type: 'tool_use', id: 't', name: 'Read', input: { data: 'x'.repeat(MAX_TRANSCRIPT_BYTES) } }]]]);
-  const stripped = await memory(env.repo, env.fake, ['strip', session.id]);
-  assert.equal(stripped.code, 0, stripped.stderr);
-  assert.match(stripped.stdout, /The full transcript is 51 MB, over the 50 MB limit, so it is not kept; capture its facts as usual\./);
-  assert.match(stripped.stdout, /\[user\] Load the export\./);
-  assert.equal(env.fake.objects.size, 0, 'nothing was uploaded');
-  const saved = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'd.json', { session: session.id, source: 'save', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'The export is loaded by hand.' }] })]);
-  assert.match(saved.stdout, /added 1.*captured/);
-  const [row] = rows(env, 'SELECT raw_key, raw_bytes, status FROM sessions');
-  assert.equal(row.raw_key, null);
-  assert.ok(row.raw_bytes > MAX_TRANSCRIPT_BYTES, `${row.raw_bytes} bytes recorded`);
-  assert.equal(row.status, 'captured');
-  const [fact] = rows(env, 'SELECT id FROM facts');
-  const source = await memory(env.repo, env.fake, ['source', String(fact.id)]);
-  assert.match(source.stdout, /the transcript was 51 MB, over the 50 MB limit, so it was not kept\./);
-});
-
-// A session an earlier version recorded as private, before #private was retired.
-const recordedPrivate = (env, id) => rows(env, "INSERT INTO sessions (id, agent, status, reason, updated_at) VALUES (?, 'claude', 'private', '#private', '2026-09-01T00:00:00Z')", id);
-
 test('a message saying #private is captured and its transcript uploaded like any other', async t => {
   const env = await setup(t);
   const session = claudeSession(env, 1, [['user', 'Plans for the launch.'], ['assistant', 'OK.'], ['user', 'Keep this one #private please.']]);
@@ -126,69 +103,6 @@ test('a message saying #private is captured and its transcript uploaded like any
   assert.equal(env.fake.objects.size, 1);
   const kept = await memory(env.repo, env.fake, ['keep-transcript', session.id]);
   assert.match(kept.stdout, /kept: /);
-});
-
-test('a session recorded as private before stays private: strip uploads and prints nothing, and it is not pending again', async t => {
-  const env = await setup(t);
-  const session = claudeSession(env, 1, [['user', 'Secret plans.'], ['assistant', 'OK.']]);
-  recordedPrivate(env, session.id);
-  const result = await memory(env.repo, env.fake, ['strip', session.id]);
-  assert.match(result.stdout, /private: .* recorded as private/);
-  assert.doesNotMatch(result.stdout, /Secret plans/);
-  assert.equal(env.fake.objects.size, 0);
-  assert.deepEqual(rows(env, 'SELECT status, raw_key FROM sessions'), [{ status: 'private', raw_key: null }]);
-  const pendingNow = JSON.parse((await memory(env.repo, env.fake, ['pending', '--json'])).stdout);
-  assert.equal(pendingNow.some(item => item.id === session.id), false);
-});
-
-test('keep-transcript uploads the redacted transcript and sets raw_key without touching capture', async t => {
-  const env = await setup(t);
-  const session = claudeSession(env, 1, [['user', `Use ${SECRET} for the call.`], ['assistant', 'Done.']]);
-  register(env, { id: session.id, agent: 'claude', transcript: session.file, cwd: env.repo.root });
-  const saved = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'd.json', { session: 'current', source: 'save', slug: 'x', facts: [{ action: 'add', type: 'project', body: 'The call needs the service token.' }] })]);
-  assert.match(saved.stdout, /captured/);
-  const before = rows(env, 'SELECT status, read_through FROM sessions')[0];
-  const kept = await memory(env.repo, env.fake, ['keep-transcript', 'current']);
-  assert.equal(kept.code, 0, kept.stderr);
-  const key = `sessions/dev@example.com/claude/${session.id.split(':')[1]}.jsonl`;
-  assert.match(kept.stdout, new RegExp(`kept: .* is in ${key}`));
-  const object = env.fake.objects.get(key).toString('utf8');
-  assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
-  const [row] = rows(env, 'SELECT status, read_through, raw_key, raw_bytes FROM sessions');
-  assert.deepEqual({ status: row.status, read_through: row.read_through }, before);
-  assert.equal(row.raw_key, key);
-  assert.equal(row.raw_bytes, Buffer.byteLength(object));
-
-  const fresh = claudeSession(env, 2, [['user', 'Not captured yet.']]);
-  assert.equal((await memory(env.repo, env.fake, ['keep-transcript', fresh.id])).code, 0);
-  assert.deepEqual(rows(env, 'SELECT status, read_through FROM sessions WHERE id = ?', fresh.id), [{ status: 'skipped', read_through: null }]);
-  assert.equal(JSON.parse((await memory(env.repo, env.fake, ['pending', '--json'])).stdout).some(item => item.id === fresh.id), true, 'the background run still captures it');
-});
-
-test('keep-transcript skips a private session, a store with no bucket, and one over 50 MB, with exit 0', async t => {
-  const env = await setup(t);
-  const secret = claudeSession(env, 1, [['user', 'Secret plans.']]);
-  recordedPrivate(env, secret.id);
-  const priv = await memory(env.repo, env.fake, ['keep-transcript', secret.id]);
-  assert.equal(priv.code, 0, priv.stderr);
-  assert.match(priv.stdout, /transcript not kept: .* was recorded as private/);
-  const big = claudeSession(env, 2, [['user', 'Load the export.'], ['assistant', [{ type: 'tool_use', id: 't', name: 'Read', input: { data: 'x'.repeat(MAX_TRANSCRIPT_BYTES) } }]]]);
-  const large = await memory(env.repo, env.fake, ['keep-transcript', big.id]);
-  assert.equal(large.code, 0, large.stderr);
-  assert.match(large.stdout, /transcript not kept: The full transcript is 51 MB, over the 50 MB limit/);
-  assert.equal(env.fake.objects.size, 0);
-  assert.equal(rows(env, 'SELECT raw_key FROM sessions WHERE id = ?', big.id)[0].raw_key, null);
-  assert.deepEqual(rows(env, 'SELECT status, raw_key FROM sessions WHERE id = ?', secret.id), [{ status: 'private', raw_key: null }]);
-
-  const bare = await setup(t, { bucket: false });
-  const plain = claudeSession(bare, 3, [['user', 'Hello.']]);
-  const none = await memory(bare.repo, bare.fake, ['keep-transcript', plain.id]);
-  assert.equal(none.code, 0, none.stderr);
-  assert.match(none.stdout, /transcript not kept: this store has no R2 bucket/);
-  env.fake.setOffline(true);
-  const offline = await memory(env.repo, env.fake, ['keep-transcript', claudeSession(env, 4, [['user', 'Hello.']]).id]);
-  assert.equal(offline.code, 0, offline.stderr);
-  assert.match(offline.stdout, /transcript not kept: memory store unreachable/);
 });
 
 test('Codex transcripts parse, and an unknown format is reported and stores nothing', async t => {
@@ -243,7 +157,7 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   assert.match(result.stdout, /# Memory digest\nFacts are dated context.* Once you know the task, and before you act on more than a quick question, search memory for its key terms in your own words: /);
   assert.match(result.stdout, /## Open threads on `add-po-search`\n- \[thread\] Should search rank by recency\?.*\nOpen threads on other changes, by step: 1 untagged\. /);
   assert.doesNotMatch(result.stdout, /Is the other change blocked\?/);
-  assert.match(result.stdout, /## Live facts\n- \[feedback\] .*\n- \[project\] .*\n- \[reference\] .*\n- \[user\] /);
+  assert.match(result.stdout, /## Live facts\n- \[feedback\] .*\n- \[user\] .*\n- \[project\] .*\n- \[reference\] /);
   for (let i = 0; i < 100 && !existsSync(marker); i += 1) await new Promise(done => setTimeout(done, 100));
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
@@ -299,17 +213,6 @@ test('an unreachable store falls back to the cached digest and never fails the s
   assert.match(result.stdout, /Memory: skipped the store/);
 });
 
-test('the run lock admits one run, and a stale lock is taken over', t => {
-  const lock = join(tempDir(t, 'lock-'), 'run.lock');
-  assert.equal(takeLock(lock), true);
-  assert.equal(takeLock(lock), false);
-  age(lock, 3 * HOUR);
-  assert.equal(takeLock(lock), true);
-  const vanished = join(tempDir(t, 'lock-'), 'run.lock');
-  symlinkSync(join(tmpdir(), 'no-such-lock-target'), vanished);
-  assert.equal(takeLock(vanished), true, 'a lock that is gone when it is checked is free');
-});
-
 test('the hook gives up on a store that never answers and uses the cached digest', async t => {
   const env = await setup(t);
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
@@ -317,24 +220,7 @@ test('the hook gives up on a store that never answers and uses the cached digest
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0);
   assert.match(result.stdout, /Cached fact\./);
-  assert.match(result.stdout, /Memory: skipped the store \(memory store unreachable \(timeout\)/);
-});
-
-test('two writers of the seen-set at once keep both entries and never read a torn file', async t => {
-  const file = join(tempDir(t, 'seen-'), 'seen.json');
-  writeFileSync(file, '{}');
-  const store = pathToFileURL(join(import.meta.dirname, '../../.agents/skills/memory/scripts/lib/store.mjs')).href;
-  const writer = key => new Promise(done => execFile(process.execPath, ['--input-type=module', '-e', `
-    import { readJson, writeJson } from ${JSON.stringify(store)};
-    let torn = 0;
-    for (let i = 0; i < 2000; i += 1) {
-      const seen = readJson(${JSON.stringify(file)}, null);
-      if (!seen) torn += 1;
-      writeJson(${JSON.stringify(file)}, { ...seen, ${JSON.stringify(key)}: { size: i } });
-    }
-    console.log(torn);`], (error, stdout, stderr) => done(error ? stderr : Number(stdout))));
-  assert.deepEqual(await Promise.all([writer('claude:a'), writer('claude:b')]), [0, 0]);
-  assert.deepEqual(Object.keys(JSON.parse(readFileSync(file, 'utf8'))).sort(), ['claude:a', 'claude:b']);
+  assert.match(result.stdout, /Memory: skipped the store \(machine-unreachable/);
 });
 
 test('the background runbook runs only the granted script and writes files only in its input folder', () => {
@@ -433,96 +319,6 @@ test('the session that started a background run can never be listed or stripped 
   assert.match(refused.stderr, /no transcript found/);
 });
 
-test('the hook loads only this repo\'s memory: no part comes from another repo', async t => {
-  const env = await setup(t);
-  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'user', body: 'Prefers short replies.' }] })]);
-  const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
-  assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /# Memory digest[\s\S]*Prefers short replies/);
-  assert.doesNotMatch(result.stdout, /From home|--home/);
-});
-
-// A fake headless agent: a shell script whose lines call the memory script as "$M", the way the model would.
-function fakeAgent(env, lines) {
-  const bin = join(env.repo.home, 'bin');
-  mkdirSync(bin, { recursive: true });
-  const script = join(import.meta.dirname, '../../.agents/skills/memory/scripts/memory.mjs');
-  writeFileSync(join(bin, 'claude'), `#!/bin/sh\nM="${process.execPath} ${script}"\n${lines.join('\n')}\n`);
-  chmodSync(join(bin, 'claude'), 0o755);
-  return bin;
-}
-
-test('a run keeps its tally only while it runs, and records what was stored, not what the model says', async t => {
-  const env = await setup(t);
-  const tally = join(env.repo.stateDir, 'run-tally.json');
-  const marker = join(env.repo.home, 'tally-seen');
-  const bin = fakeAgent(env, [
-    `test -f "${tally}" && echo yes > "${marker}"`,
-    `$M finish-run --kind capture --status ok --counts '{"captured":4}'`,
-  ]);
-  const result = await node(env.repo, env.fake, 'run.mjs', ['--agent', 'claude'], { env: { PATH: `${bin}:${process.env.PATH}` } });
-  assert.equal(result.code, 0, result.stderr);
-  assert.equal(readFileSync(marker, 'utf8'), 'yes\n', 'the tally exists while the agent runs');
-  assert.equal(existsSync(tally), false, 'the tally is gone after the run');
-  assert.deepEqual(rows(env, 'SELECT status, counts, reason FROM runs'), [{ status: 'ok', counts: '{}', reason: 'model reported other counts: captured' }]);
-  const digest = await memory(env.repo, env.fake, ['digest']);
-  assert.match(digest.stdout, /Last background capture run \(.*\): nothing to do \(the run's own report differed\)/);
-});
-
-test('a background run runs upkeep once at its end, outside the tally', async t => {
-  const env = await setup(t);
-  const old = new Date(Date.now() - 31 * 86400000).toISOString();
-  env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at) VALUES ('q', 'thread', 'Was this ever checked?', 'save', ?)").run(old);
-  const bin = fakeAgent(env, [`$M finish-run --kind capture --status ok`]);
-  const result = await node(env.repo, env.fake, 'run.mjs', ['--agent', 'claude'], { env: { PATH: `${bin}:${process.env.PATH}` } });
-  assert.equal(result.code, 0, result.stderr);
-  assert.deepEqual(rows(env, "SELECT body FROM facts WHERE body LIKE 'Closed unchecked%'").map(row => row.body), [`Closed unchecked after 30 days (thread #1, ${old.slice(0, 10)}): Was this ever checked?`]);
-  assert.deepEqual(rows(env, 'SELECT kind, counts FROM runs'), [{ kind: 'capture', counts: '{}' }]);
-});
-
-test('inside a run, put-facts and strip add what they stored to the tally, and finish-run records it', async t => {
-  const env = await setup(t);
-  const tally = join(env.repo.stateDir, 'run-tally.json');
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(tally, '{}\n');
-  const inRun = { env: { WONG_MEMORY_RUN: '1' } };
-  const kept = claudeSession(env, 1, [['user', 'Plan the search.'], ['assistant', 'Done.']]);
-  const empty = claudeSession(env, 2, [['user', 'Hello.']]);
-  const weird = join(env.repo.home, 'weird.jsonl');
-  writeFileSync(weird, '{"hello":"world"}\n');
-  register(env, { id: 'claude:weird', agent: 'claude', transcript: weird });
-  for (const id of [kept.id, empty.id, 'claude:weird']) await memory(env.repo, env.fake, ['strip', id], inRun);
-  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'a.json', { session: kept.id, source: 'backfill', slug: 's', facts: [
-    { action: 'add', type: 'project', body: 'Search ranks by recency.' }, { action: 'drop', type: 'project', body: 'Already known.' }] })], inRun);
-  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'b.json', { session: empty.id, source: 'backfill', slug: 's', facts: [], reason: 'nothing new' })], inRun);
-  const failed = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'c.json', { session: empty.id, source: 'backfill', slug: 's', facts: [{ action: 'add', type: 'nope', body: 'x' }] })], inRun);
-  assert.equal(failed.code, 1, 'a refused write adds nothing');
-  assert.deepEqual(JSON.parse(readFileSync(tally, 'utf8')), { unrecognized: 1, captured: 1, added: 1, dropped: 1, skipped: 1 });
-  const merged = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'm.json', { source: 'consolidation', slug: 's', facts: [
-    { action: 'supersede', supersedes: [1], type: 'project', body: 'Search ranks by recency, newest first.' }] })], inRun);
-  assert.equal(merged.code, 0, merged.stderr);
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'ok', '--counts', '{"merged":1,"superseded":1}'], inRun);
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', JSON.stringify({ captured: 1, skipped: 1, unrecognized: 1, added: 1, superseded: 0, dropped: 1 })], inRun);
-  assert.deepEqual(rows(env, 'SELECT kind, counts, reason FROM runs ORDER BY id').map(run => ({ ...run, counts: JSON.parse(run.counts) })), [
-    { kind: 'consolidation', counts: { merged: 1, superseded: 1 }, reason: null },
-    { kind: 'capture', counts: { captured: 1, skipped: 1, unrecognized: 1, added: 1, dropped: 1 }, reason: null },
-  ]);
-});
-
-test('a hand run writes no tally, and finish-run with no tally records --counts as given', async t => {
-  const env = await setup(t);
-  const tally = join(env.repo.stateDir, 'run-tally.json');
-  const facts = name => ['put-facts', '--file', writeJsonFile(env.repo.home, name, { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: `Fact ${name}.` }] })];
-  await memory(env.repo, env.fake, facts('a.json'), { env: { WONG_MEMORY_RUN: '1' } });
-  assert.equal(existsSync(tally), false, 'no tally file, no tally');
-  writeFileSync(tally, '{}\n');
-  await memory(env.repo, env.fake, facts('b.json'));
-  assert.equal(readFileSync(tally, 'utf8'), '{}\n', 'outside a run, the tally is untouched');
-  rmSync(tally);
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok', '--counts', '{"captured":4}'], { env: { WONG_MEMORY_RUN: '1' } });
-  assert.deepEqual(rows(env, 'SELECT counts, reason FROM runs'), [{ counts: '{"captured":4}', reason: null }]);
-});
-
 test("the digest's run line says when the run's own report differed", () => {
   const run = { kind: 'capture', host: 'box', finished_at: '2026-09-27T10:00:00Z', status: 'ok', counts: '{"captured":2}' };
   assert.equal(formatRun(run), 'Last background capture run (2026-09-27 10:00 UTC on box): captured 2');
@@ -576,4 +372,57 @@ test('recent-chats with no recent chats says so and succeeds', async t => {
   const result = await memory(env.repo, env.fake, ['recent-chats', '--days', '7']);
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stdout.trim(), 'No Claude Code or Codex chats from the last 7 days on this computer.');
+});
+
+test('hook has one absolute deadline across awaits and network retry still starts an eligible background write',async t=>{
+ const e=await setup(t);claudeSession(e,1,[['user','Pending business conversation.']]);e.fake.setDelay(2500);const bin=join(e.repo.home,'bin');mkdirSync(bin);const marker=join(e.repo.home,'background-write');
+ const script=new URL('../../.agents/skills/memory/scripts/memory.mjs',import.meta.url).pathname;
+ const input=writeJsonFile(e.repo.home,'background.json',{source:'backfill',slug:'background',facts:[{action:'add',type:'project',body:'Delayed startup still captures business work.'}]});
+ writeFileSync(join(bin,'claude'),`#!/bin/sh\n"${process.execPath}" --import "${new URL('./fixtures/memory/transport.mjs',import.meta.url).pathname}" "${script}" put-facts --file "${input}" > "${marker}"\n`,{mode:0o755});
+ const start=Date.now(),result=await hook(e,{PATH:bin+':'+process.env.PATH});assert.equal(result.code,0,result.stderr);assert.ok(Date.now()-start<2300,'hook returned within its overall budget plus process startup');e.fake.setDelay(0);
+ for(let i=0;i<100&&!existsSync(marker);i++)await new Promise(done=>setTimeout(done,100));assert.ok(existsSync(marker));for(let i=0;i<100&&rows(e,'SELECT count(*) n FROM facts')[0].n===0;i++)await new Promise(done=>setTimeout(done,100));assert.equal(rows(e,'SELECT count(*) n FROM facts')[0].n,1);
+});
+
+test('keep-transcript redacts exact machine secrets and preserves an uncaptured session cursor',async t=>{
+ const e=await setup(t),state=JSON.parse(readFileSync(join(e.repo.stateDir,'machine.json'))),session=claudeSession(e,8,[['user',`The saved bearer is ${state.credential.token} and key material is ${state.privateKey.d}.`]]);
+ const kept=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(kept.code,0,kept.stderr);assert.match(kept.stdout,/kept:/);const text=[...e.fake.objects.values()][0].toString();assert.ok(!text.includes(state.credential.token)&&!text.includes(state.privateKey.d));assert.match(text,/redacted/);
+ const row=rows(e,'SELECT status,read_through FROM sessions WHERE id=?',session.id)[0];assert.equal(row.status,'skipped');assert.equal(row.read_through,null);assert.equal(JSON.parse((await memory(e.repo,e.fake,['pending','--json'])).stdout).length,1);
+});
+test('no bucket, oversized raw and offline keep-transcript remain honest while fact capture can continue',async t=>{
+ const no=await setup(t,{bucket:false}),noSession=claudeSession(no,8,[['user','Useful notes without an optional raw bucket.']]);const missing=await memory(no.repo,no.fake,['keep-transcript',noSession.id]);assert.equal(missing.code,0);assert.match(missing.stdout,/no R2 bucket/);assert.equal(no.fake.objects.size,0);
+ const e=await setup(t),session=claudeSession(e,8,[['user','x'.repeat(MAX_TRANSCRIPT_BYTES+1)]]);const large=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(large.code,0);assert.match(large.stdout,/over the 50 MB limit/);assert.equal(e.fake.objects.size,0);assert.equal(rows(e,'SELECT status FROM sessions WHERE id=?',session.id)[0].status,'skipped');
+ e.fake.setOffline(true);const offline=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(offline.code,0);assert.match(offline.stdout,/transcript not kept:/);assert.equal(e.fake.objects.size,0);
+});
+test('lost stage and publish responses recover exact owned raw receipts without duplicate objects',async t=>{
+ for(const action of ['stage','publish']){const e=await setup(t),session=claudeSession(e,8,[['user','The original customer conversation is retained privately.']]);e.fake.dropNext(action);const first=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(first.code,0);assert.match(first.stdout,/transcript not kept:/);
+ const second=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(second.code,0,second.stderr);assert.match(second.stdout,/kept:/);assert.equal(e.fake.objects.size,1);const events=rows(e,"SELECT event,count(*) n FROM memory_runtime_transcripts GROUP BY event ORDER BY event");assert.deepEqual(events.map(x=>[x.event,x.n]),[['published',1],['staged',1]]);}
+});
+test('normal startup automatically drains an owned queued manual capture once after restart',async t=>{
+ const e=await setup(t);e.fake.dropNext('capture');const input=writeJsonFile(e.repo.home,'queued-manual.json',{source:'save',slug:'manual',facts:[{action:'add',type:'project',body:'A queued manual capture needs no later manual write.'}]});const queued=await memory(e.repo,e.fake,['put-facts','--file',input]);assert.match(queued.stdout,/queued: capture/);
+ const bin=join(e.repo.home,'bin');mkdirSync(bin);writeFileSync(join(bin,'claude'),'#!/bin/sh\nexit 0\n',{mode:0o755});const started=await hook(e,{PATH:bin+':'+process.env.PATH});assert.equal(started.code,0,started.stderr);
+ for(let i=0;i<100&&JSON.parse(readFileSync(join(e.repo.stateDir,'pending-capture.json'))).length;i++)await new Promise(done=>setTimeout(done,100));assert.deepEqual(JSON.parse(readFileSync(join(e.repo.stateDir,'pending-capture.json'))),[]);assert.equal(rows(e,'SELECT count(*) n FROM facts')[0].n,1);
+});
+test('failed background run records actual private tally and model disagreement without team completion',async t=>{
+ const e=await setup(t),tally=join(e.repo.stateDir,'run-tally.json');writeFileSync(tally,JSON.stringify({captured:2,added:3,unrecognized:1}),{mode:0o600});const result=await memory(e.repo,e.fake,['finish-run','--kind','capture','--status','failed','--counts','{"added":99}','--reason','agent stopped'],{env:{WONG_MEMORY_RUN:'1'}});assert.equal(result.code,0,result.stderr);
+ const row=JSON.parse(readFileSync(join(e.repo.stateDir,'last-run.json')));assert.equal(row.status,'failed');assert.deepEqual(JSON.parse(row.counts),{captured:2,unrecognized:1,added:3});assert.match(row.reason,/agent stopped.*model reported other counts/);assert.equal(rows(e,'SELECT count(*) n FROM runs')[0].n,0);
+});
+
+test('rotated completed stage receives a distinct generation address, while old published raw remains readable',async t=>{
+ const e=await setup(t),session=claudeSession(e,8,[['user','The same redacted bytes retain their generation address.']]);e.fake.dropNext('stage');await memory(e.repo,e.fake,['keep-transcript',session.id]);const machine=join(e.repo.stateDir,'machine.json'),state=JSON.parse(readFileSync(machine));state.credential.expiresAt=0;writeFileSync(machine,JSON.stringify(state),{mode:0o600});assert.equal((await memory(e.repo,e.fake,['join'])).code,0);
+ const kept=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.match(kept.stdout,/kept:/);const staged=rows(e,"SELECT object_hash,credential_generation FROM memory_runtime_transcripts WHERE event='staged' ORDER BY credential_generation");assert.equal(staged.length,2);assert.notEqual(staged[0].object_hash,staged[1].object_hash);assert.deepEqual(staged.map(x=>x.credential_generation),[1,2]);assert.ok([...e.fake.objects.keys()].every(x=>x.includes('/g2/')));
+ const current=JSON.parse(readFileSync(machine));current.credential.expiresAt=0;writeFileSync(machine,JSON.stringify(current),{mode:0o600});assert.equal((await memory(e.repo,e.fake,['join'])).code,0);const retained=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.match(retained.stdout,new RegExp(staged[1].object_hash));assert.equal(e.fake.objects.size,1);
+ const fact=writeJsonFile(e.repo.home,'raw-source.json',{session:session.id,source:'backfill',slug:'raw',facts:[{action:'add',type:'project',body:'The source conversation is retained.'}]});assert.equal((await memory(e.repo,e.fake,['put-facts','--file',fact])).code,0);const source=await memory(e.repo,e.fake,['source',String(rows(e,'SELECT id FROM facts')[0].id)]);assert.equal(source.code,0,source.stderr);assert.match(source.stdout,/same redacted bytes/);
+});
+test('a partial raw stage quarantines recovery rather than rotating into a replacement address',async t=>{
+ const e=await setup(t),session=claudeSession(e,8,[['user','An incomplete stage must never be adopted.']]);e.fake.dropNext('stage');await memory(e.repo,e.fake,['keep-transcript',session.id]);const stage=rows(e,"SELECT attempt_id FROM memory_runtime_transcripts WHERE event='staged'")[0],ddl=e.fake.db.prepare("SELECT sql FROM sqlite_master WHERE name='memory_runtime_completions_retained'").get().sql;e.fake.db.exec('DROP TRIGGER memory_runtime_completions_retained');e.fake.db.prepare('DELETE FROM memory_runtime_completions WHERE attempt_id=?').run(stage.attempt_id);e.fake.db.exec(ddl);
+ const retry=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(retry.code,0);assert.match(retry.stdout,/transcript not kept:/);assert.equal(rows(e,"SELECT count(*) n FROM memory_runtime_transcripts WHERE event='staged'")[0].n,1);assert.equal(e.fake.objects.size,0);
+});
+
+test('startup never reuses another installation namespace cached private digest',async t=>{
+ const e=await setup(t);const input=writeJsonFile(e.repo.home,'private-cache.json',{source:'save',slug:'prefs',facts:[{action:'add',type:'feedback',body:'A private preference belongs to exactly this installation.'}]});assert.equal((await memory(e.repo,e.fake,['put-facts','--file',input])).code,0);assert.match(readFileSync(join(e.repo.stateDir,'digest.json'),'utf8'),/private preference/);
+ const other={...e.fake.installation,repositoryId:'f'.repeat(32)};writeFileSync(join(e.repo.root,'.claude/.wong-stack.json'),JSON.stringify({components:{memory:{installation:other}}}));e.fake.setOffline(true);const result=await hook(e,{WONG_MEMORY_NO_HEADLESS:'1'});assert.equal(result.code,0);assert.doesNotMatch(result.stdout,/private preference|using cached/i);
+});
+test('actual concurrent failed transcript commands retain both private tally increments',async t=>{
+ const e=await setup(t);writeFileSync(join(e.repo.stateDir,'run-tally.json'),'{}',{mode:0o600});for(const id of ['one','two']){const path=join(e.repo.home,id+'.jsonl');writeFileSync(path,'{"unknown":true}\n');register(e,{id:'claude:'+id,agent:'claude',transcript:path,cwd:e.repo.root});}
+ const results=await Promise.all(['one','two'].map(id=>memory(e.repo,e.fake,['strip','claude:'+id],{env:{WONG_MEMORY_RUN:'1'}})));for(const result of results){assert.equal(result.code,3,result.stderr);assert.match(result.stdout,/not recognized/);}assert.equal(JSON.parse(readFileSync(join(e.repo.stateDir,'run-tally.json'))).unrecognized,2);
 });

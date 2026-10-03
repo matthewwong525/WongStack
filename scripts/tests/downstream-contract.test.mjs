@@ -52,11 +52,13 @@ test('every raw setup URL in the README names a real tracked file', () => {
 
 test('.env.example declares the Cloudflare variables', () => {
   const env = read('.env.example');
-  for (const name of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_MEMORY_TOKEN']) {
+  for (const name of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID']) {
     assert.match(env, new RegExp(`^${name}=`, 'm'),
-      `.env.example must declare ${name}= — /wong-setup, the memory scripts, and hosted setups read this name from the host .env`);
+      `.env.example must declare ${name}= — /wong-setup and hosted setups read this name from the host .env`);
   }
 });
+
+test('env declares no ordinary memory credential',()=>{assert.doesNotMatch(read('.env.example'),/^CLOUDFLARE_MEMORY_TOKEN=/m);});
 
 test('deploy.yml reads only the two Cloudflare deploy secrets', () => {
   const surface = 'installed repos and hosted setups set exactly these GitHub secrets';
@@ -65,7 +67,7 @@ test('deploy.yml reads only the two Cloudflare deploy secrets', () => {
   assert.deepEqual(cloudflare, ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'], surface);
   for (const file of readdirSync(join(repo, '.github/workflows')).filter(name => name.endsWith('.yml'))) {
     assert.doesNotMatch(read(`.github/workflows/${file}`), /CLOUDFLARE_MEMORY_TOKEN/,
-      `${file} must not read CLOUDFLARE_MEMORY_TOKEN — the memory token stays on the host, never in CI`);
+      `${file} must not read CLOUDFLARE_MEMORY_TOKEN — ordinary memory credentials live in private OS-user state, never in CI`);
   }
 });
 

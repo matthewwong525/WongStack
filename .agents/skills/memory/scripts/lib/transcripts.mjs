@@ -1,8 +1,9 @@
 // Discover, claim, parse, and strip Claude Code and Codex transcripts. Code only: no model reads raw files.
-import { appendFileSync, closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { checkouts, readJson, statePath } from './store.mjs';
+import { withMachineLock } from './machine-client-state.mjs';
+import { checkouts, readJson, statePath, writeJson } from './store.mjs';
 
 const IDLE_MS = 60 * 60 * 1000;
 const PRUNE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
@@ -27,27 +28,29 @@ const excluded = () => process.env.WONG_MEMORY_EXCLUDE || '';
 
 // ---------- registry ----------
 
-export function registerSession(ctx, entry) {
-  appendFileSync(statePath(ctx, 'registry.jsonl'), `${JSON.stringify(entry)}\n`);
+export async function registerSession(ctx, entry) {
+  await withMachineLock(ctx.stateDir,async()=>{const file=statePath(ctx,'registry.jsonl');writeJson(file,[...readJson(file,[]),entry]);});
 }
 
 export function readRegistry(ctx) {
   const file = join(ctx.stateDir, 'registry.jsonl');
   const entries = new Map();
   if (!existsSync(file)) return entries;
-  for (const entry of readFileSync(file, 'utf8').split('\n').map(parseLine)) if (entry?.id) entries.set(entry.id, { ...entries.get(entry.id), ...entry });
+  for (const entry of readJson(file,[])) if (entry?.id) entries.set(entry.id, { ...entries.get(entry.id), ...entry });
   return entries;
 }
 
 // Keep the registry small: drop entries whose transcript is gone, and captured ones older than 30 days.
-export function pruneRegistry(ctx, now = Date.now()) {
+export async function pruneRegistry(ctx, now = Date.now()) {
+ return withMachineLock(ctx.stateDir,async()=>{
   const seen = readJson(join(ctx.stateDir, 'seen.json'), {});
   const kept = [...readRegistry(ctx).values()].filter(entry => {
     const info = entry.transcript && stat(entry.transcript);
     if (!info) return false;
     return !(seen[entry.id]?.size === info.size && now - info.mtimeMs > PRUNE_AFTER_MS);
   });
-  writeFileSync(statePath(ctx, 'registry.jsonl'), kept.map(entry => `${JSON.stringify(entry)}\n`).join(''));
+  writeJson(statePath(ctx,'registry.jsonl'),kept);
+ });
 }
 
 // ---------- parsing ----------

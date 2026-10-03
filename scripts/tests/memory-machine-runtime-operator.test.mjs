@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runtimeFixture,runtimeGrantFixture,enrolledRuntimeFixture,runtimeEnrollInput,transcriptInput,revokeInput,
   attempt,MACHINE,GRANT,rejected,corruptRuntime,enrollOtherRuntimeMachine,d1Fixture,signed } from './fixtures/memory/runtime.mjs';
-import { handleMemory } from '../../.agents/skills/memory/worker/memory-worker.mjs';
+import { handleMemory } from './fixtures/memory/legacy/memory-worker.mjs';
 import { preparedMachineFixture,machineFixture,machineInput } from './fixtures/memory/machines.mjs';
 import { applyMigrations } from './fixtures/memory/identity.mjs';
 import { trustedMachineRuntimeContext,prepareMachineRuntime,prepareFreshMachineRuntime,readMachineRuntimeStatus,

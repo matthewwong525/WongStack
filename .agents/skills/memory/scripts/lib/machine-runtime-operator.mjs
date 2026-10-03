@@ -214,7 +214,9 @@ async function mutate(context,input,action) {
     && state.configuration.barrier_attempt_id === null, 'machine-operation-incomplete');
   requireValue(sameMachineValue(state.snapshot,input.expected), 'machine-authority-stale');
   await evidence(context,state,action,payload);
-  try { await runtimeContext(context).write(planMachineRuntime(context,state,input,action,payload,requestHash)); }
+  const planned=planMachineRuntime(context,state,input,action,payload,requestHash);
+  runtimeContext(context).reserve?.(planned.length+12);
+  try { await runtimeContext(context).write(planned); }
   catch { /* Never expose provider/D1 error details or infer completion from success. */ }
   state = await readRuntimeState(context);
   const result = await exactCompletion(context,state,input,action,payload,requestHash);

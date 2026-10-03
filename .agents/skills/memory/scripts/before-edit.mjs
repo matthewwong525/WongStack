@@ -6,13 +6,11 @@
 import { readFileSync } from 'node:fs';
 import { parseCli } from './lib/cli.mjs';
 import { areasOf, loadAreas } from './lib/areas.mjs';
-import { FACT_COLUMNS, formatFact, personalFilter } from './lib/digest.mjs';
+import { formatFact } from './lib/digest.mjs';
 import { isMain, openStore, readJson, repoContext, statePath, writeJson } from './lib/store.mjs';
-import { tagClause } from './memory.mjs';
 
 const BUDGET_MS = 2500;
 const LINES = 8;
-const F_COLUMNS = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
 
 // The edited files: Claude Code's Edit, Write, and MultiEdit name file_path, and NotebookEdit notebook_path;
 // Codex's apply_patch names each file in its patch's headers.
@@ -33,10 +31,7 @@ export async function beforeEdit(input) {
   const tags = [...new Set(paths.flatMap(path => areasOf(path, areas, ctx.root)))].filter(tag => !shown.includes(tag));
   if (!tags.length) return '';
   const store = openStore(ctx, { timeoutMs: BUDGET_MS });
-  const personal = await personalFilter(ctx, store);
-  const tag = tagClause(tags);
-  const facts = await store.query(`SELECT ${F_COLUMNS} FROM facts f WHERE f.superseded_by IS NULL AND ${tag.sql}${personal ? ` AND ${personal.clause}` : ''}
-    ORDER BY CASE WHEN f.type = 'thread' THEN 0 ELSE 1 END, f.created_at DESC LIMIT ${LINES}`, [...tag.params, ...(personal?.params || [])]);
+  const facts=await store.operation('facts',{tags,threadsFirst:true,limit:LINES});
   writeJson(shownFile, [...shown, ...tags]);
   if (!facts.length) return '';
   const additionalContext = [`Memory for ${tags.join(', ')}:`, ...facts.map(fact => formatFact(fact))].join('\n');

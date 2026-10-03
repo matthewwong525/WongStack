@@ -79,7 +79,7 @@ CLOUDFLARE_ACCOUNT_ID=
 
 So each credential lives in one place: the user token in the primary worktree's git-ignored `.env`, and the deploy token in GitHub's sealed secret store. To rotate the deploy token, ask your agent; it rolls the value and sets the secret again. You see the token in the dashboard under **Manage Account → Account API Tokens**, where you or a teammate can revoke it. (A repo on the Workers Builds fallback needs no secret: that CI runs inside Cloudflare.)
 
-The session memory store needs no Cloudflare token of its own. Provisioning uses this token to create the store and to write your memory key to `CLOUDFLARE_MEMORY_TOKEN`, which never becomes a GitHub secret. [The memory page](../development/memory-key.md) owns that name and what a key can reach.
+Session memory uses a private OS-user machine key and a rotating credential for one installation grant. Neither the provider token nor GitHub membership admits a machine. Provisioning reports memory as pending until trusted machine setup verifies the installation and deployment; [the memory page](../development/memory-key.md) owns that boundary and private storage.
 
 ## How two permission rows become enough
 
@@ -87,9 +87,9 @@ The token rewrites its own permissions: it reads its own policy, looks permissio
 
 ### The widen is pre-authorized
 
-> **This page owns the standing authorization.** Providing a token that carries these two permission groups **is** the permission to widen it, and to mint the CI deploy token and write the memory key with it — the groups exist for no other purpose, and a token that couldn't widen itself would be useless here. An agent that reaches the widen performs it and reports which permissions it granted; it does not stop to ask whether it may change the token's scope. Every other surface that instructs an agent to widen links here.
+> **This page owns the standing authorization.** Providing a token that carries these two permission groups **is** the permission to widen it, and to mint the CI deploy token — the groups exist for no other purpose, and a token that couldn't widen itself would be useless here. An agent that reaches the widen performs it and reports which permissions it granted; it does not stop to ask whether it may change the token's scope. Every other surface that instructs an agent to widen links here.
 
-The authorization covers the widen and nothing else:
+The authorization covers provider permission widening and the CI deploy token. Memory admission requires its separate trusted setup authorization:
 
 - **Creating or deleting anything billable still asks first.** Widening costs nothing; a database is a different question.
 - **A widen that fails or doesn't verify still stops the run.** Nothing is provisioned on an unconfirmed permission set.
@@ -99,7 +99,7 @@ Read it against [the trade-off](#the-security-trade-off-stated-plainly): this is
 
 ### Narrowing back
 
-The same call in reverse: provision, hand the extra permissions back, widen again next time. Offered, never automatic. The two API-token groups must stay in the policy, or the token can never widen again. Narrowing the user token does not touch the deploy token or memory keys.
+The same call in reverse: provision, hand the extra permissions back, widen again next time. Offered, never automatic. The two API-token groups must stay in the policy, or the token can never widen again. Narrowing the user token does not touch the deploy token or private machine grants.
 
 ## The security trade-off, stated plainly
 

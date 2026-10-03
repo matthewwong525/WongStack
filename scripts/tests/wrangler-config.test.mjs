@@ -181,7 +181,7 @@ test('the staging name comes from the redirected build config; production never 
 test('the default branch deploys the production Worker and uploads no alias', t => {
   const run = deploy(t, { branch: 'main', env: { GITHUB_REPOSITORY: 'ana/demo' } });
   assert.equal(run.status, 0, run.out);
-  assert.deepEqual(run.calls, ['wrangler deploy --var GITHUB_REPOSITORY:ana/demo']);
+  assert.deepEqual(run.calls, ['wrangler deploy']);
   assert.ok(!run.calls.some(call => call.includes('versions upload')), 'production uploads no preview alias');
   assert.equal(run.github, '');
 });

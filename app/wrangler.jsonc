@@ -15,11 +15,16 @@
 	},
 	"vars": {
 		"WONG_ENVIRONMENT": "production",
+		"MEMORY_INSTALLATION": "",
+		"MEMORY_DATABASE_ID": "",
+		"MEMORY_BUCKET_NAME": "",
+		"MEMORY_WORKER_NAME": "",
 		"CF_ACCESS_TEAM_DOMAIN": "startuptemplate.cloudflareaccess.com",
 		"CF_ACCESS_AUD": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
 		"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",
 		"CF_ACCESS_WORKER_ID": "37236d316a9d49028048b9217deae927"
 	},
+	"version_metadata": { "binding": "CF_VERSION_METADATA" },
 	"observability": {
 		"enabled": true
 	},

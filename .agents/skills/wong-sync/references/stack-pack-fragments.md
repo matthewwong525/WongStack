@@ -48,8 +48,13 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
     "not_found_handling": "single-page-application",
     "run_worker_first": true
   },
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "vars": {
     "WONG_ENVIRONMENT": "production",
+    "MEMORY_INSTALLATION": "",
+    "MEMORY_DATABASE_ID": "",
+    "MEMORY_BUCKET_NAME": "",
+    "MEMORY_WORKER_NAME": "",
     "CF_ACCESS_TEAM_DOMAIN": "<access team domain>",
     "CF_ACCESS_AUD": "<access audience>",
     "CF_ACCESS_APP_ID": "<access app id>",
@@ -62,7 +67,7 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
       "database_id": "<production database_id>",
       "migrations_dir": "../schema/migrations"
     },
-    // Session memory, production only. No migrations_dir: the memory skill migrates it.
+    // Session memory, production only. No migrations_dir: trusted machine setup remains pending.
     {
       "binding": "MEMORY_DB",
       "database_name": "<your-repo>-memory",
@@ -110,7 +115,9 @@ Six rules the scripts depend on:
 - **Give `env.staging` its own `name`,** or it inherits production's and a branch deploy lands on the production Worker. `cf-deploy.sh` refuses that deploy; declare the name so the check never fires.
 - **Redeclare every stateful binding in `env.staging`, pointing at its twin** ([the twin table](../../../../wiki/stack/staging-bindings.md#twin-every-stateful-binding)): an environment inherits no `vars` or bindings. Its `d1_databases` entry needs the staging database's own `database_name`; `cf-build.sh` and `reset-staging-d1.mjs` read it from *inside* the block and stop rather than touch production. A forgotten binding is absent in staging, and `npm run secrets:check` fails the build; a *service* binding copied without repointing quietly calls production, and it warns.
 - **Cron `triggers` do inherit** ([why](../../../../wiki/stack/staging-bindings.md#cron-triggers-inherit-omitting-them-does-not-disable-them)): omitted, production's schedule fires silently on staging. Keep the empty `crons` list unless staging *should* run production's schedule.
-- **Never twin the memory bindings.** `MEMORY_DB` and `MEMORY_BUCKET` sit at the top level only: session memory lives on the production Worker alone ([the memory convention](../../../../wiki/development/memory-key.md)). `secrets:check` skips `MEMORY_*` bindings, and the pipeline scripts never read `MEMORY_DB` as the app's database. Leave Wrangler's warning that `MEMORY_DB` is not on `env.staging`; it is expected.
+- **Never twin memory bindings or pins.** `MEMORY_*` values sit at the top level only: session memory lives on the production Worker alone ([the memory convention](../../../../wiki/development/memory-key.md)). `secrets:check` skips `MEMORY_*` bindings, and the pipeline scripts never read `MEMORY_DB` as the app's database. Leave Wrangler's warning that `MEMORY_DB` is not on `env.staging`; it is expected.
+
+Closed memory declarations remain empty until reviewed trusted setup verifies actual binding IDs, the active Worker version, and a genuine `version_metadata` binding type. Never guess installation IDs from legacy resource names. Version metadata may inherit harmlessly; memory pins and bindings never enter staging/local. Full unattended trusted setup remains pending.
 
 A queue twin needs both halves inside the environment, or staging messages land on the production consumer:
 

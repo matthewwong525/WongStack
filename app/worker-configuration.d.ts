@@ -6,6 +6,11 @@ interface __BaseEnv_Env {
 	ASSETS: Fetcher;
 	MEMORY_BUCKET?: R2Bucket;
 	MEMORY_DB?: D1Database;
+	MEMORY_INSTALLATION?: string;
+	MEMORY_DATABASE_ID?: string;
+	MEMORY_BUCKET_NAME?: string;
+	MEMORY_WORKER_NAME?: string;
+	CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

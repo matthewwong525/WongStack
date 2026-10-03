@@ -1,5 +1,4 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { hashKey } from "../../.agents/skills/memory/worker/memory-worker.mjs";
 import worker from "./index";
 
 const TEAM = "routing-team.cloudflareaccess.com";
@@ -45,7 +44,7 @@ describe("private Worker routing", () => {
     const open = { ASSETS: assets, WORKSPACE_LOGIN: "off" } as unknown as typeof env;
     for (const path of ASSET_PATHS) expect((await call(path, {}, open)).status, path).toBe(200);
     expect(await (await call("/api/health", {}, open)).json()).toEqual({ ok: true });
-    expect((await call("/_memory/unknown", {}, { ...open, MEMORY_DB: {} } as typeof env)).status).toBe(401);
+    expect((await call("/_memory/unknown", {}, { ...open, MEMORY_DB: {} } as typeof env)).status).toBe(404);
     expect(assets.fetch).toHaveBeenCalledTimes(ASSET_PATHS.length);
   });
   it("ignores a stale open switch once Access identifiers are set", async () => {
@@ -98,7 +97,7 @@ describe("private Worker routing", () => {
       // An old source path gets the single-page app's page, never the file.
       "/apps/hello/api.mjs": [200, "asset", 200, "asset"],
       "/api/health": [200, { ok: true }, 404, { error: "Not found" }],
-      "/_memory/": [401, expect.objectContaining({ errors: [expect.objectContaining({ code: 10000 })] }), 401, expect.objectContaining({ errors: [expect.objectContaining({ code: 10000 })] })],
+      "/_memory/": [404, {success:false,code:"memory-route-denied"}, 404, {success:false,code:"memory-route-denied"}],
     });
     expect(assets.fetch).toHaveBeenCalledTimes(6);
   });
@@ -110,20 +109,13 @@ describe("private Worker routing", () => {
     for (const assertion of [wrong, forged]) expect((await call("/assets/main.js", { "Cf-Access-Jwt-Assertion": assertion })).status).toBe(401);
     expect(assets.fetch).not.toHaveBeenCalled();
   });
-  it("keeps memory independently key-authenticated and unavailable on staging", async () => {
-    const absent = await call("/_memory/accounts/a/d1/database/d/query");
-    expect(absent.status).toBe(404);
-    expect(await absent.json()).toMatchObject({ errors: [{ code: "no_store" }] });
-    const validHash = await hashKey("test-memory-key");
-    const memoryDb = {
-      prepare: () => ({ bind: (hash: string) => ({ first: async () => hash === validHash ? { email: "owner@example.com", role: "admin", expires_at: null, team: false } : null }) }),
-    };
-    const memoryEnv = { ...env, MEMORY_DB: memoryDb };
-    for (const key of [undefined, "wrong-key", "test-memory-key"]) {
-      const response = await call("/_memory/unknown", key ? { Authorization: `Bearer ${key}` } : {}, memoryEnv);
-      expect(response.status).toBe(key === "test-memory-key" ? 404 : 401);
-      expect(await response.json()).toMatchObject({ errors: [{ code: key === "test-memory-key" ? "no_route" : 10000 }] });
+  it("keeps all memory routes outside human Access and unavailable on staging", async () => {
+    const read=vi.fn(()=>{throw Error("memory must stay closed");});
+    const bindings={...env,WONG_ENVIRONMENT:"staging",MEMORY_DB:{prepare:read,batch:read}};
+    for(const path of ["/_memory/unknown","/_memory/accounts/a/d1/database/d/query","/_memory/v2/repositories/"+"r".repeat(32)+"/machines/"+"m".repeat(32)+"/query","/%5fmemory/join"]){
+      const response=await call(path,{"Cf-Access-Jwt-Assertion":await token()},bindings as typeof env);
+      expect(response.status).toBe(404);
     }
-    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();expect(assets.fetch).not.toHaveBeenCalled();
   });
 });

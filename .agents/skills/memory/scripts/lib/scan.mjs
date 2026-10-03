@@ -4,6 +4,8 @@ const TOKEN_PLACEHOLDER = '[redacted:token]';
 const MIN_SECRET_LENGTH = 8;
 
 const TOKEN_PATTERNS = [
+  ['Private machine key', /"d"\s*:\s*"[A-Za-z0-9_-]{43}"/],
+  ['Machine credential field', /"(?:token|capability)"\s*:\s*"[A-Za-z0-9_-]{43,128}"/],
   ['GitHub token', /\bgh[pousr]_[A-Za-z0-9]{20,}/],
   ['GitHub fine-grained token', /\bgithub_pat_[A-Za-z0-9_]{20,}/],
   ['API key (sk-)', /\bsk-[A-Za-z0-9_-]{20,}/],

@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 const person: AccessIdentity = { id: "owner@example.com", kind: "user", claims: { aud: "a", iss: "i", exp: 0 } };
-const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {} } as unknown as Env;
+const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {},MEMORY_INSTALLATION:"private-pins",MEMORY_DATABASE_ID:"id",MEMORY_WORKER_NAME:"worker",MEMORY_UNKNOWN:"closed" } as unknown as Env;
 const call = (path: string, method = "GET", identity: AccessIdentity | null = person) =>
   handleApp(new Request(`https://workspace.example.com${path}`, { method }), env, identity);
 
@@ -45,6 +45,7 @@ it("hands a handler the database and saved keys, but no memory binding", async (
   expect(appEnv.PAYMENT_KEY).toBe("secret");
   expect("MEMORY_DB" in appEnv).toBe(false);
   expect("MEMORY_BUCKET" in appEnv).toBe(false);
+  expect(Object.keys(appEnv).filter(name=>name.startsWith("MEMORY_"))).toEqual([]);
   expect("MEMORY_DB" in env).toBe(true);
   expect(info.route).toBe("peek");
   expect(info.url.searchParams.get("x")).toBe("1");

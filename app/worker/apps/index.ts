@@ -4,7 +4,7 @@
 // no edit here. wiki/stack/mini-apps.md
 import type { AccessIdentity } from "../access.ts";
 
-type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET";
+type MemoryBindings = Extract<keyof Env, `MEMORY_${string}`>;
 
 /**
  * Everything the Worker has but the memory store: the database, saved keys, and settings.
@@ -49,7 +49,8 @@ export function handleApp(request: Request, env: Env, identity: AccessIdentity |
 
   // Typed so the copy compiles before setup binds a memory store, too.
   const appEnv: AppEnv & Partial<Record<MemoryBindings, unknown>> = { ...env };
-  delete appEnv.MEMORY_DB;
-  delete appEnv.MEMORY_BUCKET;
+  for (const key of Object.keys(appEnv)) {
+    if (key.startsWith("MEMORY_")) Reflect.deleteProperty(appEnv, key);
+  }
   return handler(request, appEnv, { url, route, identity });
 }

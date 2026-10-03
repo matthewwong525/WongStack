@@ -75,7 +75,7 @@ A reviewed `requiredSettings: []` means no settings are required for this code w
 
 ## Install WongStack into a repo
 
-`install-wongstack.mjs` installs WongStack into a person's empty GitHub repo with no question: the payload, the app's Cloudflare hosting, and memory, then one commit on `main`, pushed. Last, it adds WongStack's agent presets to the workspace user's Paseo with [`presets.mjs`](../.agents/skills/routine/scripts/presets.mjs), when Paseo is set up. A failure there goes to stderr and never changes the last line. It installs the clone it runs from, so the version is the commit you checked out, and a fork installs itself.
+`install-wongstack.mjs` installs WongStack into a person's empty GitHub repo with no question: the payload, the app's Cloudflare hosting, and closed memory resources awaiting trusted setup, then one commit on `main`, pushed. Last, it adds WongStack's agent presets to the workspace user's Paseo with [`presets.mjs`](../.agents/skills/routine/scripts/presets.mjs), when Paseo is set up. A failure there goes to stderr and never changes the last line. It installs the clone it runs from, so the version is the commit you checked out, and a fork installs itself.
 
 ### Run it
 
@@ -150,7 +150,7 @@ Cleanup uses fresh transient setup authority and only `DELETE /accounts/<account
 
 - `node`, `git`, `gh`, and `openspec` on the path. `setup.sh` installs them.
 - `gh` signed in as someone who can set the repo's secrets.
-- A git email: `git config --global user.email`. The install commits under it, and the person's admin memory key is made for it. With none, it stops with `repo`.
+- A git email: `git config --global user.email`. The install commits under it; it grants no memory authority. With none, it stops with `repo`.
 
 ### The last line
 
@@ -189,7 +189,7 @@ Run it again after any stop. It finishes what the last run began and makes no se
 
 ### What the installer never does
 
-- It never puts a token in an argument, an error, its output, or a commit. The user token, memory key, and separate verification credentials stay in the repo's ignored `.env`, mode 0600. The deploy token goes straight to the GitHub secret; the restricted cloud management token uses only the private result file.
+- It never puts a token in an argument, an error, its output, or a commit. The user token and separate app verification credentials stay in the repo's ignored `.env`, mode 0600. The deploy token goes straight to the GitHub secret; the restricted cloud management token uses only the private result file.
 - It never changes a repo that holds work it did not commit.
 - It touches only owned resources. A taken name moves the workspace to a free suffix, such as `recipe-box-2`. Its only automatic deletion is acknowledged cleanup of recorded restricted account tokens; the login wall remains in place.
 - It never writes under `/etc/wongstack` or `/opt/wongstack`.
@@ -235,7 +235,7 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `project-prepare` | `{ repo, generation }` | none; delivers the bounded project report below, then reports done only when every step is done. |
 | `cloudflare` | [The installer's job](#the-job), plus `sourceRepo` and `sourceCommit`, the pinned clone. The agent adds `openWithoutLogin: true` itself. | none; `rolled` says whether it swapped the pasted token's value for one only the server holds. A failure carries the installer's `reason`, and `detail` when the line before it matches `CLOUDFLARE_CALL`. |
 | `team-add` | `{ repo, login }` | none; gives the GitHub `login` push access to the owner's `repo`. |
-| `team-remove` | `{ repo, login }` | none; withdraws the invitation, removes access, and stops the teammate's memory keys where the repo's memory supports it. |
+| `team-remove` | `{ repo, login }` | none; withdraws the invitation, removes access, and reports exact memory-machine revocation pending; it never infers memory identity from an email or GitHub login. |
 | `copy-key` | none | The new server's public X25519 key, base64. |
 | `copy-send` | `{ copyId, publicKey, port, peer, pullToken }` | none; sends the home folder, locked to `publicKey`, to the one connection from `peer` that proves `pullToken`. |
 | `copy-restore` | `{ copyId, host, port, pullToken }` | none; pulls the copy from `host`, unlocks it, and unpacks it as the workspace user. |
@@ -275,7 +275,7 @@ The source's tests use a pretend Cloudflare. Before you ship a change to either 
 
 1. Make a fresh Ubuntu 24.04 server, the smallest size, and run `setup.sh` from your branch.
 2. As the workspace user, sign in to `gh`, set a git email, and make an empty private repo to install into.
-3. Run the installer as [above](#install-wongstack-into-a-repo). Check that it prints `done`, the repo's first deploy passes, the site answers, and `memory.mjs digest` reads through the Worker. Run it again: it prints `done` and changes nothing.
+3. Run the installer as [above](#install-wongstack-into-a-repo). Check that it prints `done`, the repo's first deploy passes, the site answers, and memory is reported pending until its separate trusted machine admission/readback gate passes. Run it again: it prints `done` and changes nothing.
 4. Delete the server, the repo, and on Cloudflare the Workers, databases, memory bucket, and `<repo>-deploy` token. Deleting a repo needs `gh auth refresh -s delete_repo` first.
 
 ## Your fork is your template
