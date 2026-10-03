@@ -11,6 +11,14 @@
 
 **Updating.** The update adds two lines to the app's entry file, `app/worker/index.ts`: one loads the picture route, and one sends `/_walk/` addresses to it after the login check. Pictures are kept from the first check after your next publish; until then the report says the live site doesn't serve them yet. A public picture folder (`WALK_MEDIA_BUCKET` and `WALK_MEDIA_BASE_URL`) keeps working and still shows its pictures inside the report.
 
+## 29.12.0 — The preview check says how much it showed
+
+- When part of a promise can't be shown on the preview, such as an email being sent, the check marks that promise *partly shown* and names the part, in place of a plain pass. The overall result is still a pass when nothing was contradicted.
+- Passwords, keys, and tokens are removed from a check's evidence and its report before anything is posted.
+- The page that explains how the check works states what was measured: fresh agents walked 20 past checks again and disagreed with none, and the check passed none of 30 planted mistakes.
+
+**Updating.** No action needed. Reports on your pull requests gain a "partly shown" mark and, when something was removed, a line saying so.
+
 ## 29.11.0 — Keep an existing server and private project
 
 - Hosts can check and prepare an existing Ubuntu workspace without replacing compatible tools, services, files or GitHub identities.

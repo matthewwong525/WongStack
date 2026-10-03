@@ -1,6 +1,6 @@
 # Keep the pictures from a preview check
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** idiotic-turkey
 
@@ -105,3 +105,6 @@ None.
 - **2026-10-03** — Assumed: a public picture folder with no web address set also reports its pictures as not kept, with that reason, because the report may no longer name a deleted file.
 - **2026-10-03** — Built the rest (tasks 2.1 to 5.5): the check uploads its pictures, links them in its report or says why none were kept, and brings a past check's pictures up in chat. Its tests pass on this machine. Left: the checks on GitHub, a check of this change's own preview, and a live check after the merge (tasks 6.1 to 6.3).
 - **2026-10-03** — Checked this change's own preview (tasks 6.1 and 6.2): the checks on GitHub pass, and the report says the pictures were not kept because the live site does not serve them yet, naming no file. With no login the picture address goes to the login page. Left: the live check after the merge (task 6.3).
+- **2026-10-03** — Asked whether to publish → chose to publish it.
+- **2026-10-03** — PR #244 was published just before this one, so its edits were brought in: its scrub now runs at the top of the publish step, above the upload, and both sets of report lines sit together. The shared promise about posting evidence was not changed by it. Its tests and this change's tests pass together here.
+- **2026-10-03** — Assumed: the live check that needs the merge is kept as an open thread and run right after publishing, not as an unticked task, because a change can not be archived with a task that only a published change can finish.
