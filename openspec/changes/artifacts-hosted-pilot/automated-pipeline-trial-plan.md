@@ -1,4 +1,4 @@
-# Automated pipeline trial — approval pending
+# Automated pipeline trial — approved, execution pending evidence
 
 This is a concrete fresh plan, not execution authority. All previous trial resources and credentials are closed. Human-required AI, GitHub and private-site sign-in checks stay SKIPPED/UNVERIFIED. No new VM, Stripe checkout, cloud account sign-in, shared cloud staging change or memory runtime is needed for this narrower remaining pipeline validation.
 
@@ -27,3 +27,7 @@ Approval covers one trial lasting at most90 minutes from its first resource crea
 [Official Containers pricing](https://developers.cloudflare.com/containers/platform/pricing/) checked2026-10-03 gives standard-1 as0.5vCPU/4GiB/8GB. Two fully active instances for all90minutes estimate USD0.222048 in compute/memory/disk before included allowances. Worker/Workflow/DO/R2 operations and egress are additional; this is an estimate, not an enforceable spend cap. [Cloudflare’s announcement](https://developers.cloudflare.com/changelog/post/2026-10-01-artifacts-open-beta/) says Artifacts billing begins October14,2026. No account plan, billing settings or existing token permissions are changed. Preserve observed usage separately from estimates.
 
 Stop before writes without fresh explicit approval and exact source gates. During execution, stop before the cleanup reserve or on pre-existing resources, changed ownership/pins, private-value exposure, failed revocation, ambiguous provider writes, or unsupported SDK restore behavior. No cleanup completion is claimed on an authorization error. Cleanup/export receipts and failures remain durable, and no passing fixture result establishes human login, full cloud rollout or complete merge readiness.
+
+## Execution authorization (2026-10-03)
+
+The user explicitly approved this isolated automated pipeline-only trial. Its owner is executing against immutable `10666521b0a43ef81c16847c4b594ca1640beb94` under the exact original 90-minute cap and cleanup inventory. No shared staging, VM, branch/index, PR or memory mutation is authorized. Actual outcomes remain pending the owner’s sanitized evidence after complete cleanup; this approval does not establish merge readiness.
