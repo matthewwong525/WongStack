@@ -60,5 +60,8 @@
   {"name": "mini-dashboard.mjs", "replacement": "nothing: the main app's build includes every mini app", "allow": [".agents/skills/wong-sync/references/catch-up.md"], "why": "the update removes an older install's copy"},
   {"name": "is-test-file.mjs", "replacement": "`.github/scripts/test-file.mjs`"},
   {"name": "mini_changed", "replacement": "`untouched` alone"},
-  {"name": "apps.json", "replacement": "the list compiled into the home page from `app/src/apps/`", "allow": [".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs"], "why": "the update removes an older install's reader of the old list"}
+  {"name": "apps.json", "replacement": "the list compiled into the home page from `app/src/apps/`", "allow": [".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs"], "why": "the update removes an older install's reader of the old list"},
+  {"name": "development/task-chats.md", "replacement": "`wiki/development/the-change-loop.md#several-parts-several-workspaces`"},
+  {"name": "#chats-coordinate-directly", "replacement": "`wiki/development/the-change-loop.md#several-parts-several-workspaces`"},
+  {"name": "openspec/specs/session-coordination/", "replacement": "`openspec/specs/other-work-check/spec.md`"}
 ]

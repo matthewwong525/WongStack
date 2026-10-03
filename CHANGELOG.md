@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 29.17.0 — Restore independent task chats
+
+- Before planning, the assistant still sees this repo's other workspaces, their plans, and open pull requests. When work overlaps, it asks whether to keep going here, work there instead, or narrow the request.
+- Remove the instructions for task chats to message each other, agree on responsibilities, update titles, and recover peer conversations. Each chat returns to focusing on its own task.
+
+**Updating.** No action needed. The usual update removes the retired coordination guide and restores the previous instructions. Existing plans, release history, and publishing checks stay in place.
+
 ## 29.16.0 — Finish safe preview checks before asking for help
 
 - Preview checks complete every independent safe check before bringing you in. One help list names the remaining checks, the login, permission, or manual action needed, and what each should show.
