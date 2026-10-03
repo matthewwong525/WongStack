@@ -87,6 +87,7 @@ profile="/etc/apparmor.d/wongstack-preserve-$WORKSPACE_USER"
 if [[ " ${missing_tools[*]} " = *" agent-browser "* ]]; then
   [ ! -e "$profile" ] && [ ! -L "$profile" ] || fail browser
 fi
+bash "$(dirname "$0")/agent-runtime.sh" --preflight
 if [ "${1:-}" = --preflight ]; then echo "workspace compatible for $WORKSPACE_USER"; exit 0; fi
 # Mutation begins here, after the complete preflight.
 if [ "$create_user" -eq 1 ]; then
@@ -101,6 +102,7 @@ for tool in "${missing_tools[@]}"; do
   case "$tool" in git|gh) packages+=("$tool") ;; esac
 done
 if [ "${#packages[@]}" -gt 0 ]; then apt-get update; apt-get install -y --no-upgrade "${packages[@]}"; fi
+bash "$(dirname "$0")/agent-runtime.sh" --ensure
 for tool in "${missing_tools[@]}"; do
   case "$tool" in
     node)

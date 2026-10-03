@@ -28,3 +28,10 @@ Goals: preservation mode, configured workspace identity, guarded authenticated c
 ## Migration Plan
 
 Keep preserved setup opt-in. Add tests and README together, add a minor changelog entry and leave VERSION to the shipping skill. Run required checks through remote CI, then release the source before the cloud host enables attachment. Existing agents do not self-update. A rollback stops selecting this release; fresh defaults and prior built agents remain unchanged.
+
+
+## Pre-merge safety corrections
+
+Both fresh and preserved setup ensure a separate trusted root runtime at `/usr/local/lib/wongstack-agent-runtime/bin/node`. Source `server/agent-runtime.sh --preflight|--ensure|--path` validates root-owned nonwritable symlink-free ancestors and a regular executable single-link ELF Node 22/24 binary. Missing runtime copies only a verified root-owned system binary or downloads official Node 22 with checked SHA256 into guarded private staging; tar does not restore archive ownership/permissions. The selected user's writable Node remains available only to unprivileged workspace commands. Runtime preflight stays mutation-free; unsafe occupied paths refuse. Host and source root process use only the system PATH, independent of workspace tools.
+
+Preserved host units set `WORKSPACE_MODE=preserve` and `Restart=on-failure`. An authenticated poll HTTP 401 makes the source agent return and exit 0 without changing shared Paseo, so revocation stops the root agent normally. Other failures still retry. This changes environment/runtime behavior within unreleased contract 4, not a poll or receipt shape.

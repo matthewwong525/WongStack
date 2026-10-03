@@ -34,6 +34,9 @@ step "Node.js 22"
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 
+step "root agent runtime"
+bash "$(dirname "$0")/agent-runtime.sh" --ensure
+
 step "GitHub CLI"
 install -d -m 0755 /etc/apt/keyrings
 curl -fsSL -o /etc/apt/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg

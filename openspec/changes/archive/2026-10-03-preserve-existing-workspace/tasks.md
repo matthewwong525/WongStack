@@ -14,4 +14,10 @@
 ## 3. Release readiness
 
 - [x] 3.1 Add the minor Next changelog entry and updater guidance without manually changing VERSION; verify the existing payload links, contract docs and review page remain current through the required checks.
-- [x] 3.2 Run `/save` for the required remote CI gate; verify the exact source revision passes all existing thresholds and the reviewed compatible source is available for the cloud prerequisite. Leave this task pending on failed or unknown validation.
+- [ ] 3.2 Run `/save` for the required remote CI gate; verify the exact source revision passes all existing thresholds and the reviewed compatible source is available for the cloud prerequisite. Leave this task pending on failed or unknown validation.
+
+
+## 4. Pre-merge source safety
+
+- [x] 4.1 Add an independent root-owned agent Node runtime and mutation-free runtime preflight to both setup paths; fixture tests cover compatible/absent binaries, wrong owner/mode/type/version, symlinks/hardlinks, system reuse, download fallback, checksum refusal and archive ownership. Preserve selected-user tools.
+- [x] 4.2 Preserve normal exit on authenticated poll 401 using `WORKSPACE_MODE=preserve`, keep system PATH for root execution, and retain other poll retries without changing shared Paseo; focused fixtures pass. Document the exact host runtime/environment interface and update the archived review.

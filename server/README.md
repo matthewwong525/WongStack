@@ -51,6 +51,14 @@ Existing executable tools must answer a version check; Node must be major 22 or 
 
 A missing agent-browser gets its browser, missing Chrome libraries and a new account-specific AppArmor profile. Existing browser caches and unrelated policies remain intact; a taken profile name refuses. Setup never reboots, upgrades the OS, changes firewall/network policy, deletes caches, or writes host enrollment paths. A refusal prints `preserve: <reason>` (`root`, `os`, `architecture`, `user`, `home`, `path`, `tool_<name>`, `service`, `port`, or `browser`) and exits nonzero. The host must independently refuse an unrelated existing host agent before enrollment; setup never replaces one.
 
+## Trusted runtime for the root agent
+
+Both setup modes ensure `/usr/local/lib/wongstack-agent-runtime/bin/node` for the host's root agent, independently of the workspace user's Node. A missing workspace Node can still be installed in that user's home; it never runs the root agent. The source-only `server/agent-runtime.sh` exposes `--preflight` (no writes), `--ensure` (fill a missing runtime) and `--path` (print that exact destination). Preservation runs runtime preflight before mutation.
+
+Every existing runtime ancestor must be root-owned, have no group/other write or setuid/setgid bits, and contain no symlink. The binary must be regular, executable, single-link, root-owned ELF and report Node major 22 or 24. An incompatible or unsafe occupied destination refuses; a compatible binary is kept. For a missing runtime, setup copies only a similarly verified `/usr/bin/node` or `/usr/local/bin/node`, or downloads an official Node 22 archive after verifying its SHA256 manifest. Download staging is private under the guarded `/usr/local/lib` parent; extraction does not restore archive ownership/permissions. No workspace binary is discovered or copied. The host independently verifies the final runtime before reporting setup success and uses its absolute path in the unit.
+
+The root unit must use system PATH `/usr/sbin:/usr/bin:/sbin:/bin`. The source process and root command runner enforce that path too; user-local `systemctl`, `runuser` or `tar` cannot become root commands. Workspace commands continue using their selected account's clean environment and tool path.
+
 ## Prepare an existing private project
 
 The preservation `github` job takes `{token, repo, login, preserve:true}`. Its fixed helper receives credentials on stdin, authenticates the token's GitHub identity, and uses a clean scoped child environment. It never signs over an existing gh login or changes global/repo git configuration. A stored matching identity can be reused; an unrelated stored identity refuses with `identity_conflict` and stays intact. It clones only into the selected home when that folder is absent. A matching owned checkout or worktree keeps its branch, dirty files and unpushed commits; foreign origin/folder, symlink or backing git-directory ownership refuses. The token is neither persisted nor put in arguments. Reconnecting adds no clone; project registration happens in `project-prepare`.
@@ -190,17 +198,17 @@ Its Cloudflare steps are [the provisioning script](../.agents/skills/wong-setup/
 
 ## The agent
 
-`agent/agent.mjs` runs on a host's server as root and takes the host's requests: pair a device, connect GitHub, install WongStack, add a teammate, copy the server. It needs nothing beyond this source and `agent.env`. It imports the installer's names [above](#what-a-host-may-import), and runs [the installer](#install-wongstack-into-a-repo) as the workspace user from a clone pinned to the job's commit.
+`agent/agent.mjs` runs on a host's server as root and takes the host's requests: pair a device, connect GitHub, install WongStack, add a teammate, copy the server. It uses this source, `agent.env` and the trusted root runtime above. It imports the installer's names [above](#what-a-host-may-import), and runs [the installer](#install-wongstack-into-a-repo) as the workspace user from a clone pinned to the job's commit.
 
 ### What runs it
 
 The host does this at first boot, in order:
 
 1. Unpack this source at the build's commit, root-owned and mode 0755, so the workspace user can read it. wongstack.com uses `/opt/wongstack/source`.
-2. Write `/etc/wongstack/agent.env`, mode 0600: `APP_URL`, `AGENT_TOKEN`, `VM_ID`, `SOURCE_REPO`, and `SOURCE_COMMIT`, the 40-character commit it unpacked. Optional `WORKSPACE_USER` and `WORKSPACE_HOME` select a validated existing nonroot account; defaults are `wong` and `/home/wong`. Execution, Paseo, checkout/cache paths, copies and private-result ownership all use that identity.
+2. Write `/etc/wongstack/agent.env`, mode 0600: `APP_URL`, `AGENT_TOKEN`, `VM_ID`, `SOURCE_REPO`, and `SOURCE_COMMIT`, the 40-character commit it unpacked. Optional `WORKSPACE_USER` and `WORKSPACE_HOME` select a validated existing nonroot account; defaults are `wong` and `/home/wong`. Execution, Paseo, checkout/cache paths, copies and private-result ownership all use that identity. A preserved host also sets `WORKSPACE_MODE=preserve`.
 3. Run `server/setup.sh`, with `AGENT_TOKEN` kept out of its environment.
 4. Send the setup report (below).
-5. On a zero exit, run `node server/agent/agent.mjs` as root under a service that restarts it, with `agent.env` as its environment.
+5. On a zero exit, run `/usr/local/lib/wongstack-agent-runtime/bin/node server/agent/agent.mjs` as root under a service that restarts it, with `agent.env` as its environment.
 
 The agent runs that copy for the server's life. Rebuilding the server is the only way it gets a newer agent.
 
@@ -241,6 +249,8 @@ A job of any other type is `rejected` and runs nothing. `cloudflare`, `project-p
 **The project result.** `POST /api/agent/jobs/:id/project` uses the existing VM bearer credential and exactly `{generation,clone,dependencies,configuration,paseo,missingSettings,reason?}`. Clone is `done|failed`; dependencies are `done|failed|needs_input`; configuration is `done|needs_input`; Paseo is `done|failed`. Missing settings are names only. The optional reason is `repo|path_conflict|identity_conflict|dependencies|configuration|paseo|unsupported`. A host compares the authenticated VM, selected repo/job and generation with its authoritative records; stale/replaced recipients cannot adopt the result. Its receipt is `{ok:true,generation}` with `Cache-Control: no-store`. A private root-owned journal under `/var/lib/wongstack/project-jobs` saves only bounded reports, then retries identical delivery and final status after a lost receipt/restart. It never stores credentials or command output. Preparation failure remains distinct from clone success. An interrupted preparation without a saved report can retry the same fixed helper; its dependency fingerprints and Paseo lookups keep completed steps.
 
 **The setup report.** The host, not the agent, sends `POST /api/agent/setup?exit=<code>` once after `setup.sh`, with the last 4,000 bytes of its log as `text/plain`.
+
+For `WORKSPACE_MODE=preserve`, an authenticated poll returning HTTP 401 means host authorization was revoked: the agent exits normally (status 0), without stopping or modifying shared Paseo. A host uses `Restart=on-failure`, so revocation does not create a restart loop. Other poll failures retain bounded polling retries; legacy/fresh mode keeps its previous retry behavior.
 
 A change to any of these shapes raises `CONTRACT`. The host supports the new number first; then the source releases it.
 

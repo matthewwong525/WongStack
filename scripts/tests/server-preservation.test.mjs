@@ -36,6 +36,7 @@ ss() { ${options.service===false?'return 0':"echo 'LISTEN 0 128 127.0.0.1:6767 0
 `;
  let script=source.replace('. /etc/os-release',`. '${os}'`).replace('[ -d "$WORKSPACE_HOME" ] &&','true &&').replace('check_path "$WORKSPACE_HOME"','check_path() { :; }\ncheck_path "$WORKSPACE_HOME"');
  script=script.replaceAll('/etc/systemd/system/paseo.service',join(root,'paseo.service'));
+ script=script.replace('bash "$(dirname "$0")/agent-runtime.sh" --preflight',': # independent trusted-runtime fixture suite');
  script=script.replace('fail() {',helpers+'\nfail() {');
  script=script.replace('# Mutation begins here, after the complete preflight.','echo fixture-mutation; exit 0\n# Mutation begins here, after the complete preflight.');
  const path=join(root,'script');writeFileSync(path,script);chmodSync(path,0o700);

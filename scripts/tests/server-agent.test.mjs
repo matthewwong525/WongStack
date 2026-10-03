@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { after, before, beforeEach, test } from "node:test";
 
-import { CONTRACT, INSTALL_TIMEOUT_MS, INVITE_POLL_MS, INVITE_TRIES, installWongStack, main, paseoHealth, runJob, startBackground, tick as actualTick } from "../../server/agent/agent.mjs";
+import { ROOT_PATH, CONTRACT, INSTALL_TIMEOUT_MS, INVITE_POLL_MS, INVITE_TRIES, installWongStack, main, paseoHealth, runJob, startBackground, tick as actualTick } from "../../server/agent/agent.mjs";
 
 // Installer/HTTP orchestration here; private filesystem delivery has its own real-file suite.
 const management = { execute: async (job, install) => install(), report: async (job, outcome, post) => { await post(`/api/agent/jobs/${job.id}`, outcome); }, resume: async () => {} };
@@ -645,4 +645,23 @@ test("an owner's own github job does not wait for an invitation", async () => {
   const box = ghExec([["test -d", { fail: "" }], [" paseo ", { fail: "" }]]);
   await runJob({ type: "github", payload: { ...GITHUB, invited: false } }, box.exec, () => {}, async () => assert.fail("no wait"));
   assert.ok(!box.lines().some((l) => l.includes("repo view") || l.includes("invitations")));
+});
+
+
+test('preserved agent exits normally on authenticated poll 401 without retry or shared service changes and uses trusted root PATH',async()=>{
+ const calls=[],logs=[];let polls=0,sleeps=0;
+ await main({env:{APP_URL:'https://control.test',AGENT_TOKEN:'host-secret',WORKSPACE_MODE:'preserve'},validate:async()=>({user:'fixture',home:'/home/fixture',uid:1001}),
+  fetch:async(url,options)=>{assert.equal(options.headers.Authorization,'Bearer host-secret');assert.ok(url.endsWith('/api/agent/poll'));polls++;return Response.json({error:'revoked'},{status:401});},
+  exec:async(file,args,options)=>{calls.push({file,args,options});assert.equal(options.env.PATH,ROOT_PATH);return {stdout:''};},
+  sleep:async()=>{sleeps++;},log:value=>logs.push(value)});
+ assert.equal(polls,1);assert.equal(sleeps,0);assert.deepEqual(logs,['agent authorization revoked']);
+ assert.deepEqual(calls.map(value=>[value.file,...value.args]),[['systemctl','is-active','--quiet','paseo.service']]);
+});
+test('fresh mode retains retry on poll 401 and preserved mode retries other transport/server failures',async()=>{
+ for(const [mode,status] of [['fresh',401],['preserve',503]]) {
+  let polls=0,sleeps=0;const stop=Error('stop');
+  await assert.rejects(main({env:{APP_URL:'https://control.test',AGENT_TOKEN:'host-secret',WORKSPACE_MODE:mode},validate:async()=>({user:'fixture',home:'/home/fixture',uid:1001}),
+   fetch:async()=>{polls++;return Response.json({}, {status});},exec:async()=>({stdout:''}),log:()=>{},sleep:async()=>{sleeps++;throw stop;}}),stop);
+  assert.equal(polls,1);assert.equal(sleeps,1);
+ }
 });

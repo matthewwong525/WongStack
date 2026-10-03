@@ -36,6 +36,7 @@ const INSTALLER = fileURLToPath(new URL("../install-wongstack.mjs", import.meta.
 /** An install normally takes a few minutes; one still running after this is stopped. */
 export const INSTALL_TIMEOUT_MS = 20 * 60_000;
 const DEFAULT_INTERVAL = 10;
+export const ROOT_PATH = "/usr/sbin:/usr/bin:/sbin:/bin";
 /** The reasons the installer prints as its last line when it stops. */
 const REASONS = new Set(["token", "repo", "cloudflare", "push", "access"]);
 /** A GitHub login: letters, digits, and inner hyphens, at most 39 characters. */
@@ -299,7 +300,7 @@ export async function tick({ appUrl, token, commit, fetch, exec, log, sleep, man
   void projects.resume(post);
 
   const response = await post("/api/agent/poll", { contract: CONTRACT, commit: COMMIT.test(commit ?? "") ? commit : null, paseo: await paseoHealth(exec) });
-  if (!response.ok) throw new Error(`poll failed: HTTP ${response.status}`);
+  if (!response.ok) throw Object.assign(new Error(`poll failed: HTTP ${response.status}`), { pollStatus: response.status });
   // A reply without these (an older Worker during a rollout) means no work.
   const { jobs = [], interval = DEFAULT_INTERVAL } = await response.json();
   const report = async (job, outcome) => {
@@ -323,6 +324,8 @@ export async function tick({ appUrl, token, commit, fetch, exec, log, sleep, man
 }
 
 export async function main({ env, fetch, exec, sleep, log, validate = validateWorkspace }) {
+  const rawExec = exec;
+  exec = (file, args, options = {}) => rawExec(file, args, { ...options, env: { ...process.env, PATH: ROOT_PATH } });
   const identity = await validate(env, exec);
   exec = workspaceExec(exec, identity);
   const management = createManagementStore(identity);
@@ -332,14 +335,19 @@ export async function main({ env, fetch, exec, sleep, log, validate = validateWo
     try {
       interval = await tick({ appUrl: env.APP_URL, token: env.AGENT_TOKEN, commit: env.SOURCE_COMMIT, fetch, exec, log, sleep, management, projects });
     } catch (error) {
+      if (env.WORKSPACE_MODE === "preserve" && error.pollStatus === 401) {
+        log("agent authorization revoked");
+        return;
+      }
       log(`poll error: ${error.message}`);
     }
     await sleep(interval * 1000);
   }
 }
 
-/* c8 ignore next 9 -- the process entry point, run only by systemd */
+/* c8 ignore next 11 -- the process entry point, run only by systemd */
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.env.PATH = ROOT_PATH;
   await main({
     env: process.env,
     fetch: globalThis.fetch,
@@ -347,4 +355,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     log: (line) => console.log(`wongstack-agent: ${line}`),
   });
+  process.exit(0);
 }
