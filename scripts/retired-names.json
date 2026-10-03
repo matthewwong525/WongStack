@@ -62,5 +62,5 @@
   {"name": "mini_changed", "replacement": "`untouched` alone"},
   {"name": "apps.json", "replacement": "the list compiled into the home page from `app/src/apps/`", "allow": [".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs"], "why": "the update removes an older install's reader of the old list"},
   {"name": "app/src/apps/devices/", "replacement": "nothing: the unshipped approval frontend was removed; memory uses trusted machine setup"},
-  {"name": "/apps/devices/", "replacement": "trusted machine setup; no browser memory approval route ships"}
+  {"name": "/apps/devices/", "replacement": "trusted machine setup; no browser memory approval route ships", "allow": [".agents/skills/memory/scripts/lib/installation-state.mjs", "scripts/tests/memory-operator.test.mjs", "scripts/tests/memory-owner-candidates.test.mjs"], "why": "these retain the explicitly inactive version1 setup contract and its exact source tests until the separately reviewed version2 machine contract replaces it; no approval route or caller is active"}
 ]
