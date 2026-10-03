@@ -14,7 +14,7 @@
 ## 3. Release readiness
 
 - [x] 3.1 Add the minor Next changelog entry and updater guidance without manually changing VERSION; verify the existing payload links, contract docs and review page remain current through the required checks.
-- [ ] 3.2 Run `/save` for the required remote CI gate; verify the exact source revision passes all existing thresholds and the reviewed compatible source is available for the cloud prerequisite. Leave this task pending on failed or unknown validation.
+- [x] 3.2 Run `/save` for the required remote CI gate; verify the exact source revision passes all existing thresholds and the reviewed compatible source is available for the cloud prerequisite. Leave this task pending on failed or unknown validation.
 
 
 ## 4. Pre-merge source safety
