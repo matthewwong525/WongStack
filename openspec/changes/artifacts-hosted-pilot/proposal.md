@@ -4,7 +4,7 @@
 
 **Branch:** github-artifacts
 
-**Open questions:** unused staging owner mailbox for login codes; live setup/deployment evidence remain required before merge readiness. Memory/Devices delivery and ready-memory acceptance remain separate in PR #242 and its later integration.
+**Open questions:** GitHub sign-in/access for the selected existing staging repository; missing-server recovery gate; fresh service entitlement/ownership preflight and live setup/deployment evidence remain required before merge readiness. Memory/Devices delivery and ready-memory acceptance remain separate in PR #242 and its later integration.
 
 ## Why
 
