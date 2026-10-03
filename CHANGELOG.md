@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The preview check says how much it showed
+## 29.12.0 — The preview check says how much it showed
 
 - When part of a promise can't be shown on the preview, such as an email being sent, the check marks that promise *partly shown* and names the part, in place of a plain pass. The overall result is still a pass when nothing was contradicted.
 - Passwords, keys, and tokens are removed from a check's evidence and its report before anything is posted.
