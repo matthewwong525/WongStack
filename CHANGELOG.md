@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Use cf for Cloudflare management
+## 29.15.0 — Use cf for Cloudflare management
 
 - The assistant uses Cloudflare's cf tool for authorized account inspection and one-off resource work. A dedicated guide explains how to find commands and use the existing account credentials.
 - Setup and app publishing keep their existing workflows. The tool stays optional and adds no project dependency or customer sign-in requirement.

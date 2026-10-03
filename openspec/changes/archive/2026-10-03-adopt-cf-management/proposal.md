@@ -43,7 +43,7 @@ None. Existing setup, credential, deployment, and core-tool promises remain in f
 
 ## Status
 
-Guidance implemented and ready for publishing review. Preparing the change on GitHub and checking its merge readiness; merge approval remains pending.
+Guidance implemented. Publishing was approved; the archived release checkpoint is awaiting its final checks and merge.
 
 ## Decision log
 
@@ -55,6 +55,7 @@ Guidance implemented and ready for publishing review. Preparing the change on Gi
 - **2026-10-03** — Assumed: scope verification to documentation checks and command discovery or dry runs, because this change adds no executable behavior and should need no live account mutation.
 - **2026-10-03** — Asked whether to build the cf adoption plan → chose “Build it now (Recommended) — prepare the change for review before publishing.”
 - **2026-10-03** — Asked whether cf should remain after comparing it with direct API calls → chose to keep cf and check merge readiness. The checkpoint preserves optional account-management guidance and existing API-based automation; publishing remains a separate decision.
+- **2026-10-03** — Asked whether to merge and publish the cf management guidance → chose “Publish it (Recommended) — finish the release and merge after its final checks.” Archived the completed change for the release checkpoint; its publishing checks run on that checkpoint's exact commit.
 
 ## Verification
 
