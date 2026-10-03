@@ -38,7 +38,7 @@ export async function prepareProject(job,{home=process.env.HOME,user=process.env
     try{await command('git',['ls-files','--error-unmatch','package.json','package-lock.json']);}catch{return {...report,reason:'dependencies'};}
     const packageText=regular(manifest,uid),lockText=regular(lock,uid,16*1024*1024);
     const packageJson=JSON.parse(packageText),lockJson=JSON.parse(lockText);
-    if(![2,3].includes(lockJson.lockfileVersion)||(packageJson.packageManager&&!/^npm@/.test(packageJson.packageManager))||['yarn.lock','pnpm-lock.yaml','pyproject.toml','requirements.txt'].some(file=>existsSync(join(dir,file))))return {...report,reason:'unsupported'};
+    if(![2,3].includes(lockJson.lockfileVersion)||(packageJson.packageManager&&!packageJson.packageManager.startsWith('npm@'))||['yarn.lock','pnpm-lock.yaml','pyproject.toml','requirements.txt'].some(file=>existsSync(join(dir,file))))return {...report,reason:'unsupported'};
     const file=stateFile(home,uid,job.repo);noLinks(file);
     let state={};if(existsSync(file))state=JSON.parse(regular(file,uid,8192));
     const version=(await command('node',['--version'])).stdout+(await command('npm',['--version'])).stdout;
