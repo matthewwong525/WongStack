@@ -43,47 +43,50 @@ test('the key names the spec\'s nine scenarios: five broken, four working', () =
   assert.equal(Object.values(key).filter(truth => truth === 'works').length, 4);
 });
 
-test('planted: an empty title shows the message and saves a note anyway', async t => {
+const titles = page => [...page.matchAll(/<span class="title">(.*?)<\/span>/g)].map(match => match[1]);
+
+test('planted: an empty title saves nothing and shows "Title required", two words', async t => {
   const { submit, notes } = await site(t);
+  const before = await notes();
+  const page = await submit('/notes', { title: '' });
+  assert.match(page, /<p role="alert">Title required<\/p>/);
+  assert.doesNotMatch(page, /Title is required/);
+  assert.deepEqual(await notes(), before);
+});
+
+test('planted: a delete drops the shown count by one and removes the note below the chosen one', async t => {
+  const { get, submit, shownCount } = await site(t);
+  const before = await shownCount();
+  assert.deepEqual(titles(await submit('/notes/3/delete')), ['Groceries for the week', 'Call the plumber', 'Trip ideas', 'Book club picks', 'Garden plan']);
+  assert.equal(await shownCount(), before - 1);
+  // The last note has none below it, so the one above goes.
+  await submit('/notes/6/delete');
+  assert.deepEqual(titles(await get('/')), ['Groceries for the week', 'Call the plumber', 'Trip ideas', 'Garden plan']);
+  assert.equal(await shownCount(), before - 2);
+});
+
+test('planted: creating with no title answers 422, names the title, and creates a blank note anyway', async t => {
+  const { api, notes } = await site(t);
   const before = (await notes()).count;
-  assert.match(await submit('/notes', { title: '' }), /Title is required/);
+  assert.deepEqual(await api('POST', '/api/notes', {}), { status: 422, text: '{"error":"Title is required"}' });
   const after = await notes();
   assert.equal(after.count, before + 1);
   assert.equal(after.notes.at(-1).title, '');
 });
 
-test('planted: a deleted note leaves the list and the shown count stays', async t => {
-  const { get, submit, shownCount } = await site(t);
-  const before = await shownCount();
-  assert.match(await get('/'), /Trip ideas/);
-  assert.doesNotMatch(await submit('/notes/3/delete'), /Trip ideas/);
-  assert.equal(await shownCount(), before);
-});
-
-test('planted: creating with no title answers 422 and never names the title', async t => {
-  const { api, notes } = await site(t);
-  const before = (await notes()).count;
-  const { status, text } = await api('POST', '/api/notes', {});
-  assert.equal(status, 422);
-  assert.equal(text, '{"error":"invalid"}');
-  assert.equal((await notes()).count, before);
-});
-
-test('planted: a new note shows in the list once and is gone on a reload', async t => {
+test('planted: a new note shows as typed once and loses its last character after a reload', async t => {
   const { get, submit, notes } = await site(t);
-  assert.match(await submit('/notes', { title: 'Dentist on Friday' }), /Dentist on Friday/);
-  assert.doesNotMatch(await get('/'), /Dentist on Friday/);
-  assert.ok((await notes()).notes.every(note => note.title !== 'Dentist on Friday'));
+  assert.equal(titles(await submit('/notes', { title: 'Dentist on Friday' })).at(-1), 'Dentist on Friday');
+  assert.equal(titles(await get('/')).at(-1), 'Dentist on Frida');
+  assert.equal((await notes()).notes.at(-1).title, 'Dentist on Frida');
 });
 
-test('planted: a search lists the matches first and the other notes far below', async t => {
+test('planted: a search lists the matches, then the first note that does not match as the last row', async t => {
   const { get } = await site(t);
   const page = await get('/?q=plumber');
-  const [top, below] = page.split(/<div style="height:\d{4}px"><\/div>/);
-  assert.match(top, /Call the plumber/);
-  assert.match(top, /Plumber invoice/);
-  assert.doesNotMatch(top, /Trip ideas/);
-  assert.match(below, /Trip ideas/);
+  assert.deepEqual(titles(page), ['Call the plumber', 'Plumber invoice', 'Groceries for the week']);
+  assert.equal(page.match(/<ul/g).length, 1);
+  assert.deepEqual(titles(await get('/?q=week')), ['Groceries for the week', 'Call the plumber']);
 });
 
 test('control: a renamed note shows its new title in the list', async t => {
@@ -98,11 +101,11 @@ test('control: a renamed note shows its new title in the list', async t => {
 test('control: the list API counts its notes, after a delete and an archive too', async t => {
   const { submit, api, notes } = await site(t);
   await submit('/notes/1/delete');
-  await submit('/notes/2/archive');
+  await submit('/notes/3/archive');
   await api('POST', '/api/notes', { title: 'Water the plants' });
   const list = await notes();
   assert.equal(list.count, list.notes.length);
-  assert.deepEqual(list.notes.map(note => note.id), [3, 4, 5, 6, 7]);
+  assert.deepEqual(list.notes.map(note => note.id), [1, 4, 5, 6, 7]);
 });
 
 test('control: an archived note moves to Archived and the shown count drops', async t => {
@@ -145,6 +148,13 @@ test('nothing the site serves names a planted mistake', async t => {
   const { get, submit } = await site(t);
   const pages = [await get('/'), await get('/?q=plumber'), await get('/new'), await get('/notes/1/edit'), await get('/archived'), await submit('/notes', { title: '' })];
   for (const page of pages) assert.doesNotMatch(page, /planted|mistake|broken|<!--/i);
+});
+
+test('the build notes mark all nine scenarios done and give nothing away', () => {
+  const notes = readFileSync(join(fixture, 'build-notes.md'), 'utf8');
+  for (const scenario of Object.keys(key)) assert.ok(notes.includes(`- [x] **${scenario}.**`), scenario);
+  assert.match(notes, /clicked through locally and all nine behaved/);
+  assert.doesNotMatch(notes, /key\.json|fixtures|planted|mistake|broken/i);
 });
 
 // ── The harness ───────────────────────────────────────────────────────────────
@@ -238,25 +248,40 @@ test('the agent works outside the repo, with the promises and without the answer
     assert.ok(relative(repo, seen.cwd).startsWith('..'), `${seen.cwd} is inside the repo`);
     assert.ok(relative(repo, seen.runDir).startsWith('..'), `${seen.runDir} is inside the repo`);
     assert.deepEqual(seen.files.filter(file => /key\.json|site\.mjs/.test(file)), []);
-    assert.ok(seen.files.includes('openspec/changes/practice-notes/specs/notes/spec.md'));
-    assert.equal(seen.files.filter(file => file.endsWith('.md')).length, 1);
+    assert.deepEqual(seen.files.filter(file => file.endsWith('.md')), ['openspec/changes/practice-notes/specs/notes/spec.md']);
     assert.equal(seen.answer, 200);
     assert.ok(seen.prompt.includes(`reference at ${reference} `));
     assert.ok(seen.prompt.includes(`bash ${join(repo, '.agents/skills/verify/scripts/verify-staging.sh')} run "${seen.runDir}"`));
-    assert.doesNotMatch(seen.prompt, /key\.json|fixtures|planted|broken/);
+    assert.ok(seen.prompt.startsWith('You are checking a small notes site'));
+    assert.doesNotMatch(seen.prompt, /key\.json|fixtures|planted|broken|BUILD-NOTES/);
     assert.equal(existsSync(seen.cwd), false);
     assert.equal(existsSync(seen.runDir), false);
   }
 });
 
-test('the default reference is the live walkthrough', t => {
-  const { read } = harness(t, 'pass');
-  assert.equal(read('results.json').reference, join(repo, '.agents/skills/verify/references/walkthrough.md'));
-  assert.equal(read('results.json').label, 'live');
+test('--framing builder tells the agent it built the site and adds its build notes, never the answers', t => {
+  const { status, stdout, stderr, read } = harness(t, 'pass', ['--framing', 'builder']);
+  assert.equal(status, 0, stderr);
+  assert.equal(read('results.json').framing, 'builder');
+  assert.match(stdout, /framing: builder/);
+  const seen = read('run-1/agent-output.json');
+  assert.ok(relative(repo, seen.cwd).startsWith('..'), `${seen.cwd} is inside the repo`);
+  assert.deepEqual(seen.files.filter(file => file.endsWith('.md')).toSorted(), ['BUILD-NOTES.md', 'openspec/changes/practice-notes/specs/notes/spec.md']);
+  assert.deepEqual(seen.files.filter(file => /key\.json|site\.mjs/.test(file)), []);
+  assert.ok(seen.prompt.startsWith('You built this change earlier in this session; your notes are in BUILD-NOTES.md. Now walk it.\n\nYou are checking'));
+  assert.doesNotMatch(seen.prompt, /key\.json|fixtures|planted|broken/);
 });
 
-test('a bad --runs, --label, or --reference is a usage error', t => {
-  for (const flags of [['--runs', '0'], ['--label', 'a/b'], ['--reference', 'no-such-file.md']]) {
+test('the default reference is the live walkthrough, with no framing', t => {
+  const { stdout, read } = harness(t, 'pass');
+  assert.equal(read('results.json').reference, join(repo, '.agents/skills/verify/references/walkthrough.md'));
+  assert.equal(read('results.json').label, 'live');
+  assert.equal(read('results.json').framing, 'none');
+  assert.match(stdout, /framing: none/);
+});
+
+test('a bad --runs, --label, --framing, or --reference is a usage error', t => {
+  for (const flags of [['--runs', '0'], ['--label', 'a/b'], ['--framing', 'critic'], ['--reference', 'no-such-file.md']]) {
     const { status, stderr } = harness(t, 'pass', flags);
     assert.equal(status, 2, flags.join(' '));
     assert.match(stderr, /usage: eval-verify\.mjs/);

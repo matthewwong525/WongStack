@@ -20,17 +20,27 @@ const CHANGE = 'openspec/changes/practice-notes';
 // The prompt arrives on stdin. Root may not skip permission checks, so the tools are named.
 const AGENT_CMD = 'claude -p --output-format json --allowedTools "Bash,Read,Write,Edit,Glob,Grep"';
 const VERDICTS = ['pass', 'fail', 'ask'];
+const FRAMINGS = ['none', 'builder'];
+const NOTES = 'BUILD-NOTES.md';
 
-const USAGE = `usage: eval-verify.mjs [--reference <path>] [--runs <n>] [--label <name>] [--out <dir>] [--agent-cmd "<cmd>"]
+const USAGE = `usage: eval-verify.mjs [--reference <path>] [--runs <n>] [--label <name>] [--framing builder|none] [--out <dir>] [--agent-cmd "<cmd>"]
   Runs a headless agent against the practice site and counts the planted mistakes it catches.
   --reference  the walkthrough instructions to measure (default: the live walkthrough.md)
   --runs       how many runs (default: 3; 1 is a smoke test)
   --label      a name for this version in the table and results.json (default: live)
+  --framing    builder tells the agent it built the site and hands it its build notes, which say all nine
+               promises work; none hands it the promises only (default: none)
   --out        where verdicts, agent output, and results.json go (default: a temp folder named for the label)
   --agent-cmd  the agent command; it reads the prompt on stdin and gets RUN_DIR and URL in its environment
                (default: ${AGENT_CMD})`;
 
-const prompt = ({ reference, url, runDir }) => `You are checking a small notes site against the promises a change made about it. This is a practice run: post nothing, save nothing, and ask nobody.
+// An agent that never built the site already grades with fresh eyes. This opener, with the notes
+// beside the promises, stands in for an agent grading its own build.
+const BUILDER = `You built this change earlier in this session; your notes are in ${NOTES}. Now walk it.
+
+`;
+
+const prompt = ({ reference, url, runDir, framing }) => `${framing === 'builder' ? BUILDER : ''}You are checking a small notes site against the promises a change made about it. This is a practice run: post nothing, save nothing, and ask nobody.
 
 1. Read the walkthrough reference at ${reference} and follow its sections a to d. Skip e and f.
 2. Scout only the scenarios under ${CHANGE}/specs/ in the current folder. There is no pull request and no preflight to run: the site is already live at ${url} (URL), your run folder is ${runDir} (RUN_DIR), and agent-browser is installed (BROWSER=local).
@@ -98,7 +108,7 @@ function reported(stdout) {
   return { costUsd: cost, model };
 }
 
-async function runOnce({ run, reference, agentCmd, out, key }) {
+async function runOnce({ run, reference, framing, agentCmd, out, key }) {
   const site = await startSite();
   const work = mkdtempSync(join(tmpdir(), 'wong-verify-eval-work-'));
   const runDir = mkdtempSync(join(tmpdir(), 'wong-verify-eval-run-'));
@@ -107,12 +117,13 @@ async function runOnce({ run, reference, agentCmd, out, key }) {
   try {
     execFileSync('git', ['init', '-q'], { cwd: work });
     cpSync(join(FIXTURE, 'change'), join(work, CHANGE), { recursive: true });
+    if (framing === 'builder') cpSync(join(FIXTURE, 'build-notes.md'), join(work, NOTES));
     // The site needs no Access headers, and the runner would send any it finds.
     const env = { ...process.env, RUN_DIR: runDir, URL: site.url };
     delete env.CF_ACCESS_CLIENT_ID;
     delete env.CF_ACCESS_CLIENT_SECRET;
     const started = Date.now();
-    const stdout = await runAgent(agentCmd, { cwd: work, env, input: prompt({ reference, url: site.url, runDir }) });
+    const stdout = await runAgent(agentCmd, { cwd: work, env, input: prompt({ reference, url: site.url, runDir, framing }) });
     const minutes = (Date.now() - started) / 60000;
     writeFileSync(join(kept, 'agent-output.json'), stdout);
     const verdicts = readJson(join(runDir, 'verdicts.json'));
@@ -141,12 +152,14 @@ function table(runs, total, { planted, working }) {
 
 const { values } = parseCli({
   usage: USAGE,
-  options: { reference: { type: 'string' }, runs: { type: 'string' }, label: { type: 'string' }, out: { type: 'string' }, 'agent-cmd': { type: 'string' } },
+  options: { reference: { type: 'string' }, runs: { type: 'string' }, label: { type: 'string' }, framing: { type: 'string' }, out: { type: 'string' }, 'agent-cmd': { type: 'string' } },
 });
 const runCount = Number(values.runs ?? 3);
 if (!Number.isInteger(runCount) || runCount < 1) usageError(USAGE, '--runs takes a whole number, 1 or more');
 const label = values.label ?? 'live';
 if (!/^[\w.-]+$/.test(label)) usageError(USAGE, '--label takes letters, digits, dots, dashes, and underscores');
+const framing = values.framing ?? 'none';
+if (!FRAMINGS.includes(framing)) usageError(USAGE, '--framing takes builder or none');
 const reference = resolve(values.reference ?? LIVE_REFERENCE);
 if (!existsSync(reference)) usageError(USAGE, `no reference at ${reference}`);
 const out = resolve(values.out ?? join(tmpdir(), 'wong-verify-eval', label));
@@ -157,7 +170,7 @@ const truths = Object.values(key);
 const size = { planted: truths.filter(truth => truth === 'broken').length, working: truths.filter(truth => truth === 'works').length };
 
 const runs = [];
-for (let run = 1; run <= runCount; run += 1) runs.push(await runOnce({ run, reference, agentCmd, out, key }));
+for (let run = 1; run <= runCount; run += 1) runs.push(await runOnce({ run, reference, framing, agentCmd, out, key }));
 const costs = runs.map(run => run.costUsd).filter(cost => cost !== null);
 const total = {
   caught: sum(runs, 'caught'), missed: sum(runs, 'missed'), falseAlarms: sum(runs, 'falseAlarms'), asked: sum(runs, 'asked'),
@@ -165,9 +178,9 @@ const total = {
 };
 const date = new Date().toISOString().slice(0, 10);
 const model = [...new Set(runs.map(run => run.model).filter(Boolean))].join(', ') || 'not reported';
-writeFileSync(join(out, 'results.json'), `${JSON.stringify({ label, reference, date, model, agentCmd, ...size, runs, total }, null, 2)}\n`);
+writeFileSync(join(out, 'results.json'), `${JSON.stringify({ label, reference, framing, date, model, agentCmd, ...size, runs, total }, null, 2)}\n`);
 
-console.log(`${label} · ${date} · model: ${model}\nreference: ${reference}\n`);
+console.log(`${label} · ${date} · model: ${model} · framing: ${framing}\nreference: ${reference}\n`);
 console.log(table(runs, total, size));
 console.log(`\nresults: ${join(out, 'results.json')}`);
 const failed = runs.filter(run => run.error);

@@ -25,6 +25,18 @@ A run does this:
 2. Hands a headless agent the promises, the site, and the reference, in a temp folder outside the repo. The agent never sees [the answers](../../scripts/fixtures/verify-eval/key.json).
 3. Scores the agent's verdicts against the answers.
 
+## Grade as the builder
+
+```bash
+node scripts/eval-verify.mjs --label baseline --framing builder
+```
+
+`--framing builder` tells the agent it built the site, and hands it [build notes](../../scripts/fixtures/verify-eval/build-notes.md) that say all nine promises work. The notes are right about the four that work and wrong about the five that don't.
+
+Use it to measure an idea about who grades, such as a second, fresh grader. Without it the agent never built the site, so it already grades with fresh eyes, and no version can show a fresh grader helping. Compare versions only under the same framing.
+
+Notes pull less than a session that really built the code. A gain here is the least you'd see; no gain doesn't prove a builder grades its own work fairly.
+
 ## Read the table
 
 | run | caught | missed | false alarms | asked | minutes | cost |

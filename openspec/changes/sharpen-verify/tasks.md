@@ -8,17 +8,21 @@
 - [x] 1.4 Add `scripts/eval-verify.mjs` to `scripts/tests/cli-conventions.test.mjs`; verify `--help` exits 0 and an unknown flag exits 2
 - [x] 1.5 Confirm none of the new paths is in `.agents/skills/wong-sync/references/payload-files.json`; verify `node scripts/check-payload-links.mjs` passes
 - [x] 1.6 Write `wiki/maintaining/measure-a-skill-change.md` (when to measure, the one command, how to read the table, the keep rule) and link it from `wiki/maintaining/README.md`; verify the command on the page runs as written with `--runs 1` and a fake agent
-- [ ] 1.7 Run `/save` and confirm CI passes with the new test file
+- [x] 1.7 Run `/save` and confirm CI passes with the new test file
 
 ## 2. Baseline (by hand, on this host)
 
-- [ ] 2.1 Run `node scripts/eval-verify.mjs --label baseline --runs 3` against the live reference; verify `evidence.md` in this change holds the per-run table, date, model, and reported cost
-- [ ] 2.2 Apply keep rule 1: if 15 of 15 are caught with at most 1 false alarm, harden the planted mistakes once, rerun, and record both tables; still perfect → skip groups 3 and 4, do 5.1, and report that the skill stays as it is
+- [x] 2.1 Run `node scripts/eval-verify.mjs --label baseline --runs 3` against the live reference; verify `evidence.md` in this change holds the per-run table, date, model, and reported cost
+- [x] 2.2 Apply keep rule 1 to the baseline and record the verdict in `evidence.md`: 15 of 15 caught with 0 false alarms, so the practice set is hardened once
+- [x] 2.3 Harden the practice set by design.md § Hardening: the five v2 site behaviors, the two longer `THEN`s in `change/specs/notes/spec.md`, `build-notes.md`, and `--framing builder|none` in `scripts/eval-verify.mjs`; verify `scripts/tests/verify-eval.test.mjs` asserts each v2 mistake shows on the site, each control still works, the notes reach the work folder only under `--framing builder`, and the key and site source still never do
+- [x] 2.4 Update `wiki/maintaining/measure-a-skill-change.md` for `--framing builder` and why it exists (an agent that did not build the site already grades with fresh eyes); verify the wiki link checks pass
+- [ ] 2.5 Run `/save` and confirm CI passes with the hardened set
+- [ ] 2.6 Run `node scripts/eval-verify.mjs --label baseline-v2 --framing builder --runs 3`; record the table in `evidence.md`; still 15 of 15 with at most 1 false alarm → skip groups 3 and 4, do 5.1, and report that the skill stays as it is
 
 ## 3. Candidates (change folder only, no skill file yet)
 
-- [ ] 3.1 Write `candidates/proof-bar.md` from `walkthrough.md` with the proof-bar text in § b and § d; run it three times with `--reference`; verify its table is in `evidence.md`
-- [ ] 3.2 Write `candidates/proof-bar-grader.md` adding the fresh-grader text to § d; run it three times; verify its table is in `evidence.md` with the added minutes per run beside the proof bar's
+- [ ] 3.1 Write `candidates/proof-bar.md` from `walkthrough.md` with the proof-bar text in § b and § d; run it three times with `--reference` and `--framing builder`; verify its table is in `evidence.md`
+- [ ] 3.2 Write `candidates/proof-bar-grader.md` adding the fresh-grader text to § d; run it three times with `--framing builder`; verify its table is in `evidence.md` with the added minutes per run beside the proof bar's
 - [ ] 3.3 Write the verdict under the tables by keep rules 2 to 4, one line per candidate with its counts; verify each line cites the rule it used
 
 ## 4. Adopt what won (skill, wiki, changelog)

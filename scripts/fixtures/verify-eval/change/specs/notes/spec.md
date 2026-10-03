@@ -28,12 +28,12 @@ The new-note page at `/new` SHALL save a note that has a title and refuse one th
 #### Scenario: A new note stays in the list
 
 - **WHEN** the person saves a new note with a title on the new-note page
-- **THEN** the note appears in the list and is still there after a reload
+- **THEN** the note appears in the list with its title as typed, and is still there unchanged after a reload
 
 #### Scenario: Creating without a title answers 422
 
 - **WHEN** a client posts a note with no title to `/api/notes`
-- **THEN** the endpoint answers 422 and the body names the missing title
+- **THEN** the endpoint answers 422, the body names the missing title, and no note is created
 
 ### Requirement: Notes can be changed
 

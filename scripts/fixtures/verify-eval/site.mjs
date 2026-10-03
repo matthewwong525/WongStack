@@ -4,17 +4,16 @@
 // Meta-only: no target receives it. Nothing the site serves may name a planted mistake.
 //
 // The planted mistakes:
-//   1. Saving with no title shows "Title is required", and saves an empty note anyway.
-//   2. Deleting a note removes it from the list; the count above the list stays.
-//   3. POST /api/notes with no title answers 422, with a body that never names the title.
-//   4. A new note shows in the list once, and is gone on the next load.
-//   5. A search lists the matches first, then every other note far below them.
+//   1. Saving with no title saves nothing, and shows "Title required", not "Title is required".
+//   2. Deleting a note drops the count by one, and removes the note below the chosen one.
+//   3. POST /api/notes with no title answers 422 and names the title, and creates a blank note anyway.
+//   4. A new note shows in the list as typed once, and without its last character on every load after.
+//   5. A search lists the matches, then one note that does not match as the last row.
 // One control is slow on purpose: the "Saved" badge appears 800 ms after a save.
 import { createServer } from 'node:http';
 
 const SEED = ['Groceries for the week', 'Call the plumber', 'Trip ideas', 'Plumber invoice', 'Book club picks', 'Garden plan'];
 const SAVED_DELAY_MS = 800;
-const FOLD_PX = 2400;
 
 const escapeHtml = text => String(text).replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char]);
 
@@ -33,15 +32,14 @@ const row = note => `<li><span class="title">${escapeHtml(note.title)}</span>
   <form method="post" action="/notes/${note.id}/archive"><button aria-label="Archive ${escapeHtml(note.title)}">Archive</button></form>
   <form method="post" action="/notes/${note.id}/delete"><button aria-label="Delete ${escapeHtml(note.title)}">Delete</button></form></li>`;
 
-const listPage = ({ shown, below, count, query }) => page('Notes', `<h1>Notes</h1>
+const listPage = ({ shown, count, query }) => page('Notes', `<h1>Notes</h1>
 <p id="count">${count} notes</p>
 <form method="get" action="/"><label>Search <input name="q" value="${escapeHtml(query)}"></label><button>Search</button></form>
 <p><a href="/new">New note</a> · <a href="/archived">Archived</a></p>
 ${query ? `<h2>Results for "${escapeHtml(query)}"</h2>` : ''}
 <ul id="notes">
 ${shown.map(row).join('\n')}
-</ul>
-${below.length ? `<div style="height:${FOLD_PX}px"></div>\n<ul>\n${below.map(row).join('\n')}\n</ul>` : ''}`);
+</ul>`);
 
 const newPage = error => page('New note', `<h1>New note</h1>
 ${error ? `<p role="alert">${escapeHtml(error)}</p>` : ''}
@@ -92,13 +90,11 @@ const publicNote = ({ id, title, body }) => ({ id, title, body });
 export async function startSite() {
   let nextId = 1;
   const notes = SEED.map(title => ({ id: nextId++, title, body: '', archived: false }));
-  let listCount = notes.length; // the count the list page shows
-  let unsaved = []; // new notes the list shows once
+  const typed = new Map(); // each new note's title as typed, shown by the next list page only
   const active = () => notes.filter(note => !note.archived);
   const add = (title, body) => {
     const note = { id: nextId++, title, body: typeof body === 'string' ? body : '', archived: false };
     notes.push(note);
-    listCount += 1;
     return note;
   };
 
@@ -112,41 +108,42 @@ export async function startSite() {
   const notFound = res => html(res, page('Not found', '<h1>Not found</h1>\n<p><a href="/">Back to notes</a></p>'), 404);
 
   function list(res, query) {
+    const all = active();
     if (query) {
       const matches = note => note.title.toLowerCase().includes(query.toLowerCase());
-      return html(res, listPage({ shown: active().filter(matches), below: active().filter(note => !matches(note)), count: listCount, query }));
+      return html(res, listPage({ shown: [...all.filter(matches), ...all.filter(note => !matches(note)).slice(0, 1)], count: all.length, query }));
     }
-    const shown = [...active(), ...unsaved];
-    const count = listCount + unsaved.length;
-    unsaved = [];
-    html(res, listPage({ shown, below: [], count, query: '' }));
+    const shown = all.map(note => ({ ...note, title: typed.get(note.id) ?? note.title }));
+    typed.clear();
+    html(res, listPage({ shown, count: all.length, query: '' }));
   }
 
   function create(res, form) {
     const title = titleOf(form.get('title'));
-    if (!title) {
-      add('', form.get('body'));
-      return html(res, newPage('Title is required'), 422);
-    }
-    unsaved.push({ id: nextId++, title });
+    if (!title) return html(res, newPage('Title required'), 422);
+    typed.set(add(title.slice(0, -1), form.get('body')).id, title);
     toList(res);
   }
 
+  // Removes the note below the chosen one in the list, or the one above the last.
   function remove(res, note) {
-    notes.splice(notes.indexOf(note), 1);
+    const shown = active();
+    const at = shown.indexOf(note);
+    const gone = (at >= 0 && (shown[at + 1] ?? shown[at - 1])) || note;
+    notes.splice(notes.indexOf(gone), 1);
     toList(res);
   }
 
   function archive(res, note) {
     note.archived = true;
-    listCount -= 1;
     toList(res);
   }
 
   function apiCreate(res, body) {
     const title = titleOf(body.title);
-    if (!title) return json(res, 422, { error: 'invalid' });
-    json(res, 201, publicNote(add(title, body.body)));
+    const note = add(title, body.body);
+    if (!title) return json(res, 422, { error: 'Title is required' });
+    json(res, 201, publicNote(note));
   }
 
   function apiRename(res, note, body) {

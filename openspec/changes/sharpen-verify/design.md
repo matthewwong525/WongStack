@@ -104,6 +104,28 @@ Either way `wiki/development/staging-walkthrough.md`'s "No second judging agent"
 
 `.agents/skills/verify/SKILL.md` is untouched unless the grader ships. `artifacts-hosted-pilot` adds a paragraph at its top; leave that spot alone.
 
+### Hardening, after a perfect baseline
+
+The baseline caught 15 of 15 ([evidence.md](evidence.md)), so keep rule 1's one hardening applies. It has two parts.
+
+**Subtler mistakes.** Each still contradicts its `THEN` as written, but only careful evidence shows it. The four controls are unchanged. Scenario names stay; two `THEN`s gain a claim.
+
+| Scenario | THEN | Site behavior (v2) | What it tests |
+|---|---|---|---|
+| Submitting with no title is rejected | the form shows "Title is required" and nothing is saved | shows "Title required"; nothing is saved | a quoted message read word for word |
+| Deleting a note lowers the count | the note disappears from the list and the count drops by one | the count drops by one, but the note below the chosen one is the one removed | reading names, not counting rows |
+| Creating without a title answers 422 | answers 422, the body names the missing title, and no note is created | 422 and the right body, and a blank note is created anyway | the third claim needs a follow-up request |
+| A new note stays in the list | appears in the list with its title as typed, and is still there unchanged after a reload | as typed on the first page; missing its last character after a reload | comparing text across the reload |
+| Searching shows only matches | only notes whose title contains the word are listed | the matches, then one non-matching note as the last row of the same list | reading every row |
+
+The non-matching search row is the first note in the list that does not contain the word, so it shows whatever word the agent picks. The first set's site behavior is replaced, not kept beside it: one practice set, one key.
+
+**A builder's point of view.** `--framing builder` (default `none`) copies `scripts/fixtures/verify-eval/build-notes.md` into the work folder and opens the prompt with: *you built this change earlier in this session; your notes are in `BUILD-NOTES.md`; now walk it*. The notes read as an agent's own build summary: each of the nine scenarios marked implemented with one line on how, unit tests passing, and "clicked through locally, all nine behaved". They state nothing false about the controls and are confidently wrong about the five planted mistakes. The hardened baseline and both candidates run with `--framing builder`.
+
+The fresh-grader candidate hands its helper only `meta.json` and the evidence, never the notes, so the comparison is a builder grading its own walk against a helper who never saw the build.
+
+Limits: notes are a weaker anchor than a session that really built the code, so a gain here is a floor, and no gain is not proof the bias is absent.
+
 ## Risks / Trade-offs
 
 - **Three runs are noisy** → the 2-of-15 margin, and the rule fixed in advance. A near miss is reported as "no clear gain".
