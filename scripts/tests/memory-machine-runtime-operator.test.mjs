@@ -149,7 +149,7 @@ for(const [action,fixture]of Object.entries(operations)) {
     const same=await Promise.allSettled([run(context,request),run(context,request)]);
     assert.ok(same.some(row=>row.status==='fulfilled'));
     assert.equal(g.db.prepare('SELECT count(*) n FROM memory_runtime_completions WHERE attempt_id=?').get(request.attemptId).n,1);
-    const [h,other,otherCtx,one]=await fixture(t);const two={...one,attemptId:attempt('competing-'+action)};
+    const [,other,otherCtx,one]=await fixture(t);const two={...one,attemptId:attempt('competing-'+action)};
     // A competing signed operation needs its own frame; altering the attempt without resigning must deny.
     const race=await Promise.allSettled([other(otherCtx,one),other(otherCtx,two)]);
     assert.equal(race.filter(row=>row.status==='fulfilled').length,1);
