@@ -50,12 +50,12 @@ function fakeExec({ fail = [], stdout = JSON.stringify({ relayEnabled: true, url
 
 const TOKEN = "gho_secret";
 const GITHUB = { token: TOKEN, repo: "ada/wongstack", name: "Ada Lovelace", email: "7+ada@users.noreply.github.com" };
-const AS_WONG = "runuser -u wong -- env HOME=/home/wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
+const AS_WONG = "runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
 
 test("pair runs the relay pairing command as wong and returns the link", async () => {
   const { exec, calls } = fakeExec();
   assert.deepEqual(await runJob({ type: "pair" }, exec), { status: "done", result: LINK });
-  assert.deepEqual(calls, ["runuser -u wong -- paseo daemon pair --relay --json --home /home/wong/.paseo"]);
+  assert.deepEqual(calls, ["runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin paseo daemon pair --relay --json --home /home/wong/.paseo"]);
 });
 
 test("suspend stops and resume starts the Paseo service", async () => {
@@ -102,15 +102,15 @@ test("a poll sends the contract, the source commit, and health with the token, a
   pollReply = { status: 200, body: { jobs: [], interval: 2 } };
   const interval = await tick({ appUrl, token: "tok", commit: SOURCE_COMMIT, fetch, exec: fakeExec().exec, log: () => {} });
   assert.equal(interval, 2);
-  assert.equal(CONTRACT, 2);
-  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 2, commit: SOURCE_COMMIT, paseo: "up" } }]);
+  assert.equal(CONTRACT, 4);
+  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 4, commit: SOURCE_COMMIT, paseo: "up" } }]);
 });
 
 test("a poll sends a null commit when SOURCE_COMMIT is missing or not a full commit", async () => {
   for (const commit of [undefined, "", "abc1234", SOURCE_COMMIT.toUpperCase(), `${SOURCE_COMMIT}\n`]) {
     requests = [];
     await tick({ appUrl, token: "tok", commit, fetch, exec: fakeExec({ fail: ["is-active"] }).exec, log: () => {} });
-    assert.deepEqual(requests[0].body, { contract: 2, commit: null, paseo: "down" }, String(commit));
+    assert.deepEqual(requests[0].body, { contract: 4, commit: null, paseo: "down" }, String(commit));
   }
 });
 
@@ -168,13 +168,13 @@ test("main polls in a loop, waits the hinted interval, and keeps going after an 
     waits.push(ms);
     if (waits.length === 3) throw stop;
   };
-  const run = main({ env: { APP_URL: appUrl, AGENT_TOKEN: "tok", SOURCE_COMMIT }, fetch: flaky, exec: fakeExec().exec, sleep, log: (l) => lines.push(l) });
+  const run = main({ validate: async () => ({user:"wong",home:"/home/wong",uid:1000}), env: { APP_URL: appUrl, AGENT_TOKEN: "tok", SOURCE_COMMIT }, fetch: flaky, exec: fakeExec().exec, sleep, log: (l) => lines.push(l) });
   await assert.rejects(run, stop);
   assert.deepEqual(waits, [2000, 10000, 2000]);
   assert.deepEqual(lines, ["poll error: network down"]);
   assert.equal(requests.length, 2);
   assert.equal(requests[0].auth, "Bearer tok");
-  assert.deepEqual(requests[0].body, { contract: 2, commit: SOURCE_COMMIT, paseo: "up" });
+  assert.deepEqual(requests[0].body, { contract: 4, commit: SOURCE_COMMIT, paseo: "up" });
 });
 
 test("github signs gh in with the token on stdin, sets git up, and clones the repo", async () => {
@@ -299,7 +299,7 @@ test("a Paseo failure at any step is logged by its step name only, and the clone
 test("commands run as wong with the PATH that paseo.service gives, where Claude Code lives", async () => {
   const box = paseoExec();
   await connect(box.exec);
-  assert.ok(box.lines().every((l) => !l.startsWith("runuser") || l.startsWith("runuser -u wong -- env HOME=/home/wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin ")));
+  assert.ok(box.lines().every((l) => !l.startsWith("runuser") || l.startsWith("runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin ")));
 });
 
 // ── the WongStack install ───────────────────────────────────────────────────

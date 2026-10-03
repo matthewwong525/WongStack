@@ -4,6 +4,13 @@
 # again. server/README.md is the contract a host relies on.
 set -euo pipefail
 
+if [ "${1:-}" = --preserve ]; then
+  [ "$#" -le 2 ] && { [ "$#" -eq 1 ] || [ "$2" = --preflight ]; } || { echo "preserve: arguments" >&2; exit 1; }
+  shift
+  exec bash "$(dirname "$0")/preserve.sh" "$@"
+fi
+[ "$#" -eq 0 ] || { echo "unknown setup mode" >&2; exit 1; }
+
 WORKSPACE_USER="${WORKSPACE_USER:-wong}"
 export DEBIAN_FRONTEND=noninteractive
 
