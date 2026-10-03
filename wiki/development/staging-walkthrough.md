@@ -29,6 +29,9 @@ A scenario **no probe reaches** is **listed by name as unverified**, never silen
 - **The scout runs first, so having nothing to verify costs nothing.** A change with no deployed surface reaches `NONE` after a few file reads: no push, no CI wait, no browser.
 - **`/verify` runs `/save` before it walks,** because the preview exists only once CI has published *this* commit. Verifying earlier verifies the previous commit, or nothing.
 - **Journeys come from scenarios, not routes,** because the scenarios are what the change promised.
+- **Safe checks finish before you are asked to help.** A missing login or unclear result holds up only the checks that depend on it. You get one list of what remains, the exact help needed, and what the check should show. You can help, skip selected checks, or skip them all. Skipped checks stay unverified; the assistant does not ask again unless you reopen them. Once you help, the walk resumes those checks; it repeats completed checks only if their conditions changed.
+- **Safe simulations show what they can before the handoff.** Existing deployed interfaces, disposable data, and test integrations may show part of a blocked check. Simulated evidence names what it supports and what remains unproven: a simulated message does not prove real delivery or a person's experience. Simulations keep the same staging safeguards and use no local app execution or invented tools. Skipping a remaining check cannot erase a failure or make an unchecked promise pass.
+- **Staging checks use disposable data and test integrations.** A staging address can still point to shared data or send a real message. The walk establishes isolation and safe cleanup before a write. If it cannot, that check stays unverified while independent safe checks continue.
 - **Journeys hold no assertions,** because an assertion written moments before it is deleted encodes a guess at correctness, and "nothing errored" is not "the thing worked".
 - **Every navigating step waits before its screenshot,** because a screenshot taken before the page paints captures the page you left: one two-step journey produced two byte-identical screenshots of it.
 - **Every report names each journey's probe and where it ran.** A walk driven on one machine depended on that machine, and a reader comparing two walks needs to know.
@@ -53,19 +56,19 @@ The same fact read the other way is why request probes work: a non-navigation re
 
 ## The verdicts
 
-[The skill's verdict table](../../.agents/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything on `/verify`'s own run; [`/ship`'s walk step](../../.agents/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate) owns what a failed walk does there. An un-runnable walk is `UNKNOWN`, never `NONE`, [the same rule as the git gate](../../.agents/skills/save/references/git-gate.md): a comment that reads like a pass because a login page rendered is the outcome worth preventing.
+[The skill's verdict table](../../.agents/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything on `/verify`'s own run; [`/ship`'s walk step](../../.agents/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate) owns what a failed walk does there. A reachable check blocked by access, safety, or ambiguous evidence makes the walk `UNKNOWN`, unless another check failed or the budget expired. A claim no probe can observe stays partly shown. An un-runnable walk is `UNKNOWN`, never `NONE`, [the same rule as the git gate](../../.agents/skills/save/references/git-gate.md): a comment that reads like a pass because a login page rendered is the outcome worth preventing.
 
 ## When the walk can't get in
 
-An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` [heals it itself](../../.agents/skills/verify/SKILL.md#when-a-block-stops-the-walk) rather than sending you on an errand. The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, the verdict is `UNKNOWN` naming the wall, never a graded login page.
+An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` [heals it itself](../../.agents/skills/verify/SKILL.md#when-a-block-stops-the-walk) rather than sending you on an errand. The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, the affected checks stay unverified and join the final help list. Other safe checks still run; a login page never counts as the app working.
 
-**One heal and one retry**, never a loop. A block that survives its repair is `UNKNOWN` with the attempt named, so an unverified walk never looks like an untried one.
+**One heal and one retry**, never a loop. A surviving block names the attempt in the help list. Completed writes are not replayed just because another check needed repair.
 
 ## When a walk fails
 
-[`/verify`](../../.agents/skills/verify/SKILL.md#order) posts the evidence before it resets staging, because a failing walk's evidence is the whole point.
+[`/verify`](../../.agents/skills/verify/SKILL.md#order) finishes independent safe checks and preserves their evidence through repairs and retries. It posts one final report after any bounded repairs. Otherwise the first failure could hide the results of everything else.
 
-The reset isn't housekeeping. A walk that starts against the half-mutated database a failed walk left behind produces a *different* failure than the first run, and you end up debugging leftovers instead of the bug. A **passing** walk's data is left alone — staging is a fixture, not something to preserve.
+Cleanup restores only the walk's own disposable data, on pass or fail. A failed walk may reset the whole staging database only when it is established as disposable, separate from production, and no other work depends on its current data. Shared staging data stays intact. These limits stop a retry from damaging another task or debugging leftovers from its own earlier checks.
 
 It fixes only an [in-scope](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) failure, and says which way it judged, so you can disagree. The two-attempt bound is what keeps the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug is how a walk quietly turns into a different change.
 
