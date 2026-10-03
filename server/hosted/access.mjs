@@ -2,8 +2,12 @@ import { accessConflicts } from '../../scripts/lib-access-config.mjs';
 import { need } from './security.mjs';
 
 const fieldsMatch = (row, expected) => Object.entries(expected).every(([key, value]) => JSON.stringify(row?.[key]) === JSON.stringify(value));
-function closedDestinations(destinations, workers) {
-  return Array.isArray(destinations) && destinations.length === workers.length && new Set(workers.map(worker => worker.id)).size === workers.length && new Set(destinations.map(row => row.worker_id)).size === workers.length && destinations.every(row => row.type === 'worker' && workers.some(worker => worker.id === row.worker_id) && (row.overrides === undefined || Array.isArray(row.overrides) && row.overrides.length === 0));
+function closedDestinations(destinations, workers, domain) {
+  if (!Array.isArray(destinations) || destinations.length !== workers.length + 1 || destinations.some(row => !row || row.overrides !== undefined && (!Array.isArray(row.overrides) || row.overrides.length))) return false;
+  const native = destinations.filter(row => row.type === 'worker');
+  const anchors = destinations.filter(row => row.type === 'public');
+  // "public" is Access's hostname destination type, not a bypass policy.
+  return native.length === workers.length && new Set(workers.map(worker => worker.id)).size === workers.length && new Set(native.map(row => row.worker_id)).size === workers.length && native.every(row => workers.some(worker => worker.id === row.worker_id)) && anchors.length === 1 && anchors[0].uri === domain;
 }
 export async function accessSetup(state, provider, checkpoint) {
   // A previous successful receipt does not authorize a newly changed provider
@@ -25,6 +29,7 @@ export async function accessSetup(state, provider, checkpoint) {
   need(new Set(workers.map(worker => worker.id)).size === workers.length, 'Owned Access Worker identities must be unique', 502);
   const subdomain = await provider.request(provider.path('workers/subdomain'));
   need(/^[a-z0-9-]+$/.test(subdomain?.subdomain || ''), 'Platform Workers subdomain unavailable', 502);
+  const domain = `${workers[0].name}.${subdomain.subdomain}.workers.dev`;
   const apps = await list(provider, `${root}/apps`);
   state.access ??= { teamDomain: organization.auth_domain, audience: null, appId: null, pendingName: `WongStack hosted ${state.id}` };
   const appName = `WongStack hosted ${state.id}`;
@@ -35,16 +40,16 @@ export async function accessSetup(state, provider, checkpoint) {
   if (!app) {
     need(!apps.some(row => row.name === appName), 'Access application name already owned');
     await checkpoint();
-    app = await provider.request(`${root}/apps`, 'POST', { name: appName, type: 'self_hosted', session_duration: '24h', domain: `${workers[0].name}.${subdomain.subdomain}.workers.dev`, destinations: workers.map(worker => ({ type: 'worker', worker_id: worker.id })), allowed_idps: [pin.id], policies: [] });
+    app = await provider.request(`${root}/apps`, 'POST', { name: appName, type: 'self_hosted', session_duration: '24h', domain, destinations: [...workers.map(worker => ({ type: 'worker', worker_id: worker.id })), { type: 'public', uri: domain }], allowed_idps: [pin.id], policies: [] });
   }
   need(app?.id && app.aud, 'Access application receipt missing', 502);
-  need(closedDestinations(app.destinations, workers), 'Closed Access destinations contain an unreviewed override or identity', 502);
+  need(app.domain === domain && closedDestinations(app.destinations, workers, domain), 'Closed Access destinations contain an unreviewed override or identity', 502);
   state.access = { ...state.access, appId: app.id, audience: app.aud, teamDomain: organization.auth_domain, workers, domain: app.domain };
   delete state.access.pendingName;
   await checkpoint();
   await policies(state, provider, checkpoint);
   const observed = await provider.request(`${root}/apps/${app.id}`);
-  need(observed?.id === app.id && observed.aud === app.aud && observed.name === appName && observed.type === 'self_hosted' && observed.domain === app.domain && closedDestinations(observed.destinations, workers) && Array.isArray(observed.allowed_idps) && observed.allowed_idps.length === 1 && observed.allowed_idps[0] === pin.id, 'Exact Access application readback failed', 502);
+  need(observed?.id === app.id && observed.aud === app.aud && observed.name === appName && observed.type === 'self_hosted' && observed.domain === domain && closedDestinations(observed.destinations, workers, domain) && Array.isArray(observed.allowed_idps) && observed.allowed_idps.length === 1 && observed.allowed_idps[0] === pin.id, 'Exact Access application readback failed', 502);
   state.access.verified = true;
   await checkpoint();
   return state.access;

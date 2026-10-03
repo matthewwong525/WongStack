@@ -250,7 +250,10 @@ function accessProvider() {
       if (path.endsWith('/service_tokens') && method === 'POST') { const token = { ...body, id: 'token-id', client_id: 'client', client_secret: 'secret' }; serviceTokens.push(token); return token; }
       if (path.endsWith('/revoke_tokens')) return {};
       if (path.includes('/apps?')) return apps;
-      if (path.endsWith('/apps') && method === 'POST') { const app = { ...body, id: 'app-id', aud: 'aud' }; apps.push(app); return app; }
+      if (path.endsWith('/apps') && method === 'POST') {
+        assert(body.destinations.some(row => row.type === 'public' && row.uri === body.domain), 'Cloudflare rejects a domain absent from destinations (12130)');
+        const app = { ...body, id: 'app-id', aud: 'aud' }; apps.push(app); return app;
+      }
       if (path.endsWith('/apps/app-id')) return apps[0];
       if (path.includes('/policies?')) return policyRows;
       if (path.endsWith('/policies') && method === 'POST') { const row = { ...body, id: `policy-${policyRows.length}` }; policyRows.push(row); return row; }
@@ -264,7 +267,8 @@ test('private Access uses actual Worker IDs, exact human policy and separate ver
   const f = await fixture(); const a = accessProvider();
   f.state.resources = a.workers.map(row => ({ ...row, environment: row.name.split('-').at(-1), kind: 'worker' }));
   await accessSetup(f.state, a.p, () => f.controller.save());
-  assert.equal(f.state.access.verified, true); assert.equal(a.apps[0].destinations.length, 3);
+  assert.equal(f.state.access.verified, true); assert.equal(a.apps[0].destinations.length, 4);
+  assert.deepEqual(a.apps[0].destinations.filter(row => row.type === 'public'), [{ type: 'public', uri: `${a.workers[0].name}.team.workers.dev` }]);
   assert.equal(a.policyRows.length, 2); assert.equal(f.state.access.clientSecret, 'secret');
   const safe = f.controller.status(); assert(!JSON.stringify(safe).includes('clientSecret'));
   await accessSetup(f.state, a.p, () => f.controller.save()); assert.equal(a.apps.length, 1); assert.equal(a.serviceTokens.length, 1);
@@ -289,6 +293,12 @@ test('closed Access rejects unreviewed list destinations before policy mutation 
     app => { app.destinations[1].overrides = null; },
     app => { app.destinations[1] = { ...app.destinations[0] }; },
     app => { app.destinations[1].worker_id = 'f'.repeat(32); },
+    app => { app.destinations.pop(); },
+    app => { app.destinations[3].uri = '*.team.workers.dev'; },
+    app => { app.destinations[3].uri += '/apps/'; },
+    app => { app.destinations[3].uri = 'https://' + app.domain; },
+    app => { app.destinations[3].overrides = [{ behavior: 'public', path_pattern: '/*' }]; },
+    app => { app.domain = 'other.team.workers.dev'; },
     app => { app.destinations.push({ type: 'public', uri: 'memory.example.com', overrides: [{ behavior: 'public', path_pattern: '/_memory/*' }] }); },
   ]) {
     const f = await fixture(); const a = accessProvider();
