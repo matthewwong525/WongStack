@@ -15,7 +15,7 @@ const NEW = "cf-new-value-only-the-server-holds";
 const TOKEN_ID = "f".repeat(32);
 const SOURCE_COMMIT = "efc5845ab16b12dc4ceab60e7c500663c2bf6b19";
 const JOB = { token: PASTED, accountId: "0123456789abcdef0123456789abcdef", repo: "ada/wongstack", ownerEmail: "ada@example.com", sourceRepo: "matthewwong525/WongStack", sourceCommit: SOURCE_COMMIT, managementResult: { version: 1, recipient: { ownerId: "owner", vmId: "vm", jobId: "job", connectionId: "connection", generation: 1 }, path: "/home/wong/.local/state/wongstack/access-results/job.json", cleanupTokenIds: [] } };
-const AS_WONG = "runuser -u wong -- env HOME=/home/wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
+const AS_WONG = "runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
 
 /** A fake Cloudflare: each path answers from `replies`, as [status, result]; it records each call. */
 function fakeCloudflare(replies = {}) {

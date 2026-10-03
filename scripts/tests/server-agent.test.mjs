@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { after, before, beforeEach, test } from "node:test";
 
-import { CONTRACT, INSTALL_TIMEOUT_MS, INVITE_POLL_MS, INVITE_TRIES, installWongStack, main, paseoHealth, runJob, startBackground, tick as actualTick } from "../../server/agent/agent.mjs";
+import { ROOT_PATH, CONTRACT, INSTALL_TIMEOUT_MS, INVITE_POLL_MS, INVITE_TRIES, installWongStack, main, paseoHealth, runJob, startBackground, tick as actualTick } from "../../server/agent/agent.mjs";
 
 // Installer/HTTP orchestration here; private filesystem delivery has its own real-file suite.
 const management = { execute: async (job, install) => install(), report: async (job, outcome, post) => { await post(`/api/agent/jobs/${job.id}`, outcome); }, resume: async () => {} };
@@ -50,12 +50,12 @@ function fakeExec({ fail = [], stdout = JSON.stringify({ relayEnabled: true, url
 
 const TOKEN = "gho_secret";
 const GITHUB = { token: TOKEN, repo: "ada/wongstack", name: "Ada Lovelace", email: "7+ada@users.noreply.github.com" };
-const AS_WONG = "runuser -u wong -- env HOME=/home/wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
+const AS_WONG = "runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
 
 test("pair runs the relay pairing command as wong and returns the link", async () => {
   const { exec, calls } = fakeExec();
   assert.deepEqual(await runJob({ type: "pair" }, exec), { status: "done", result: LINK });
-  assert.deepEqual(calls, ["runuser -u wong -- paseo daemon pair --relay --json --home /home/wong/.paseo"]);
+  assert.deepEqual(calls, ["runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin paseo daemon pair --relay --json --home /home/wong/.paseo"]);
 });
 
 test("suspend stops and resume starts the Paseo service", async () => {
@@ -102,15 +102,15 @@ test("a poll sends the contract, the source commit, and health with the token, a
   pollReply = { status: 200, body: { jobs: [], interval: 2 } };
   const interval = await tick({ appUrl, token: "tok", commit: SOURCE_COMMIT, fetch, exec: fakeExec().exec, log: () => {} });
   assert.equal(interval, 2);
-  assert.equal(CONTRACT, 2);
-  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 2, commit: SOURCE_COMMIT, paseo: "up" } }]);
+  assert.equal(CONTRACT, 4);
+  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 4, commit: SOURCE_COMMIT, paseo: "up" } }]);
 });
 
 test("a poll sends a null commit when SOURCE_COMMIT is missing or not a full commit", async () => {
   for (const commit of [undefined, "", "abc1234", SOURCE_COMMIT.toUpperCase(), `${SOURCE_COMMIT}\n`]) {
     requests = [];
     await tick({ appUrl, token: "tok", commit, fetch, exec: fakeExec({ fail: ["is-active"] }).exec, log: () => {} });
-    assert.deepEqual(requests[0].body, { contract: 2, commit: null, paseo: "down" }, String(commit));
+    assert.deepEqual(requests[0].body, { contract: 4, commit: null, paseo: "down" }, String(commit));
   }
 });
 
@@ -168,13 +168,13 @@ test("main polls in a loop, waits the hinted interval, and keeps going after an 
     waits.push(ms);
     if (waits.length === 3) throw stop;
   };
-  const run = main({ env: { APP_URL: appUrl, AGENT_TOKEN: "tok", SOURCE_COMMIT }, fetch: flaky, exec: fakeExec().exec, sleep, log: (l) => lines.push(l) });
+  const run = main({ validate: async () => ({user:"wong",home:"/home/wong",uid:1000}), env: { APP_URL: appUrl, AGENT_TOKEN: "tok", SOURCE_COMMIT }, fetch: flaky, exec: fakeExec().exec, sleep, log: (l) => lines.push(l) });
   await assert.rejects(run, stop);
   assert.deepEqual(waits, [2000, 10000, 2000]);
   assert.deepEqual(lines, ["poll error: network down"]);
   assert.equal(requests.length, 2);
   assert.equal(requests[0].auth, "Bearer tok");
-  assert.deepEqual(requests[0].body, { contract: 2, commit: SOURCE_COMMIT, paseo: "up" });
+  assert.deepEqual(requests[0].body, { contract: 4, commit: SOURCE_COMMIT, paseo: "up" });
 });
 
 test("github signs gh in with the token on stdin, sets git up, and clones the repo", async () => {
@@ -299,7 +299,7 @@ test("a Paseo failure at any step is logged by its step name only, and the clone
 test("commands run as wong with the PATH that paseo.service gives, where Claude Code lives", async () => {
   const box = paseoExec();
   await connect(box.exec);
-  assert.ok(box.lines().every((l) => !l.startsWith("runuser") || l.startsWith("runuser -u wong -- env HOME=/home/wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin ")));
+  assert.ok(box.lines().every((l) => !l.startsWith("runuser") || l.startsWith("runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin ")));
 });
 
 // ── the WongStack install ───────────────────────────────────────────────────
@@ -645,4 +645,23 @@ test("an owner's own github job does not wait for an invitation", async () => {
   const box = ghExec([["test -d", { fail: "" }], [" paseo ", { fail: "" }]]);
   await runJob({ type: "github", payload: { ...GITHUB, invited: false } }, box.exec, () => {}, async () => assert.fail("no wait"));
   assert.ok(!box.lines().some((l) => l.includes("repo view") || l.includes("invitations")));
+});
+
+
+test('preserved agent exits normally on authenticated poll 401 without retry or shared service changes and uses trusted root PATH',async()=>{
+ const calls=[],logs=[];let polls=0,sleeps=0;
+ await main({env:{APP_URL:'https://control.test',AGENT_TOKEN:'host-secret',WORKSPACE_MODE:'preserve'},validate:async()=>({user:'fixture',home:'/home/fixture',uid:1001}),
+  fetch:async(url,options)=>{assert.equal(options.headers.Authorization,'Bearer host-secret');assert.ok(url.endsWith('/api/agent/poll'));polls++;return Response.json({error:'revoked'},{status:401});},
+  exec:async(file,args,options)=>{calls.push({file,args,options});assert.equal(options.env.PATH,ROOT_PATH);return {stdout:''};},
+  sleep:async()=>{sleeps++;},log:value=>logs.push(value)});
+ assert.equal(polls,1);assert.equal(sleeps,0);assert.deepEqual(logs,['agent authorization revoked']);
+ assert.deepEqual(calls.map(value=>[value.file,...value.args]),[['systemctl','is-active','--quiet','paseo.service']]);
+});
+test('fresh mode retains retry on poll 401 and preserved mode retries other transport/server failures',async()=>{
+ for(const [mode,status] of [['fresh',401],['preserve',503]]) {
+  let polls=0,sleeps=0;const stop=Error('stop');
+  await assert.rejects(main({env:{APP_URL:'https://control.test',AGENT_TOKEN:'host-secret',WORKSPACE_MODE:mode},validate:async()=>({user:'fixture',home:'/home/fixture',uid:1001}),
+   fetch:async()=>{polls++;return Response.json({}, {status});},exec:async()=>({stdout:''}),log:()=>{},sleep:async()=>{sleeps++;throw stop;}}),stop);
+  assert.equal(polls,1);assert.equal(sleeps,1);
+ }
 });
