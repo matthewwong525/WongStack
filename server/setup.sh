@@ -4,6 +4,13 @@
 # again. server/README.md is the contract a host relies on.
 set -euo pipefail
 
+if [ "${1:-}" = --preserve ]; then
+  [ "$#" -le 2 ] && { [ "$#" -eq 1 ] || [ "$2" = --preflight ]; } || { echo "preserve: arguments" >&2; exit 1; }
+  shift
+  exec bash "$(dirname "$0")/preserve.sh" "$@"
+fi
+[ "$#" -eq 0 ] || { echo "unknown setup mode" >&2; exit 1; }
+
 WORKSPACE_USER="${WORKSPACE_USER:-wong}"
 export DEBIAN_FRONTEND=noninteractive
 
@@ -26,6 +33,9 @@ apt-get install -y ca-certificates curl git gnupg
 step "Node.js 22"
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
+
+step "root agent runtime"
+bash "$(dirname "$0")/agent-runtime.sh" --ensure
 
 step "GitHub CLI"
 install -d -m 0755 /etc/apt/keyrings

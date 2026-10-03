@@ -25,6 +25,7 @@ const CONTRACT_TEST = 'scripts/tests/openspec-contract.test.mjs';
 export const PIN_FILES = [
   '.github/workflows/payload.yml',
   'server/setup.sh',
+  'server/preserve.sh',
   '.agents/skills/save/references/preconditions.md',
   '.github/CONTRIBUTING.md',
 ];

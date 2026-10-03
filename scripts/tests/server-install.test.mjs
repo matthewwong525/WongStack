@@ -220,7 +220,7 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
   assert.deepEqual(missing, [], `the installer missed payload files: ${missing.join(', ')}`);
   for (const path of manifest.seededBySetup.files) assert.ok(tree.has(path), `setup seeds ${path}`);
   for (const path of ['AGENTS.md', 'CLAUDE.md', '.claude', '.codex', '.nvmrc', '.env.example', 'paseo.json', 'openspec/config.yaml', 'app/wrangler.jsonc', '.agents/.wong-stack.json']) assert.ok(tree.has(path), path);
-  for (const path of ['.env', 'VERSION', 'CHANGELOG.md', 'server/setup.sh', '.agents/skills/wong-setup/SKILL.md', '.agents/rules/payload.md', 'app/src/apps/tips/App.tsx']) assert.ok(!tree.has(path), `${path} is not payload`);
+  for (const path of ['.env', 'VERSION', 'CHANGELOG.md', 'server/setup.sh', 'server/preserve.sh', 'server/preservation.json', 'server/project-github.mjs', 'server/prepare-project.mjs', 'server/sign-ins.mjs', 'server/agent-runtime.sh', 'server/agent/project.mjs', 'server/agent/workspace.mjs', 'server/agent/github.mjs', '.agents/skills/wong-setup/SKILL.md', '.agents/rules/payload.md', 'app/src/apps/tips/App.tsx']) assert.ok(!tree.has(path), `${path} is not payload`);
   assert.ok(tree.has('app/src/apps/hello/App.tsx') && tree.has('app/worker/apps/hello/api.ts'), 'the example mini app ships');
   assert.equal(readlinkSync(join(s.dir, '.claude')), '.agents');
   assert.equal(readlinkSync(join(s.dir, '.codex')), '.agents');
