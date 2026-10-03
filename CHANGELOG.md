@@ -13,6 +13,15 @@ This feature is still in progress. The Devices approval mini app has been remove
 
 **Updating.** When this feature is ready, use trusted machine setup and the reviewed legacy migration. Memory may pause during cutover. Old keys will be retired only after verified replacement, and a clone, typed email or machine name will never claim old private notes.
 
+## 29.16.0 — Finish safe preview checks before asking for help
+
+- Preview checks complete every independent safe check before bringing you in. One help list names the remaining checks, the login, permission, or manual action needed, and what each should show.
+- Writes and deletes use disposable staging data with known cleanup and test integrations. Shared data and real-world actions keep their permission boundaries; an unsafe check stays unverified while the others run.
+- Safe simulations cover as much of blocked checks as possible and explain what remains unproven. You can skip selected remaining checks or all of them; skipped checks stay unverified and are not requested again unless you reopen them.
+- After you help, the assistant resumes the remaining checks and repeats completed checks only when their conditions changed.
+
+**Updating.** No action needed. The updated skill and guide arrive with the usual update; no data or configuration migration is required.
+
 ## 29.15.0 — Use cf for Cloudflare management
 
 - The assistant uses Cloudflare's cf tool for authorized account inspection and one-off resource work. A dedicated guide explains how to find commands and use the existing account credentials.
