@@ -11,7 +11,7 @@ import { runtimeFixture } from './fixtures/memory/runtime.mjs';
 test('schema13 pins every bundled SQL byte while schema12 remains its original twelve-file manifest',async()=>{
   assert.equal(machineMigrations.length,12);
   assert.deepEqual(machineRuntimeMigrations.slice(0,12),machineMigrations);
-  assert.deepEqual(machineRuntimeMigrations.map(row=>row.filename),migrationFiles());
+  assert.deepEqual(machineRuntimeMigrations.map(row=>row.filename),migrationFiles().filter(file=>parseInt(file,10)<=13));
   for(const [index,row] of machineRuntimeMigrations.entries()) {
     assert.equal(row.version,index+1);assert.equal(await digest(migrationSql(row.filename)),row.sha256);
   }

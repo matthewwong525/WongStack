@@ -22,15 +22,24 @@ export function publicMachineContext(db, installation) {
   return context;
 }
 // Only the trusted operator module supplies this separately verified in-process capability.
-export function providerMachineContext(installation, read, write, inspectPins, readMigration) {
+export function providerMachineContext(installation, read, write, inspectPins, readMigration, inspectDeployment = null) {
   const target = resourceTarget(installation, true);
   requireValue([read, write, inspectPins, readMigration].every(value => typeof value === 'function'), 'machine-context-denied');
+  requireValue(inspectDeployment === null || typeof inspectDeployment === 'function', 'machine-context-denied');
   const context = Object.freeze({ kind: 'trusted-machine-operator' });
-  contexts.set(context, { target, installation: Object.freeze({ ...installation }), read, write, inspectPins, readMigration });
+  contexts.set(context, { target, installation: Object.freeze({ ...installation }), read, write, inspectPins, readMigration, inspectDeployment });
   return context;
 }
 export function runtimeContext(context, privileged = false) {
   const value = contexts.get(context);
   requireValue(value && (!privileged || context.kind === 'trusted-machine-operator'), 'machine-context-denied');
   return value;
+}
+
+// A separate internal data-inspection brand; it grants no trusted-provider capability.
+export function dataInspectionContext(context) {
+ const value=runtimeContext(context);
+ const result=Object.freeze({kind:context.kind});
+ contexts.set(result,{...value,dataInspection:true});
+ return result;
 }

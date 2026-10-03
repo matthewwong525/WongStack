@@ -41,3 +41,7 @@ The ledger's `shared` label describes summary provenance only. Raw bytes remain 
 ## Gate and limits
 
 The thirteen reserved source paths add source-only atomic and deliberately nontransactional fixtures for every upgrade/authority/proof/rotation/publication mutation boundary, concurrent identical and correctly signed competing requests, lost responses, stale revisions/pins, invalid/replayed/expired/foreign proof, legacy reissuance, credential overlap and privacy. Only syntax, whitespace, static inventory and SQL hash checks run on this host. Task3.0a/3.0b remain unchecked until the parent records their full exact remote source gate. Source fixtures do not prove actual D1 transport rollback/concurrency or live end-to-end acceptance; private/provider phases remain separately owned and unexecuted.
+
+## Independent source gate
+
+Source task3.0a/3.0b passed atf17ef882722447ac3535891842db5323fceebad6: required actual PUSH build37105196699, payload37105196665 and app test37105196661 all SUCCESS; skipped duplicate PR entries excluded.1230/1230 scripts,zero failures/skips;93.32% statements/lines,89.93% branches,95.02% functions, unchanged floors. The two repair checkpoints changed fixtures only and preserved security assertions; production13 and SQL0001–0012 bytes remain unchanged. SQL0013 SHA2561b98ad319fc5a34395b5de88a8aeef66ef858491cafcecfb6a139f448132ad89. Source freeze is released only: no new snapshot/target/provider/private/live/caller activation or runtime integration acceptance.
