@@ -108,3 +108,4 @@ None.
 - **2026-10-03** — Asked whether to publish → chose to publish it.
 - **2026-10-03** — PR #244 was published just before this one, so its edits were brought in: its scrub now runs at the top of the publish step, above the upload, and both sets of report lines sit together. The shared promise about posting evidence was not changed by it. Its tests and this change's tests pass together here.
 - **2026-10-03** — Assumed: the live check that needs the merge is kept as an open thread and run right after publishing, not as an unticked task, because a change can not be archived with a task that only a published change can finish.
+- **2026-10-03** — Archived for publishing as 29.13.0, on top of PR #244's 29.12.0.
