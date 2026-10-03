@@ -50,7 +50,7 @@ test('a row missing from the table, or an extra one, is named', () => {
 });
 
 test('the README names the contract the agent declares', () => {
-  assert.equal(CONTRACT, 2);
+  assert.equal(CONTRACT, 4);
   const readme = read('server/README.md');
   assert.match(readme, new RegExp(`^### Contract ${CONTRACT}$`, 'm'));
   assert.ok(readme.includes(`\`CONTRACT = ${CONTRACT}\``));

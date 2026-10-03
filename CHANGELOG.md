@@ -11,6 +11,13 @@
 
 **Updating.** No action needed. Reports on your pull requests gain a "partly shown" mark and, when something was removed, a line saying so.
 
+## 29.11.0 — Keep an existing server and private project
+
+- Hosts can check and prepare an existing Ubuntu workspace without replacing compatible tools, services, files or GitHub identities.
+- The source agent supports a chosen workspace account and reports private-project dependencies, configuration and Paseo separately, with safe retries. Its root runtime stays separate from writable user tools, and revoked preserved agents stop without changing shared Paseo.
+
+**Updating.** Installed projects need no action. Server hosts must support contract 4 and check the preservation manifest before enabling existing-server attachment. Contract 4 does not include the separate Artifacts capabilities. Existing agents keep their pinned source; choose this release when rebuilding or explicitly enrolling a compatible server. Review the project's required setting names before marking its code workspace ready; do not copy production secrets.
+
 ## 29.10.0 — Task chats coordinate directly
 
 - Chats find overlapping work by current titles and confirmed task context, then exchange brief messages with its owner. Each keeps its own task and publishing approval; agreements stay in existing plans.

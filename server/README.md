@@ -36,6 +36,43 @@ Then sign in as the workspace user: `gh auth login`, `claude`, and pair a device
 - It reads and writes no secret. Logins happen after, as the workspace user.
 - It never writes under `/etc/wongstack` or `/opt/wongstack`. Those paths belong to a host, for its own agent and token.
 
+## Preserve an existing server
+
+The source-only `server/preservation.json` declares `{ "version": 1 }`. A host checks it before selecting preservation; there is no fallback to fresh setup.
+
+```bash
+sudo WORKSPACE_USER=wong WORKSPACE_HOME=/home/wong bash server/setup.sh --preserve --preflight
+sudo WORKSPACE_USER=wong WORKSPACE_HOME=/home/wong bash server/setup.sh --preserve
+```
+
+The first command only checks; it never creates an account, installs tools, or writes files. The second repeats every check before changing anything. Both require root, Ubuntu 24.04 and x86-64 or Arm64. Before mutation they print a read-only capacity inventory (`memoryKiB`, `rootFreeKiB`, `workspaceFreeKiB`): MemTotal from `/proc/meminfo`, and available 1024-byte blocks on `/` and the selected home, or its nearest safe existing parent when that home is absent. Missing commands or unreadable/malformed capacity data refuse with bounded `memory` or `disk` reasons. These observations add no memory/free-space eligibility floor or current-load restriction; the host checks its provider's hardware baseline. Capacity inventory does not promise every project dependency installation will fit, and an installation that fails remains incomplete. An existing nonroot account must match its passwd home and own regular, symlink-free home/tool directories. A missing account may be created only with an unoccupied, safe home and compatible unoccupied service/port. Never select root. The agent additionally requires the account to exist when it starts.
+
+Existing executable tools must answer a version check; Node must be major 22 or 24 and OpenSpec exactly 1.13.2. Other tools must report a semantic version. These are executable compatibility checks, not permission to update a tool. Missing Node and npm tools go into the selected home, missing git/gh use Ubuntu packages, and missing cloudflared/Claude use per-user binaries. Package installation uses `--no-upgrade`. No global Node/npm tool is replaced. If Node exists without npm, setup refuses. An existing Paseo unit must run as the selected account, with its exact HOME and `daemon run --home <home>/.paseo`, be active, and listen only on `127.0.0.1:6767`. Setup keeps that unit and its ports intact; an occupied or unrelated unit/port refuses. A missing unit is created only after preflight.
+
+A missing agent-browser gets its browser, missing Chrome libraries and a new account-specific AppArmor profile. Existing browser caches and unrelated policies remain intact; a taken profile name refuses. Setup never reboots, upgrades the OS, changes firewall/network policy, deletes caches, or writes host enrollment paths. A refusal prints `preserve: <reason>` (`root`, `os`, `architecture`, `user`, `home`, `path`, `tool_<name>`, `service`, `port`, `browser`, `memory`, or `disk`) and exits nonzero. The host must independently refuse an unrelated existing host agent before enrollment; setup never replaces one.
+
+## Trusted runtime for the root agent
+
+Both setup modes ensure `/usr/local/lib/wongstack-agent-runtime/bin/node` for the host's root agent, independently of the workspace user's Node. A missing workspace Node can still be installed in that user's home; it never runs the root agent. The source-only `server/agent-runtime.sh` exposes `--preflight` (no writes), `--ensure` (fill a missing runtime) and `--path` (print that exact destination). Preservation runs runtime preflight before mutation.
+
+Every existing runtime ancestor must be root-owned, have no group/other write or setuid/setgid bits, and contain no symlink. The binary must be regular, executable, single-link, root-owned ELF and report Node major 22 or 24. An incompatible or unsafe occupied destination refuses; a compatible binary is kept. For a missing runtime, setup copies only a similarly verified `/usr/bin/node` or `/usr/local/bin/node`, or downloads an official Node 22 archive after verifying its SHA256 manifest. Download staging is private under the guarded `/usr/local/lib` parent; extraction does not restore archive ownership/permissions. No workspace binary is discovered or copied. The host independently verifies the final runtime before reporting setup success and uses its absolute path in the unit.
+
+The root unit must use system PATH `/usr/sbin:/usr/bin:/sbin:/bin`. The source process and root command runner enforce that path too; user-local `systemctl`, `runuser` or `tar` cannot become root commands. Workspace commands continue using their selected account's clean environment and tool path.
+
+## Prepare an existing private project
+
+The preservation `github` job takes `{token, repo, login, preserve:true}`. Its fixed helper receives credentials on stdin, authenticates the token's GitHub identity, and uses a clean scoped child environment. It never signs over an existing gh login or changes global/repo git configuration. A stored matching identity can be reused; an unrelated stored identity refuses with `identity_conflict` and stays intact. It clones only into the selected home when that folder is absent. A matching owned checkout or worktree keeps its branch, dirty files and unpushed commits; foreign origin/folder, symlink or backing git-directory ownership refuses. The token is neither persisted nor put in arguments. Reconnecting adds no clone; project registration happens in `project-prepare`.
+
+`project-prepare` takes `{repo,generation}`, with a nonnegative integer generation (fresh/rebuilt hosts use 0; attachment enrollment uses a positive generation). It supports tracked npm manifests with package-lock versions 2/3, installs with `npm ci --no-audit --no-fund` as the selected account, and refuses locally modified manifests or `.nvmrc`, or unsupported dependency contracts (including Python/yarn/pnpm). A present `.nvmrc` must be tracked, regular and owned, and declare supported Node major 22 or 24 matching the selected user's effective `node --version` before installation. A mismatch remains `needs_input` with reason `unsupported`; setup never replaces the runtime to satisfy the project. Fingerprints include `.nvmrc` when present and live privately outside the checkout under `~/.local/state/wongstack/projects`; a retry keeps a completed install while manifests/tool versions match and node_modules exists. Dependency scripts receive only HOME, USER and PATH, with no host token or root privileges. The host must authorize the repository before running it.
+
+Configuration stays `needs_input` unless the repository or a locally reviewed setup profile at `.wongstack/project.json` explicitly declares its required names:
+
+```json
+{ "version": 1, "requiredSettings": ["APP_NAME"], "browser": false }
+```
+
+A reviewed `requiredSettings: []` means no settings are required for this code workspace. The optional `browser: true` installs the user's browser; it does not install system packages or relax sandbox policy. Required names must be uppercase environment names (at most 64 names, each at most 64 characters). Only this checkout's regular, owned `.env` is checked for nonempty declarations; values stay private. This verifies configuration presence, not provider credentials or production readiness. Example env keys do not become requirements; no production secrets are copied and no AI credential files are read. An unknown/invalid profile stays pending. A completed dependency step is kept after configuration/Paseo failure. Paseo projects, the named Claude/Codex sign-in workspaces, their terminal metadata and Start here are found before creating them, making partial retry and reconnect duplicate-free. New sign-in terminals run only the fixed `claude auth login` or `codex login --device-auth` action; existing terminals remain untouched. A private step record retries a newly created terminal whose command delivery failed, without creating a second terminal or reading its contents. Paseo readiness requires these sign-in terminals too.
+
 ## Install WongStack into a repo
 
 `install-wongstack.mjs` installs WongStack into a person's empty GitHub repo with no question: the payload, the app's Cloudflare hosting, and memory, then one commit on `main`, pushed. Last, it adds WongStack's agent presets to the workspace user's Paseo with [`presets.mjs`](../.agents/skills/routine/scripts/presets.mjs), when Paseo is set up. A failure there goes to stderr and never changes the last line. It installs the clone it runs from, so the version is the commit you checked out, and a fork installs itself.
@@ -161,28 +198,28 @@ Its Cloudflare steps are [the provisioning script](../.agents/skills/wong-setup/
 
 ## The agent
 
-`agent/agent.mjs` runs on a host's server as root and takes the host's requests: pair a device, connect GitHub, install WongStack, add a teammate, copy the server. It needs nothing beyond this source and `agent.env`. It imports the installer's names [above](#what-a-host-may-import), and runs [the installer](#install-wongstack-into-a-repo) as the workspace user from a clone pinned to the job's commit.
+`agent/agent.mjs` runs on a host's server as root and takes the host's requests: pair a device, connect GitHub, install WongStack, add a teammate, copy the server. It uses this source, `agent.env` and the trusted root runtime above. It imports the installer's names [above](#what-a-host-may-import), and runs [the installer](#install-wongstack-into-a-repo) as the workspace user from a clone pinned to the job's commit.
 
 ### What runs it
 
 The host does this at first boot, in order:
 
 1. Unpack this source at the build's commit, root-owned and mode 0755, so the workspace user can read it. wongstack.com uses `/opt/wongstack/source`.
-2. Write `/etc/wongstack/agent.env`, mode 0600: `APP_URL`, `AGENT_TOKEN`, `VM_ID`, `SOURCE_REPO`, and `SOURCE_COMMIT`, the 40-character commit it unpacked.
+2. Write `/etc/wongstack/agent.env`, mode 0600: `APP_URL`, `AGENT_TOKEN`, `VM_ID`, `SOURCE_REPO`, and `SOURCE_COMMIT`, the 40-character commit it unpacked. Optional `WORKSPACE_USER` and `WORKSPACE_HOME` select a validated existing nonroot account; defaults are `wong` and `/home/wong`. Execution, Paseo, checkout/cache paths, copies and private-result ownership all use that identity. A preserved host also sets `WORKSPACE_MODE=preserve`.
 3. Run `server/setup.sh`, with `AGENT_TOKEN` kept out of its environment.
 4. Send the setup report (below).
-5. On a zero exit, run `node server/agent/agent.mjs` as root under a service that restarts it, with `agent.env` as its environment.
+5. On a zero exit, run `/usr/local/lib/wongstack-agent-runtime/bin/node server/agent/agent.mjs` as root under a service that restarts it, with `agent.env` as its environment.
 
 The agent runs that copy for the server's life. Rebuilding the server is the only way it gets a newer agent.
 
-### Contract 2
+### Contract 4
 
-`agent.mjs` exports `CONTRACT = 2`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
+`agent.mjs` exports `CONTRACT = 4`. Every request carries `Authorization: Bearer <AGENT_TOKEN>` and a JSON body.
 
 **The poll.** Every `interval` seconds (10 by default) the agent sends `POST /api/agent/poll`:
 
 ```json
-{ "contract": 2, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
+{ "contract": 4, "commit": "<SOURCE_COMMIT, or null when it is not 40 hex>", "paseo": "up" }
 ```
 
 `paseo` is `up` when `paseo.service` is active, else `down`. The reply is `{ jobs, interval }`, each job `{ id, type, payload }`. A reply without them means no work and the default wait.
@@ -194,7 +231,8 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `pair` | none | The Paseo relay pairing link. |
 | `suspend` | none | none; stops `paseo.service`. |
 | `resume` | none | none; starts `paseo.service`. |
-| `github` | `{ token, repo, name, email, invited }` | none; signs `gh` in, sets git's name and email, clones `repo` once, and sets up Paseo. An `invited` teammate's server accepts the owner's invitation first, or fails with `repo`. |
+| `github` | `{ token, repo, name, email, invited }` | none; signs `gh` in, sets git's name and email, clones `repo` once, and sets up Paseo. With `{token,repo,login,preserve:true}`, uses the preservation path above without overwriting identities/configuration or local work. An `invited` teammate's server accepts the owner's invitation first, or fails with `repo`. |
+| `project-prepare` | `{ repo, generation }` | none; delivers the bounded project report below, then reports done only when every step is done. |
 | `cloudflare` | [The installer's job](#the-job), plus `sourceRepo` and `sourceCommit`, the pinned clone. The agent adds `openWithoutLogin: true` itself. | none; `rolled` says whether it swapped the pasted token's value for one only the server holds. A failure carries the installer's `reason`, and `detail` when the line before it matches `CLOUDFLARE_CALL`. |
 | `team-add` | `{ repo, login }` | none; gives the GitHub `login` push access to the owner's `repo`. |
 | `team-remove` | `{ repo, login }` | none; withdraws the invitation, removes access, and stops the teammate's memory keys where the repo's memory supports it. |
@@ -202,28 +240,34 @@ The agent runs that copy for the server's life. Rebuilding the server is the onl
 | `copy-send` | `{ copyId, publicKey, port, peer, pullToken }` | none; sends the home folder, locked to `publicKey`, to the one connection from `peer` that proves `pullToken`. |
 | `copy-restore` | `{ copyId, host, port, pullToken }` | none; pulls the copy from `host`, unlocks it, and unpacks it as the workspace user. |
 
-A job of any other type is `rejected` and runs nothing. `cloudflare`, `copy-send`, and `copy-restore` run in the background, one of each type at a time, so the poll goes on around them.
+A job of any other type is `rejected` and runs nothing. `cloudflare`, `project-prepare`, `copy-send`, and `copy-restore` run in the background, one of each type at a time, so the poll goes on around them.
 
 **The job result.** The agent sends `POST /api/agent/jobs/:id` with `{ status, result?, reason?, detail?, rolled? }`, where `status` is `done`, `failed`, or `rejected`. For a `cloudflare` job, the host answers `{ ok: true }`, or the agent keeps the outcome and sends it again.
 
 **The access result.** After a `cloudflare` job with a `managementResult`, the agent reads the [private management result](#the-private-management-result), restricted or open, from its exact path, checks it against the job, and sends it to `POST /api/agent/jobs/:id/access`. It keeps a private journal under `/var/lib/wongstack/access-jobs` so a restart resends it rather than installing again.
 
+**The project result.** `POST /api/agent/jobs/:id/project` uses the existing VM bearer credential and exactly `{generation,clone,dependencies,configuration,paseo,missingSettings,reason?}`. Clone is `done|failed`; dependencies are `done|failed|needs_input`; configuration is `done|needs_input`; Paseo is `done|failed`. Missing settings are names only. The optional reason is `repo|path_conflict|identity_conflict|dependencies|configuration|paseo|unsupported`. A host compares the authenticated VM, selected repo/job and generation with its authoritative records; stale/replaced recipients cannot adopt the result. Its receipt is `{ok:true,generation}` with `Cache-Control: no-store`. A private root-owned journal under `/var/lib/wongstack/project-jobs` saves only bounded reports, then retries identical delivery and final status after a lost receipt/restart. It never stores credentials or command output. Preparation failure remains distinct from clone success. An interrupted preparation without a saved report can retry the same fixed helper; its dependency fingerprints and Paseo lookups keep completed steps.
+
 **The setup report.** The host, not the agent, sends `POST /api/agent/setup?exit=<code>` once after `setup.sh`, with the last 4,000 bytes of its log as `text/plain`.
+
+For `WORKSPACE_MODE=preserve`, an authenticated poll returning HTTP 401 means host authorization was revoked: the agent exits normally (status 0), without stopping or modifying shared Paseo. A host uses `Restart=on-failure`, so revocation does not create a restart loop. Other poll failures retain bounded polling retries; legacy/fresh mode keeps its previous retry behavior.
 
 A change to any of these shapes raises `CONTRACT`. The host supports the new number first; then the source releases it.
 
-**What changed from contract 1.** The agent asks the installer for [the open finish](#the-open-finish), so a `cloudflare` job on an account without a card ends `done`, and the access result may be the open one. A contract-1 agent never asks, so its server still stops with `cloudflare`, and the host never gets an open result from it.
+**What changed from contract 2.** Contract 4 adds preservation GitHub jobs, configured workspace identity and the project report. It extends the legacy contract-2 Access paths; it does **not** imply implementation of the separately negotiated Artifacts contract-3 capabilities. Hosts check the preservation manifest and contract explicitly before enabling attachment.
+
+**Earlier change from contract 1.** The agent asks the installer for [the open finish](#the-open-finish), so a `cloudflare` job on an account without a card ends `done`, and the access result may be the open one. A contract-1 agent never asks, so its server still stops with `cloudflare`, and the host never gets an open result from it.
 
 ### What the agent never does
 
 - It never changes its own code: no fetch, replace, or restart onto other code, and no job that names code for it to run.
 - It opens no inbound port. The one exception is `copy-send`, which listens on the job's port for the job's peer alone, until one copy is sent.
-- It never passes `AGENT_TOKEN` to the installer.
+- It never passes `AGENT_TOKEN` or other inherited host credentials to workspace commands, the installer or project scripts.
 - It never reports installer output beyond the reason word and a line matching `CLOUDFLARE_CALL`, and it logs a job by its id, type, and status alone.
 
 ### Change the agent in your fork
 
-Your fork's servers run your fork's agent. Change it as you like, and keep contract 2, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
+Your fork's servers run your fork's agent. Change it as you like, and keep contract 4, or raise `CONTRACT` only once your host supports the new number. A host checks every result against its own records, so an agent that breaks the contract fails its own server's jobs and no one else's.
 
 ## Test a change on a real server
 
