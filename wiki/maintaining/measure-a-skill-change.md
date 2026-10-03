@@ -76,4 +76,10 @@ A practice site measures only what its promises let it. Nine of its twelve promi
 
 The first run, on 2026-10-03, found no verdict a second judge would change, and found that 14 of 21 passed records left a claim unshown. [The staging walkthrough](../development/staging-walkthrough.md#what-it-is-not) records the first; the second came from reading real walks, not from the practice site.
 
+## Give the answer a place before you add instructions
+
+When a skill's output looks too kind, check its report format first. The walk's comment once offered a journey only a pass or a fail, so an agent that saw a gap wrote *pass* and mentioned the gap beside it. Given a third mark, today's wording and a 190-word grading paragraph both named 6 of 6 gaps: the mark was the fix, not the paragraph.
+
+The same test shows the trap in measuring it. A harness whose prompt lists the new verdict hands that word to both versions, so it can't tell wording that supplies the word from wording that doesn't. Score what the skill writes for a person, such as the comment, when the format is what you're changing.
+
 Part of [maintaining WongStack](README.md).
