@@ -66,6 +66,8 @@ node .claude/skills/save/scripts/hosted.mjs publish <returned-approval-id> <full
 
 The service requires the current owner, successful exact checks and preview, unchanged authoritative branch head, and the same production base. The service must acknowledge the approved commit on the default ref before reporting complete publication. A divergent default branch stops advancement; uncertainty retains the publication reservation and preserved branch. It publishes the stored checked bytes without rebuilding. A changed head, outdated base or uncertain deployment is a stop; never bypass it or retry an uncertain publication. Read `status` to inspect recovery. Publication success must identify the approved SHA, version, and independently verified default-ref SHA. Fetch the repository afterward and fast-forward its default branch only after that acknowledgment, preserving local work. Hosted publication is the deployment gate; it does not require a GitHub merge.
 
+A provider-confirmed active version is a deployment receipt, not completed publication. `deployed-awaiting-identity` retains its exact target, version and deployment while the service makes bounded identity reads. `deployed-awaiting-main` also requires exact repository acknowledgment. Either pending phase means inspect `status` and reconcile; never resend publication to repeat a deployment. Only the final published receipt establishes success.
+
 ## Build, resume and verify
 
 `/apply` keeps planning and implementation inline or in its helper. At its preview boundary, run `/save` and use the remote candidate preview instead of `cf-preview.sh`; checks and builds run remotely. Do not publish during apply.

@@ -1,6 +1,6 @@
-# Repaired-source automated pipeline trial — approval pending
+# Repaired-source automated pipeline trial — wh1007 closed; publication incomplete
 
-This plan tests the remaining actual SDK/R2/build/preview/publication path on the gated bundling repair. It authorizes no execution. wh1006 is closed with candidate FAIL and complete cleanup; its [evidence](automated-pipeline-trial-evidence.md) and [spent inventory](automated-pipeline-trial-plan.md) remain separate. Human AI, GitHub and private-site sign-ins stay SKIPPED/UNVERIFIED under the existing waiver.
+This historical inventory was explicitly approved and executed on immutable8422bee. It is now spent and authorizes no further execution; the [frozen evidence](automated-pipeline-repair-trial-evidence.md) records initial pipeline/private-preview PASS, incomplete publication and full cleanup. wh1006 is closed with candidate FAIL and complete cleanup; its [evidence](automated-pipeline-trial-evidence.md) and [spent inventory](automated-pipeline-trial-plan.md) remain separate. Human AI, GitHub and private-site sign-ins stay SKIPPED/UNVERIFIED under the existing waiver.
 
 ## Immutable source and fresh inventory
 
@@ -29,3 +29,7 @@ Use the same resource/cost bounds as the [wh1006 estimate](automated-pipeline-tr
 No VM, checkout/subscription, human login, customer migration, shared cloud staging/configuration, platform production, memory/Devices implementation, branch/index/PR or frozen-file mutation is part of execution. The disposable project's approved publication is the only site publication authorized by a future approval. Root retains git/PR ownership; the execution owner returns only a new sanitized evidence file after complete cleanup.
 
 Stop before writes without fresh explicit approval of this exact source/inventory. During execution, stop on pre-existing names, changed ownership/source, private-value exposure, unsupported restore behavior, failed revocation or ambiguous provider writes; reconcile rather than replace. Completed Workflow state alone is never acceptance. A full pipeline PASS would satisfy only the remaining isolated pipeline acceptance; combined cloud setup/rollout and production service configuration remain separate pending work.
+
+## Execution and closure
+
+The user explicitly approved this exact inventory. First credential creation was2026-10-03T21:34:36.633878Z; full independent closure was2026-10-03T22:02:26.878815Z, approximately27m50s with one candidate and at most two inactive containers before teardown, no VM or shared cloud mutation. Owner publication returned409 after exact provider deployment; controller retained reserved/production-null. This is FAIL/INCOMPLETE, not a completed publication. Primary teardown preserved failure state through independent all-ref restore/fsck and exact receipt-owned operator deletion, without claiming a service-accepted export; secondary used normal cleanup. All exact resources/credentials are independently absent. No replay, new candidate, source replacement or extension followed. Original HTTPbody was not retained; identity mismatch is control-flow inference and edge delay unproven. Source repairs and any later trial use new gated pins and a newly approved inventory, never this spent authority.

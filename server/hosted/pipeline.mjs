@@ -3,6 +3,7 @@ import { packScript } from './pack.mjs';
 import { applyMigrations, uploadBundle, verifyIdentity } from './bundle.mjs';
 import { checksBase, prepareGitCommand, readGitContext } from './git-context.mjs';
 import { advanceDefault } from './git.mjs';
+import { observePublicationIdentity } from './publication-identity.mjs';
 const quote = value => `'${String(value).replaceAll("'", "'\\''")}'`;
 export const runnerConfig = { retries: { limit: 0, delay: 1000 }, timeout: 1800000, commandTimeoutMs: 1790000, snapshotTtlSeconds: 3600 };
 
@@ -64,18 +65,23 @@ export async function runHostedPipeline(event, ci, adapters) {
   }
 }
 export async function publishBundle(controller, actor, approvalId, adapters) {
-  const candidate = await controller.beginPublication(actor, approvalId);
+  const candidate = { ...await controller.beginPublication(actor, approvalId) };
   // The durable reservation precedes any production migration, asset upload or version call.
   // A network error retains it; an operator must reconcile, never reset to approved.
   const { bundle, state } = await adapters.loadBundle(candidate.sha, candidate.ref, candidate.bundleDigest);
   await applyMigrations(state, adapters.provider, bundle, 'production');
   const receipt = await uploadBundle(state, adapters.provider, bundle, 'production');
   state.publication.version = receipt.version; state.publication.target = receipt.target; await controller.save();
-  need(await adapters.provider.head(state, refName(candidate.ref)) === candidate.sha && await adapters.provider.mainHead(state) === state.publication.mainBase, 'Repository head changed before exact production deployment; reservation retained');
-  await adapters.provider.deploy(receipt.target, receipt.version);
-  const url = await adapters.provider.routing(receipt.target);
-  await verifyIdentity(state, { ...receipt, url }, candidate.sha, adapters.fetch);
-  state.publication.status = 'deployed-awaiting-main'; await controller.save();
+  await controller.guardPublication(actor, approvalId);
+  const deployment = await adapters.provider.deploy(receipt.target, receipt.version);
+  need(uuidOK(deployment), 'Exact deployment acknowledgment missing; reservation retained');
+  Object.assign(state.publication, { deployment, status: 'deployed-awaiting-identity' });
+  await controller.save();
+  const url = await adapters.provider.routing(receipt.target, undefined, true);
+  need(url === receipt.url, 'Production routing changed; reservation retained');
+  const identity = await observePublicationIdentity(state, { ...receipt, url }, candidate.sha, adapters.fetch, adapters.observationClock);
+  await controller.guardPublication(actor, approvalId);
+  Object.assign(state.publication, { status: 'deployed-awaiting-main', identity, url }); await controller.save();
   const defaultRef = await advanceDefault(adapters.provider, state, candidate.sha, state.publication.mainBase, () => controller.save());
-  return controller.finishPublication(approvalId, { sha: candidate.sha, digest: candidate.bundleDigest, version: receipt.version, url, ...defaultRef });
+  return controller.finishPublication(approvalId, { sha: candidate.sha, digest: candidate.bundleDigest, version: receipt.version, target: receipt.target, deployment, identity, url, ...defaultRef });
 }

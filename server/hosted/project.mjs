@@ -193,18 +193,31 @@ export class ProjectController {
     need(await this.a.provider.head(this.state, refName(c.ref)) === c.sha, 'Publication head changed');
     need(await this.a.provider.mainHead(this.state) === approval.mainBase, 'Default branch changed before publication');
     await proveAncestry(this.a.provider, this.state, approval.mainBase, c.sha);
-    this.state.publication = { approvalId, sha: c.sha, digest: c.bundleDigest, base: approval.base, mainBase: approval.mainBase, status: 'reserved', createdAt: Date.now() };
+    this.state.publication = { approvalId, sha: c.sha, ref: c.ref, digest: c.bundleDigest, base: approval.base, mainBase: approval.mainBase, status: 'reserved', createdAt: Date.now() };
     approval.status = 'publishing'; await this.save(); return c;
+  }
+  async guardPublication(actor, approvalId) {
+    this.owner(actor);
+    const s = this.state, reservation = s.publication, approval = s.approvals[approvalId];
+    need(s.grants[actor.vmId] === actor && s.grants[actor.vmId].status === 'active', 'Owner approval grant was revoked or replaced; reservation retained', 403);
+    need(!s.stopped && reservation?.approvalId === approvalId && approval?.status === 'publishing' && approval.subject === actor.subject && approval.sha === reservation.sha && approval.ref === reservation.ref && approval.digest === reservation.digest && approval.base === reservation.base && approval.mainBase === reservation.mainBase, 'Publication approval changed; reservation retained');
+    const c = this.getCandidate(reservation.sha, reservation.ref);
+    need(c.sha === reservation.sha && c.ref === reservation.ref && c.status === 'passed' && c.checks === 'PASS' && c.bundleDigest === reservation.digest && c.base === reservation.base && c.mainBase === reservation.mainBase && (s.production?.sha || null) === reservation.base, 'Approved result or production base changed; reservation retained');
+    need(await this.a.provider.head(s, refName(c.ref)) === reservation.sha && await this.a.provider.mainHead(s) === reservation.mainBase, 'Repository head changed before publication advancement; reservation retained');
   }
   async finishPublication(approvalId, receipt) {
     const reservation = this.state.publication;
-    need(reservation?.approvalId === approvalId && reservation.sha === receipt.sha && uuidOK(receipt.version) && reservation.digest === receipt.digest && receipt.defaultSha === receipt.sha && receipt.defaultRef === 'refs/heads/main', 'Publication receipt does not match reservation');
-    this.state.production = { sha: receipt.sha, version: receipt.version, digest: receipt.digest, url: receipt.url };
+    need(reservation?.status === 'deployed-awaiting-main' && reservation.approvalId === approvalId && reservation.sha === receipt.sha
+      && uuidOK(receipt.version) && reservation.version === receipt.version && uuidOK(receipt.deployment) && reservation.deployment === receipt.deployment
+      && reservation.target === receipt.target && reservation.url === receipt.url && reservation.identity?.sha === receipt.sha && reservation.identity.projectId === this.state.id
+      && receipt.identity?.sha === receipt.sha && receipt.identity.projectId === this.state.id && reservation.digest === receipt.digest
+      && receipt.defaultSha === receipt.sha && receipt.defaultRef === 'refs/heads/main', 'Publication receipt does not match reservation');
+    this.state.production = { sha: receipt.sha, version: receipt.version, deployment: receipt.deployment, digest: receipt.digest, url: receipt.url };
     this.state.productionUrl = receipt.url; this.state.approvals[approvalId].status = 'published'; this.state.publication = null; await this.save();
-    return { sha: receipt.sha, status: 'published', version: receipt.version, defaultRef: receipt.defaultRef, defaultSha: receipt.defaultSha };
+    return { sha: receipt.sha, status: 'published', version: receipt.version, deployment: receipt.deployment, defaultRef: receipt.defaultRef, defaultSha: receipt.defaultSha };
   }
   status() {
     const s = this.state;
-    return { ...this.workspace(), stopped: s.stopped, production: s.production, publication: s.publication ? { sha: s.publication.sha, status: s.publication.status, approvalId: s.publication.approvalId, digest: s.publication.digest, version: s.publication.version, target: s.publication.target, mainBase: s.publication.mainBase, credentialId: s.publication.gitCredential?.id, credentialRevoked: s.publication.gitCredential?.revoked } : null, candidates: Object.values(s.candidates).map(publicCandidate), productionUrl: s.productionUrl || null, previews: Object.values(s.candidates).filter(row => row.status === 'passed').map(row => ({ sha: row.sha, url: row.previewUrl })), accessVerified: s.access?.verified === true, resources: s.resources.map(({ kind, environment, name, id, status, creationReceipt }) => ({ kind, environment, name, id, status, ...(kind === 'd1' && uuidOK(id) && creationReceipt?.uuid === id && creationReceipt.name === name && creationReceipt.accountId === this.a.config.account ? { creationReceipt: { uuid: creationReceipt.uuid, name: creationReceipt.name, accountId: creationReceipt.accountId } } : {}) })) };
+    return { ...this.workspace(), stopped: s.stopped, production: s.production, publication: s.publication ? { sha: s.publication.sha, status: s.publication.status, approvalId: s.publication.approvalId, digest: s.publication.digest, version: s.publication.version, target: s.publication.target, deployment: s.publication.deployment, mainBase: s.publication.mainBase, credentialId: s.publication.gitCredential?.id, credentialRevoked: s.publication.gitCredential?.revoked } : null, candidates: Object.values(s.candidates).map(publicCandidate), productionUrl: s.productionUrl || null, previews: Object.values(s.candidates).filter(row => row.status === 'passed').map(row => ({ sha: row.sha, url: row.previewUrl })), accessVerified: s.access?.verified === true, resources: s.resources.map(({ kind, environment, name, id, status, creationReceipt }) => ({ kind, environment, name, id, status, ...(kind === 'd1' && uuidOK(id) && creationReceipt?.uuid === id && creationReceipt.name === name && creationReceipt.accountId === this.a.config.account ? { creationReceipt: { uuid: creationReceipt.uuid, name: creationReceipt.name, accountId: creationReceipt.accountId } } : {}) })) };
   }
 }

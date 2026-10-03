@@ -107,7 +107,15 @@ test('publication reserves durably and cannot complete without both exact deploy
   assert.equal(f.state.publication.mainBase, older);
   await assert.rejects(f.controller.beginPublication(f.owner, approval.id), /approval|required|reservation/);
   await assert.rejects(f.controller.finishPublication(approval.id, { sha, version: versionId, digest: c.bundleDigest }), /receipt/);
-  const result = await f.controller.finishPublication(approval.id, { sha, version: versionId, digest: c.bundleDigest, defaultSha: sha, defaultRef: 'refs/heads/main', url: 'https://production.workers.dev' });
+  const identity = { sha, projectId }, url = 'https://production.workers.dev';
+  const receipt = { sha, version: versionId, deployment: projectId, target: 'owned-production', digest: c.bundleDigest, identity, defaultSha: sha, defaultRef: 'refs/heads/main', url };
+  await assert.rejects(f.controller.finishPublication(approval.id, receipt), /receipt/, 'a reserved deployment is not a completed identity observation');
+  Object.assign(f.state.publication, { status: 'deployed-awaiting-main', version: versionId, deployment: projectId, target: receipt.target, identity, url });
+  for (const change of [{ deployment: versionId }, { version: projectId }, { target: 'another-project' }, { identity: { sha, projectId: versionId } }, { identity: { sha: older, projectId } }, { defaultSha: older }, { defaultRef: 'refs/heads/other' }]) {
+    await assert.rejects(f.controller.finishPublication(approval.id, { ...receipt, ...change }), /receipt/);
+    assert.equal(f.state.production, null); assert(f.state.publication);
+  }
+  const result = await f.controller.finishPublication(approval.id, receipt);
   assert.equal(result.defaultSha, sha); assert.equal(f.state.production.sha, sha); assert.equal(f.state.publication, null);
 });
 test('large real bundles support modules/assets/migrations and reject corruption or another tenant', async () => {
