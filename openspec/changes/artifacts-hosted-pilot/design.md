@@ -206,10 +206,43 @@ Hosted sites use the existing source Cloudflare Access guard on distinct per-pro
 The separate [installation-owned memory/Devices PR #242](https://github.com/matthewwong525/WongStack/pull/242), based on main, owns memory worker/CLI/hooks/migrations/Devices UI and memory-specific provisioning. Its version-1 setup result uses `protocolVersion`, `installationId`, `repositoryId`, exact trusted `appUrl` and `memoryOrigin`, `status`, enumerated safe `reason`, and nullable `action` containing `kind`, canonical app `/apps/devices/` URL and `operatorConfirmationRequired`. Ready requires current requesting-machine grant introspection; provisioning alone returns pending-device after owner confirmation. Memory removal is a separate explicit installation-owner operation, never inferred from cloud email-policy removal. Runtime/setup consume that result; do not mint old memory keys or introduce legacy fallback. Each PR requires its own exact source gate. Full hosted memory setup requires delivery of that separate feature and explicit later integration/live acceptance with the cloud companion. #238 can complete its actual-site acceptance while memory is accurately unavailable/pending; its results must not claim usable Devices or grants.
 ## Migration and rollout
 
-Deploy the dedicated service and its isolated staging resources, configure the cloud staging secrets, and verify there first. The cloud accepts contracts 1/2/3; artifacts jobs require 3, old servers get a rebuild prompt rather than unsupported jobs. Pin cloud builds to the verified #238 release commit after it is available. New installs default to Artifacts; existing repos have an explicit migration action that verifies export/import before origin changes and updates cloud records only after acknowledgment. Team invitation/removal and server deletion revoke scoped service grants before reporting completion. Existing GitHub workflows and legacy Cloudflare jobs stay compatible for unmigrated customers. Production promotion remains the final publish approval, with explicit rollout order and no silent customer migration.
+Deploy the dedicated service and its isolated staging resources, configure the cloud staging secrets, and verify there first. The cloud accepts contracts 1/2/3; artifacts jobs require 3, old servers get a rebuild prompt rather than unsupported jobs. Pin cloud builds to the verified #238 release commit after it is available. New installs default to Artifacts; existing GitHub repos stay on GitHub with no migration action (see [New workspaces only](#new-workspaces-only-2026-10-03)). Team invitation/removal and server deletion revoke scoped service grants before reporting completion. Existing GitHub workflows and legacy Cloudflare jobs stay compatible for unmigrated customers. Production promotion remains the final publish approval, with explicit rollout order and no silent customer migration.
 
 ## Risks / Trade-offs
 
 - Provider runner interruptions: bounded check-only retries with immutable SHA and preserved queue; never retry ambiguous uploads/publications.
 - Cross-repo releases: both heads must be green and staging integration proven before declaring ready; report any untested live scenario UNKNOWN.
 - Static assets and migration complexity: build the real shipped scaffold, not a hand-coded stand-in, and prove browser/HTTP routes, database isolation and truthful unavailable/pending memory. Ready memory and machine-grant acceptance remain separate.
+
+## New workspaces only (2026-10-03)
+
+This section supersedes every earlier statement that an existing GitHub project moves to Artifacts. Earlier text and evidence stay as history.
+
+- **Routing.** A new cloud workspace gets an Artifacts project. A workspace whose cloud record names a GitHub repository keeps contracts 1/2 jobs, `gh`, pull requests, CI and merge. The route is fixed when the workspace is created; nothing later changes it.
+- **Removed.** The `artifacts` job's optional `githubRepo` and `legacyRepo` fields, the mirror push, the origin switch, the `github-backup` remote and the installed-target "owner-led hosted migration plan". Contract stays 3: it is unreleased, so dropping optional fields needs no bump.
+- **Refusal.** Artifacts preparation or hosted setup pointed at a folder whose `origin` is a GitHub URL stops before any write and names the GitHub route. Uncertain inspection still stops, as before.
+- **Kept.** The batched restore (one advertised branch, then explicit fetches of at most 32 refs, full ref-map and object check). Export and fresh working clones use it, and the full-mirror HTTP 500 it avoids is still unexplained.
+- **Acceptance.** A fresh workspace replaces the staging move. The wh1003 trial is closed by its own chat with GitHub left selected.
+
+## One check list, two callers (2026-10-03)
+
+Today the check list exists twice. `test.yml` and `deploy.yml` hold it as steps: locate the suite, install, `npm test`, loosened checks, wiki links, locate the app, parity, build. `server/hosted/pipeline.mjs` hard-codes a shorter one (`npm ci --prefix app`, `wrangler types`, `npm test`, `build:app`) that assumes `app/` and skips change scope, loosened checks, wiki links and parity. The hosted runner is a container that runs a shell command; it cannot execute GitHub workflow files, so reuse has to sit below the YAML.
+
+`.github/scripts/checks.mjs` becomes the one definition, shipped in the payload beside the scripts it already calls:
+
+```text
+test.yml ───▶ checks.mjs test  ◀──┐
+deploy.yml ─▶ checks.mjs build ◀──┤ hosted runner command
+                                  │ (exact commit, no credentials)
+```
+
+- `test`: change scope via `.github/scripts/app-untouched.sh`; locate the suite at the root or one folder down; `npm ci`; `npm test`; `loosened-checks.mjs`; `wiki-links.mjs` when the scope says the wiki is affected. Same skip rules as today, so a docs-only change still runs only its own checks.
+- `build`: locate the app with `cf-build.sh --app-dir`; `npm ci`; `cf-secrets.mjs check`; binding types; the credential-free `build:app` (falling back to `build`). It never migrates or deploys.
+- **Inputs by environment**, not by caller: the comparison base and default branch. GitHub passes its event values; the hosted service passes the candidate's recorded base. With none, it compares against the default branch as `app-untouched.sh` already does.
+- **Outputs**: exit code, plain lines on stdout, and a summary written to `GITHUB_STEP_SUMMARY` only when that variable is set.
+
+What stays with each caller is what only it can do. The workflows keep checkout, Node setup and cache, and the token-holding `cf-build.sh` migrate and `cf-deploy.sh` steps. The hosted service keeps the exact-commit assertion, the trusted pack, migration, upload and approval. Neither names a check command.
+
+A missing or unreadable entry point in a hosted candidate is a failed check. A candidate can edit the script, as it can edit `npm test` today; the runner holds no credentials, and `loosened-checks.mjs` already flags a weakened check on both routes.
+
+Alternatives rejected: running the workflow YAML in the hosted runner with an Actions emulator (needs a container runtime inside the container and still forks behaviour); keeping two lists with a parity test (catches drift after the fact, and the user asked for one definition).

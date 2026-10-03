@@ -1,6 +1,6 @@
 # CI on GitHub Actions
 
-How the [deploy and data pipeline](d1-pipeline.md) runs in CI, part of the [Cloudflare stack](README.md). The pack ships `.github/workflows/deploy.yml`, and it is deliberately thin — it sets the branch and runs the two [pack scripts](d1-pipeline.md#the-scripts), `cf-build.sh` and `cf-deploy.sh`:
+How the [deploy and data pipeline](d1-pipeline.md) runs in CI, part of the [Cloudflare stack](README.md). The pack ships `.github/workflows/deploy.yml`, and it is deliberately thin — it sets the branch, runs [the shared check list](#one-check-list-two-callers), and runs the two [pack scripts](d1-pipeline.md#the-scripts), `cf-build.sh` and `cf-deploy.sh`:
 
 ```yaml
 CF_BRANCH: ${{ github.head_ref || github.ref_name }}
@@ -25,6 +25,17 @@ CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) writes the config and sets the secrets; after it runs, the workflow deploys.
 
 **One commit deploys once.** `push` and `pull_request` both fire for a commit on a branch with an open PR, so the workflow keys its concurrency group on the event *and* the branch, and runs the job only for `push` plus fork pull requests. Both parts are needed: GitHub evaluates concurrency **before** a job's `if`, so a run destined to be skipped can still cancel the run doing the work — and a cancelled run is what `gh pr checks` reports as `fail`, which would block [`/ship`](../../.agents/skills/ship/SKILL.md). `push` stays the deploying event, so the preview URL attaches to the branch head SHA that `/save` and `/verify` look it up by.
+
+## One check list, two callers
+
+[`checks.mjs`](../../.github/scripts/checks.mjs) holds the checks once: what the change touches, the suite, loosened checks, the wiki's links, staging/production parity, and the build without credentials. Two callers run it, and neither names a check of its own:
+
+- **GitHub.** The Test workflow runs `checks.mjs test`; the Deploy workflow runs `checks.mjs build`.
+- **A [hosted workspace](hosted-workspaces.md#save-and-check).** Its runner has no GitHub Actions, so it runs `checks.mjs test build` at the exact saved commit, with the candidate's base.
+
+Add, fix or skip a check there, not in a workflow or the hosted service: a second list drifts, and one route then passes what the other fails. Each caller keeps only what it alone can do. The workflows keep checkout, Node setup, and the migrate and deploy steps that hold the token. The hosted service keeps the exact-commit check, the pack, the upload and the approval.
+
+Both routes skip the suite when a change leaves the main app untouched. A hosted save still builds, because its preview is packed from every commit. A hosted commit without the script fails its checks. [The gate](../development/the-change-loop.md#the-gate) owns the rule.
 
 ## Why not Cloudflare's own Workers Builds
 

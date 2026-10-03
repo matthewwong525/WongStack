@@ -9,6 +9,7 @@ import { serviceConfig, inventory } from '../../server/hosted/config.mjs';
 import { packApplication } from '../../server/hosted/pack.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
 test('preparation is idempotent only for the reviewed exact project/source/owner', async () => {
@@ -154,8 +155,8 @@ test('trusted runtime refuses raw business, forged Access, and candidate memory 
 });
 test('trusted build never migrates remotely or invokes candidate deploy wrappers', async () => {
   const command = buildCommand(sha, projectId);
-  assert(command.includes('npm ci --prefix app')); assert(command.includes('npm test')); assert(command.includes('npm run build:app'));
-  assert(!command.includes('npm run build\n')); assert(!command.includes('--remote')); assert(!command.includes('deploy'));
+  assert(command.includes('node .github/scripts/checks.mjs test build')); assert(command.includes('CLOUDFLARE_ENV=staging'));
+  assert(!command.includes('npm ')); assert(!command.includes('--remote')); assert(!command.includes('deploy'));
   await assert.rejects(readResult({ stdout: 'HOSTED_RESULT={}', stderr: '' }, sha, projectId, 1), /checks failed/);
   await assert.rejects(readResult({ stdout: 'bad', stderr: '' }, sha, projectId, 0), /unreadable/);
   const row = { sha, projectId, digest: 'a'.repeat(64) };
@@ -168,6 +169,48 @@ test('red checks and interruption never reach trusted upload or publication', as
     await runHostedPipeline(event, { runner: async options => { assert.equal(options.cloudflareCredentials, false); assert.equal(options.sourceControlCredentials, false); if (interruption) throw new Error('Sandbox stopped'); return { exitCode: 1, logs: { stdout: '', stderr: '' } }; } }, { config, call: async (op, value) => { operations.push([op, value]); return { attempts: 1, uploadToken: 'scoped-upload' }; }, loadBundle: async () => { throw new Error('red checks reached artifact upload'); } });
     assert.deepEqual(operations.map(row => row[0]), ['start', 'fail']); assert.equal(operations[1][1].retryable, interruption);
   }
+});
+// The runner command itself, in a folder standing in for the exact commit's checkout.
+function checkout(entry) {
+  const root = mkdtempSync(join(tmpdir(), 'hosted-command-'));
+  if (entry !== undefined) { mkdirSync(join(root, '.github/scripts'), { recursive: true }); writeFileSync(join(root, '.github/scripts/checks.mjs'), entry); }
+  const runCommand = base => spawnSync('bash', ['-c', buildCommand(sha, projectId, base)], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: root } });
+  return { root, runCommand };
+}
+test('a commit without the check entry point fails its checks and packs nothing', async () => {
+  for (const entry of [undefined, 'this is not JavaScript']) {
+    const c = checkout(entry);
+    try {
+      const result = c.runCommand(older);
+      assert.notEqual(result.status, 0); assert(!result.stdout.includes('HOSTED_RESULT='));
+      if (entry === undefined) assert.match(result.stderr, /has no \.github\/scripts\/checks\.mjs/);
+      await assert.rejects(readResult(result, sha, projectId, result.status), /checks failed/);
+    } finally { rmSync(c.root, { recursive: true, force: true }); }
+  }
+});
+test('a red entry point stops before the pack, so nothing is uploaded', async () => {
+  const c = checkout("console.log('checks ran: ' + process.argv.slice(2).join(' ')); process.exit(7);");
+  try {
+    const result = c.runCommand(older);
+    assert.equal(result.status, 7); assert.match(result.stdout, /checks ran: test build/); assert(!result.stdout.includes('HOSTED_RESULT='));
+    const operations = [];
+    const event = { instanceId: 'job', payload: { provider: 'cloudflare-artifacts', providerData: { namespace: config.namespace }, owner: config.namespace, repo: projectId, sha, ref } };
+    await runHostedPipeline(event, { runner: async () => ({ exitCode: result.status, logs: { stdout: result.stdout, stderr: result.stderr } }) }, { config, call: async (op, value) => { operations.push([op, value]); return { attempts: 1, uploadToken: 'scoped-upload', mainBase: older }; }, loadBundle: async () => { throw new Error('red checks reached artifact upload'); } });
+    assert.deepEqual(operations.map(row => row[0]), ['start', 'fail']); assert.equal(operations[1][1].retryable, false);
+  } finally { rmSync(c.root, { recursive: true, force: true }); }
+});
+test('the entry point receives the candidate base and the build inputs from the environment', async () => {
+  const c = checkout("console.log('INPUTS=' + JSON.stringify([process.env.CHECKS_BASE ?? null, process.env.DEFAULT_BRANCH, process.env.CHECKS_BUILD, process.env.CLOUDFLARE_ENV])); process.exit(3);");
+  try {
+    assert.match(c.runCommand(older).stdout, new RegExp(`INPUTS=\\["${older}","main","always","staging"\\]`));
+    assert.match(c.runCommand(null).stdout, /INPUTS=\[null,"main","always","staging"\]/, 'a first commit has no base: everything runs');
+    assert.throws(() => buildCommand(sha, projectId, "main'; curl evil"), /Exact project and commit/);
+    // The service passes the base it recorded when the candidate was queued.
+    let command;
+    const event = { instanceId: 'job', payload: { provider: 'cloudflare-artifacts', providerData: { namespace: config.namespace }, owner: config.namespace, repo: projectId, sha, ref } };
+    await runHostedPipeline(event, { runner: async options => { command = options.command; return { exitCode: 1, logs: { stdout: '', stderr: '' } }; } }, { config, call: async () => ({ attempts: 1, uploadToken: 'scoped-upload', mainBase: older }), loadBundle: async () => { throw new Error('unreachable'); } });
+    assert.equal(command, buildCommand(sha, projectId, older)); assert(command.includes(`CHECKS_BASE='${older}'`));
+  } finally { rmSync(c.root, { recursive: true, force: true }); }
 });
 test('service configuration has explicit bounded ownership and no customer deployment token', () => {
   const c = serviceConfig(config); const inv = inventory(config, [projectId]);

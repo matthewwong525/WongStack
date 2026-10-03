@@ -28,7 +28,7 @@ The agent SHALL keep today's boundaries: it only calls out, runs a command only 
 
 ### Requirement: Contract 3 prepares a hosted repository before setup
 
-A contract-3 agent SHALL accept a project-scoped Artifacts preparation job pinned to a reviewed source commit. It SHALL prepare the coding agents and repository and register the actual folder in Paseo without installing the payload or provisioning the site. The result SHALL identify the verified project and source commit without exposing credentials. It SHALL preserve existing local work and refuse mismatched project, source or destination identity.
+A contract-3 agent SHALL accept a project-scoped Artifacts preparation job pinned to a reviewed source commit. It SHALL prepare the coding agents and repository and register the actual folder in Paseo without installing the payload or provisioning the site. The result SHALL identify the verified project and source commit without exposing credentials. It SHALL preserve existing local work, refuse mismatched project, source or destination identity, and refuse a folder holding a GitHub clone without changing its origin.
 
 #### Scenario: Empty prepared workspace
 
@@ -37,5 +37,5 @@ A contract-3 agent SHALL accept a project-scoped Artifacts preparation job pinne
 
 #### Scenario: Existing GitHub clone
 
-- **WHEN** an owner or teammate's workspace already contains the project's legacy GitHub clone
-- **THEN** preparation verifies the migrated history before changing that clone's origin, keeps its local work and GitHub backup, and registers that actual folder
+- **WHEN** the destination folder already holds a clone whose origin is a GitHub repository
+- **THEN** the agent reports the job refused, changes no remote, and leaves the folder and its local work untouched

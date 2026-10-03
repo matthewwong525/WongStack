@@ -41,7 +41,7 @@ test('wait rejects mismatched commit evidence and keeps queued timeout unknown',
   await assert.rejects(command('wait',['a'.repeat(40),'refs/heads/main'],context,{fetchFn:async()=>response({sha:'b'.repeat(40),ref:'refs/heads/main',status:'passed'})}),/identity mismatch/);
   let calls=0;await assert.rejects(command('wait',['a'.repeat(40),'refs/heads/main'],context,{sleep:async()=>{},fetchFn:async()=>{calls++;return response({sha:'a'.repeat(40),ref:'refs/heads/main',status:'queued'});}}),/timed out/);assert.equal(calls,90);
 });
-test('full-ref migration detects missing tags and changed identities',()=>{
+test('full-ref verification detects missing tags and changed identities',()=>{
   const refs=`${'a'.repeat(40)}\trefs/heads/main\n${'b'.repeat(40)}\trefs/tags/v1\n`;
   assert.equal(verifyRefs(refs,refs.split('\n').filter(Boolean).reverse().join('\n')),true);
   assert.throws(()=>verifyRefs(refs,`${'a'.repeat(40)}\trefs/heads/main\n`),/differ/);

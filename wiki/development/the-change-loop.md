@@ -110,9 +110,9 @@ This page owns delivery; other surfaces link here.
 
 **Every file edit takes the gate**: branch, review record, `/ship`. Only code needs an OpenSpec change; [`/save`](../../.agents/skills/save/SKILL.md) decides and records other edits plainly.
 
-**Personal delivery is CI-when-present → merge.** CI discovers `npm test` at the root or immediate subdirectories. No tests means no penalty or invented package manifest; a skipped rung is not a failure.
+**Personal delivery is CI-when-present → merge.** [One check list](../stack/github-actions.md#one-check-list-two-callers) serves GitHub and hosted runs; it finds `npm test` at the root or one folder down. No tests means no penalty or invented package manifest; a skipped rung is not a failure.
 
-**On the GitHub route, a branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The other way round, the Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break.
+**A branch that leaves the main app untouched skips its suite**: when every path the branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. Test and Deploy skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break.
 
 **Personal walkthroughs add no gate.** `/ship` invokes [`/verify`](#verifying-the-app) once. An unavailable walk does not block; `FAILURE` asks whether to fix it or merge anyway.
 

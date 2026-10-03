@@ -3,15 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Prepare hosted workspaces on Artifacts
+## Next (major) — Start new cloud workspaces on Artifacts
 
-This hosted migration is still in progress. Cloud preparation gets the repository and AI workspace ready; users then run the same `/wong-setup` flow used on their own computer.
+Hosted workspaces are still in progress. Cloud preparation gets the repository and AI workspace ready; users then run the same `/wong-setup` flow used on their own computer.
 
-- New hosted workspaces use Artifacts repository storage and private platform-managed hosting, without a customer GitHub or Cloudflare account/token.
+- New cloud workspaces use Artifacts repository storage and private platform-managed hosting, without a customer GitHub or Cloudflare account/token.
 - Saves run remote checks, and publishing requires explicit approval of the exact passing result.
-- Existing hosted GitHub projects move only through an explicit migration that verifies every advertised branch, tag and object before changing the repository address. The GitHub repository and backup remote remain available.
+- Workspaces on GitHub stay on GitHub. Nothing moves one to Artifacts: preparation and hosted setup refuse a folder whose repository is on GitHub and leave it unchanged. Pull requests, checks and merging work as before.
+- One check list for both routes. `.github/scripts/checks.mjs` now holds the checks. The Test and Deploy workflows call it, and a hosted workspace's runner calls the same file, so a check added once applies to both. On GitHub the checks, skips and run-page summaries are the same as before.
+- A hosted project's full history can be exported and verified at any time.
 
-**Updating.** Hosted operators must rebuild older server agents with contract 3 and coordinate the platform/toolkit rollout. Existing GitHub projects keep their current workflow until a verified migration is explicitly requested. Installation-owned memory and Devices are a separate unfinished feature; cloud roles do not grant memory authority, and setup must report unavailable or pending memory truthfully until that feature and its integration are delivered. Follow the completed migration instructions when this release is ready.
+**Updating.** Hosted operators must rebuild older server agents with contract 3 and coordinate the platform/toolkit rollout. Existing GitHub projects keep their current workflow. `/wong-sync` brings the new check script together with the two workflows that call it; if you added a check of your own to `test.yml` or `deploy.yml`, move it into `.github/scripts/checks.mjs`. Installation-owned memory and Devices are a separate unfinished feature; cloud roles do not grant memory authority, and setup must report unavailable or pending memory truthfully until that feature and its integration are delivered.
 
 ## 29.10.0 — Task chats coordinate directly
 

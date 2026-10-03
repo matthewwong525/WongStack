@@ -30,6 +30,9 @@
 #   pull_request                 the merge base with origin/$GITHUB_BASE_REF
 #   push to another branch       the merge base with origin/$DEFAULT_BRANCH
 #   push to the default branch   $BEFORE_SHA, the commit the push replaced
+#   $CHECKS_BASE set             the merge base with that commit. A caller that
+#                                is not GitHub Actions names its base this way:
+#                                the hosted runner passes the candidate's.
 #
 # When the comparison can not be made — an all-zero BEFORE_SHA (a new branch or
 # a first push), a ref that no fetch can find, no merge base, an unknown event —
@@ -43,6 +46,8 @@
 #                   origin/HEAD is tried
 #   BEFORE_SHA      ${{ github.event.before }}; read only on a push to the
 #                   default branch
+#   CHECKS_BASE     a full commit id to compare with; when set, it wins over
+#                   the event. `checks.mjs` passes it through.
 #
 # With `--worktree`, it answers for the uncommitted work instead: the working
 # tree, staged and untracked paths included, against the merge base of HEAD and
@@ -99,6 +104,7 @@ if [ -z "$DEFAULT" ]; then
 fi
 
 EVENT="${GITHUB_EVENT_NAME:-}"
+[ -n "${CHECKS_BASE:-}" ] && EVENT=base
 $WORKTREE && EVENT=worktree
 REF="${GITHUB_REF_NAME:-}"
 BASE=""
@@ -127,6 +133,15 @@ case "$EVENT" in
       BASE=$(git merge-base "$TARGET" HEAD 2>/dev/null) || unknown "no merge base with origin/$DEFAULT"
       note "push to $REF: comparing the whole branch with origin/$DEFAULT"
     fi
+    ;;
+  base)
+    [[ "$CHECKS_BASE" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || unknown "CHECKS_BASE is not a full commit id"
+    if ! have_commit "$CHECKS_BASE"; then
+      git fetch --no-tags --quiet origin "$CHECKS_BASE" >/dev/null 2>&1 || true
+    fi
+    have_commit "$CHECKS_BASE" || unknown "can not fetch the base $CHECKS_BASE"
+    BASE=$(git merge-base "$CHECKS_BASE" HEAD 2>/dev/null) || unknown "no merge base with $CHECKS_BASE"
+    note "named base: comparing with the merge base of $CHECKS_BASE"
     ;;
   worktree)
     [ -n "$DEFAULT" ] || unknown "no default branch named"

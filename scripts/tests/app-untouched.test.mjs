@@ -344,6 +344,32 @@ test('wiki_affected fails safe to true', t => {
   assert.equal(f.wikiAffected({}, ['--worktree']), 'false');
 });
 
+test('a named base is compared through its merge base, and wins over the event', t => {
+  const f = fixture(t);
+  const base = f.git('rev-parse', 'HEAD');
+  f.branch('docs');
+  f.commit({ 'wiki/new.md': '# New\n' }, 'docs');
+  // No GitHub event at all: the hosted runner names only its candidate's base.
+  assert.deepEqual(f.outputs({ CHECKS_BASE: base }), { untouched: 'true', base, docs_only: 'true', wiki_affected: 'true' });
+  assert.equal(f.check({ CHECKS_BASE: base, GITHUB_EVENT_NAME: 'workflow_dispatch' }), 'true');
+  // The default branch moved on: the comparison still starts where the branch left it.
+  f.git('checkout', '-q', 'main');
+  const ahead = f.commit({ 'app/src/index.ts': 'export const x = 3;\n' }, 'code on main');
+  f.git('checkout', '-q', 'docs');
+  assert.deepEqual(f.outputs({ CHECKS_BASE: ahead }), { untouched: 'true', base, docs_only: 'true', wiki_affected: 'true' });
+  f.commit({ 'app/src/index.ts': 'export const x = 2;\n' }, 'code');
+  assert.equal(f.check({ CHECKS_BASE: base }), 'false');
+});
+
+test('a named base that is not a known commit fails safe', t => {
+  const f = fixture(t);
+  f.branch('docs');
+  f.commit({ 'wiki/new.md': '# New\n' }, 'docs');
+  for (const CHECKS_BASE of ['main', 'f'.repeat(40)]) {
+    assert.deepEqual(f.outputs({ CHECKS_BASE }), { untouched: 'false', base: '', docs_only: 'false', wiki_affected: 'true' });
+  }
+});
+
 test('an unknown argument is a usage error', t => {
   const f = fixture(t);
   const result = spawnSync('bash', [script, '--nope'], { cwd: f.work, encoding: 'utf8' });

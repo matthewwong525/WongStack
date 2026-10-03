@@ -8,20 +8,19 @@ import {prepare,configureHosted,installHosted,restoreArtifacts,cloneArtifacts} f
 import {SOURCE} from '../../server/install-wongstack.mjs';
 const job={serviceUrl:'https://hosted.example.com',projectId:'11111111-1111-1111-1111-111111111111',token:'private-grant',gitUrl:'https://git.example.com/account/project.git',sourceRepo:'owner/WongStack',sourceCommit:'a'.repeat(40),ownerEmail:'owner@example.com',subject:'owner-1',subjectEmail:'owner@example.com',role:'owner'};
 const refs=`${'a'.repeat(40)}\trefs/heads/main\n${'b'.repeat(40)}\trefs/tags/v1\n`;
-function commands(_home,{legacy=false,missingTag=false,populated=false,restoreFailure=false,fullRefs=refs,providerHead='main'}={}) {
- const calls=[],branches=new Map(),remoteHeads=new Map(),advertised=new Map(fullRefs.trim().split('\n').map(line=>{const [sha,ref]=line.split(/\s+/);return [ref,sha];}));let pushed=false,origin=legacy?'https://github.com/owner/Existing.git':job.gitUrl;
+function commands(_home,{origin:initialOrigin=job.gitUrl,populated=false,restoreFailure=false,fullRefs=refs,providerHead='main'}={}) {
+ const calls=[],branches=new Map(),remoteHeads=new Map(),advertised=new Map(fullRefs.trim().split('\n').map(line=>{const [sha,ref]=line.split(/\s+/);return [ref,sha];}));let origin=initialOrigin;
  const exec=async(file,args)=>{
   assert.equal(file,'git');calls.push(args);
   let stdout='';
   if(args[0]==='-C' && args[1]===SOURCE && args.includes('rev-parse')) stdout=job.sourceCommit;
-  else if(args[0]==='clone') {const dir=args.at(-1),branch=args.includes('--branch')?args[args.indexOf('--branch')+1]:'main';branches.set(dir,branch);mkdirSync(args.includes('--mirror') || args.includes('--bare')?dir:join(dir,'.git'),{recursive:true});if(args.includes('--mirror') || args.includes('--bare'))writeFileSync(join(dir,'HEAD'),`ref: refs/heads/${branch}`);}
-  else if(args[0]==='ls-remote') stdout=args.includes('--symref') ? `ref: refs/heads/${providerHead}\tHEAD\n${advertised.get(`refs/heads/${providerHead}`)||'f'.repeat(40)}\tHEAD\n` : args.at(-1)===job.gitUrl ? (pushed||populated?(missingTag?fullRefs.split('\n')[0]:fullRefs):'') : fullRefs;
-  else if(args.includes('fetch') && args[1]?.includes('restored-') && restoreFailure) throw new Error('bounded restore failed');
+  else if(args[0]==='clone') {const dir=args.at(-1),branch=args.includes('--branch')?args[args.indexOf('--branch')+1]:'main';branches.set(dir,branch);mkdirSync(args.includes('--bare')?dir:join(dir,'.git'),{recursive:true});if(args.includes('--bare'))writeFileSync(join(dir,'HEAD'),`ref: refs/heads/${branch}`);}
+  else if(args[0]==='ls-remote') stdout=args.includes('--symref') ? `ref: refs/heads/${providerHead}\tHEAD\n${advertised.get(`refs/heads/${providerHead}`)||'f'.repeat(40)}\tHEAD\n` : args.at(-1)===job.gitUrl ? (populated?fullRefs:'') : fullRefs;
+  else if(args.includes('fetch') && args[1]?.includes('workspace-restore-') && restoreFailure) throw new Error('bounded restore failed');
   else if(args.includes('show-ref')) stdout=fullRefs;
   else if(args.includes('--is-bare-repository')) stdout='true';
-  else if(args.includes('push')) pushed=true;
   else if(args.includes('--git-common-dir')) stdout='.git';
-  else if(args.includes('get-url')) stdout=args[1]?.includes('-restore-') || args[1]?.includes('/restored-') ? job.gitUrl : origin;
+  else if(args.includes('get-url')) stdout=args[1]?.includes('-restore-') ? job.gitUrl : origin;
   else if(args.includes('symbolic-ref')) {if(args.length===5)remoteHeads.set(args[1],args.at(-1));else stdout=args.at(-1)==='HEAD'?`refs/heads/${branches.get(args[1])||'main'}`:remoteHeads.get(args[1])||`refs/remotes/origin/${branches.get(args[1])||'main'}`;}
   else if(args.includes('--get') && args.includes('remote.origin.fetch')) stdout='+refs/heads/*:refs/remotes/origin/*';
   else if(args.includes('rev-parse') && args.includes('HEAD')) stdout=advertised.get(`refs/heads/${branches.get(args[1])||'main'}`)||'a'.repeat(40);
@@ -48,25 +47,40 @@ test('preparation leaves an empty repo, globally registers setup and preserves r
   assert.match(readFileSync(join(result.dir,'.git','wongstack-hosted.json'),'utf8'),/rotated-grant/);
  }finally{rmSync(home,{recursive:true,force:true});}
 });
-test('migration verifies full refs before switching the existing legacy clone and keeps local work',async()=>{
- const home=mkdtempSync(join(tmpdir(),'hosted-migrate-'));mkdirSync(join(home,'Existing','.git'),{recursive:true});writeFileSync(join(home,'Existing','local.txt'),'unfinished');
- const fake=commands(home,{legacy:true});
- try {
-  const result=await prepare({...job,githubRepo:'owner/Existing'},{home,exec:fake.exec,fetchFn});
-  assert.equal(result.dir,join(home,'Existing'));assert.equal(fake.origin(),job.gitUrl);
-  assert.equal(readFileSync(join(result.dir,'local.txt'),'utf8'),'unfinished');
-  assert.ok(fake.calls.some(a=>a.includes('github-backup')));
-  const lastVerify=fake.calls.findLastIndex(a=>a.includes('show-ref'));
-  const switchIndex=fake.calls.findIndex(a=>a.includes('set-url'));
-  assert.ok(lastVerify<switchIndex);assert.equal(fake.calls.filter(a=>a.includes('fsck')).length,2);
- }finally{rmSync(home,{recursive:true,force:true});}
+// No write of any kind: no remote change, credential, clone, context file or global skill.
+function untouched(home,fake,origin) {
+ assert.equal(fake.origin(),origin);
+ assert.equal(fake.calls.some(a=>a.includes('set-url') || a.includes('add') || a.includes('push') || a.includes('config') || a[0]==='clone' || a.includes('fetch')),false);
+ for(const path of ['.config','.cache','.claude','.codex',join('wongstack','.git','wongstack-hosted.json')]) assert.equal(existsSync(join(home,path)),false,path);
+}
+test('a folder holding a GitHub clone is refused before any write, with its origin and local work unchanged',async()=>{
+ for(const origin of ['https://github.com/owner/Existing.git','https://github.com/owner/Existing','git@github.com:owner/Existing.git','ssh://git@github.com/owner/Existing.git']) {
+  const home=mkdtempSync(join(tmpdir(),'hosted-github-'));mkdirSync(join(home,'wongstack','.git'),{recursive:true});writeFileSync(join(home,'wongstack','local.txt'),'unfinished');
+  const fake=commands(home,{origin});
+  try {
+   await assert.rejects(prepare(job,{home,exec:fake.exec,fetchFn}),{code:'GITHUB_WORKSPACE',message:/GitHub route/});
+   untouched(home,fake,origin);
+   assert.equal(readFileSync(join(home,'wongstack','local.txt'),'utf8'),'unfinished');
+  }finally{rmSync(home,{recursive:true,force:true});}
+ }
 });
-test('a missing destination tag refuses migration before the working origin changes',async()=>{
- const home=mkdtempSync(join(tmpdir(),'hosted-migrate-fail-'));mkdirSync(join(home,'Existing','.git'),{recursive:true});
- const fake=commands(home,{legacy:true,missingTag:true});
+test('a job that names a GitHub repository is refused before anything runs',async()=>{
+ for(const move of [{githubRepo:'owner/Existing'},{legacyRepo:'owner/Existing'},{role:'member',legacyRepo:'owner/Existing'}]) {
+  const home=mkdtempSync(join(tmpdir(),'hosted-move-job-'));mkdirSync(join(home,'Existing','.git'),{recursive:true});writeFileSync(join(home,'Existing','local.txt'),'unfinished');
+  const fake=commands(home,{origin:'https://github.com/owner/Existing.git'});
+  try {
+   await assert.rejects(prepare({...job,...move},{home,exec:fake.exec,fetchFn:async()=>{throw new Error('must not call the service');}}),{code:'GITHUB_WORKSPACE'});
+   assert.deepEqual(fake.calls,[]);untouched(home,fake,'https://github.com/owner/Existing.git');
+   assert.equal(readFileSync(join(home,'Existing','local.txt'),'utf8'),'unfinished');
+  }finally{rmSync(home,{recursive:true,force:true});}
+ }
+});
+test('a folder holding another repository is refused without a write, and never named the GitHub route',async()=>{
+ const home=mkdtempSync(join(tmpdir(),'hosted-other-repo-'));mkdirSync(join(home,'wongstack','.git'),{recursive:true});
+ const origin='https://git.example.com/account/other.git',fake=commands(home,{origin});
  try {
-  await assert.rejects(prepare({...job,githubRepo:'owner/Existing'},{home,exec:fake.exec,fetchFn}),/migration refs differ/);
-  assert.equal(fake.origin(),'https://github.com/owner/Existing.git');assert.equal(fake.calls.some(a=>a.includes('set-url')),false);
+  await assert.rejects(prepare(job,{home,exec:fake.exec,fetchFn}),error=>error.code===undefined && /another repository/.test(error.message));
+  untouched(home,fake,origin);
  }finally{rmSync(home,{recursive:true,force:true});}
 });
 test('a mismatched project grant stops before clone or credential configuration',async()=>{
@@ -85,33 +99,22 @@ test('Git helper uses shell-safe quoting for arbitrary home directory names',asy
  }finally{rmSync(base,{recursive:true,force:true});}
 });
 
-test('member migration verifies existing backup objects without mirror-push and preserves the legacy clone',async()=>{
- const home=mkdtempSync(join(tmpdir(),'hosted-member-'));mkdirSync(join(home,'Existing','.git'),{recursive:true});writeFileSync(join(home,'Existing','local.txt'),'member work');
- const fake=commands(home,{legacy:true,populated:true});
- try {
-  const member={...job,role:'member',legacyRepo:'owner/Existing'};
-  const result=await prepare(member,{home,exec:fake.exec,fetchFn:async()=>({ok:true,json:async()=>member})});
-  assert.equal(result.dir,join(home,'Existing'));assert.equal(readFileSync(join(result.dir,'local.txt'),'utf8'),'member work');
-  assert.equal(fake.calls.some(a=>a.includes('push')),false);assert.equal(fake.calls.filter(a=>a.includes('cat-file')).length,2);
-  assert.equal(fake.calls.some(a=>a[1]===result.dir && a.includes('fetch')),false);
-  assert.equal(fake.calls.some(a=>a.includes('set-url')),true);
- }finally{rmSync(home,{recursive:true,force:true});}
+test('an install made on the GitHub route is never configured as hosted, whoever asks',async()=>{
+ for(const role of ['owner','member']) {
+  const home=mkdtempSync(join(tmpdir(),'hosted-configure-'));const root=join(home,'Existing'),common=join(root,'.git');mkdirSync(common,{recursive:true});mkdirSync(join(root,'.agents'));mkdirSync(join(root,'app'));
+  const record={upstream:{repo:'https://github.com/owner/WongStack'},components:{memory:{worker:'https://old-memory.example.com/_memory'}},custom:'keep'};
+  writeFileSync(join(common,'wongstack-hosted.json'),JSON.stringify({...job,role}));writeFileSync(join(root,'.agents','.wong-stack.json'),JSON.stringify(record));writeFileSync(join(root,'app','local.ts'),'keep local app');
+  const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:args.includes('get-url')?job.gitUrl:root});
+  try {
+   await assert.rejects(configureHosted({cwd:root,exec,fetchFn:async()=>{throw new Error('must not provision');}}),{code:'GITHUB_WORKSPACE'});
+   assert.equal(readFileSync(join(root,'app','local.ts'),'utf8'),'keep local app');
+   assert.deepEqual(JSON.parse(readFileSync(join(root,'.agents','.wong-stack.json'),'utf8')),record);
+   assert.equal(existsSync(join(root,'app','wrangler.jsonc')),false);assert.equal(existsSync(join(root,'.env')),false);
+  }finally{rmSync(home,{recursive:true,force:true});}
+ }
 });
 
-test('an installed migration obtains hosted config without overwriting app code or its old install record',async()=>{
- const home=mkdtempSync(join(tmpdir(),'hosted-configure-'));const root=join(home,'Existing'),common=join(root,'.git');mkdirSync(common,{recursive:true});mkdirSync(join(root,'.agents'));mkdirSync(join(root,'app'));
- const record={upstream:{repo:'https://github.com/owner/WongStack'},components:{memory:{worker:'https://old-memory.example.com/_memory'}},custom:'keep'};
- writeFileSync(join(common,'wongstack-hosted.json'),JSON.stringify(job));writeFileSync(join(root,'.agents','.wong-stack.json'),JSON.stringify(record));writeFileSync(join(root,'app','local.ts'),'keep local app');
- const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:root});
- try {
-  const result=await configureHosted({cwd:root,exec,fetchFn:async url=>({ok:true,json:async()=>new URL(url).pathname==='/v1/workspace' ? job : {wrangler:{name:'hosted'},installRecordMemory:{worker:'https://new-memory.example.com/_memory'},env:{}}})});
-  assert.equal(result.configurationOnly,true);assert.equal(result.wrangler.name,'hosted');
-  assert.equal(readFileSync(join(root,'app','local.ts'),'utf8'),'keep local app');
-  assert.deepEqual(JSON.parse(readFileSync(join(root,'.agents','.wong-stack.json'),'utf8')),record);
- }finally{rmSync(home,{recursive:true,force:true});}
-});
-
-function plannedInstall() {
+function plannedInstall({origin=job.gitUrl}={}) {
  const home=mkdtempSync(join(tmpdir(),'hosted-planned-install-'));const root=join(home,'wongstack'),common=join(root,'.git');
  mkdirSync(common,{recursive:true});mkdirSync(join(root,'openspec','changes','setup'),{recursive:true});mkdirSync(join(root,'.scratch'));
  writeFileSync(join(common,'wongstack-hosted.json'),JSON.stringify(job));
@@ -119,7 +122,7 @@ function plannedInstall() {
  writeFileSync(join(root,'openspec','changes','setup','proposal.md'),'# My approved setup plan\n');
  writeFileSync(join(root,'.scratch','review-note'),'keep temporary work');
  const files=execFileSync('git',['-C',SOURCE,'ls-files','-z','--cached','--others','--exclude-standard'],{encoding:'utf8'});
- const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:args.includes('ls-files')?files:args.includes('HEAD')?job.sourceCommit:args.includes('get-url')?'https://github.com/owner/WongStack.git':root});
+ const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:args.includes('ls-files')?files:args.includes('HEAD')?job.sourceCommit:args.includes('get-url')?(args[1]===root?origin:'https://github.com/owner/WongStack.git'):root});
  const result={wrangler:{name:'hosted-project',main:'worker/index.ts'},installRecordMemory:{worker:'https://memory.example.com/_memory'},env:{},memory:{protocolVersion:1,installationId:'installation-1',repositoryId:'repository-1',appUrl:'https://project.example.com',memoryOrigin:'https://memory.example.com',status:'pending-owner',reason:'owner-unconfirmed',action:{kind:'confirm-owner',url:'https://project.example.com/apps/devices/',operatorConfirmationRequired:true}}};
  return {home,root,common,exec,result};
 }
@@ -154,13 +157,14 @@ test('first setup refuses a symlinked planning folder without overwriting its ta
  }finally{rmSync(s.home,{recursive:true,force:true});}
 });
 
-test('a migration on a new VM configures Git identity when the old legacy clone is absent',async()=>{
- const home=mkdtempSync(join(tmpdir(),'hosted-new-migration-'));const fake=commands(home);
+test('hosted setup refuses a folder whose origin is GitHub before copying the payload or provisioning',async()=>{
+ const s=plannedInstall({origin:'https://github.com/owner/Existing.git'});
  try {
-  const result=await prepare({...job,githubRepo:'owner/Existing'},{home,exec:fake.exec,fetchFn});
-  assert.equal(result.dir,join(home,'wongstack'));
-  assert.ok(fake.calls.some(args=>args.includes('user.email') && args.at(-1)===job.ownerEmail));
- }finally{rmSync(home,{recursive:true,force:true});}
+  await assert.rejects(installHosted({cwd:s.root,exec:s.exec,fetchFn:async()=>{throw new Error('must not provision');}}),{code:'GITHUB_WORKSPACE'});
+  assert.equal(existsSync(join(s.root,'app')),false);assert.equal(existsSync(join(s.root,'.agents')),false);
+  assert.equal(existsSync(join(s.common,'wongstack-installing.json')),false);
+  assert.equal(readFileSync(join(s.root,'openspec','changes','setup','proposal.md'),'utf8'),'# My approved setup plan\n');
+ }finally{rmSync(s.home,{recursive:true,force:true});}
 });
 
 test('fresh teammate authorship uses verified membership email and rejects a forged handoff email',async()=>{
@@ -189,7 +193,7 @@ function installedHosted(role='member') {
  writeFileSync(join(root,'.env'),'# preserve local settings\nCUSTOM_SETTING=keep\n');
  const memory={protocolVersion:1,installationId:'installation-1',repositoryId:'repository-1',appUrl:'https://project.example.com',memoryOrigin:'https://memory.example.com',status:'pending-owner',reason:'owner-unconfirmed',action:{kind:'confirm-owner',url:'https://project.example.com/apps/devices/',operatorConfirmationRequired:true}};
  const status={...job,setup:'ready',accessVerified:true,stopped:false,memory,production:{sha:'b'.repeat(40),version:'22222222-2222-2222-2222-222222222222',url:memory.appUrl},productionUrl:memory.appUrl};
- const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:root});
+ const exec=async(_file,args)=>({stdout:args.includes('--git-common-dir')?`${root}\n${common}\n${common}`:args.includes('get-url')?job.gitUrl:root});
  const calls=[];
  const fetchFn=async(url,options)=>{
   const path=new URL(url).pathname;calls.push({path,method:options.method});
@@ -255,19 +259,15 @@ test('resume rejects a different committed project and unverified service identi
   }finally{rmSync(s.home,{recursive:true,force:true});}
  }
 });
-test('a member cannot provision a legacy migration or copy a fresh payload before owner setup',async()=>{
- for(const installed of [true,false]) {
-  const s=installedHosted();
-  if(installed) {delete s.record.hosted;writeFileSync(join(s.root,'.agents','.wong-stack.json'),JSON.stringify(s.record));}
-  else rmSync(join(s.root,'.agents'),{recursive:true});
-  try {
-   await assert.rejects((installed?configureHosted:installHosted)({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn}),/owner must/);
-   assert.deepEqual(s.calls.map(row=>row.path),['/v1/workspace']);
-   assert.equal(existsSync(join(s.common,'wongstack-installing.json')),false);
-   assert.equal(existsSync(join(s.root,'app','wrangler.jsonc')),false);
-   assert.equal(readFileSync(join(s.root,'app','local.ts'),'utf8'),'unpublished local work');
-  }finally{rmSync(s.home,{recursive:true,force:true});}
- }
+test('a member cannot copy a fresh payload before owner setup',async()=>{
+ const s=installedHosted();rmSync(join(s.root,'.agents'),{recursive:true});
+ try {
+  await assert.rejects(installHosted({cwd:s.root,exec:s.exec,fetchFn:s.fetchFn}),/owner must/);
+  assert.deepEqual(s.calls.map(row=>row.path),['/v1/workspace']);
+  assert.equal(existsSync(join(s.common,'wongstack-installing.json')),false);
+  assert.equal(existsSync(join(s.root,'app','wrangler.jsonc')),false);
+  assert.equal(readFileSync(join(s.root,'app','local.ts'),'utf8'),'unpublished local work');
+ }finally{rmSync(s.home,{recursive:true,force:true});}
 });
 test('installed resume rejects a symlinked record before calling the service',async()=>{
  const s=installedHosted(),file=join(s.root,'.agents','.wong-stack.json'),external=join(s.home,'other-record');
@@ -334,7 +334,7 @@ test('restore refuses cache ownership mismatches, changed advertisements, missin
  for(const options of [{existing:true,bare:false},{existing:true,origin:'https://git.example.com/other.git'},{changed:true},{omitRef:'refs/tags/version-103'},{brokenObjects:true}]) {
   const s=restoreFixture(options);
   try {
-   await assert.rejects(restoreArtifacts(job.gitUrl,s.dir,s.exec),/another repository|migration refs differ|object integrity failed/);
+   await assert.rejects(restoreArtifacts(job.gitUrl,s.dir,s.exec),/another repository|advertised refs differ|object integrity failed/);
    if(options.existing) assert.equal(s.calls.some(args=>args.includes('fetch') || args.includes('update-ref')),false);
   }finally{rmSync(s.home,{recursive:true,force:true});}
  }
@@ -344,14 +344,13 @@ test('invalid provider HEAD falls back to an advertised main while exact invento
  try {await restoreArtifacts(job.gitUrl,s.dir,s.exec);const clone=s.calls.find(args=>args[0]==='clone');assert.equal(clone[clone.indexOf('--branch')+1],'main');assert.deepEqual(s.local,s.advertised);}
  finally{rmSync(s.home,{recursive:true,force:true});}
 });
-test('a bounded owner restore failure preserves working origin and local files after source mirror push',async()=>{
- const home=mkdtempSync(join(tmpdir(),'hosted-owner-restore-'));mkdirSync(join(home,'Existing','.git'),{recursive:true});writeFileSync(join(home,'Existing','local.txt'),'owner work');
- const fake=commands(home,{legacy:true,restoreFailure:true});
+test('a failed bounded restore leaves a fresh workspace without a working clone or hosted context',async()=>{
+ const home=mkdtempSync(join(tmpdir(),'hosted-fresh-restore-')),fake=commands(home,{populated:true,restoreFailure:true});
  try {
-  await assert.rejects(prepare({...job,githubRepo:'owner/Existing'},{home,exec:fake.exec,fetchFn}),/bounded restore failed/);
-  assert.ok(fake.calls.some(args=>args.includes('push') && args.includes('--mirror')));
-  assert.equal(fake.calls.some(args=>args.includes('set-url')),false);assert.equal(fake.origin(),'https://github.com/owner/Existing.git');
-  assert.equal(readFileSync(join(home,'Existing','local.txt'),'utf8'),'owner work');
+  await assert.rejects(prepare(job,{home,exec:fake.exec,fetchFn}),/bounded restore failed/);
+  assert.equal(fake.calls.some(args=>args[0]==='clone' && args.at(-1)===join(home,'wongstack')),false);
+  assert.equal(existsSync(join(home,'wongstack')),false);
+  assert.equal(fake.calls.some(args=>args.includes('push') || args.includes('set-url')),false);
  }finally{rmSync(home,{recursive:true,force:true});}
 });
 test('fresh populated Artifacts clones preserve visible branch/tag tracking and verify fullrefs independently',async()=>{

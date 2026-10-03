@@ -267,6 +267,9 @@ export async function runJob(job, exec, log = () => {}, sleep, fetchFn) {
       return { status: "done" };
     case "artifacts": {
       const payload = job.payload;
+      // A GitHub workspace stays on GitHub. A job that names one asks for a
+      // move, which no contract offers: reject it and run nothing.
+      if (payload?.githubRepo !== undefined || payload?.legacyRepo !== undefined) return { status: "rejected" };
       let installer;
       try { installer = await sourceInstaller(payload, (args) => asWong(exec, ["env", "-u", "AGENT_TOKEN", ...args])); }
       catch { return { status: "failed", reason: "repo" }; }

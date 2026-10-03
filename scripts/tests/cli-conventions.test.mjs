@@ -19,6 +19,7 @@ const scripts = {
   'scripts/tag-releases.mjs': [],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],
+  '.github/scripts/checks.mjs': ['test'],
   '.agents/skills/plan/scripts/build-review.mjs': [],
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],

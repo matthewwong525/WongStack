@@ -190,3 +190,22 @@ When no change record selects for the branch, `/ship` SHALL apply `/save`'s test
 
 - **WHEN** `/ship` runs on a branch that changes app code and holds no change
 - **THEN** it writes the change from the work, archives it, and merges on the gate
+
+### Requirement: Both routes run one check definition
+
+The repository SHALL hold one check entry point that owns which checks run and when each is skipped. The GitHub workflows and the hosted runner SHALL both invoke that entry point at the exact commit, and neither SHALL carry its own list of check commands. A hosted candidate whose entry point is missing or unreadable SHALL fail its checks.
+
+#### Scenario: A check is added
+
+- **WHEN** a check is added to the entry point
+- **THEN** it runs on the next GitHub pull request and the next hosted save with no other file changed
+
+#### Scenario: The same commit on both routes
+
+- **WHEN** one commit is checked through GitHub and through the hosted runner
+- **THEN** the same checks run and the same ones are skipped
+
+#### Scenario: A hosted candidate without the entry point
+
+- **WHEN** the hosted runner checks a commit that lacks the entry point
+- **THEN** the checks fail and nothing is uploaded

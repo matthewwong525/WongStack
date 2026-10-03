@@ -1,5 +1,6 @@
-# What does this change touch? The one "Check what the change touches" step that
-# test.yml, deploy.yml, and payload.yml share. It runs
+# What does this change touch? A "Check what the change touches" step for a
+# workflow that gates its own steps on the answer. test.yml and deploy.yml ask
+# through .github/scripts/checks.mjs instead. It runs
 # .github/scripts/app-untouched.sh, which owns what each answer means, and maps
 # its four lines to outputs. The calling job checks out first, with
 # `fetch-depth: 0`: the comparison needs the whole branch, and a local action

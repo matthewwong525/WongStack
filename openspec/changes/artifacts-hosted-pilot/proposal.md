@@ -1,23 +1,22 @@
-# Move hosted WongStack projects to Artifacts
+# Start new cloud workspaces on Artifacts
 
 **Status:** in-progress
 
 **Branch:** github-artifacts
 
-**Open questions:** GitHub sign-in/access for the selected existing staging repository; missing-server recovery gate; fresh service entitlement/ownership preflight and live setup/deployment evidence remain required before merge readiness. Memory/Devices delivery and ready-memory acceptance remain separate in PR #242 and its later integration.
+**Open questions:** The staging test of moving an existing workspace is still running in another chat and must be closed out, leaving that workspace on GitHub. Fresh service entitlement/ownership preflight and live setup/deployment evidence remain required before merge readiness. Memory/Devices delivery and ready-memory acceptance remain separate in PR #242 and its later integration.
 
 ## Why
 
-Hosted setup should get a person into their repo and AI quickly. They should finish with `/wong-setup`, the same entry point used on their own computer, and save and publish without connecting GitHub.
+A new cloud workspace should get a person into their repo and AI quickly. They finish with `/wong-setup`, the same entry point used on their own computer, and save and publish without connecting GitHub. People already on GitHub should notice nothing: their workspace stays where it is and works as before.
 
 ## What Changes
 
-- **Store hosted projects in Artifacts.** New cloud workspaces get their own project and scoped access. Existing GitHub projects can move with all branches, tags, and history verified before their remote changes.
+- **New cloud workspaces start on Artifacts; GitHub ones stay on GitHub.** A new workspace gets its own private project with no GitHub or Cloudflare account. An existing GitHub workspace is never moved: there is no "move" button, and setup refuses to switch it.
   ```text
-  cloud sign-in ──▶ personal Artifacts repo
-                              │
-                              ▼
-                        repo + AI ready
+  new cloud workspace ──▶ Artifacts repo ──▶ repo + AI ready
+
+  existing workspace  ──▶ stays on GitHub, unchanged
   ```
 - **Use one setup flow.** The cloud prepares the empty repo and coding agents. The person signs into their AI and sends `/wong-setup`; that installs the assistant and starts its site, reporting memory as unavailable or pending. Personal computers use the same setup command with their own hosting.
   ```text
@@ -37,26 +36,37 @@ Hosted setup should get a person into their repo and AI quickly. They should fin
                                    ▼
                                publish
   ```
-- **Keep each workspace private and removable.** Each project's login protects its site and previews. Project credentials cannot reach another project; removing a cloud teammate revokes repository and site access. Memory membership and device revocation remain explicit installation-owner actions.
-- **Prove the migration before merging.** Keep the disposable pilot reports and add representative setup, build, preview, publication, migration, revocation and cleanup evidence. Failed and untested cases remain visible.
+- **GitHub workspaces keep pull requests.** On GitHub, a save still opens a pull request, the checks run there, and a yes merges it. Nothing about that route changes.
+  ```text
+  GitHub:     save ──▶ pull request ──▶ checks ──▶ merge
+  Artifacts:  save ──▶ checks ──▶ private preview ──▶ approve
+  ```
+- **One set of checks for both.** The checks live once, in the project's own files. GitHub and the cloud both run that same list, so a check added or fixed once applies everywhere and the two can't drift apart.
+  ```text
+  GitHub checks ──┐
+                  ├──▶ the project's one check list
+  cloud checks  ──┘
+  ```
+- **Keep each workspace private and removable.** Each project's login protects its site and previews. Project credentials cannot reach another project; removing a cloud teammate revokes repository and site access. Memory membership and device revocation remain explicit installation-owner actions. A project's full history can always be exported.
+- **Prove it on a fresh workspace before merging.** Keep the earlier trial reports and add evidence for a new workspace: setup, build, preview, publishing, a second change, teammate removal, export and cleanup. Also show an existing GitHub workspace still saves as a pull request. Failed and untested cases remain visible.
 
-**Non-goals:** moving the public template off GitHub, changing billing, deleting existing customer GitHub repositories, or merging before the integrated checks and live trial pass.
+**Non-goals:** moving any existing GitHub workspace to Artifacts, moving the public template off GitHub, changing billing, changing how GitHub workspaces save or publish, or merging before the integrated checks and live trial pass.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `hosted-workspaces`: Artifacts-backed setup, remote checks, approval, privacy, and portable project access.
+- `hosted-workspaces`: Artifacts-backed setup for new workspaces, remote checks, approval, privacy, and full-history export.
 
 ### Modified Capabilities
 
 - `install-onboarding`: hosted setup uses its prepared empty repo and service authority.
-- `server-agent`: contract 3 adds scoped Artifacts workspace preparation.
-- `delivery-gate`: hosted repositories use the service gate while retaining exact-commit and approval guarantees.
+- `server-agent`: contract 3 adds scoped Artifacts workspace preparation and refuses a GitHub clone.
+- `delivery-gate`: hosted repositories use the service gate while retaining exact-commit and approval guarantees; both routes run one shared check entry point.
 
 ## Impact
 
-Payload client, setup and delivery skills; server agent and source-only hosted service runtime; representative app build packaging; release notes. The companion `artifacts-storage-onboarding` change in wongstack-cloud owns dashboard, tenant membership and orchestration. Both releases form one coordinated migration; this PR alone is not ready until that integration is verified.
+Payload client, setup and delivery skills; the payload's test and deploy workflows and a new shared check script they and the hosted runner call; server agent and source-only hosted service runtime; representative app build packaging; release notes. The GitHub-to-Artifacts move is removed from the agent job and preparation script; the batched full-history restore stays for export and fresh clones. The companion `artifacts-storage-onboarding` change in wongstack-cloud owns dashboard, tenant membership and orchestration, and drops its move action. Both releases ship together; this PR alone is not ready until that integration is verified.
 
 ## Decision log
 
@@ -164,3 +174,16 @@ Payload client, setup and delivery skills; server agent and source-only hosted s
 - **2026-10-02** — Exact merged source e930b7c passed app build/test but payload stopped before suites because main coordination text pushed the named-secret-save byte load159 bytes over its unchanged baseline. Shorten only repeated introductory/closing prose in the named-secret reference, preserving all five persistence steps, credential exclusion and every security condition. Do not raise context limits or disable checks. Label closed wh1002 inventory as historical; it cannot authorize reuse of removed resources or revoked credentials.
 
 - **2026-10-03** — User chose migration of the existing staging workspace. Fresh read-only owner/provider inspection found a retained GitHub target and active first-server entitlement but no live VM. Cloud is adding explicit missing-server recovery before the migration walkthrough. Added a fresh wh1003 finite resource/credential/retention plan; historical wh1002 remains closed, no new provider mutation or memory integration is claimed.
+
+- **2026-10-03** — Asked whether existing GitHub workspaces can stay on GitHub with Artifacts only for new workspaces → chose new workspaces only. This supersedes the 2026-10-02 "storage migration" scope and the same-day choice to validate by moving the existing staging workspace: no workspace is moved, the move action and its code come out, and acceptance uses a fresh workspace. Earlier migration evidence stays as history.
+- **2026-10-03** — Asked about the GitHub route → chose to keep full support for pull requests to GitHub, for personal installs and existing cloud workspaces.
+- **2026-10-03** — Asked about checks → chose no duplicate check logic: GitHub and the hosted runner reuse the same files.
+- **2026-10-03** — Assumed: one payload script, `.github/scripts/checks.mjs`, owns the check list and both `test.yml`/`deploy.yml` and the hosted runner call it, because the hosted runner cannot execute GitHub workflow files and a second hard-coded command list already drifted (it skips the wiki, loosened-check and parity checks).
+- **2026-10-03** — Assumed: remove the move code rather than leave it switched off, because unproven code nobody can reach still has to be maintained; keep the batched full-history restore, since export and fresh clones use it.
+- **2026-10-03** — Assumed: the running staging move test (wh1003) is closed out by its own chat with GitHub left selected and its owned resources cleaned, because a peer chat must not be interrupted mid-operation.
+
+- **2026-10-03** — Built tasks 12.2–12.6. The move is removed and refused, and both routes call `.github/scripts/checks.mjs`. Assumed: a hosted save always builds, because a docs-only save would otherwise leave nothing to preview, while its test suite still skips as on GitHub. Assumed: with a Cloudflare token present the entry point stops after the parity check and the workflow's own migrate-and-build step runs, because that keeps the provisioned GitHub route unchanged. Assumed: an agent job carrying `githubRepo` or `legacyRepo` is rejected and an installed project with no hosted record is refused, because both were move paths. The full "one check list, two callers" text lives in `wiki/stack/github-actions.md` with one linked sentence in the gate, to stay inside the unchanged context budget.
+- **2026-10-03** — Check: `.github/scripts/checks.mjs` is a new file holding the check list that both the GitHub workflows and the hosted runner call, because the list must exist once. No check is removed, skipped or weakened.
+- **2026-10-03** — Check: `.github/workflows/test.yml` replaces its inline locate, install, test, loosened-check and wiki-link steps with calls to `.github/scripts/checks.mjs`, because the hosted runner must run the same list. The same checks, skip rules and summaries run.
+- **2026-10-03** — Check: `.github/workflows/deploy.yml` replaces its scope, locate, install, parity and no-token build steps with calls to `.github/scripts/checks.mjs`, because the hosted runner must run the same list. The token-holding build, deploy and preview steps are unchanged.
+- **2026-10-03** — Check: `.github/scripts/app-untouched.sh` accepts an optional `CHECKS_BASE`, because the hosted runner has no GitHub event to name its comparison base. It is unset on GitHub, so nothing changes there.

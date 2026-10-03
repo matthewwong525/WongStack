@@ -5,10 +5,16 @@ import { advanceDefault } from './git.mjs';
 const quote = value => `'${String(value).replaceAll("'", "'\\''")}'`;
 export const runnerConfig = { retries: { limit: 0, delay: 1000 }, timeout: 1800000, commandTimeoutMs: 1790000, snapshotTtlSeconds: 3600 };
 
-export function buildCommand(sha, projectId) {
-  need(shaOK(sha) && uuidOK(projectId), 'Exact project and commit required');
+// The project's own check list, the one its GitHub workflows call. The runner names no check
+// command: a check added there runs here with no service change.
+const CHECKS = '.github/scripts/checks.mjs';
+export function buildCommand(sha, projectId, base) {
+  need(shaOK(sha) && uuidOK(projectId) && (base === undefined || base === null || shaOK(base)), 'Exact project and commit required');
   const pack = `import {readFileSync,readdirSync,realpathSync} from 'node:fs';import {join,relative,resolve,dirname,extname} from 'node:path';import {createHash} from 'node:crypto';\n${packScript()}\nconst result=await packApplication(process.cwd(),${JSON.stringify({ sha, projectId })});console.log('HOSTED_RESULT='+JSON.stringify(result));`;
-  return `set -eu\nif [ -d .git ]; then test "$(git rev-parse HEAD)" = ${quote(sha)}; fi\nnpm ci --prefix app\n(cd app && npx --no-install wrangler types && npm test && CLOUDFLARE_ENV=staging npm run build:app)\nnode --input-type=module -e ${quote(pack)}\n`;
+  // A commit without the entry point has no checks to pass, so it fails. The base scopes the
+  // skip rules; the pack needs a staging build of every commit, docs-only ones included.
+  const inputs = `${base ? `CHECKS_BASE=${quote(base)} ` : ''}DEFAULT_BRANCH=main CHECKS_BUILD=always CLOUDFLARE_ENV=staging`;
+  return `set -eu\nif [ -d .git ]; then test "$(git rev-parse HEAD)" = ${quote(sha)}; fi\nif [ ! -f ${CHECKS} ]; then echo 'This commit has no ${CHECKS}, so its checks can not run.' >&2; exit 1; fi\n${inputs} node ${CHECKS} test build\nnode --input-type=module -e ${quote(pack)}\n`;
 }
 export async function readResult(logs, sha, projectId, exitCode) {
   need(exitCode === 0, 'Remote checks failed');
@@ -27,7 +33,7 @@ export async function runHostedPipeline(event, ci, adapters) {
   const candidate = await adapters.call('start', { sha: p.sha, ref: p.ref, workflow: event.instanceId });
   let checked;
   try {
-    checked = await ci.runner({ name: `hosted-check-build-${candidate.attempts}`, command: buildCommand(p.sha, p.repo), env: { HOSTED_UPLOAD_URL: `${adapters.config.serviceUrl}/v1/bundles/${p.repo}/${p.sha}?ref=${encodeURIComponent(p.ref)}`, HOSTED_UPLOAD_TOKEN: candidate.uploadToken }, cloudflareCredentials: false, sourceControlCredentials: false, config: runnerConfig });
+    checked = await ci.runner({ name: `hosted-check-build-${candidate.attempts}`, command: buildCommand(p.sha, p.repo, candidate.mainBase), env: { HOSTED_UPLOAD_URL: `${adapters.config.serviceUrl}/v1/bundles/${p.repo}/${p.sha}?ref=${encodeURIComponent(p.ref)}`, HOSTED_UPLOAD_TOKEN: candidate.uploadToken }, cloudflareCredentials: false, sourceControlCredentials: false, config: runnerConfig });
   } catch {
     await adapters.call('fail', { sha: p.sha, ref: p.ref, retryable: true }); return;
   }

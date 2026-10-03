@@ -50,11 +50,25 @@ Hosted repository, site and preview access SHALL identify the subject from a tru
 - **WHEN** an owner removes a teammate
 - **THEN** their previously issued repository grants and cloud site access are refused while the owner retains access; memory membership remains governed by explicit installation-owner removal
 
-### Requirement: Storage migration preserves portable history
+### Requirement: Artifacts serves new workspaces only
 
-A GitHub-to-Artifacts migration SHALL verify every advertised branch, tag and object identity before changing a working repository's origin or claiming completion, preserve local work, and keep the former repository available as a backup.
+A new cloud workspace SHALL use an Artifacts repository. A workspace or installation whose repository is on GitHub SHALL keep its GitHub route, and no setup, save, dashboard action or agent job SHALL move it to Artifacts or change its origin.
 
-#### Scenario: A failed import
+#### Scenario: Existing GitHub workspace
 
-- **WHEN** the destination is missing a ref or object identity differs
-- **THEN** the working origin and cloud storage record remain unchanged and migration reports the failure
+- **WHEN** Artifacts preparation or hosted setup targets a folder whose origin is a GitHub repository
+- **THEN** it stops before writing, names the GitHub route, and leaves the origin and cloud record unchanged
+
+#### Scenario: New workspace
+
+- **WHEN** an owner creates a new cloud workspace
+- **THEN** it is prepared on Artifacts without a GitHub repository
+
+### Requirement: Hosted history exports completely
+
+An export of a hosted repository SHALL restore every advertised branch and tag into an independent destination and verify the full ref map and object identities; a partial restore SHALL NOT be reported complete.
+
+#### Scenario: A missing ref
+
+- **WHEN** the restored copy lacks an advertised ref or an object identity differs
+- **THEN** the export reports failure and removes nothing

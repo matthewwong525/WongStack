@@ -649,7 +649,7 @@ test("an owner's own github job does not wait for an invitation", async () => {
 
 test('Artifacts preparation runs only pinned source as wong without the agent token and registers its actual clone', async () => {
   const payload = { serviceUrl: 'https://service.example.com', projectId: '11111111-1111-1111-1111-111111111111', token: 'private-project-grant', gitUrl: 'https://git.example.com/account/project.git', sourceRepo: 'matthewwong525/WongStack', sourceCommit: SOURCE_COMMIT, ownerEmail: 'owner@example.com', subject: 'owner', role: 'owner' };
-  const hosted = { projectId: payload.projectId, sourceCommit: SOURCE_COMMIT, verified: true, dir: '/home/wong/Existing' };
+  const hosted = { projectId: payload.projectId, sourceCommit: SOURCE_COMMIT, verified: true, dir: '/home/wong/wongstack' };
   const calls = [];
   const exec = async (file,args,options) => {
     calls.push({file,args,options});
@@ -666,4 +666,31 @@ test('Artifacts preparation runs only pinned source as wong without the agent to
   assert.equal(preparation.options.input,JSON.stringify(payload));
   assert.equal(calls.some(call=>call.args.includes(payload.token)),false);
   assert.equal(calls.some(call=>call.args.includes('gh')),false);
+});
+
+test('an Artifacts job that names a GitHub repository is rejected and runs nothing', async () => {
+  const payload = { serviceUrl: 'https://service.example.com', projectId: '11111111-1111-1111-1111-111111111111', token: 'private-project-grant', gitUrl: 'https://git.example.com/account/project.git', sourceRepo: 'matthewwong525/WongStack', sourceCommit: SOURCE_COMMIT, ownerEmail: 'owner@example.com', subject: 'owner', role: 'owner' };
+  for (const move of [{ githubRepo: 'owner/Existing' }, { legacyRepo: 'owner/Existing' }]) {
+    const calls = [];
+    const exec = async (file, args) => { calls.push([file, ...args]); return { stdout: '' }; };
+    assert.deepEqual(await runJob({ type: 'artifacts', payload: { ...payload, ...move } }, exec), { status: 'rejected' });
+    assert.deepEqual(calls, [], 'no clone, preparation, or remote change');
+  }
+});
+
+test('a refused Artifacts preparation reports a failed job and registers no workspace', async () => {
+  const payload = { serviceUrl: 'https://service.example.com', projectId: '11111111-1111-1111-1111-111111111111', token: 'private-project-grant', gitUrl: 'https://git.example.com/account/project.git', sourceRepo: 'matthewwong525/WongStack', sourceCommit: SOURCE_COMMIT, ownerEmail: 'owner@example.com', subject: 'owner', role: 'owner' };
+  const calls = [];
+  const exec = async (file, args) => {
+    const command = args.join(' ');
+    calls.push(command);
+    if (command.includes('remote get-url origin')) return { stdout: 'https://github.com/matthewwong525/WongStack.git' };
+    if (command.includes('rev-parse HEAD')) return { stdout: SOURCE_COMMIT };
+    // The folder holds a GitHub clone: preparation refuses and exits non-zero.
+    if (command.includes('prepare-hosted.mjs')) throw Object.assign(new Error('exit 1'), { stderr: 'This workspace is on GitHub and stays there: save opens a pull request. Nothing was changed.' });
+    return { stdout: '' };
+  };
+  assert.deepEqual(await runJob({ type: 'artifacts', payload }, exec), { status: 'failed', reason: 'repo' });
+  assert.equal(calls.some(command => command.includes('paseo')), false);
+  assert.equal(calls.some(command => command.includes('set-url')), false);
 });

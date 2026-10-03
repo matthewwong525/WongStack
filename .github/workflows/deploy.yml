@@ -17,12 +17,17 @@
 #   scripts/cf-deploy.sh  default branch → the production Worker
 #                         any other      → the staging Worker + a preview alias
 #
-# The main app deploys only when the change touches it. The first step,
-# `.github/actions/change-scope` (the same check test.yml runs), compares
-# the whole branch — or, on the default branch, the whole push — with its base.
-# When every changed path is docs, every main-app step skips and the job says
-# so: a docs branch never redeploys the main app. A mini app is main-app code,
-# so a change to one deploys it.
+# The checks before the deploy (find the app, install, parity, and the build
+# when there is no token) live in `.github/scripts/checks.mjs`, the one list a
+# hosted workspace's runner calls too. This workflow keeps what only it can do:
+# the checkout, the Node setup, and the steps that hold the deploy token.
+#
+# The main app deploys only when the change touches it. That script asks
+# `.github/scripts/app-untouched.sh` (the same check test.yml runs), which
+# compares the whole branch — or, on the default branch, the whole push — with
+# its base. When every changed path is docs, every main-app step skips and the
+# job says so: a docs branch never redeploys the main app. A mini app is
+# main-app code, so a change to one deploys it.
 #
 # So both CI backends run identical code, and a repo can switch between them by
 # changing where the scripts are invoked from. See wiki/stack/d1-pipeline.md.
@@ -31,9 +36,9 @@
 # and it does so at two levels:
 #
 #   - No wrangler config at all — the state the pack SHIPS in, before
-#     setup's Cloudflare provisioning writes one. "Locate the app" detects it (cf-build.sh
-#     --app-dir exits 3 for exactly this) and the job reports why and stops,
-#     green. Every later step is gated on that detection.
+#     setup's Cloudflare provisioning writes one. The check script detects it
+#     (cf-build.sh --app-dir exits 3 for exactly this) and the job reports why
+#     and stops, green. Every later step is gated on that detection.
 #   - Config but no secrets — builds without deploying, as before.
 #
 # ---------------------------------------------------------------------------
@@ -114,49 +119,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check what the change touches
-        id: scope
-        uses: ./.github/actions/change-scope
-        with:
-          skip-when: |
-            untouched=true
-          skipped-note: The main app is untouched (only docs changed), so no main-app migration, build, or deploy ran.
-
-      # Skipped when the main app is untouched. Every main-app step below —
-      # through "Publish the preview URL" — is gated on this step's
-      # `configured`, so they skip with it.
-      #
-      # Exit 3 means "no wrangler config yet" — not a failure, just a repo that
-      # has taken the pack and not yet been provisioned. Report it and let every
-      # later step skip, so the check is green and says what to do next. Any
-      # other non-zero exit is a real error and still fails the job.
-      - name: Locate the app
+      # The check list lives in .github/scripts/checks.mjs, which a hosted
+      # workspace's runner calls too, so this workflow names no check of its
+      # own. This step runs nothing: it asks where the app is, so Node is set
+      # up with that folder's cache. Every main-app step below, through
+      # "Publish the preview URL", is gated on its `configured`, which is true
+      # only when the main app changed and a wrangler config exists.
+      - name: Plan the build
         id: app
-        if: ${{ steps.scope.outputs.untouched != 'true' }}
-        run: |
-          set +e
-          DIR=$(bash scripts/cf-build.sh --app-dir)
-          STATUS=$?
-          set -e
-          if [ "$STATUS" -eq 3 ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            {
-              echo "### Not configured yet"
-              echo ""
-              echo "This repo has the Cloudflare stack pack but no wrangler config,"
-              echo "so there is nothing to build or deploy yet."
-              echo ""
-              echo "Run \`/wong-sync\` to plan Cloudflare provisioning."
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "No wrangler config yet — run /wong-sync to plan Cloudflare provisioning."
-            exit 0
-          fi
-          if [ "$STATUS" -ne 0 ]; then
-            echo "cf-build.sh --app-dir failed with exit $STATUS" >&2
-            exit "$STATUS"
-          fi
-          echo "configured=true" >> "$GITHUB_OUTPUT"
-          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: node .github/scripts/checks.mjs build --plan >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: ${{ steps.app.outputs.configured == 'true' }}
@@ -165,37 +139,16 @@ jobs:
           cache: npm
           cache-dependency-path: ${{ steps.app.outputs.dir }}/package-lock.json
 
-      - name: Install
-        if: ${{ steps.app.outputs.configured == 'true' }}
-        working-directory: ${{ steps.app.outputs.dir }}
-        run: npm ci --no-audit --no-fund
-
-      # Not provisioned yet: build the app directly. Deliberately not through
-      # cf-build.sh — that would need a wrangler config with an `env.staging`
-      # D1 entry, which a repo that hasn't taken the full pack won't have.
-      - name: Build (not provisioned — check only)
-        if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN == '' }}
-        working-directory: ${{ steps.app.outputs.dir }}
-        run: |
-          echo "No CLOUDFLARE_API_TOKEN secret — building without deploying."
-          echo "Run /wong-sync to plan provisioning, then this job deploys."
-          # A wired pack repo has build:app (build is the cf-build.sh wrapper,
-          # which would try to migrate). An unwired repo just has build.
-          if node -e "process.exit(require('./package.json').scripts?.['build:app']?0:1)"; then
-            npm run build:app
-          else
-            npm run build
-          fi
-
-      # Runs before the build so drift is reported even when the build is what
-      # breaks. Gated only on there being a config to read: the binding half of
-      # the check needs no credential, so a repo with a config and no token
-      # still gets that much signal. The script itself skips — never fails — on
-      # all three of no token, no config, and no `env.staging`, so this step is
-      # safe either way; the `if` just avoids running it with nothing to say.
-      - name: Check staging/production parity
-        if: ${{ steps.app.outputs.configured == 'true' }}
-        run: node scripts/cf-secrets.mjs check
+      # Install, the staging/production parity check, and, with no
+      # CLOUDFLARE_API_TOKEN secret, the build itself: a check only, never a
+      # migration or a deploy. With the secret, the build is the "Build" step
+      # below, after its migration. An untouched main app or a repo with no
+      # wrangler config runs none of it, says why on the run page, and passes.
+      - name: Run the checks
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: node .github/scripts/checks.mjs build
 
       - name: Build
         if: ${{ steps.app.outputs.configured == 'true' && env.CLOUDFLARE_API_TOKEN != '' }}

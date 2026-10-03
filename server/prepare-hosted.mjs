@@ -17,8 +17,16 @@ function refs(text) {
 }
 export function verifyRefs(expected,actual) {
   const a=refs(expected), b=refs(actual);
-  if (a.size!==b.size || [...a].some(([ref,sha])=>b.get(ref)!==sha)) throw new Error('migration refs differ');
+  if (a.size!==b.size || [...a].some(([ref,sha])=>b.get(ref)!==sha)) throw new Error('advertised refs differ');
   return true;
+}
+// A GitHub workspace stays on GitHub: no job, setup or save moves it to Artifacts.
+const GITHUB_ORIGIN=/^(?:https?:\/\/(?:[^@/\s]+@)?(?:www\.)?github\.com\/|ssh:\/\/(?:[^@/\s]+@)?github\.com[:/]|(?:[^@/\s]+@)?github\.com:)/i;
+const githubRoute=()=>Object.assign(new Error('workspace is on GitHub; keep the GitHub route'),{code:'GITHUB_WORKSPACE'});
+// The folder must already hold this project. Reads only, so a refusal leaves the origin as it was.
+async function ownOrigin(dir,gitUrl,exec) {
+  const origin=(await exec('git',['-C',dir,'remote','get-url','origin'])).stdout.trim();
+  if(origin!==gitUrl) throw GITHUB_ORIGIN.test(origin) ? githubRoute() : new Error('workspace belongs to another repository');
 }
 async function advertisedHead(url,inventory,git) {
   const text=(await git(['ls-remote','--symref',url,'HEAD'])).stdout;
@@ -95,18 +103,16 @@ async function verifyWorkspace(context,fetchFn) {
 }
 export async function prepare(job,{home=process.env.HOME,exec=run,fetchFn}={}) {
   validateContext(job);
+  // A job naming a GitHub repository asks for a move. Refuse it whole, before anything runs.
+  if (job.githubRepo!==undefined || job.legacyRepo!==undefined) throw githubRoute();
   if ((await exec('git',['-C',SOURCE,'rev-parse','HEAD'])).stdout.trim()!==job.sourceCommit) throw new Error('source pin differs');
   if (typeof job.token!=='string' || !job.token || /[\r\n\0]/.test(job.token)) throw new Error('invalid access grant');
-  if (job.githubRepo && (!/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(job.githubRepo) || job.role!=='owner')) throw new Error('invalid migration');
-  if(job.legacyRepo && !/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(job.legacyRepo)) throw new Error('invalid legacy repository');
   const verified=await verifyWorkspace(job,fetchFn);
-  const previousRepo=job.githubRepo || job.legacyRepo;
-  const legacy=previousRepo && join(home,previousRepo.split('/')[1]);
-  const existingLegacy=legacy && existsSync(join(legacy,'.git'));
-  const dir=existingLegacy ? legacy : join(home,'wongstack');
+  const dir=join(home,'wongstack');
   const existingWorkspace=existsSync(join(dir,'.git'));
+  if (existingWorkspace) await ownOrigin(dir,job.gitUrl,exec);
   privatePath(join(dir,'.git','wongstack-hosted.json'));
-  // Preflight the two global entry points before any origin switch.
+  // Preflight the two global entry points before any write.
   for (const agent of ['.claude','.codex']) {
     const skill=join(home,agent,'skills','wong-setup');
     privatePath(join(home,agent,'skills','setup-preflight'));
@@ -128,44 +134,7 @@ if(process.argv[2]==='get') {try {
   await exec('git',['config','--global',`credential.${job.gitUrl}.useHttpPath`,'true']);
   await exec('git',['config','--global',`credential.${job.gitUrl}.helper`,`!node '${helperScript.replace(/'/g, "'\\''")}'`]);
   const git=args=>exec('git',args);
-  if (job.githubRepo) {
-    const source=`https://github.com/${job.githubRepo}.git`;
-    const mirror=join(home,'.cache','wong-stack',`migration-${job.projectId}`);
-    if (existsSync(join(mirror,'HEAD'))) await git(['-C',mirror,'fetch','--prune','origin']);
-    else { mkdirSync(dirname(mirror),{recursive:true});await git(['clone','--mirror',source,mirror]); }
-    const expected=(await git(['ls-remote','--refs',source])).stdout;
-    verifyRefs(expected,(await git(['-C',mirror,'show-ref'])).stdout);
-    await git(['-C',mirror,'fsck','--full']);
-    const destination=(await git(['ls-remote','--refs',job.gitUrl])).stdout;
-    // Interrupted imports may resume only where every existing ref matches the source.
-    const wanted=refs(expected);
-    if ([...refs(destination)].some(([ref,sha])=>wanted.get(ref)!==sha)) throw new Error('destination holds other history');
-    await git(['-C',mirror,'push','--mirror',job.gitUrl]);
-    verifyRefs(expected,(await git(['ls-remote','--refs',job.gitUrl])).stdout);
-    const restored=join(home,'.cache','wong-stack',`restored-${job.projectId}`);
-    await restoreArtifacts(job.gitUrl,restored,exec,{expected});
-    verifyRefs(expected,(await git(['ls-remote','--refs',source])).stdout);
-  }
-  if (job.legacyRepo && !job.githubRepo && existsSync(join(dir,'.git'))) {
-    // Owner migration is already acknowledged by the cloud. This machine only
-    // verifies the backup's advertised objects; it cannot push or rewrite them.
-    const restored=join(home,'.cache','wong-stack',`member-restore-${job.projectId}`);
-    await restoreArtifacts(job.gitUrl,restored,exec);
-    const sourceRefs=refs((await git(['ls-remote','--refs',`https://github.com/${job.legacyRepo}.git`])).stdout);
-    for(const sha of new Set(sourceRefs.values())) await git(['-C',restored,'cat-file','-e',sha]);
-    // The cache proves backup-object preservation without changing user refs/files.
-  }
-  if (!existsSync(join(dir,'.git'))) await cloneArtifacts(job.gitUrl,dir,join(home,'.cache','wong-stack',`workspace-restore-${job.projectId}`),exec);
-  else {
-    const origin=(await git(['-C',dir,'remote','get-url','origin'])).stdout.trim();
-    if (origin!==job.gitUrl) {
-      if (!previousRepo || ![ `https://github.com/${previousRepo}`,`https://github.com/${previousRepo}.git`,`git@github.com:${previousRepo}.git` ].includes(origin)) throw new Error('workspace belongs to another repository');
-      await git(['-C',dir,'remote','add','github-backup',origin]).catch(async()=>{
-        if ((await git(['-C',dir,'remote','get-url','github-backup'])).stdout.trim()!==origin) throw new Error('backup remote differs');
-      });
-      await git(['-C',dir,'remote','set-url','origin',job.gitUrl]);
-    }
-  }
+  if (!existingWorkspace) await cloneArtifacts(job.gitUrl,dir,join(home,'.cache','wong-stack',`workspace-restore-${job.projectId}`),exec);
   const common=resolve(dir,(await git(['-C',dir,'rev-parse','--git-common-dir'])).stdout.trim());
   privateJson(join(common,'wongstack-hosted.json'),{...safeContext(job),token:job.token});
   for (const agent of ['.claude','.codex']) {
@@ -187,6 +156,7 @@ export async function installHosted({cwd=process.cwd(),exec=run,today=new Date()
   const adapted=async(file,args)=>(await exec(file,args));
   const context=await loadContext({cwd,exec:adapted});
   if (!context) throw new Error('prepared workspace missing');
+  await ownOrigin(context.root,context.gitUrl,exec);
   const recordPath=join(context.root,'.agents','.wong-stack.json');
   if (existsSync(recordPath)) throw new Error('already installed; resume hosted setup');
   if(context.role!=='owner') {
@@ -200,7 +170,7 @@ export async function installHosted({cwd=process.cwd(),exec=run,today=new Date()
   if (!pending) {
     for (const name of readdirSync(context.root)) {
       if (['.git','.env'].includes(name)) continue;
-      if (!['openspec','.scratch'].includes(name)) throw new Error('workspace has files; preserve them and plan migration');
+      if (!['openspec','.scratch'].includes(name)) throw new Error('workspace has files; hosted setup starts from an empty repository');
       const stat=lstatSync(join(context.root,name));
       if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('unsafe setup planning directory');
     }
@@ -233,38 +203,35 @@ export async function configureHosted({cwd=process.cwd(),exec=run,fetchFn}={}) {
   privatePath(recordPath);
   if(!existsSync(recordPath)) throw new Error('installed prepared workspace required');
   const record=JSON.parse(readFileSync(recordPath,'utf8'));
+  await ownOrigin(context.root,context.gitUrl,exec);
+  // An install made on the GitHub route is never adopted: there is no move to Artifacts.
+  if(record.hosted===undefined || record.hosted===null) throw githubRoute();
   await verifyWorkspace(context,fetchFn);
-  if(record.hosted!==undefined && record.hosted!==null) {
-    // Committed metadata only distinguishes a resume from migration. All authority
-    // and app pins come from the verified private grant and service responses.
-    if(record.hosted.projectId!==context.projectId || record.hosted.serviceUrl!==context.serviceUrl || record.hosted.gitUrl!==context.gitUrl) throw new Error('installed hosted project differs');
-    const status=await request(context,'/v1/status',undefined,{fetchFn});
-    for(const key of ['projectId','gitUrl','sourceRepo','sourceCommit','ownerEmail']) if(status[key]!==context[key]) throw new Error('hosted status project differs');
-    let memory=status.memory?.protocolVersion===1 ? memoryResult(status.memory) : null;
-    if(status.setup==='ready' && !memory) throw new Error('hosted memory pins are missing');
-    let production=null;
-    if(status.production!==null && status.production!==undefined) {
-      const value=status.production, url=https(value.url);
-      if(!/^[a-f0-9]{40}$/.test(value.sha || '') || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value.version || '') || url.pathname!=='/' || !memory || url.origin!==memory.appUrl || status.productionUrl!==memory.appUrl) throw new Error('hosted production pins differ');
-      production={sha:value.sha,version:value.version,url:url.origin};
-    }
-    if(memory) {
-      // Project-global status is not introspection of this requesting computer.
-      if(memory.status==='ready') memory={...memory,status:'pending-device',reason:'no-current-device',action:{kind:'connect-device',url:`${memory.appUrl}/apps/devices/`,operatorConfirmationRequired:false}};
-      if(status.setup!=='ready' || status.stopped===true || !production) memory={...memory,reason:'maintenance',action:null};
-      else if(status.accessVerified!==true) memory={...memory,reason:'access-unverified',action:null};
-    }
-    return {existingProject:true,hosted:safeContext(context),production,memory,enrollmentPending:true};
+  // Committed metadata only selects this route. All authority and app pins
+  // come from the verified private grant and service responses.
+  if(record.hosted.projectId!==context.projectId || record.hosted.serviceUrl!==context.serviceUrl || record.hosted.gitUrl!==context.gitUrl) throw new Error('installed hosted project differs');
+  const status=await request(context,'/v1/status',undefined,{fetchFn});
+  for(const key of ['projectId','gitUrl','sourceRepo','sourceCommit','ownerEmail']) if(status[key]!==context[key]) throw new Error('hosted status project differs');
+  let memory=status.memory?.protocolVersion===1 ? memoryResult(status.memory) : null;
+  if(status.setup==='ready' && !memory) throw new Error('hosted memory pins are missing');
+  let production=null;
+  if(status.production!==null && status.production!==undefined) {
+    const value=status.production, url=https(value.url);
+    if(!/^[a-f0-9]{40}$/.test(value.sha || '') || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value.version || '') || url.pathname!=='/' || !memory || url.origin!==memory.appUrl || status.productionUrl!==memory.appUrl) throw new Error('hosted production pins differ');
+    production={sha:value.sha,version:value.version,url:url.origin};
   }
-  if(context.role!=='owner') throw new Error('owner must configure the hosted migration before member setup');
-  const result=await command('setup',[],context,{fetchFn});
-  // A plan adapts installed config and records, preserving local code and the former memory store.
-  return {configurationOnly:true,hosted:safeContext(context),...result};
+  if(memory) {
+    // Project-global status is not introspection of this requesting computer.
+    if(memory.status==='ready') memory={...memory,status:'pending-device',reason:'no-current-device',action:{kind:'connect-device',url:`${memory.appUrl}/apps/devices/`,operatorConfirmationRequired:false}};
+    if(status.setup!=='ready' || status.stopped===true || !production) memory={...memory,reason:'maintenance',action:null};
+    else if(status.accessVerified!==true) memory={...memory,reason:'access-unverified',action:null};
+  }
+  return {existingProject:true,hosted:safeContext(context),production,memory,enrollmentPending:true};
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
   try {
     if(process.argv[2]==='configure') console.log(JSON.stringify(await configureHosted()));
     else if(process.argv[2]==='install') console.log(JSON.stringify(await installHosted()));
     else {let stdin='';for await(const chunk of process.stdin)stdin+=chunk;console.log(JSON.stringify(await prepare(JSON.parse(stdin))));}
-  } catch {console.error('Hosted preparation failed; workspace work was preserved.');process.exitCode=1;}
+  } catch(error) {console.error(error?.code==='GITHUB_WORKSPACE' ? 'This workspace is on GitHub and stays there: save opens a pull request. Nothing was changed.' : 'Hosted preparation failed; workspace work was preserved.');process.exitCode=1;}
 }
