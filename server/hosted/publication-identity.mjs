@@ -13,6 +13,8 @@ const transient = error => error?.name === 'TypeError' || error?.name === 'Abort
 // Only authenticated identity reads repeat. Fetch AND body consumption share an abortable
 // deadline; the race still stops observation if a transport ignores its abort signal.
 async function readIdentity(state, url, fetcher, ms, timing) {
+  // Local configuration failures are permanent, not transport failures to retry.
+  const headers = { ...verificationHeaders(state), 'X-WongStack-Runtime': state.runtimeSecret };
   const abort = new AbortController();
   let timer, response;
   const timeout = new Promise((_, reject) => {
@@ -22,7 +24,7 @@ async function readIdentity(state, url, fetcher, ms, timing) {
   });
   const read = async () => {
     try {
-      response = await fetcher(`${url}/__wongstack/identity`, { redirect: 'manual', signal: abort.signal, headers: { ...verificationHeaders(state), 'X-WongStack-Runtime': state.runtimeSecret } });
+      response = await fetcher(`${url}/__wongstack/identity`, { redirect: 'manual', signal: abort.signal, headers });
     } catch (error) {
       if (transient(error)) return null;
       throw error;

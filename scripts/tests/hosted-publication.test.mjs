@@ -272,5 +272,12 @@ test('publication routing observation uses only provider GETs and retains privat
   assert.deepEqual(calls, ['GET']);
   assert.deepEqual(observationBounds, { attempts: 12, readMs: 5000, totalMs: 60000, waitMs: 5000 });
   const clock = fakeClock();
-  await assert.rejects(observePublicationIdentity({ id: projectId }, { url: 'https://private.workers.dev' }, sha, async () => identity(older), clock), /unexpected/);
+  const state = { id: projectId, access: { clientId: 'verification-client', clientSecret: 'verification-secret' }, runtimeSecret: 'runtime-secret' };
+  let reads = 0;
+  await assert.rejects(observePublicationIdentity(state, { url: 'https://private.workers.dev' }, sha, async () => { reads++; return identity(older); }, clock), /unexpected/);
+  assert.equal(reads, 1); assert.deepEqual(clock.waits, []);
+  const missing = fakeClock();
+  await assert.rejects(observePublicationIdentity({ id: projectId }, { url: 'https://private.workers.dev' }, sha, async () => { reads++; return identity(sha); }, missing), TypeError);
+  assert.equal(reads, 1, 'missing local Access configuration must never issue a request');
+  assert.deepEqual(missing.reads, []); assert.deepEqual(missing.waits, []);
 });
