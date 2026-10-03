@@ -3,7 +3,7 @@
 //
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords [--site <url>] [--username <user>] [--local] [--minutes N]
-//     node .claude/skills/hand-over/scripts/hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
+//     node .claude/skills/hand-over/scripts/hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--local] [--minutes N]
 //     node .claude/skills/hand-over/scripts/hand-over.mjs wait
 //     node .claude/skills/hand-over/scripts/hand-over.mjs close
 //
@@ -43,10 +43,19 @@
 // `open --keys NAME[,NAME]` opens the key link the same way, also touching no browser page. Before any
 // tunnel, keys.mjs resolves each name against the example files: one declared in neither exits 2 with
 // `KEYS_UNDECLARED=<name>,<name>`, one in both with `KEYS_AMBIGUOUS=`, and a destination not git-ignored
-// exits 1. It serves keys-page.html and .mjs and mounts keys.mjs's keyed `GET /keys`, `POST /save`, and
-// `POST /done`; it ends on `/done`, on the save that leaves no asked-for key unsaved, `close`, or the
-// deadline. `wait` prints `HANDOVER_SAVED=` the key names saved, then `HANDOVER_APP_KEYS=` those that went
-// to app/.dev.vars, which the agent then loads with `npm run secrets:push`: never a value.
+// exits 1. `--guide <file>` names a JSON file of each key's plain title, key-page address, steps, and
+// test, which keys.mjs checks there too: a bad one exits 2 with `KEYS_GUIDE=<name>: <reason>`. The
+// guide rides in the state file. It serves keys-page.html and .mjs and mounts keys.mjs's keyed
+// `GET /keys`, `POST /save`, and `POST /done`; it ends on `/done`, on the save that leaves no asked-for
+// key unsaved, `close`, or the deadline. `wait` prints `HANDOVER_SAVED=` the key names saved, then
+// `HANDOVER_APP_KEYS=` those that went to app/.dev.vars, which the agent then loads with
+// `npm run secrets:push`: never a value.
+//
+// A key link's `--minutes` defaults to 30, the other links' to 10; each deadline starts at `open`. The
+// first keyed `GET /keys` writes an `opened` marker. Until then a key link gives way: a new `open`
+// signals its watcher, which ends as `closed`, and takes its place, and the first link's `wait` prints
+// `HANDOVER_RESULT=closed` with no saved names. An opened key link, a hand-over, or a password link
+// refuses a second `open`.
 //
 // State lives in ~/.wong-stack/hand-over/; one link at a time. Exit codes: 0 ok · 1 failed or a
 // link is already open · 2 usage · 3 `cloudflared` is missing (prints HANDOVER_NEEDS=cloudflared).
@@ -63,20 +72,23 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs, promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
-import { APP_FILE, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
+import { APP_FILE, checkGuide, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
 import { findPaseo } from '../../routine/scripts/lib/paseo.mjs';
 import { hostOf, LIMITS as PASSWORD_LIMITS, PASSWORD_ROUTES, passwordRoutes } from './passwords.mjs';
 import { siteUrl } from './passwords-page.mjs';
 
 const USAGE = `usage: hand-over.mjs open [--until <glob>] [--until-gone <selector>] [--local] [--minutes N]
        hand-over.mjs open --passwords [--site <url>] [--username <user>] [--local] [--minutes N]
-       hand-over.mjs open --keys NAME[,NAME] [--local] [--minutes N]
+       hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--local] [--minutes N]
        hand-over.mjs wait | close
   open    start the private link, print HANDOVER_LINK=<url>, and watch for the finish
           --passwords: save logins and continue, or cancel; --site and --username
           fill in the add-a-login form, carried only in the link
           --keys: one box per declared name; it ends on cancellation or
-          once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=)
+          once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=);
+          open for 30 minutes, not 10, and an unopened one gives way to a new open
+          --guide: a JSON file keyed by name, each with any of title, url, open,
+          steps, and check {url, auth}, shown on the key page (exit 2 with KEYS_GUIDE=)
   wait    block until the link closes; print HANDOVER_RESULT=done|timeout|closed|error,
           then HANDOVER_SAVED=<name>,<name> for a password or key link, and
           HANDOVER_APP_KEYS=<name>,<name> for a key link
@@ -86,7 +98,9 @@ const PAGE_WAIT_MS = 10_000;
 const TOOL_TIMEOUT_MS = 15_000;
 const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
-const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml') };
+const FILES = { pid: join(DIR, 'watcher.pid'), state: join(DIR, 'state.json'), result: join(DIR, 'result.json'), log: join(DIR, 'tunnel.log'), config: join(DIR, 'cloudflared.yml'), opened: join(DIR, 'opened') };
+/** Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays. */
+const clearLink = () => { for (const file of [FILES.state, FILES.log, FILES.config, FILES.opened, FILES.pid]) rmSync(file, { force: true }); };
 const HERE = dirname(fileURLToPath(import.meta.url));
 const pages = name => ({
   '/': { file: join(HERE, `${name}.html`), type: 'text/html; charset=utf-8' },
@@ -349,7 +363,7 @@ async function teardown(result, tunnelPid, { browserless = false, saved, appKeys
   if (!browserless) await browser(['set', 'viewport', '1280', '720']);
   writeFileSync(FILES.result, `${JSON.stringify({ result, ...(saved && { saved }), ...(appKeys && { appKeys }) })}
 `);
-  for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
+  clearLink();
 }
 
 /** Result-only completion message; routing and private input are never taken from the page. */
@@ -546,9 +560,10 @@ function fieldRoutes({ isOpen = () => true, startUrl = null } = {}) {
  * Serves the page on 127.0.0.1:`port` and pipes `/stream?key=<key>` to the live feed on
  * `streamPort` as a fresh upgrade with no `Origin`; it never parses a frame. The field routes and
  * `/viewport` need the key in an `x-hand-over-key` header. With `passwords` or `keys` it serves that
- * link's page and routes instead, passing `hooks` to them, and has no feed. Resolves to a close().
+ * link's page and routes instead, passing `hooks` to them, and has no feed; a key link's page also
+ * hears `deadline`. Resolves to a close().
  */
-export function servePage({ port, streamPort, key, passwords = false, keys = null, startUrl = null }, hooks = {}) {
+export function servePage({ port, streamPort, key, passwords = false, keys = null, startUrl = null, deadline }, hooks = {}) {
   const sockets = new Set();
   const streams = new Set();
   let finishing = false;
@@ -556,7 +571,7 @@ export function servePage({ port, streamPort, key, passwords = false, keys = nul
   const track = socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); return socket; };
   const mode = modeOf({ passwords, keys });
   hooks = { ...hooks, isOpen: () => !finishing };
-  const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, hooks), handOver: () => fieldRoutes({ ...hooks, startUrl }) }[mode]();
+  const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, { ...hooks, closesAt: deadline }), handOver: () => fieldRoutes({ ...hooks, startUrl }) }[mode]();
   const ROUTES = { passwords: PASSWORD_ROUTES, keys: KEY_ROUTES };
   const isRoute = pathname => (ROUTES[mode] ? ROUTES[mode].has(pathname) : pathname === '/fields' || pathname === '/action' || pathname === '/navigate' || pathname === '/viewport' || Boolean(FIELD_ACTIONS[pathname]));
   const served = PAGES[mode];
@@ -681,11 +696,21 @@ async function streamPort() {
   return status?.enabled && status.port ? status.port : null;
 }
 
+/** The `--guide` file's entries for `names`, or null once it has said why not. */
+function readGuide(file, names) {
+  const { guide, fault } = checkGuide(readJson(file), names);
+  if (!fault) return guide;
+  console.log(`KEYS_GUIDE=${fault}`);
+  console.error('Fix the guide file first: a JSON object keyed by asked-for key name.');
+  return null;
+}
+
 /**
- * The key link's config, `{root, primary, linked, gitDir, keys}`, or an exit code once it has said why
- * not: 2 for a name declared in neither example file or in both, 1 for a destination not git-ignored.
+ * The key link's config, `{root, primary, linked, gitDir, keys}`, each key with its guide entry, or an
+ * exit code once it has said why not: 2 for a name declared in neither example file or in both, or a
+ * bad guide; 1 for a destination not git-ignored.
  */
-function keyConfig(names) {
+function keyConfig(names, guideFile) {
   let ctx;
   try {
     ctx = primaryRoot();
@@ -704,16 +729,27 @@ function keyConfig(names) {
     console.error(`Not git-ignored, so no key is written there: ${unignored.join(', ')}`);
     return 1;
   }
+  const guide = guideFile === undefined ? {} : readGuide(guideFile, names);
+  if (!guide) return 2;
   const { root, primary, linked, gitDir } = ctx;
-  return { root, primary, linked, gitDir, keys };
+  return { root, primary, linked, gitDir, keys: keys.map(key => ({ ...key, ...(guide[key.name] && { guide: guide[key.name] }) })) };
+}
+
+/** True once the live link has closed for a new one: only a key link nobody has opened gives way. */
+async function givesWay(pid) {
+  if (modeOf(readJson(FILES.state) ?? {}) !== 'keys' || existsSync(FILES.opened)) return false;
+  try { process.kill(pid, 'SIGTERM'); } catch { /* it ended first */ }
+  for (let i = 0; i < 80 && alive(pid); i++) await sleep(100);
+  return !alive(pid);
 }
 
 async function open(values) {
-  const keys = values.keys ? keyConfig(values.keys) : null;
+  const keys = values.keys ? keyConfig(values.keys, values.guide) : null;
   if (typeof keys === 'number') return keys;
   const browserless = Boolean(values.passwords || keys);
   mkdirSync(DIR, { recursive: true });
-  if (alive(watcherPid())) {
+  const live = watcherPid();
+  if (alive(live) && !(await givesWay(live))) {
     console.error('A hand-over link is already open. Run `hand-over.mjs close` first.');
     return 1;
   }
@@ -723,7 +759,7 @@ async function open(values) {
     console.error('Cloudflare\'s tunnel tool, cloudflared, is not installed; ask the person, install it, and retry.');
     return 3;
   }
-  rmSync(FILES.result, { force: true });
+  for (const file of [FILES.result, FILES.opened]) rmSync(file, { force: true });
   const deadline = Date.now() + values.minutes * 60_000;
   let tunnelPid = null;
   let watcher = null;
@@ -790,7 +826,7 @@ async function watch() {
       setTimeout(async () => {
         await closePage?.();
         await killTunnel(state.tunnelPid);
-        for (const file of [FILES.state, FILES.log, FILES.config, FILES.pid]) rmSync(file, { force: true });
+        clearLink();
         process.exit(0);
       }, 1200);
       return outcome;
@@ -798,7 +834,7 @@ async function watch() {
     return finishingPromise;
   };
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => finish('closed', false));
-  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', ready), onContinue: () => finish('done', true) };
+  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', ready), onContinue: () => finish('done', true), onOpened: () => writeFileSync(FILES.opened, '') };
   try {
     closePage = await servePage(state, hooks);
   } catch {
@@ -814,18 +850,33 @@ async function watch() {
   }
 }
 
-/** Blocks until the watcher records a result; recovers a watcher that died without one. */
+/** Prints a link's result lines: the result, then any saved names, completion identity, and notification. */
+function report({ result, saved, appKeys, completionId, notification }) {
+  console.log(`HANDOVER_RESULT=${result}`);
+  if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
+  if (Array.isArray(appKeys)) console.log(`HANDOVER_APP_KEYS=${appKeys.join(',')}`);
+  if (completionId) console.log(`HANDOVER_COMPLETION=${completionId}`);
+  if (notification) console.log(`HANDOVER_NOTIFICATION=${notification}`);
+  return 0;
+}
+
+/** True when the link `wait` began on, `mine`, gave way: another link holds the state, or took its result. */
+function gaveWay(mine, outcome) {
+  const current = readJson(FILES.state)?.completionId;
+  if (current) return current !== mine;
+  return outcome.completionId ? outcome.completionId !== mine : !outcome.result && !existsSync(FILES.pid);
+}
+
+/**
+ * Blocks until the watcher records a result; recovers a watcher that died without one. A key link that
+ * gave way to a newer link reports `closed` with nothing saved, never the newer link's result.
+ */
 async function wait() {
+  const mine = readJson(FILES.state)?.completionId;
   for (;;) {
-    const { result, saved, appKeys, completionId, notification } = readJson(FILES.result) ?? {};
-    if (result && notification !== 'pending' && !existsSync(FILES.pid)) {
-      console.log(`HANDOVER_RESULT=${result}`);
-      if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
-      if (Array.isArray(appKeys)) console.log(`HANDOVER_APP_KEYS=${appKeys.join(',')}`);
-      if (completionId) console.log(`HANDOVER_COMPLETION=${completionId}`);
-      if (notification) console.log(`HANDOVER_NOTIFICATION=${notification}`);
-      return 0;
-    }
+    const outcome = readJson(FILES.result) ?? {};
+    if (mine && gaveWay(mine, outcome)) return report({ result: 'closed', saved: [], appKeys: [], completionId: mine, notification: 'not-requested' });
+    if (outcome.result && outcome.notification !== 'pending' && !existsSync(FILES.pid)) return report(outcome);
     if (!existsSync(FILES.pid)) {
       console.error('No hand-over link is open.');
       return 1;
@@ -862,7 +913,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, site: { type: 'string' }, username: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, local: { type: 'boolean' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -872,10 +923,11 @@ function parse(args) {
   }
   const [command, ...rest] = parsed.positionals;
   if (!['open', 'watch', 'wait', 'close'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
-  const minutes = Number(parsed.values.minutes ?? 10);
+  const minutes = Number(parsed.values.minutes ?? (parsed.values.keys === undefined ? 10 : 30));
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
   if (parsed.values.passwords && (parsed.values.until || parsed.values['until-gone'])) usageError('--passwords takes no --until or --until-gone');
   checkPrefill(parsed.values);
+  if (parsed.values.guide !== undefined && parsed.values.keys === undefined) usageError('--guide goes with --keys only');
   if (parsed.values.keys === undefined) return { command, values: { ...parsed.values, minutes } };
   if (parsed.values.passwords || parsed.values.until || parsed.values['until-gone']) usageError('--keys takes no --passwords, --until, or --until-gone');
   return { command, values: { ...parsed.values, minutes, keys: keyNames(parsed.values.keys) } };

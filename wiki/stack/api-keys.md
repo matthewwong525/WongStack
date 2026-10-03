@@ -4,19 +4,22 @@ An API key is a long password that lets your app or the assistant use another se
 
 ## Get the key
 
-The assistant gives you a direct link to the service's key page and short steps, including which permissions you need. Open it in your own browser and sign in there. If the service's exact key-page address is unclear, the assistant gives its dashboard link and where to go next, usually *API keys*, *Developers*, or *Tokens*. Create a key there and copy it. Many services show a key only once, so copy it before you leave the page.
+The private link's page has a button to the service's key page and short steps, including which permissions you need. Tap the button: the service opens in a new tab of your own browser, and you sign in there. If the service's exact key-page address is unclear, the button opens its dashboard and the steps say where to go next, usually *API keys*, *Developers*, or *Tokens*. Create a key there and copy it. Many services show a key only once, so copy it before you leave the page.
 
 If the service asks what the key may do, give it only what you need. A key that can only read cannot be used to change or spend anything.
 
-Changes to an existing key, such as replacing it, editing permissions, or deleting it, also use your own browser. Give new or replacement values through [the private link below](#give-it-through-the-private-link); for a change with no new value, tell the assistant when you're done. The assistant follows [the token website procedure](../development/secrets.md#api-token-website-steps).
+Changes to an existing key, such as replacing it, editing permissions, or deleting it, also use your own browser. Give new or replacement values through [the private link below](#give-it-through-the-private-link). For a change with no new value, the assistant gives the link and steps in the chat; tell it when you're done. The assistant follows [the token website procedure](../development/secrets.md#api-token-website-steps).
 
 ## Give it through the private link
 
-When a task needs a key the assistant doesn't have, it asks first: *I'll send a private link for your Stripe key.* Tap *Ready, send the link*. You can also ask for it: *send me the key link*.
+When a task needs a key the assistant doesn't have, it sends a private link straight away. You can also ask for it: *send me the key link*. The link stays open for 30 minutes, so open it when you're ready; the page shows the time left.
 
 1. **Open the link** the assistant sends, on your phone or computer.
-2. **Paste the key** into its box. Each box names the key and says where to get it. *This replaces the one saved now* means a new key takes the old one's place.
-3. **Tap *Save*.** A tick shows by each saved key, and the link closes by itself once every key is saved. *Done* closes it sooner, and it closes after 10 minutes either way.
+2. **Follow the steps on the page.** Tap *Open …*, make the key at the service, copy it, and come back.
+3. **Tap *Paste***, or paste into the box by hand. A key that comes as a file, like Google's key file, goes in through *pick a file*: your device reads it, and the page shows only its name. *This replaces the one saved now* means a new key takes the old one's place.
+4. **Tap *Save and continue*.** When the assistant knows a harmless way to test the key, the page tries it once, at the service's own address, which it names, and says *Works*. If the service says no, copy the key again; *Save anyway* keeps it as it is. *Saved, not tested* means there was no test to run. The link closes by itself once every key is saved, and *Close without continuing* closes it sooner.
+
+If you haven't opened the link and the assistant needs another private link on the same computer, the first one closes early. The assistant says so and offers a new one.
 
 The assistant then:
 

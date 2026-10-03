@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { connect, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -21,11 +21,19 @@ const BLANK = { active: true, label: null, tabId: 't2', title: 'about:blank', ty
 // A HOME of its own, and fake cloudflared and agent-browser first on PATH that log each call to one
 // file in order. The fakes print the real shapes recorded from cloudflared 2026.9.3 and
 // agent-browser 0.38.1. The test sets the tabs, the live-feed port, the page address, the
-// element count, and the scanned fields through files; a `fail` file fails each field command.
-function fixture(t, { cloudflared = true, paseo = null, agentId } = {}) {
+// element count, and the scanned fields through files; a `fail` file fails each field command. With
+// `checkout`, commands run in a Git checkout of their own that declares MAPS_API_KEY, for a key link.
+function fixture(t, { cloudflared = true, paseo = null, agentId, checkout = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-hand-over-'));
   const bin = join(root, 'bin');
   mkdirSync(bin);
+  const cwd = checkout ? join(root, 'repo') : undefined;
+  if (cwd) {
+    mkdirSync(cwd);
+    execFileSync('git', ['init', '-q', '-b', 'main'], { cwd, stdio: 'ignore' });
+    writeFileSync(join(cwd, '.gitignore'), '.env*\n!.env.example\n');
+    writeFileSync(join(cwd, '.env.example'), '# The Maps key.\nMAPS_API_KEY=\n');
+  }
   const calls = join(root, 'calls.log');
   const file = name => join(root, name);
   writeFileSync(join(bin, 'agent-browser'), `#!/bin/sh
@@ -73,7 +81,14 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     chmodSync(join(bin, 'paseo'), 0o755);
   }
   const env = { ...process.env, PASEO_AGENT_ID: agentId ?? (paseo ? 'a-full-workspace-id' : ''), PASEO_HOME: '', PASEO_HOST: '', HOME: root, PATH: cloudflared ? `${bin}:/usr/bin:/bin` : bin, HANDOVER_POLL_MS: '50' };
-  const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
+  const run = (...args) => { const out = spawnSync(process.execPath, [script, ...args], { cwd, env, encoding: 'utf8', timeout: 30_000 }); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; };
+  /** Starts `wait` beside the test, as the chat that sent a link does; resolves to all it printed. */
+  const waiting = () => {
+    const child = spawn(process.execPath, [script, 'wait'], { cwd, env, stdio: ['ignore', 'pipe', 'ignore'] });
+    let text = '';
+    child.stdout.on('data', chunk => { text += chunk; });
+    return new Promise(done => child.on('close', () => done(text)));
+  };
   const state = join(root, '.wong-stack/hand-over');
   t.after(() => {
     run('close');
@@ -83,6 +98,8 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
   });
   return {
     run,
+    waiting,
+    cwd,
     state,
     sent: () => existsSync(file('sent.jsonl')) ? readFileSync(file('sent.jsonl'), 'utf8').trim().split('\n').map(JSON.parse) : [],
     set: (name, value) => writeFileSync(file(name), `${value}\n`),
@@ -810,4 +827,78 @@ test('identity focus rescans before clearing and refuses a replaced same-selecto
   const before=f.calls().length;
   assert.equal((await route(port,key,'focus',{ref:0,identity:'original'})).status,409);
   assert.equal(f.calls().slice(before).some(call=>call.includes('agent-browser fill')),false);
+});
+
+// ---------------------------------------------------------------------------
+// The key link's guide flag, its 30 minutes, and giving way
+
+const deadlineOf = f => JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).deadline;
+
+test('--guide goes with --keys only, and a bad guide exits 2 with KEYS_GUIDE= before any link', t => {
+  const f = fixture(t, { checkout: true });
+  const usage = f.run('open', '--local', '--guide', 'guide.json');
+  assert.equal(usage.status, 2);
+  assert.match(usage.stderr, /--guide goes with --keys only/);
+  assert.equal(f.run('open', '--local', '--passwords', '--guide', 'guide.json').status, 2);
+  assert.match(f.run('--help').stdout, /--guide <file>/);
+
+  const guide = join(f.cwd, 'guide.json');
+  writeFileSync(guide, JSON.stringify({ MAPS_API_KEY: { url: 'http://maps.example.com/keys' } }));
+  const bad = f.run('open', '--local', '--keys', 'MAPS_API_KEY', '--guide', guide);
+  assert.equal(bad.status, 2);
+  assert.equal(bad.stdout, 'KEYS_GUIDE=MAPS_API_KEY: url takes an https address with a host name\n');
+  assert.ok(!existsSync(f.state), 'no link state');
+  assert.deepEqual(f.calls(), []);
+
+  const entry = { title: 'Maps key', url: 'https://maps.example.com/keys', steps: ['Copy the key'] };
+  writeFileSync(guide, JSON.stringify({ MAPS_API_KEY: entry }));
+  opened(f, '--local', '--keys', 'MAPS_API_KEY', '--guide', guide);
+  assert.deepEqual(JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).keys.keys[0].guide, entry);
+});
+
+test('a key link defaults to 30 minutes; a hand-over and a password link still default to 10', t => {
+  const f = fixture(t, { checkout: true });
+  const minutes = (...args) => {
+    const before = Date.now();
+    opened(f, '--local', ...args);
+    const deadline = deadlineOf(f);
+    assert.equal(f.run('close').status, 0);
+    return [(deadline - Date.now()) / 60_000, (deadline - before) / 60_000];
+  };
+  for (const [args, want] of [[['--keys', 'MAPS_API_KEY'], 30], [[], 10], [['--passwords'], 10], [['--keys', 'MAPS_API_KEY', '--minutes', '10'], 10]]) {
+    const [low, high] = minutes(...args);
+    assert.ok(low <= want && high >= want, `${args.join(' ') || 'hand-over'}: ${low}–${high} minutes, not ${want}`);
+  }
+});
+
+test('an unopened key link gives way to a new open, and its wait prints closed with nothing saved', async t => {
+  for (const next of [['--passwords'], [], ['--keys', 'MAPS_API_KEY']]) {
+    const f = fixture(t, { checkout: true });
+    const first = opened(f, '--local', '--keys', 'MAPS_API_KEY');
+    const completion = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).completionId;
+    const waited = f.waiting();
+    await new Promise(done => setTimeout(done, 300));
+    const second = opened(f, '--local', ...next);
+    assert.notEqual(second.key, first.key, 'a new link, with its own key');
+    assert.ok(!(await answers(first.port)), 'the first link\'s page is gone');
+    assert.ok(await answers(second.port));
+    const lines = (await waited).trim().split('\n');
+    assert.deepEqual(lines, ['HANDOVER_RESULT=closed', 'HANDOVER_SAVED=', 'HANDOVER_APP_KEYS=', `HANDOVER_COMPLETION=${completion}`, 'HANDOVER_NOTIFICATION=not-requested'], next.join(' '));
+    assert.ok(existsSync(join(f.state, 'watcher.pid')), 'the second link is still open');
+    assert.ok(!existsSync(join(f.state, 'opened')));
+  }
+});
+
+test('an opened key link, a hand-over, and a password link each refuse a second open', async t => {
+  for (const first of [['--keys', 'MAPS_API_KEY'], [], ['--passwords']]) {
+    const f = fixture(t, { checkout: true });
+    const { port, key } = opened(f, '--local', ...first);
+    if (first[0] === '--keys') assert.equal((await route(port, key, 'keys')).status, 200);
+    for (const next of [['--keys', 'MAPS_API_KEY'], ['--passwords'], []]) {
+      const again = f.run('open', '--local', ...next);
+      assert.equal(again.status, 1, `${first.join(' ') || 'hand-over'} then ${next.join(' ') || 'hand-over'}`);
+      assert.match(again.stderr, /already open/);
+    }
+    assert.ok(await answers(port), 'the first link is untouched');
+  }
 });
