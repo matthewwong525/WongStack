@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Smoother key link
+
+Giving your assistant a key now takes one page and about a minute.
+
+- **Everything is on the link's page.** It shows a plain name for the key, a button that opens the service's key page, and a few short steps, above the box. The assistant writes them for that service when it sends the link; nothing per service is stored. With no steps, the page looks as before.
+- **The link comes straight away and stays open for 30 minutes**, up from 10, with no *Ready?* question. The page shows the time left. A link you haven't opened closes early when another private link is needed on the same computer; the assistant then offers a new one.
+- **The key is tested when you save.** When the assistant knows a harmless request that proves a key works, the page tries it once and says *Works*. A key the service refuses is not saved unless you tap *Save anyway*. With no test, or no answer, the key is saved and the page says it was not tested. The page names the address it tests against.
+- **Paste with one tap, and long keys work.** *Paste* fills the box from your clipboard. A key over several lines, or a small key file such as Google's, is accepted: paste it, or pick the file, which your device reads itself.
+
+The password link and the live browser link keep their *Ready?* question and their 10 minutes. A key still never passes through the chat, a log, or a published file.
+
+**Updating.** No action needed. The link's scripts and guides arrive with the usual update.
+
 ## 29.11.0 — Keep an existing server and private project
 
 - Hosts can check and prepare an existing Ubuntu workspace without replacing compatible tools, services, files or GitHub identities.
