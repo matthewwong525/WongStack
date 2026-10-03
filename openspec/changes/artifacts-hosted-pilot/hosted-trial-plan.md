@@ -1,5 +1,7 @@
 # Hosted migration staging trial
 
+The wh1003 existing-workspace trial is also closed on 2026-10-03. The user selected new installs only; its inventory, credentials and receipts are historical and grant no reuse or recreation authority. GitHub remained selected. See [the wh1003 closeout](hosted-migration-evidence.md#wh1003-actual-workspace-trial-closed).
+
 The wh1002 trial below is closed; this inventory and its receipts are historical, not authority to recreate its resources or reuse revoked credentials. A fresh isolated actual-site trial needs a new reviewed inventory, ownership receipts and passing exact source/cloud gates. Earlier fixture reports remain unchanged.
 
 The explicit account is 040f88e2bf4f25fb0b91b7cb24f3d442. Use unique prefix wh1002 and namespace wongstack-hosted-wh1002; never adopt or remove the existing user namespace wongstack. The private ownership manifest lives in the ignored .scratch/hosted-wh1002 folder and records actual resource and credential receipts before cleanup.

@@ -10,7 +10,7 @@ export function serviceConfig(input) {
   const config = { ...input, maxQueued: 16, maxAttempts: 3, candidateTimeoutMs: 1800000, retentionDays: 30 };
   return {
     name: `${input.prefix}-service`, account_id: input.account, main: resolve(import.meta.dirname, 'worker.mjs'),
-    compatibility_date: '2026-10-01', compatibility_flags: ['nodejs_compat'], workers_dev: true,
+    compatibility_date: '2026-10-01', compatibility_flags: ['nodejs_compat', 'global_fetch_strictly_public'], workers_dev: true,
     artifacts: [{ binding: 'ARTIFACTS', namespace: input.namespace }],
     containers: [{ name: `${input.prefix}-runner`, class_name: 'CiSandbox', image: 'docker.io/cloudflare/sandbox:0.12.5', max_instances: 2, instance_type: 'standard-1' }],
     durable_objects: { bindings: [{ name: 'SANDBOX', class_name: 'CiSandbox' }, { name: 'PROJECTS', class_name: 'HostedProject' }] },
