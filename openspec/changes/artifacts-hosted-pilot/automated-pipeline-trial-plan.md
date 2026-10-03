@@ -1,6 +1,6 @@
-# Automated pipeline trial — approved, execution pending evidence
+# Automated pipeline trial — wh1006 closed with candidate FAIL
 
-This is a concrete fresh plan, not execution authority. All previous trial resources and credentials are closed. Human-required AI, GitHub and private-site sign-in checks stay SKIPPED/UNVERIFIED. No new VM, Stripe checkout, cloud account sign-in, shared cloud staging change or memory runtime is needed for this narrower remaining pipeline validation.
+This is the historical approved wh1006 inventory. Its execution is closed with candidate FAIL and complete cleanup; see the [exact evidence](automated-pipeline-trial-evidence.md). It is not authority for another run. All trial resources and credentials are closed. Human-required AI, GitHub and private-site sign-in checks stay SKIPPED/UNVERIFIED. No new VM, Stripe checkout, cloud account sign-in, shared cloud staging change or memory runtime is needed for this narrower remaining pipeline validation.
 
 ## Reviewed source and exact inventory
 
@@ -30,4 +30,4 @@ Stop before writes without fresh explicit approval and exact source gates. Durin
 
 ## Execution authorization (2026-10-03)
 
-The user explicitly approved this isolated automated pipeline-only trial. Its owner is executing against immutable `10666521b0a43ef81c16847c4b594ca1640beb94` under the exact original 90-minute cap and cleanup inventory. No shared staging, VM, branch/index, PR or memory mutation is authorized. Actual outcomes remain pending the owner’s sanitized evidence after complete cleanup; this approval does not establish merge readiness.
+The user explicitly approved this isolated automated pipeline-only trial. Its owner executed against immutable `10666521b0a43ef81c16847c4b594ca1640beb94` under the exact original 90-minute cap and cleanup inventory. No shared staging, VM, branch/index, PR or memory mutation is authorized. The initial candidate failed in trusted Git preparation; the evidence records complete cleanup. This approval is spent and does not establish merge readiness or authorize another revision.

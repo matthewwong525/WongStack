@@ -4,7 +4,7 @@
 
 **Branch:** github-artifacts
 
-**Open questions:** none for the source repairs. Human-participation checks are waived and remain SKIPPED/UNVERIFIED. The wh1005 and wh1006 trials are closed with all owned resources and credentials removed. Actual setup passed; wh1006 source106 failed trusted Git preparation because deployed bundling rewrote serialized code. The bounded source repair is implemented and awaiting its exact remote gate. Automated pipeline acceptance and coordinated rollout are still unfinished; memory/Devices remain separate.
+**Open questions:** none for the source repairs. Human-participation checks are waived and remain SKIPPED/UNVERIFIED. The wh1005 and wh1006 trials are closed with all owned resources and credentials removed. Actual setup passed; wh1006 source106 failed trusted Git preparation because deployed bundling rewrote serialized code. The bounded source repair passed its exact remote gate at8422bee; fresh-source live acceptance remains approval-pending. Automated pipeline acceptance and coordinated rollout are still unfinished; memory/Devices remain separate.
 
 ## Why
 
@@ -233,3 +233,7 @@ Payload client, setup and delivery skills; the payload's test and deploy workflo
 - **2026-10-03** — Check: `scripts/tests/package.json` and `scripts/tests/package-lock.json` add meta-only esbuild `0.28.1`, exactly matching `server/hosted/package-lock.json`, so remote regressions execute the deployment's actual bundler with keepNames and import-renaming conditions. No source check, assertion, coverage floor, include or exclusion is changed or weakened.
 
 - **2026-10-03** — Accepted only the frozen `automated-pipeline-trial-evidence.md` handoff after verifying SHA-256 `8ced903cf4b284dd461f99764fd5a970f0d6189ab42840ccad645a88d81f031c`; the private receipt index is `6c448e58b80b4afe5b5b61fd232869423792bdeb8f7f9045bed4e0791e9a157b`. wh1006 is closed with candidate FAIL and complete finite cleanup. No downstream build/pack/preview/publication or merge readiness is established. Added the repeatable canonical-source/bundled-generator lesson to the owning hosted-workspace wiki. The source gate tests the repair without authorizing a fresh live execution.
+
+- **2026-10-03** — Exact bundled-command repair `8422bee98c0536484fe6f13acb9a6a2e0c8ffcdd` passed required push Deploy37153894757/Test37153894771/Payload37153894794, with1,247 script cases, zero fail/skip and unchanged coverage settings (lines92.11%, branches88.82%). The four actual esbuild keepNames/import-collision generated-program cases passed; tasks9.0c/9.0d are complete. This establishes source validation only. The cloud may pin this exact reviewed implementation; wh1006 stays closed FAIL and actual provider/R2/private-preview/publication acceptance still requires separately approved fresh resources.
+
+- **2026-10-03** — Prepared the read-only [wh1007 repaired-source trial inventory](automated-pipeline-repair-trial-plan.md) on exact gated8422bee, with new namespace/prefix/two UUIDs, the same90-minute cap and complete cleanup. Execution is approval-pending; no provider write, VM, shared staging or production rollout is authorized by this plan. The wh1006 source106 failure and spent approval remain separate.
