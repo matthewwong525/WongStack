@@ -1,4 +1,5 @@
 // Durable queues acknowledge exact outcomes, never HTTP success alone.
+import { machineDataProofMessage } from '../../worker/machine-data-proof.mjs';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { privateRead, privateWrite, writeMachineState, withMachineLock, setPending } from './machine-client-state.mjs';
@@ -31,7 +32,8 @@ export async function enqueueCapture(ctx,installation,payload,{queueId=randomUUI
  const notes={visibility:payload.visibility,source:payload.source,newTags:payload.newTags,session:payload.session,facts:payload.facts,run:payload.run};
  const intentHash=await clientHash(JSON.stringify(notes));
  if(old){if(old.intentHash!==intentHash||old.machineId!==state.machineId||old.grantId!==state.grantId||JSON.stringify(old.installation)!==JSON.stringify(installation))throw clientError('capture-queue-conflict');if(!old.completed&&!old.quarantined)setPending(ctx,'capture',queueId,true);return old;}
- const queue={id:queueId,installation,machineId:state.machineId,grantId:state.grantId,intentHash,notes,localOutcome,chunks:captureChunks(notes).map(notes=>({notes,receipt:null,candidate:null})),completed:false,quarantined:false};
+ const provenance={version:2,installation,machineId:state.machineId,grantId:state.grantId,keyCommitment:state.commitment,publicKey:state.publicKey,scope:state.scope,machineRevision:state.machineRevision,grantRevision:state.grantRevision,credentialGeneration:state.credential.generation};
+ const queue={id:queueId,provenance,installation,machineId:state.machineId,grantId:state.grantId,intentHash,notes,localOutcome,chunks:captureChunks(notes).map(notes=>({notes,receipt:null,candidate:null})),completed:false,quarantined:false};
  setPending(ctx,'capture',queueId,true);privateWrite(path,queue);return queue;});
 }
 export async function flushCapture(ctx,installation,queueId,{timeoutMs=15000,deadline}={}) {
@@ -39,25 +41,31 @@ export async function flushCapture(ctx,installation,queueId,{timeoutMs=15000,dea
  return withMachineLock(ctx.stateDir,async()=>{
   const latest=boundMachine(ctx,installation);if(latest.machineId!==state.machineId||latest.grantId!==state.grantId)throw clientError('capture-queue-quarantined');state=latest;
   const path=file(ctx,queueId),queue=privateRead(path);if(!queue||queue.quarantined||queue.machineId!==state.machineId||queue.grantId!==state.grantId||JSON.stringify(queue.installation)!==JSON.stringify(installation))throw clientError('capture-queue-quarantined');
+  const provenance=queue.provenance;
+  const sameAuthority=provenance?.version===2&&provenance.keyCommitment===state.commitment&&JSON.stringify(provenance.publicKey)===JSON.stringify(state.publicKey)&&provenance.machineId===state.machineId&&provenance.grantId===state.grantId&&provenance.machineRevision===state.machineRevision&&provenance.grantRevision===state.grantRevision&&provenance.scope===state.scope&&JSON.stringify(provenance.installation)===JSON.stringify(installation);
+  if(!sameAuthority||(queue.notes.visibility==='shared'&&!['memory:read memory:write','memory:read memory:write memory:admin'].includes(state.scope))) {queue.quarantined=true;queue.reason='capture-queue-quarantined';privateWrite(path,queue);setPending(ctx,'capture',queueId,false);throw clientError('capture-queue-quarantined');}
   const completed=[];
   try {
    for(const chunk of queue.chunks) {
     if(chunk.receipt){completed.push(chunk.receipt);continue;}
-    if(chunk.candidate) {
-     const candidate=chunk.candidate,status=await signClient(state,'capture-status',{attemptId:randomUUID(),expected:state.dataSnapshot,payload:{machineId:state.machineId,grantId:state.grantId,machineCommitment:state.commitment,targetAttemptId:candidate.input.attemptId,requestHash:candidate.requestHash}});
+    if(chunk.candidate&&chunk.successors?.at(-1)?.candidate!==null) {
+     const candidate=chunk.successors?.at(-1)?.candidate??chunk.candidate,status=await signClient(state,'capture-status',{attemptId:randomUUID(),expected:state.dataSnapshot,payload:{machineId:state.machineId,grantId:state.grantId,machineCommitment:state.commitment,targetAttemptId:candidate.input.attemptId,requestHash:candidate.requestHash,targetCandidate:candidate.input}});
      const recovered=(await machineCall(state,'capture-status',status,{timeoutMs,deadline})).result;
      if(recovered.access!=='receipt-only')throw clientError('capture-receipt-invalid');
      state.dataSnapshot=recovered.snapshot;state.snapshot={authRevision:recovered.snapshot.authRevision,pinRevision:recovered.snapshot.pinRevision,runtimeRevision:recovered.snapshot.runtimeRevision,snapshotHash:recovered.snapshot.snapshotHash};
      if(recovered.operation?.completed){chunk.receipt=validateReceipt(recovered,candidate.input,candidate.requestHash);privateWrite(path,queue);completed.push(chunk.receipt);continue;}
      if(recovered.operation?.absent!==true)throw clientError('capture-incomplete');
-     // Absence allows a refreshed attempt only on this exact still-active grant.
-     chunk.candidate=null;privateWrite(path,queue);
+     const evidence=recovered.operation.nonExecution;
+     if(!evidence||evidence.nonExecution!==true||evidence.action!=='capture'||evidence.predecessorDeadline!==candidate.input.proof.deadline||evidence.predecessorDeadline>=Math.floor(Date.now()/1000)||evidence.predecessorProofHash!==await clientHash(await machineDataProofMessage({installation,purpose:'capture',attemptId:candidate.input.attemptId,expected:candidate.input.expected,payload:candidate.input.payload},candidate.input.proof))||evidence.intentHash!==await clientHash(JSON.stringify(chunk.notes))||evidence.attemptId!==candidate.input.attemptId||evidence.requestHash!==candidate.requestHash||evidence.machineId!==state.machineId||evidence.grantId!==state.grantId||evidence.keyCommitment!==state.commitment||JSON.stringify(evidence.installation)!==JSON.stringify(installation))throw clientError('capture-receipt-invalid');
+     const {evidenceHash,...frame}=evidence;if(evidenceHash!==await clientHash(JSON.stringify(frame)))throw clientError('capture-receipt-invalid');
+     // The attempted frame remains immutable; only exact proven nonexecution permits an appended successor.
+     chunk.successors??=[];chunk.successors.push({predecessorAttemptId:candidate.input.attemptId,predecessorRequestHash:candidate.requestHash,absenceEvidence:evidence,candidate:null});privateWrite(path,queue);
     }
     const payload={machineId:state.machineId,repositoryId:installation.repositoryId,grantId:state.grantId,machineCommitment:state.commitment,
      machineRevision:state.machineRevision,grantRevision:state.grantRevision,credentialGeneration:state.credential.generation,credentialHash:state.credential.hash,...chunk.notes};
     const input=await signClient(state,'capture',{attemptId:randomUUID(),expected:state.dataSnapshot,payload});
     const requestHash=await clientHash(JSON.stringify({version:14,installation,action:'capture',attemptId:input.attemptId,expected:input.expected,payload:{...payload,publicKeyJson:JSON.stringify(state.publicKey)}}));
-    chunk.candidate={input,requestHash};privateWrite(path,queue);
+    const successor=chunk.successors?.at(-1);if(successor&&successor.candidate===null)successor.candidate={input,requestHash};else if(chunk.candidate===null)chunk.candidate={input,requestHash};else throw clientError('capture-receipt-invalid');privateWrite(path,queue);
     const result=(await machineCall(state,'capture',input,{timeoutMs,deadline})).result;chunk.receipt=validateReceipt(result,input,requestHash);
     state.dataSnapshot=result.snapshot;state.snapshot={authRevision:result.snapshot.authRevision,pinRevision:result.snapshot.pinRevision,runtimeRevision:result.snapshot.runtimeRevision,snapshotHash:result.snapshot.snapshotHash};
     privateWrite(path,queue);completed.push(chunk.receipt);
@@ -67,7 +75,7 @@ export async function flushCapture(ctx,installation,queueId,{timeoutMs=15000,dea
    privateWrite(path,queue);setPending(ctx,'capture',queueId,false);
    return {queueId,completed:true,receipts:completed,kept:queue.notes.facts.length,superseded:queue.notes.facts.reduce((n,f)=>n+f.supersedes.length,0)};
   } catch(error) {
-   if(['machine-operation-incomplete','machine-attempt-conflict','machine-proof-denied','machine-capture-quarantined','capture-receipt-invalid'].includes(error.code)){queue.quarantined=true;queue.reason=error.code;privateWrite(path,queue);setPending(ctx,'capture',queueId,false);}
+   if(['machine-operation-incomplete','machine-attempt-conflict','machine-proof-denied','machine-capture-quarantined','capture-receipt-invalid','capture-queue-quarantined'].includes(error.code)){queue.quarantined=true;queue.reason=error.code;privateWrite(path,queue);setPending(ctx,'capture',queueId,false);}
    error.machineQueueId=queueId;throw error;
   }
  });

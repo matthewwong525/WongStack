@@ -11,7 +11,7 @@ import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/worker/memory-worker.mjs';
 import { agentCommand, runbook, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
-import { memory, node, rows, register as registerPrivate, SECRET, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { memory, node, rows, register as registerPrivate, SECRET, setup, tempDir, writeJsonFile, clientScript } from './fixtures/memory/harness.mjs';
 
 const HOUR = 3600 * 1000;
 const age = (file, ms) => { const time = new Date(Date.now() - ms); utimesSync(file, time, time); };
@@ -417,6 +417,63 @@ test('rotated completed stage receives a distinct generation address, while old 
 test('a partial raw stage quarantines recovery rather than rotating into a replacement address',async t=>{
  const e=await setup(t),session=claudeSession(e,8,[['user','An incomplete stage must never be adopted.']]);e.fake.dropNext('stage');await memory(e.repo,e.fake,['keep-transcript',session.id]);const stage=rows(e,"SELECT attempt_id FROM memory_runtime_transcripts WHERE event='staged'")[0],ddl=e.fake.db.prepare("SELECT sql FROM sqlite_master WHERE name='memory_runtime_completions_retained'").get().sql;e.fake.db.exec('DROP TRIGGER memory_runtime_completions_retained');e.fake.db.prepare('DELETE FROM memory_runtime_completions WHERE attempt_id=?').run(stage.attempt_id);e.fake.db.exec(ddl);
  const retry=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(retry.code,0);assert.match(retry.stdout,/transcript not kept:/);assert.equal(rows(e,"SELECT count(*) n FROM memory_runtime_transcripts WHERE event='staged'")[0].n,1);assert.equal(e.fake.objects.size,0);
+});
+
+async function prepareRawAttempt(e,{expired=false}={}) {
+ const session=claudeSession(e,9,[['user','The original session remains privately retained.']]);
+ const kept=await memory(e.repo,e.fake,['keep-transcript',session.id]);assert.equal(kept.code,0,kept.stderr);assert.match(kept.stdout,/kept:/);
+ const url=name=>new URL(`../../.agents/skills/memory/scripts/lib/${name}.mjs`,import.meta.url).href;
+ const transcriptUrl=new URL('../../.agents/skills/memory/worker/machine-core-transcripts.mjs',import.meta.url).href;
+ const code=`import {privateRead,privateWrite,setPending} from ${JSON.stringify(url('machine-client-state'))};
+ import {signClient,clientHash,clientRuntimeRequestHash,runtimeSnapshot} from ${JSON.stringify(url('machine-client'))};
+ import {transcriptKey} from ${JSON.stringify(transcriptUrl)};
+ const dir=${JSON.stringify(e.repo.stateDir)},ctx={stateDir:dir},state=privateRead(dir+'/machine.json'),sessionId=${JSON.stringify(session.id)},body=Buffer.from('A separately attempted private raw frame.');
+ const installation=state.installation,sessionHash=await clientHash(sessionId),contentHash=await clientHash(body),generation=state.credential.generation,objectHash=await clientHash(transcriptKey(installation,state.machineId,sessionHash,contentHash,generation));
+ const provenance={version:2,installation,machineId:state.machineId,grantId:state.grantId,keyCommitment:state.commitment,publicKey:state.publicKey,scope:state.scope,machineRevision:state.machineRevision,grantRevision:state.grantRevision,credentialGeneration:generation};
+ const payload={grantId:state.grantId,machineId:state.machineId,machineCommitment:state.commitment,scope:state.scope,machineRevision:state.machineRevision,grantRevision:state.grantRevision,credentialGeneration:generation,objectHash,sessionHash,contentHash,visibility:'private'};
+ const clock=Date.now;let input;try{if(${expired})Date.now=()=>clock()-180000;input=await signClient(state,'stage',{attemptId:crypto.randomUUID(),expected:runtimeSnapshot(state.snapshot),payload});}finally{Date.now=clock;}
+ const journal={provenance,installation,machineId:state.machineId,grantId:state.grantId,sessionId,sessionHash,contentHash,generation,objectHash,body:body.toString('base64'),stage:{input,requestHash:await clientRuntimeRequestHash(state,'stage',input),receipt:null},publish:null,completed:false};
+ privateWrite(dir+'/raw-queues/'+objectHash+'.json',journal);privateWrite(dir+'/raw-heads/'+sessionHash+'-'+contentHash+'.json',{provenance,machineId:state.machineId,grantId:state.grantId,sessionHash,contentHash,generation,objectHash});setPending(ctx,'raw',objectHash,true);
+ console.log(JSON.stringify({objectHash,sessionHash,contentHash}));`;
+ const result=await clientScript(e.repo,e.fake,code);assert.equal(result.code,0,result.stderr);const pointer=JSON.parse(result.stdout);
+ return {...pointer,path:join(e.repo.stateDir,'raw-queues',pointer.objectHash+'.json'),head:join(e.repo.stateDir,'raw-heads',pointer.sessionHash+'-'+pointer.contentHash+'.json')};
+}
+const rawWrites=e=>e.fake.calls.filter(call=>['/stage','/upload','/publish'].some(suffix=>call.endsWith(suffix)));
+
+test('expired unexecuted raw stage appends one proven successor without erasing original provenance',async t=>{
+ const e=await setup(t),raw=await prepareRawAttempt(e,{expired:true}),original=JSON.parse(readFileSync(raw.path)),before=rawWrites(e).length;
+ assert.ok(original.stage.input.proof.deadline<Math.floor(Date.now()/1000));const result=await memory(e.repo,e.fake,['drain']);assert.equal(result.code,0,result.stderr);
+ const retained=JSON.parse(readFileSync(raw.path)),successor=retained.successors?.stage?.[0];assert.equal(retained.completed,true);assert.deepEqual(retained.stage,original.stage);assert.deepEqual(retained.provenance,original.provenance);assert.equal(retained.successors.stage.length,1);
+ assert.equal(successor.predecessorAttemptId,original.stage.input.attemptId);assert.equal(successor.predecessorRequestHash,original.stage.requestHash);assert.equal(successor.absenceEvidence.action,'stage');assert.equal(successor.absenceEvidence.predecessorDeadline,original.stage.input.proof.deadline);assert.equal(successor.absenceEvidence.nonExecution,true);assert.equal(successor.absenceEvidence.candidateHash,raw.objectHash);
+ assert.notEqual(successor.candidate.input.attemptId,original.stage.input.attemptId);assert.ok(successor.candidate.receipt.completed);assert.equal(retained.publish.input.payload.stageAttemptId,successor.candidate.input.attemptId);assert.equal(retained.body,undefined);assert.equal(e.fake.objects.size,2);assert.equal(rawWrites(e).length-before,3);
+ assert.equal((await memory(e.repo,e.fake,['drain'])).code,0);assert.equal(e.fake.objects.size,2);assert.equal(rawWrites(e).length-before,3);
+});
+
+test('unexpired raw absence retains its attempted frame and denies every stage/upload/publish callback',async t=>{
+ const e=await setup(t),raw=await prepareRawAttempt(e),original=JSON.parse(readFileSync(raw.path)),before=rawWrites(e).length;
+ await memory(e.repo,e.fake,['drain']);const retained=JSON.parse(readFileSync(raw.path));assert.equal(retained.quarantined,true);assert.equal(retained.completed,false);assert.deepEqual(retained.stage,original.stage);assert.deepEqual(retained.provenance,original.provenance);assert.equal(retained.body,original.body);assert.equal(retained.successors,undefined);assert.equal(rawWrites(e).length,before);assert.equal(e.fake.objects.size,1);
+});
+
+for(const tamper of ['intent','deadline'])test(`rehashed raw nonexecution with changed ${tamper} never permits a successor`,async t=>{
+ const e=await setup(t),raw=await prepareRawAttempt(e,{expired:true}),original=JSON.parse(readFileSync(raw.path)),before=rawWrites(e).length;
+ e.fake.setReply((body,url)=>{if(url.endsWith('/self-status')&&body.candidate?.nonExecution){const frame=structuredClone(body.candidate.nonExecution);delete frame.evidenceHash;
+  if(tamper==='intent')frame.intent={...frame.intent,contentHash:'b'.repeat(64)};else frame.predecessorDeadline+=1;
+  body.candidate.nonExecution={...frame,evidenceHash:createHash('sha256').update(JSON.stringify(frame)).digest('hex')};}return body;});
+ await memory(e.repo,e.fake,['drain']);const retained=JSON.parse(readFileSync(raw.path));assert.equal(retained.quarantined,true);assert.deepEqual(retained.stage,original.stage);assert.equal(retained.successors,undefined);assert.equal(retained.body,original.body);assert.equal(rawWrites(e).length,before);assert.equal(e.fake.objects.size,1);
+});
+
+for(const field of ['missing','keyCommitment','scope','machineRevision','grantRevision'])test(`raw original ${field} refusal preserves bytes and calls no raw mutation`,async t=>{
+ const e=await setup(t),raw=await prepareRawAttempt(e),journal=JSON.parse(readFileSync(raw.path)),head=JSON.parse(readFileSync(raw.head)),before=rawWrites(e).length,originalStage=structuredClone(journal.stage),body=journal.body;
+ if(field==='missing'){delete journal.provenance;delete head.provenance;}
+ else {const value=field==='keyCommitment'?'f'.repeat(64):field==='scope'?'memory:read':journal.provenance[field]+1;journal.provenance[field]=value;head.provenance[field]=value;}
+ writeFileSync(raw.path,JSON.stringify(journal),{mode:0o600});writeFileSync(raw.head,JSON.stringify(head),{mode:0o600});await memory(e.repo,e.fake,['drain']);const retained=JSON.parse(readFileSync(raw.path));
+ assert.equal(retained.quarantined,true);assert.equal(retained.completed,false);assert.deepEqual(retained.stage,originalStage);assert.equal(retained.body,body);assert.equal(rawWrites(e).length,before);assert.equal(e.fake.objects.size,1);
+});
+
+test('a changed raw head cannot select another original authority or mutate retained object bytes',async t=>{
+ const e=await setup(t),raw=await prepareRawAttempt(e),head=JSON.parse(readFileSync(raw.head)),before=readFileSync(raw.path),writes=rawWrites(e).length;
+ head.provenance.keyCommitment='f'.repeat(64);writeFileSync(raw.head,JSON.stringify(head),{mode:0o600});await memory(e.repo,e.fake,['drain']);
+ assert.deepEqual(readFileSync(raw.path),before);assert.equal(rawWrites(e).length,writes);assert.equal(e.fake.objects.size,1);assert.deepEqual(JSON.parse(readFileSync(join(e.repo.stateDir,'pending-raw.json'))),[raw.objectHash]);
 });
 
 test('startup never reuses another installation namespace cached private digest',async t=>{

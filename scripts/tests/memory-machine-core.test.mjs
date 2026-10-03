@@ -95,3 +95,23 @@ test('every compiled packed-state column map matches the exact ordered actual sc
  const f=await coreFixture(t);for(const [table,columns] of Object.entries(coreTableColumns)){assert.match(table,/^[A-Za-z_][A-Za-z0-9_]*$/);assert.ok(columns.every(column=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(column)),table);assert.deepEqual(f.db.prepare('PRAGMA table_info('+table+')').all().map(row=>row.name),columns,table);}
  const response=await f.call('query',{operation:'facts',params:{}});assert.equal(response.status,200,await response.clone().text());assert.ok(f.totalStatements<=CORE_D1_LIMIT);
 });
+
+import { completedImportFixture } from './fixtures/memory/legacy-import.mjs';
+test('public15 requires its actual schema binding and current wrapper metadata while14 activation stays retained',async t=>{
+ const f=await completedImportFixture(t,14),activation=f.db.prepare('SELECT * FROM memory_runtime_activations').get();
+ assert.equal((await f.call('query',{operation:'facts',params:{}})).status,200);assert.ok(f.totalStatements<=CORE_D1_LIMIT);
+ delete f.env.MEMORY_SCHEMA_VERSION;assert.equal((await f.call('query',{operation:'facts',params:{}})).status,403);
+ f.env.MEMORY_SCHEMA_VERSION='15';f.env.CF_VERSION_METADATA={id:'foreign-source-version'};assert.equal((await f.call('query',{operation:'facts',params:{}})).status,403);
+ assert.deepEqual(f.db.prepare('SELECT * FROM memory_runtime_activations').get(),activation);
+});
+
+import { sqlFunctionArguments } from './fixtures/memory/legacy-import.mjs';
+for(const version of [14,15])test(`actual public${version} generated coherent image respects D1's32 function arguments and retains nullable proof fields`,async t=>{
+ const f=version===14?await coreFixture(t):await completedImportFixture(t,14),original=f.env.MEMORY_DB.prepare,seen=[];
+ const enforce=sql=>{for(const call of sqlFunctionArguments(sql))assert.ok(call.args<=32,`${call.name}: ${call.args}`);};
+ assert.throws(()=>enforce(`SELECT json_object(${Array.from({length:17},(_,i)=>`'k${i}',NULL`).join(',')})`));
+ f.env.MEMORY_DB.prepare=sql=>{enforce(sql);seen.push(sql);return original(sql);};
+ for(const operation of ['facts','digest','sessions']){const response=await f.call('query',{operation,params:{}});assert.equal(response.status,200,await response.clone().text());assert.ok(f.totalStatements<=CORE_D1_LIMIT);}
+ const images=seen.filter(sql=>sql.startsWith("SELECT 'image' kind"));assert.ok(images.length>0);assert.ok(images.every(sql=>!sql.includes('json_patch(')));assert.ok(images.some(sql=>sql.includes('json_set(')));
+ assert.equal(f.db.prepare('SELECT barrier_attempt_id FROM memory_runtime_configuration').get().barrier_attempt_id,null);
+});

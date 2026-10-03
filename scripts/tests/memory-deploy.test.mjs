@@ -115,3 +115,12 @@ test('bounded archive reader accepts stored and deflated JSON and refuses malfor
  for(const bad of [Buffer.from('not zip'),valid.subarray(0,valid.length-1),crc,duplicate,oversize,encrypted])assert.throws(()=>readPublicationArchive(bad));
  const receipt={digest:'sha256:'+createHash('sha256').update(valid).digest('hex')};assert.deepEqual(verifyArtifactBytes(valid,receipt),valid);assert.throws(()=>verifyArtifactBytes(crc,receipt));
 });
+
+import { completedImportFixture } from './fixtures/memory/legacy-import.mjs';
+test('15 publication journal v2 checks its own legacy attempt ledger and independent current source proof',async t=>{
+ const f=await completedImportFixture(t,14),j=journal(),p={...params(f,j),source:f.reviewedSource};
+ const intent=await preparePublication(p);assert.equal(intent.version,2);
+ await deployFixtureVersion(f);const candidate=await preparePublicationAcknowledgment(p);assert.equal(candidate.version,2);assert.equal(candidate.phase,'candidate');
+ const receipt=await acknowledgePublication(p);assert.equal(receipt.completed,true);assert.equal(f.db.prepare('SELECT count(*) n FROM memory_legacy_deployment_attempts').get().n,1);assert.equal(f.db.prepare('SELECT count(*) n FROM memory_data_attempts').get().n,0);
+ assert.equal((await acknowledgePublication(p)).requestHash,receipt.requestHash);
+});

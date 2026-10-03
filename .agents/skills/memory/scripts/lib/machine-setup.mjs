@@ -101,3 +101,48 @@ export async function removeSetupMachine({operator,store,tuple}) {
   requireValue(gone.length===1&&gone[0].state==='revoked'&&result.operation.completed,'machine-operation-incomplete');state.phase='removed';await persistSetup(store,state);return memoryResult(state.installation,'blocked','machine-revoked');
  });
 }
+
+// Maintenance admission uses the explicitly supplied trusted context and retains the exact
+// signed candidate privately. Public connectivity is proved only after final15 exposure.
+import { readMachineState,writeMachineState,withMachineLock } from './machine-client-state.mjs';
+import { signClient,clientRuntimeRequestHash,exactRuntimeReceipt,machineCall } from './machine-client.mjs';
+import { enrollRuntimeMachine,validateRuntimeBearer } from './machine-runtime-operator.mjs';
+import { readLegacyState } from './machine-legacy-state.mjs';
+import { runtimeContext } from '../../worker/machine-context.mjs';
+export async function prepareLegacySetupEnrollment({ctx,context,installation,destination,capability,snapshot}) {
+ runtimeContext(context,true);resourceTarget(installation,true);
+ requireValue(sameMachineValue(destination.installation,installation),'target-mismatch');
+ return withMachineLock(ctx.stateDir,async()=>{
+  let state=readMachineState(ctx);
+  requireValue(state&&!state.quarantined&&sameMachineValue(state.installation,installation)&&state.machineId===destination.machineId&&state.commitment===destination.machineCommitment
+   &&(!state.grantId||state.grantId===destination.grantId),'machine-proof-denied');
+  state={...state,grantId:destination.grantId,scope:destination.scope,machineRevision:destination.machineRevision,grantRevision:destination.grantRevision,snapshot:runtimeSnapshot(snapshot),phase:'legacy-maintenance'};
+  requireValue(!state.credential,'credential-candidate-conflict');
+  if(!state.candidate) {
+   const token=randomBytes(32).toString('base64url'),now=Math.floor(Date.now()/1000),hash=await clientHash(token);
+   const payload={grantId:state.grantId,machineId:state.machineId,machineCommitment:state.commitment,capabilityHash:await clientHash(capability),scope:state.scope,credentialHash:hash,credentialExpiresAt:now+2591900,overlapUntil:now+110};
+   const input=await signClient(state,'enroll',{attemptId:randomUUID(),expected:runtimeSnapshot(snapshot),payload,capability});
+   state.candidate={token,hash,generation:1,expiresAt:payload.credentialExpiresAt,input,requestHash:await clientRuntimeRequestHash(state,'enroll',input)};writeMachineState(ctx,state);
+  }
+  const retained=state.candidate;
+  return {input:retained.input,confirm:async result=>withMachineLock(ctx.stateDir,async()=>{
+   const latest=readMachineState(ctx);requireValue(latest?.candidate&&sameMachineValue(latest.candidate,retained),'credential-candidate-conflict');
+   exactRuntimeReceipt(result,'enroll',retained);
+   await validateRuntimeBearer(context,{machineId:state.machineId,credentialHash:retained.hash});
+   writeMachineState(ctx,{...latest,credential:{token:retained.token,hash:retained.hash,generation:1,expiresAt:retained.expiresAt},snapshot:result.snapshot,phase:'legacy-final-pending',candidate:null});
+  })};
+ });
+}
+export async function completeLegacyMachineSetup({ctx,context,installation,cutover}) {
+ runtimeContext(context,true);const source=await readLegacyState(context);
+ requireValue(source.configuration.state==='exposed'&&cutover?.operation?.completed===true&&cutover.operation.action==='legacy-cutover'
+  &&cutover.operation.attemptId===source.attempt.id&&cutover.operation.requestHash===source.attempt.request_hash,'machine-operation-incomplete');
+ await refreshMachine(ctx,installation);const state=readMachineState(ctx);
+ requireValue(state?.credential&&!state.candidate&&!state.quarantined,'credential-unconfirmed');
+ // This exact initiating machine must complete an allowed public query under final15.
+ await machineCall(state,'query',{operation:'sessions',params:{ids:[]}});
+ const ready=await observeMachineMemory(ctx,installation);
+ requireValue(ready?.status==='ready','machine-operation-incomplete');
+ await withMachineLock(ctx.stateDir,async()=>{const current=readMachineState(ctx);requireValue(current?.credential?.hash===state.credential.hash,'credential-unconfirmed');writeMachineState(ctx,{...current,phase:'ready'});});
+ return ready;
+}

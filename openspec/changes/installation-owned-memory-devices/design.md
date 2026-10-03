@@ -6,7 +6,7 @@ See [proposal.md](proposal.md). The user replaced person-owned memory and browse
 
 ## Goals / Non-Goals
 
-Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. The removal slice is complete. The user has invoked /ship, which resumes pending source implementation before archive/merge. The strict machine routes, finite private/shared operations and automatic private clients/hooks have passed the source gate. Current bounded source work completes trusted setup and durable deployment consumers. No provider writes, private runner changes, new live credentials or migration execution is authorized by this source slice. Newly implemented handlers stay closed on real unprepared stores until separately coordinated trusted setup and acceptance.
+Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. The removal slice is complete. The user has invoked /ship, which resumes pending source implementation before archive/merge. The strict machine routes, finite private/shared operations and automatic private clients/hooks have passed the source gate. Trusted setup and delivery have passed their source checks. Current bounded source work completes reviewed legacy cutover and recovery. No provider writes, private runner changes, new live credentials or migration execution is authorized by this source slice. Newly implemented handlers stay closed on real unprepared stores until separately coordinated trusted setup and acceptance.
 
 ## Decisions
 
@@ -525,3 +525,108 @@ Actual cutover requires a reviewed dedicated operator adapter: exhaustive pagina
 ### Task4.2a bounded-schema repair1
 
 Exact82d payload failure shows whole sqlite_master DDL exceeds128KiB. Reserve only machine-legacy-inventory.mjs and scripts/tests/memory-machine-legacy-inventory.test.mjs for bounded name/type metadata, independently bounded per-object SQL and an ordered canonical per-object digest projection. Preserve exact logical DDL and128KiB limits,20-record selection, old failures and other five source bytes. Genuine14 and oversized-single-object coverage must run remotely; static checks cannot complete the task. No SQL/protocol/consumer/provider mutation. The future15 mutation must revalidate after sequential reads, closure and immediately before exposure.
+
+## Released task4.2 coherent forward15 source boundary
+
+Prerequisite exact4.2a source gate9f52b1ee2b6bb6babad7045adc8ab5730c6d1953 is SUCCESS. The prior machine-legacy-contract.md proposed27 paths are historical preparation; this section releases exactly those plus six reviewed dependencies,33 paths total. Root owns change-local main documents/review and git/checks; all other files require coordination BEFORE edits. No provider-specific transport/caller or private/live authority follows.
+
+- `.agents/skills/memory/migrations/0015_legacy_cutover.sql`
+- `.agents/skills/memory/scripts/lib/machine-legacy-migrations.mjs`
+- `.agents/skills/memory/scripts/lib/machine-legacy-state.mjs`
+- `.agents/skills/memory/scripts/lib/machine-legacy-planners.mjs`
+- `.agents/skills/memory/scripts/lib/machine-legacy-operator.mjs`
+- `.agents/skills/memory/worker/machine-legacy-contract.mjs`
+- `scripts/tests/fixtures/memory/legacy-import.mjs`
+- `scripts/tests/memory-machine-legacy-migrations.test.mjs`
+- `scripts/tests/memory-machine-legacy-upgrade.test.mjs`
+- `scripts/tests/memory-machine-legacy-cutover.test.mjs`
+- `scripts/tests/memory-machine-legacy-import.test.mjs`
+- `.agents/skills/memory/worker/machine-context.mjs`
+- `.agents/skills/memory/worker/machine-core-contract.mjs`
+- `.agents/skills/memory/worker/machine-core.mjs`
+- `.agents/skills/memory/worker/machine-core-transcripts.mjs`
+- `.agents/skills/memory/scripts/lib/machine-runtime-state.mjs`
+- `.agents/skills/memory/scripts/lib/machine-runtime-operator.mjs`
+- `.agents/skills/memory/scripts/lib/machine-data-state.mjs`
+- `.agents/skills/memory/scripts/lib/machine-data-operator.mjs`
+- `.agents/skills/memory/scripts/lib/machine-data-planners.mjs`
+- `.agents/skills/memory/scripts/lib/machine-setup.mjs`
+- `scripts/memory-deploy-pipeline.mjs`
+- `scripts/memory-deploy-journal.mjs`
+- `scripts/tests/memory-machine-core.test.mjs`
+- `scripts/tests/memory-machine-setup.test.mjs`
+- `scripts/tests/memory-machine-data-deployment.test.mjs`
+- `scripts/tests/memory-deploy.test.mjs`
+- `.agents/skills/memory/scripts/lib/machine-legacy-adapter.mjs`
+- `scripts/tests/memory-machine-legacy-adapter.test.mjs`
+- `scripts/lib-memory-publication.mjs`
+- `.agents/skills/memory/scripts/lib/machine-client-queue.mjs`
+- `scripts/tests/memory-machine-client-queue.test.mjs`
+- `scripts/tests/memory-machine-data-migrations.test.mjs`
+
+### Baseline, barriers and protocol
+
+Keep original SQL1–14 and separate original installation/machine/runtime/data manifests byte-identical. Define exact separately compiled15 DDL/manifest/core protocol and dependency closure; partial/future/foreign/SQL-only extensions refuse. Preserve source10/11 IDs/configuration/bootstrap/audit/manifest and removed authority, including genuine absence of an11 receipt in10. Legacy1–6 requires explicit retained original ownership or reviewed adoption/backup; choose and persist new IDs before mutation, never email/name/GET adoption. Structural missing migrations do not fabricate historic completion receipts. Revalidate selected rows using ORIGINAL source-version columns, with all newly added owner/capture columns unclaimed.
+
+Separate15 baseline/audit/completion records commit source schema/history/universe/backup, resource authority, target, pins, exact reviewed attempt and current independent closure. Original12 manifest/bootstrap-completion tables remain empty for10/11/adoption. A genuine SQL12 issue attempt/grant/audit/completion under the closed15 staging barrier supplies a clearly labelled15 compatibility FK witness for runtime baseline_audit_id. It is an issue audit, never original fresh12 bootstrap; independently validate action, grant, request and15 linkage. Replace only dependent machine/runtime/data/activation/outcome/capture guards through forward15 SQL, retaining original14 branches and every exact comparison. New runtime/data configuration is a15-authorized era, distinct from historic initialization. Retain existing14 baseline/history and the sole13 activation unchanged; append a15 protocol transition/deployment successor, never a second13 activation or changed14 hashes/frames. Independent15 barrier/snapshot/final-response guards close ordinary public core until final exposure. Preserve50-D1 request ceiling and fresh coherent request validation, with final current-grant/credential checks; no cross-request authority cache.
+
+### Exact import, correction and quarantine
+
+Use append-only15 configuration/baseline/manifest/attempt/audit/completion/piece/closure/retirement/claim/quarantine/correction/transition/deployment ledgers. Every fact/session/raw claim commits original ID/row/tag/session/raw evidence and reviewed destination machine/grant/key/scope/revisions/generation. Bounded pieces expose nothing until exact final counts/IDs/digests and current destination grant completion. Final source-universe commitment places every unclaimed historic row in restricted quarantine. Admin/everyone quarantine reads require an exact sanitized access audit; arbitrary raw stays restricted until explicitly reviewed admin-only raw claim. Shared summaries never grant raw. Preserve authored columns, raw bytes/path/cursor, original supersede/tag links and14 captures. One effective completed relation drives every facts/filter/search/branch/change/digest/tags/stats/live-count/consolidation/session/source/raw query. Imported sessions stay immutable historical sessions; continuation uses a fresh owned namespace. Corrections append predecessor-linked ownership/supersede overlays, never update original rows or resurrect removed grants. Ordinary corrections to imported facts are committed within the exact existing14 capture outcome; replacement15 guards validate complete overlay correspondence without changing original signed request/outcome fields.
+
+### Actual closure and exact recovery
+
+Generic trusted-process adapter requires independently authorized finite callbacks for exhaustive paginated account/zone/Worker/version/domain/route/preview/binding/credential and bucket-origin enumeration, retained backup/ownership verification, private exact credential resolution, scoped retirement/replacement and independent readbacks/probes. There is NO default transport or inferred permission. Persist exact private intent/candidate/target/source/predecessor BEFORE HTTP; close all old serving paths FIRST, disable public bucket origins and retire every former memory client credential while preserving reviewed business/CI permissions. Unknown alias/page/credential, unsupported scoped shared-token replacement, direct D1/R2 still usable, redirect/200, stale evidence or opaque success refuses. Probe every exact credential identity × endpoint × method plus anonymous; separately probe both configured direct-memory resources. Re-enumerate and revalidate source/schema/history/selected/tag/session/raw/backup/mapping/destination/protection after closure and immediately before every mutation/final exposure. Expected declared credential retirement is validated against retained original backup and exact ledger; it cannot make removed credential rows appear active or excuse any unrelated historic drift.
+
+Deliberate nontransactional failure at every DDL/attempt/retirement/witness/runtime/data/activation/piece/final/transition boundary leaves closed. Exact identical attempt may recover only its own independently proven final receipt; competing/stale attempts refuse. Provider success envelope/lost response never completes. Revocation immediately before final exposure denies completion and removed authority never returns. Trusted setup may sign/persist genuine runtime enrollment then invoke trusted enrollment while public15 maintenance remains closed; no ready or ordinary read until final15 receipt plus THIS machine's allowed operation. Rollback appends only reviewed compatible15 successor, retaining all retirement/tombstones and external immutable retirement authority; restoring old data cannot republish old authorization.
+
+Queue roots retain original installation/repository/machine/grant/persistent-key/scope/revisions/generation. Untouched items may execute after ordinary renewal only after independently verified SAME key/machine/grant and current scope/visibility, retaining original provenance. Attempted candidates remain immutable. Exact independently proven nonexecution permits only a separately persisted predecessor/absence-evidence-linked successor after that same-authority revalidation; ambiguous absent status is not proof. Foreign/revoked/replaced/unknown-old-format or legacy spool is quarantined.
+
+### Source gate and remaining authority
+
+Meaningful migration/upgrade/cutover/import/adapter suites cover genuine1–6/10/11/14, no fabricated12 receipts, exact DDL/FK/manifest/hash refusal, retained old rows/tags/raw/history, every query/privacy case, reader private capture/no shared write, admin audited quarantine, every partial/concurrent/identical/lost response and stale protection/source/target/grant condition. Retain ALL old14 refusal tests and baseline hashes. Runtime/setup/deployment/publication and queue suites cover full15 transition, maintenance enrollment, real-ready proof, signed candidates, original queue provenance, scoped narrowing, renewal and revocation. The existing14 migration inventory assertion now distinguishes frozen14 manifest from complete15 inventory proved by new legacy migration tests; no old test disappears. Full exact remote app/build/payload/scripts gate is required. Payload/main-spec/recovery docs, provider-specific integration, new exact gated snapshot/phase plan and actual transport/init/grant/cutover/privacy/renew/revoke/rollback acceptance remain separately coordinated; source PASS never completes live tasks or permits merge.
+
+## Disjoint native Windows verification reservation
+
+Reserve exactly two NEW meta-only paths: `.github/workflows/memory-windows.yml` and `scripts/pilots/memory-windows/verify.mjs`. Prepare genuine Windows-runner evidence for current private OS-user storage, persistent key reuse, owner ACLs, inherited/permissive/foreign/reparse refusal and loopback lock serialization/release. Use ephemeral owned files beneath the actual runner user home, never change home/account ACLs or existing state. No fake process.platform/native ACL mock can satisfy acceptance. Reuse current pinned checkout/setup-node actions and `.nvmrc`; read-only workflow permissions, finite timeout and PUSH evidence, no provider transport/resources/live grants. Every probe failure must fail the job and release temporary handles/files. Source implementation and Linux coverage floors remain unchanged. Any exposed library defect requires an exact additional path reservation BEFORE editing. This independent source preparation stays unstaged while task4.2 is checkpointed, then joins task4.3 compatibility checks; it does not claim native PASS before a real remote Windows run.
+
+## Reviewed raw-queue dependency release
+
+Release exactly `.agents/skills/memory/scripts/lib/store.mjs` and `scripts/tests/memory-capture.test.mjs`, bringing the coherent task4.2 reservation to35 implementation/test paths. The durable raw journal is owned here; the fact queue cannot preserve its attempted frames. Bind original installation/repository/machine/grant/persistent key/scope/revisions/generation on journal and head, retain original stage/publish candidates and addresses, and require current same-authority verification. An absent flag alone never permits erasing an attempted frame: exact action/request/intent plus independently verified original expired proof and nonexecution evidence may append only an explicit predecessor-linked successor history. Ambiguous, foreign, revoked, replaced or unverifiable journals remain quarantined. Retain every prior lost-response, rotated completed-stage, published-object immutability, redaction, private-session and owned-orphan assertion. Add actual callback-count, provenance/tampered absence, expiry, renewal and rotation negatives without weakening old positives or changing source14 signed frames/SQL. No raw inspection/upload/model access for unselected or previously private historical sessions. Source gate is required and live/provider authority stays closed.
+
+## Root-owned migration and recovery documentation reservation
+
+Reserve exactly `wiki/development/memory-migration.md` (new), `wiki/development/README.md` (memory links only), and `wiki/development/memory-key.md` (queue/recovery and existing-store link only). Root prepares the repeatable trusted cutover and recovery procedure from actual reviewed exports; no default provider adapter, ordinary migration CLI, live acceptance or readiness is invented. These three documentation paths accompany the coherent35-path task4.2 checkpoint. Main capability/area reconciliation, other setup/installer references and native Windows files remain a later distribution gate.
+
+The new recovery page must ship to installations that receive its links. Release one additional root-owned dependency, `.agents/skills/wong-sync/references/payload-files.json`, solely adding `wiki/development/memory-migration.md` to explicit core files. Preserve every category, exclusion and existing file; do not ship the meta-only Windows check or any Devices app. This closes the three wiki paths' payload dependency in task4.2 rather than leaving installed links broken.
+
+## Root-owned task4.3 distribution reservation
+
+Reserve exactly these14 paths for the subsequent independent distribution/source gate. The native pair is already frozen. Prepare corrected deltas/repeatable guidance independently; main capability reconciliation and areas changes wait for the coherent task4.2 source gate, and none of these14 paths is staged with that checkpoint. Preserve all unrelated main requirements, scenario names, historic receipts, existing areas/customizations and context/coverage floors.
+
+- `openspec/specs/memory/spec.md`
+- `openspec/specs/installation-identity/spec.md`
+- `openspec/specs/memory-devices/spec.md`
+- `openspec/specs/cloudflare-provisioning/spec.md`
+- `openspec/specs/install-onboarding/spec.md`
+- `openspec/specs/payload-layout/spec.md`
+- `openspec/changes/installation-owned-memory-devices/specs/memory/spec.md`
+- `openspec/changes/installation-owned-memory-devices/specs/cloudflare-provisioning/spec.md`
+- `.agents/skills/memory/references/areas.json`
+- `wiki/development/memory.md`
+- `.agents/skills/memory/SKILL.md`
+- `.agents/skills/wong-sync/references/payload-manifest.md`
+- `.github/workflows/memory-windows.yml`
+- `scripts/pilots/memory-windows/verify.mjs`
+
+Correct the inherited earlier-note readability requirement to current evidence-backed ownership/quarantine, preserving authored bytes and the original named scenario; do not leave unconditional old access promised. Restrict cached digest to the same nonquarantined machine/grant on network/busy failure, with authorization/schema/target refusal excluding cache. Specify the actual enrollment one-use grant plus signed persistent-key proof, renewal signed-key proof and scoped data authorization rather than claiming enrollment already has a bearer. Reconcile only explained deltas into the six main capabilities after task4.2 PASS and link the two new capability paths through the existing memory area. Updated guidance owns trusted setup/migration/recovery without human/Git/hosted admission or fictitious live PASS. Existing genuine installer/preflight/custom-app/missing-R2 suites validate the manifest-selected payload; the new recovery page is explicit core while whole memory skill/SQL/Worker modules are copied. Run full required remote checks plus the actual new native Windows PUSH job with unchanged old checks/floors, never local suites/build/lint or a mocked Windows verdict.
+
+Within the released35 paths, root now owns only `scripts/tests/memory-machine-client-queue.test.mjs` and `scripts/tests/memory-capture.test.mjs` for disjoint existing-suite additions; the helper explicitly released their untouched bytes. Production queue/store and all remaining33 paths stay helper-owned. The final checkpoint requires independent frozen root-test hashes plus the helper's33-path handoff. Preserve every original assertion; genuine expired-original signing happens only in the isolated test child at creation, never by tampering a retained proof.
+
+### D1 function-limit compatibility review
+
+Official [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) allow32 arguments per SQL function. The released machine-context snapshot composition must respect that bound for both per-table records and the outer coherent image, preserving null fields and nested JSON. Use bounded composition without extra statements, mutable cross-request caches or new authority assumptions. A genuine generated-query test catches the platform bound that ordinary SQLite does not enforce; the full remote gate and separately authorized real D1 acceptance remain required. SQL1–14, existing manifests and proof frames stay immutable.
+
+### Current legacy migration bounds
+
+The source review admits at most20 selected records and1000 original fact/session/raw universe records; each source read/hash/review/journal projection is bounded to128KiB. Schema DDL is independently bounded per object. Provider enumeration caps100 pages and1000 identities per kind; total denial probes cap1000. An oversized source is refused before closure or source writes. These are current support limits, not promises of paginated large-store cutover; any extension needs explicit review and independent source/live acceptance.

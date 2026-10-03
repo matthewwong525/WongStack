@@ -48,9 +48,16 @@ export async function handleCoreTranscript(context,request,bucket,machineId,oper
   return json(200,{success:true,result:{objectHash,uploaded:true,published:false}});
  }
  const owner=await readRuntimeTranscriptOwner(context,{machineId,grantId:request.headers.get('Wong-Memory-Grant'),credentialHash,objectHash});
+ if(owner.rawKey) {
+  requireValue(objectHash===await digest(owner.rawKey),'machine-proof-denied');
+  await authorize();
+  const object=await bucket.get(owner.rawKey);requireValue(object,'transcript-not-found');const bytes=await boundedBody(object.body,object.size);
+  requireValue(bytes.byteLength===owner.rawBytes&&bytesHash(bytes)===owner.contentHash,'transcript-hash-mismatch');await finalCoreGuard(context,machineId,credentialHash,null,false,owner.accessAudit);
+  return new Response(new ReadableStream({start(controller){controller.enqueue(bytes);controller.close();}}),{headers:{'Content-Type':'application/octet-stream','Cache-Control':'no-store','Wong-Memory-Scope':grant.scope}});
+ }
  const rows=await read(`SELECT x.session_hash,x.credential_generation FROM memory_runtime_transcripts x JOIN memory_runtime_completions c ON c.attempt_id=x.attempt_id WHERE x.object_hash=? AND x.event='published'`,[objectHash]);
  requireValue(rows.length===1,'machine-proof-denied');const key=transcriptKey(state.installation,owner.machineId,rows[0].session_hash,owner.contentHash,rows[0].credential_generation);
  requireValue(objectHash===await digest(key),'machine-proof-denied');const object=await bucket.get(key);requireValue(object,'transcript-not-found');
- const bytes=await boundedBody(object.body,object.size);requireValue(bytesHash(bytes)===owner.contentHash,'transcript-hash-mismatch');await finalCoreGuard(context,machineId,credentialHash);
+ const bytes=await boundedBody(object.body,object.size);requireValue(bytesHash(bytes)===owner.contentHash,'transcript-hash-mismatch');await finalCoreGuard(context,machineId,credentialHash,null,false,owner.accessAudit);
  return new Response(new ReadableStream({start(controller){controller.enqueue(bytes);controller.close();}}),{headers:{'Content-Type':'application/octet-stream','Cache-Control':'no-store','Wong-Memory-Scope':grant.scope}});
 }

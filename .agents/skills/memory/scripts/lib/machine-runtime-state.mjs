@@ -5,6 +5,8 @@ import { digest, requireValue } from './installation-validation.mjs';
 import { dataTables, dataTriggers, dataViews, validateDataExtension } from './machine-data-state.mjs';
 import { runtimeContext, runtimeSnapshotContext } from '../../worker/machine-context.mjs';
 
+import { readLegacyState } from './machine-legacy-state.mjs';
+import { legacyTables } from '../../worker/machine-legacy-contract.mjs';
 export const runtimeManifestHash = () => digest(JSON.stringify(machineRuntimeMigrations));
 export const runtimeTables = Object.freeze(['configuration','manifests','bootstrap','attempts','audit','completions','proofs','keys','rotations','transcripts','activations'].map(name => `memory_runtime_${name}`));
 export const runtimeTriggers = Object.freeze(['attempt_guard','attempt_close','configuration_guard','machine_attempt_guard',
@@ -20,25 +22,34 @@ const baselineTables = ['schema_migrations','sessions','facts','tags','fact_tags
   'memory_owner_attempts','memory_owner_completions', ...machineTables];
 
 export async function readRuntimeBaseline(context, version = 13) {
-  requireValue([12,13,14].includes(version), 'schema-unsupported');
+  requireValue([12,13,14,15].includes(version), 'schema-unsupported');
   const { read, target, installation } = runtimeContext(context);
   const names = (await read("SELECT name FROM sqlite_master WHERE type='table'"))
     .map(row => row.name).filter(name => !name.startsWith('sqlite_') && !name.startsWith('_cf_'));
-  const expected = version === 12 ? baselineTables : [...baselineTables, ...runtimeTables, ...(version === 14 ? dataTables : [])];
+  const expected = version === 12 ? baselineTables : [...baselineTables, ...runtimeTables, ...(version >= 14 ? dataTables : []),...(version===15?legacyTables:[])];
   requireValue(names.length === expected.length && expected.every(name => names.includes(name)), 'installation-conflict');
   const versions = await read('SELECT version FROM schema_migrations ORDER BY version');
   requireValue(versions.length === version && versions.every((row,index) => row.version === index+1), 'schema-unsupported');
   const triggers = await read("SELECT name FROM sqlite_master WHERE type='trigger'");
-  requireValue([...machineTriggers, ...(version >= 13 ? runtimeTriggers : []), ...(version === 14 ? dataTriggers : [])].every(name => triggers.some(row => row.name === name)), 'installation-conflict');
+  requireValue([...machineTriggers, ...(version >= 13 ? runtimeTriggers : []), ...(version >= 14 ? dataTriggers : [])].every(name => triggers.some(row => row.name === name)), 'installation-conflict');
   if (version >= 13) requireValue((await read("SELECT name FROM sqlite_master WHERE type='view' AND name='memory_runtime_outcomes'")).length === 1, 'installation-conflict');
-  if (version === 14) {
+  if (version >= 14) {
     const views = await read("SELECT name FROM sqlite_master WHERE type='view'");
     requireValue(dataViews.every(name => views.some(row => row.name === name)), 'installation-conflict');
   }
+  const legacy=version===15?await readLegacyState(context,{maintenance:context.kind==='trusted-machine-operator'}):null;
   const configurations = await read('SELECT * FROM memory_machine_configuration');
   const installations = await read('SELECT * FROM memory_installation');
   const manifests = await read('SELECT * FROM memory_machine_manifest_receipts');
   const bootstraps = await read('SELECT * FROM memory_machine_bootstrap_completions');
+  if(legacy&&legacy.attempt.source_version!==14) {
+    requireValue(configurations.length===1&&installations.length===1,'installation-conflict');
+    const c=configurations[0],i=installations[0];
+    requireValue(c.installation_id===installation.installationId&&c.repository_id===installation.repositoryId&&i.installation_id===c.installation_id&&i.repository_id===c.repository_id
+      &&i.account_id===target.accountId&&i.database_id===target.databaseId&&i.bucket_name===target.bucketName&&i.canonical_origin===target.appUrl
+      &&c.target_json===JSON.stringify(target)&&c.request_hash===legacy.attempt.request_hash&&c.operation_id===legacy.attempt.id&&c.pin_hash===legacy.configuration.pin_hash,'installation-conflict');
+    return {configuration:c,baselineHash:legacy.baseline.baseline_hash,baselineAuditId:legacy.baseline.compatibility_audit_id,legacy};
+  }
   requireValue([configurations,installations,manifests,bootstraps].every(rows => rows.length === 1), 'installation-conflict');
   const c = configurations[0], i = installations[0], m = manifests[0], b = bootstraps[0];
   const audits = await read('SELECT * FROM memory_machine_audit WHERE id=?', [b.audit_id]);
@@ -57,7 +68,7 @@ export async function readRuntimeBaseline(context, version = 13) {
   const baselineHash = await machineHash({ installation: { installationId: i.installation_id, repositoryId: i.repository_id },
     target, operationId: c.operation_id, requestHash: c.request_hash, pinHash: c.pin_hash, createdAt: c.created_at,
     manifest: m, bootstrap: b, audit: a });
-  return { configuration: c, baselineHash, baselineAuditId: b.audit_id };
+  return { configuration: c, baselineHash, baselineAuditId: b.audit_id,...(legacy?{legacy}:{}) };
 }
 
 export async function validateCompleted12(context) {
@@ -84,7 +95,7 @@ export async function readRuntimeState(context, options = {}) {
   if (options.inspectDeployment === false) runtimeContext(context, true);
   if (options.inspectDataMaintenance === true) requireValue(runtimeContext(context).dataInspection === true || context.kind === 'trusted-machine-operator', 'machine-context-denied');
   const versions = await runtimeContext(context).read('SELECT version FROM schema_migrations ORDER BY version');
-  requireValue([13,14].includes(versions.length), 'schema-unsupported');
+  requireValue([13,14,15].includes(versions.length), 'schema-unsupported');
   const baseline = await readRuntimeBaseline(context, versions.length), { read, installation, inspectPins, target } = runtimeContext(context);
   const configurations = await read('SELECT * FROM memory_runtime_configuration');
   const manifests = await read('SELECT * FROM memory_runtime_manifests');
@@ -103,23 +114,24 @@ export async function readRuntimeState(context, options = {}) {
     && b.request_hash === r.request_hash && b.baseline_hash === r.baseline_hash
     && a.installation_id === r.installation_id && a.attempt_id === r.operation_id && a.action === 'upgrade'
     && a.target_id === r.installation_id && a.request_hash === r.request_hash, 'installation-conflict');
-  requireValue(r.request_hash === await machineHash({version:13,installation,operationId:r.operation_id,
+  requireValue(r.request_hash === await machineHash({version:baseline.legacy&&baseline.legacy.attempt.source_version!==14?15:13,installation,operationId:r.operation_id,
     expected:JSON.parse(r.upgrade_expected_json),pinHash:r.pin_hash,baselineHash:r.baseline_hash}), 'installation-conflict');
-  const data = versions.length === 14 ? await validateDataExtension(context, baseline, r) : null;
+  const data = versions.length >= 14 ? await validateDataExtension(context, baseline, r) : null;
   if (data && options.inspectDataMaintenance !== true) requireValue(data.configuration.state === 'pending' && data.configuration.barrier_attempt_id === null, 'machine-operation-incomplete');
+  if(baseline.legacy?.head) data.head=baseline.legacy.head;
   if (inspectPins && options.inspectDeployment !== false) requireValue(await inspectPins() === (data ? data.head.pinHash : r.pin_hash), 'target-mismatch');
   const snapshot = { authRevision: c.auth_revision, pinRevision: c.pin_revision, runtimeRevision: r.runtime_revision,
     snapshotHash: await machineHash({ installation, baselineHash: baseline.baselineHash, pinHash: r.pin_hash,
       authRevision: c.auth_revision, pinRevision: c.pin_revision, runtimeRevision: r.runtime_revision,
-      machineState: c.state, machineBarrier: c.barrier_attempt_id, runtimeState: r.state, runtimeBarrier: r.barrier_attempt_id, ...(data ? { dataRevision:data.configuration.revision, dataState:data.configuration.state, dataBarrier:data.configuration.barrier_attempt_id, deploymentHead:data.head.id, deploymentPin:data.head.pinHash } : {}) }) };
+      ...(baseline.legacy?{legacyRevision:baseline.legacy.configuration.revision,legacyState:baseline.legacy.configuration.state,legacyAttempt:baseline.legacy.attempt.id}:{}),machineState: c.state, machineBarrier: c.barrier_attempt_id, runtimeState: r.state, runtimeBarrier: r.barrier_attempt_id, ...(data ? { dataRevision:data.configuration.revision, dataState:data.configuration.state, dataBarrier:data.configuration.barrier_attempt_id, deploymentHead:data.head.id, deploymentPin:data.head.pinHash } : {}) }) };
   return { ...baseline, runtime: r, snapshot, installation, target, ...(data ? { data } : {}) };
 }
 export function runtimePending(state) {
   return { memory: { protocolVersion: 2, installationId: state.installation.installationId, repositoryId: state.installation.repositoryId,
     appUrl:state.target.appUrl,memoryOrigin:state.target.memoryOrigin,
-    status: state.runtime.state === 'maintenance' || state.configuration.state === 'maintenance' || state.data?.configuration.state === 'maintenance' ? 'blocked' : 'pending-setup',
-    reason: state.runtime.state === 'maintenance' || state.configuration.state === 'maintenance' || state.data?.configuration.state === 'maintenance'
-      ? 'incomplete-machine-operation' : 'machine-operation-proof-required' }, snapshot: state.snapshot, schemaVersion: state.data ? 14 : 13 };
+    status: state.runtime.state === 'maintenance' || state.configuration.state === 'maintenance' || state.data?.configuration.state === 'maintenance' || state.legacy?.configuration.state === 'maintenance' ? 'blocked' : 'pending-setup',
+    reason: state.runtime.state === 'maintenance' || state.configuration.state === 'maintenance' || state.data?.configuration.state === 'maintenance' || state.legacy?.configuration.state === 'maintenance'
+      ? 'incomplete-machine-operation' : 'machine-operation-proof-required' }, snapshot: state.snapshot, schemaVersion:state.legacy?15:state.data?14:13 };
 }
 export async function activeRuntimeMachine(context, state, machineId, grantId) {
   const { read } = runtimeContext(context);

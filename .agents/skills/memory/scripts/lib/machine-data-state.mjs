@@ -4,11 +4,14 @@ import { machineDataMigrations } from './machine-data-migrations.mjs';
 import { dataTables,dataTriggers,dataViews,dataDdl,compiledDataHashes } from '../../worker/machine-data-contract.mjs';
 import { machineHash } from './machine-state.mjs';
 import { digest,requireValue } from './installation-validation.mjs';
+import { legacyDdl } from '../../worker/machine-legacy-contract.mjs';
 export { dataTables,dataTriggers,dataViews };
 export const dataManifestHash=()=>digest(JSON.stringify(machineDataMigrations));
 export async function dataSchemaHash(read) {
  const actual=await read("SELECT name,type,sql FROM sqlite_master WHERE name LIKE 'memory_data_%' ORDER BY name");
- requireValue(actual.length===Object.keys(dataDdl).length&&actual.every(row=>dataDdl[row.name]?.type===row.type&&dataDdl[row.name].sql===row.sql.trim().replace(/\s+/g,' ')), 'installation-conflict');
+ const legacy=(await read('SELECT version FROM schema_migrations ORDER BY version')).length===15;
+ const expected={...dataDdl,...Object.fromEntries(Object.entries(legacy?legacyDdl:{}).filter(([name])=>name.startsWith('memory_data_')))};
+ requireValue(actual.length===Object.keys(dataDdl).length&&actual.every(row=>expected[row.name]?.type===row.type&&(legacy?row.sql.trim().replace(/\s+/g,' ').replace(/\s*([(),])\s*/g,'$1')===expected[row.name].sql.replace(/\s*([(),])\s*/g,'$1'):expected[row.name].sql===row.sql.trim().replace(/\s+/g,' '))), 'installation-conflict');
  for(const [table,names] of [['facts',['capture_attempt_id','capture_ordinal']],['sessions',['capture_attempt_id']],['runs',['capture_attempt_id']]]) {
   const columns=await read(`PRAGMA table_info(${table})`);
   requireValue(names.every(name=>columns.some(row=>row.name===name&&row.type===(name==='capture_ordinal'?'INTEGER':'TEXT')&&row.notnull===0&&row.dflt_value===null)), 'installation-conflict');
@@ -31,7 +34,7 @@ export async function validateDataExtension(context,baseline,runtime) {
  &&d.baseline_hash===baseline.baselineHash&&d.original_pin_hash===runtime.pin_hash&&d.manifest_hash===await dataManifestHash()
  &&d.schema_hash===await dataSchemaHash(read)&&b.installation_id===d.installation_id&&b.operation_id===d.operation_id&&b.request_hash===d.request_hash,
  'installation-conflict');
- requireValue(d.request_hash===await machineHash({version:14,installation,operationId:d.operation_id,expected:JSON.parse(d.expected_json),baselineHash:d.baseline_hash,
+ requireValue(d.request_hash===await machineHash({version:baseline.legacy&&baseline.legacy.attempt.source_version!==14?15:14,installation,operationId:d.operation_id,expected:JSON.parse(d.expected_json),baselineHash:d.baseline_hash,
  originalPinHash:d.original_pin_hash,genesis:JSON.parse(b.genesis_json)}),'installation-conflict');
  const genesis=JSON.parse(b.genesis_json),compiled=await compiledDataHashes();
  await validEvidence(genesis.evidence,runtime.target_json);
@@ -64,5 +67,5 @@ export async function dataSnapshot(state) {
  return {...state.snapshot,dataRevision:state.data.configuration.revision,deploymentHead:state.data.head.id};
 }
 export const dataPending=async state=>({memory:{protocolVersion:2,installationId:state.installation.installationId,repositoryId:state.installation.repositoryId,
- appUrl:state.target.appUrl,memoryOrigin:state.target.memoryOrigin,status:(state.data.configuration.state==='maintenance'||state.runtime.state==='maintenance'||state.configuration.state==='maintenance')?'blocked':'pending-setup',
- reason:(state.data.configuration.state==='maintenance'||state.runtime.state==='maintenance'||state.configuration.state==='maintenance')?'incomplete-machine-operation':'machine-operation-proof-required'},schemaVersion:14,snapshot:await dataSnapshot(state)});
+ appUrl:state.target.appUrl,memoryOrigin:state.target.memoryOrigin,status:(state.data.configuration.state==='maintenance'||state.runtime.state==='maintenance'||state.configuration.state==='maintenance'||state.legacy?.configuration.state==='maintenance')?'blocked':'pending-setup',
+ reason:(state.data.configuration.state==='maintenance'||state.runtime.state==='maintenance'||state.configuration.state==='maintenance'||state.legacy?.configuration.state==='maintenance')?'incomplete-machine-operation':'machine-operation-proof-required'},schemaVersion:state.legacy?15:14,snapshot:await dataSnapshot(state)});

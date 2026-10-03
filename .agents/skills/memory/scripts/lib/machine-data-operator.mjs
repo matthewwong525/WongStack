@@ -1,4 +1,6 @@
 // Inactive source entrypoints; no routes, CLI, hooks, setup integration or resource creation.
+import { legacyExposureGuard } from './machine-legacy-state.mjs';
+import { compiledLegacyHashes } from '../../worker/machine-legacy-contract.mjs';
 import { runtimeContext,providerMachineContext,dataInspectionContext } from '../../worker/machine-context.mjs';
 import { inspectMachinePins,sameMachineValue,machineDigest } from './machine-operator.mjs';
 import { inspectResources } from './installation-resources.mjs';
@@ -136,7 +138,7 @@ async function captureEvidence(context,state,payload) {
   const row=definitions.find(r=>r.name===tag.name);requireValue(!row||(row.definition===tag.definition&&row.alias_of===tag.aliasOf),'tag-meaning-immutable-use-new-name');
  }
  const ids=payload.facts.flatMap(f=>f.supersedes);
- const rows=await read(`SELECT f.id,f.owner_principal_id,f.superseded_by,owner.installation_id,owner.repository_id FROM facts f
+ const rows=await read(state.legacy?`SELECT f.id,f.owner_principal_id,f.superseded_by,owner.installation_id,owner.repository_id FROM memory_legacy_effective_facts f JOIN memory_machine_principals owner ON owner.id=f.owner_principal_id WHERE f.id IN (SELECT value FROM json_each(?)) AND owner.installation_id=?`:`SELECT f.id,f.owner_principal_id,f.superseded_by,owner.installation_id,owner.repository_id FROM facts f
  JOIN memory_data_fact_links l ON l.fact_id=f.id JOIN memory_data_attempts a ON a.id=l.attempt_id
  JOIN memory_data_completions c ON c.attempt_id=a.id JOIN memory_machine_principals owner ON owner.id=f.owner_principal_id
  WHERE f.id IN (SELECT value FROM json_each(?)) AND a.installation_id=?`,[JSON.stringify(ids),state.installation.installationId]);
@@ -175,11 +177,12 @@ export async function captureMachineData(context,input) {
  const payload={...input.payload,publicKeyJson:verified.publicKeyJson};
  const requestHash=await digest(JSON.stringify({version:14,installation:state.installation,action:'capture',attemptId:input.attemptId,expected:input.expected,payload}));
  await captureAuthority(context,state,payload);
+ requireValue(!state.legacy||state.legacy.configuration.state==='exposed','machine-operation-incomplete');
  const old=await completion(context,state,input,'capture',payload,requestHash);if(old)return old;
  requireValue(sameMachineValue(await dataSnapshot(state),input.expected),'machine-authority-stale');
  await captureEvidence(context,state,payload);
  const auditId=crypto.randomUUID(),internal=runtimeContext(context);
- const writes=[planDataAttempt(state,input,'capture',payload,requestHash,auditId,verified),...compactCapturePlan(planDataCapture(input,payload,auditId))];
+ const writes=[planDataAttempt(state,input,'capture',payload,requestHash,auditId,verified),...compactCapturePlan(planDataCapture(input,payload,auditId,state))];
  // Reserve all remaining write, receipt and post-await validation statements before closing a barrier.
  internal.reserve?.(writes.length+3+20);
  try {await internal.write(writes);
@@ -196,9 +199,10 @@ export async function recordMachineDeployment(context,input) {
  requireValue(opaqueId(p.predecessorId)&&['previousPinHash','pinHash','reviewHash','protocolHash','routeContractHash'].every(k=>machineDigest(p[k]))&&typeof p.rollback==='boolean');
  requireValue(internal.inspectDeployment,'machine-context-denied');
  let state=await readRuntimeState(context,{inspectDeployment:false,inspectDataMaintenance:true});requireValue(state.data,'schema-unsupported');
- const compiled=await compiledDataHashes(),actual=await internal.inspectDeployment();
+ const compiled=await (state.legacy?compiledLegacyHashes():compiledDataHashes()),actual=await internal.inspectDeployment();
  requireValue(sameMachineValue(actual,p.evidence)&&p.reviewHash===await machineHash(p.evidence)&&p.pinHash===actual.pinHash
  &&p.protocolHash===compiled.protocolHash&&p.routeContractHash===compiled.routeContractHash,'unreviewed-deployment');
+ if(state.legacy)return recordLegacyMachineDeployment(context,state,input,actual);
  const payload={...p},requestHash=await machineHash({version:14,installation:state.installation,action:'deployment',attemptId:input.attemptId,expected:input.expected,payload});
  const old=await completion(context,state,input,'deployment',payload,requestHash);if(old)return old;
  requireValue(p.predecessorId===state.data.head.id&&p.previousPinHash===state.data.head.pinHash&&p.pinHash!==p.previousPinHash
@@ -217,7 +221,7 @@ export async function recordMachineDeployment(context,input) {
 // It never authorizes data reads/writes, reenrollment or credential issuance.
 export async function readSignedMachineDataStatus(context,input) {
  runtimeContext(context);context=dataInspectionContext(context);inputShape(input,true);
- const p=input.payload;exactKeys(p,['machineId','grantId','machineCommitment','targetAttemptId','requestHash']);
+ const p=input.payload;exactKeys(p,['machineId','grantId','machineCommitment','targetAttemptId','requestHash',...(Object.hasOwn(p,'targetCandidate')?['targetCandidate']:[])]);
  requireValue(['machineId','grantId','targetAttemptId'].every(k=>opaqueId(p[k]))&&machineDigest(p.machineCommitment)&&machineDigest(p.requestHash));
  const state=await readRuntimeState(context,{inspectDataMaintenance:true});requireValue(state.data,'schema-unsupported');
  const verified=await verifyMachineDataProof({installation:state.installation,purpose:'capture-status',attemptId:input.attemptId,expected:input.expected,payload:p},input.proof);
@@ -225,11 +229,51 @@ export async function readSignedMachineDataStatus(context,input) {
  const keys=await read('SELECT * FROM memory_runtime_keys WHERE machine_id=?',[p.machineId]);
  requireValue(machine.commitment===p.machineCommitment&&verified.commitment===machine.commitment&&keys.length===1&&keys[0].public_key_json===verified.publicKeyJson,'machine-proof-denied');
  const attempts=await read('SELECT * FROM memory_data_attempts WHERE id=?',[p.targetAttemptId]);
- if(attempts.length===0)return {...await dataPending(state),access:'receipt-only',operation:{action:'capture',attemptId:p.targetAttemptId,requestHash:p.requestHash,completed:false,absent:true}};
+ if(attempts.length===0) {
+  if(!p.targetCandidate||p.targetCandidate.proof?.deadline>=Math.floor(Date.now()/1000))return {...await dataPending(state),access:'receipt-only',operation:{action:'capture',attemptId:p.targetAttemptId,requestHash:p.requestHash,completed:false,absent:true}};
+  const original=p.targetCandidate;inputShape(original,true);captureShape(original.payload);
+  requireValue(original.attemptId===p.targetAttemptId&&original.payload.machineId===p.machineId&&original.payload.grantId===p.grantId&&original.payload.machineCommitment===p.machineCommitment,'machine-proof-denied');
+  const originalProof=await verifyMachineDataProof({installation:state.installation,attemptId:original.attemptId,expected:original.expected,payload:original.payload},original.proof,original.proof.issuedAt);
+  requireValue(originalProof.commitment===p.machineCommitment&&originalProof.publicKeyJson===verified.publicKeyJson&&originalProof.deadline<Math.floor(Date.now()/1000)
+   &&p.requestHash===await digest(JSON.stringify({version:14,installation:state.installation,action:'capture',attemptId:original.attemptId,expected:original.expected,payload:{...original.payload,publicKeyJson:originalProof.publicKeyJson}})),'machine-proof-denied');
+  const evidence=await read(`SELECT count(*) n FROM memory_data_attempts WHERE id=? UNION ALL SELECT count(*) n FROM memory_data_fact_links WHERE attempt_id=? UNION ALL SELECT count(*) n FROM memory_data_session_events WHERE attempt_id=? UNION ALL SELECT count(*) n FROM memory_data_runs WHERE attempt_id=? UNION ALL SELECT count(*) n FROM facts WHERE capture_attempt_id=? UNION ALL SELECT count(*) n FROM sessions WHERE capture_attempt_id=?`,Array(6).fill(p.targetAttemptId));
+  requireValue(evidence.length===6&&evidence.every(row=>row.n===0),'machine-operation-incomplete');
+  const intentHash=await digest(JSON.stringify(Object.fromEntries(['visibility','source','newTags','session','facts','run'].map(key=>[key,original.payload[key]]))));
+  const frame={version:1,action:'capture',intentHash,nonExecution:true,installation:state.installation,machineId:p.machineId,grantId:p.grantId,keyCommitment:p.machineCommitment,attemptId:p.targetAttemptId,requestHash:p.requestHash,snapshot:await dataSnapshot(state),proofHash:verified.proofHash,predecessorProofHash:originalProof.proofHash,predecessorDeadline:originalProof.deadline};
+  return {...await dataPending(state),access:'receipt-only',operation:{action:'capture',attemptId:p.targetAttemptId,requestHash:p.requestHash,completed:false,absent:true,nonExecution:{...frame,evidenceHash:await digest(JSON.stringify(frame))}}};
+ }
  requireValue(attempts.length===1,'machine-proof-denied');const a=attempts[0],payload=JSON.parse(a.payload_json);
  requireValue(a.action==='capture'&&a.installation_id===state.installation.installationId&&a.request_hash===p.requestHash,'machine-proof-denied');
  requireValue(payload.machineId===p.machineId&&payload.grantId===p.grantId&&payload.machineCommitment===p.machineCommitment&&payload.publicKeyJson===verified.publicKeyJson,'machine-proof-denied');
  const receipt=await completion(context,state,{attemptId:a.id,expected:JSON.parse(a.expected_json)},'capture',payload,a.request_hash);
  requireValue(receipt,'machine-operation-incomplete');
  return {...receipt,operation:{...receipt.operation,historical:true},access:'receipt-only'};
+}
+
+// A15 successor has its own exact receipts; it never rewrites14 deployment history.
+async function recordLegacyMachineDeployment(context,state,input,actual) {
+ const internal=runtimeContext(context,true),payload=input.payload;
+ requireValue(typeof internal.inspectLegacySafety==='function','legacy-operator-required');
+ await internal.inspectLegacySafety();
+ const requestHash=await machineHash({version:15,installation:state.installation,action:'deployment',attemptId:input.attemptId,expected:input.expected,payload});
+ const existing=await internal.read('SELECT * FROM memory_legacy_deployment_attempts');
+ const old=existing.find(row=>row.id===input.attemptId);
+ const outcome={action:'deployment',attemptId:input.attemptId,predecessorId:payload.predecessorId,pinHash:payload.pinHash,reviewHash:payload.reviewHash};
+ if(old) {
+  requireValue(old.request_hash===requestHash&&old.payload_json===JSON.stringify(payload)&&old.expected_json===JSON.stringify(input.expected),'machine-attempt-conflict');
+  const done=await internal.read('SELECT * FROM memory_legacy_deployment_completions');
+  requireValue(done.some(row=>row.attempt_id===old.id&&row.request_hash===requestHash&&row.outcome_json===JSON.stringify(outcome)),'machine-operation-incomplete');
+  return {...await dataPending(state),operation:{action:'deployment',attemptId:old.id,completed:true,requestHash,historical:true,outcome}};
+ }
+ requireValue(payload.predecessorId===state.data.head.id&&payload.previousPinHash===state.data.head.pinHash&&payload.pinHash!==payload.previousPinHash
+ &&sameMachineValue(actual.identity,state.data.head.evidence.identity)&&sameMachineValue(await dataSnapshot(state),input.expected),'unreviewed-deployment');
+ const safety=await internal.inspectLegacySafety();requireValue(machineDigest(safety?.sourceHash),'publication-source-unverified');
+ const {legacyInsert}=await import('./machine-legacy-planners.mjs'),auditId=crypto.randomUUID();
+ try {await internal.write([legacyInsert('memory_legacy_deployment_attempts',{id:input.attemptId,installation_id:state.installation.installationId,request_hash:requestHash,expected_json:JSON.stringify(input.expected),payload_json:JSON.stringify(payload),source_hash:safety.sourceHash,created_at:Math.floor(Date.now()/1000)}),
+ legacyInsert('memory_legacy_deployments',{id:input.attemptId,attempt_id:state.legacy.attempt.id,predecessor_id:payload.predecessorId,previous_pin_hash:payload.previousPinHash,pin_hash:payload.pinHash,source_hash:safety.sourceHash,evidence_json:JSON.stringify(payload.evidence),review_hash:payload.reviewHash,protocol_hash:payload.protocolHash,route_contract_hash:payload.routeContractHash,rollback:Number(payload.rollback)})]);
+ requireValue(sameMachineValue(await internal.inspectDeployment(),actual),'target-mismatch');requireValue((await internal.inspectLegacySafety()).sourceHash===safety.sourceHash,'publication-source-unverified');
+ await internal.write([legacyInsert('memory_legacy_deployment_audit',{id:auditId,attempt_id:input.attemptId,request_hash:requestHash,outcome_json:JSON.stringify(outcome)}),legacyInsert('memory_legacy_deployment_completions',{attempt_id:input.attemptId,audit_id:auditId,request_hash:requestHash,outcome_json:JSON.stringify(outcome)})]);}catch { /* Independently validated complete15 receipts alone recover response loss. */ }
+ const current=await readRuntimeState(context,{inspectDataMaintenance:true});
+ requireValue(current.data.head.id===input.attemptId,'machine-operation-incomplete');
+ return {...await dataPending(current),operation:{action:'deployment',attemptId:input.attemptId,completed:true,requestHash,historical:false,outcome}};
 }

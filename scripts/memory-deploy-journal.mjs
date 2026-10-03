@@ -7,7 +7,7 @@ import { resourceTarget,requireValue,opaqueId } from '../.agents/skills/memory/s
 const exact=(value,keys)=>requireValue(value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).sort().join(',')===keys.split(',').sort().join(','),'publication-journal-invalid');
 const keys=['version','installation','source','rollback','attemptId','predecessorId','previousPinHash','phase','candidate','receipt'];
 export function validatePublicationJournal(record) {
- requireValue(record&&Object.keys(record).length===keys.length&&keys.every(k=>Object.hasOwn(record,k))&&record.version===1,'publication-journal-invalid');
+ requireValue(record&&Object.keys(record).length===keys.length&&keys.every(k=>Object.hasOwn(record,k))&&[1,2].includes(record.version),'publication-journal-invalid');
  resourceTarget(record.installation,true);
  requireValue(Object.keys(record.source).length===2&&/^[a-f0-9]{40,64}$/.test(record.source.revision)&&/^[a-f0-9]{64}$/.test(record.source.digest)&&typeof record.rollback==='boolean'&&opaqueId(record.attemptId)&&opaqueId(record.predecessorId)&&/^[a-f0-9]{64}$/.test(record.previousPinHash)&&['intent','candidate','complete'].includes(record.phase),'publication-journal-invalid');
  requireValue(record.phase==='intent'?record.candidate===null&&record.receipt===null:record.candidate?.attemptId===record.attemptId&&record.candidate.payload?.predecessorId===record.predecessorId&&record.candidate.payload.previousPinHash===record.previousPinHash,'publication-journal-invalid');

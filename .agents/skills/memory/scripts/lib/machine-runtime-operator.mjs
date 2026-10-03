@@ -2,6 +2,7 @@
 import { inspectMachinePins, initializeMachineMemory, sameMachineValue, machineDigest } from './machine-operator.mjs';
 import { machineScopes, machineScopePolicy } from './machine-enrollment.mjs';
 import { resourceTarget, exactKeys, opaqueId, requireValue, query, rows, digest, MemoryOperatorError } from './installation-validation.mjs';
+import { auditLegacyAccess } from './machine-legacy-state.mjs';
 import { machineHash } from './machine-state.mjs';
 import { machineRuntimeMigrations } from './machine-runtime-migrations.mjs';
 import { readRuntimeState, readRuntimeBaseline, validateCompleted12, runtimeManifestHash, runtimePending, activeRuntimeMachine } from './machine-runtime-state.mjs';
@@ -122,6 +123,11 @@ async function exactCompletion(context,state,input,action,payload,requestHash) {
 async function evidence(context,state,action,payload) {
   const { read } = runtimeContext(context), now = Math.floor(Date.now()/1000);
   if (action === 'activate') {
+    if(state.legacy) {
+      runtimeContext(context,true);
+      requireValue((await read('SELECT * FROM memory_keys')).length===0&&(await read("SELECT * FROM memory_devices WHERE status='active'")).length===0,'legacy-cutover-required');
+      requireValue((await read('SELECT * FROM memory_runtime_activations')).length===0,'machine-operation-incomplete');return;
+    }
     for (const table of ['memory_keys','memory_admins','memory_credentials','memory_devices','memory_identity_bindings','memory_memberships',
       'memory_providers','memory_owner_intents','memory_installation_configuration','memory_bootstrap_completion','memory_schema_receipts'])
       requireValue((await read(`SELECT count(*) n FROM ${table}`))[0].n === 0, 'legacy-cutover-required');
@@ -191,6 +197,7 @@ async function mutate(context,input,action) {
   const publicProof = ['enroll','renew','stage','publish'].includes(action);
   runtimeContext(context,!publicProof); baseInput(input,publicProof,action === 'enroll'); validatePayload(action,input.payload);
   let state = await readRuntimeState(context), payload = { ...input.payload };
+  if(state.legacy?.configuration.state==='maintenance') {runtimeContext(context,true);requireValue(['issue','enroll','revoke','activate'].includes(action),'machine-operation-incomplete');}
   if (publicProof) {
     // This is a source primitive, not production readiness: durable trusted activation is still required.
     requireValue((await runtimeContext(context).read(`SELECT x.attempt_id FROM memory_runtime_activations x
@@ -252,7 +259,7 @@ export async function validateRuntimeBearer(context,input) {
     || (selected.hash === latest.previous_hash && selected.generation === latest.generation-1 && latest.overlap_until > now)), 'machine-proof-denied');
   const machine = await activeRuntimeMachine(context,state,input.machineId,selected.grant_id);
   requireValue(machine.revision === selected.machine_revision && machine.grant_revision === selected.grant_revision && machine.scope === selected.scope, 'machine-proof-denied');
-  return { machineId:input.machineId,scope:machine.scope,policy:machineScopePolicy(machine.scope),snapshot:state.snapshot };
+  return { machineId:input.machineId,grantId:machine.grant_id,scope:machine.scope,policy:machineScopePolicy(machine.scope),snapshot:state.snapshot };
 }
 
 // Raw ledger privacy is independent of summary provenance ('shared' never grants raw bytes).
@@ -263,6 +270,16 @@ export async function readRuntimeTranscriptOwner(context,input) {
   const state = await readRuntimeState(context);
   requireValue(state.runtime.state === 'pending' && state.configuration.state === 'pending', 'machine-proof-denied');
   const machine = await activeRuntimeMachine(context,state,input.machineId,input.grantId);
+  if(state.legacy) {
+    for(const claim of state.legacy.claims.filter(row=>row.kind==='raw')) {
+      if(await digest(claim.original_id)!==input.objectHash)continue;
+      const owner=claim.machine_id===input.machineId&&claim.grant_id===input.grantId;
+      const admin=claim.visibility==='admin-only'&&machineScopePolicy(machine.scope).administerData;
+      requireValue(claim.visibility==='admin-only'?admin:owner,'machine-proof-denied');
+      const accessAudit=admin?await auditLegacyAccess(context,state,{machineId:input.machineId,grantId:input.grantId,credentialHash:input.credentialHash,operation:'reviewed-raw',requestHash:input.objectHash,scope:{claimId:claim.id,visibility:'admin-only'}}):null;
+      const original=JSON.parse(claim.record_json);return {accessAudit,machineId:claim.machine_id,objectHash:input.objectHash,contentHash:original.contentHash,rawKey:claim.original_id,rawBytes:original.bytes,legacyClaimId:claim.id};
+    }
+  }
   const values = await runtimeContext(context).read(`SELECT x.machine_id,x.object_hash,x.content_hash FROM memory_runtime_transcripts x
     JOIN memory_runtime_completions done ON done.attempt_id=x.attempt_id
     JOIN memory_runtime_attempts a ON a.id=done.attempt_id AND a.audit_id=done.audit_id AND a.request_hash=done.request_hash

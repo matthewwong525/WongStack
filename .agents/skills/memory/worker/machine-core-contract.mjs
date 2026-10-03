@@ -1624,3 +1624,6 @@ export const coreTableColumns = Object.freeze({
   "outcome_json"
  ]
 });
+
+// A separate wrapper; the retained14 hashes above must never be relabelled.
+export { compiledLegacyHashes as compiledCore15Hashes } from './machine-legacy-contract.mjs';

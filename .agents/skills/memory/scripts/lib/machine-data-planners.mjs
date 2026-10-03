@@ -8,7 +8,7 @@ export function planDataAttempt(state,input,action,payload,requestHash,auditId,p
  params:[input.attemptId,d.installation_id,action,requestHash,JSON.stringify(payload),JSON.stringify(input.expected),input.expected.dataRevision,auditId,proof?.nonceHash??null,proof?.proofHash??null,proof?.deadline??null,
  d.installation_id,input.expected.dataRevision,input.expected.authRevision,input.expected.pinRevision,input.expected.runtimeRevision]};
 }
-export function planDataCapture(input,payload,auditId) {
+export function planDataCapture(input,payload,auditId,state=null) {
  const guard=`EXISTS(SELECT 1 FROM memory_data_capture_authority WHERE id=? AND audit_id=? AND payload_json=?)`;
  const tail=[input.attemptId,auditId,JSON.stringify(payload)],result=[];
  const append=(sql,params)=>result.push({sql:`${sql} AND ${guard}`,params:[...params,...tail]});
@@ -50,8 +50,12 @@ export function planDataCapture(input,payload,auditId) {
     JOIN memory_data_fact_links l ON l.fact_id=ft.fact_id WHERE l.attempt_id=? AND l.ordinal=? AND ft.tag=?)`,[input.attemptId,ordinal,tag,input.attemptId,ordinal,tag]);
   }
   for(const old of fact.supersedes) {
+   if(state?.legacy) {
+    append(`INSERT INTO memory_legacy_corrections(id,attempt_id,predecessor_id,old_fact_id,new_fact_id,ordinal,machine_id,claim_id) SELECT ?,?,claim.id,?,link.fact_id,?,?,claim.id FROM memory_legacy_effective_claims claim JOIN memory_data_fact_links link ON link.attempt_id=? AND link.ordinal=? WHERE claim.kind='fact' AND claim.original_id=cast(? AS TEXT)`,[crypto.randomUUID(),input.attemptId,old,ordinal,payload.machineId,input.attemptId,ordinal,old]);
+    append(`INSERT INTO memory_data_supersedes(attempt_id,old_fact_id,ordinal,new_fact_id,machine_id) SELECT ?,?,?,link.fact_id,? FROM memory_data_fact_links link JOIN memory_legacy_corrections correction ON correction.attempt_id=link.attempt_id AND correction.old_fact_id=? AND correction.ordinal=link.ordinal AND correction.new_fact_id=link.fact_id WHERE link.attempt_id=? AND link.ordinal=?`,[input.attemptId,old,ordinal,payload.machineId,old,input.attemptId,ordinal]);
+   }
    append(`UPDATE facts SET superseded_by=(SELECT fact_id FROM memory_data_fact_links WHERE attempt_id=? AND ordinal=?)
-    WHERE id=? AND superseded_by IS NULL AND (owner_principal_id=? OR EXISTS(SELECT 1 FROM memory_machine_principals admin
+    WHERE id=? AND superseded_by IS NULL ${state?.legacy?"AND NOT EXISTS(SELECT 1 FROM memory_legacy_effective_claims claim WHERE claim.kind='fact' AND claim.original_id=cast(facts.id AS TEXT))":''} AND (owner_principal_id=? OR EXISTS(SELECT 1 FROM memory_machine_principals admin
  JOIN memory_machine_principals owner ON owner.id=facts.owner_principal_id AND owner.installation_id=admin.installation_id AND owner.repository_id=admin.repository_id
  WHERE admin.id=? AND admin.status='active' AND admin.scope='memory:read memory:write memory:admin'))
  AND EXISTS(SELECT 1 FROM memory_data_fact_links oldlink JOIN memory_data_attempts oldattempt ON oldattempt.id=oldlink.attempt_id

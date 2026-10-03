@@ -10,7 +10,7 @@ import { trustedMachineDataContext } from '../.agents/skills/memory/scripts/lib/
 import { machineHash } from '../.agents/skills/memory/scripts/lib/machine-state.mjs';
 import { checkPrivateAccess } from './check-private-access.mjs';
 import { resourceTarget,requireValue } from '../.agents/skills/memory/scripts/lib/installation-validation.mjs';
-import { compiledCoreHashes } from '../.agents/skills/memory/worker/machine-core-contract.mjs';
+import { compiledCoreHashes,compiledCore15Hashes } from '../.agents/skills/memory/worker/machine-core-contract.mjs';
 import { privatePublicationJournal,validatePublicationJournal,verifyArtifactReceipt,verifyArtifactBytes,readPublicationArchive } from './memory-deploy-journal.mjs';
 import { preparePublication,preparePublicationAcknowledgment,acknowledgePublication,publicationSource } from './lib-memory-publication.mjs';
 
@@ -44,6 +44,7 @@ export async function pipelineContext(env=process.env,dependencies={}) {
   if(!dependencies.journal){const adapter=await import(pathToFileURL(resolve(env.WONG_MEMORY_JOURNAL_ADAPTER)).href);requireValue(typeof adapter.createJournal==='function','publication-journal-required');journal=await adapter.createJournal({installation,source,dir});}
   requireValue(typeof journal.confirm==='function','publication-journal-required');
  }
+ if(config.vars?.MEMORY_SCHEMA_VERSION==='15')requireValue(dependencies.context,'legacy-operator-required');
  const context=installation?(dependencies.context??await trustedMachineDataContext(setupOperator(cf),installation)):null;
  return {env,config,installation,source,dir,cf,get,archive,extractArchive,journal,context,local,readPrivate,writePrivate,protection:dependencies.protection};
 }
@@ -90,7 +91,8 @@ export async function verifyActualPublication(p,evidence) {
   const settings=await p.cf('GET',`/accounts/${p.installation.accountId}/workers/scripts/${worker.name}/settings`),active=await p.cf('GET',`/accounts/${p.installation.accountId}/workers/scripts/${worker.name}/versions/${worker.versionId}`);
   for(const bindings of [settings.bindings,active.resources?.bindings])requireValue(Array.isArray(bindings)&&bindings.filter(b=>b.name==='CF_VERSION_METADATA').length===1&&bindings.find(b=>b.name==='CF_VERSION_METADATA').type==='version_metadata','version-metadata-unverified');
   // The executing candidate must carry the reviewed exact installation pins.
-  const vars=active.resources.bindings;requireValue(vars.find(b=>b.name==='MEMORY_INSTALLATION')?.text===JSON.stringify(p.installation),'target-mismatch');
+  const vars=active.resources.bindings;
+  if(p.config.vars?.MEMORY_SCHEMA_VERSION==='15')requireValue(vars.find(binding=>binding.name==='MEMORY_SCHEMA_VERSION')?.text==='15','unreviewed-deployment');requireValue(vars.find(b=>b.name==='MEMORY_INSTALLATION')?.text===JSON.stringify(p.installation),'target-mismatch');
  }
 }
 export async function runPublicationPhase(p,phase) {
@@ -105,7 +107,7 @@ export async function runPublicationPhase(p,phase) {
  return {configured:true,artifact:join(exportDir,'publication.json'),name:artifactName(p.env,phase==='prepare'?'intent':phase==='candidate'?'candidate':'receipt')};
 }
 export async function publishedObservation(p) {
- const core=await compiledCoreHashes(),account=p.config.account_id??p.env.CLOUDFLARE_ACCOUNT_ID,name=p.config.name;
+ const core=await (p.config.vars?.MEMORY_SCHEMA_VERSION==='15'?compiledCore15Hashes():compiledCoreHashes()),account=p.config.account_id??p.env.CLOUDFLARE_ACCOUNT_ID,name=p.config.name;
  const deployments=await p.cf('GET',`/accounts/${account}/workers/scripts/${name}/deployments?per_page=1`),current=deployments.deployments?.[0];
  requireValue(current?.versions?.length===1&&current.versions[0].percentage===100,'unreviewed-deployment');
  const observation={verified:true,sourceHash:p.source.digest,sourceRevision:p.source.revision,...core,workerVersions:{[name]:current.versions[0].version_id},deploymentReceipt:p.installation?(await p.journal.read())?.receipt??null:null};

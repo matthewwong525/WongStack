@@ -87,3 +87,23 @@ test('lost config publication and enrollment responses recover the retained exac
   assert.equal(f.db.prepare('SELECT count(*) n FROM memory_machine_principals').get().n,1);
  }
 });
+
+import { importFixture,CAPABILITY } from './fixtures/memory/legacy-import.mjs';
+import { prepareLegacySetupEnrollment,completeLegacyMachineSetup } from '../../.agents/skills/memory/scripts/lib/machine-setup.mjs';
+import { writeMachineState } from '../../.agents/skills/memory/scripts/lib/machine-client-state.mjs';
+import { handleMemory } from '../../.agents/skills/memory/worker/memory-worker.mjs';
+async function legacySetupFixture(t) {
+ const f=await importFixture(t),ctx={stateDir:join(machineStateDirectory(f.installation),'legacy-setup-'+randomUUID())};t.after(()=>rmSync(ctx.stateDir,{recursive:true,force:true}));
+ writeMachineState(ctx,{installation:f.installation,machineId:f.destination.machineId,grantId:null,commitment:f.signing.commitment,publicKey:f.signing.publicKey,privateKey:await crypto.subtle.exportKey('jwk',f.signing.privateKey),quarantined:false});
+ f.enrollment=args=>prepareLegacySetupEnrollment({ctx,...args,capability:CAPABILITY});
+ const original=globalThis.fetch;globalThis.fetch=(url,options)=>handleMemory(new Request(url,options),f.env);t.after(()=>{globalThis.fetch=original;});f.ctx=ctx;return f;
+}
+test('trusted15 setup persists a genuine signed maintenance candidate and becomes ready only after own final public proof',async t=>{
+ const f=await legacySetupFixture(t),cutover=await f.apply(),state=readMachineState(f.ctx);assert.equal(state.phase,'legacy-final-pending');assert.ok(state.credential);assert.equal(state.candidate,null);
+ const ready=await completeLegacyMachineSetup({ctx:f.ctx,context:f.context,installation:f.installation,cutover});assert.equal(ready.status,'ready');assert.equal(readMachineState(f.ctx).phase,'ready');assert.equal(consumeMemoryResult(ready).status,'pending-setup');
+});
+test('source15 setup admission cannot claim ready under a dropped final exposure or foreign receipt',async t=>{
+ const f=await legacySetupFixture(t);f.drop=statement=>statement.sql.startsWith('UPDATE memory_legacy_configuration');await assert.rejects(f.apply());
+ assert.equal(readMachineState(f.ctx).phase,'legacy-final-pending');const cutover={operation:{action:'legacy-cutover',completed:true,attemptId:randomUUID(),requestHash:'a'.repeat(64)}};
+ await assert.rejects(completeLegacyMachineSetup({ctx:f.ctx,context:f.context,installation:f.installation,cutover}));assert.notEqual(readMachineState(f.ctx).phase,'ready');
+});

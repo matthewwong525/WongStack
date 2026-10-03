@@ -81,3 +81,14 @@ test('fabricated outcome cannot complete a skipped deployment row',async t=>{
  assert.equal(f.db.prepare('SELECT count(*) n FROM memory_data_outcomes').get().n,0);
  assert.equal(f.db.prepare('SELECT count(*) n FROM memory_data_completions').get().n,0);
 });
+
+import { completedImportFixture } from './fixtures/memory/legacy-import.mjs';
+import { compiledLegacyHashes } from '../../.agents/skills/memory/worker/machine-legacy-contract.mjs';
+import { machineHash } from '../../.agents/skills/memory/scripts/lib/machine-state.mjs';
+test('15 reviewed publication appends distinct own receipts and preserves14 deployments/activation',async t=>{
+ const f=await completedImportFixture(t,14),old=f.db.prepare('SELECT * FROM memory_runtime_activations').get(),oldData=f.db.prepare('SELECT * FROM memory_data_deployments').all();
+ const evidence=await deployFixtureVersion(f),state=await inspectPendingMachineDeployment(f.context),input={attemptId:crypto.randomUUID(),expected:state.snapshot,payload:{predecessorId:state.head.id,previousPinHash:state.head.pinHash,pinHash:evidence.pinHash,evidence,reviewHash:await machineHash(evidence),...await compiledLegacyHashes(),rollback:false}};
+ const result=await recordMachineDeployment(f.context,input);assert.equal(result.operation.completed,true);assert.equal(result.schemaVersion,15);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM memory_legacy_deployment_completions').get().n,1);assert.deepEqual(f.db.prepare('SELECT * FROM memory_data_deployments').all(),oldData);assert.deepEqual(f.db.prepare('SELECT * FROM memory_runtime_activations').get(),old);
+ assert.equal((await recordMachineDeployment(f.context,input)).operation.requestHash,result.operation.requestHash);
+});

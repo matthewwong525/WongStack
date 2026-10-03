@@ -13,7 +13,7 @@ import { prepareMachineData } from '../../.agents/skills/memory/scripts/lib/mach
 
 test('separate schema14 manifest retains all13 original SQL receipts and pins complete inventory',async()=>{
  assert.deepEqual(machineDataMigrations.slice(0,13),machineRuntimeMigrations);
- assert.deepEqual(machineDataMigrations.map(r=>r.filename),migrationFiles());
+ assert.deepEqual(machineDataMigrations.map(r=>r.filename),migrationFiles().filter(name=>Number(name.slice(0,4))<=14));
  for(const [i,row] of machineDataMigrations.entries()){assert.equal(row.version,i+1);assert.equal(await digest(migrationSql(row.filename)),row.sha256);}
 });
 test('SQL14 alone has no activation, author adoption or deployment and keeps populated original rows',t=>{

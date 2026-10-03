@@ -1,3 +1,4 @@
+import { machineProofMessage } from '../../worker/machine-proof.mjs';
 // Finite machine API with private OS-user state and pinned production routing.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync } from 'node:fs';
@@ -129,34 +130,43 @@ export function openStore(ctx,{timeoutMs=15000,admin=false,deadline}={}) {
    let current=boundMachine(ctx,config.installation);const bytes=Buffer.from(body),sessionHash=await clientHash(sessionId),contentHash=await clientHash(bytes),generation=current.credential.generation,key=transcriptKey(config.installation,current.machineId,sessionHash,contentHash,generation);
    let objectHash=await clientHash(key),path=join(ctx.stateDir,'raw-queues',objectHash+'.json');const headPath=join(ctx.stateDir,'raw-heads',sessionHash+'-'+contentHash+'.json'),head=privateRead(headPath);
    let journal=privateRead(path);
-   if(head){if(head.machineId!==current.machineId||head.grantId!==current.grantId||head.sessionHash!==sessionHash||head.contentHash!==contentHash||!/^[0-9a-f]{64}$/.test(head.objectHash))throw new StoreError('transcript head target changed',{kind:'auth'});path=join(ctx.stateDir,'raw-queues',head.objectHash+'.json');journal=privateRead(path);if(!journal)throw new StoreError('transcript head is incomplete',{kind:'auth'});}
+   if(head){if(head.machineId!==current.machineId||head.grantId!==current.grantId||head.sessionHash!==sessionHash||head.contentHash!==contentHash||!/^[0-9a-f]{64}$/.test(head.objectHash))throw new StoreError('transcript head target changed',{kind:'auth'});path=join(ctx.stateDir,'raw-queues',head.objectHash+'.json');journal=privateRead(path);if(!journal)throw new StoreError('transcript head is incomplete',{kind:'auth'});if(JSON.stringify(head.provenance)!==JSON.stringify(journal.provenance))throw new StoreError('transcript head original authority changed',{kind:'auth'});}
    const recover=async(action)=>{
-    const candidate=journal[action];if(!candidate||candidate.receipt)return;
+    if(journal.successors?.[action]?.at(-1)?.candidate===null)return;
+    const candidate=journal.successors?.[action]?.at(-1)?.candidate??journal[action];if(!candidate||candidate.receipt)return;
     const p=candidate.input.payload,intent={action,objectHash:p.objectHash,sessionHash:p.sessionHash,contentHash:p.contentHash,credentialGeneration:p.credentialGeneration,visibility:p.visibility,stageAttemptId:p.stageAttemptId||null};
     const proof=await signClient(current,'self-status',{attemptId:randomUUID(),expected:runtimeSnapshot(current.snapshot),payload:{machineId:current.machineId,grantId:current.grantId,machineCommitment:current.commitment}});
-    const status=await machineCall(current,'self-status',proof,{...callOptions(),headers:{'Wong-Memory-Attempt':candidate.input.attemptId,'Wong-Memory-Candidate':p.objectHash,'Wong-Memory-Request':candidate.requestHash,'Wong-Memory-Intent':JSON.stringify(intent)}});
+    const status=await machineCall(current,'self-status',proof,{...callOptions(),headers:{'Wong-Memory-Attempt':candidate.input.attemptId,'Wong-Memory-Candidate':p.objectHash,'Wong-Memory-Request':candidate.requestHash,'Wong-Memory-Intent':JSON.stringify(intent),'Wong-Memory-Original-Candidate':JSON.stringify(candidate.input)}});
     current={...current,snapshot:status.result.snapshot,dataSnapshot:status.dataSnapshot};
     if(status.candidate?.completed){if(status.candidate.action!==action||status.candidate.attemptId!==candidate.input.attemptId||status.candidate.requestHash!==candidate.requestHash||JSON.stringify(status.intent)!==JSON.stringify(intent))throw new StoreError('transcript receipt is unconfirmed',{kind:'auth'});candidate.receipt=status.candidate;}
-    else if(status.candidate?.absent===true&&status.candidate.attemptId===candidate.input.attemptId&&status.candidate.candidateHash===p.objectHash)journal[action]=null;
+    else if(status.candidate?.absent===true) {
+     const evidence=status.candidate.nonExecution;
+     if(!evidence||evidence.nonExecution!==true||evidence.action!==action||evidence.predecessorDeadline!==candidate.input.proof.deadline||evidence.predecessorDeadline>=Math.floor(Date.now()/1000)||evidence.predecessorProofHash!==await clientHash(await machineProofMessage({installation:config.installation,purpose:action,attemptId:candidate.input.attemptId,expected:candidate.input.expected,payload:candidate.input.payload},candidate.input.proof))||evidence.attemptId!==candidate.input.attemptId||evidence.requestHash!==candidate.requestHash||evidence.candidateHash!==p.objectHash||JSON.stringify(evidence.intent)!==JSON.stringify(intent)||JSON.stringify(status.intent)!==JSON.stringify(intent)||evidence.machineId!==current.machineId||evidence.grantId!==current.grantId||evidence.keyCommitment!==current.commitment||JSON.stringify(evidence.installation)!==JSON.stringify(config.installation)) {journal.quarantined=true;journal.reason='raw-candidate-nonexecution-unproven';privateWrite(path,journal);setPending(ctx,'raw',journal.objectHash,false);throw new StoreError('transcript candidate is unconfirmed',{kind:'auth'});}
+     const {evidenceHash,...frame}=evidence;if(evidenceHash!==await clientHash(JSON.stringify(frame))){journal.quarantined=true;journal.reason='raw-candidate-proof-invalid';privateWrite(path,journal);setPending(ctx,'raw',journal.objectHash,false);throw new StoreError('transcript candidate is unconfirmed',{kind:'auth'});}
+     journal.successors??={};journal.successors[action]??=[];journal.successors[action].push({predecessorAttemptId:candidate.input.attemptId,predecessorRequestHash:candidate.requestHash,absenceEvidence:evidence,candidate:null});
+    }
     else throw new StoreError('transcript candidate is unconfirmed',{kind:'auth'});
     privateWrite(path,journal);writeMachineState(ctx,current);
    };
    if(journal){
+    const original=journal.provenance;
+    if(original?.version!==2||original.keyCommitment!==current.commitment||JSON.stringify(original.publicKey)!==JSON.stringify(current.publicKey)||original.machineId!==current.machineId||original.grantId!==current.grantId||JSON.stringify(original.installation)!==JSON.stringify(config.installation)||original.scope!==current.scope||original.machineRevision!==current.machineRevision||original.grantRevision!==current.grantRevision){journal.quarantined=true;journal.reason='raw-original-authority-unproven';privateWrite(path,journal);setPending(ctx,'raw',journal.objectHash,false);throw new StoreError('transcript queue target changed',{kind:'auth'});}
     if(journal.machineId!==current.machineId||journal.grantId!==current.grantId||JSON.stringify(journal.installation)!==JSON.stringify(config.installation)||journal.sessionHash!==sessionHash||journal.contentHash!==contentHash||journal.quarantined)throw new StoreError('transcript queue target changed',{kind:'auth'});
     if(journal.completed)return journal.objectHash;setPending(ctx,'raw',journal.objectHash,true);
     await recover('stage');await recover('publish');
-    if(journal.publish?.receipt){journal.completed=true;delete journal.body;privateWrite(path,journal);setPending(ctx,'raw',journal.objectHash,false);return journal.objectHash;}
-    if(journal.generation!==generation){journal.quarantined=true;journal.reason='generation-changed-owned-stage-or-absence-confirmed';journal.orphaned=Boolean(journal.stage?.receipt);privateWrite(path,journal);setPending(ctx,'raw',journal.objectHash,false);journal=null;path=join(ctx.stateDir,'raw-queues',objectHash+'.json');}
+    if((journal.successors?.publish?.at(-1)?.candidate??journal.publish)?.receipt){journal.completed=true;delete journal.body;privateWrite(path,journal);setPending(ctx,'raw',journal.objectHash,false);return journal.objectHash;}
+    if(journal.generation!==generation){journal.quarantined=true;journal.reason='generation-changed-owned-stage-or-absence-confirmed';journal.orphaned=Boolean((journal.successors?.stage?.at(-1)?.candidate??journal.stage)?.receipt);privateWrite(path,journal);setPending(ctx,'raw',journal.objectHash,false);journal=null;path=join(ctx.stateDir,'raw-queues',objectHash+'.json');}
     else objectHash=journal.objectHash;
    }
-   if(!journal){journal={installation:config.installation,machineId:current.machineId,grantId:current.grantId,sessionId,sessionHash,contentHash,generation,objectHash,body:bytes.toString('base64'),stage:null,publish:null,completed:false};setPending(ctx,'raw',objectHash,true);privateWrite(headPath,{machineId:current.machineId,grantId:current.grantId,sessionHash,contentHash,generation,objectHash});privateWrite(path,journal);}
+   if(!journal){journal={provenance:{version:2,installation:config.installation,machineId:current.machineId,grantId:current.grantId,keyCommitment:current.commitment,publicKey:current.publicKey,scope:current.scope,machineRevision:current.machineRevision,grantRevision:current.grantRevision,credentialGeneration:generation},installation:config.installation,machineId:current.machineId,grantId:current.grantId,sessionId,sessionHash,contentHash,generation,objectHash,body:bytes.toString('base64'),stage:null,publish:null,completed:false};setPending(ctx,'raw',objectHash,true);privateWrite(headPath,{provenance:journal.provenance,machineId:current.machineId,grantId:current.grantId,sessionHash,contentHash,generation,objectHash});privateWrite(path,journal);}
    const base={grantId:current.grantId,machineId:current.machineId,machineCommitment:current.commitment,scope:current.scope,machineRevision:current.machineRevision,grantRevision:current.grantRevision,credentialGeneration:generation,objectHash,sessionHash,contentHash,visibility:'private'};
    const event=async action=>{
-    let candidate=journal[action];
-    await recover(action);candidate=journal[action];
+    let candidate=journal.successors?.[action]?.at(-1)?.candidate??journal[action];
+    if(journal.successors?.[action]?.at(-1)?.candidate!==null)await recover(action);candidate=journal.successors?.[action]?.at(-1)?.candidate??journal[action];
+    if(journal.successors?.[action]?.at(-1)?.candidate===null)candidate=null;
     if(candidate?.receipt)return candidate;
-    const input=await signClient(current,action,{attemptId:randomUUID(),expected:runtimeSnapshot(current.snapshot),payload:{...base,...(action==='publish'?{stageAttemptId:journal.stage.input.attemptId}:{})}});
-    candidate={input,requestHash:await clientRuntimeRequestHash(current,action,input),receipt:null};journal[action]=candidate;privateWrite(path,journal);
+    const input=await signClient(current,action,{attemptId:randomUUID(),expected:runtimeSnapshot(current.snapshot),payload:{...base,...(action==='publish'?{stageAttemptId:(journal.successors?.stage?.at(-1)?.candidate??journal.stage).input.attemptId}:{})}});
+    candidate={input,requestHash:await clientRuntimeRequestHash(current,action,input),receipt:null};const successor=journal.successors?.[action]?.at(-1);if(successor?.candidate===null)successor.candidate=candidate;else if(journal[action]===null)journal[action]=candidate;else throw new StoreError('transcript attempted frame is immutable',{kind:'auth'});privateWrite(path,journal);
     const result=(await machineCall(current,action,input,{...callOptions(),headers:{'Wong-Memory-Session':sessionId}})).result;exactRuntimeReceipt(result,action,candidate);candidate.receipt=result.operation;current={...current,snapshot:result.snapshot};privateWrite(path,journal);writeMachineState(ctx,current);return candidate;
    };
    await event('stage');await machineCall(current,'upload',null,{method:'PUT',body:bytes,headers:{'Wong-Memory-Object':objectHash},...callOptions()});await event('publish');journal.completed=true;delete journal.body;privateWrite(path,journal);setPending(ctx,'raw',objectHash,false);writeMachineState(ctx,current);return objectHash;
