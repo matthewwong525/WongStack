@@ -28,6 +28,7 @@
 - [ ] 5.2 Update the walkthrough block in `.env.example` (no variable is needed for private pictures; `WALK_MEDIA_*` stay, for inline public ones), the app-scaffold paragraph in `.agents/skills/wong-sync/references/payload-manifest.md` (`index.ts` also sends `/_walk/` to the verify skill's route module), and the card list's cost line in `.agents/skills/wong-setup/references/cloudflare.md`; verify no variable was renamed.
 - [ ] 5.3 Add the `## Next (minor) — Keep the pictures from a preview check` entry to `CHANGELOG.md`, with an **Updating.** note in plain words: the update adds two lines to the app's entry file, pictures are kept after the next publish, and a public picture folder keeps working; verify `VERSION` is untouched.
 - [ ] 5.4 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/check-retired-names.mjs`; verify all three pass.
+- [ ] 5.5 Widen the script lint's path from `.agents/skills/memory/worker` to `.agents/skills/*/worker` wherever `main` then keeps the check list (today `.github/workflows/payload.yml`; PR #238 moves it to `.github/scripts/checks.mjs`), so the picture route is linted; verify the lint step names the new folder and passes.
 
 ## 6. Gate and live check
 

@@ -26,7 +26,7 @@ function fakeBucket(objects = new Map()) {
     },
   };
 }
-const ask = (path, method = 'GET', body, headers = {}) => new Request(`https://workspace.example.com${path}`, { method, body, headers });
+const ask = (path, method = 'GET', body, headers = {}) => new Request(`https://workspace.example.com${path}`, { method, headers, ...(body === undefined ? {} : { body }) });
 const bytes = async response => Buffer.from(await response.arrayBuffer());
 
 test('a service PUT then a user GET returns the same bytes with the fixed headers', async () => {

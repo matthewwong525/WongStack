@@ -98,3 +98,4 @@ None.
 - **2026-10-03** — Asked what to do with the finished plan → chose to build it now.
 - **2026-10-03** — Assumed: the picture route is built first and the rest waits, because PR #244 is not published yet and the route is the one part that shares no file with it.
 - **2026-10-03** — Built the picture route (tasks 1.1 to 1.3): the live site keeps and shows a check's pictures behind the login, with seven tests passing on this machine. The app's own new test first runs on GitHub. The check does not upload or link pictures yet: tasks 2.1 onward wait for PR #244 to publish.
+- **2026-10-03** — Assumed: the automatic code-style check should also cover the picture route's folder, because today it reads only the memory route's folder and the new code went unchecked; added as task 5.5.
