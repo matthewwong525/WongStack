@@ -1,6 +1,6 @@
 # See what memory finds, with evidence
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** `humane-dolphin`
 **Open questions:** none
 
@@ -65,3 +65,5 @@ Add a small brief renderer and a shared fact-selection helper under `.agents/ski
 - **2026-10-03** — Assumed: build source, tests, and docs together, then execute all named checks at one final remote gate, because repeating a full checkpoint after each small code task adds no coverage. Every planned assertion stays required and validation-dependent tasks remain unchecked until the gate passes.
 - **2026-10-03** — Assumed: checkpoint the completed implementation with validation-dependent tasks still unchecked, because syntax/static review is not behavioral evidence. Published main remains ff05dde00fb1b7ac7de467bcf5fe9adac4b68178 and contains no simple-machine-memory changes to reconcile. Shared selection, structured results, bounded original-fact briefs, synthetic evaluation, role tests, docs, and the minor release entry are ready for the remote gate.
 - **2026-10-03** — The first remote gate failed five new assertions: four stopped because the synthetic evaluation had not created its temporary state directory; one incorrectly forbade a reader from seeing their own unshared fact. Create the isolated directory before seeding, and assert both owner access and teammate denial explicitly. Existing retrieval and brief assertions passed; rerun the full remote gate after these repairs.
+
+- **2026-10-03** — The repaired implementation passed all 1,031 remote payload tests, app checks, deployment, strict change validation, and payload/context checks at a2f016c3646ca0d60b4d50934a2ff4a27e6e0b1b. Retained the synthetic brief and full 21-question evaluation in evidence.md and memory-evaluation.json: 13/13 regressions and 6/8 diagnostics hit, with two synonym misses and zero forbidden results. All tasks are complete; the change is ready for the user to review before publication. No main-app screen or applicable preview was added.
