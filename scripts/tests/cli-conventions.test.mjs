@@ -17,6 +17,7 @@ const scripts = {
   'scripts/cf-secrets.mjs': [],
   'scripts/lib-wrangler-config.mjs': [],
   'scripts/tag-releases.mjs': [],
+  'scripts/eval-verify.mjs': [],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],
   '.github/scripts/checks.mjs': ['test'],

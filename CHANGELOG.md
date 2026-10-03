@@ -7,13 +7,72 @@
 
 Hosted workspaces are still in progress. Cloud preparation gets the repository and AI workspace ready; users then run the same `/wong-setup` flow used on their own computer.
 
-- New cloud workspaces use Artifacts repository storage and private platform-managed hosting, without a customer GitHub or Cloudflare account/token.
+- New cloud workspaces default to Artifacts repository storage and private platform-managed hosting, without a customer GitHub or Cloudflare account/token. An explicit GitHub request uses the supported GitHub setup and delivery flow; personal setup keeps its own hosting.
 - Saves run remote checks, and publishing requires explicit approval of the exact passing result.
 - Workspaces on GitHub stay on GitHub. Nothing moves one to Artifacts: preparation and hosted setup refuse a folder whose repository is on GitHub and leave it unchanged. Pull requests, checks and merging work as before.
 - One check list for both routes. `.github/scripts/checks.mjs` now holds the checks. The Test and Deploy workflows call it, and a hosted workspace's runner calls the same file, so a check added once applies to both. On GitHub the checks, skips and run-page summaries are the same as before.
 - A hosted project's full history can be exported and verified at any time.
 
-**Updating.** Hosted operators must rebuild older server agents with contract 3 and coordinate the platform/toolkit rollout. Existing GitHub projects keep their current workflow. `/wong-sync` brings the new check script together with the two workflows that call it; if you added a check of your own to `test.yml` or `deploy.yml`, move it into `.github/scripts/checks.mjs`. Installation-owned memory and Devices are a separate unfinished feature; cloud roles do not grant memory authority, and setup must report unavailable or pending memory truthfully until that feature and its integration are delivered.
+**Updating.** Hosted operators must rebuild older server agents from this reviewed contract-4 source and coordinate the platform/toolkit rollout. Contract 4 alone does not identify Artifacts support: pin this release's source commit. Existing GitHub projects keep their current workflow. `/wong-sync` brings the new check script together with the two workflows that call it; if you added a check of your own to `test.yml` or `deploy.yml`, move it into `.github/scripts/checks.mjs`. Installation-owned memory and Devices are a separate unfinished feature; cloud roles do not grant memory authority, and setup must report unavailable or pending memory truthfully until that feature and its integration are delivered.
+
+
+## 29.16.0 — Finish safe preview checks before asking for help
+
+- Preview checks complete every independent safe check before bringing you in. One help list names the remaining checks, the login, permission, or manual action needed, and what each should show.
+- Writes and deletes use disposable staging data with known cleanup and test integrations. Shared data and real-world actions keep their permission boundaries; an unsafe check stays unverified while the others run.
+- Safe simulations cover as much of blocked checks as possible and explain what remains unproven. You can skip selected remaining checks or all of them; skipped checks stay unverified and are not requested again unless you reopen them.
+- After you help, the assistant resumes the remaining checks and repeats completed checks only when their conditions changed.
+
+**Updating.** No action needed. The updated skill and guide arrive with the usual update; no data or configuration migration is required.
+
+## 29.15.0 — Use cf for Cloudflare management
+
+- The assistant uses Cloudflare's cf tool for authorized account inspection and one-off resource work. A dedicated guide explains how to find commands and use the existing account credentials.
+- Setup and app publishing keep their existing workflows. The tool stays optional and adds no project dependency or customer sign-in requirement.
+
+**Updating.** No action needed for existing apps, and no migration is required. The assistant installs the optional Cloudflare management tool on its computer when a task needs it, following the existing installation convention.
+
+## 29.14.0 — Smoother key link
+
+Giving your assistant a key now takes one page and about a minute.
+
+- **Everything is on the link's page.** It shows a plain name for the key, a button that opens the service's key page, and a few short steps, above the box. The assistant writes them for that service when it sends the link; nothing per service is stored. With no steps, the page looks as before.
+- **The link comes straight away and stays open for 30 minutes**, up from 10, with no *Ready?* question. The page shows the time left. A link you haven't opened closes early when another private link is needed on the same computer; the assistant then offers a new one.
+- **The key is tested when you save.** When the assistant knows a harmless request that proves a key works, the page tries it once and says *Works*. A key the service refuses is not saved unless you tap *Save anyway*. With no test, or no answer, the key is saved and the page says it was not tested. The page names the address it tests against.
+- **Paste with one tap, and long keys work.** *Paste* fills the box from your clipboard. A key over several lines, or a small key file such as Google's, is accepted: paste it, or pick the file, which your device reads itself.
+
+The password link and the live browser link keep their *Ready?* question and their 10 minutes. A key still never passes through the chat, a log, or a published file.
+
+**Updating.** No action needed. The link's scripts and guides arrive with the usual update.
+
+## 29.13.1 — A check that needs the published change is a thread
+
+- The preview check page says what to do with a check only the published change can pass: record it as an open thread and run it right after publishing, not as a task that can never be ticked.
+
+**Updating.** No action needed.
+
+## 29.13.0 — Keep the pictures from a preview check
+
+- A preview check keeps its pictures. They go into the private storage that holds the chat transcripts, and the report on the pull request links each one. Only people who can log in to your app can open a link.
+- Ask in chat for a past check's pictures, and the assistant shows them again.
+- When pictures aren't kept, the report says so and why: the Cloudflare account has no storage, the site has no login yet, or the live site doesn't serve them yet. It no longer names a file that is already deleted, and the verdict is unaffected.
+
+**Updating.** The update adds two lines to the app's entry file, `app/worker/index.ts`: one loads the picture route, and one sends `/_walk/` addresses to it after the login check. Pictures are kept from the first check after your next publish; until then the report says the live site doesn't serve them yet. A public picture folder (`WALK_MEDIA_BUCKET` and `WALK_MEDIA_BASE_URL`) keeps working and still shows its pictures inside the report.
+
+## 29.12.0 — The preview check says how much it showed
+
+- When part of a promise can't be shown on the preview, such as an email being sent, the check marks that promise *partly shown* and names the part, in place of a plain pass. The overall result is still a pass when nothing was contradicted.
+- Passwords, keys, and tokens are removed from a check's evidence and its report before anything is posted.
+- The page that explains how the check works states what was measured: fresh agents walked 20 past checks again and disagreed with none, and the check passed none of 30 planted mistakes.
+
+**Updating.** No action needed. Reports on your pull requests gain a "partly shown" mark and, when something was removed, a line saying so.
+
+## 29.11.0 — Keep an existing server and private project
+
+- Hosts can check and prepare an existing Ubuntu workspace without replacing compatible tools, services, files or GitHub identities.
+- The source agent supports a chosen workspace account and reports private-project dependencies, configuration and Paseo separately, with safe retries. Its root runtime stays separate from writable user tools, and revoked preserved agents stop without changing shared Paseo.
+
+**Updating.** Installed projects need no action. Server hosts must support contract 4 and check the preservation manifest before enabling existing-server attachment. Contract 4 does not include the separate Artifacts capabilities. Existing agents keep their pinned source; choose this release when rebuilding or explicitly enrolling a compatible server. Review the project's required setting names before marking its code workspace ready; do not copy production secrets.
 
 ## 29.10.0 — Task chats coordinate directly
 

@@ -52,7 +52,7 @@ Hosted repository, site and preview access SHALL identify the subject from a tru
 
 ### Requirement: Artifacts serves new workspaces only
 
-A new cloud workspace SHALL use an Artifacts repository. A workspace or installation whose repository is on GitHub SHALL keep its GitHub route, and no setup, save, dashboard action or agent job SHALL move it to Artifacts or change its origin.
+A new cloud workspace SHALL default to an Artifacts repository. An owner's explicit GitHub request SHALL use the supported GitHub setup and delivery route. Local personal setup SHALL retain its own hosting path. A workspace or installation whose repository is on GitHub SHALL keep its GitHub route, and no setup, save, dashboard action or agent job SHALL move it to Artifacts or change its origin.
 
 #### Scenario: Existing GitHub workspace
 
@@ -61,8 +61,14 @@ A new cloud workspace SHALL use an Artifacts repository. A workspace or installa
 
 #### Scenario: New workspace
 
-- **WHEN** an owner creates a new cloud workspace
+- **WHEN** an owner creates a new cloud workspace without requesting GitHub
 - **THEN** it is prepared on Artifacts without a GitHub repository
+
+#### Scenario: GitHub requested
+
+- **WHEN** an owner explicitly requests GitHub for a new cloud workspace
+- **THEN** setup uses the supported GitHub route and saves use pull requests, checks and merging
+- **AND** Artifacts preparation does not replace that choice or change its origin
 
 ### Requirement: Hosted history exports completely
 

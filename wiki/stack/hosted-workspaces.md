@@ -20,7 +20,9 @@ The setup response's private settings and the scoped service token go directly i
 
 ## New workspaces only
 
-Artifacts serves new cloud workspaces. A workspace or install whose repository is on GitHub keeps its GitHub route: a save opens a pull request, the checks run there, and a yes merges it. Nothing moves it, and there is no move to ask for.
+New cloud workspaces default to Artifacts. If you explicitly request GitHub, use the supported GitHub setup flow before Artifacts preparation. Your own computer keeps its personal setup flow.
+
+A workspace or install whose repository is on GitHub keeps its GitHub route: a save opens a pull request, the checks run there, and a yes merges it. Nothing moves it, and there is no move to ask for.
 
 Preparation and hosted setup refuse a GitHub workspace before they write anything, and name the GitHub route:
 
@@ -72,4 +74,4 @@ A project's full history can be exported at any time, into any other Git destina
 
 Restore Artifacts history with a single advertised branch followed by explicit ref fetches in batches of at most 32. Check the complete advertised ref map and full objects afterward; a branch-only clone is not an export. A missing ref or a differing object identity reports failure and removes nothing. The batches avoid an observed full-mirror fetch failure; its provider cause has not been established. The bound applies to preparation and verification. Normal later wildcard Git fetches retain their ordinary configuration and are not bounded by this helper. Fresh populated working clones select advertised `main`, the hosted publication branch, even when the provider advertises another branch as HEAD. If main is absent, use the verified advertised HEAD or existing branch fallback. A verification cache may seed any verified advertised branch; it still restores all refs and objects. Existing user branches are preserved.
 
-Reconnect refreshes scoped access without replacing work. Cloud removal revokes hosted service and repository grants; incomplete provider revocation remains pending. Memory removal is a separate explicit installation-owner operation; report it independently and never claim the cloud action revoked it. Old server agents must be rebuilt to contract 3 before receiving Artifacts jobs. Existing GitHub and personal hosting routes remain supported.
+Reconnect refreshes scoped access without replacing work. Cloud removal revokes hosted service and repository grants; incomplete provider revocation remains pending. Memory removal is a separate explicit installation-owner operation; report it independently and never claim the cloud action revoked it. Old server agents must be rebuilt from the reviewed contract-4 source before receiving Artifacts jobs; the contract number alone does not prove support. Existing GitHub and personal hosting routes remain supported.

@@ -2,12 +2,12 @@
 
 ### Requirement: The agent declares its contract and commit
 
-The agent SHALL export its contract version as `CONTRACT`, an integer, now 3. Every poll SHALL send `{ contract, commit, paseo }`: that version, the source commit the host recorded for the build, and whether Paseo is up. It SHALL NOT send a features list. A change to any message's shape SHALL raise `CONTRACT`.
+The agent SHALL export its contract version as `CONTRACT`, an integer, now 4. Every poll SHALL send `{ contract, commit, paseo }`: that version, the source commit the host recorded for the build, and whether Paseo is up. It SHALL NOT send a features list. A change to any message's shape SHALL raise `CONTRACT`.
 
 #### Scenario: A poll names the contract and commit
 
 - **WHEN** the agent polls on a server built at commit `abc…` (40 hex)
-- **THEN** the request body is `{ contract: 3, commit: "abc…", paseo: "up" | "down" }` and nothing else
+- **THEN** the request body is `{ contract: 4, commit: "abc…", paseo: "up" | "down" }` and nothing else
 
 
 ### Requirement: The agent keeps secrets and verification boundaries
@@ -26,13 +26,13 @@ The agent SHALL keep today's boundaries: it only calls out, runs a command only 
 
 ## ADDED Requirements
 
-### Requirement: Contract 3 prepares a hosted repository before setup
+### Requirement: The agent prepares a hosted repository before setup
 
-A contract-3 agent SHALL accept a project-scoped Artifacts preparation job pinned to a reviewed source commit. It SHALL prepare the coding agents and repository and register the actual folder in Paseo without installing the payload or provisioning the site. The result SHALL identify the verified project and source commit without exposing credentials. It SHALL preserve existing local work, refuse mismatched project, source or destination identity, and refuse a folder holding a GitHub clone without changing its origin.
+This reviewed contract-4 agent SHALL accept a project-scoped Artifacts preparation job pinned to a reviewed source commit. It SHALL prepare the coding agents and repository and register the actual folder in Paseo without installing the payload or provisioning the site. The result SHALL identify the verified project and source commit without exposing credentials. It SHALL preserve existing local work, refuse mismatched project, source or destination identity, and refuse a folder holding a GitHub clone without changing its origin.
 
 #### Scenario: Empty prepared workspace
 
-- **WHEN** a contract-3 agent receives a valid scoped Artifacts preparation job
+- **WHEN** this reviewed contract-4 agent receives a valid scoped Artifacts preparation job
 - **THEN** the workspace opens the prepared repository with `/wong-setup` available and no payload installation yet
 
 #### Scenario: Existing GitHub clone

@@ -68,12 +68,22 @@ The walk SHALL cover the change's delta scenarios plus those of any capability t
 
 ### Requirement: The evidence is graded against the THEN
 
-Each journey SHALL pass only when its evidence shows what its `THEN` describes; a run with no error or a bare `200` SHALL NOT pass. When the evidence is ambiguous, the walk SHALL stop and ask the person, showing the evidence beside the `THEN`.
+Each journey SHALL pass only when its evidence shows what its `THEN` describes; a run with no error or a bare `200` SHALL NOT pass. A journey whose evidence shows some of its `THEN` and contradicts none SHALL be reported as partly shown, naming each part not shown and why, and SHALL NOT be reported as a plain pass; it does not change the walk's verdict. Ambiguous evidence SHALL remain unverified and be shown beside its `THEN` for the person to resolve after independent safe checks finish.
 
 #### Scenario: A bare 200
 
 - **WHEN** a request probe returns `200` with a body that does not show the `THEN`
 - **THEN** the journey fails
+
+#### Scenario: A part the preview cannot show
+
+- **WHEN** a `THEN` promises a greeting that appears and is announced, and the evidence shows it appearing but nothing can show it announced
+- **THEN** the journey is reported as partly shown, naming the announcement, and the walk's verdict is unchanged
+
+#### Scenario: Ambiguity does not stop independent checks
+
+- **WHEN** one journey's evidence is ambiguous and another journey can safely run independently
+- **THEN** the independent journey completes before the person is asked to resolve the ambiguous evidence
 
 ### Requirement: The walk installs tools, never repo dependencies
 
@@ -141,21 +151,21 @@ When a walk meets a Cloudflare Access login and a Cloudflare API token is availa
 
 ### Requirement: A failed walk resets staging, then fixes in scope or stops
 
-On `FAILURE` only, `/verify` SHALL reset staging to its seed. It SHALL then fix a failure in this change's own scope, save, and walk again, at most twice, and SHALL stop and report any other failure; the report SHALL state the scope judgement.
+On `FAILURE` only, `/verify` SHALL reset staging to its seed only when it is an established disposable staging database, separate from production, and no overlapping work depends on its current data. Otherwise it SHALL preserve shared data and clean up only records it owns through known safe operations. It SHALL then fix a failure in this change's own scope, save, and walk again, at most twice, and SHALL report any other failure without fixing it; the report SHALL state the scope judgement. A failure SHALL NOT prevent independent safe checks from completing.
 
 #### Scenario: An in-scope failure
 
 - **WHEN** a journey contradicts its `THEN` in this change's own code
-- **THEN** `/verify` resets staging, fixes, saves, and walks again, stopping after two failed attempts
+- **THEN** `/verify` safely restores its disposable test data, fixes, saves, and walks again, stopping after two failed attempts
 
 #### Scenario: An out-of-scope failure
 
 - **WHEN** a journey fails on behavior this change did not introduce
-- **THEN** `/verify` resets staging, reports, and stops without a fix
+- **THEN** `/verify` preserves shared data, reports the failure, and finishes independent safe checks without a fix
 
 ### Requirement: Evidence is posted on every verdict
 
-Each `/verify` SHALL post one new pull-request comment, whatever its verdict, covering each journey's probe, steps, `THEN`, and verdict, where the probes ran, and each unverified scenario by name. A repeat SHALL add a comment, never edit one, and screenshots SHALL be linked when a media host exists, else cited by local path.
+Each `/verify` SHALL post one new pull-request comment, whatever its verdict, covering each journey's probe, steps, `THEN`, and verdict, where the probes ran, and each unverified scenario by name. A repeat SHALL add a comment, never edit one. Screenshots that were kept SHALL be linked from the comment, and when none were kept the comment SHALL say so and why. The comment SHALL NOT cite a local path the walk deletes.
 
 #### Scenario: A walk that could not run
 
@@ -166,6 +176,11 @@ Each `/verify` SHALL post one new pull-request comment, whatever its verdict, co
 
 - **WHEN** `/verify` runs twice on one pull request
 - **THEN** two comments exist, in order, and the first is unchanged
+
+#### Scenario: A walk whose pictures were not kept
+
+- **WHEN** a browser journey passes on a repo whose store has no bucket
+- **THEN** the comment says the pictures were not kept and why, and names no local file
 
 ### Requirement: The walkthrough page records what was declined
 
@@ -207,3 +222,119 @@ When a person asks `/verify` for a check with no change's scenarios behind it, s
 
 - **WHEN** a person asks `/verify` to click through the app and names no address
 - **THEN** the walk runs on this commit's deployed preview, and a missing preview is reported as not checked
+
+### Requirement: Evidence carries no credential
+
+Before a walk's evidence or comment is posted or uploaded, known credential values and token-shaped strings in its text SHALL be replaced with a placeholder, and the report SHALL say that a value was removed. A credential value SHALL NOT be printed while doing so.
+
+#### Scenario: A journey captures request details
+
+- **WHEN** a journey's evidence holds the Access service token the walk itself sent
+- **THEN** the posted comment and the kept evidence hold a placeholder in its place, and the report says a value was removed
+
+### Requirement: A grading change is measured first
+
+The source repo SHALL keep a practice site with planted mistakes whose answers the walking agent cannot read. A change to how the walk writes journeys or grades evidence SHALL report, before and after, the planted mistakes caught, the planted mistakes passed, and the working promises failed. The practice site and its runs SHALL NOT ship to installed repos or run on every push.
+
+#### Scenario: A grading instruction changes
+
+- **WHEN** a change edits how the walk grades evidence
+- **THEN** its record holds the caught, passed, and false-alarm counts for the instructions before and after
+
+#### Scenario: A walk that passes everything
+
+- **WHEN** a walking agent grades every practice promise as a pass
+- **THEN** the report shows every planted mistake as missed
+
+### Requirement: A walk's screenshots are kept privately
+
+With a memory bucket and a login on the app, a walk SHALL keep its screenshots in the repo's private store with no expiry, and the comment SHALL carry one link per screenshot. A link SHALL open only for a caller the app's login accepts, and SHALL never show a transcript or any other object in the store. Only the walk's own machine credential SHALL add a screenshot, and a kept screenshot SHALL NOT be replaced. Keeping screenshots SHALL need no setting and no setup step beyond the memory bucket and the login.
+
+#### Scenario: A reviewer opens a picture
+
+- **WHEN** a person logged in to the app opens a screenshot's link from the comment
+- **THEN** the picture shows
+
+#### Scenario: A caller with no login
+
+- **WHEN** a request with no accepted login asks for a kept screenshot, or for a transcript's path through the picture address
+- **THEN** nothing from the store is returned
+
+### Requirement: A walk says when its pictures were not kept
+
+When a walk's screenshots cannot be kept privately, `/verify` SHALL say so in the chat and in the comment, with the reason in plain words: no bucket on the store, no login on the app, the production site not yet serving pictures, or no machine credential. It SHALL NOT keep them anywhere a person with no login can reach, and the missing pictures SHALL NOT change the verdict.
+
+#### Scenario: No payment method on the Cloudflare account
+
+- **WHEN** a walk passes on a repo whose Cloudflare account has no R2
+- **THEN** the verdict is unchanged, and the chat and the comment say the pictures were not kept because the account has no storage
+
+#### Scenario: Storage but an open site
+
+- **WHEN** a walk passes on a repo with a bucket whose app has no login yet
+- **THEN** no screenshot is stored, and the report says pictures are kept once the site has a login
+
+### Requirement: A past walk's pictures can be shown in the chat
+
+When a person asks for the pictures of a past walk on a pull request, `/verify` SHALL show that walk's kept screenshots in the chat, each with a line saying what it shows, and SHALL leave nothing on the machine afterwards. When that walk kept none, it SHALL say so.
+
+#### Scenario: Pictures from last week's walk
+
+- **WHEN** a person asks for the pictures from the walk on a pull request merged last week
+- **THEN** each kept screenshot from that walk's comment appears in the chat, and the working tree is unchanged
+
+### Requirement: A public media bucket keeps working
+
+An install that sets `WALK_MEDIA_BUCKET` and `WALK_MEDIA_BASE_URL` SHALL keep publishing screenshots to that bucket and showing them inline in the comment, under those names.
+
+#### Scenario: An install with a public bucket updates
+
+- **WHEN** a repo with both `WALK_MEDIA_` variables set takes this update and runs a walk
+- **THEN** its comment shows the screenshots inline from the public bucket, as before
+
+### Requirement: Safe checks finish before a consolidated handoff
+
+Within the requested scope, `/verify` SHALL complete every safe check possible with existing authorization and tools before asking for help. A blocked check SHALL pause only its dependents. The report SHALL distinguish completed, failed, partly shown, and unverified checks. Remaining checks SHALL form one consolidated handoff naming the reason, exact manual action or authorization needed, and expected observation, with options to help, skip selected checks, or skip all remaining checks. Skipped checks SHALL remain explicitly unverified and SHALL NOT be requested again unless the person reopens them. Skipping SHALL NOT imply authorization, erase an observed failure, or count as a pass. After the person helps, verification SHALL resume pending checks and repeat completed checks only when their conditions changed. Waiting or an unattended run SHALL NOT imply authorization.
+
+#### Scenario: One check needs a person's login
+
+- **WHEN** a login blocks one journey while other journeys need no person
+- **THEN** those other journeys complete, and the final handoff names the blocked journey and how to enable or manually complete it
+
+#### Scenario: Help enables the pending check
+
+- **WHEN** the person supplies the requested authorization without changing completed checks' conditions
+- **THEN** only the pending journey and its dependents resume
+
+#### Scenario: The person skips remaining manual checks
+
+- **WHEN** the person chooses to skip selected or all remaining checks
+- **THEN** the report names those checks as skipped and unverified, retains observed failures and coverage gaps, and no further help is requested for them unless the person reopens them
+
+### Requirement: Safe simulations explain their evidence limits
+
+For checks that cannot be completed directly, `/verify` SHALL attempt the strongest safe simulation possible with existing authorization, tools, and deployed test surfaces before asking for help. Simulation SHALL preserve the same staging and external-system safety boundaries. Its report SHALL identify simulated evidence, claims it supports, and real behavior it does not prove. Simulated effects SHALL NOT count as proof of unobserved real effects. If no safe simulation exists, the check SHALL remain unverified with its limitation explained.
+
+#### Scenario: A sandbox can simulate delivery
+
+- **WHEN** actual delivery requires help but an existing safe sandbox can exercise the request and response
+- **THEN** verification exercises the sandbox, labels the resulting evidence as simulated, and leaves actual delivery unverified with the option to help or skip it
+
+#### Scenario: No safe simulation is available
+
+- **WHEN** a remaining check has no safely accessible simulation
+- **THEN** its limitation is reported without fabricated evidence or unsafe actions, and the person can help or skip the check
+
+### Requirement: Verification preserves staging and external systems
+
+Verification SHALL use staging-only bindings and known sandbox destinations for mutating checks. Reversible writes and destructive journeys SHALL be limited to disposable fixtures or records owned by the invocation with known safe cleanup. Existing shared data, production resources, access controls beyond already authorized repair, and real messages, purchases, or paid resources SHALL require explicit authorization before being changed or triggered. If isolation or safe cleanup cannot be established, the affected checks SHALL remain unverified while independent safe checks continue.
+
+#### Scenario: A disposable delete journey
+
+- **WHEN** a delete scenario has an isolated staging fixture and a known restoration path
+- **THEN** the journey runs without a permission prompt and the fixture is safely restored afterwards
+
+#### Scenario: Staging points at a real integration
+
+- **WHEN** a staging journey would send a real message or its integration destination cannot be established
+- **THEN** its trigger is deferred for the final authorization handoff and independent safe checks still run

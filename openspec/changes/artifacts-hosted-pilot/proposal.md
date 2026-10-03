@@ -12,7 +12,7 @@ A new cloud workspace should get a person into their repo and AI quickly. They f
 
 ## What Changes
 
-- **New cloud workspaces start on Artifacts; GitHub ones stay on GitHub.** A new workspace gets its own private project with no GitHub or Cloudflare account. An existing GitHub workspace is never moved: there is no "move" button, and setup refuses to switch it.
+- **New cloud workspaces default to Artifacts; an explicit GitHub choice uses GitHub.** A new workspace gets its own private project with no GitHub or Cloudflare account unless the person requests GitHub. Existing GitHub workspaces retain their repository, pull requests, checks and merging; setup refuses to move them.
   ```text
   new cloud workspace ──▶ Artifacts repo ──▶ repo + AI ready
 
@@ -61,7 +61,7 @@ A new cloud workspace should get a person into their repo and AI quickly. They f
 ### Modified Capabilities
 
 - `install-onboarding`: hosted setup uses its prepared empty repo and service authority.
-- `server-agent`: contract 3 adds scoped Artifacts workspace preparation and refuses a GitHub clone.
+- `server-agent`: current contract 4 retains published GitHub/preservation behavior and scoped Artifacts preparation, interoperating with contract 3 without moving a GitHub clone.
 - `delivery-gate`: hosted repositories use the service gate while retaining exact-commit and approval guarantees; both routes run one shared check entry point.
 
 ## Impact
@@ -199,6 +199,8 @@ Payload client, setup and delivery skills; the payload's test and deploy workflo
 
 - **2026-10-03** — After `/ship` stopped on unfinished actual acceptance, the user explicitly approved another temporary staging test capped at 90 minutes with cleanup and private Claude sign-in. Fresh wh1005 uses exact required-gate source1bb2bae/cloud9059b32; the existing cloud Deploy37136353802 attempt2 restored checked code under a newly confirmed shared-staging hold. One native Sandbox checkout and receipt-owned CX23 created17:59:44 UTC, hard deadline 19:29:44 UTC with an independent cleanup-reserve watchdog. Unmodified cloud allocation selected project906edf33-68f4-4af3-a2d6-4cde187eebbb; normal scoped preparation completed before storage selected Artifacts. New shared resources/credentials have fresh ownership receipts; old trial credentials/resources, real billing, platform production and PR242 runtime remain excluded. Claude is human-pending through private hand-over; no full setup, candidate or publication acceptance is claimed.
 
+- **2026-10-03** — User invoked `/ship` and requested Artifacts by default while preserving working GitHub setup and delivery whenever GitHub is requested. Implement the route preference in this existing change, retain existing origins, complete the independent live acceptance already in progress, then archive/checkpoint/verify and merge only the exact passing head. No customer migration or ready-memory claim is authorized.
+
 - **2026-10-03** — Check: the user explicitly said to skip checks requiring their participation. Waive Claude authentication, real-human Access login and interactive GitHub sign-in for this acceptance run; record them SKIPPED/UNVERIFIED, never PASS. Retain automatic setup, remote app checks, protected-route probes, guarded publication, access removal, export/restore and owned-resource cleanup requirements. Existing source-test assertions and coverage floors are unchanged. A second external staging publish removed the fresh trial configuration; after the publisher acknowledged the mistake and held further deploys, restore exact checked cloud `9059b32` via its successful Deploy attempt 3 and reapply only the fresh receipt-owned staging settings. Production and the private staging file remained unchanged. Native heartbeats again report contract 3 and source `1bb2bae`. The deterministic shared installer, invoked on the actual empty customer repository, currently returns HTTP 502 after creating its seven planned Worker/database/bucket resources. No successful setup, candidate or publication is inferred.
 
 - **2026-10-03** — Actual wh1005 setup diagnosis: the original exact Access create request was rejected with HTTP 400/code 12130, `domain not included in destinations`; independently reading the planned Workers, organization, PIN provider and existing applications found the expected identities and no overlap. A bounded trusted-source reconciliation captured the same rejection without creating an application or policy. Repair the service request with one exact canonical production hostname destination in the same closed Access application as the three native Worker IDs. Reject missing, duplicate, changed, wildcard or path destinations and every nonempty override before policy mutation and on independent readback. The synthetic provider now enforces the observed create prerequisite; retain every previous negative assertion and add canonical-host tampering cases. This source repair requires a fresh exact remote gate before replacing the isolated trial service; prepared customer source remains the already checked `1bb2bae`, and no platform production rollout or memory activation is authorized by this repair.
@@ -212,3 +214,11 @@ Payload client, setup and delivery skills; the payload's test and deploy workflo
 - **2026-10-03** — Exact `b715234c6bf28fb03881caf0a34d98dc111f7ef7` passed required push Deploy37149848860/Test37149848847/Payload37149848859, 1,141 script cases with no failures/skips and unchanged floors/includes/exclusions. Task12.12 is complete on source evidence only. No new live provider call or trial was made; corrected actual pipeline acceptance remains incomplete. Human-required checks stay waived.
 
 - **2026-10-03** — Post-gate SDK review found that successful Sandbox destruction waits for both returned log streams, while the receipt readers consumed stdout only. Drain both streams, retain diagnostic-size bounds and sanitized errors, and prove completion of both with streaming regressions; this source repair creates no live resources. Existing real pipeline acceptance remains incomplete.
+
+- **2026-10-03** — Prepared [a fresh automated pipeline-only trial](automated-pipeline-trial-plan.md) for review, with exact new resources, no VM/checkout/shared cloud staging mutation, four candidate attempts, two runners and a90minute bound including15minute cleanup reserve. Source gate and fresh explicit approval precede every provider write. This reduces repeated human participation while retaining actual pipeline/cleanup evidence. All old trial authority remains closed; no new resource or credential has been created.
+
+- **2026-10-03** — Exact stream-lifecycle follow-up `10666521b0a43ef81c16847c4b594ca1640beb94` passed required push Deploy37150461654/Test37150461701/Payload37150461761. Task12.14 is complete on source evidence; a fresh pipeline-only trial remains approval-pending and unexecuted. Retain all closed-trial/history receipts and skip human-required checks without treating them as passing.
+
+- **2026-10-03** — Reconcile the published preservation contract 4 as the current agent contract while retaining contract-3 Artifacts interoperability. Use its configured workspace user/home for every Artifacts operation; keep existing GitHub projects and preservation behavior. Exact source gate and corrected actual pipeline acceptance remain separate requirements.
+
+- **2026-10-03** — Source checkpoint reconciles published main through 29.16.0, configured-home Artifacts jobs and regression coverage. Compact hosted routing instructions to retain the existing context budget; no analysis, coverage or gate is weakened. The wh1006 plan stays approval-pending and read-only; actual pipeline and rollout tasks stay open.

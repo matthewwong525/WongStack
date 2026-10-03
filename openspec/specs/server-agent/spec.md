@@ -22,12 +22,12 @@ The source SHALL ship the host agent under `server/agent/`, with its entry at `s
 
 ### Requirement: The agent declares its contract and commit
 
-The agent SHALL export its contract version as `CONTRACT`, an integer, now 3. Every poll SHALL send `{ contract, commit, paseo }`: that version, the source commit the host recorded for the build, and whether Paseo is up. It SHALL NOT send a features list. A change to any message's shape SHALL raise `CONTRACT`.
+The agent SHALL export its contract version as `CONTRACT`, an integer, now 4. Every poll SHALL send `{ contract, commit, paseo }`: that version, the source commit the host recorded for the build, and whether Paseo is up. It SHALL NOT send a features list. A change to any message's shape SHALL raise `CONTRACT`. Contract 4 SHALL retain preservation/project preparation; Artifacts support SHALL require this reviewed source rather than be inferred from the number alone.
 
 #### Scenario: A poll names the contract and commit
 
 - **WHEN** the agent polls on a server built at commit `abc…` (40 hex)
-- **THEN** the request body is `{ contract: 3, commit: "abc…", paseo: "up" | "down" }` and nothing else
+- **THEN** the request body is `{ contract: 4, commit: "abc…", paseo: "up" | "down" }` and nothing else
 
 ### Requirement: The contract is written down
 
@@ -75,16 +75,30 @@ A contract-2 agent SHALL ask the installer to finish open when Zero Trust needs 
 - **WHEN** the agent runs the installer for a `cloudflare` job
 - **THEN** the installer's stdin job asks for the open finish, and still holds no `AGENT_TOKEN`
 
-### Requirement: Contract 3 prepares a hosted repository before setup
+### Requirement: The agent prepares a hosted repository before setup
 
-A contract-3 agent SHALL accept a project-scoped Artifacts preparation job pinned to a reviewed source commit. It SHALL prepare the coding agents and repository and register the actual folder in Paseo without installing the payload or provisioning the site. The result SHALL identify the verified project and source commit without exposing credentials. It SHALL preserve existing local work, refuse mismatched project, source or destination identity, and refuse a folder holding a GitHub clone without changing its origin.
+This reviewed contract-4 agent SHALL accept a project-scoped Artifacts preparation job pinned to a reviewed source commit. It SHALL prepare the coding agents and repository and register the actual folder in Paseo without installing the payload or provisioning the site. The result SHALL identify the verified project and source commit without exposing credentials. It SHALL preserve existing local work, refuse mismatched project, source or destination identity, and refuse a folder holding a GitHub clone without changing its origin.
 
 #### Scenario: Empty prepared workspace
 
-- **WHEN** a contract-3 agent receives a valid scoped Artifacts preparation job
+- **WHEN** this reviewed contract-4 agent receives a valid scoped Artifacts preparation job
 - **THEN** the workspace opens the prepared repository with `/wong-setup` available and no payload installation yet
 
 #### Scenario: Existing GitHub clone
 
 - **WHEN** the destination folder already holds a clone whose origin is a GitHub repository
 - **THEN** the agent reports the job refused, changes no remote, and leaves the folder and its local work untouched
+
+### Requirement: The agent prepares projects with configured workspace identity
+
+The source agent SHALL support a configured workspace user/home with the legacy `wong` defaults. Its preservation-aware GitHub job SHALL preserve unrelated logins, global git settings and matching local work. A fixed project-preparation job SHALL deliver a bounded, generation-bound clone/dependency/configuration/Paseo report over the authenticated host channel, without private configuration values, command output or AI credential reads. User/home selection SHALL apply to command execution, Paseo, checkout paths and private-result ownership verification together.
+
+#### Scenario: A non-default workspace identity
+
+- **WHEN** an authorized host configures an existing workspace account and requests project preparation
+- **THEN** commands, repo registration and checked result paths all use that account's validated home, and no setup is written into a different user's home
+
+#### Scenario: A project cannot be made ready
+
+- **WHEN** the supported preparation job cannot finish dependencies, configuration or Paseo setup
+- **THEN** its bounded report marks the incomplete step without publishing private output or pretending clone success means project readiness

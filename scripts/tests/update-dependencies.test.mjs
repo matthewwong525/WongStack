@@ -130,9 +130,10 @@ function fixture(t, overrides = {}) {
   const files = {
     '.nvmrc': '22\n',
     [PIN_FILES[0]]: `      - run: npm install -g ${pin}\n`,
-    [PIN_FILES[1]]: `npm install -g ${pin} agent-browser\n`,
-    [PIN_FILES[2]]: `| \`openspec --version\` | missing | \`npm install -g ${pin}\` |\n`,
-    [PIN_FILES[3]]: `Use Node.js 22 and OpenSpec 1.13.2 (\`npm install -g ${pin}\`).\n`,
+    'server/setup.sh': `npm install -g ${pin} agent-browser\n`,
+    'server/preserve.sh': `OPEN_SPEC_PACKAGE=${pin}\n`,
+    '.agents/skills/save/references/preconditions.md': `| \`openspec --version\` | missing | \`npm install -g ${pin}\` |\n`,
+    '.github/CONTRIBUTING.md': `Use Node.js 22 and OpenSpec 1.13.2 (\`npm install -g ${pin}\`).\n`,
     'app/package.json': `${JSON.stringify(APP, null, 2)}\n`,
     'app/package-lock.json': lockFor(APP),
     'scripts/tests/package.json': `${JSON.stringify(TOOLS, null, 2)}\n`,
@@ -216,12 +217,12 @@ test('@types/node moves only within the .nvmrc major', async t => {
   assert.match(out, /^status: updated$/m);
 });
 
-test('a new OpenSpec moves all four pins together, installs the CLI, and runs the contract', async t => {
+test('a new OpenSpec moves all five pins together, installs the CLI, and runs the contract', async t => {
   const f = fixture(t, withRegistry({ '@fission-ai/openspec': '1.14.0' }));
   const { code, out } = await f.go();
   assert.equal(code, 0, out);
   for (const file of PIN_FILES) assert.equal(readPin(f.read(file)), '1.14.0', file);
-  assert.match(f.read(PIN_FILES[3]), /OpenSpec 1\.14\.0 /);
+  assert.match(f.read('.github/CONTRIBUTING.md'), /OpenSpec 1\.14\.0 /);
   assert.equal(f.getState().installed.openspec, '1.14.0');
   assert.match(out, /^openspec 1\.13\.2 -> 1\.14\.0$/m);
   assert.match(out, /^openspec 1\.14\.0 passes scripts\/tests\/openspec-contract\.test\.mjs$/m);
@@ -232,11 +233,11 @@ test('a new OpenSpec moves all four pins together, installs the CLI, and runs th
 
 test('a pin a previous run missed is still moved', async t => {
   const f = fixture(t);
-  write(f.root, PIN_FILES[2], '`npm install -g @fission-ai/openspec@1.12.0`\n');
+  write(f.root, '.agents/skills/save/references/preconditions.md', '`npm install -g @fission-ai/openspec@1.12.0`\n');
   const { code, out } = await f.go();
   assert.equal(code, 0, out);
   assert.match(out, /^\.agents\/skills\/save\/references\/preconditions\.md 1\.12\.0 -> 1\.13\.2$/m);
-  assert.equal(readPin(f.read(PIN_FILES[2])), '1.13.2');
+  assert.equal(readPin(f.read('.agents/skills/save/references/preconditions.md')), '1.13.2');
 });
 
 test('a failing npm install stops with FAIL and exit 1; a rerun after the fix skips finished stages', async t => {

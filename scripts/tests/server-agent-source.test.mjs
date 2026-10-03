@@ -16,6 +16,13 @@ test('a missing clone is fetched but mismatched origin, HEAD, or contract stops 
  await assert.rejects(sourceInstaller({...job,sourceCommit:'HEAD'},box().exec));
  await assert.rejects(sourceInstaller({...job,sourceRepo:'bad/../repo'},box().exec));
 });
+test('a configured workspace home keeps every source-cache operation outside the legacy home',async()=>{
+ const b=box(),home='/srv/workspaces/ada';
+ assert.equal(await sourceInstaller(job,b.exec,home),`${home}/.cache/wong-stack/source-${job.sourceCommit}/server/install-wongstack.mjs`);
+ assert.ok(b.calls.some(args=>args.includes(`${home}/.cache/wong-stack`)));
+ assert.ok(b.calls.filter(args=>args.includes('-C')).every(args=>args[args.indexOf('-C')+1]===`${home}/.cache/wong-stack/source-${job.sourceCommit}`));
+ assert.ok(!JSON.stringify(b.calls).includes('/home/wong'));
+});
 
 test('real fresh no-checkout clone establishes the reviewed tree; subsequent dirty cache is refused',async()=>{
  const {mkdtempSync,mkdirSync,writeFileSync,rmSync}=await import('node:fs');

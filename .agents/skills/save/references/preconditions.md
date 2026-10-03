@@ -1,6 +1,6 @@
 # Git preconditions
 
-Detect [hosted access](../../../../wiki/stack/hosted-workspaces.md#detect-the-route-first) first. Hosted verbs check context, origin and OpenSpec without `gh`. Personal verbs run these checks once before git or GitHub; failure stops with its fix.
+[Hosted](../../../../wiki/stack/hosted-workspaces.md#detect-the-route-first): context/origin/OpenSpec without `gh`. Personal routes check below once; failure stops with its fix.
 
 | Check | Fails when | Fix |
 |---|---|---|

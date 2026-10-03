@@ -6,7 +6,7 @@ user-invocable: true
 
 # /wong-setup
 
-Check Git and source-required Node with the [tools procedure](references/tools.md#1-the-tools), asking under its existing install rule if missing; defer GitHub and Cloudflare prerequisites. Then detect [hosted workspaces](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first) from the verified source. A prepared target finishes through that page’s setup procedure before folder selection or personal prerequisites. Installed hosted targets resume there; a GitHub target stays on GitHub. Personal installed targets use `/wong-sync`. Otherwise follow below.
+Check Git/Node via [tools](references/tools.md#1-the-tools). From verified source, detect [hosted access](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first) before folder/personal checks. Resume its setup; keep GitHub origins. Personal installs use `/wong-sync`; otherwise follow below.
 
 ## Pick the folder
 

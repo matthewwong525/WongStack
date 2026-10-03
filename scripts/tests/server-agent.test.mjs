@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { after, before, beforeEach, test } from "node:test";
 
-import { CONTRACT, INSTALL_TIMEOUT_MS, INVITE_POLL_MS, INVITE_TRIES, installWongStack, main, paseoHealth, runJob, startBackground, tick as actualTick } from "../../server/agent/agent.mjs";
+import { ROOT_PATH, CONTRACT, INSTALL_TIMEOUT_MS, INVITE_POLL_MS, INVITE_TRIES, installWongStack, main, paseoHealth, runJob, startBackground, tick as actualTick } from "../../server/agent/agent.mjs";
+import { workspaceExec } from "../../server/agent/workspace.mjs";
 
 // Installer/HTTP orchestration here; private filesystem delivery has its own real-file suite.
 const management = { execute: async (job, install) => install(), report: async (job, outcome, post) => { await post(`/api/agent/jobs/${job.id}`, outcome); }, resume: async () => {} };
@@ -50,12 +51,12 @@ function fakeExec({ fail = [], stdout = JSON.stringify({ relayEnabled: true, url
 
 const TOKEN = "gho_secret";
 const GITHUB = { token: TOKEN, repo: "ada/wongstack", name: "Ada Lovelace", email: "7+ada@users.noreply.github.com" };
-const AS_WONG = "runuser -u wong -- env HOME=/home/wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
+const AS_WONG = "runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin";
 
 test("pair runs the relay pairing command as wong and returns the link", async () => {
   const { exec, calls } = fakeExec();
   assert.deepEqual(await runJob({ type: "pair" }, exec), { status: "done", result: LINK });
-  assert.deepEqual(calls, ["runuser -u wong -- paseo daemon pair --relay --json --home /home/wong/.paseo"]);
+  assert.deepEqual(calls, ["runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin paseo daemon pair --relay --json --home /home/wong/.paseo"]);
 });
 
 test("suspend stops and resume starts the Paseo service", async () => {
@@ -102,15 +103,15 @@ test("a poll sends the contract, the source commit, and health with the token, a
   pollReply = { status: 200, body: { jobs: [], interval: 2 } };
   const interval = await tick({ appUrl, token: "tok", commit: SOURCE_COMMIT, fetch, exec: fakeExec().exec, log: () => {} });
   assert.equal(interval, 2);
-  assert.equal(CONTRACT, 3);
-  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 3, commit: SOURCE_COMMIT, paseo: "up" } }]);
+  assert.equal(CONTRACT, 4);
+  assert.deepEqual(requests, [{ path: "/api/agent/poll", auth: "Bearer tok", body: { contract: 4, commit: SOURCE_COMMIT, paseo: "up" } }]);
 });
 
 test("a poll sends a null commit when SOURCE_COMMIT is missing or not a full commit", async () => {
   for (const commit of [undefined, "", "abc1234", SOURCE_COMMIT.toUpperCase(), `${SOURCE_COMMIT}\n`]) {
     requests = [];
     await tick({ appUrl, token: "tok", commit, fetch, exec: fakeExec({ fail: ["is-active"] }).exec, log: () => {} });
-    assert.deepEqual(requests[0].body, { contract: 3, commit: null, paseo: "down" }, String(commit));
+    assert.deepEqual(requests[0].body, { contract: 4, commit: null, paseo: "down" }, String(commit));
   }
 });
 
@@ -168,13 +169,13 @@ test("main polls in a loop, waits the hinted interval, and keeps going after an 
     waits.push(ms);
     if (waits.length === 3) throw stop;
   };
-  const run = main({ env: { APP_URL: appUrl, AGENT_TOKEN: "tok", SOURCE_COMMIT }, fetch: flaky, exec: fakeExec().exec, sleep, log: (l) => lines.push(l) });
+  const run = main({ validate: async () => ({user:"wong",home:"/home/wong",uid:1000}), env: { APP_URL: appUrl, AGENT_TOKEN: "tok", SOURCE_COMMIT }, fetch: flaky, exec: fakeExec().exec, sleep, log: (l) => lines.push(l) });
   await assert.rejects(run, stop);
   assert.deepEqual(waits, [2000, 10000, 2000]);
   assert.deepEqual(lines, ["poll error: network down"]);
   assert.equal(requests.length, 2);
   assert.equal(requests[0].auth, "Bearer tok");
-  assert.deepEqual(requests[0].body, { contract: 3, commit: SOURCE_COMMIT, paseo: "up" });
+  assert.deepEqual(requests[0].body, { contract: 4, commit: SOURCE_COMMIT, paseo: "up" });
 });
 
 test("github signs gh in with the token on stdin, sets git up, and clones the repo", async () => {
@@ -299,7 +300,7 @@ test("a Paseo failure at any step is logged by its step name only, and the clone
 test("commands run as wong with the PATH that paseo.service gives, where Claude Code lives", async () => {
   const box = paseoExec();
   await connect(box.exec);
-  assert.ok(box.lines().every((l) => !l.startsWith("runuser") || l.startsWith("runuser -u wong -- env HOME=/home/wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin ")));
+  assert.ok(box.lines().every((l) => !l.startsWith("runuser") || l.startsWith("runuser -u wong -- env -i HOME=/home/wong USER=wong PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin ")));
 });
 
 // ── the WongStack install ───────────────────────────────────────────────────
@@ -668,6 +669,85 @@ test('Artifacts preparation runs only pinned source as wong without the agent to
   assert.equal(calls.some(call=>call.args.includes('gh')),false);
 });
 
+const ARTIFACTS = { serviceUrl: 'https://service.example.com', projectId: '11111111-1111-1111-1111-111111111111', token: 'private-project-grant', gitUrl: 'https://git.example.com/account/project.git', sourceRepo: 'matthewwong525/WongStack', sourceCommit: SOURCE_COMMIT, ownerEmail: 'owner@example.com', subject: 'owner', subjectEmail: 'owner@example.com', role: 'owner' };
+const CUSTOM_WORKSPACE = { user: 'ada', home: '/srv/workspaces/ada', uid: 1001 };
+function artifactsExec({ acknowledgment = {}, prepare = async () => {} } = {}) {
+  const calls = [];
+  const hosted = { projectId: ARTIFACTS.projectId, sourceCommit: SOURCE_COMMIT, verified: true, dir: `${CUSTOM_WORKSPACE.home}/wongstack`, ...acknowledgment };
+  const exec = workspaceExec(async (file, args, options) => {
+    calls.push({ file, args, options });
+    if (args.includes('get-url')) return { stdout: 'https://github.com/matthewwong525/WongStack.git' };
+    if (args.includes('rev-parse')) return { stdout: SOURCE_COMMIT };
+    if (args.some(arg => arg.endsWith('/prepare-hosted.mjs'))) { await prepare(); return { stdout: JSON.stringify(hosted) }; }
+    if (args.includes('paseo')) return { stdout: JSON.stringify(args.includes('pair') ? { url: LINK } : [{ path: hosted.dir }]) };
+    return { stdout: '' };
+  }, CUSTOM_WORKSPACE);
+  return { exec, calls, hosted };
+}
+
+test('Artifacts source, preparation and Paseo all use the configured account and home with private stdin', async () => {
+  const box = artifactsExec();
+  assert.deepEqual(await runJob({ type: 'artifacts', payload: ARTIFACTS }, box.exec), { status: 'done', hosted: box.hosted });
+  const preparation = box.calls.find(call => call.args.some(arg => arg.endsWith('/prepare-hosted.mjs')));
+  assert.ok(preparation.args.includes(`${CUSTOM_WORKSPACE.home}/.cache/wong-stack/source-${SOURCE_COMMIT}/server/prepare-hosted.mjs`));
+  assert.equal(preparation.options.input, JSON.stringify(ARTIFACTS));
+  assert.equal(preparation.options.timeout, INSTALL_TIMEOUT_MS);
+  for (const call of box.calls) {
+    assert.equal(call.file, 'runuser');
+    assert.deepEqual(call.args.slice(0, 8), ['-u', CUSTOM_WORKSPACE.user, '--', 'env', '-i', `HOME=${CUSTOM_WORKSPACE.home}`, `USER=${CUSTOM_WORKSPACE.user}`, `PATH=${CUSTOM_WORKSPACE.home}/.local/bin:/usr/local/bin:/usr/bin:/bin`]);
+    if (!call.args.includes('paseo')) assert.deepEqual(call.args.slice(8, 11), ['env', '-u', 'AGENT_TOKEN']);
+    assert.ok(!call.args.includes(ARTIFACTS.token));
+  }
+  assert.ok(box.calls.some(call => call.args.includes(`${CUSTOM_WORKSPACE.home}/.paseo`)));
+  assert.ok(!JSON.stringify(box.calls).includes('/home/wong'));
+});
+
+test('Artifacts refuses a wrong project, source, verification or destination acknowledgment before Paseo registration', async () => {
+  for (const acknowledgment of [{ projectId: '22222222-2222-2222-2222-222222222222' }, { sourceCommit: 'b'.repeat(40) }, { verified: false }, { dir: '/home/wong/wongstack' }, { dir: `${CUSTOM_WORKSPACE.home}/another-project` }]) {
+    const box = artifactsExec({ acknowledgment });
+    assert.deepEqual(await runJob({ type: 'artifacts', payload: ARTIFACTS }, box.exec), { status: 'failed', reason: 'repo' });
+    assert.ok(!box.calls.some(call => call.args.includes('paseo')));
+  }
+});
+
+test('the contract-4 GitHub preservation job uses its fixed helper as the configured user without legacy login or clone', async () => {
+  const calls = [];
+  const payload = { ...GITHUB, login: 'ada', preserve: true };
+  const exec = workspaceExec(async (file, args, options) => { calls.push({ file, args, options }); return { stdout: JSON.stringify({ status: 'failed', reason: 'identity_conflict' }) }; }, CUSTOM_WORKSPACE);
+  assert.deepEqual(await runJob({ type: 'github', payload }, exec), { status: 'failed', reason: 'identity_conflict' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].file, 'runuser');
+  assert.deepEqual(calls[0].args.slice(0, 8), ['-u', CUSTOM_WORKSPACE.user, '--', 'env', '-i', `HOME=${CUSTOM_WORKSPACE.home}`, `USER=${CUSTOM_WORKSPACE.user}`, `PATH=${CUSTOM_WORKSPACE.home}/.local/bin:/usr/local/bin:/usr/bin:/bin`]);
+  assert.ok(calls[0].args.at(-1).endsWith('/server/project-github.mjs'));
+  assert.deepEqual(JSON.parse(calls[0].options.input), { repo: payload.repo, token: payload.token, login: payload.login });
+  assert.ok(!calls[0].args.includes(payload.token));
+  assert.ok(!calls[0].args.some(arg => ['gh', 'login', 'clone', 'config', 'set-url'].includes(arg)));
+});
+
+test('Artifacts stays in the background under contract 4 while pairing and polls continue, and duplicate work is refused', async () => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const box = artifactsExec({ prepare: () => pending });
+  const job = { id: 'a1', type: 'artifacts', payload: ARTIFACTS };
+  pollReply = { status: 200, body: { jobs: [job, { id: 'p1', type: 'pair' }] } };
+  try {
+    await tick({ appUrl, token: 'tok', commit: SOURCE_COMMIT, fetch, exec: box.exec, log: () => {} });
+    await until(() => box.calls.some(call => call.args.some(arg => arg.endsWith('/prepare-hosted.mjs'))));
+    assert.deepEqual(requests[0].body, { contract: 4, commit: SOURCE_COMMIT, paseo: 'up' });
+    assert.deepEqual(requests.find(request => request.path.endsWith('/p1')).body, { status: 'done', result: LINK });
+    assert.ok(!requests.some(request => request.path.endsWith('/a1')));
+    pollReply = { status: 200, body: { jobs: [{ ...job, id: 'a2' }] } };
+    await tick({ appUrl, token: 'tok', commit: SOURCE_COMMIT, fetch, exec: box.exec, log: () => {} });
+    await until(() => requests.some(request => request.path.endsWith('/a2')));
+    assert.equal(requests.filter(request => request.path === '/api/agent/poll').length, 2);
+    assert.deepEqual(requests.find(request => request.path.endsWith('/a2')).body, { status: 'failed' });
+    assert.equal(box.calls.filter(call => call.args.some(arg => arg.endsWith('/prepare-hosted.mjs'))).length, 1);
+  } finally { release(); }
+  await until(() => requests.some(request => request.path.endsWith('/a1')));
+  assert.deepEqual(requests.find(request => request.path.endsWith('/a1')).body, { status: 'done', hosted: box.hosted });
+  assert.ok(!JSON.stringify(requests).includes(ARTIFACTS.token));
+});
+
 test('an Artifacts job that names a GitHub repository is rejected and runs nothing', async () => {
   const payload = { serviceUrl: 'https://service.example.com', projectId: '11111111-1111-1111-1111-111111111111', token: 'private-project-grant', gitUrl: 'https://git.example.com/account/project.git', sourceRepo: 'matthewwong525/WongStack', sourceCommit: SOURCE_COMMIT, ownerEmail: 'owner@example.com', subject: 'owner', role: 'owner' };
   for (const move of [{ githubRepo: 'owner/Existing' }, { legacyRepo: 'owner/Existing' }]) {
@@ -693,4 +773,22 @@ test('a refused Artifacts preparation reports a failed job and registers no work
   assert.deepEqual(await runJob({ type: 'artifacts', payload }, exec), { status: 'failed', reason: 'repo' });
   assert.equal(calls.some(command => command.includes('paseo')), false);
   assert.equal(calls.some(command => command.includes('set-url')), false);
+});
+
+test('preserved agent exits normally on authenticated poll 401 without retry or shared service changes and uses trusted root PATH',async()=>{
+ const calls=[],logs=[];let polls=0,sleeps=0;
+ await main({env:{APP_URL:'https://control.test',AGENT_TOKEN:'host-secret',WORKSPACE_MODE:'preserve'},validate:async()=>({user:'fixture',home:'/home/fixture',uid:1001}),
+  fetch:async(url,options)=>{assert.equal(options.headers.Authorization,'Bearer host-secret');assert.ok(url.endsWith('/api/agent/poll'));polls++;return Response.json({error:'revoked'},{status:401});},
+  exec:async(file,args,options)=>{calls.push({file,args,options});assert.equal(options.env.PATH,ROOT_PATH);return {stdout:''};},
+  sleep:async()=>{sleeps++;},log:value=>logs.push(value)});
+ assert.equal(polls,1);assert.equal(sleeps,0);assert.deepEqual(logs,['agent authorization revoked']);
+ assert.deepEqual(calls.map(value=>[value.file,...value.args]),[['systemctl','is-active','--quiet','paseo.service']]);
+});
+test('fresh mode retains retry on poll 401 and preserved mode retries other transport/server failures',async()=>{
+ for(const [mode,status] of [['fresh',401],['preserve',503]]) {
+  let polls=0,sleeps=0;const stop=Error('stop');
+  await assert.rejects(main({env:{APP_URL:'https://control.test',AGENT_TOKEN:'host-secret',WORKSPACE_MODE:mode},validate:async()=>({user:'fixture',home:'/home/fixture',uid:1001}),
+   fetch:async()=>{polls++;return Response.json({}, {status});},exec:async()=>({stdout:''}),log:()=>{},sleep:async()=>{sleeps++;throw stop;}}),stop);
+  assert.equal(polls,1);assert.equal(sleeps,1);
+ }
 });

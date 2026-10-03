@@ -23,7 +23,7 @@ Give the agent the logins you choose through a private link, so it logs in for y
 
   Once `wait` prints `HANDOVER_SAVED`, the agent logs in with it as with [any saved login](browsing.md#saved-browser-logins).
 
-  It then names the saved sites in the chat, looked up by name in `auth list`, never a password. `--local` works as for a hand-over. Only one link, a hand-over or a password link, is open at a time.
+  It then names the saved sites in the chat, looked up by name in `auth list`, never a password. `--local` works as for a hand-over. Only one link, a hand-over, a password link, or a key link, is open at a time; a [key link](secrets.md#receive-a-key-through-a-private-link) nobody has opened gives way to this one.
 
 The link has [the hand-over link's safety](browsing.md#hand-the-browser-over): a new address and secret key each time, closed after successful completion, cancellation, or after 10 minutes. Each password travels once, from your device to the store, and never lands in the chat, a log, a command line, or a file in the repo.
 

@@ -69,6 +69,8 @@
 - [x] 9.0 Record Artifacts as the default for new hosted workspaces and honor an explicit GitHub request through the supported GitHub route. Update the route guidance, release note and current spec scenario; inspect runtime routing and add behavior coverage only if executable selection changes. Retain existing origins and the personal setup route.
 
 - [x] 9.1 Implement the source-only hosted service and documented admin/client APIs with tenant-isolated lifecycle, scoped credentials and revocation; add meaningful remote contract coverage.
+- [ ] 9.0b Reconcile published main and contract 4 without losing Artifacts jobs or GitHub preservation; use the configured workspace home throughout source loading, preparation and result acknowledgment. Add meaningful custom-user, background-job and existing-project refusal coverage; require the exact combined source gate.
+
 - [ ] 9.2 Package and remotely build the real app with assets and migrations; verify memory is accurately unavailable/pending with no usable Devices or machine grants, and deploy exact immutable bundles using trusted runtime bindings and platform-managed Access and private site URLs, with regression tests for red checks, corruption, wrong tenant and stale approval/base. Ready-memory acceptance belongs to independent PR #242 and its later integration.
 - [x] 9.3 Add bounded candidate queue/recovery, preserving ambiguous publication reservations; document service deployment, secrets, rollout and cleanup.
 
@@ -121,4 +123,6 @@ wh1005 CLOSED before its bound: actual setup and repository push succeeded; actu
 
 Source gate for task12.12: exact `b715234c6bf28fb03881caf0a34d98dc111f7ef7` passed required push Deploy37149848860/Test37149848847/Payload37149848859; 1,141 script cases, zero failures/skips, 92.42% lines and 88.57% branches with unchanged floors/includes/exclusions. Real local Git and actual pinned SDK overlay regressions passed remotely. Corrected provider/R2 pipeline acceptance remains task12.13, unexecuted.
 
-- [ ] 12.14 Consume both successful SDK log streams for preparation and build receipt readers, preserving diagnostic-size bounds without exposing stderr; prove both stream completions remotely so SDK sandbox destruction can finish.
+- [x] 12.14 Consume both successful SDK log streams for preparation and build receipt readers, preserving diagnostic-size bounds without exposing stderr; prove both stream completions remotely so SDK sandbox destruction can finish.
+
+Task12.14 source gate: exact `10666521b0a43ef81c16847c4b594ca1640beb94` passed required push Deploy37150461654/Test37150461701/Payload37150461761. Both preparation/build SDK log-stream completion regressions passed remotely; no new live trial or resource was created. Task12.13 and overall integrated acceptance remain pending.

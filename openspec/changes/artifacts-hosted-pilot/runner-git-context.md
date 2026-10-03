@@ -29,3 +29,5 @@ Meaningful remote source tests execute preparation against disposable real Git r
 ## Successful runner release
 
 The pinned SDK transfers successful runner cleanup to its returned stdout and stderr streams. Both receipt readers consume both streams, retain finite diagnostic-size limits and expose no raw stderr. A source regression proves both stream completions; actual provider container shutdown remains a live-trial readback requirement.
+
+Stream-lifecycle follow-up `10666521b0a43ef81c16847c4b594ca1640beb94` passed required push [Deploy37150461654](https://github.com/matthewwong525/WongStack/actions/runs/37150461654), [Test37150461701](https://github.com/matthewwong525/WongStack/actions/runs/37150461701) and [Payload37150461761](https://github.com/matthewwong525/WongStack/actions/runs/37150461761). Both SDK log streams are consumed without exposing diagnostics. Corrected actual provider pipeline acceptance is still unexecuted.

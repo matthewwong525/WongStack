@@ -11,18 +11,27 @@
   h1 { font-size: 1.35rem; margin: 8px 2px 16px; }
   .hint, #status { font-size: 0.85rem; opacity: 0.65; margin: 4px 2px; overflow-wrap: anywhere; }
   .miss { font-size: 0.9rem; color: #d33; margin: 6px 2px; }
-  .ok { font-size: 0.95rem; color: #1a8f3c; margin: 6px 2px; }
+  .ok { font-size: 0.95rem; color: #1a8f3c; margin: 6px 2px; overflow-wrap: anywhere; }
   #keys { list-style: none; margin: 0; padding: 0; }
-  #keys li { padding: 12px 0; border-bottom: 1px solid #8883; }
+  #keys > li { padding: 12px 0; border-bottom: 1px solid #8883; }
   label { display: block; font-size: 1rem; font-weight: 600; margin: 0 2px 2px; overflow-wrap: anywhere; }
+  .steps { margin: 4px 0 0; padding-left: 1.5rem; font-size: 0.95rem; line-height: 1.4; }
+  .steps li { margin: 8px 0; overflow-wrap: anywhere; }
+  .open { display: inline-block; padding: 10px 14px; border: 1px solid #8888; border-radius: 8px; color: inherit; text-decoration: none; }
+  .host { display: block; font-size: 0.8rem; opacity: 0.65; margin-top: 4px; }
   .row { display: flex; gap: 8px; margin-top: 8px; }
   input { box-sizing: border-box; flex: 1; min-width: 0; font-size: 1.1rem; padding: 12px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
   input:disabled { opacity: 0.5; }
   button { font-size: 1.05rem; padding: 12px 16px; border: 1px solid #8888; border-radius: 8px; background: none; color: inherit; }
   button.main { background: #3478f6; border-color: #3478f6; color: #fff; }
+  button.quiet { border: 0; padding: 12px 2px; font-size: 0.9rem; opacity: 0.75; text-decoration: underline; }
   button:disabled { opacity: 0.5; }
   .row button { font-size: 0.95rem; padding: 12px; flex: none; }
-  .actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 16px 0 8px; }
+  .held { font-size: 1rem; margin: 12px 2px 0; overflow-wrap: anywhere; }
+  .tools { display: flex; flex-wrap: wrap; gap: 0 18px; margin: 0 2px; }
+  .actions { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 16px 0 0; }
+  #time { text-align: center; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -33,13 +42,15 @@
     <p class="hint">Each key goes straight to a private file on your assistant's computer, never into the chat.</p>
     <div class="actions">
       <button type="submit" class="main" id="save" disabled>Save and continue</button>
-      <button type="button" id="done">Close without continuing</button>
+      <button type="button" class="quiet" id="done">Close without continuing</button>
     </div>
+    <p class="hint" id="time"></p>
   </form>
 </section>
 
 <section id="closed" hidden>
   <h1>This link has closed</h1>
+  <div id="results"></div>
   <p class="hint">Ask your assistant for a new one.</p>
 </section>
 <p id="status" role="status"></p>

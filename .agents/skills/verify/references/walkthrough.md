@@ -1,8 +1,6 @@
 # The staging walkthrough
 
-How `/verify` scouts a change's own OpenSpec scenarios, probes them against the deployed preview, and grades them. [The skill](../SKILL.md) owns the order, verdicts, and hard rules; [the staging walkthrough](../../../../wiki/development/staging-walkthrough.md) owns the reasons.
-
-The browser is **[`agent-browser`](https://github.com/vercel-labs/agent-browser)**, a standalone CLI with its own Chrome, run on this machine. Request probes need only `curl`.
+Run deployed scenario probes and grade evidence. [The skill](../SKILL.md) owns order and verdicts; [the wiki](../../../../wiki/development/staging-walkthrough.md) owns why.
 
 ## a — scout the scenarios
 
@@ -19,7 +17,9 @@ Scout the change's **own OpenSpec scenarios**:
 
 A scenario **no probe reaches** (no deployed surface, or observable only by running the repo's code locally) is excluded and **noted by name with its reason**, so the report and PR comment list it as unverified.
 
-**Walk destructive journeys; never skip them**: on a seeded fixture, a delete is often the scenario most worth walking.
+Before writing journeys, keep a ledger in the run folder: each scenario's probe, dependencies, runnable or blocked status, and cleanup. A blocked or failed prerequisite pauses only its dependents; finish independent safe checks before asking for help. Stage only runnable journeys, never a blocked trigger.
+
+**Walk destructive journeys on disposable data.** Before any write, confirm deployed bindings are staging-only and integrations use known sandbox destinations; a staging URL alone proves neither. Use isolated fixtures or records this invocation owns, with known safe cleanup. A delete against such a fixture needs no prompt. Preserve shared data and production resources; real messages, purchases, paid resources, or access changes beyond the skill's authorized heal require explicit authorization. Unknown isolation, destination, or cleanup → defer that check, naming the proof or permission needed; continue safe checks.
 
 ## b — write the journeys
 
@@ -72,6 +72,7 @@ Evidence rules:
 - **Screenshot wherever a human would look**, to a numbered absolute path under `$RUN_DIR/evidence/<id>/`: `--full` for the whole page, `--annotate` when numbered element labels help.
 - **Address elements semantically** (`find role`, `find text`, `find label`, preferred for anything a person could name) or by `@eN` refs from a `snapshot` in the same batch; re-`snapshot` after anything that navigates or re-renders, because refs go stale.
 - **Write no assertions**: a journey produces evidence; it does not decide.
+- **Never capture request headers** (`network requests`, a HAR): the driver adds the Access token to every request, and it would land in the evidence.
 - Write preflight's preview URL in full: a batch file has no base URL. Only request-probe paths resolve against it.
 
 ## c — run it
@@ -80,67 +81,50 @@ Evidence rules:
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" run "$RUN_DIR" "$URL"
 ```
 
-The driver runs every journey in order: batch files through `agent-browser`, each in its own browser session, and request files through `curl`. Then do any state-probe reads (§ b) before grading.
+Stage independent journeys together; run dependent stages only after grading prerequisite evidence. Failure or ambiguity blocks dependents. Move completed inputs out of `journeys/` before another `run`, so completed mutations never replay. The driver runs all staged browsers, then requests, collecting Access blocks; finish state reads (§ b) before grading. If cleanup fails, preserve owned record identifiers in the report, defer dependent mutations, and continue independent safe checks.
+
+`run` and `publish` each end with `REDACTED=<n>`: the driver replaced a credential in `<n>` text files under the run folder. Above 0, say so in the comment and the report. `unknown` means the scrub could not run: read the text evidence and `comment.md` for a credential yourself before posting.
 
 ## d — grade against the written expectation
 
 For each journey, read the evidence beside the `then` in `<id>.meta.json` — screenshots and `$RUN_DIR/evidence/<id>.result.json` for a browser journey, the numbered response captures for a request probe, the command output for a state probe — and decide whether it shows what the `THEN` describes.
+
+**A `THEN` often holds several claims.** Where the evidence shows some, and no probe on this preview can observe the rest (an email sent, a screen reader speaking), the journey is **partly shown**: neither a failure nor a plain pass. Name each claim not shown and why. It leaves the walk's verdict alone.
 
 **Show a browser journey's screenshots in the chat as you grade it**, before its verdict: open each numbered screenshot in walk order with your image tool, one plain line above each saying what it shows. [Show what the browser is doing](../../../../wiki/development/browsing.md#show-what-the-browser-is-doing) owns the how; the walk's screenshots are already taken, so skip its `screenshot` step.
 
 - **"No error" is not a pass, and neither is a bare `200`.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does a `200` without the body the `THEN` describes.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
 - A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is a defect in the journey, not the app.
-- **Genuinely ambiguous → stop and ask the user**, showing the evidence and the `THEN` side by side, the readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks). Never resolve it yourself.
+- `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
+- **Ambiguous → unverified**, with evidence beside the `THEN` and readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks) in the final handoff. Never choose a reading yourself; finish independent safe checks first.
 
 ## e — after a failure
+
+Finish independent checks; retain retry evidence. Clean up owned test data on pass or fail. Seed reset (`node "$ROOT/scripts/reset-staging-d1.mjs"`) requires **FAILURE**, an established disposable database separate from production, and no overlapping dependent work. Otherwise preserve shared data; defer unsafe cleanup.
 
 A failure is **in scope** only when both hold:
 
 1. the contradicted `THEN` is one of *this change's own* scenarios, and
 2. the fix plausibly lives in files this branch already touches (`git diff --name-only origin/main..HEAD`).
 
-Anything else (pre-existing behavior, infrastructure, another capability's scenario) is out of scope. Write the judgement in one line: *"out of scope — the login form predates this branch"*.
+Otherwise report **out of scope** with why.
 
-Three failures are almost always **out of scope**, however fixable they look: nothing in the fixture to act on (fix the seed in its own change); a `401` from the app itself with a valid service token (the app authenticates wrongly); and a screenshot of the previous page (fix the journey's waits and re-walk).
+Usually **out of scope**: empty fixtures (separate seed change), app `401` with valid service token (app authentication), previous-page screenshot (repair journey waits and re-walk).
 
 ## f — post the evidence, then clean up
 
-One comment per invocation, not per journey; verifying again appends a new comment, never edits the first. Make it complete as prose for a reader with no images: title it by verdict, name each journey's probe and **where it ran**, and list unverifiable scenarios by name. Write `$RUN_DIR/comment.md` in this shape:
+Write one `$RUN_DIR/comment.md` for all journeys and retries: verdict, preview URL, short SHA; each verbatim `THEN`, probe, **where it ran**, evidence, and result. Name passes, failures, `◐` partly shown (shown and missing claims, why), and unverified scenarios. Text must stand without images. Browser journeys link numbered screenshots: `Pictures (log in to open): [<label>](<url>)`.
 
-```markdown
-## Staging walkthrough — <verdict>
+Apply the skill's verdict precedence; inherently unobservable claims stay partly shown (§ d). UNKNOWN/TIMEOUT lead **Not verified.**, naming completed checks, blocks, and remedies. Name heals or missing credentials.
 
-Verified <N> scenario(s) against <url> at `<short-sha>` — <n> in a local Chrome on the machine that ran `/verify`, <m> by direct request.
+Before the handoff, attempt the strongest safe simulation for checks you cannot complete directly: existing deployed interfaces, disposable synthetic data, or established sandbox integrations. Apply § a's safety limits and the skill's deployment-only rule; no local repo execution or invented tooling. Label evidence **simulated**, naming claims supported and real behavior not proved. A simulated delivery never proves actual delivery or a person's experience. No safe simulation → name the limitation; never fabricate evidence.
 
-### ✅ Submitting with no title is rejected — browser
-> **THEN** the form shows "Title is required" and nothing is saved
+After independent checks and simulations, give **one consolidated handoff** in comment and chat, including human-checkable partly shown claims. For each remaining check, name its reason, exact manual action or authorization, expected observation, and dependents. Offer help, skip selected checks, or skip all remaining checks in [the shared ask format](../../explore/references/asking-the-user.md). Record skips as **skipped, unverified**; retain failures and evidence limits. A skip grants no permission or pass; do not ask again unless the person reopens it. Apply verdicts to obtained coverage; skipping does not turn a blocked reachable check into SUCCESS.
 
-`landing` → `empty form` → `after submitting empty`
-The message appears and the list is unchanged.
+Use [key links](../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) or [browser hand-over](../../../../wiki/development/browsing.md#hand-the-browser-over) for credentials/login. Waiting or unattended runs grant no permission. After help, resume pending checks; repeat completed checks only if conditions changed. Keep observations, pending/skipped ledger, and owned record identifiers before cleanup.
 
-![after submitting empty](<url-or-path>)
-
-### ✅ Creating without a title answers 422 — request
-> **THEN** the endpoint answers 422 and no note is created
-
-`POST /api/notes {"title":""}` → `422`, body names the missing title; `GET /api/notes` → the list is unchanged.
-
-### ❌ A note can be deleted — browser
-> **THEN** the note disappears from the list and the count drops to 2
-
-`landing` → `open note` → `after delete`
-The note is still listed and the count still reads 3.
-
-![after delete](<url-or-path>)
-
-### ⛔ Unverified
-- *Imports are processed from the queue* — no existing command reads the queue's effect; its e2e home is a CI test.
-```
-
-On **`UNKNOWN`** or **`TIMEOUT`**, perhaps with no journeys, title it `## Staging walkthrough — UNKNOWN`, lead with **Not verified.**, and say what blocked the walk and what would make it runnable, never an empty-looking success. On every verdict, say what any heal did ("minted a service token and retried once"), or that it was *unavailable* (an Access wall with no Cloudflare token) and which credential is missing.
-
-Publish the screenshots, then post and clean up:
+Publish pictures, post, clean up:
 
 ```bash
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" publish "$RUN_DIR"
@@ -148,6 +132,4 @@ gh pr comment --body-file "$RUN_DIR/comment.md"
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" cleanup "$RUN_DIR"
 ```
 
-- **`RESULT: WALKED`** → it printed `<local-path>\t<public-url>` per file; substitute them into the comment before posting, so screenshots render inline.
-- **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths; **not** a failure.
-- Request- and state-probe evidence is text, quoted inline; only screenshots go through `publish`. The walk records no video.
+`publish` prints `<local-path>\t<url>` then `MEDIA=`. **private** → linked pictures; **public** → `![<label>](<url>)`; **none** → omit pictures and report `REASON` in comment/chat; verdict unchanged. Omit files without URLs; never cite local paths deleted by cleanup. Other evidence is inline text; no video.

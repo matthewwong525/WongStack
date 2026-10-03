@@ -23,15 +23,20 @@ import { copyKey, copyRestore, copySend } from "./copy.mjs";
 import { sourceInstaller } from "./source.mjs";
 import { createManagementStore } from "./management.mjs";
 const managementStore = createManagementStore();
+import { asWorkspace, workspaceOf, validateWorkspace, workspaceExec } from "./workspace.mjs";
+import { preserveGitHub } from "./github.mjs";
+import { prepareProjectJob, createProjectStore } from "./project.mjs";
+const projectStore = createProjectStore();
 
 /** The contract this agent follows with the control plane: server/README.md#the-agent. A changed message shape raises it. */
-export const CONTRACT = 3;
-const PASEO_HOME = "/home/wong/.paseo";
+export const CONTRACT = 4;
+const paseoHome = exec => `${workspaceOf(exec).home}/.paseo`;
 /** The installer beside this agent, in the same unpacked source, which wong can read. */
 const INSTALLER = fileURLToPath(new URL("../install-wongstack.mjs", import.meta.url));
 /** An install normally takes a few minutes; one still running after this is stopped. */
 export const INSTALL_TIMEOUT_MS = 20 * 60_000;
 const DEFAULT_INTERVAL = 10;
+export const ROOT_PATH = "/usr/sbin:/usr/bin:/sbin:/bin";
 /** The reasons the installer prints as its last line when it stops. */
 const REASONS = new Set(["token", "repo", "cloudflare", "push", "access"]);
 /** A GitHub login: letters, digits, and inner hyphens, at most 39 characters. */
@@ -44,29 +49,19 @@ const MEMORY = ".agents/skills/memory/scripts/memory.mjs";
 const MEMBERS = ".agents/skills/memory/scripts/lib/members.mjs";
 
 /** Job types that run in the background, one of each type at a time, so polling goes on around them. */
-const BACKGROUND = new Set(["cloudflare", "artifacts", "copy-send", "copy-restore"]);
+const BACKGROUND = new Set(["cloudflare", "artifacts", "copy-send", "copy-restore", "project-prepare"]);
 /** A full git commit, as the host records `SOURCE_COMMIT`. */
 const COMMIT = /^[0-9a-f]{40}$/;
 
-/**
- * A workspace per AI, named for it, with one terminal that runs only that AI's
- * own sign-in. The agent never reads them.
- */
-const SIGN_INS = [
-  ["Sign in to Claude", "claude auth login"],
-  ["Sign in to Codex", "codex login --device-auth"],
-];
-/** Where the person goes after the sign-in to send their first message, which the dashboard gives them. */
-const START_HERE = "Start here (after you sign in)";
+import { SIGN_INS, START_HERE } from "../sign-ins.mjs";
 
 /**
  * Runs a command as wong, in wong's home, with the PATH that paseo.service
  * gives wong: Claude Code installs itself in ~/.local/bin.
  */
-const asWong = (exec, args, options) =>
-  exec("runuser", ["-u", "wong", "--", "env", "HOME=/home/wong", "PATH=/home/wong/.local/bin:/usr/local/bin:/usr/bin:/bin", ...args], options);
+const asWong = asWorkspace;
 /** Runs a Paseo command as wong against wong's daemon, and returns its JSON reply. */
-const paseo = async (exec, args) => JSON.parse((await asWong(exec, ["paseo", ...args, "--home", PASEO_HOME, "--json"])).stdout);
+const paseo = async (exec, args) => JSON.parse((await asWong(exec, ["paseo", ...args, "--home", paseoHome(exec), "--json"])).stdout);
 
 /** A workspace on the clone with this title, and its id. */
 const workspace = async (exec, dir, title) => (await paseo(exec, ["workspace", "create", "--path", dir, "--isolation", "local", "--title", title])).workspaceId;
@@ -122,7 +117,7 @@ async function acceptInvitation(repo, exec, sleep) {
 async function connectGitHub({ token, repo, name, email, invited }, exec, log, sleep) {
   const folder = repoFolder(repo);
   if (!token || !folder) return { status: "rejected" };
-  const dir = `/home/wong/${folder}`;
+  const dir = `${workspaceOf(exec).home}/${folder}`;
   await asWong(exec, ["gh", "auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--with-token"], { input: token });
   await asWong(exec, ["gh", "auth", "setup-git"]);
   await asWong(exec, ["git", "config", "--global", "user.name", name]);
@@ -162,7 +157,7 @@ async function removeTeammate(job, exec) {
     await ghApi(exec, ["-X", "DELETE", `repos/${repo}/invitations/${Number(invite.id)}`]);
   }
   await ghApi(exec, ["-X", "DELETE", `repos/${repo}/collaborators/${login}`]).catch(gone);
-  const dir = `/home/wong/${folder}`;
+  const dir = `${workspaceOf(exec).home}/${folder}`;
   if (await exec("test", ["-f", `${dir}/${MEMBERS}`]).then(() => true, () => false)) {
     const id = Number(await ghApi(exec, [`users/${login}`, "--jq", ".id"]));
     await asWong(exec, ["node", MEMORY, "member", "remove", `${id}+${login}@users.noreply.github.com`], { cwd: dir });
@@ -196,7 +191,7 @@ async function rollToken({ token, repo }, exec, fetchFn) {
     if (!TOKEN_ID.test(String(id))) return false;
     const value = await cf("PUT", `/user/tokens/${id}/value`, {});
     if (typeof value !== "string" || !value) return false;
-    await asWong(exec, ["node", "--input-type=module", "-e", WRITE_TOKEN, `/home/wong/${repoFolder(repo)}/.env`], { input: value });
+    await asWong(exec, ["node", "--input-type=module", "-e", WRITE_TOKEN, `${workspaceOf(exec).home}/${repoFolder(repo)}/.env`], { input: value });
     return true;
   } catch {
     return false;
@@ -217,7 +212,7 @@ export async function installWongStack(job, exec, fetchFn) {
   if (!jobFolder(job)) return { status: "rejected" };
   const { token, accountId, repo, ownerEmail, managementResult } = job;
   let installer;
-  try { installer = await sourceInstaller(job, (args) => asWong(exec, args)); }
+  try { installer = await sourceInstaller(job, (args) => asWong(exec, args), workspaceOf(exec).home); }
   catch { return { status: "failed", reason: "access" }; }
   try {
     await asWong(exec, ["env", "-u", "AGENT_TOKEN", "node", installer], { input: JSON.stringify({ token, accountId, repo, ownerEmail, managementResult, openWithoutLogin: true }), timeout: INSTALL_TIMEOUT_MS });
@@ -238,11 +233,11 @@ const running = new Set();
  * outcome when it ends. A second job of a type that is running fails at once.
  * Returns the running job, for tests.
  */
-export function startBackground(job, exec, report, fetchFn, management, post) {
+export function startBackground(job, exec, report, fetchFn, management, post, projects = projectStore) {
   if (running.has(job.type)) return report({ status: "failed" });
   running.add(job.type);
   const execute = () => runJob(job, exec, undefined, undefined, fetchFn);
-  return (job.type === "cloudflare" && management ? management.execute(job, execute, post) : execute())
+  return (job.type === "cloudflare" && management ? management.execute(job, execute, post) : job.type === "project-prepare" ? projects.execute(job, execute, post) : execute())
     .catch(() => ({ status: "failed" }))
     .then((outcome) => outcome && report(outcome))
     .finally(() => running.delete(job.type));
@@ -256,7 +251,7 @@ export function startBackground(job, exec, report, fetchFn, management, post) {
 export async function runJob(job, exec, log = () => {}, sleep, fetchFn) {
   switch (job.type) {
     case "pair": {
-      const { stdout } = await exec("runuser", ["-u", "wong", "--", "paseo", "daemon", "pair", "--relay", "--json", "--home", PASEO_HOME]);
+      const { stdout } = await asWong(exec, ["paseo", "daemon", "pair", "--relay", "--json", "--home", paseoHome(exec)]);
       return { status: "done", result: JSON.parse(stdout).url };
     }
     case "suspend":
@@ -271,19 +266,21 @@ export async function runJob(job, exec, log = () => {}, sleep, fetchFn) {
       // move, which no contract offers: reject it and run nothing.
       if (payload?.githubRepo !== undefined || payload?.legacyRepo !== undefined) return { status: "rejected" };
       let installer;
-      try { installer = await sourceInstaller(payload, (args) => asWong(exec, ["env", "-u", "AGENT_TOKEN", ...args])); }
+      try { installer = await sourceInstaller(payload, (args) => asWong(exec, ["env", "-u", "AGENT_TOKEN", ...args]), workspaceOf(exec).home); }
       catch { return { status: "failed", reason: "repo" }; }
       const prepare = installer.replace(/install-wongstack\.mjs$/, "prepare-hosted.mjs");
       try {
         const result = await asWong(exec, ["env", "-u", "AGENT_TOKEN", "node", prepare], { input: JSON.stringify(payload), timeout: INSTALL_TIMEOUT_MS });
         const hosted = JSON.parse(result.stdout.trim().split("\n").at(-1));
-        if (hosted.projectId !== payload.projectId || hosted.sourceCommit !== payload.sourceCommit || hosted.verified !== true || !/^\/home\/wong\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(hosted.dir || "")) throw new Error("bad acknowledgment");
+        if (hosted.projectId !== payload.projectId || hosted.sourceCommit !== payload.sourceCommit || hosted.verified !== true || hosted.dir !== `${workspaceOf(exec).home}/wongstack`) throw new Error("bad acknowledgment");
         await setUpPaseo(hosted.dir, exec, log);
         return { status: "done", hosted };
       } catch { return { status: "failed", reason: "repo" }; }
     }
     case "github":
-      return connectGitHub(job.payload ?? {}, exec, log, sleep);
+      return job.payload?.preserve === true ? preserveGitHub(job.payload, exec) : connectGitHub(job.payload ?? {}, exec, log, sleep);
+    case "project-prepare":
+      return prepareProjectJob(job.payload, exec);
     case "cloudflare":
       return installWongStack(job.payload, exec, fetchFn);
     case "team-add":
@@ -293,9 +290,9 @@ export async function runJob(job, exec, log = () => {}, sleep, fetchFn) {
     case "copy-key":
       return copyKey();
     case "copy-send":
-      return copySend(job.payload);
+      return copySend(job.payload, {home:workspaceOf(exec).home});
     case "copy-restore":
-      return copyRestore(job.payload, exec);
+      return copyRestore(job.payload, exec, workspaceOf(exec));
     default:
       return { status: "rejected" };
   }
@@ -311,27 +308,29 @@ export async function paseoHealth(exec) {
 }
 
 /** One poll and its jobs. Returns the seconds to wait before the next poll. */
-export async function tick({ appUrl, token, commit, fetch, exec, log, sleep, management = managementStore }) {
+export async function tick({ appUrl, token, commit, fetch, exec, log, sleep, management = managementStore, projects = projectStore }) {
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
   const post = (path, body) => fetch(`${appUrl}${path}`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
   // Journal recovery never reruns source export or token rolling, and cannot
   // block pairing/health polling while an HTTP receipt is delayed.
   void management.resume(post);
+  void projects.resume(post);
 
   const response = await post("/api/agent/poll", { contract: CONTRACT, commit: COMMIT.test(commit ?? "") ? commit : null, paseo: await paseoHealth(exec) });
-  if (!response.ok) throw new Error(`poll failed: HTTP ${response.status}`);
+  if (!response.ok) throw Object.assign(new Error(`poll failed: HTTP ${response.status}`), { pollStatus: response.status });
   // A reply without these (an older Worker during a rollout) means no work.
   const { jobs = [], interval = DEFAULT_INTERVAL } = await response.json();
   const report = async (job, outcome) => {
     log(`job ${job.id} ${job.type}: ${outcome.status}`);
     if (job.type === "cloudflare") await management.report(job, outcome, post);
+    else if (job.type === "project-prepare") await projects.report(job, outcome, post);
     else await post(`/api/agent/jobs/${job.id}`, outcome);
   };
   for (const job of jobs) {
     if (BACKGROUND.has(job.type)) {
       log(`job ${job.id} ${job.type}: started`);
       // Not awaited: pairing and the other jobs keep running during the install.
-      void startBackground(job, exec, (outcome) => report(job, outcome), fetch, management, post).catch(() => log(`job ${job.id} report failed: access`));
+      void startBackground(job, exec, (outcome) => report(job, outcome), fetch, management, post, projects).catch(() => log(`job ${job.id} report failed: access`));
       continue;
     }
     // A failure's message can hold command output, so only the job id is logged.
@@ -341,20 +340,31 @@ export async function tick({ appUrl, token, commit, fetch, exec, log, sleep, man
   return interval;
 }
 
-export async function main({ env, fetch, exec, sleep, log }) {
+export async function main({ env, fetch, exec, sleep, log, validate = validateWorkspace }) {
+  const rawExec = exec;
+  exec = (file, args, options = {}) => rawExec(file, args, { ...options, env: { ...process.env, PATH: ROOT_PATH } });
+  const identity = await validate(env, exec);
+  exec = workspaceExec(exec, identity);
+  const management = createManagementStore(identity);
+  const projects = createProjectStore();
   for (;;) {
     let interval = DEFAULT_INTERVAL;
     try {
-      interval = await tick({ appUrl: env.APP_URL, token: env.AGENT_TOKEN, commit: env.SOURCE_COMMIT, fetch, exec, log, sleep });
+      interval = await tick({ appUrl: env.APP_URL, token: env.AGENT_TOKEN, commit: env.SOURCE_COMMIT, fetch, exec, log, sleep, management, projects });
     } catch (error) {
+      if (env.WORKSPACE_MODE === "preserve" && error.pollStatus === 401) {
+        log("agent authorization revoked");
+        return;
+      }
       log(`poll error: ${error.message}`);
     }
     await sleep(interval * 1000);
   }
 }
 
-/* c8 ignore next 9 -- the process entry point, run only by systemd */
+/* c8 ignore next 11 -- the process entry point, run only by systemd */
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.env.PATH = ROOT_PATH;
   await main({
     env: process.env,
     fetch: globalThis.fetch,
@@ -362,4 +372,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     log: (line) => console.log(`wongstack-agent: ${line}`),
   });
+  process.exit(0);
 }

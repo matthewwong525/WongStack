@@ -6,7 +6,7 @@ user-invocable: true
 
 # /continue
 
-First detect [hosted workspaces](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first). Hosted access uses that page’s continue procedure before GitHub or Cloudflare requirements; keep this skill’s record and validation duties.
+Use [hosted](../../../wiki/stack/hosted-workspaces.md#detect-the-route-first) continue first; keep records/validation.
 
 Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth**, kept current by `/save`: `openspec/changes/<name>/proposal.md` holds the intent, `tasks.md` the checklist, its memory facts the session context.
 
