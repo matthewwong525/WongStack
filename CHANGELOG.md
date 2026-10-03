@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Use cf for Cloudflare management
+
+- The assistant uses Cloudflare's cf tool for authorized account inspection and one-off resource work. A dedicated guide explains how to find commands and use the existing account credentials.
+- Setup and app publishing keep their existing workflows. The tool stays optional and adds no project dependency or customer sign-in requirement.
+
+**Updating.** No action needed for existing apps, and no migration is required. The assistant installs the optional Cloudflare management tool on its computer when a task needs it, following the existing installation convention.
+
 ## 29.13.1 — A check that needs the published change is a thread
 
 - The preview check page says what to do with a check only the published change can pass: record it as an open thread and run it right after publishing, not as a task that can never be ticked.
