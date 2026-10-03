@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { run } from './install-wongstack.mjs';
 import { inspectCheckout, ownedPath } from './project-github.mjs';
 import { noLinks } from './agent/workspace.mjs';
+import { SIGN_INS, START_HERE } from './sign-ins.mjs';
 export const PROJECT_REASONS=['repo','path_conflict','identity_conflict','dependencies','configuration','paseo','unsupported'];
 const setting=/^[A-Z][A-Z0-9_]{0,63}$/;
 function regular(path,uid,limit=1024*1024) {
@@ -43,10 +44,11 @@ export async function prepareProject(job,{home=process.env.HOME,user=process.env
     let state={};if(existsSync(file))state=JSON.parse(regular(file,uid,8192));
     const version=(await command('node',['--version'])).stdout+(await command('npm',['--version'])).stdout;
     const fingerprint=createHash('sha256').update(packageText).update(lockText).update(version).digest('hex');
+    const saveState=()=>{const temporary=`${file}.${randomUUID()}.tmp`;noLinks(temporary);writeFileSync(temporary,JSON.stringify(state),{mode:0o600,flag:'wx'});renameSync(temporary,file);};
     if(state.dependencies!==fingerprint||!existsSync(join(dir,'node_modules'))) {
       try {await command('npm',['ci','--no-audit','--no-fund']);}catch{return {...report,dependencies:'failed',reason:'dependencies'};}
       state.dependencies=fingerprint;
-      const temporary=`${file}.${randomUUID()}.tmp`;noLinks(temporary);writeFileSync(temporary,JSON.stringify(state),{mode:0o600,flag:'wx'});renameSync(temporary,file);
+      saveState();
     }
     report.dependencies='done';step='configuration';
     const configPath=join(dir,'.wongstack/project.json');noLinks(configPath);
@@ -68,7 +70,32 @@ export async function prepareProject(job,{home=process.env.HOME,user=process.env
     const paseo=async args=>JSON.parse((await command('paseo',[...args,'--home',join(home,'.paseo'),'--json'])).stdout);
     const projects=await paseo(['project','ls']);if(!projects.some(project=>project.path===dir))await paseo(['project','create',dir]);
     const workspaces=await paseo(['workspace','ls']);
-    if(!workspaces.some(workspace=>(workspace.cwd===dir||workspace.path===dir)&&(workspace.title??workspace.name)==='Start here (after you sign in)'))await paseo(['workspace','create','--path',dir,'--isolation','local','--title','Start here (after you sign in)']);
+    const workspace=async title=>{
+      let match=workspaces.find(item=>(item.cwd===dir||item.path===dir)&&(item.title??item.name)===title);
+      if(!match){match=await paseo(['workspace','create','--path',dir,'--isolation','local','--title',title]);workspaces.push(match);}
+      if(typeof match.workspaceId!=='string'||!match.workspaceId)throw Error('paseo');
+      return match.workspaceId;
+    };
+    state.signIns??={};
+    for(const [title,login] of SIGN_INS) {
+      const id=await workspace(title);
+      const terminals=await paseo(['terminal','ls','--workspace',id]);
+      let terminal=terminals.find(item=>item.workspaceId===id&&item.name===title)??terminals.find(item=>item.workspaceId===id);
+      if(!terminal) {
+        terminal=await paseo(['terminal','create','--workspace',id,'--cwd',dir,'--name',title]);
+        if(typeof terminal.id!=='string'||!terminal.id)throw Error('paseo');
+        state.signIns[title]={workspaceId:id,terminalId:terminal.id,sent:false};saveState();
+      }
+      if(typeof terminal.id!=='string'||!terminal.id)throw Error('paseo');
+      const pending=state.signIns[title];
+      // Existing terminals are left alone. Retry only our recorded unfinished
+      // fixed action, with metadata lookup rather than reading terminal output.
+      if(pending?.workspaceId===id&&pending.terminalId===terminal.id&&pending.sent===false) {
+        await paseo(['terminal','send-keys',terminal.id,login,'Enter']);
+        pending.sent=true;saveState();
+      }
+    }
+    await workspace(START_HERE);
     report.paseo='done';
     return {...report,...(report.configuration!=='done'&&{reason:'configuration'})};
   }catch(error){return {...report,...(step==='dependencies'&&{dependencies:'failed'}),reason:PROJECT_REASONS.includes(error.message)?error.message:step};}

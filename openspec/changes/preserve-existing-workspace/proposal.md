@@ -53,3 +53,6 @@ Existing server setup overwrites shared tools and the Paseo service, while the s
 - **2026-10-03** — Integration uses project generation 0 for fresh/rebuilt servers and positive generations for attachment; project reports accept nonnegative generation and still require an exact authenticated job-bound receipt. A different stored GitHub identity refuses before clone rather than replacing or temporarily borrowing it.
 
 - **2026-10-03** — Checkpoint: preservation and project operations passed 109 focused tests, Bash syntax and source payload checks. Remote release checks remain pending; attachment stays disabled until a gated source revision is available. Session fact capture was unavailable because this checkout has no registered session.
+
+- **2026-10-03** — Preserved project readiness includes the same fixed Claude/Codex sign-in workspaces and terminals as fresh setup. Retry looks up workspace/terminal metadata, keeps existing terminals untouched, and records newly created terminals before delivering their fixed sign-in command; no terminal contents or AI credentials are read.
+- **2026-10-03** — Updater fixtures now name every pin explicitly, including preservation setup, so the fresh and preserved OpenSpec checks continue updating together without positional fixture assumptions.

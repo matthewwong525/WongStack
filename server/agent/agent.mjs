@@ -52,16 +52,7 @@ const BACKGROUND = new Set(["cloudflare", "copy-send", "copy-restore", "project-
 /** A full git commit, as the host records `SOURCE_COMMIT`. */
 const COMMIT = /^[0-9a-f]{40}$/;
 
-/**
- * A workspace per AI, named for it, with one terminal that runs only that AI's
- * own sign-in. The agent never reads them.
- */
-const SIGN_INS = [
-  ["Sign in to Claude", "claude auth login"],
-  ["Sign in to Codex", "codex login --device-auth"],
-];
-/** Where the person goes after the sign-in to send their first message, which the dashboard gives them. */
-const START_HERE = "Start here (after you sign in)";
+import { SIGN_INS, START_HERE } from "../sign-ins.mjs";
 
 /**
  * Runs a command as wong, in wong's home, with the PATH that paseo.service

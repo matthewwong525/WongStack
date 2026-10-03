@@ -16,9 +16,11 @@ function box(options={}) {
  const put=(file,text)=>{folder(dirname(file));writeFileSync(file,text);own(file);};
  folder(home);if(!options.absent){folder(dir);folder(join(dir,'.git'));}
  if(!options.absent){put(join(dir,'package.json'),JSON.stringify({name:'fixture',version:'1.0.0'}));put(join(dir,'package-lock.json'),JSON.stringify({lockfileVersion:3}));}
- const calls=[];let projects=[],workspaces=[];
+ const calls=[];let failedOnce=false;const projects=[],workspaces=[],terminals=[];
+ if(options.seed){projects.push({path:dir});for(const [index,name] of ['Sign in to Claude','Sign in to Codex','Start here (after you sign in)'].entries())workspaces.push({workspaceId:`seed-w${index}`,cwd:dir,name});for(let index=0;index<2;index++)terminals.push({id:`seed-t${index}`,workspaceId:`seed-w${index}`,cwd:dir,name:'Existing terminal'});}
  const exec=async(file,args,opts={})=>{
   calls.push({file,args,options:opts});assert.ok(!('AGENT_TOKEN' in (opts.env??{})));assert.ok(!Object.values(opts.env??{}).includes('host-secret'));
+  if(options.failOnce&&!failedOnce&&[file,...args].join(' ').includes(options.failOnce)){failedOnce=true;throw Error('private output host-secret');}
   if(options.fail&&args.includes(options.fail))throw Error('private output host-secret');
   const answer=value=>({stdout:typeof value==='string'?value:JSON.stringify(value)});
   if(file==='gh'&&args.includes('user'))return answer({login:opts.env.GH_TOKEN?options.tokenLogin??'owner':options.storedLogin??'owner'});
@@ -31,15 +33,17 @@ function box(options={}) {
   if(args.includes('--version'))return answer('22.19.0');
   if(file==='paseo') {
    if(args[0]==='project'&&args[1]==='ls')return answer(projects);
-   if(args[0]==='project'&&args[1]==='create')projects=[{path:dir}];
+   if(args[0]==='project'&&args[1]==='create'){projects.push({path:dir});return answer({projectId:'p1',path:dir});}
    if(args[0]==='workspace'&&args[1]==='ls')return answer(workspaces);
-   if(args[0]==='workspace'&&args[1]==='create')workspaces=[{cwd:dir,name:'Start here (after you sign in)'}];
+   if(args[0]==='workspace'&&args[1]==='create'){const value={workspaceId:`w${workspaces.length+1}`,cwd:dir,name:args[args.indexOf('--title')+1]};workspaces.push(value);return answer(value);}
+   if(args[0]==='terminal'&&args[1]==='ls')return answer(terminals.filter(value=>value.workspaceId===args[args.indexOf('--workspace')+1]));
+   if(args[0]==='terminal'&&args[1]==='create'){const value={id:`t${terminals.length+1}`,workspaceId:args[args.indexOf('--workspace')+1],cwd:dir,name:args[args.indexOf('--name')+1]};terminals.push(value);return answer(value);}
    return answer({});
   }
   return answer('');
  };
  const contract=value=>{folder(join(dir,'.wongstack'));put(join(dir,'.wongstack/project.json'),JSON.stringify(value));};
- return {root,home,dir,uid,user:'fixture',exec,calls,put,contract,close:()=>rmSync(root,{recursive:true,force:true})};
+ return {root,home,dir,uid,user:'fixture',exec,calls,put,contract,workspaces,terminals,close:()=>rmSync(root,{recursive:true,force:true})};
 }
 const github={repo:'owner/repo',token:'private-token',login:'owner'};
 const job={repo:'owner/repo',generation:7};
@@ -80,7 +84,7 @@ test('frozen dependencies, explicit configuration and Paseo retry without duplic
  const b=box();try{
   b.contract({version:1,requiredSettings:['APP_NAME','APP_NAME']});b.put(join(b.dir,'.env'),'APP_NAME=private-name\nOPTIONAL_SECRET=private-value\n');
   const result=await prepareProject(job,b);assert.deepEqual(result,{generation:7,clone:'done',dependencies:'done',configuration:'done',paseo:'done',missingSettings:[]});
-  await prepareProject(job,b);assert.equal(b.calls.filter(c=>c.file==='npm'&&c.args.includes('ci')).length,1);assert.equal(b.calls.filter(c=>c.file==='paseo'&&c.args.includes('create')).length,2);
+  await prepareProject(job,b);assert.equal(b.calls.filter(c=>c.file==='npm'&&c.args.includes('ci')).length,1);assert.equal(b.calls.filter(c=>c.file==='paseo'&&c.args.includes('create')).length,6);
   b.put(join(b.dir,'package-lock.json'),JSON.stringify({lockfileVersion:3,changed:true}));await prepareProject(job,b);assert.equal(b.calls.filter(c=>c.args.includes('ci')).length,2);
   assert.ok(!JSON.stringify(result).includes('private-'));assert.ok(!JSON.stringify(b.calls).includes('AGENT_TOKEN'));
   assert.equal(readFileSync(join(b.dir,'.env'),'utf8'),'APP_NAME=private-name\nOPTIONAL_SECRET=private-value\n');
@@ -128,4 +132,22 @@ test('generation-bound authenticated receipts recover a lost report without repe
   await store.resume(post);assert.equal(calls.length,2);
   assert.ok(existsSync(join(options.directory,'job.json')));assert.ok(!readFileSync(join(options.directory,'job.json'),'utf8').includes('token'));
  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+
+test('preserved preparation creates canonical sign-in terminals, reuses existing ones and retries partial setup without duplicates or output reads',async()=>{
+ for(const options of [{},{seed:true},{failOnce:'terminal create'},{failOnce:'terminal send-keys'},{failOnce:'--title Sign in to Codex'}]) {
+  const b=box(options);try {
+   b.contract({version:1,requiredSettings:[]});const first=await prepareProject(job,b);
+   if(options.failOnce){assert.equal(first.paseo,'failed');assert.equal(first.dependencies,'done');assert.equal(first.configuration,'done');}
+   else assert.equal(first.paseo,'done');
+   const retried=await prepareProject(job,b);assert.equal(retried.paseo,'done');await prepareProject(job,b);
+   assert.deepEqual(b.workspaces.map(value=>value.name),['Sign in to Claude','Sign in to Codex','Start here (after you sign in)']);
+   assert.equal(b.terminals.length,2);assert.equal(new Set(b.terminals.map(value=>value.id)).size,2);
+   const sends=b.calls.filter(value=>value.args.includes('send-keys'));
+   if(options.seed){assert.equal(sends.length,0);assert.ok(!b.calls.some(value=>value.file==='paseo'&&value.args.includes('create')));}
+   else {assert.ok(sends.some(value=>value.args.includes('claude auth login')));assert.ok(sends.some(value=>value.args.includes('codex login --device-auth')));}
+   assert.ok(!b.calls.some(value=>value.args.includes('capture')));assert.equal(b.calls.filter(value=>value.file==='npm'&&value.args.includes('ci')).length,1);
+  }finally{b.close();}
+ }
 });
