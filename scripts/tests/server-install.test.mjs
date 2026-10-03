@@ -266,20 +266,23 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
   }
 });
 
-test('a pushed repo on a rebuilt server gets its .env and secrets again, and nothing is committed or pushed', async (t) => {
+test('a rebuilt server without the original private memory POST receipt refuses adoption and preserves the pushed app', async (t) => {
   const s = await setup(t);
   assert.equal((await s.install()).last, 'done');
   const head = s.pushed();
   const key = readEnv(join(s.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN;
   rmSync(join(s.dir, '.env'));
   s.calls.length = 0;
-  // As a process, the way a host runs it.
+  const providerStart=s.fake.calls.length;
+  // This process has an isolated OS journal, unlike the retained injected store.
   const result = await new Promise((done) => {
     const child = execFile(process.execPath, [INSTALLER], { env: s.env, encoding: 'utf8' }, (error, stdout, stderr) => done({ code: error ? error.code : 0, stdout, stderr }));
     child.stdin.end(JSON.stringify(JOB));
   });
-  assert.equal(result.stdout.trim().split('\n').at(-1), 'done', result.stderr);
-  assert.equal(result.code, 0);
+  assert.equal(result.stdout.trim().split('\n').at(-1), 'cloudflare', result.stderr);
+  assert.match(result.stderr,/memory-ownership-unproven/);
+  assert.equal(result.code, 1);
+  assert.ok(!s.fake.calls.slice(providerStart).some(call=>call.method==='POST'&&(call.path.endsWith('/d1/database')||call.path.endsWith('/query'))),'missing original receipt cannot create/adopt a store or run memory SQL');
   assert.equal(s.pushed(), head);
   assert.equal(git('-C', s.dir, 'status', '--porcelain'), '');
   assert.equal(s.fake.state.databases.length, 3);
@@ -589,27 +592,27 @@ async function publicationFixture(t) {
  writeFileSync(join(dir,'app/wrangler.jsonc'),JSON.stringify({name:'fixture',vars:{MEMORY_INSTALLATION:'',MEMORY_DATABASE_ID:'',MEMORY_BUCKET_NAME:'',MEMORY_WORKER_NAME:''}},null,2)+'\n');
  writeFileSync(join(dir,'.claude/.wong-stack.json'),JSON.stringify({version:'source-pin',commit:'preserved',components:{memory:{status:'pending-setup'},access:{mode:'private'}}},null,2)+'\n');
  git('-C',dir,'add','.');git('-C',dir,'commit','-qm','initial');git('-C',dir,'push','-qu','origin','main');
- const store=retainedStore({publications:{}},join(root,'private')),calls=[];let mode='progress',polls=0,observation=null,artifact=null,archiveBytes=null,loss=null;
+ const store=retainedStore({publications:{}},join(root,'private')),calls=[];let mode='progress',polls=0,observation=null,artifact=null,archiveBytes=null,loss=null,runId=8,runAttempt=1;
  const installation={accountId:ACCOUNT,databaseId:'11111111-2222-3333-4444-555555555555',bucketName:null,appWorkerName:'fixture',memoryWorkerName:'fixture',appUrl:'https://fixture.example.com',memoryOrigin:'https://fixture.example.com',installationId:'i'.repeat(32),repositoryId:'r'.repeat(32)};
  const exec=async(file,args,options)=>{
   calls.push([file,...args]);
   if(file==='git'&&args.includes('get-url'))return {stdout:`https://github.com/${REPO}.git\n`};
   if(file==='gh'){
    const revision=git('-C',dir,'rev-parse','HEAD');
-   if(args[0]==='run'&&args[1]==='list'){polls++;return {stdout:JSON.stringify(mode==='timeout'||mode==='progress'&&polls<3?[]:[{databaseId:9,status:'completed',conclusion:'success',headSha:revision}])};}
+   if(args[0]==='run'&&args[1]==='list'){polls++;return {stdout:JSON.stringify(mode==='timeout'||mode==='progress'&&polls<3?[]:[{databaseId:runId,status:'completed',conclusion:'success',headSha:revision}])};}
    if(args[0]==='api'){
     if(args[1].includes('/artifacts?'))return {stdout:JSON.stringify({artifacts:[artifact]})};
     if(args[1].includes('/artifacts/'))return {stdout:JSON.stringify(mode==='foreign'?{...artifact,workflow_run:{id:8,head_sha:revision}}:artifact)};
-    return {stdout:JSON.stringify({id:9,run_attempt:1,head_sha:revision,event:'push',path:'.github/workflows/deploy.yml',repository:{full_name:REPO}})};
+    return {stdout:JSON.stringify({id:runId,run_attempt:mode==='bad-attempt'?'../foreign':runAttempt,head_sha:revision,event:'push',path:'.github/workflows/deploy.yml',repository:{full_name:REPO}})};
    }
-   if(args[1]==='download'){const folder=args[args.indexOf('-D')+1];mkdirSync(folder,{recursive:true});writeFileSync(join(folder,'published.json'),JSON.stringify(observation));return {stdout:''};}
+   if(args[1]==='download'){const folder=args[args.indexOf('-D')+1];mkdirSync(folder,{recursive:true});writeFileSync(join(folder,'published.json'),JSON.stringify(mode==='bad-download'?{...observation,verified:false}:observation));return {stdout:''};}
   }
   const result=await run(file,args,options);if(file==='git'&&loss&&args.includes(loss)){loss=null;throw new Error('synthetic lost response after success');}return result;
  };
  const core=await compiledCoreHashes();
- const refresh=()=>{const source=publicationSource(dir,git('-C',dir,'rev-parse','HEAD'));observation={verified:true,sourceRevision:source.revision,sourceHash:source.digest,target:Object.fromEntries(Object.entries(installation).filter(([key])=>!['installationId','repositoryId'].includes(key))),...core,workerVersions:{fixture:'11111111-1111-4111-8111-111111111111'},deploymentReceipt:null};archiveBytes=publicationArchive(observation,'published.json',{deflated:true});artifact={id:31,name:'memory-publication-9-1-published',digest:'sha256:'+createHash('sha256').update(archiveBytes).digest('hex'),expired:false,workflow_run:{id:9,head_sha:source.revision}};};refresh();
+ const refresh=()=>{runId++;const source=publicationSource(dir,git('-C',dir,'rev-parse','HEAD'));observation={verified:true,sourceRevision:source.revision,sourceHash:source.digest,target:Object.fromEntries(Object.entries(installation).filter(([key])=>!['installationId','repositoryId'].includes(key))),...core,workerVersions:{fixture:'11111111-1111-4111-8111-111111111111'},deploymentReceipt:null};archiveBytes=publicationArchive(observation,'published.json',{deflated:true});artifact={id:runId+22,name:`memory-publication-${runId}-${runAttempt}-published`,digest:'sha256:'+createHash('sha256').update(archiveBytes).digest('hex'),expired:false,workflow_run:{id:runId,head_sha:source.revision}};};refresh();
  const adapter=await installer.installationPublication({dir,repo:REPO,exec,store,polls:4,sleep:async()=>{},archive:async()=>archiveBytes});
- return {dir,store,calls,installation,adapter,refresh,setMode:value=>{mode=value;},lose:value=>{loss=value;},tamper:()=>{archiveBytes=Buffer.from('tampered');},booleanOnly:()=>{observation={verified:true,sourceRevision:observation.sourceRevision,sourceHash:observation.sourceHash};archiveBytes=publicationArchive(observation,'published.json');artifact.digest='sha256:'+createHash('sha256').update(archiveBytes).digest('hex');}};
+ return {dir,store,calls,installation,adapter,refresh,setMode:value=>{mode=value;},lose:value=>{loss=value;},tamper:()=>{archiveBytes=Buffer.from('tampered');},rerun:()=>{runAttempt++;artifact.id++;artifact.name=`memory-publication-${runId}-${runAttempt}-published`;observation.workerVersions.fixture='33333333-3333-4333-8333-333333333333';archiveBytes=publicationArchive(observation,'published.json',{deflated:true});artifact.digest='sha256:'+createHash('sha256').update(archiveBytes).digest('hex');},booleanOnly:()=>{observation={verified:true,sourceRevision:observation.sourceRevision,sourceHash:observation.sourceHash};archiveBytes=publicationArchive(observation,'published.json');artifact.digest='sha256:'+createHash('sha256').update(archiveBytes).digest('hex');}};
 }
 import { publicationSource } from '../lib-memory-publication.mjs';
 import { createHash } from 'node:crypto';
@@ -642,4 +645,11 @@ test('normal publication timeout remains pending and resumes the original A; non
  const x=await publicationFixture(t);x.setMode('timeout');await assert.rejects(x.adapter.wait('a'),e=>e.code==='publication-required');const source=(await x.store.read()).publications.a.source;
  x.setMode('success');assert.equal((await x.adapter.wait('a')).sourceRevision,source.revision);
  assert.equal(await installer.installationPublication({dir:x.dir,repo:REPO,store:x.store,exec:async()=>({stdout:'https://example.com/ada/recipe-box.git'})}),null);
+});
+
+
+test('installer cache binds a legitimate new run attempt and rejects downloaded JSON differing from the authenticated archive',async t=>{
+ const x=await publicationFixture(t),first=await x.adapter.wait('a');x.rerun();const retry=await x.adapter.wait('a');assert.notEqual(retry.proof.receiptId,first.proof.receiptId);assert.equal(retry.workerVersions.fixture,'33333333-3333-4333-8333-333333333333');
+ const altered=await publicationFixture(t);altered.setMode('bad-download');await assert.rejects(altered.adapter.wait('a'),/downloaded publication bytes differ from the authenticated archive/);
+ const invalid=await publicationFixture(t);invalid.setMode('bad-attempt');await assert.rejects(invalid.adapter.wait('a'),/publication run attempt is invalid/);assert.ok(!invalid.calls.some(call=>call.includes('download')));
 });

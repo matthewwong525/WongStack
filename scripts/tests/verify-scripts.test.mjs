@@ -403,3 +403,19 @@ test('pictures reports NONE for a comment with no picture, and UNKNOWN when the 
   assert.match(refused.stdout, /^RESULT: UNKNOWN\n {2}the live site did not return the pictures \(HTTP 401\)\nRUN_DIR=/);
   assert.doesNotMatch(refused.stdout, /\t/);
 });
+
+test('picture publication uses the pending installation app URL without inheriting a machine grant',async t=>{
+ const live=await production(t),made=pictureFixture(t,null);
+ writeFileSync(join(made.work,'.claude/.wong-stack.json'),JSON.stringify({components:{memory:{status:'pending-setup',installation:{installationId:'i'.repeat(32),repositoryId:'r'.repeat(32),accountId:'a'.repeat(32),databaseId:'11111111-2222-3333-4444-555555555555',bucketName:null,appWorkerName:'app',memoryWorkerName:'memory',appUrl:live.origin,memoryOrigin:'https://memory.example.com'}}}}));
+ const published=await made.walk(['publish',made.run]);assert.match(published.stdout,/RESULT: WALKED\nMEDIA=private\n/);assert.equal(live.seen.length,2);
+ for(const request of live.seen){assert.equal(request.headers['cf-access-client-id'],'client-id.access');assert.equal(request.headers['cf-access-client-secret'],SECRET);assert.equal(request.headers.authorization,undefined);}
+ assert.ok(pictureLines(published.stdout).every(([,url])=>url.startsWith(live.origin+'/_walk/')));assert.ok(!published.said.includes(SECRET));
+ writeFileSync(join(made.work,'.env'),'CLOUDFLARE_API_TOKEN=transport-only\n');const denied=await made.walk(['publish',made.run]);assert.match(denied.stdout,/REASON=this machine has no access token for the site/);assert.equal(live.seen.length,2,'app routing alone never authorizes a picture request');
+});
+
+test('unsafe public routing hints cannot send picture credentials',async t=>{
+ for(const appUrl of ['https://user:secret@example.com','file:///private','http://remote.example.com']){
+  const made=pictureFixture(t,null);writeFileSync(join(made.work,'.claude/.wong-stack.json'),JSON.stringify({components:{memory:{installation:{appUrl}}}}));
+  const result=await made.walk(['publish',made.run]);assert.match(result.stdout,/REASON=no memory store is set up for this repo/);assert.equal(pictureLines(result.stdout).length,0);assert.ok(!result.said.includes(SECRET));
+ }
+});

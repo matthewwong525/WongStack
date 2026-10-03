@@ -576,8 +576,9 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
   const buckets = await step('cloudflare', () => r2Buckets(cf, account));
   report.r2 = buckets !== null;
   const privateSetup=memorySetupStore??setupStore(account,repo);
+  const priorOwnedDatabase=(await privateSetup.read())?.database;
   const memoryId = await step('cloudflare', () => createOwnedMemoryDatabase(cf,{account,name:n.memory,store:privateSetup}));
-  note('reused', `owned memory database ${n.memory}`);
+  note(priorOwnedDatabase?.method==='POST'?'reused':'created', `owned memory database ${n.memory}`);
   let bucket = null;
   if (buckets && (!keepConfig || recordedBucket)) {
     bucket = n.memory;
@@ -696,11 +697,12 @@ export async function installationPublication({dir,repo,exec=run,store,archive,e
    const run=runs.find(r=>r.headSha===revision&&r.status==='completed'&&r.conclusion==='success');
    if(run) {
     const actual=await get(`/repos/${repo}/actions/runs/${run.databaseId}`);
+    if(!Number.isSafeInteger(actual.run_attempt)||actual.run_attempt<1)throw new ProvisionError('repo','publication run attempt is invalid');
     const name=`memory-publication-${run.databaseId}-${actual.run_attempt}-published`;
     const list=await get(`/repos/${repo}/actions/runs/${run.databaseId}/artifacts?per_page=100`),items=list.artifacts.filter(a=>a.name===name&&!a.expired);
     if(items.length!==1)throw Object.assign(new Error('publication-required'),{code:'publication-required'});
     await verifyArtifactReceipt(items[0],{repository:repo,runId:run.databaseId,revision,artifactName:name},get);
-    const folder=join(store.dir,'published',String(run.databaseId));mkdirSync(folder,{recursive:true,mode:0o700});
+    const folder=join(store.dir,'published',String(run.databaseId),String(actual.run_attempt),String(items[0].id),items[0].digest.slice(7));mkdirSync(folder,{recursive:true,mode:0o700});
     const file=join(folder,'published.json');
     if(!existsSync(file))await gh(['run','download',String(run.databaseId),'-n',name,'-D',folder]);
     if(lstatSync(file).isSymbolicLink()||!lstatSync(file).isFile())throw new ProvisionError('repo','publication artifact is not a regular file');

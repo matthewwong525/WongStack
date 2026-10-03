@@ -77,7 +77,7 @@ test('Actions phase driver durably binds intent and candidate before ack and ski
  assert.equal((await runPublicationPhase(p,'prepare')).configured,true);
  await assert.rejects(runPublicationPhase(p,'before'),e=>e.code==='publication-journal-unconfirmed');
  await bind('intent');assert.equal((await runPublicationPhase(p,'before')).skipDeploy,false);
- for(const name of f.workers.keys())f.setBinding(name,'MEMORY_INSTALLATION',{type:'plain_text',text:JSON.stringify(f.installation)});await deployFixtureVersion(f);await runPublicationPhase(p,'candidate');
+ await deployFixtureVersion(f);for(const name of f.workers.keys())f.setBinding(name,'MEMORY_INSTALLATION',{type:'plain_text',text:JSON.stringify(f.installation)});await runPublicationPhase(p,'candidate');
  await assert.rejects(runPublicationPhase(p,'ack'),e=>e.code==='publication-journal-unconfirmed');
  await bind('candidate');assert.equal((await runPublicationPhase(p,'before')).skipDeploy,true);
  await runPublicationPhase(p,'ack');assert.equal((await j.read()).phase,'complete');await bind('receipt');
@@ -99,7 +99,7 @@ test('private delivery requires a configured durable adapter; staging and missin
  const x=await pipelineFixture(t,{github:false});await runPublicationPhase(x.p,'prepare');assert.equal((await runPublicationPhase(x.p,'before')).skipDeploy,false);
  await assert.rejects(pipelineContext(x.env,{...x.dependencies,journal:undefined}),e=>e.code==='publication-journal-required');
  await assert.rejects(pipelineContext({...x.env,CF_BRANCH:'staging'},x.dependencies),e=>e.code==='publication-source-unverified');
- for(const name of x.f.workers.keys())x.f.setBinding(name,'MEMORY_INSTALLATION',{type:'plain_text',text:JSON.stringify(x.f.installation)});await deployFixtureVersion(x.f);x.f.setBinding(x.f.target.memoryWorkerName,'CF_VERSION_METADATA',{type:'plain_text',text:'foreign'});
+ await deployFixtureVersion(x.f);for(const name of x.f.workers.keys())x.f.setBinding(name,'MEMORY_INSTALLATION',{type:'plain_text',text:JSON.stringify(x.f.installation)});x.f.setBinding(x.f.target.memoryWorkerName,'CF_VERSION_METADATA',{type:'plain_text',text:'foreign'});
  await assert.rejects(runPublicationPhase(x.p,'candidate'),e=>e.code==='version-metadata-unverified');assert.equal(x.f.db.prepare('SELECT count(*) n FROM memory_data_deployments').get().n,0);
  const u=await pipelineFixture(t,{configured:false});for(const phase of ['prepare','before','candidate','ack'])assert.deepEqual(await runPublicationPhase(u.p,phase),{configured:false});
  assert.equal(u.f.db.prepare('SELECT count(*) n FROM memory_data_deployments').get().n,0);

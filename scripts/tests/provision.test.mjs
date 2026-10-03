@@ -729,6 +729,7 @@ test('a fresh provision with R2 on makes closed memory resources, both databases
 
   assert.deepEqual(report.urls, { production: 'https://recipe-box.ada.workers.dev', previews: 'https://<branch>-recipe-box-staging.ada.workers.dev' });
   assert.ok(report.created.includes('deploy token recipe-box-deploy'));
+  assert.ok(report.created.includes('owned memory database recipe-box-memory'),'the original POST is reported as creation');
   assert.deepEqual(report.reused, ['Zero Trust organization', 'one-time PIN identity provider']);
   assertNoSecret(env, JSON.stringify(report));
 });
@@ -788,6 +789,7 @@ test('a second run creates nothing, keeps memory closed, and leaves the secrets 
   const calls = env.gh.calls();
   const report = await env.provision({ today: '2027-01-01' });
   assert.deepEqual(report.created, []);
+  assert.ok(report.reused.includes('owned memory database recipe-box-memory'),'only the retained original POST receipt is reused');
   assert.deepEqual(report.updated, []);
   assert.ok(!report.reused.some(item=>item.includes('memory key')));
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN, key);

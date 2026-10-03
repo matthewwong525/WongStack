@@ -40,7 +40,7 @@ test('original POST receipt is durable before publication; ambiguous lost respon
  assert.throws(()=>setupOperator(null));
 });
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID,randomBytes } from 'node:crypto';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { machineStateDirectory,readMachineState } from '../../.agents/skills/memory/scripts/lib/machine-client-state.mjs';
@@ -61,7 +61,7 @@ test('a second machine enrolls only its own generated private key and one-use gr
  rmSync(ctx.stateDir,{recursive:true,force:true});
  const fresh=await prepareClientKey(ctx,f.installation);assert.notEqual(fresh.machineCommitment,key.machineCommitment);
  await assert.rejects(enrollAdditionalMachine({ctx,installation:f.installation,grant}),e=>e.code==='machine-proof-denied');
- const goodCtx={stateDir:join(machineStateDirectory(f.installation),'third-machine')},goodKey=await prepareClientKey(goodCtx,f.installation),goodId=randomUUID(),goodCapability=randomUUID();t.after(()=>rmSync(goodCtx.stateDir,{recursive:true,force:true}));
+ const goodCtx={stateDir:join(machineStateDirectory(f.installation),'third-machine')},goodKey=await prepareClientKey(goodCtx,f.installation),goodId=randomUUID(),goodCapability=randomBytes(32).toString('base64url');t.after(()=>rmSync(goodCtx.stateDir,{recursive:true,force:true}));
  await issueRuntimeMachineGrant(f.context,{attemptId:randomUUID(),expected:runtimeSnapshot((await readMachineDataStatus(f.context)).snapshot),payload:{grantId:goodId,machineCommitment:goodKey.machineCommitment,capabilityHash:await clientHash(goodCapability),scope:'memory:read',expiresAt:Math.floor(Date.now()/1000)+500}});
  const current=(await readMachineDataStatus(f.context)).snapshot;
  assert.equal((await enrollAdditionalMachine({ctx:goodCtx,installation:f.installation,grant:{installation:f.installation,machineCommitment:goodKey.machineCommitment,grantId:goodId,capability:goodCapability,scope:'memory:read',expected:current,dataSnapshot:current}})).status,'ready');

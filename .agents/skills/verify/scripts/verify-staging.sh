@@ -124,14 +124,19 @@ load_credentials() {
 has_access_token() { [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; }
 
 # The production site's address: the Worker the memory store records, read
-# through the memory skill so a linked worktree gets the primary checkout's.
+# through the public install record so a linked worktree gets the primary checkout's.
 # Prints nothing when no store is recorded.
 production_origin() {
   node --input-type=module -e '
     const [store, root] = process.argv.slice(1);
-    const { loadConfig, repoContext } = await import((await import("node:url")).pathToFileURL(store));
-    const worker = loadConfig(repoContext(root)).worker;
-    if (worker) console.log(new URL(worker).origin);
+    const { configFile, readJson, repoContext } = await import((await import("node:url")).pathToFileURL(store));
+    const ctx = repoContext(root);
+    const memory = readJson(configFile({root:ctx.primaryRoot||ctx.root}), null)?.components?.memory;
+    const address = memory?.installation?.appUrl || memory?.worker;
+    if (typeof address !== "string") process.exit(0);
+    const url = new URL(address);
+    if ((url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1","localhost","[::1]"].includes(url.hostname))) || url.username || url.password) process.exit(0);
+    console.log(url.origin);
   ' "$1/.claude/skills/memory/scripts/lib/store.mjs" "$1" 2>/dev/null
 }
 
