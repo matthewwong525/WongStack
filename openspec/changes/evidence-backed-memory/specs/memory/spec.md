@@ -2,7 +2,7 @@
 
 ### Requirement: A factual brief keeps its supporting evidence
 
-Memory SHALL offer an explicitly scoped, read-only brief of current facts, grouped by kind and written in the selected facts' original words, with no additional model call or inferred conclusions. Each entry SHALL identify its fact, creation date, author, and source session when recorded, and provide a way to request that fact's source. The brief SHALL exclude superseded facts, show its generation time and selection limits, preserve whole entries within 6,144 UTF-8 bytes, and distinguish an empty successful read from unavailable memory. It SHALL create no stored facts or persistent summary.
+Memory SHALL offer an explicitly scoped, read-only brief of current facts, grouped by kind and written in the selected facts' original words, with no additional model call or inferred conclusions. Each entry SHALL identify its fact, creation date, author, and source session when recorded, and provide a way to request that fact's source. The brief SHALL default to eight selected facts, allow an explicit selection up to twenty, and apply its byte budget in retrieval order before grouping. The brief SHALL exclude superseded facts, show its generation time and selection limits, preserve whole entries within 6,144 UTF-8 bytes, and distinguish an empty successful read from unavailable memory. It SHALL create no stored facts or persistent summary.
 
 #### Scenario: A decision has been replaced
 
@@ -12,7 +12,7 @@ Memory SHALL offer an explicitly scoped, read-only brief of current facts, group
 #### Scenario: The selected facts exceed the brief's cap
 
 - **WHEN** a scoped brief selects more fact text than fits
-- **THEN** it keeps whole entries within its byte bound and states its selection limit and the count omitted from its selected set, without claiming completeness
+- **THEN** it admits whole entries in retrieval order before grouping within its byte bound and states its selection limit and the count omitted from its selected set, without claiming completeness
 
 ### Requirement: Briefs preserve fact and source permissions
 

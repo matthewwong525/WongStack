@@ -1,6 +1,6 @@
 # See what memory finds, with evidence
 
-**Status:** ready-to-ship
+**Status:** in-progress
 **Branch:** `humane-dolphin`
 **Open questions:** none
 
@@ -20,7 +20,7 @@ The assistant can remember a fact yet miss it when a question uses different wor
               ▼
      found / missed / wrong result
   ```
-- **Ask for a brief with evidence attached.** The brief selects current facts on the requested topic, groups them by kind, and shows their dates and sources. It uses the facts' own words, without an extra model call or new conclusions.
+- **Ask for a brief with evidence attached.** The brief starts with eight current facts on the requested topic, keeps the most relevant entries that fit, groups them by kind, and shows their dates and sources. An explicit request can select up to twenty facts. It uses the facts' own words, without an extra model call or new conclusions.
   ```text
   topic ──▶ facts you may read
                      │
@@ -67,3 +67,5 @@ Add a small brief renderer and a shared fact-selection helper under `.agents/ski
 - **2026-10-03** — The first remote gate failed five new assertions: four stopped because the synthetic evaluation had not created its temporary state directory; one incorrectly forbade a reader from seeing their own unshared fact. Create the isolated directory before seeding, and assert both owner access and teammate denial explicitly. Existing retrieval and brief assertions passed; rerun the full remote gate after these repairs.
 
 - **2026-10-03** — The repaired implementation passed all 1,031 remote payload tests, app checks, deployment, strict change validation, and payload/context checks at a2f016c3646ca0d60b4d50934a2ff4a27e6e0b1b. Retained the synthetic brief and full 21-question evaluation in evidence.md and memory-evaluation.json: 13/13 regressions and 6/8 diagnostics hit, with two synonym misses and zero forbidden results. All tasks are complete; the change is ready for the user to review before publication. No main-app screen or applicable preview was added.
+
+- **2026-10-03** — The user requested a second review for context efficiency, excess context, and latency. Review found that the 20-fact default was generous, repeated source instructions and default filter fields added overhead, and applying the byte budget in group order could omit a higher-ranked fact. Assumed: improve the existing unpublished slice with an eight-fact default, compact evidence formatting, relevance-first budget selection, and guidance to choose one read format. Keep the explicit 20-fact and 6,144-byte ceilings, source metadata, search behavior, and startup loading. Verify ordinary brief/search request-count parity remotely; report measured bytes separately from tokens and production latency.

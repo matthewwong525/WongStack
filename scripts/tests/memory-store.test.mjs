@@ -228,7 +228,8 @@ test('brief requires scope and uses current facts, evidence and search filters w
   assert.doesNotMatch(result.stdout, /earlier evidence rule/);
   const headings = [...result.stdout.matchAll(/^## (.+)$/gm)].map(([, heading]) => heading);
   assert.deepEqual(headings, ['Open threads', 'Feedback', 'Project decisions', 'User facts', 'References']);
-  assert.match(result.stdout, /Source session: \(not recorded\); follow up: source \d+/);
+  assert.match(result.stdout, /session: \(not recorded\)/);
+  assert.equal(result.stdout.match(/Source: source <fact-id>/g).length, 1);
   assert.ok(Buffer.byteLength(result.stdout) <= BRIEF_MAX_BYTES);
   assert.deepEqual(rows(env, 'SELECT * FROM facts'), before);
   assert.deepEqual(rows(env, 'SELECT * FROM sessions'), sessionsBefore);
@@ -240,9 +241,12 @@ test('brief requires scope and uses current facts, evidence and search filters w
   const sourced = await memory(env.repo, env.fake, ['brief', 'traceable', '--branch', 'brief-branch', '--change', 'brief-topic', '--since', '2020-01-01', '--until', '2999-01-01', '--author', 'dev', '--type', 'project', '--state', 'conversation', '--limit', '1']);
   assert.equal(sourced.code, 0, sourced.stderr);
   assert.match(sourced.stdout, /Session evidence stays traceable/);
-  assert.match(sourced.stdout, /Source session: claude:brief-live; follow up: source \d+/);
+  const sourcedId = rows(env, "SELECT id FROM facts WHERE session_id = 'claude:brief-live'")[0].id;
+  assert.match(sourced.stdout, new RegExp(`Fact #${sourcedId} · .+ · author: dev@example.com · session: claude:brief-live`));
+  assert.match(sourced.stdout, /Source: source <fact-id>/);
   assert.match(sourced.stdout, /1 selected, 0 selected entries omitted/);
   t.diagnostic(`BEGIN SYNTHETIC MEMORY BRIEF\n${sourced.stdout}END SYNTHETIC MEMORY BRIEF`);
+  t.diagnostic(`SYNTHETIC SINGLE-FACT CONTEXT ${JSON.stringify({ priorBriefBytes: 581, briefBytes: Buffer.byteLength(sourced.stdout), bodyBytes: Buffer.byteLength('Session evidence stays traceable.') })}`);
   const tagged = await memory(env.repo, env.fake, ['brief', '--tag', 'plan']);
   assert.match(tagged.stdout, /Does the evidence rule cover dates/);
   for (const args of [[], ['!!!'], ['a', 'b'], ['--everyone'], ['--limit', '1'], ['evidence', '--all']]) {
@@ -258,6 +262,69 @@ test('brief requires scope and uses current facts, evidence and search filters w
   assert.equal(unavailable.code, 1);
   assert.match(unavailable.stderr, /unreachable/);
   assert.doesNotMatch(unavailable.stdout, /No matching|Memory brief/);
+});
+
+test('brief selects eight by default and up to twenty explicitly without extra store requests', async t => {
+  const env = await setup(t);
+  env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES ('claude:context', 'claude', 'dev@example.com', 'captured', '2026-10-01T00:00:00Z')").run();
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, session_id) VALUES ('context', 'project', ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com', 'claude:context')");
+  for (let index = 1; index <= 25; index += 1) insert.run(`Context fact ${index} keeps its original words.`);
+  const read = async args => {
+    const start = env.fake.calls.length;
+    const result = await memory(env.repo, env.fake, [...args, '--slug', 'context']);
+    assert.equal(result.code, 0, result.stderr);
+    const calls = env.fake.calls.slice(start);
+    assert.ok(calls.every(call => call.includes('/d1/database/')), 'no transcript or per-source fetch');
+    return { output: result.stdout, bytes: Buffer.byteLength(result.stdout), requests: calls.length };
+  };
+  const search = await read(['search', '--limit', '8']);
+  const json = await read(['search', '--limit', '8', '--json']);
+  const brief = await read(['brief']);
+  const twenty = await read(['brief', '--limit', '20']);
+  const one = await read(['brief', '--limit', '1']);
+  const ids = output => [...output.matchAll(/^Fact #(\d+)/gm)].map(([, id]) => Number(id));
+  assert.deepEqual(ids(brief.output), JSON.parse(json.output).facts.map(fact => fact.id));
+  assert.equal(ids(brief.output).length, 8);
+  assert.equal(ids(twenty.output).length, 20);
+  assert.equal(ids(one.output).length, 1);
+  assert.match(brief.output, /Limit 8 live facts; 8 selected, 0 selected entries omitted/);
+  assert.match(twenty.output, /Limit 20 live facts; 20 selected, 0 selected entries omitted/);
+  assert.match(brief.output, /Scope: {"slug":"context"}\n/);
+  assert.doesNotMatch(brief.output, /"all"|"everyone"|"personal"|"terms"|follow up:/);
+  assert.equal(brief.output.match(/Source: source <fact-id>/g).length, 1);
+  assert.equal(brief.output.match(/author: dev@example.com · session: claude:context/g).length, 8);
+  for (const result of [json, brief, twenty, one]) assert.equal(result.requests, search.requests, 'request count stays constant across formats and fact limits');
+  assert.equal(search.requests, 1, 'ordinary single-user reads use one D1 query');
+  assert.ok(brief.bytes < twenty.bytes);
+  assert.ok(twenty.bytes <= BRIEF_MAX_BYTES);
+  t.diagnostic(`SYNTHETIC MEMORY CONTEXT ${JSON.stringify(Object.fromEntries(Object.entries({ search8: search, json8: json, brief8: brief, brief20: twenty, brief1: one }).map(([name, { bytes, requests }]) => [name, { bytes, requests }])))}`);
+  mkdirSync(env.repo.stateDir, { recursive: true });
+  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
+  const teamSearch = await read(['search', '--limit', '8']);
+  const teamBrief = await read(['brief']);
+  const teamTwenty = await read(['brief', '--limit', '20']);
+  assert.equal(teamSearch.requests, 2, 'team scope adds the reader-schema probe');
+  assert.equal(teamBrief.requests, teamSearch.requests);
+  assert.equal(teamTwenty.requests, teamSearch.requests, 'team reads add no per-fact queries');
+  assert.match(teamBrief.output, /"personal":true/);
+  assert.deepEqual(ids(teamBrief.output), ids(brief.output));
+  t.diagnostic(`SYNTHETIC TEAM REQUESTS ${JSON.stringify({ search8: teamSearch.requests, brief8: teamBrief.requests, brief20: teamTwenty.requests })}`);
+});
+
+test('brief spends the byte budget on relevance before grouping facts', () => {
+  const facts = Array.from({ length: 6 }, (_, index) => ({
+    id: index + 1, type: index ? 'thread' : 'reference', body: `Fact ${index + 1}: ${'漢'.repeat(390)}`,
+    created_at: '2026-10-01T00:00:00Z', author: 'dev@example.com', session_id: 'claude:ranked',
+  }));
+  const brief = renderBrief({ facts, filters: { terms: 'ranked', limit: 8, all: false, everyone: false, personal: true } }, '2026-10-03T00:00:00Z');
+  const ids = [...brief.matchAll(/^Fact #(\d+)/gm)].map(([, id]) => Number(id));
+  assert.ok(facts.every(fact => fact.body.length <= 400));
+  assert.deepEqual(ids, [2, 3, 4, 1], 'the highest-ranked reference survives even though references display last');
+  for (const fact of facts.slice(0, 4)) assert.ok(brief.includes(fact.body), 'admitted bodies remain whole');
+  for (const fact of facts.slice(4)) assert.ok(!brief.includes(fact.body));
+  assert.match(brief, /6 selected, 2 selected entries omitted/);
+  assert.match(brief, /"personal":true/, 'active personal scope remains explicit');
+  assert.ok(Buffer.byteLength(brief) <= BRIEF_MAX_BYTES);
 });
 
 test('brief caps whole UTF-8 entries, tells only selected omissions, and bounds large scope displays', async t => {
@@ -514,7 +581,8 @@ test('a store with no bucket keeps working and says transcripts are not stored',
   assert.match(source.stdout, /no R2 bucket, so transcripts are not stored/);
   const brief = await memory(env.repo, env.fake, ['brief', '--slug', 'nb']);
   assert.equal(brief.code, 0, brief.stderr);
-  assert.match(brief.stdout, new RegExp(`follow up: source ${id}`));
+  assert.match(brief.stdout, new RegExp(`Fact #${id} ·`));
+  assert.match(brief.stdout, /Source: source <fact-id>/);
   assert.ok(!env.fake.calls.some(call => call.includes('/r2/')));
 });
 

@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
 import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
 import { ftsQuery, readFacts, stateOf, tagClause } from './lib/read-facts.mjs';
-import { BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
+import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
 export { ftsQuery, tagClause } from './lib/read-facts.mjs';
 import { backlinks } from './lib/links.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
@@ -335,7 +335,7 @@ async function brief(ctx, { values, positionals }) {
   if (!ftsQuery(positionals.join(' ')) && !SCOPE_FILTERS.some(key => values[key])) {
     throw new StoreError('usage: memory.mjs brief <terms> [search filters], or brief --tag <topic>; name a topic or filter');
   }
-  const limit = Math.min(BRIEF_LIMIT, Math.max(1, Number(values.limit) || BRIEF_LIMIT));
+  const limit = Math.min(BRIEF_LIMIT, Math.max(1, Number(values.limit) || BRIEF_DEFAULT_LIMIT));
   const result = await readFacts(ctx, { values: { ...values, limit, all: false }, positionals });
   process.stdout.write(renderBrief(result));
 }
@@ -750,7 +750,7 @@ const USAGE = `usage: memory.mjs <command>
                                (--change: facts from sessions that wrote a fact on the change; with --branch, either)
                                (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
-  brief [terms] [search filters except --all]   current facts with dates and sources, at most 20 facts / 6144 bytes; requires scope
+  brief [terms] [search filters except --all]   dates and sources; default 8 facts, --limit up to 20 / 6144 bytes; requires scope
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
   tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)

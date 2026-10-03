@@ -24,11 +24,11 @@ Alternative: parse text search lines. Rejected because bodies and formatting are
 
 ### Build the brief without inference or persistence
 
-Add a small pure renderer in `scripts/lib/brief.mjs`. Fetch at most 20 matching facts using search's rank/date ordering, then group the selected records into open threads, feedback, project decisions, user facts, and references, preserving selection order inside each group. Empty groups disappear. Preserve each fact's original body; a heading is not a new assertion about the facts.
+Add a small pure renderer in `scripts/lib/brief.mjs`. Fetch eight matching facts by default, with an explicit `--limit` up to 20, using search's rank/date ordering. Admit whole entries under the byte budget in that rank order, accounting for group headings and footer, then group the admitted records into open threads, feedback, project decisions, user facts, and references, preserving selection order inside each group. Empty groups disappear. Preserve each fact's original body; a heading is not a new assertion about the facts.
 
-Each entry includes its fact ID, creation date, author, source session ID or an explicit absence, and the `source <id>` follow-up. This is a navigable pointer, not a promise that the reader can open the underlying transcript. Do not join or fetch raw transcripts while building a brief. A visible team fact can have a private source; the existing source command decides access when asked.
+Each entry includes its fact ID, creation date, author, source session ID or an explicit absence, and one shared `source <fact-id>` follow-up instruction. Compact repeated labels and omit unused/default scope fields from the human brief; the structured search envelope stays complete. This is a navigable pointer, not a promise that the reader can open the underlying transcript. Do not join or fetch raw transcripts while building a brief. A visible team fact can have a private source; the existing source command decides access when asked.
 
-Render at most 6,144 UTF-8 bytes, including headers and the footer. Keep whole entries, and reserve room for the footer before accepting another entry. The header shows the topic/filters and generation time. The footer states the 20-fact selection bound and how many selected entries were omitted to fit; it must not claim to know how many other matching facts exist. An empty successful read says no matching live facts, while unavailable or denied memory is reported as such, never as an empty or complete brief. No cache fallback is added.
+Render at most 6,144 UTF-8 bytes, including headers and the footer. Keep whole entries, and reserve room for the footer before accepting another entry. The header shows the topic/filters and generation time. The footer states the requested selection bound (eight by default, maximum twenty) and how many selected entries were omitted to fit; it must not claim to know how many other matching facts exist. An empty successful read says no matching live facts, while unavailable or denied memory is reported as such, never as an empty or complete brief. No cache fallback is added.
 
 Alternative: model-generated synthesis with stored supporting IDs. Deferred by the user's choice; it would require validation of inference, refresh rules, and an additional write/visibility contract. Alternative: rewrite the wiki or replace the digest. Rejected because those surfaces have different ownership and loading rules.
 
@@ -47,7 +47,10 @@ The owner of `simple-machine-memory` confirmed the split through Paseo. Its priv
 ## Risks / Trade-offs
 
 - Keyword misses still remain → the brief states its selection limits and the diagnostic report measures misses; this release makes no semantic-search claim.
-- Grouping could hide search relevance → select by existing relevance first, then group only those selected facts.
+- Grouping could hide search relevance → admit entries under the byte budget in retrieval order, then group only the admitted facts.
+- Repeated lookups or verbose tool output can waste context → choose ordinary text search for routine recall, a brief when source metadata helps, and JSON for programs; do not load both formats for the same unchanged query. The smaller default is a conservative context budget, not a measured relevance optimum.
+- A cited source can return up to the existing 200,000-character stripped transcript cap → follow a source on demand to check a fact, never automatically fetch every citation. This change leaves source retrieval unchanged.
+- The existing `--state` selector reads all matching rows before applying checkout-derived state and the final limit. This inherited path can cost more on a large store; ordinary brief requests retain the bounded search path. No production latency claim is made by request-count tests.
 - A valid citation may point to an unavailable/private transcript → identify the fact and session without exposing raw bytes; source reads keep their current denial/no-R2 behavior.
 - A shared-file refactor could alter search behavior → preserve all existing assertions and compare JSON/text IDs, filters, and ordering in the existing fixtures.
 - Private facts could leak through a new output shape → use the enforced read path, test both formats and the brief with roles, and prohibit transcript retrieval during rendering.

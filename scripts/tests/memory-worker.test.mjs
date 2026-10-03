@@ -1169,7 +1169,7 @@ test('JSON search and brief keep Worker permissions for admins, members and read
           if (format === 'json') assert.ok(!JSON.parse(result.stdout).facts.some(fact => fact.id === id));
           else assert.doesNotMatch(result.stdout, new RegExp(`#${id}(?:\\D|$)`));
         }
-        if (format === 'brief') assert.match(result.stdout, /Source session: claude:shared-private-source/);
+        if (format === 'brief') assert.match(result.stdout, /session: claude:shared-private-source/);
       }
     }
   }

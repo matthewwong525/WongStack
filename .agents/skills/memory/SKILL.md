@@ -18,9 +18,9 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 
 | You want | Command |
 |---|---|
-| Facts on a topic | `search <terms>`, with `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change <slug>` (sessions that wrote on it; with `--branch`, either), `--state active\|shipped\|conversation`, `--all` to add superseded facts, `--everyone` |
-| Structured facts and effective filters | `search <terms> --json` (version 1; same selection as text) |
-| Original facts grouped with dates and sources, uncached | `brief <terms>` or `brief --tag <topic>`; search filters except `--all`, at most 20 facts / 6,144 bytes |
+| Routine recall | `search <terms>`; `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change <slug>` (sessions writing it; with `--branch`, either), `--state active\|shipped\|conversation`, `--all` includes superseded facts, `--everyone` |
+| Programs | `search <terms> --json` (version 1) |
+| Evidence: original facts, dates, sources | `brief <terms>` or `brief --tag <topic>`; search filters except `--all`; default 8, `--limit` up to 20, 6,144 bytes; relevance before grouping |
 | One slug, open threads first | `show <slug>` |
 | Everything linked to files, a topic, or a change: docs, past changes, backlinks, facts | `areas <paths or topic…>` or `areas --change <name>` |
 | The transcript behind a fact | `source <fact-id>` |
@@ -29,7 +29,7 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
 | What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask first | `recent-chats [--days 30]` |
 
-All reads obey [who sees what](../../../wiki/development/memory.md#who-sees-what); `--everyone` widens only the admin's view. Source pointers grant no transcript access. Facts are dated context: the repo wins.
+Choose one format per unchanged query. Fetch sources on demand to check a fact. Reads obey [who sees what](../../../wiki/development/memory.md#who-sees-what); `--everyone` widens only admins' scope. Source access is checked. The repo wins over dated facts.
 
 **Every skill: when the store is unreachable, say memory was not loaded and continue.**
 
