@@ -16,7 +16,7 @@ function fixture(options={}) {
 id() { echo ${options.nonroot?1001:0}; }
 stat() {
  case "$2" in
-  %u) if [[ "$3" = *download.*\/bin\/node ]] && [ -f "${'$'}{3%/bin/node}/archive-owner" ]; then cat "${'$'}{3%/bin/node}/archive-owner"; else echo ${options.foreign?1001:0}; fi ;;
+  %u) if [[ "$3" = *download.*/bin/node ]] && [ -f "${'$'}{3%/bin/node}/archive-owner" ]; then cat "${'$'}{3%/bin/node}/archive-owner"; else echo ${options.foreign?1001:0}; fi ;;
   %a) echo ${options.writable?'777':'755'} ;;
   %h) echo ${options.hardlink?2:1} ;;
  esac

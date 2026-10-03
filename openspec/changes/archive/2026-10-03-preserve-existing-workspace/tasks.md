@@ -21,3 +21,5 @@
 
 - [x] 4.1 Add an independent root-owned agent Node runtime and mutation-free runtime preflight to both setup paths; fixture tests cover compatible/absent binaries, wrong owner/mode/type/version, symlinks/hardlinks, system reuse, download fallback, checksum refusal and archive ownership. Preserve selected-user tools.
 - [x] 4.2 Preserve normal exit on authenticated poll 401 using `WORKSPACE_MODE=preserve`, keep system PATH for root execution, and retain other poll retries without changing shared Paseo; focused fixtures pass. Document the exact host runtime/environment interface and update the archived review.
+
+- [x] 4.3 Inventory memory and root/selected-home disk capacity without mutation or new eligibility floors; fixture tests cover low capacity, missing commands, failed/malformed reads, safe parent selection and rejection before inventory for an invalid home. Required exact-revision full gate stays pending in 3.2.

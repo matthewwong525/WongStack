@@ -40,6 +40,26 @@ for path in .local .local/bin .local/lib .local/share .paseo .agent-browser; do
   check_path "$WORKSPACE_HOME/$path"
   [ ! -e "$WORKSPACE_HOME/$path" ] || [ "$(stat -c %u "$WORKSPACE_HOME/$path")" = "$workspace_uid" ] || fail path
 done
+# Read-only capacity inventory, never an eligibility floor for existing tools.
+command -v awk >/dev/null 2>&1 || fail memory
+memory_kib="$(awk '$1 == "MemTotal:" && $3 == "kB" { print $2; found=1 } END { if (!found) exit 1 }' /proc/meminfo 2>/dev/null)" || fail memory
+[[ "$memory_kib" =~ ^[0-9]{1,16}$ ]] && [ "$memory_kib" -gt 0 ] || fail memory
+command -v df >/dev/null 2>&1 || fail disk
+capacity_space() {
+  local free_kib
+  free_kib="$(df -Pk -- "$1" 2>/dev/null | awk 'NR == 2 { print $4; found=1 } END { if (!found) exit 1 }')" || fail disk
+  [[ "$free_kib" =~ ^[0-9]{1,16}$ ]] || fail disk
+  echo "$free_kib"
+}
+disk_path="$WORKSPACE_HOME"
+while [ ! -d "$disk_path" ]; do
+  disk_path="${disk_path%/*}"
+  [ -n "$disk_path" ] || disk_path=/
+done
+check_path "$disk_path"
+root_free_kib="$(capacity_space /)"
+workspace_free_kib="$(capacity_space "$disk_path")"
+echo "preserve inventory: memoryKiB=$memory_kib rootFreeKiB=$root_free_kib workspaceFreeKiB=$workspace_free_kib"
 user_path="$WORKSPACE_HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 as_user() {
   if [ "$create_user" -eq 1 ]; then
