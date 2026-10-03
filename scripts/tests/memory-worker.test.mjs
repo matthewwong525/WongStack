@@ -1159,7 +1159,12 @@ test('JSON search and brief keep Worker permissions for admins, members and read
       for (const broad of [[], ['--everyone']]) {
         const result = await memory(env.repo, env.fake, [...argsFor(format), ...broad], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: key }));
         assert.equal(result.code, 0, result.stderr);
-        assert.doesNotMatch(result.stdout, /hidden:|claude:hidden-private-evidence|private-object-key|shared-object-key|PRIVATE TRANSCRIPT CONTENT|raw_key/);
+        assert.doesNotMatch(result.stdout, /hidden: dev|hidden: deploy evidence|claude:hidden-private-evidence|private-object-key|shared-object-key|PRIVATE TRANSCRIPT CONTENT|raw_key/);
+        if (key === anaKey) assert.doesNotMatch(result.stdout, /hidden: rae keeps/);
+        else {
+          assert.match(result.stdout, /hidden: rae keeps deploy notes/, 'a reader can read their own unshared fact');
+          assert.doesNotMatch(result.stdout, /visible: ana likes short deploy notes/, 'a reader cannot read another member\'s personal fact');
+        }
         for (const id of [hidden[0], hidden[1], privateId, ...(key === anaKey ? [hidden[2]] : [visible[1]])]) {
           if (format === 'json') assert.ok(!JSON.parse(result.stdout).facts.some(fact => fact.id === id));
           else assert.doesNotMatch(result.stdout, new RegExp(`#${id}(?:\\D|$)`));

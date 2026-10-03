@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Meta-only: migrate and query a throwaway synthetic store, never the checkout's memory.
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { memory, setup, writeJsonFile } from './tests/fixtures/memory/harness.mjs';
 import { isMain, parseCli } from './lib-cli.mjs';
 
@@ -8,6 +8,7 @@ const FIXTURE = new URL('./tests/fixtures/memory-search-questions.json', import.
 const loadFixture = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
 
 function seed(env, fixture) {
+  mkdirSync(env.repo.stateDir, { recursive: true });
   writeJsonFile(env.repo.stateDir, 'team.json', { team: true });
   const insert = env.fake.db.prepare('INSERT INTO facts (slug, type, body, source, created_at, author, shared) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id');
   const ids = new Map();
