@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -204,7 +205,7 @@ test('a broken tidy-up never breaks the hook', async t => {
 
 test('an unreachable store falls back to the cached digest and never fails the session', async t => {
   const env = await setup(t);
-  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
+  const seeded=await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);assert.equal(seeded.code,0,seeded.stderr);assert.match(readFileSync(join(env.repo.stateDir,'digest.json'),'utf8'),/Cached fact/);
   env.fake.setOffline(true);
   const result = await hook(env);
   assert.equal(result.code, 0);
@@ -215,7 +216,7 @@ test('an unreachable store falls back to the cached digest and never fails the s
 
 test('the hook gives up on a store that never answers and uses the cached digest', async t => {
   const env = await setup(t);
-  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
+  const seeded=await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);assert.equal(seeded.code,0,seeded.stderr);assert.match(readFileSync(join(env.repo.stateDir,'digest.json'),'utf8'),/Cached fact/);
   env.fake.setOffline('hang');
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0);
@@ -332,7 +333,7 @@ function storelessRepo(t) {
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: root });
   writeFileSync(join(root, '.env'), `SERVICE_TOKEN=${SECRET}\n`);
   const home = tempDir(t, 'recent-home-');
-  return { repo: { root, home, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state') }, fake: { api: 'http://127.0.0.1:9/client/v4' } };
+  return { repo: { root, home, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home,'.local','state','wongstack','memory',createHash('sha256').update(JSON.stringify(['pending',root,'','',''])).digest('hex')) }, fake: { api: 'http://127.0.0.1:9/client/v4' } };
 }
 
 test('recent-chats shows only what the person typed, from every folder, redacted, newest first, with no store', async t => {

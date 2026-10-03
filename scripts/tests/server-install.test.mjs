@@ -257,7 +257,7 @@ test('a fresh repo gets the whole payload, the record, hosting, memory, and one 
 
   // No secret in an argument, a printed line, or the commit.
   const secrets = secretsOf(s);
-  assert.equal(secrets.length, 4);
+  assert.equal(secrets.length, 3);
   for (const secret of secrets) {
     for (const text of [...s.calls, s.gh.calls(), ...result.out, ...result.err]) assert.ok(!text.includes(secret), `a secret leaked into: ${text.slice(0, 100)}`);
     assert.equal(tryGit('--git-dir', s.origin, 'grep', '-q', '-F', '-e', secret, 'main'), null, 'a secret was committed');
@@ -314,7 +314,7 @@ test('a run stopped by Cloudflare finishes on the next run with no duplicate', a
   assert.equal((await s.install()).last, 'done');
   assert.equal(s.fake.state.databases.length, 3);
   assert.equal(s.fake.state.accountTokens.length, 1);
-  assert.equal(s.fake.rows('recipe-box-memory',"SELECT count(*) n FROM sqlite_master WHERE name='memory_keys'")[0].n,0);
+  assert.deepEqual(s.fake.rows('recipe-box-memory',"SELECT name FROM sqlite_master WHERE name='memory_keys'"),[]);assert.ok(!s.fake.calls.some(call=>/\/d1\/database\/uuid-recipe-box-memory\/query$/.test(call.path)),'pending install never runs memory SQL/schema');
   assert.ok(s.pushed());
 });
 
@@ -491,16 +491,15 @@ test('a repo with other work stops with repo and changes nothing', async (t) => 
   assert.equal(s.fake.calls.length, 0);
 });
 
-test('a missing clone, a bad job, or no git email stops with repo', async (t) => {
+test('an explicit reachable owner needs no git email; missing clone and bad jobs still stop with repo', async (t) => {
   const s = await setup(t, { email: null });
   const noEmail = await s.install();
-  assert.equal(noEmail.last, 'repo');
-  assert.match(noEmail.err[0], /git has no user\.email/);
-  assert.equal(s.pushed(), null);
+  assert.equal(noEmail.last, 'done', noEmail.err.join('\n'));assert.equal(noEmail.code,0);const head=s.pushed();assert.ok(head);assert.equal(readEnv(join(s.dir,'.env')).CLOUDFLARE_MEMORY_TOKEN,undefined);assert.ok(!s.fake.calls.some(call=>/\/d1\/database\/uuid-recipe-box-memory\/query$/.test(call.path)),'business owner email never admits memory');
   for (const job of ['not json', 'null', { ...JOB, token: '' }, { ...JOB, accountId: 'nope' }, { ...JOB, repo: 'ada' }, { ...JOB, repo: 'ada/..' }, { ...JOB, repo: 'ada/.' }]) {
     const bad = await s.install(job);
     assert.deepEqual([bad.code, bad.last], [1, 'repo'], JSON.stringify(job));
   }
+  assert.equal(s.pushed(),head,'invalid jobs never publish a replacement');
   const elsewhere = await s.install({ ...JOB, repo: 'ada/other' });
   assert.equal(elsewhere.last, 'repo');
   assert.match(elsewhere.err[0], /other is not a clone/);

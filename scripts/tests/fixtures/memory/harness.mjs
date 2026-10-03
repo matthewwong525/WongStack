@@ -23,16 +23,24 @@ export async function setup(t,{bucket=true,scope}={}) {
  const state={installation:f.installation,machineId:MACHINE,grantId:GRANT,privateKey:await crypto.subtle.exportKey('jwk',f.signing.privateKey),publicKey:f.signing.publicKey,commitment:f.signing.commitment,
   scope:f.scope,machineRevision:1,grantRevision:2,credential:{token:TOKEN,hash:f.enroll.payload.credentialHash,generation:1,expiresAt:f.enroll.payload.credentialExpiresAt},snapshot:await f.runtimeExpected(),dataSnapshot:await f.expected(),quarantined:false};
  writeFileSync(join(stateDir,'machine.json'),JSON.stringify(state),{mode:0o600});
- let offline=false,dropAfter=null,delay=0,reply=null;const calls=[];
+ let offline=false,dropAfter=null,delay=0,reply=null;const calls=[],unexpected=[];
  const server=createServer(async(req,res)=>{
-  if(delay)await new Promise(done=>setTimeout(done,delay));if(offline==='hang')return;if(offline){res.socket.destroy();return;}
-  const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);calls.push(`${req.method} ${req.url}`);
-  let response=await handleMemory(new Request(f.installation.memoryOrigin+req.url,{method:req.method,headers:req.headers,...(['GET','HEAD'].includes(req.method)?{}:{body})}),f.env);
-  if(reply&&response.headers.get('Content-Type')?.includes('json'))response=Response.json(reply(await response.json(),req.url),{status:response.status});
-  if(dropAfter&&req.url.endsWith('/'+dropAfter)){dropAfter=null;res.socket.destroy();return;}
-  res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
+  try {
+   // Consume the body before an artificial delay so a timeout does not leave an
+   // unobserved aborted IncomingMessage rejection in the fixture callback.
+   const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);
+   if(delay)await new Promise(done=>setTimeout(done,delay));if(req.aborted||res.destroyed)return;if(offline==='hang')return;if(offline){res.socket.destroy();return;}
+   calls.push(`${req.method} ${req.url}`);
+   let response=await handleMemory(new Request(f.installation.memoryOrigin+req.url,{method:req.method,headers:req.headers,...(['GET','HEAD'].includes(req.method)?{}:{body})}),f.env);
+   if(reply&&response.headers.get('Content-Type')?.includes('json'))response=Response.json(reply(await response.json(),req.url),{status:response.status});
+   if(dropAfter&&req.url.endsWith('/'+dropAfter)){dropAfter=null;res.socket.destroy();return;}
+   res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
+  } catch(error) {
+   if(req.aborted&&(error.code==='ECONNRESET'||error.message==='aborted'))return;
+   unexpected.push(error);res.destroy();
+  }
  });
- await new Promise(done=>server.listen(0,'127.0.0.1',done));t.after(()=>new Promise(done=>{server.closeAllConnections();server.close(done);}));
+ await new Promise(done=>server.listen(0,'127.0.0.1',done));t.after(async()=>{await new Promise(done=>{server.closeAllConnections();server.close(done);});if(unexpected.length)throw new AggregateError(unexpected,'unexpected actual-core fixture HTTP error');});
  const repo={root,home,claudeHome:join(home,'claude'),codexHome:join(home,'codex'),stateDir};
  const fake={...f,api:`http://127.0.0.1:${server.address().port}`,calls,setOffline:value=>{offline=value;},dropNext:value=>{dropAfter=value;},setDelay:value=>{delay=value;},setReply:value=>{reply=value;},close:()=>{}};return {repo,fake};
 }

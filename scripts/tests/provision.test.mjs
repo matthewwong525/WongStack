@@ -143,7 +143,7 @@ test('a rerun after the card turns an open site private in its committed config'
   assert.equal(production.teamDomain, report.access.teamDomain);
   assert.equal(env.record().components.access.appId, production.appId);
   assert.equal(env.record().components.access.mode, undefined);
-  assert.deepEqual(report.todo, []);
+  assert.deepEqual(report.todo, ['Memory awaits trusted machine setup after the published core and exact bindings are verified.']);
 });
 
 test('an open config provisioning cannot edit goes to todo, unchanged', async (t) => {
@@ -156,7 +156,7 @@ test('an open config provisioning cannot edit goes to todo, unchanged', async (t
   env.fake.state.needsOnboarding = false;
   const report = await env.provision({ openWithoutLogin: true });
   assert.equal(readFileSync(file, 'utf8'), edited);
-  assert.deepEqual(report.todo, ['fill the CF_ACCESS_* vars from components.access and remove WORKSPACE_LOGIN in app/wrangler.jsonc']);
+  assert.deepEqual(report.todo, ['Memory awaits trusted machine setup after the published core and exact bindings are verified.', 'fill the CF_ACCESS_* vars from components.access and remove WORKSPACE_LOGIN in app/wrangler.jsonc']);
   assert.ok(report.access.appId);
 });
 
@@ -695,7 +695,7 @@ test('a fresh provision with R2 on makes closed memory resources, both databases
     accountId: ACCOUNT, databaseId: 'uuid-recipe-box-memory', database: 'recipe-box-memory', bucket: 'recipe-box-memory',
     worker:'https://recipe-box.ada.workers.dev/_memory',protocolVersion:2,status:'pending-setup',reason:'trusted-machine-setup-required',
   });
-  assert.equal(env.fake.rows('recipe-box-memory',"SELECT count(*) n FROM sqlite_master WHERE name LIKE 'memory_%'")[0].n,0,'provision leaves trusted machine initialization pending');
+  assert.deepEqual(env.fake.rows('recipe-box-memory',"SELECT name FROM sqlite_master WHERE name LIKE 'memory_%'"),[],'pending memory has no opened fake database');assert.ok(!env.fake.calls.some(call=>/\/d1\/database\/uuid-recipe-box-memory\/query$/.test(call.path)),'no memory SQL/schema calls before trusted setup');
   assert.equal(readEnv(join(env.dir,'.env')).CLOUDFLARE_MEMORY_TOKEN,undefined);
   assert.equal(report.memory.status,'pending-setup');
   assert.equal(readEnv(join(env.dir, '.env')).CLOUDFLARE_API_TOKEN, TOKEN, 'the other .env lines stay');
@@ -815,7 +815,7 @@ for (const [where, refuse] of [
     assert.equal(env.fake.state.databases.length, 3);
     assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
     assert.equal(env.fake.state.accountTokens.length, 1);
-    assert.equal(env.fake.rows('recipe-box-memory',"SELECT count(*) n FROM sqlite_master WHERE name='memory_keys'")[0].n,0);
+    assert.deepEqual(env.fake.rows('recipe-box-memory',"SELECT name FROM sqlite_master WHERE name='memory_keys'"),[]);assert.ok(!env.fake.calls.some(call=>/\/d1\/database\/uuid-recipe-box-memory\/query$/.test(call.path)),'retry never runs a memory schema or authority query');
     assert.equal(env.gh.secrets().CLOUDFLARE_API_TOKEN, env.fake.state.minted.at(-1));
     assert.ok(env.config().name);
   });
@@ -999,4 +999,12 @@ test('the script runs end to end as a process, and prints no secret', async (t) 
   assert.equal(made.code, 0, made.stderr);
   assert.equal(JSON.parse(made.stdout).memory.worker, 'https://recipe-box.ada.workers.dev/_memory');
   assertNoSecret(env, made.stdout, made.stderr, found.stdout);
+});
+
+test('a memory bucket pin variable is not an R2 binding and custom R2 configuration is preserved',async t=>{
+ const e=await setup(t,{r2:false});await e.provision();const file=join(e.dir,'app/wrangler.jsonc');assert.match(readFileSync(file,'utf8'),/MEMORY_BUCKET_NAME/);assert.equal(e.config().r2_buckets,undefined);
+ const original=readFileSync(file,'utf8'),custom=original.replace(/([ \t]+)"env"\s*:/m,'$1"r2_buckets": [{"binding":"OTHER_BUCKET","bucket_name":"keep-custom"}],\n$1"env":');writeFileSync(file,custom);e.fake.state.r2=true;const report=await e.provision();assert.equal(readFileSync(file,'utf8'),custom);assert.deepEqual(e.config().r2_buckets,[{binding:'OTHER_BUCKET',bucket_name:'keep-custom'}]);assert.ok(report.todo.includes('add MEMORY_BUCKET for recipe-box-memory to app/wrangler.jsonc'));assert.equal(e.config().env.staging.r2_buckets,undefined);
+});
+test('an existing different memory bucket binding remains unchanged and receives exact correction guidance',async t=>{
+ const e=await setup(t);await e.provision();const file=join(e.dir,'app/wrangler.jsonc'),custom=readFileSync(file,'utf8').replace('"bucket_name": "recipe-box-memory"','"bucket_name": "custom-memory"');writeFileSync(file,custom);const report=await e.provision();assert.equal(readFileSync(file,'utf8'),custom);assert.ok(report.todo.includes('set MEMORY_BUCKET bucket_name to recipe-box-memory in app/wrangler.jsonc'));assert.deepEqual(e.config().r2_buckets,[{binding:'MEMORY_BUCKET',bucket_name:'custom-memory'}]);
 });

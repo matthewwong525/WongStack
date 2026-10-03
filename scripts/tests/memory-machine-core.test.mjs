@@ -4,7 +4,7 @@ import { coreFixture,MACHINE,GRANT,TOKEN,signed,attempt } from './fixtures/memor
 import { enrollOtherRuntimeMachine,corruptRuntime } from './fixtures/memory/runtime.mjs';
 import { revokeRuntimeMachine } from '../../.agents/skills/memory/scripts/lib/machine-runtime-operator.mjs';
 import { handleMemory } from '../../.agents/skills/memory/worker/memory-worker.mjs';
-import { CORE_D1_LIMIT } from '../../.agents/skills/memory/worker/machine-core-contract.mjs';
+import { CORE_D1_LIMIT, coreTableColumns } from '../../.agents/skills/memory/worker/machine-core-contract.mjs';
 const query=(f,params={})=>f.call('query',{operation:'facts',params});
 async function captured(f,changes={}){const input=await f.captureInput(changes),response=await f.call('capture',input);assert.equal(response.status,200,JSON.stringify(await response.clone().json()));assert.ok(f.totalStatements<=CORE_D1_LIMIT);return (await response.json()).result;}
 test('fresh full activation before grants serves bounded finite capture/search/digest/tag/session/run data',async t=>{
@@ -89,4 +89,9 @@ test('late completed provider read followed by changed head, protection or maint
  for(const change of ['head','ddl','barrier']){const f=await coreFixture(t);await captured(f);let readFacts=false,fired=false;
  f.afterRead=async sql=>{if(sql.startsWith('SELECT f.id'))readFacts=true;if(!fired&&readFacts&&sql.startsWith('SELECT x.* FROM memory_runtime_activations')){fired=true;if(change==='ddl')f.db.exec('DROP TRIGGER memory_runtime_rotations_immutable');else if(change==='head'){const ddl=f.db.prepare("SELECT sql FROM sqlite_master WHERE name='memory_data_configuration_guard'").get().sql;f.db.exec('DROP TRIGGER memory_data_configuration_guard');f.db.prepare('UPDATE memory_data_configuration SET operation_id=?').run('different-deployment-head');f.db.exec(ddl);}else{const ddl=f.db.prepare("SELECT sql FROM sqlite_master WHERE name='memory_machine_configuration_guard'").get().sql;f.db.exec('DROP TRIGGER memory_machine_configuration_guard');f.db.prepare("UPDATE memory_machine_configuration SET state='maintenance',barrier_attempt_id=?").run('late-maintenance-barrier');f.db.exec(ddl);}}};
  const response=await query(f);assert.equal(readFacts,true);assert.equal(fired,true);assert.equal(response.status,403);assert.doesNotMatch(await response.text(),/Every preview route/);}
+});
+
+test('every compiled packed-state column map matches the exact ordered actual schema columns',async t=>{
+ const f=await coreFixture(t);for(const [table,columns] of Object.entries(coreTableColumns)){assert.match(table,/^[A-Za-z_][A-Za-z0-9_]*$/);assert.ok(columns.every(column=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(column)),table);assert.deepEqual(f.db.prepare('PRAGMA table_info('+table+')').all().map(row=>row.name),columns,table);}
+ const response=await f.call('query',{operation:'facts',params:{}});assert.equal(response.status,200,await response.clone().text());assert.ok(f.totalStatements<=CORE_D1_LIMIT);
 });

@@ -409,6 +409,8 @@ export function wranglerConfig({ base, ids, bucket, today, access }, fragment = 
 
 /** Adds the bucket binding before the top-level `env` key of an existing config. False when there is none. */
 function addBucketBinding(file, bucket) {
+  // Existing custom R2 arrays need an explicit edit, never a duplicate JSON key.
+  try { if (parseConfig(file).r2_buckets !== undefined) return false; } catch { return false; }
   const text = readFileSync(file, 'utf8');
   const env = /^([ \t]+)"env"\s*:/m.exec(text);
   if (!env) return false;
@@ -624,9 +626,15 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
         if (closeOpenConfig(config, report.access)) note('updated', 'app/wrangler.jsonc: private login on, WORKSPACE_LOGIN removed');
         else report.todo.push('fill the CF_ACCESS_* vars from components.access and remove WORKSPACE_LOGIN in app/wrangler.jsonc');
       }
-      if (bucket && !readFileSync(config, 'utf8').includes('MEMORY_BUCKET')) {
-        if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
-        else report.todo.push(`add MEMORY_BUCKET for ${bucket} to app/wrangler.jsonc`);
+      if (bucket) {
+        let bindings;
+        try { bindings = parseConfig(config).r2_buckets; } catch { /* preserve a custom unreadable config */ }
+        const memoryBinding = Array.isArray(bindings) ? bindings.find(row => row.binding === 'MEMORY_BUCKET') : null;
+        if (memoryBinding && memoryBinding.bucket_name !== bucket) report.todo.push(`set MEMORY_BUCKET bucket_name to ${bucket} in app/wrangler.jsonc`);
+        else if (!memoryBinding) {
+          if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
+          else report.todo.push(`add MEMORY_BUCKET for ${bucket} to app/wrangler.jsonc`);
+        }
       }
     }
     migrateScripts(dir, n, note);

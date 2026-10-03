@@ -996,7 +996,9 @@ export const coreTableColumns = Object.freeze({
   "read_through",
   "raw_key",
   "raw_bytes",
-  "updated_at"
+  "updated_at",
+  "owner_principal_id",
+  "capture_attempt_id"
  ],
  "facts": [
   "id",
@@ -1007,7 +1009,11 @@ export const coreTableColumns = Object.freeze({
   "source",
   "created_at",
   "author",
-  "superseded_by"
+  "superseded_by",
+  "shared",
+  "owner_principal_id",
+  "capture_attempt_id",
+  "capture_ordinal"
  ],
  "tags": [
   "name",
@@ -1028,13 +1034,18 @@ export const coreTableColumns = Object.freeze({
   "finished_at",
   "status",
   "reason",
-  "counts"
+  "counts",
+  "capture_attempt_id"
  ],
  "memory_keys": [
   "hash",
   "email",
   "role",
-  "created_at"
+  "created_at",
+  "machine",
+  "expires_at",
+  "reader",
+  "github_id"
  ],
  "memory_admins": [
   "github_id",
@@ -1271,9 +1282,7 @@ export const coreTableColumns = Object.freeze({
   "state",
   "consumed_attempt_id",
   "created_at",
-  "expires_at",
-  "UNIQUE(candidate_id,",
-  "CHECK((state"
+  "expires_at"
  ],
  "memory_owner_attempts": [
   "id",
@@ -1305,8 +1314,7 @@ export const coreTableColumns = Object.freeze({
   "barrier_attempt_id",
   "operation_id",
   "request_hash",
-  "created_at",
-  "CHECK((state"
+  "created_at"
  ],
  "memory_machine_audit": [
   "id",
@@ -1359,9 +1367,7 @@ export const coreTableColumns = Object.freeze({
   "consumed_attempt_id",
   "machine_id",
   "created_at",
-  "expires_at",
-  "CHECK((consumed_attempt_id",
-  "CHECK(state"
+  "expires_at"
  ],
  "memory_machine_principals": [
   "id",
@@ -1406,8 +1412,7 @@ export const coreTableColumns = Object.freeze({
   "runtime_revision",
   "state",
   "barrier_attempt_id",
-  "created_at",
-  "CHECK((state='maintenance')=(barrier_attempt_id"
+  "created_at"
  ],
  "memory_runtime_manifests": [
   "installation_id",
@@ -1467,8 +1472,7 @@ export const coreTableColumns = Object.freeze({
   "commitment",
   "proof_hash",
   "deadline",
-  "created_at",
-  "CHECK(deadline>created_at"
+  "created_at"
  ],
  "memory_runtime_keys": [
   "machine_id",
@@ -1488,9 +1492,7 @@ export const coreTableColumns = Object.freeze({
   "machine_revision",
   "issued_at",
   "expires_at",
-  "attempt_id",
-  "UNIQUE(machine_id,generation)",
-  "CHECK(overlap_until>=issued_at"
+  "attempt_id"
  ],
  "memory_runtime_transcripts": [
   "attempt_id",
@@ -1505,9 +1507,7 @@ export const coreTableColumns = Object.freeze({
   "grant_revision",
   "machine_revision",
   "credential_generation",
-  "created_at",
-  "UNIQUE(object_hash,event)",
-  "CHECK((event='published')=(stage_attempt_id"
+  "created_at"
  ],
  "memory_runtime_activations": [
   "attempt_id",
@@ -1531,8 +1531,7 @@ export const coreTableColumns = Object.freeze({
   "expected_json",
   "revision",
   "state",
-  "barrier_attempt_id",
-  "CHECK((state='maintenance')=(barrier_attempt_id"
+  "barrier_attempt_id"
  ],
  "memory_data_bootstrap": [
   "installation_id",
@@ -1552,9 +1551,7 @@ export const coreTableColumns = Object.freeze({
   "nonce_hash",
   "proof_hash",
   "deadline",
-  "created_at",
-  "CHECK((action='capture')=(nonce_hash",
-  "CHECK(action!='capture'"
+  "created_at"
  ],
  "memory_data_session_owners": [
   "session_id",

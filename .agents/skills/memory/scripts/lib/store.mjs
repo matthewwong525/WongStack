@@ -14,6 +14,8 @@ import { primaryRoot } from './primary-root.mjs';
 export { isMain } from './cli.mjs';
 
 export const SCRIPT = 'node .claude/skills/memory/scripts/memory.mjs';
+// Generic provider consumers use this origin helper; machine memory never does.
+export const cloudflareApi = () => (process.env.WONG_CLOUDFLARE_API || 'https://api.cloudflare.com/client/v4').replace(/\/$/, '');
 const SPOOLABLE = new Set(['unconfigured', 'network', 'server']);
 // kind: unconfigured | auth | network | server | query. `reason` is the short form for one-line reports.
 export class StoreError extends Error {

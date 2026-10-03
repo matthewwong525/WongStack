@@ -85,7 +85,7 @@ test('areas says memory was not loaded and exits 0 when the store is unreachable
   env.fake.setOffline(true);
   const result = await memory(env.repo, env.fake, ['areas', 'app/worker/index.ts']);
   assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /^Areas: worker \(app\/worker\/index\.ts\)\nMemory was not loaded \(memory store unreachable \(network\)\); go on without it\.\n$/);
+  assert.match(result.stdout, /^Areas: worker \(app\/worker\/index\.ts\)\nMemory was not loaded \(machine-unreachable\); go on without it\.\n$/);
 });
 
 test('an area tag defines itself from the list on its first write', async t => {
