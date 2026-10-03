@@ -350,7 +350,12 @@ async function gateFacts(ctx,input,store=openStore(ctx)) {
  for(const [i,f] of facts.entries()) {
   const problem=validateFact({...f,action:undefined},i,store.credentialProblem);if(problem){out.push(`Candidate ${i+1}: ${problem}`);continue;}
   const same=await store.operation('facts',{slug:f.slug,limit:40}),terms=ftsQuery(f.body),near=terms?await store.operation('facts',{excludeSlug:f.slug,terms,limit:5}):[],threads=terms?await store.operation('facts',{excludeSlug:f.slug,terms,type:'thread',limit:3}):[];
-  out.push(`Candidate ${i+1}: [${f.type}] ${f.body}`,...same.map(r=>`  ${formatFact(r)}`),...(near.length?['  Closest matches:',...near.map(r=>`  ${formatFact(r)}`)]:[]),...threads.filter(t=>!near.some(n=>n.id===t.id)).map(r=>`  Open thread: ${formatFact(r)}`));
+  const openThreads=threads.filter(t=>!near.some(n=>n.id===t.id));
+  out.push(`Candidate ${i+1}: [${f.type}] ${f.body}`,
+   ...(same.length?[`  Live facts on ${f.slug}:`,...same.map(r=>`  ${formatFact(r)}`)]:[]),
+   ...(near.length?['  Closest matches on other slugs:',...near.map(r=>`  ${formatFact(r)}`)]:[]),
+   ...(openThreads.length?['  Open threads this may answer:',...openThreads.map(r=>`  ${formatFact(r)}`)]:[]));
+  if(threads.length)out.push('A fact that answers an open thread supersedes it, saying what was found.');
  }
  const definitions=withAreaTags(rows.map(r=>r.name),facts,input.newTags),problems=tagProblems(rows.map(r=>r.name),facts,definitions);
  out.push(...[...problems.errors,...threadProblems(facts,[...rows,...definitions]),...problems.warnings].map(p=>`Tags: ${p}`),'Decide each candidate: add, supersede with exact IDs, or drop. Then run put-facts.');console.log(out.join('\n'));

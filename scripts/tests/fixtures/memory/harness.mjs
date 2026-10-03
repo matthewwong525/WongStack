@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { coreFixture,MACHINE,GRANT,TOKEN } from './core.mjs';
 import { handleMemory } from '../../../../.agents/skills/memory/worker/memory-worker.mjs';
 const REPO=resolve(fileURLToPath(new URL('../../../..',import.meta.url))),SCRIPTS=join(REPO,'.agents/skills/memory/scripts');
+// NODE_OPTIONS reaches detached startup/run/drain descendants as well as this child.
+const transportOptions=options=>`${options||''} --import ${JSON.stringify(join(REPO,'scripts/tests/fixtures/memory/transport.mjs'))}`;
 export const SECRET='super-secret-value-123';
 export function tempDir(t,prefix){const dir=mkdtempSync(join(tmpdir(),'wong-test-'+prefix));t.after(()=>rmSync(dir,{recursive:true,force:true}));return dir;}
 const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
@@ -45,7 +47,7 @@ export async function setup(t,{bucket=true,scope}={}) {
  const fake={...f,api:`http://127.0.0.1:${server.address().port}`,calls,setOffline:value=>{offline=value;},dropNext:value=>{dropAfter=value;},setDelay:value=>{delay=value;},setReply:value=>{reply=value;},close:()=>{}};return {repo,fake};
 }
 export function node(repo,fake,script,args=[],{input,env={}}={}) {
- const childEnv={...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1',WONG_TIDY:'0',WONG_MEMORY_CLAUDE_HOME:repo.claudeHome,WONG_MEMORY_CODEX_HOME:repo.codexHome,...env};
+ const childEnv={...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1',WONG_TIDY:'0',WONG_MEMORY_CLAUDE_HOME:repo.claudeHome,WONG_MEMORY_CODEX_HOME:repo.codexHome,...env,NODE_OPTIONS:transportOptions(env.NODE_OPTIONS??process.env.NODE_OPTIONS)};
  return new Promise(done=>{const child=execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),join(SCRIPTS,script),...args],{cwd:repo.root,env:childEnv,encoding:'utf8'},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr}));child.stdin.end(input);});
 }
 export const memory=(repo,fake,args,options)=>node(repo,fake,'memory.mjs',args,options);
@@ -58,5 +60,5 @@ export function register(repo,entry){
 
 // Test-only child module entry preserves the same private HOME and HTTPS fixture transport.
 export function clientScript(repo,fake,body){
- return new Promise(done=>execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),'--input-type=module','-e',body],{cwd:repo.root,env:{...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1'},timeout:15000,encoding:'utf8'},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr})));
+ return new Promise(done=>execFile(process.execPath,['--import',join(REPO,'scripts/tests/fixtures/memory/transport.mjs'),'--input-type=module','-e',body],{cwd:repo.root,env:{...process.env,HOME:repo.home,USERPROFILE:repo.home,WONG_TEST_MEMORY_TRANSPORT:fake.api,NODE_NO_WARNINGS:'1',NODE_OPTIONS:transportOptions(process.env.NODE_OPTIONS)},timeout:15000,encoding:'utf8'},(error,stdout,stderr)=>done({code:error?error.code??1:0,stdout,stderr})));
 }

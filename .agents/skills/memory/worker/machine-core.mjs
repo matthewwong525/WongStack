@@ -171,7 +171,7 @@ export async function handleMachineCore(request,env) {
   const execution={environment:env.WONG_ENVIRONMENT,origin:url.origin,versionId:env.CF_VERSION_METADATA?.id,workerName:env.MEMORY_WORKER_NAME,databaseId:env.MEMORY_DATABASE_ID,bucketName:env.MEMORY_BUCKET_NAME||null};
   requireValue(typeof execution.versionId==='string'&&execution.versionId.length>0,'unreviewed-deployment');
   const context=publicMachineContext(env.MEMORY_DB,installation,execution);
-  if(['upload','transcript'].includes(operation))return handleCoreTranscript(context,request,env.MEMORY_BUCKET,machineId,operation);
+  if(['upload','transcript'].includes(operation))return await handleCoreTranscript(context,request,env.MEMORY_BUCKET,machineId,operation);
   requireValue(request.headers.get('Content-Type')==='application/json','invalid-input');
   const declared=request.headers.get('Content-Length');requireValue(declared===null||(/^\d+$/.test(declared)&&Number.isSafeInteger(Number(declared))&&Number(declared)<=70000),'invalid-input');
   requireValue(request.body,'invalid-input');const reader=request.body.getReader(),chunks=[];let length=0;
@@ -183,7 +183,7 @@ export async function handleMachineCore(request,env) {
   requireValue(input?.payload?.machineId===machineId&&input.payload.grantId&&opaqueId(input.payload.grantId),'machine-proof-denied');
   if(operation==='capture')requireValue(input.payload.credentialHash===await bearerHash(request),'machine-proof-denied');
   const handlers={enroll:enrollRuntimeMachine,renew:renewRuntimeMachine,'self-status':readSignedMachineSnapshot,'enrollment-status':readSignedEnrollmentSnapshot,capture:captureMachineData,'capture-status':readSignedMachineDataStatus};
-  if(['stage','publish'].includes(operation))return handleCoreTranscript(context,request,env.MEMORY_BUCKET,machineId,operation,input);
+  if(['stage','publish'].includes(operation))return await handleCoreTranscript(context,request,env.MEMORY_BUCKET,machineId,operation,input);
   const result=await handlers[operation](context,input);const state=await coreState(context);
   const extra=(operation==='self-status'||operation==='enrollment-status')?{dataSnapshot:await dataSnapshot(state)}:{};
   if(['self-status','enrollment-status'].includes(operation)&&request.headers.has('Wong-Memory-Attempt')) {
