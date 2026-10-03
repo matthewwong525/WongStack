@@ -110,6 +110,17 @@ async function writeExact(adapter,intent,phase,statements) {
  await legacyIntent(adapter,{action:'source-mutation',phase,attemptId:intent.attemptId,requestHash:intent.requestHash,source:intent.source,statementsHash:await machineHash(statements),versions:before});
  try{await value.callbacks.write(statements);}catch { /* Only independently verified exact receipts may recover. */ }
 }
+
+// A successful provider envelope is not a durable witness or baseline receipt.
+async function verifyLegacyInserts(adapter,statements) {
+ const value=legacyAdapter(adapter);
+ for(const statement of statements) {
+  const match=statement.sql.match(/^INSERT INTO (memory_[a-z_]+)\(([^)]+)\) VALUES\(/);requireValue(match,'machine-operation-incomplete');
+  const expected=Object.fromEntries(match[2].split(',').map((column,index)=>[column,statement.params[index]]));
+  const rows=await read(value,'SELECT * FROM '+match[1]);
+  requireValue(rows.length===1&&Object.entries(expected).every(([column,value])=>rows[0][column]===value),'machine-operation-incomplete');
+ }
+}
 export async function applyLegacyCutover(adapter,intent,{enrollment=null}={}) {
  const value=await legacyCapability(adapter);
  const retained=await value.journal.find('prepared-cutover');requireValue(retained&&await legacyHash(retained.candidate.intent)===await legacyHash(intent),'machine-attempt-conflict');
@@ -142,13 +153,14 @@ export async function applyLegacyCutover(adapter,intent,{enrollment=null}={}) {
    account_id:intent.inventory.target.accountId,database_id:intent.inventory.target.databaseId,bucket_name:intent.inventory.target.bucketName,canonical_origin:intent.inventory.target.appUrl,minimum_protocol:2,created_at:intent.createdAt}));
   machine.push(legacyInsert('memory_machine_configuration',{installation_id:intent.installation.installationId,repository_id:intent.installation.repositoryId,target_json:JSON.stringify(intent.inventory.target),pin_hash:intent.pinHash,operation_id:intent.attemptId,request_hash:intent.requestHash,created_at:intent.createdAt}));
   await writeExact(adapter,intent,'machine-era',machine);
-  await writeExact(adapter,intent,'witness',await planLegacyIssueWitness(intent,intent.witness));
+  const witness=await planLegacyIssueWitness(intent,intent.witness);await writeExact(adapter,intent,'witness',witness);await verifyLegacyInserts(adapter,witness);
+  const released=await read(value,'SELECT * FROM memory_machine_configuration');requireValue(released.length===1&&released[0].state==='pending'&&released[0].barrier_attempt_id===null&&released[0].auth_revision===2&&released[0].pin_revision===1&&released[0].pin_hash===intent.pinHash,'machine-operation-incomplete');
  }
- await writeExact(adapter,intent,'baseline',[await planLegacyBaseline(intent,intent.original)]);
+ const baseline=[await planLegacyBaseline(intent,intent.original)];await writeExact(adapter,intent,'baseline',baseline);await verifyLegacyInserts(adapter,baseline);
  if(intent.inventory.sourceVersion!==14) {
   const evidence=await value.callbacks.inspectDeployment();requireValue(evidence.pinHash===intent.pinHash,'unreviewed-deployment');
   const genesis={pinHash:intent.pinHash,targetJson:JSON.stringify(intent.inventory.target),evidence,schemaHash:await digest(JSON.stringify(dataDdl))};
-  await writeExact(adapter,intent,'runtime-data-era',await planLegacyEra(intent,genesis));
+  const era=await planLegacyEra(intent,genesis);await writeExact(adapter,intent,'runtime-data-era',era);await verifyLegacyInserts(adapter,era);
   const state=await readRuntimeState(context);
   await activateMachineRuntime(context,{attemptId:intent.activationId,expected:state.snapshot,payload:await compiledCoreHashes()});
   const enrolled=typeof enrollment==='function'?await enrollment({context,installation:intent.installation,destination:intent.review.destination,snapshot:(await readRuntimeState(context)).snapshot}):enrollment;

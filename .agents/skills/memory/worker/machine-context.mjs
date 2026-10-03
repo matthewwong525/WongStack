@@ -103,7 +103,8 @@ export async function runtimeSnapshotContext(context) {
   if(sql==='SELECT name,type,sql FROM sqlite_master WHERE name=? AND type=?')return image.schema.filter(row=>row.name===params[0]&&row.type===params[1]);
   if(sql.startsWith('SELECT name')&&sql.includes('FROM sqlite_master')) {
    const type=sql.match(/type='(\w+)'/)?.[1],name=sql.match(/AND name='([^']+)'/)?.[1];
-   return image.schema.filter(r=>(!type||r.type===type)&&(!name||r.name===name)&&(!sql.includes("LIKE 'memory_data_%'")||r.name.startsWith('memory_data_'))).sort((a,b)=>a.name.localeCompare(b.name));
+   const selected=sql.match(/^SELECT (name(?:,type(?:,sql)?)?) FROM sqlite_master/)?.[1].split(',');requireValue(selected,'machine-context-denied');
+   return image.schema.filter(r=>(!type||r.type===type)&&(!name||r.name===name)&&(!sql.includes("LIKE 'memory_data_%'")||r.name.startsWith('memory_data_'))).sort((a,b)=>a.name.localeCompare(b.name)).map(row=>Object.fromEntries(selected.map(column=>[column,row[column]])));
   }
   const pragma=sql.match(/^PRAGMA table_info\((\w+)\)$/);if(pragma)return image[pragma[1]];
   if(sql.startsWith('SELECT x.*,a.payload_json'))return image.deployments;

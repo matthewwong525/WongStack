@@ -13,7 +13,7 @@ test('distinct15 release preserves every original1–14 source hash and the50 st
  assert.deepEqual(machineLegacyMigrations.map(row=>row.filename),migrationFiles());
  for(const row of machineLegacyMigrations)assert.equal(await digest(migrationSql(row.filename)),row.sha256);
  assert.notDeepEqual(await compiledLegacyHashes(),await compiledCoreHashes());
- assert.deepEqual([...legacyReplacementNames].sort(),['memory_data_verified_captures','memory_runtime_activations_guard','memory_runtime_bootstrap_guard','memory_runtime_outcomes'].sort());
+ assert.deepEqual([...legacyReplacementNames].sort(),['memory_data_machine_barrier','memory_data_verified_captures','memory_runtime_activations_guard','memory_runtime_bootstrap_guard','memory_runtime_outcomes'].sort());
 });
 test('SQL15 changes only the declared dependent guards and creates no compatibility receipts',async t=>{
  const db=new DatabaseSync(':memory:');t.after(()=>db.close());applyMigrations(db,14);
@@ -42,4 +42,10 @@ test('complete15 schema rejects an unrelated additional authority object',async 
  const db=new DatabaseSync(':memory:');t.after(()=>db.close());applyMigrations(db,14);db.exec(migrationSql('0015_legacy_cutover.sql'));
  const read=async(sql,params=[])=>db.prepare(sql).all(...params).map(row=>({...row}));await validateLegacySchema(read);
  db.exec('CREATE TABLE unrelated_authority(id TEXT PRIMARY KEY,capability TEXT)');await assert.rejects(validateLegacySchema(read),/legacy-schema-conflict/);
+});
+
+test('SQL15 witness exception retains the entire original14 machine barrier predicate',()=>{
+ const original=migrationSql('0014_machine_data_lifecycle.sql').match(/CREATE TRIGGER memory_data_machine_barrier[\s\S]*?END;/)[0];
+ const predicate=original.split('WHEN ')[1].split('BEGIN ')[0].trim();
+ assert.ok(legacyDdl.memory_data_machine_barrier.sql.includes(normalizeCoreDdl('WHEN ('+predicate+') AND NOT(')));
 });

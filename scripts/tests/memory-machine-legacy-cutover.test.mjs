@@ -46,3 +46,54 @@ for(const drift of ['schema','rows','source','pins','destination'])test(`fresh $
  const f=await importFixture(t);if(drift==='schema')f.db.exec('DROP TRIGGER facts_never_edited');if(drift==='rows')f.db.exec("INSERT INTO fact_tags(fact_id,tag) VALUES(2,'legacy')");if(drift==='source')f.reviewedSource={...f.reviewedSource,digest:hash('f')};if(drift==='pins')f.callbacks.inspectPins=async()=>hash('f');if(drift==='destination')f.destinationUnavailable=true;
  await assert.rejects(f.apply());assert.equal(f.callbackCounts.write,0);assert.equal(f.db.prepare('SELECT max(version) n FROM schema_migrations').get().n,6);
 });
+
+import { planLegacyIssueWitness } from '../../.agents/skills/memory/scripts/lib/machine-legacy-planners.mjs';
+for(const table of ['memory_machine_attempts','memory_machine_grants','memory_machine_audit','memory_machine_completions','memory_legacy_baselines'])test(`dropped exact ${table} witness/baseline readback stops before runtime era`,async t=>{
+ const f=await importFixture(t);f.drop=statement=>statement.sql.startsWith('INSERT INTO '+table+'(');await assert.rejects(f.apply(),e=>e.code==='machine-operation-incomplete');
+ assert.equal(f.db.prepare('SELECT state FROM memory_legacy_configuration').get().state,'maintenance');
+ for(const name of ['memory_runtime_configuration','memory_data_configuration','memory_runtime_activations','memory_legacy_completions'])assert.equal(f.db.prepare('SELECT count(*) n FROM '+name).get().n,0,name);
+ assert.ok(!f.journal.some(frame=>frame.candidate.phase==='runtime-data-era'));
+ assert.equal((await f.call('query',{operation:'facts',params:{}})).ok,false);
+});
+test('pre-runtime15 permits one exact real issue witness and rejects ordinary foreign changed-scope late competing and incomplete staging',async t=>{
+ const f=await importFixture(t);const tables=['memory_machine_attempts','memory_machine_grants','memory_machine_audit','memory_machine_completions'];
+ f.drop=statement=>tables.some(table=>statement.sql.startsWith('INSERT INTO '+table+'('));await assert.rejects(f.apply(),e=>e.code==='machine-operation-incomplete');
+ const witness=await planLegacyIssueWitness(f.intent,f.intent.witness),first=witness[0],run=statement=>f.db.prepare(statement.sql).run(...statement.params);
+ for(const change of ['ordinary','foreign','scope','late']) {
+  const candidate={sql:first.sql,params:structuredClone(first.params)};
+  if(change==='ordinary')candidate.params[2]='enroll';
+  if(change==='foreign')candidate.params[1]=crypto.randomUUID();
+  if(change==='scope'){const payload=JSON.parse(candidate.params[5]);payload.scope='memory:read';candidate.params[5]=JSON.stringify(payload);}
+  if(change==='late')candidate.params[candidate.params.length-1]-=121;
+  assert.throws(()=>run(candidate),/data lifecycle incomplete|machine authority is stale or incomplete|FOREIGN KEY/);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM memory_machine_attempts').get().n,0);
+ }
+ f.db.exec('BEGIN');try {
+  run(first);const competing={sql:first.sql,params:structuredClone(first.params)};competing.params[0]=crypto.randomUUID();competing.params[10]=crypto.randomUUID();assert.throws(()=>run(competing));
+  for(const statement of witness.slice(1))run(statement);
+  const done=f.db.prepare('SELECT * FROM memory_machine_completions').get(),audit=f.db.prepare('SELECT * FROM memory_machine_audit').get();
+  assert.equal(done.attempt_id,f.intent.witnessAttemptId);assert.equal(done.audit_id,audit.id);assert.equal(audit.action,'issue');assert.equal(audit.target_id,f.destination.grantId);
+  assert.equal(f.db.prepare('SELECT state FROM memory_machine_configuration').get().state,'pending');assert.equal(f.db.prepare('SELECT count(*) n FROM memory_machine_bootstrap_completions').get().n,0);
+ }finally{f.db.exec('ROLLBACK');}
+ for(const omitted of ['memory_legacy_manifests','memory_legacy_closures']) {
+  const partial=await importFixture(t);partial.drop=statement=>statement.sql.startsWith('INSERT INTO '+omitted+'(');await assert.rejects(partial.apply());
+  assert.equal(partial.db.prepare('SELECT count(*) n FROM memory_machine_attempts').get().n,0);assert.equal(partial.db.prepare('SELECT count(*) n FROM memory_legacy_baselines').get().n,0);
+ }
+});
+test('public15 coherent image metadata uses exact projected keys and retains the128KiB boundary',async t=>{
+ const f=await completedImportFixture(t,14);
+ const { publicMachineContext,runtimeSnapshotContext,runtimeContext }=await import('../../.agents/skills/memory/worker/machine-context.mjs');
+ const { boundLegacyProjection }=await import('../../.agents/skills/memory/scripts/lib/machine-legacy-closure.mjs');
+ const context=publicMachineContext(f.env.MEMORY_DB,f.installation,{schemaVersion:15}),snapshot=await runtimeSnapshotContext(context),read=runtimeContext(snapshot).read;
+ const metadata=await read('SELECT name,type FROM sqlite_master ORDER BY name');assert.ok(metadata.length>247);assert.ok(metadata.every(row=>JSON.stringify(Object.keys(row))===JSON.stringify(['name','type'])));assert.doesNotThrow(()=>boundLegacyProjection(metadata));
+ const ddl=await read('SELECT name,type,sql FROM sqlite_master WHERE name=? AND type=?',['memory_data_machine_barrier','trigger']);assert.ok(ddl[0].sql.includes('memory_legacy_configuration'));assert.deepEqual(Object.keys(ddl[0]),['name','type','sql']);
+ assert.throws(()=>boundLegacyProjection({body:'x'.repeat(128*1024)}),e=>e.code==='legacy-projection-too-large');
+ const response=await f.call('query',{operation:'facts',params:{}});assert.equal(response.status,200,JSON.stringify(await response.clone().json()));assert.ok(f.totalStatements<=50);
+});
+
+test('dropped runtime manifest stops before activation while exact era fields include repository identity',async t=>{
+ const f=await importFixture(t);f.drop=statement=>statement.sql.startsWith('INSERT INTO memory_runtime_manifests(');await assert.rejects(f.apply(),e=>e.code==='machine-operation-incomplete');
+ assert.equal(f.db.prepare('SELECT state FROM memory_legacy_configuration').get().state,'maintenance');assert.equal(f.db.prepare('SELECT count(*) n FROM memory_runtime_manifests').get().n,0);
+ for(const table of ['memory_runtime_activations','memory_runtime_keys','memory_legacy_completions'])assert.equal(f.db.prepare('SELECT count(*) n FROM '+table).get().n,0,table);
+ const successful=await completedImportFixture(t);const row=successful.db.prepare('SELECT * FROM memory_runtime_manifests').get();assert.equal(row.repository_id,successful.installation.repositoryId);assert.equal(row.schema_version,13);assert.equal(row.baseline_hash,successful.intent.baselineHash);
+});
