@@ -82,7 +82,7 @@ Create live database IDs and secrets in the target; never copy them. No copied f
 
 A starter React/Vite Worker app with its own tests and package manifest. `app/worker/index.ts` sends `/_memory/` to the memory skill's route module, so the route updates with the skill; only that import and branch sit in `app/`. Below its workspace heading, the [welcome](../../../../wiki/stack/mini-apps.md), `app/src/pages/home/Tutorial.tsx`, offers one chat request to name the workspace and remove the guide, with explanations and a preview before publishing. Update `Tutorial.tsx`, `.css`, and `.test.tsx` only while the target's `Home.tsx` (flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise it stays removed. `/apps/` redirects to `/`, whose app list is compiled in from `app/src/apps/`. The test workflow runs `npm test` at the root or one folder down, and passes with none. No root `package.json` is copied.
 
-[Mini apps](../../../../wiki/stack/mini-apps.md) ship in `app/`: `src/apps/<name>/` holds pages; `worker/apps/<name>/` holds optional handlers. Registries discover both. Built-ins are `hello` and `devices`. Devices calls protected core memory/auth routes; without them it stays unavailable. Ordinary handlers have no memory bindings. List source-only apps, such as `tips`, in `scaffold.exclude`.
+[Mini apps](../../../../wiki/stack/mini-apps.md) ship in `app/`: `src/apps/<name>/` holds pages; `worker/apps/<name>/` holds optional handlers. Registries discover both. Only the `hello` example ships. Ordinary handlers have no memory bindings. List source-only apps, such as `tips`, in `scaffold.exclude`.
 
 ## OpenSpec integration and migration
 

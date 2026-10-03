@@ -1,3 +1,71 @@
+# Machine-owned memory design
+
+## Context
+
+See [proposal.md](proposal.md). The user replaced person-owned memory and browser device approval with machine-private memory plus shared team memory. The app frontend can be removed now; existing runtime still uses the older GitHub/key model and has not been cut over. Prepared schema11/operator modules and source tests target the superseded human-owner design, remain unwired, and cannot establish the new behavior.
+
+## Goals / Non-Goals
+
+Normal chat capture, digest and search require no Devices mini app or repeated human sign-in. Preserve per-repository segmentation, fact immutability, reader/member/admin visibility and private transcripts. Works in ordinary installations regardless of Git hosting. This source slice removes UI and updates the design only. No schema/runtime/CLI activation, provider writes, private runner changes, new live credentials or migration execution is authorized here.
+
+## Decisions
+
+### 1. A machine is a logical principal
+
+Generate an opaque stable machine principal during trusted enrollment, scoped to installation and repository. Keep its ID and credential in private OS-user state outside git; reuse across linked worktrees and credential rotations. Hostname, hardware fingerprint, IP address, git authorship, typed email and local repository files cannot establish authority. Reinstall without recoverable private state is a new machine, not a claim to old history. A genuinely shared OS profile shares that machine's private memory; separate OS users have separate private state. An optional employee label is attribution only. This follows the user's machine-first choice instead of requiring per-person identity.
+
+### 2. Enrollment happens inside trusted setup
+
+Use an installation-controlled provisioning capability, verified for the exact target, to authorize the initiating machine during normal setup. Further machines use a privately delivered, short-lived, scoped one-use enrollment capability from the same trusted operator/setup channel. Never distribute it in git, URLs, logs or public setup results. Public install IDs, app URLs and a fresh clone are routing information only. Missing proof reports pending setup without issuing anything; there is no anonymous request queue or browser approval flow. Setup retries use exact attempt, target, machine commitment and authorization-revision guards with a durable completion receipt; an apparent provider success response is insufficient. One-use issuance and lost-response retry must not issue a second grant. Define the concrete trusted enrollment capability/dispatch and maintenance-barrier authority in the next bounded source design before editing shared schema/operator files.
+
+Installation operator authority remains separate from ordinary memory data access, even for an admin machine. Existing app Access still protects business content; browser login/logout and WORKSPACE_LOGIN=off do not create or revoke memory grants. Verification service tokens never become enrollment or memory administration authority. No GitHub membership or hosted account/role is used as admission.
+
+### 3. Private and team memory use server-enforced machine ownership
+
+A credential determines the machine owner ID; caller-supplied author/email/name cannot change it. Machine-private user/feedback facts, unshared facts, sessions and raw transcripts are visible only to that machine and explicitly scoped memory administrators. Existing shared project/reference/thread semantics remain; reader-authored private threads remain private. Shared facts must not expose another machine's transcript bytes. Member writes/supersedes are limited to its own records; explicit admin data scope can administer all facts without changing auth tables/schema/grants. Every custom SQL, search, digest, resource path and upload rechecks the same restrictions, including when only one active machine remains.
+
+### 4. Automatic capture stays automatic
+
+Session startup loads the digest and starts ordinary capture without opening the app. Credential renewal runs in the background; a default 30-day credential can rotate in its last 7 days while its machine grant remains active, with no 90-day human approval timer. Old/new credential overlap is bounded and tied to the same grant revision; a revoked/removed grant denies both immediately. Lost credentials require fresh trusted setup. A revoked machine cannot renew or silently enroll again.
+
+Bind queued writes to installation/repository/machine IDs and auth generation. Transient outages keep a private durable queue and retry; failed capture reports pending/failed rather than claiming saved. Revocation quarantines that queue until explicit resolution, never moves it to another identity. Preserve secret filtering and transcript capture exclusions. Normal chat capture needs no manual save or approval; selecting useful facts can keep the existing capture policy.
+
+### 5. Narrow production routes and pins
+
+Machine data/renewal/enrollment routes require the appropriate bearer proof on a strict production allowlist at the pinned canonical memory origin. Anonymous metadata must expose no account directory, memory, grant creation or human identities. Retired browser approval routes are not implemented; unknown paths/methods/encoded variants deny without asset fallback. Existing legacy join ends with nonsecret setup guidance at cutover. Ordinary mini-app handlers still lack MEMORY_DB/MEMORY_BUCKET; removing UI does not widen them.
+
+Production app and separate memory Worker, when used, share exact installation state, DB/bucket and immutable origin pins. No broad Access bypass, service-JWT substitution or arbitrary repinning. A reviewed machine-path Access exception is allowed only on the exact memory Worker/hostname and only after protected handlers are active and verified. Staging/previews have no production memory bindings. Credentials remain hashes server-side and private local files client-side, with atomic writes, OS-user isolation and symlink/permission checks; never copy browser cookies.
+
+### 6. Setup contract changes need a new version
+
+The historical protocolVersion:1 pending-owner/pending-device result and /apps/devices/ actions are superseded, not callable promises for this model. Planned version2 retains installationId, repositoryId, appUrl and memoryOrigin, with machine-scoped status pending-setup|ready|blocked and a sanitized reason/instruction. No secret or browser action URL appears in this public result. Ready requires proof and a successful allowed memory check for THIS machine; another machine's grant, infrastructure readiness or provider success envelope is insufficient. Existing version1 consumers must report unsupported/pending instead of guessing ready; hosted consumers remain separately coordinated, outside this removal slice. Concrete new signatures require a bounded implementation handoff, not assumed existing exports.
+
+## Migration Plan
+
+1. Inventory/back up facts, sessions, transcript paths, old keys/admins and pending spools. A forward schema/manifest/probe revision must support machine principals, grants, receipts and maintenance guards before activation; schema0001–0011 and old snapshots remain immutable. Completed schema10/11 installations require an explicitly reviewed upgrade, never adoption/reset/new IDs.
+2. Under a maintenance barrier, freeze legacy key issuance/joins, revoke legacy hashes and enforce denial at retained old Worker versions too. Keep original authored history and exact transcript bytes.
+3. Trusted installation operator establishes machine grants and evidence-backed mappings for selected historical records. Matching email, hostname or optional employee label does not prove ownership. Unmapped private records stay admin-only; do not give all employees a former shared identity's history.
+4. Enroll machines through trusted setup, verify own-private and shared read/write, then flush only correctly bound queued writes. Explicit replacement/transfer can map selected history with an audit receipt; changing a label cannot transfer it. Reassignment requires revoking the old credential and creating an isolated new namespace unless an operator explicitly reviews history transfer.
+5. Rollback after cutover preserves auth generations, revocations, disabled legacy paths and receipt evidence. Restore data in isolation, reconcile new writes and reapply authorization before exposure; never restore old keys to reopen access.
+
+## Risks / Trade-offs
+
+- A shared OS profile shares private memory → document the consequence and provide explicit authorized reset/reassignment; do not pretend a machine identifies a person.
+- Stolen local credentials grant machine access until revoked → secure local storage, bounded credential life, exact revision checks on every request and prompt renewal denial.
+- Trusted operator can ultimately control installation storage → preserve this existing trust boundary while excluding operator authority from ordinary credentials.
+- Schema11 tests prove the old source contract → keep historical evidence separate and require new source and individually coordinated live proofs for this design.
+- R2 and D1 have no shared transaction → stage uploads, check current grant before pointer publication and test revoke races; already received data cannot be recalled.
+
+## Verification contract and dependencies
+
+Remote app/payload/scripts checks first validate removal, unchanged generic app behavior, source foundations and intact coverage floors. Future tests must exercise trusted first enrollment, untrusted clone/anonymous/wrong-install rejection, one-use grant expiry/replay, exact retry/concurrent attempts and deliberate partial writes. Test auto capture and durable queue on restart/offline; two machines see shared facts but not each other's private facts/transcripts through every route/query shape. Test forged machine ownership, service-token denial, login-off without anonymous enrollment, credential expiry/rotation, revocation/removal races, lost-response recovery without resurrected grants, migration/quarantine and rollback/old Worker denial.
+
+Live transport/initializer/grant phases use newly owned disposable memory resources with original POST ownership receipts, exact gated SQL/assets and active Worker/Access/bindings/origin pins. Each phase is separately reviewed; a source PASS or initializer probe PASS does not authorize the next phase. Real acceptance is trusted setup → automatic private/shared capture → other machine privacy check → automatic renewal → revoke → data/renewal denied. No human mailbox is required merely to use machine memory. Shared setup/installer/wiki runtime work and all provider/private phases remain excluded until coordinated.
+
+## Historical source preparation (superseded, not current requirements)
+
+The following original design is retained verbatim as historical preparation, including its initialization/status checkpoint. Its human-owner, Devices, membership and version1 promises are superseded by the decisions above. The original proposal Decision log, [operator contract](operator-contract.md), [owner receipt design](owner-receipt-design.md) and [REST probe records](rest-probe.md) retain exact historical source receipts. No old snapshot/input is relabeled or executed for this revised feature.
+
 # Design
 
 ## Context

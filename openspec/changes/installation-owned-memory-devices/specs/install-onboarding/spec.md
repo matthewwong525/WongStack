@@ -2,41 +2,26 @@
 
 ### Requirement: The server installer installs WongStack unattended
 
-The source SHALL ship a server installer that, run as the workspace user from a clone of the source, installs that clone's WongStack into an empty GitHub repo with no question: the full payload, the install record naming the clone's version and commit, the app's Cloudflare hosting, a memory store served by the production Worker with owner and device approval explicitly pending, and the CI deploy token as a GitHub secret. It SHALL return a safe action URL and structured memory-readiness status without assuming its host is the human owner or minting an admin device credential. It SHALL commit the install on `main` and push it. A second run SHALL finish a first run that stopped, and SHALL leave a repo it already pushed untouched. It SHALL refuse a repo that already holds other work.
+The source SHALL ship a server installer that installs its clone's full payload, install record, Cloudflare hosting and repository memory into an empty GitHub repo without a separate memory app login or approval screen. It SHALL record source version/commit and memory target, privately enroll only the initiating machine using verified installation provisioning authority, and put only the scoped deploy token in CI. It SHALL commit the install on main and push it. A retry SHALL finish an interrupted owned install without replacing published code or identity, and SHALL refuse unrelated existing work. Infrastructure success without this machine's proof SHALL remain pending memory setup rather than ready.
 
 #### Scenario: A fresh repo
-
-- **WHEN** a host runs the installer for an empty repo with a valid Cloudflare token and account
-- **THEN** the repo's `main` holds the install, its record names the source's version, commit, and memory Worker, and the last output line is `done`
+- **WHEN** a host runs the installer for an empty repo with valid verified provisioning authority
+- **THEN** main holds the install, the record names source version/commit and memory Worker, and the last output line is done; memory readiness separately reflects the initiating machine's proof
 
 #### Scenario: A repo with other work
-
 - **WHEN** the repo already has commits the installer did not make
-- **THEN** it changes nothing and its last output line is `repo`
-
-#### Scenario: Infrastructure is ready before the owner signs in
-- **WHEN** the unattended installer has completed infrastructure setup but no human has completed ownership and device approval
-- **THEN** its existing final outcome remains compatible, memory is reported pending rather than ready, and no hosted-service identity is required to finish in the installed app
-
+- **THEN** it changes nothing and its last output line is repo
 
 ## ADDED Requirements
 
-### Requirement: Setup exposes nonsecret installation memory readiness
+### Requirement: Setup reports readiness for the initiating machine without secrets
 
-Setup SHALL return a version-1 `memory` result containing `protocolVersion`, `installationId`, `repositoryId`, `appUrl`, `memoryOrigin`, `status`, `reason` and `action`. Status SHALL be `pending-owner`, `pending-device` or `ready`, scoped to the calling machine. Action SHALL be null or contain `kind` (`confirm-owner` or `connect-device`), the canonical protected app's `/apps/devices/` URL and `operatorConfirmationRequired`. Origins SHALL come from trusted installation configuration. The result SHALL contain no credentials or personal identity. Cloud roles, repository grants and Access policy membership SHALL NOT seed memory principals or roles.
+Setup SHALL expose a versioned nonsecret memory result containing installation/repository IDs, app and memory origins, and pending-setup, ready or blocked status for THIS machine. It SHALL include safe reason/instruction fields for missing authority or incompatible protocol, without browser approval URLs or credential values. Ready SHALL require this machine's valid current grant and a successful permitted memory operation; another machine, cloud role or provider success envelope SHALL NOT suffice. Superseded version1 owner/device action semantics SHALL be explicitly unsupported, not silently interpreted as the new contract.
 
-#### Scenario: Another machine is already connected
-- **WHEN** setup reports for a machine without a currently validated device grant and the installation has a confirmed owner
-- **THEN** it returns `pending-device` and `connect-device`, even if another machine is connected
+#### Scenario: Resources exist but machine proof is absent
+- **WHEN** setup finds an initialized installation or another connected machine without proof for this client
+- **THEN** it reports pending-setup and safe trusted-setup guidance, never ready
 
-#### Scenario: The calling machine is ready
-- **WHEN** current credential introspection verifies the calling machine's installation, membership and active grant
-- **THEN** status is `ready`, reason and action are null, and no credential is included in the result
-
-#### Scenario: Hosted operator confirmation is unfinished
-- **WHEN** a platform has provisioned protected infrastructure but the verified human and installation operator have not completed owner confirmation
-- **THEN** setup returns `pending-owner` with a safe action URL and operator confirmation required, without minting a memory key or requesting the platform credential from the customer
-
-#### Scenario: Protection is unavailable
-- **WHEN** login is disabled or required Access protection cannot be verified
-- **THEN** setup remains pending with a safe `login-required` or `access-unverified` reason and cannot approve an owner or device
+#### Scenario: A completed machine setup
+- **WHEN** the initiating machine proves a live scoped grant and allowed memory operation
+- **THEN** setup reports ready for that machine without requiring an app login

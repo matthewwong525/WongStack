@@ -3,14 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Approve memory access in your own WongStack
+## Next (major) — Automatic memory for each machine and the team
 
-This feature is still in progress. The current source prepares identity, ownership reviews, guarded operator setup and the Devices screens. Missing protected handlers leave Devices unavailable; this does not activate the new approval flow or replace existing memory keys.
+This feature is still in progress. The Devices approval mini app has been removed. Existing memory runtime remains in place until the separately verified machine-authentication cutover; preparatory schemas and source checks do not activate it.
 
-- Each installation will use its own app login to confirm its owner and approve computers for memory, without a hosted account. Repository hosting and cloud project roles do not grant memory membership.
-- People will retain internal identities across reviewed login changes. Historical notes and transcripts keep their original text and attribution; ownership changes require explicit evidence.
+- The completed feature will capture memory during normal chats, with private notes tied to the machine and shared work notes available to authorized teammates.
+- Trusted setup will connect each machine once and renew its credential automatically. No memory approval app, repeated human sign-in, GitHub identity or hosted WongStack account will be needed. Optional employee labels will not grant access or merge private history.
+- Historical facts and transcripts will keep their original text and attribution; moving old private history will require evidence-backed operator review.
 
-**Updating.** When this feature is ready, enable app login, confirm the initial owner, review historical ownership and reconnect each computer. Memory may pause until those steps are complete. Preparatory migrations alone do not complete the move; existing memory access remains in place until the separately verified cutover.
+**Updating.** When this feature is ready, use trusted machine setup and the reviewed legacy migration. Memory may pause during cutover. Old keys will be retired only after verified replacement, and a clone, typed email or machine name will never claim old private notes.
 
 ## 29.10.0 — Task chats coordinate directly
 

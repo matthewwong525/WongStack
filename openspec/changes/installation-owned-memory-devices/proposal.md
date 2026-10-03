@@ -1,4 +1,4 @@
-# Approve memory access in your own WongStack
+# Automatic memory for each machine and the team
 
 **Status:** in-progress
 
@@ -8,158 +8,66 @@
 
 ## Why
 
-Connecting a computer to memory currently depends on GitHub accounts and repository access. Each WongStack installation should let its own people approve their computers using the app login they already have, wherever they keep their repository.
+Memory should be captured during normal chats without a separate approval app. Each authorized machine needs its own private notes and access to shared team knowledge, independent of GitHub or a hosted WongStack account.
 
 ## What Changes
 
-- **Your installation decides who belongs.** People get a lasting internal identity. The owner chooses members and their permissions; changing an email does not transfer someone's history. Initial owner setup needs a verified app login and confirmation by the person controlling the installation. An app without login keeps memory setup pending.
+- **Just use your assistant.** Normal chats load and save memory automatically. Trusted setup connects the machine once; later sessions reuse and renew its private credential without browser approval or repeated sign-in.
   ```text
-  YOUR INSTALLATION
-  verified app login ──▶ your identity
-                              │
-                       owner grants membership
-                              │
-                              ▼
-                       your repo's memory
-
-  FIRST OWNER                    LOGIN OFF
-  Finish owner setup             Login required
-  J6KN-7DPR                      Enable app login
-  Waiting for operator           [Setup instructions]
-
-  LOGIN NEEDS REVIEW
-  This login is not linked yet
-  Ask the owner to review it
-  [Copy request reference]
+  trusted setup ──▶ connected machine
+                          │
+                    normal chats
+                          │
+                  load + save memory
   ```
 
-- **Connect a computer from chat, then approve it in Devices.** The agent uses your installation's saved app address, or asks for it on a new computer. The approval link uses the person signed into your app, so the agent never asks for an email. Compare the code with chat, check the signed-in account, and review the computer and permissions before approving.
+- **Private to the machine, shared with the team.** Preferences, personal notes and private conversations belong to the machine. Shared work notes are available to other authorized machines in the same repository. An optional employee label helps attribution but grants no access and does not combine private histories.
   ```text
-  computer ──▶ your installed app
-      │              │
-      │         sign in to Devices
-      │              │
-   show code ◀── compare code
-      │              │
-      │         approve or deny
-      ▼              │
-   private poll ◀────┘
-      │
-      ▼
-   this computer connects once
-
-  DEVICES / APPROVE
-  Connect Laptop?
-  As ana@example.com
-  H7KM-42PT · 7 minutes left
-  Match this code in chat
-  Read team + your private notes
-  Save notes as you
-  [ ] My request; code matches
-  [Approve]              Deny
-  > Access details
-
-  APPROVED                    DENIED / EXPIRED
-  Waiting for computer        Request ended
-  [View devices]              New request in chat
-                              [View devices]
+  Ana's laptop                  Bo's desktop
+  private notes                 private notes
+        │                             │
+        └──────── team notes ─────────┘
+                   this repository
   ```
 
-- **See and stop connected computers.** Devices shows the request you opened and your approved computers, their permissions, and when they expire. Owners manage membership; memory admins can revoke any computer. Removal stops both access and renewal. Each computer needs approval again after at most 90 days. Logging out of the browser leaves approved computers connected; revocation or membership removal stops them.
+- **Remove Devices.** No device list, matching-code screen or approval mini app is needed for ordinary memory use. A new machine receives access through trusted setup; an arbitrary clone or machine name cannot open team memory. The installation operator can revoke a machine, which immediately stops access and renewal.
   ```text
-  DEVICES
-  Request opened from your chat
-  Laptop · expires in 7 minutes
-  [Review request]
-
-  Connected 2
-  Laptop · Connected
-  Used today · approve by Jan 1
-  Revoke
-  Desktop · Connected
-  Revoke
-
-  REVOKE LAPTOP?
-  Memory access will stop
-  [Revoke]                Cancel
-
-  OWNER / PEOPLE
-  Ana · owner
-  Bo · member             Remove
-  [Invite person]
-
-  INVITE PERSON          REMOVE BO?
-  Email [             ]  All Bo's computers stop
-  Role  [Member       ]  Past notes stay credited
-  [Create invitation]    [Remove member]  Cancel
-
-  REVIEW LOGIN LINK       CHANGE ROLE
-  New verified login      Bo · current: Member
-  Existing person [Ana]   New role [Reader]
-  Evidence [          ]   Existing grants narrow now
-  Old computers stop      More access needs approval
-  [Confirm identity link] [Change role]  Cancel
-
-  DONE                    INVITATION PENDING
-  Device revoked /        Person must sign in before
-  member removed /        connecting a computer
-  identity or role saved  App login may need an update
-  [View devices]          [Back to people]
+  authorized setup ──▶ machine credential ──▶ memory
+  arbitrary clone  ──▶ no credential       ──▶ denied
+  revoke machine   ──▶ old credential      ──▶ denied
   ```
 
-- **Move existing memory with its history intact. BREAKING:** existing computers must reconnect. Old emails, GitHub accounts, and keys are evidence for an owner-reviewed migration, never automatic claims to private notes. Uncertain ownership stays protected for an admin to resolve. A failed migration pauses memory instead of reopening old access.
+- **Keep history safe when updating. BREAKING:** replace GitHub/email-derived access with installation-owned machine grants. Preserve authored notes and transcripts; review evidence before attaching old private history to a machine. Uncertain history stays restricted. The new runtime and safe cutover remain unfinished.
   ```text
-  existing facts and transcripts
-                  │
-       preserve text and attribution
-                  │
-          review ownership evidence
-             ┌────┴────┐
-             ▼         ▼
-          proven     uncertain
-             │         │
-             ▼         ▼
-       link person   admin-only review
-  ```
-
-- **Devices ships with regular WongStack.** New and updated installations get the mini app, setup guidance, and recovery steps. No hosted WongStack account is needed. Email alone cannot find an installation; a new computer needs its app address. Loading and failures always explain the next step.
-  ```text
-  WongStack template ──▶ your app / Devices
-                             │
-                       your login and memory
-
-  NO DEVICES                 LOADING
-  Connect from chat          Loading devices…
-  [Copy request]             Actions wait
-
-  COULD NOT LOAD             WRONG ACCOUNT / REQUEST
-  Devices unavailable       Request unavailable
-  [Retry]                   Check app and login
-                            [Back to devices]
+  old notes + transcripts
+           │
+       preserve history
+           │
+    evidence-backed mapping
+       ┌───┴────┐
+       ▼        ▼
+    machine   restricted review
   ```
 
 ## Capabilities
 
 ### New Capabilities
 
-- `installation-identity`: installation-owned principals, explicit membership, owner bootstrap and identity recovery.
-- `memory-devices`: human approval, machine credential lifecycle, Devices screens and route isolation.
+- `installation-identity`: stable machine principals and installation-controlled machine authorization; employee labels are optional metadata.
+- `memory-devices`: unattended machine enrollment, scoped credentials, renewal and revocation; this capability has no Devices UI.
 
 ### Modified Capabilities
 
-- `memory`: principal ownership and visibility, replacement of GitHub join/admin grants, safe historic mappings.
-- `cloudflare-provisioning`: pending memory setup, exact route protection, verified human claims and disposable verification.
-- `mini-apps`: built-in Devices UI using privileged core APIs while ordinary handlers still lack memory bindings.
-- `install-onboarding`: standalone and server setup report pending human approval rather than minting an admin key.
-- `payload-layout`: Devices and its core dependency set ship together and adapt safely on update.
+- `memory`: machine ownership, team privacy, automatic capture and safe replacement of GitHub/email authority.
+- `cloudflare-provisioning`: pinned production-only memory routes and trusted machine setup.
+- `install-onboarding`: unattended enrollment and honest readiness for the initiating machine.
+- `payload-layout`: ship the complete machine-memory dependency set without an approval mini app.
 
 ## Impact
 
-Implementation workspace: `installation-owned-memory-devices`, branch `installation-owned-memory-devices`, based directly on main at `3d9f248d439d7108ec0d56fa0ac352f7aa0cdaf9` (29.10.0). The full unfinished memory/Devices feature now has its own draft PR; Artifacts migration remains in [PR #238](https://github.com/matthewwong525/WongStack/pull/238). Historical combined-branch source gates and immutable snapshots retain their original revisions and limitations; neither split revision inherits a passing gate.
+The full unfinished feature remains in draft [PR #242](https://github.com/matthewwong525/WongStack/pull/242), branch `installation-owned-memory-devices`, based on main `3d9f248d439d7108ec0d56fa0ac352f7aa0cdaf9`. [PR #238](https://github.com/matthewwong525/WongStack/pull/238) retains Artifacts hosting and migration. Current work removes the frontend and corrects the plan; it does not claim that machine-only enrollment or capture is implemented.
 
-Memory migrations, SQL guards, transcripts, CLI, hooks, app identity guard and routing; new Devices frontend and core auth handlers; setup/provisioning and source-only server installer; Access coverage/deploy checks, payload inventory, sync guidance, docs and tests. No new hosted backend. A major release will describe reconnection and ownership review; this checkpoint starts with additive schema preparation; runtime activation remains pending.
-
-Non-goals: production publication without a later ship instruction; Git hosting migration; a central account directory; changes to wongstack-cloud or treating the Artifacts test identity adapter as real login; replacing Cloudflare Access as the existing app login.
+Future coordinated work covers forward schema/manifest and probe contracts, core authorization, credentials, every CLI/query/hook/transcript path, trusted setup, server provisioning, migration, payload and recovery documentation. No cloud account requirement, Git migration, provider execution, new credentials or production publication follows from this checkpoint. Existing schema11 and historical source snapshots remain inactive and unchanged; their gates do not prove the revised runtime.
 
 ## Decision log
 
@@ -213,3 +121,11 @@ Non-goals: production publication without a later ship instruction; Git hosting 
 - **2026-10-03** — Checkpoint `1dd61e55ca5b6ed141bf1b74c74760c9d5a28f2a` passed payload/script and release checks (1,104 tests), but app lint/type checks failed before UI tests ran. Repair by separating focused request/list screens, using keyed screen lifetimes and captured render time, and correcting the test selector; retain all existing limits and failure assertions. Tasks 5.1–5.3 remain unchecked pending their exact remote gate and UI evidence.
 
 - **2026-10-03** — Repair checkpoint `d25479662f8ac427634843db4bc50319af313511` passed app lint with zero warnings/errors and ran 147 app tests: 143 passed; four Devices cases exposed incomplete lazy-route waiting and fake-clock test scheduling. Its build also found a request-status narrowing error. Correct the type branch and deterministic test setup without removing expiry, loading, revocation or privacy assertions; retain the remote gate and unchanged coverage floors.
+
+- **2026-10-03** — User chose machine-private memory with shared team memory and asked to remove Devices because approval adds friction. This supersedes person-owned private memory, mandatory app login, matching-code approval and the 90-day human reapproval rule; remove the mini app and revise the full unfinished feature in place.
+- **2026-10-03** — Assumed: machine identity is durable private OS-user state scoped to installation/repository, not a hardware fingerprint, because names and fingerprints do not prove access. Optional employee labels never authorize or merge memory.
+- **2026-10-03** — Assumed: trusted setup enrolls the initiating machine and normal sessions renew automatically while its grant remains active, because the requested low-friction flow must still protect shared memory from arbitrary clones. Revocation requires fresh authorized setup, not automatic reenrollment.
+- **2026-10-03** — Check: retire the Devices frontend together with its frontend-specific tests because that feature is explicitly removed. Keep generic mini-app routing/registry tests and all app/payload coverage floors, includes and exclusions; no test configuration is loosened.
+- **2026-10-03** — Preserve schema0001–0011, source fixtures, immutable3a/2206/32a snapshots and private authority byte-for-byte. Their human-owner contracts are historical preparation; a separately coordinated forward schema/manifest/probe design is required before machine-only runtime activation. Current source slice is removal and planning only; all provider/private phases remain reserved.
+
+- **2026-10-03** — Removal checkpoint: source-only scope is the retired frontend, payload/docs/release/retirement inventory and the revised active plan. Existing source/runtime/operator/schema files are unchanged. Main spec reconciliation and areas stay deferred until the new runtime is implemented; memory session facts are skipped because the old join-capable client must not be invoked during this authorization redesign.
