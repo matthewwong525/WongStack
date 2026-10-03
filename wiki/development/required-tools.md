@@ -81,6 +81,12 @@ Setup and a first hand-over install it from Cloudflare's own channel:
   chmod +x ~/.local/bin/cloudflared
   ```
 
+## Optional Cloudflare management tool
+
+The assistant uses [Cloudflare's cf CLI](../stack/cloudflare-cli.md) when an authorized task needs account inspection or one-off resource management. It installs this optional tool on its computer at the point of need, under the existing installation convention. The guide owns installation, account selection, and command discovery.
+
+cf adds no requirement to the core tools, fresh setup, server installer, or project dependencies. Automated provisioning and app publishing keep their existing tools. A scoped or hosted workspace keeps its existing access; missing account-management credentials do not call for customer sign-in.
+
 ## The Cloudflare stack pack
 
 One exception, and its tools stay in CI. Every new install takes the Cloudflare stack pack, documented under `wiki/stack/`. It ships a handful of scripts that run `node`/`npm` and `wrangler` and expect a Cloudflare account. **Its tools are its own:** they run **only in that repo's own build and CI**, in the pipeline scripts under `scripts/` that migrate and deploy. Nothing on your machine runs them.
