@@ -125,7 +125,7 @@ Verified <N> scenario(s) against <url> at `<short-sha>`, <f> shown in full and <
 `landing` → `empty form` → `after submitting empty`
 The message appears and the list is unchanged.
 
-![after submitting empty](<url-or-path>)
+Pictures (log in to open): [landing](<url>) · [empty form](<url>) · [after submitting empty](<url>)
 
 ### ✅ Creating without a title answers 422 — request
 > **THEN** the endpoint answers 422 and no note is created
@@ -139,7 +139,7 @@ The message appears and the list is unchanged.
 **Shown:** "Hello, Sam!" sits under the button, and the field still holds "Sam".
 **Not shown:** *announced* — the page marks the greeting for screen readers, but nothing here can hear it.
 
-![after submit](<url-or-path>)
+Pictures (log in to open): [after submit](<url>)
 
 ### ❌ A note can be deleted — browser
 > **THEN** the note disappears from the list and the count drops to 2
@@ -147,7 +147,7 @@ The message appears and the list is unchanged.
 `landing` → `open note` → `after delete`
 The note is still listed and the count still reads 3.
 
-![after delete](<url-or-path>)
+Pictures (log in to open): [after delete](<url>)
 
 ### ⛔ Unverified
 - *Imports are processed from the queue* — no existing command reads the queue's effect; its e2e home is a CI test.
@@ -163,6 +163,10 @@ gh pr comment --body-file "$RUN_DIR/comment.md"
 bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" cleanup "$RUN_DIR"
 ```
 
-- **`RESULT: WALKED`** → it printed `<local-path>\t<public-url>` per file; substitute them into the comment before posting, so screenshots render inline.
-- **`RESULT: NONE`** (no `WALK_MEDIA_BUCKET`) → cite the local paths; **not** a failure.
-- Request- and state-probe evidence is text, quoted inline; only screenshots go through `publish`. The walk records no video.
+`publish` prints `<local-path>\t<url>` per kept screenshot, then `MEDIA=`:
+
+- **`private`** → fill each `Pictures` line with a link per kept file, labelled from its name.
+- **`public`** → replace each `Pictures` line with `![<label>](<url>)` per file.
+- **`none`** → drop the `Pictures` lines; with `REASON=`, write `Pictures were not kept: <reason>.` under the summary and in the chat. Not a failure.
+- Leave out a screenshot with no URL. **Never cite a local path**: `cleanup` deletes it.
+- Other evidence is text, quoted inline. No video.
