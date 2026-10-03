@@ -1,5 +1,6 @@
 // Verify signed Access identity before all business content; memory keeps its own keys.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
+import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/worker/walk-pictures.mjs";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv } from "./access.ts";
@@ -25,6 +26,13 @@ export default {
         status: configured ? 401 : 503,
         headers: { "Cache-Control": "no-store" },
       });
+    }
+
+    // A preview check's kept pictures, served from the verify skill. The route
+    // gets the memory bucket alone and reaches only its walks/ folder.
+    // wiki/development/staging-walkthrough.md
+    if (url.pathname.startsWith(WALK_PREFIX)) {
+      return handleWalkPictures(request, env.MEMORY_BUCKET, identity);
     }
 
     // Mini apps: the home page lists them, so /apps/ goes there. Each app's
