@@ -32,6 +32,6 @@
 
 ## 6. Gate and live check
 
-- [ ] 6.1 Run `/save` for the CI gate; verify the script tests, the app's `npm test` chain, and the payload checks pass on the pushed commit.
-- [ ] 6.2 Run `/save` then `/verify` on this change's preview; verify the comment says the pictures were not kept because the live site does not serve them yet, names no local path, and the verdict stands on its own.
+- [x] 6.1 Run `/save` for the CI gate; verify the script tests, the app's `npm test` chain, and the payload checks pass on the pushed commit.
+- [x] 6.2 Run `/save` then `/verify` on this change's preview; verify the comment says the pictures were not kept because the live site does not serve them yet, names no local path, and the verdict stands on its own.
 - [ ] 6.3 After the merge is live, run `/verify` once on any open pull request with a browser journey; verify its comment links each picture, a link opens after the app's login and answers `401` without one, and asking in chat for that pull request's pictures shows them. Record the result in the Decision log, or leave an open thread naming who checks it.
