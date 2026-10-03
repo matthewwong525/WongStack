@@ -21,7 +21,9 @@ if git config --local --name-only --list | grep -Eiq '(credential|extraheader|in
 }
 export async function readResult(logs, sha, projectId, exitCode) {
   need(exitCode === 0, 'Remote checks failed');
-  const stdout = typeof logs.stdout === 'string' ? logs.stdout : await new Response(logs.stdout).text();
+  // The SDK releases a successful runner after both log streams are consumed.
+  const [stdout, stderr] = await Promise.all([typeof logs.stdout === 'string' ? logs.stdout : new Response(logs.stdout).text(), typeof logs.stderr === 'string' ? logs.stderr : new Response(logs.stderr).text()]);
+  need(stderr.length <= 2 * 1024 * 1024, 'Runner diagnostics exceed bounded result size');
   need(stdout.length <= 2 * 1024 * 1024, 'Runner logs exceed bounded result size');
   const rows = stdout.split('\n').filter(line => line.startsWith('HOSTED_RESULT='));
   need(rows.length === 1, 'Remote bundle receipt unreadable');

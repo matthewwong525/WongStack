@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { prepareGitContext, prepareGitCommand, checksBase, readGitContext } from '../../server/hosted/git-context.mjs';
 import { trackedSourceAdapter } from '../../server/hosted/source-checkout.mjs';
-import { buildCommand, runHostedPipeline } from '../../server/hosted/pipeline.mjs';
+import { buildCommand, runHostedPipeline, readResult } from '../../server/hosted/pipeline.mjs';
 import { fixture, sha, older, ref, projectId, config } from './hosted-runtime-fixture.mjs';
 import { ProjectService } from '../../server/hosted/service.mjs';
 
@@ -242,4 +242,20 @@ test('workflow controller operations use supported durable steps and do not remi
   await workflow.pipeline(event, step, ci); await workflow.pipeline(event, step, ci);
   assert.deepEqual(calls, ['start', 'prepare-git', 'ready-git', 'fail']);
   assert.equal(typeof HostedCI.getProvider().create(workflow.env).getSourceCheckout, 'function');
+});
+
+
+test('both receipt readers drain both SDK streams so a successful runner can be destroyed', async () => {
+  for (const preparation of [true, false]) {
+    const drained = [];
+    const stream = (name, text) => new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(text)); controller.close(); }, cancel() { drained.push(name + '-cancel'); } });
+    const counted = (name, text) => stream(name, text).pipeThrough(new TransformStream({ transform(chunk, controller) { controller.enqueue(chunk); }, flush() { drained.push(name); } }));
+    const receipt = preparation ? { prepared: true, sha, projectId, base: older } : { sha, projectId, digest: 'a'.repeat(64) };
+    const logs = { stdout: counted('stdout', (preparation ? 'HOSTED_GIT_CONTEXT=' : 'HOSTED_RESULT=') + JSON.stringify(receipt)), stderr: counted('stderr', 'private provider diagnostics') };
+    if (preparation) await readGitContext({ exitCode: 0, runner: async () => {}, logs }, sha, projectId, older);
+    else await readResult(logs, sha, projectId, 0);
+    assert.deepEqual(drained.sort(), ['stderr', 'stdout']);
+  }
+  await assert.rejects(readGitContext({ exitCode: 0, runner: async () => {}, logs: { stdout: '', stderr: 'x'.repeat(65536) } }, sha, projectId, older), /diagnostics exceed/);
+  await assert.rejects(readResult({ stdout: '', stderr: 'x'.repeat(2 * 1024 * 1024 + 1) }, sha, projectId, 0), /diagnostics exceed/);
 });

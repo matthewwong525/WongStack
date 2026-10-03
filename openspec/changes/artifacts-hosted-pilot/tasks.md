@@ -116,5 +116,9 @@ Current wh1005 acceptance: user-dependent checks are explicitly waived and SKIPP
 
 wh1005 CLOSED before its bound: actual setup and repository push succeeded; actual remote app assertions passed but normal parser/Git context defects failed the candidate. Export/restore, native cancellation/revocation and full owned teardown passed. See [actual closeout](hosted-migration-evidence.md#wh1005-actual-shared-setup-trial-closed). No preview/publication or complete end-to-end acceptance is claimed.
 
-- [ ] 12.12 Repair the demonstrated Knip allocation and missing Git context failures; source-gate trusted metadata preparation, exact base selection, tracked/revoked read credentials, failure/stop handling and an independently credential-free build snapshot. Preserve every shared analysis/audit and run full checks for an initial main save.
+- [x] 12.12 Repair the demonstrated Knip allocation and missing Git context failures; source-gate trusted metadata preparation, exact base selection, tracked/revoked read credentials, failure/stop handling and an independently credential-free build snapshot. Preserve every shared analysis/audit and run full checks for an initial main save.
 - [ ] 12.13 Separately validate the corrected actual remote pipeline under a newly reviewed finite trial, then finish private preview, automated privacy/publication/next-change acceptance and cleanup. Human-participation cases stay waived and SKIPPED/UNVERIFIED. No closed wh1005 resources or credentials are reused.
+
+Source gate for task12.12: exact `b715234c6bf28fb03881caf0a34d98dc111f7ef7` passed required push Deploy37149848860/Test37149848847/Payload37149848859; 1,141 script cases, zero failures/skips, 92.42% lines and 88.57% branches with unchanged floors/includes/exclusions. Real local Git and actual pinned SDK overlay regressions passed remotely. Corrected provider/R2 pipeline acceptance remains task12.13, unexecuted.
+
+- [ ] 12.14 Consume both successful SDK log streams for preparation and build receipt readers, preserving diagnostic-size bounds without exposing stderr; prove both stream completions remotely so SDK sandbox destruction can finish.

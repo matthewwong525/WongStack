@@ -69,7 +69,9 @@ export function prepareGitCommand(sha, projectId, base, remote) {
 
 export async function readGitContext(result, sha, projectId, base) {
   need(result.exitCode === 0 && typeof result.runner === 'function', 'Trusted Git preparation failed');
-  const stdout = typeof result.logs?.stdout === 'string' ? result.logs.stdout : await new Response(result.logs?.stdout).text();
+  // SDK destruction waits for every streamed log. Drain stderr too, without exposing it.
+  const [stdout, stderr] = await Promise.all([typeof result.logs?.stdout === 'string' ? result.logs.stdout : new Response(result.logs?.stdout).text(), typeof result.logs?.stderr === 'string' ? result.logs.stderr : new Response(result.logs?.stderr).text()]);
+  need(stderr.length < 65536, 'Git preparation diagnostics exceed bound');
   need(stdout.length < 65536, 'Git preparation receipt exceeds bound');
   const rows = stdout.split('\n').filter(line => line.startsWith('HOSTED_GIT_CONTEXT='));
   need(rows.length === 1, 'Git preparation receipt unreadable');
