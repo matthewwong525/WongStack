@@ -1,0 +1,11 @@
+{
+  "Submitting with no title is rejected": "broken",
+  "Deleting a note lowers the count": "broken",
+  "Creating without a title answers 422": "broken",
+  "A new note stays in the list": "broken",
+  "Searching shows only matches": "broken",
+  "A renamed note shows its new title": "works",
+  "The list API counts its notes": "works",
+  "An archived note moves to Archived": "works",
+  "Saving shows a Saved badge": "works"
+}

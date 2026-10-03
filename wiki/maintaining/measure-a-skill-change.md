@@ -1,0 +1,55 @@
+# Measure a skill change
+
+Measuring a skill change means running the skill's instructions against a practice site with planted mistakes, before and after your edit, and keeping the edit only if it catches clearly more. One skill has a practice site today: [`/verify`](../../.agents/skills/verify/SKILL.md), through [`scripts/eval-verify.mjs`](../../scripts/eval-verify.mjs).
+
+## When to measure
+
+Measure before you change how the walk [writes journeys](../../.agents/skills/verify/references/walkthrough.md#b--write-the-journeys) or [grades evidence](../../.agents/skills/verify/references/walkthrough.md#d--grade-against-the-written-expectation). Those two sections are judgment, and a test can't tell a sharper instruction from a longer one. Script work, like finding the preview, needs a test instead.
+
+Run it by hand, never in CI: every run is a paid agent session.
+
+## Run it
+
+```bash
+node scripts/eval-verify.mjs --label baseline
+node scripts/eval-verify.mjs --label my-idea --reference path/to/candidate.md
+```
+
+The first line measures [the live walkthrough reference](../../.agents/skills/verify/references/walkthrough.md). The second measures a candidate: a full copy of that file with your edit, kept in your change's folder. The live skill changes only after the numbers are in.
+
+Each line makes three runs. Add `--runs 1` for a smoke test.
+
+A run does this:
+
+1. Starts [the practice site](../../scripts/fixtures/verify-eval/site.mjs), a small notes app that makes [nine promises](../../scripts/fixtures/verify-eval/change/specs/notes/spec.md). Five are quietly broken; four work.
+2. Hands a headless agent the promises, the site, and the reference, in a temp folder outside the repo. The agent never sees [the answers](../../scripts/fixtures/verify-eval/key.json).
+3. Scores the agent's verdicts against the answers.
+
+## Read the table
+
+| run | caught | missed | false alarms | asked | minutes | cost |
+|---|---|---|---|---|---|---|
+| 1 | 3/5 | 2 | 0/4 | 0 | 6.2 | $1.10 |
+| 2 | 2/5 | 2 | 1/4 | 1 | 5.8 | $1.05 |
+| 3 | 4/5 | 1 | 0/4 | 0 | 6.9 | $1.25 |
+| total | 9/15 | 5 | 1/12 | 1 | 18.9 | $3.40 |
+
+- **caught**: broken promises the agent failed. Higher is better.
+- **missed**: broken promises it passed, or never graded.
+- **false alarms**: working promises it failed. One working promise is slow on purpose, so a journey that doesn't wait shows up here.
+- **asked**: promises it sent to a person. Counted apart, never as caught.
+- **minutes** and **cost**: the wall time, and what the agent reported spending.
+
+The last line printed names `results.json`, which holds each promise's verdict. Each run's verdicts and agent output sit beside it.
+
+## The keep rule
+
+Write the rule down before the first run: a rule chosen after the numbers bends toward the idea you like.
+
+1. **Measure the live reference first.** If it catches every planted mistake with at most 1 false alarm, the test is too easy. Make the planted mistakes harder once and rerun. Still perfect: change no skill file.
+2. **Keep a candidate** only if it catches at least 2 more of the 15 planted mistakes than the version before it, and false alarms rise by at most 1.
+3. **Drop anything else.** A smaller gap across three runs is noise; report it as no clear gain.
+
+Put each table in the change's record with the date, the model, and the cost, whichever way it goes.
+
+Part of [maintaining WongStack](README.md).
