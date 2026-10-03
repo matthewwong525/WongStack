@@ -32,7 +32,7 @@ export async function prepareProject(job,{home=process.env.HOME,user=process.env
     const command=(file,args)=>exec(file,args,{cwd:dir,env,timeout:20*60_000});
     step='dependencies';
     // Never replace a locally edited dependency contract with a frozen install.
-    const changed=(await command('git',['diff','HEAD','--','package.json','package-lock.json'])).stdout.trim();
+    const changed=(await command('git',['diff','HEAD','--','package.json','package-lock.json','.nvmrc'])).stdout.trim();
     if(changed)return {...report,reason:'dependencies'};
     const manifest=join(dir,'package.json'),lock=join(dir,'package-lock.json');
     if(!existsSync(manifest)||!existsSync(lock))return {...report,reason:'unsupported'};
@@ -40,10 +40,22 @@ export async function prepareProject(job,{home=process.env.HOME,user=process.env
     const packageText=regular(manifest,uid),lockText=regular(lock,uid,16*1024*1024);
     const packageJson=JSON.parse(packageText),lockJson=JSON.parse(lockText);
     if(![2,3].includes(lockJson.lockfileVersion)||(packageJson.packageManager&&!packageJson.packageManager.startsWith('npm@'))||['yarn.lock','pnpm-lock.yaml','pyproject.toml','requirements.txt'].some(file=>existsSync(join(dir,file))))return {...report,reason:'unsupported'};
+    const runtimePath=join(dir,'.nvmrc');noLinks(runtimePath);
+    let runtimeText='';
+    if(existsSync(runtimePath)) {
+      runtimeText=regular(runtimePath,uid,1024);
+      try{await command('git',['ls-files','--error-unmatch','.nvmrc']);}catch{return {...report,reason:'dependencies'};}
+    }
+    const nodeVersion=(await command('node',['--version'])).stdout.trim();
+    if(runtimeText) {
+      const declared=/^v?(22|24)(?:\.\d+(?:\.\d+)?)?$/.exec(runtimeText.trim());
+      const actual=/^v(\d+)\.\d+\.\d+$/.exec(nodeVersion);
+      if(!declared||!actual||declared[1]!==actual[1])return {...report,reason:'unsupported'};
+    }else if(existsSync(runtimePath))return {...report,reason:'unsupported'};
     const file=stateFile(home,uid,job.repo);noLinks(file);
     let state={};if(existsSync(file))state=JSON.parse(regular(file,uid,8192));
-    const version=(await command('node',['--version'])).stdout+(await command('npm',['--version'])).stdout;
-    const fingerprint=createHash('sha256').update(packageText).update(lockText).update(version).digest('hex');
+    const version=nodeVersion+(await command('npm',['--version'])).stdout;
+    const fingerprint=createHash('sha256').update(packageText).update(lockText).update('\0nvmrc:').update(runtimeText).update(version).digest('hex');
     const saveState=()=>{const temporary=`${file}.${randomUUID()}.tmp`;noLinks(temporary);writeFileSync(temporary,JSON.stringify(state),{mode:0o600,flag:'wx'});renameSync(temporary,file);};
     if(state.dependencies!==fingerprint||!existsSync(join(dir,'node_modules'))) {
       try {await command('npm',['ci','--no-audit','--no-fund']);}catch{return {...report,dependencies:'failed',reason:'dependencies'};}

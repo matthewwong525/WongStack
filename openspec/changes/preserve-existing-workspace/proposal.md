@@ -56,3 +56,5 @@ Existing server setup overwrites shared tools and the Paseo service, while the s
 
 - **2026-10-03** — Preserved project readiness includes the same fixed Claude/Codex sign-in workspaces and terminals as fresh setup. Retry looks up workspace/terminal metadata, keeps existing terminals untouched, and records newly created terminals before delivering their fixed sign-in command; no terminal contents or AI credentials are read.
 - **2026-10-03** — Updater fixtures now name every pin explicitly, including preservation setup, so the fresh and preserved OpenSpec checks continue updating together without positional fixture assumptions.
+
+- **2026-10-03** — Project preparation checks an owned, regular, tracked `.nvmrc` when present and requires its supported Node major (22 or 24) to match the effective workspace runtime before npm ci. Dirty declarations refuse; runtime declarations participate in the retry fingerprint. A mismatch requests input without replacing global Node.

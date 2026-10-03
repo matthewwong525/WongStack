@@ -28,9 +28,10 @@ function box(options={}) {
   if(args.includes('--absolute-git-dir'))return answer(options.gitDir??join(dir,'.git'));
   if(args.includes('get-url'))return answer(options.origin??'git@github.com:Owner/repo.git');
   if(args.includes('diff'))return answer(options.changed??'');
+  if(options.untrackedNvmrc&&args.includes('ls-files')&&args.includes('.nvmrc'))throw Error('untracked runtime');
   if(args.includes('clone')){folder(dir);folder(join(dir,'.git'));return answer('');}
   if(file==='npm'&&args.includes('ci')){folder(join(dir,'node_modules'));return answer('');}
-  if(args.includes('--version'))return answer('22.19.0');
+  if(args.includes('--version'))return answer(file==='node'?options.nodeVersion??'v22.19.0':'10.9.0');
   if(file==='paseo') {
    if(args[0]==='project'&&args[1]==='ls')return answer(projects);
    if(args[0]==='project'&&args[1]==='create'){projects.push({path:dir});return answer({projectId:'p1',path:dir});}
@@ -150,4 +151,30 @@ test('preserved preparation creates canonical sign-in terminals, reuses existing
    assert.ok(!b.calls.some(value=>value.args.includes('capture')));assert.equal(b.calls.filter(value=>value.file==='npm'&&value.args.includes('ci')).length,1);
   }finally{b.close();}
  }
+});
+
+
+test('tracked owned .nvmrc matches the effective supported Node major before frozen install without replacing runtime',async()=>{
+ for(const [declaration,nodeVersion,ready] of [['22','v22.19.0',true],['v22.1.0','v22.19.0',true],['24','v24.0.0',true],['22','v24.0.0',false],['18','v18.20.0',false],['lts/*','v22.19.0',false],['','v22.19.0',false]]) {
+  const b=box({nodeVersion});try {
+   b.put(join(b.dir,'.nvmrc'),declaration);b.contract({version:1,requiredSettings:[]});const result=await prepareProject(job,b);
+   assert.equal(result.dependencies,ready?'done':'needs_input');if(!ready)assert.equal(result.reason,'unsupported');
+   assert.equal(b.calls.filter(value=>value.file==='npm'&&value.args.includes('ci')).length,ready?1:0);
+   assert.ok(b.calls.some(value=>value.args.includes('diff')&&value.args.includes('.nvmrc')));assert.ok(b.calls.some(value=>value.args.includes('ls-files')&&value.args.includes('.nvmrc')));
+   assert.ok(!b.calls.some(value=>value.file==='apt-get'||value.args.includes('install')||value.file==='nvm'));
+  }finally{b.close();}
+ }
+});
+test('dirty, untracked, symlinked or nonregular runtime declarations refuse and a reviewed declaration change refreshes fingerprint',async()=>{
+ for(const options of [{changed:' .nvmrc'},{untrackedNvmrc:true},{symlink:true},{directory:true}]) {
+  const b=box(options);try {
+   if(options.symlink){const target=join(b.root,'nvmrc');b.put(target,'22');symlinkSync(target,join(b.dir,'.nvmrc'));}
+   else if(options.directory)mkdirSync(join(b.dir,'.nvmrc'));else b.put(join(b.dir,'.nvmrc'),'22');
+   const result=await prepareProject(job,b);assert.equal(result.clone,'done');assert.notEqual(result.dependencies,'done');assert.equal(b.calls.filter(value=>value.file==='npm'&&value.args.includes('ci')).length,0);
+  }finally{b.close();}
+ }
+ const b=box();try {
+  b.put(join(b.dir,'.nvmrc'),'22');b.contract({version:1,requiredSettings:[]});await prepareProject(job,b);await prepareProject(job,b);assert.equal(b.calls.filter(value=>value.args.includes('ci')).length,1);
+  b.put(join(b.dir,'.nvmrc'),'v22');await prepareProject(job,b);assert.equal(b.calls.filter(value=>value.args.includes('ci')).length,2);
+ }finally{b.close();}
 });
