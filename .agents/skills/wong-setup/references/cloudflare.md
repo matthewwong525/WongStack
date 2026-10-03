@@ -206,14 +206,14 @@ One list owns these steps; [without R2](../../../../wiki/development/memory.md#w
 Optional: add a card to Cloudflare
 Free plans; light use costs nothing. Without it, anyone with
 the link can see your site, and memory keeps no full chat
-transcripts.
+transcripts or pictures from a preview check.
 1. Add a card        https://dash.cloudflare.com/<account>/billing/payment-info
 2. Turn on storage   https://dash.cloudflare.com/<account>/r2/overview
 3. Pick Free plan    https://one.dash.cloudflare.com/<account>/
 Tell me when it's done.
 ```
 
-Name only what the missing steps cost: an account with R2 but an open site loses no transcripts. The person opens the links in their own browser; never enter the card for them.
+Name only what the missing steps cost: an account with R2 but an open site loses no transcripts, though a check's pictures wait for the login. The person opens the links in their own browser; never enter the card for them.
 
 ## Adding the card later
 

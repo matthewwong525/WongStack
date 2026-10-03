@@ -13,6 +13,28 @@ This feature is still in progress. The Devices approval mini app has been remove
 
 **Updating.** When this feature is ready, use trusted machine setup and the reviewed legacy migration. Memory may pause during cutover. Old keys will be retired only after verified replacement, and a clone, typed email or machine name will never claim old private notes.
 
+## 29.13.1 — A check that needs the published change is a thread
+
+- The preview check page says what to do with a check only the published change can pass: record it as an open thread and run it right after publishing, not as a task that can never be ticked.
+
+**Updating.** No action needed.
+
+## 29.13.0 — Keep the pictures from a preview check
+
+- A preview check keeps its pictures. They go into the private storage that holds the chat transcripts, and the report on the pull request links each one. Only people who can log in to your app can open a link.
+- Ask in chat for a past check's pictures, and the assistant shows them again.
+- When pictures aren't kept, the report says so and why: the Cloudflare account has no storage, the site has no login yet, or the live site doesn't serve them yet. It no longer names a file that is already deleted, and the verdict is unaffected.
+
+**Updating.** The update adds two lines to the app's entry file, `app/worker/index.ts`: one loads the picture route, and one sends `/_walk/` addresses to it after the login check. Pictures are kept from the first check after your next publish; until then the report says the live site doesn't serve them yet. A public picture folder (`WALK_MEDIA_BUCKET` and `WALK_MEDIA_BASE_URL`) keeps working and still shows its pictures inside the report.
+
+## 29.12.0 — The preview check says how much it showed
+
+- When part of a promise can't be shown on the preview, such as an email being sent, the check marks that promise *partly shown* and names the part, in place of a plain pass. The overall result is still a pass when nothing was contradicted.
+- Passwords, keys, and tokens are removed from a check's evidence and its report before anything is posted.
+- The page that explains how the check works states what was measured: fresh agents walked 20 past checks again and disagreed with none, and the check passed none of 30 planted mistakes.
+
+**Updating.** No action needed. Reports on your pull requests gain a "partly shown" mark and, when something was removed, a line saying so.
+
 ## 29.11.0 — Keep an existing server and private project
 
 - Hosts can check and prepare an existing Ubuntu workspace without replacing compatible tools, services, files or GitHub identities.

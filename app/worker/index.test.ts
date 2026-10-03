@@ -1,5 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppHandler } from "./apps/index";
 import worker from "./index";
+
+// Hello's routes, plus one that reports which bindings a mini app's handler is handed.
+vi.mock("./apps/hello/api.ts", async (original) => {
+  const { routes } = await original<{ routes: Map<string, AppHandler> }>();
+  return { routes: new Map(routes).set("GET peek", (_request, appEnv) => Response.json({ env: Object.keys(appEnv).sort() })) };
+});
 
 const TEAM = "routing-team.cloudflareaccess.com";
 const AUD = "routing-workspace";
@@ -100,6 +107,28 @@ describe("private Worker routing", () => {
       "/_memory/": [404, {success:false,code:"memory-route-denied"}, 404, {success:false,code:"memory-route-denied"}],
     });
     expect(assets.fetch).toHaveBeenCalledTimes(6);
+  });
+  it("serves a check's kept pictures only behind the login, from a bucket no mini app is handed", async () => {
+    const picture = "/_walk/abc1234/20261003T140000Z/empty-title/03-after.png";
+    const get = vi.fn(async () => ({ body: new Blob(["png"]).stream() }));
+    const walkEnv = { ...env, MEMORY_BUCKET: { get } };
+    expect((await call(picture, {}, walkEnv)).status).toBe(401);
+    const open = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_BUCKET: { get } } as unknown as typeof env;
+    expect((await call(picture, {}, open)).status).toBe(404);
+    expect(get).not.toHaveBeenCalled();
+
+    const headers = { "Cf-Access-Jwt-Assertion": await token() };
+    const shown = await call(picture, headers, walkEnv);
+    expect(shown.status).toBe(200);
+    expect(shown.headers.get("Content-Type")).toBe("image/png");
+    expect(await shown.text()).toBe("png");
+    expect(get).toHaveBeenCalledWith("walks/abc1234/20261003T140000Z/empty-title/03-after.png");
+    expect(await (await call("/_walk/sessions/owner@example.com/chat.jsonl", headers, walkEnv)).text()).toBe("Not found");
+    expect(get).toHaveBeenCalledTimes(1);
+
+    const peek = await call("/apps/hello/api/peek", headers, walkEnv);
+    expect(await peek.json()).toEqual({ env: ["ASSETS", "CF_ACCESS_AUD", "CF_ACCESS_TEAM_DOMAIN"] });
+    expect(assets.fetch).not.toHaveBeenCalled();
   });
   it("denies wrong-audience and tampered signatures at the origin", async () => {
     const wrong = await token({ email: "human@example.com", aud: "another-workspace" });

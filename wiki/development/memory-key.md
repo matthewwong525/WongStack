@@ -10,6 +10,8 @@ Readers write privately. Members also share work facts. User and feedback facts 
 
 State follows the same OS user and installation/repository pins across worktrees, restarts and clones; routing config alone grants nothing. Storage refuses foreign ownership, writable parents, links and permissive files. POSIX uses 0700 directories and 0600 files; Windows checks native protected owner ACLs. Live loopback Node handles serialize writers without transferring data and release automatically after a crash.
 
+A failed production deployment pauses memory; the machine-bound queues retain exact pending attempts for a later authorized retry. The app's code shares the Worker with memory, so source review remains necessary even with stripped mini-app bindings and `disallow_importable_env`. The protected [preview-check picture route](staging-walkthrough.md#what-a-walk-needs) receives the bucket alone and matches only its `walks/` folder; it cannot reach private transcript addresses or memory authorization.
+
 Queues precommit exact attempts before HTTP. Only completed exact receipts count as stored. Fresh own signed status recovers completion or proves genuine absence before replacing an expired unsent candidate. Incomplete/conflicting operations stay closed; revoked queues quarantine and never reenroll automatically. Raw addresses include session, credential generation and content hash; confirmed old staged addresses become honest orphans before a new generation opens one. Completed published addresses remain retained.
 
 ## Joining through GitHub
