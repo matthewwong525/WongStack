@@ -528,7 +528,7 @@ async function deployToken(cf, account, name, rows, groups, { secretSet, setSecr
  * on without Access; a site already private never opens, and a rerun that gets the organization turns an
  * open config private.
  */
-export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env }) {
+export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep: _sleep = wait, exec = run, env = process.env }) {
   const cf = cloudflare(token, { api, fetch });
   const n = namesFor(base);
   const report = { base, names: n, r2: false, created: [], reused: [], updated: [], todo: [] };

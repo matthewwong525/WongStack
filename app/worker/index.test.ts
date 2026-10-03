@@ -118,4 +118,38 @@ describe("private Worker routing", () => {
     }
     expect(read).not.toHaveBeenCalled();expect(assets.fetch).not.toHaveBeenCalled();
   });
+  it("inspects an encoded memory prefix even when its remaining path is malformed", async () => {
+    const read = vi.fn(() => { throw Error("malformed memory cannot read bindings"); });
+    const response = await call("/%5fmemory/%ZZ", {}, { ...env, WONG_ENVIRONMENT: "production", MEMORY_DB: { prepare: read, batch: read } } as typeof env);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ success: false, code: "memory-route-denied" });
+    expect(read).not.toHaveBeenCalled();
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
+  it("retains the human Access boundary for malformed and nonhierarchical nonmemory addresses", async () => {
+    for (const path of ["/%ZZ/assets/main.js", "/public/%ZZ"]) expect((await call(path)).status, path).toBe(401);
+    const response = await worker.fetch(new Request("mailto:human@example.com"), env as Env & typeof env, {} as ExecutionContext);
+    expect(response.status).toBe(401);
+    expect(assets.fetch).not.toHaveBeenCalled();
+    const signed = await call("/%61ssets/main.js", { "Cf-Access-Jwt-Assertion": await token() });
+    expect(signed.status).toBe(200);
+    expect(await signed.text()).toBe("asset");
+    expect(assets.fetch).toHaveBeenCalledTimes(1);
+  });
+  it("closes nested encoding at the maximum depth without falling through to assets or bindings", async () => {
+    const read = vi.fn(() => { throw Error("encoded routes cannot read bindings"); });
+    const bindings = { ...env, WORKSPACE_LOGIN: "off", WONG_ENVIRONMENT: "production", MEMORY_DB: { prepare: read, batch: read } };
+    for (const depth of [31, 32, 33]) {
+      let path = "/%5fmemory/unknown";
+      for (let layer = 1; layer < depth; layer++) path = path.replaceAll("%", "%25");
+      const response = await call(path, { "Cf-Access-Jwt-Assertion": await token() }, bindings as typeof env);
+      expect(response.status, `encoding depth ${depth}`).toBe(404);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      if (depth === 31) expect(await response.json()).toEqual({ success: false, code: "memory-route-denied" });
+      else expect(await response.text()).toBe("Not found");
+    }
+    expect(read).not.toHaveBeenCalled();
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
+
 });
