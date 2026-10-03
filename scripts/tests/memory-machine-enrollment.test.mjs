@@ -55,7 +55,8 @@ test('expiry, wrong capability/commitment, widened scope, replay, different mach
   await enroll(f.operator, base);
   await assert.rejects(enroll(f.operator, { ...base, machineId: 'another'.padEnd(32,'0') }), codeRejected('machine-attempt-conflict'));
   await assert.rejects(enroll(f.operator, { ...base, attemptId: attempt('replay'), expected: await f.expected() }), codeRejected('machine-grant-unavailable'));
-  const g = await grantFixture(t); corrupt(g, 'grants', 'UPDATE memory_machine_grants SET expires_at = ?', [Math.floor(Date.now() / 1000) - 1]);
+  const g = await grantFixture(t); const expiredAt = Math.floor(Date.now() / 1000) - 1;
+  corrupt(g, 'grants', 'UPDATE memory_machine_grants SET created_at = ?, expires_at = ?', [expiredAt - 600, expiredAt]);
   await assert.rejects(enroll(g.operator, await enrollInput(g)), codeRejected('machine-grant-unavailable'));
   assert.equal(count(g, 'principals'), 0);
 });
