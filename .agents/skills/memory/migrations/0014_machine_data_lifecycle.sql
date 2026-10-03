@@ -174,7 +174,7 @@ BEGIN SELECT RAISE(ABORT,'session ownership requires exact capture'); END;
 CREATE TRIGGER memory_data_supersede_update_guard BEFORE UPDATE OF superseded_by ON facts
 WHEN (OLD.capture_attempt_id IS NOT NULL OR NEW.superseded_by IN (SELECT fact_id FROM memory_data_fact_links)) AND NOT EXISTS(
  SELECT 1 FROM memory_data_capture_authority a JOIN memory_data_fact_links l ON l.attempt_id=a.id AND l.fact_id=NEW.superseded_by
- JOIN json_each(a.payload_json,'$.facts') j ON j.key=l.ordinal JOIN json_each(j.value,'$.supersedes') old ON old.value=OLD.id
+ JOIN json_each(a.payload_json,'$.facts') j ON j.key=l.ordinal JOIN json_each(j.value,'$.supersedes') superseded ON superseded.value=OLD.id
  WHERE OLD.superseded_by IS NULL AND (OLD.owner_principal_id=l.machine_id OR EXISTS(SELECT 1 FROM memory_machine_principals admin JOIN memory_machine_principals owner
  ON owner.id=OLD.owner_principal_id AND owner.installation_id=admin.installation_id AND owner.repository_id=admin.repository_id
  WHERE admin.id=l.machine_id AND admin.status='active' AND admin.scope='memory:read memory:write memory:admin')) AND l.machine_id=json_extract(a.payload_json,'$.machineId')
