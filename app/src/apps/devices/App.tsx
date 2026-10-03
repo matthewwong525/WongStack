@@ -36,7 +36,7 @@ function RequestView({ data, request, now, busy, act, back, refresh }: {
   return <section aria-labelledby="devices-request-title" className="devices-request">
     <button type="button" className="devices-back" onClick={back} disabled={busy}>← All devices</button>
     <h2 id="devices-request-title">{pending && !expired ? `Connect ${request.label}?` : request.label}</h2>
-    {pending ? <>
+    {request.status === 'pending' ? <>
       {expired ? <><p role="status">Request expired</p><p>Start a new request in chat.</p></> : <>
         <p className="devices-code">{request.code}</p><p>Match this code in chat.</p>
         <Permissions scopes={request.scopes} /><p className="devices-muted">Until {displayDate(request.expiresAt)} · Name supplied by requester</p>

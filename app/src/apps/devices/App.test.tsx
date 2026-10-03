@@ -4,12 +4,15 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, expect, it, vi } from 'vitest'
 import { routes } from '../../router'
 import { device, future, json, past, request, session } from './fixtures'
+// Warm the lazy route module before any test freezes the clock.
+import './App'
 
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); Reflect.deleteProperty(navigator, 'clipboard') })
 const root = '/api/memory-auth/'
 const requestPage = `/apps/devices/?request=${request.id}`
 type Handler = (url: string, init?: RequestInit) => Promise<Response>
-async function open(handler?: Handler, url = '/apps/devices/') {
+const realSetTimeout = globalThis.setTimeout
+async function open(handler?: Handler, url = '/apps/devices/', loading = false) {
   const fetchMock = vi.fn(async (path: string, init?: RequestInit) => {
     if (handler) return handler(path, init)
     if (path === root + 'session') return json(session)
@@ -19,7 +22,12 @@ async function open(handler?: Handler, url = '/apps/devices/') {
   vi.stubGlobal('fetch', fetchMock)
   const router = createMemoryRouter(routes, { initialEntries: [url] })
   await act(async () => { render(<RouterProvider router={router} />) })
-  await screen.findByRole('heading', { name: 'Devices', level: 1 })
+  // Let imports, response parsing and React updates settle without advancing
+  // the fake deadline clock. A deferred test explicitly opts into loading.
+  do {
+    await act(async () => { await new Promise<void>((resolve) => realSetTimeout(resolve, 0)) })
+  } while (!screen.queryByRole('heading', { name: 'Devices', level: 1 }) ||
+    (!loading && screen.queryByText('Checking devices…')))
   return { fetchMock, router }
 }
 function answers(values: { session?: unknown; request?: unknown; requests?: unknown; devices?: unknown }, mutation?: Handler): Handler {
@@ -75,7 +83,7 @@ it('copies a plain connection request without starting enrollment and handles co
 
 it('shows loading, unavailable and retry without pretending a preview has memory', async () => {
   const wait = pending<Response>()
-  const { fetchMock } = await open(async () => wait.promise)
+  const { fetchMock } = await open(async () => wait.promise, '/apps/devices/', true)
   expect(screen.getByText('Checking devices…')).toBeTruthy()
   expect(screen.queryByRole('button')).toBeNull()
   await act(async () => { wait.resolve(json({ error: 'missing handlers' }, 404)) })
@@ -167,6 +175,17 @@ it('denies without acknowledgement and never reports successful approval from a 
   await click('Deny')
   expect(screen.getByText('Denied')).toBeTruthy()
   expect(screen.getByText('Start a new request in chat.')).toBeTruthy()
+})
+
+it('keeps the full maximum-length requester name alongside the code and actions', async () => {
+  const longRequest = { ...request, label: 'W'.repeat(100) }
+  await open(answers({ request: longRequest }, async () => json({ ...longRequest, status: 'denied' })), requestPage)
+  expect(screen.getByRole('heading', { name: `Connect ${longRequest.label}?` })).toBeTruthy()
+  expect(screen.getByText(request.code)).toBeTruthy()
+  expect(screen.getByRole('checkbox', { name: 'My request; code matches' })).toBeTruthy()
+  await click('Deny')
+  expect(screen.getByText('Denied')).toBeTruthy()
+  expect(screen.getByRole('heading', { name: longRequest.label })).toBeTruthy()
 })
 
 it('exposes truthful terminal states, expiry and ineligible approval without action', async () => {
@@ -347,12 +366,12 @@ it('shows dates, renewal/reapproval and ten-device guidance; removed authority h
 
 it('aborts loading and mutations on unmount and ignores late successful and failed clipboard work', async () => {
   const listWait = pending<Response>()
-  await open(async (url) => url === root + 'devices' ? listWait.promise : json(url === root + 'session' ? session : []))
+  await open(async (url) => url === root + 'devices' ? listWait.promise : json(url === root + 'session' ? session : []), '/apps/devices/', true)
   cleanup()
   await act(async () => { listWait.resolve(json([])) })
   for (const fail of [false, true]) {
     const wait = pending<Response>()
-    const { fetchMock } = await open(async () => wait.promise)
+    const { fetchMock } = await open(async () => wait.promise, '/apps/devices/', true)
     const signal = fetchMock.mock.calls[0][1]!.signal!
     cleanup()
     expect(signal.aborted).toBe(true)
