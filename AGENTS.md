@@ -33,7 +33,6 @@ Credentials sit in the git-ignored `.env` at the primary worktree, mapped by the
 - **Build a new standalone page or tool as a mini app**: its own folders in the main app, served at `/apps/<name>/`, through the same loop: [mini apps](wiki/stack/mini-apps.md).
 - **The WongStack skills own all git; OpenSpec never runs git.** `/apply` reads branch changes but makes none: [the change loop](wiki/development/the-change-loop.md).
 - **CI is the gate when present, else PR review; nothing builds locally**: [the gate](wiki/development/the-change-loop.md#the-gate).
-- **Coordinate overlapping same-repo tasks through brief Paseo messages**, authorized by this convention; keep each task and publishing approval: [direct coordination](wiki/development/the-change-loop.md#chats-coordinate-directly).
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **Schedule `/improve` only from a clean, current, serialized checkout**: [repository improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge to the wiki when you learn it**: what will help a different, future task, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge). A change's specifics stay in its proposal and archive.

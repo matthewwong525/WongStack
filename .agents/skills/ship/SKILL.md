@@ -12,7 +12,7 @@ Invoking `/ship` authorizes every step below without a prompt: archive, checkpoi
 
 ## Step 1 — preflight
 
-Check [the preconditions](../save/references/preconditions.md) first. Read [owner agreements](../../../wiki/development/the-change-loop.md#chats-coordinate-directly): confirm each prerequisite published, incorporate its published changes into this branch, and gate the resulting head. An unfinished or declined prerequisite blocks only dependent work; retain each task's publishing approval.
+Check [the preconditions](../save/references/preconditions.md) first.
 
 ```bash
 git rev-parse --abbrev-ref HEAD
