@@ -66,6 +66,44 @@
       "rowsWritten": 0,
       "mutations": [],
       "secretsPersisted": false
+    },
+    {
+      "kind": "read-only-account-durable-object-usage",
+      "observedAt": "2026-10-04T17:21:32.283126+00:00",
+      "window": {
+        "date_geq": "2026-09-04",
+        "date_leq": "2026-10-04"
+      },
+      "dataset": "durableObjectsPeriodicGroups",
+      "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+      "sum": {
+        "durationGbSeconds": 546.156606976,
+        "rowsRead": 1084,
+        "rowsWritten": 1103
+      },
+      "schemaDurationUnit": "GB*s",
+      "mutation": false,
+      "limitation": "GraphQL usage observation, not invoice/subscription proof; recheck fresh before conditional spend"
+    },
+    {
+      "kind": "post-maintenance-staging-readback",
+      "observedAt": "2026-10-04T18:05:19.111553+00:00",
+      "mode": "read-only",
+      "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
+      "workerName": "wongstack-cloud-staging",
+      "latestDeployment": {
+        "id": "0aef7f42-a347-4891-9d77-db20ba48b588",
+        "created_on": "2026-10-04T17:56:57.582445Z",
+        "versions": [
+          {
+            "version_id": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
+            "percentage": 100
+          }
+        ]
+      },
+      "trialControlsAndBindings": [],
+      "rowsWritten": 0,
+      "mutations": []
     }
   ]
 }

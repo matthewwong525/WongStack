@@ -1,6 +1,6 @@
 # Run one internal managed-app functionality trial
 
-**Status:** implementing — normal maintenance gate pending
+**Status:** implementing — live authorization pending
 **Branch:** evil-dodo
 **Open questions:** none on approach; exact owner, resources, permissions and runtime receipts are preflight inputs.
 
@@ -52,7 +52,7 @@ None.
 
 ## Impact
 
-Source owns the trial procedure, prepared manifest, resource ledger, deterministic evidence checks and the final live request. Cloud owns the small staging admission patch and ordinary SDK runner recipe. Both stay on their current fresh-main-based branches. Configuration remains review-only until fresh authorization. The original archive and unrelated work remain intact.
+Source owns the trial procedure, prepared manifest, resource ledger, deterministic evidence checks and the final live request. Cloud owns the small staging admission patch and ordinary SDK runner recipe. Source retains its active trial branch; Cloud completes its preparation archive and normal maintenance merge before the separate live request. Configuration remains review-only until fresh authorization. The original archive and unrelated work remain intact.
 
 ## Decision log
 
@@ -87,3 +87,7 @@ Source owns the trial procedure, prepared manifest, resource ledger, determinist
 - **2026-10-04** — Assumed: use a strictly read-only mode of the existing staging provisioning Workflow to obtain the firewall and VM/IP quote with its existing private Hetzner secret. The final exact request binds the preflight and conditional creation together; no secret export, new service or additional planning approval is needed.
 
 - **2026-10-04** — Checkpoint preparation onto fresh main v30.7.0 (`1c5c65fe391a1db3ce2b3f7a43b39ff53dd71585`), preserving its unrelated memory, verification and workflow updates. The deliberate contract5 agent/starter input remains c22d448; ordinary maintenance checks and live trial evidence stay separate.
+
+- **2026-10-04** — The manual image publisher is platform maintenance only. Complete and archive the Cloud preparation change through ordinary authorized publication, then bind its successful exact main CI image/starter artifact for one later explicit live dispatch. Source keeps the live trial tasks active and does not archive or claim acceptance from that maintenance merge.
+
+- **2026-10-04** — Cloud preparation shipped viaPR72 at8de0f017df64f1ff62507954e132b6bb981fa7a1; its three main gates pass, exact CI starter/image artifact is11311021774, and normal production deployment applied additive migrations0022–0023. Staging readback confirms no trial controls/bindings. The final conditional request bundles the prepared targets and finite cost/capability readbacks; all actual live/provider/isolation outcomes remain unfinished.

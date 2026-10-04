@@ -1,28 +1,35 @@
 {
   "schemaVersion": 1,
-  "state": "prepared-incomplete",
+  "state": "prepared-ready-for-conditional-live-approval",
   "authorized": false,
   "observedAt": "2026-10-04",
   "source": {
     "baselineSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
     "baselineRelease": "30.4.0",
-    "finalMaintenanceSha": null,
+    "finalMaintenanceSha": "ef9c70e0dd057b7245f2ea5277019922b01f96a6",
     "manifestSha256": "41bb79ea07ef1d17215064924424f7affd7171536c7190e5bca32bbd8f838b62",
-    "payloadTreeSha256": null,
+    "payloadTreeSha256": "07cce5cdacf4fe211b39f0bc55529c9e54374667c6da45ce23328b7be73c6f72",
     "maintenanceBaseSha": "1c5c65fe391a1db3ce2b3f7a43b39ff53dd71585",
-    "preparedAgentSourceRetained": "c22d448 is a deliberate compatible immutable contract5 trial input; later unrelated Source releases remain intact"
+    "preparedAgentSourceRetained": "c22d448 is a deliberate compatible immutable contract5 trial input; later unrelated Source releases remain intact",
+    "finalMaintenanceScope": "Verified unchanged acceptance helper implementation; the final review-only checkpoint is identified externally by PR266 exact-head gate, avoiding a self-referential commit hash.",
+    "payloadTreeScope": "Complete CI-generated installed starter payload, including ordinary aliases; original Source repository is bound by immutable c22d448 commit."
   },
   "cloud": {
     "baselineSha": "122b4d554296b5c0c1cd93603de1f6582f435e8f",
     "branch": "cloudflare-hosted-acceptance",
-    "finalMaintenanceSha": null,
+    "finalMaintenanceSha": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
     "configuredStagingWorker": "wongstack-cloud-staging",
-    "stagingVersionId": "05dafc8c-77f8-451a-80f4-544fe29a9b22",
+    "stagingVersionId": "838648ff-8449-4c41-afd7-6cdbdc5e3a38",
     "stagingDbId": "1029a8e7-be64-42c0-bf9a-de49f87a2322",
     "configSha256": "1f30ee90a219a921b2b2baeaecf1e141208188203e4ecffe2a141515063f9d03",
     "accountId": "040f88e2bf4f25fb0b91b7cb24f3d442",
-    "stagingDeploymentId": "329439e8-c168-4e51-9f7c-974272a6d976",
-    "preflightReference": "provider-preflight.json"
+    "stagingDeploymentId": "0aef7f42-a347-4891-9d77-db20ba48b588",
+    "preflightReference": "provider-preflight.json",
+    "stagingCodeSha": "e633bbcc568d8cd9a8cba5e765d1f01d018911e2",
+    "codeTree": "713805a7672c591e05dd5c41ac50d00ea4a61c33",
+    "stagingCodeTreeMatchesMain": true,
+    "archive": "openspec/changes/archive/2026-10-04-cloudflare-hosted-acceptance",
+    "accessTeamDomain": "startuptemplate.cloudflareaccess.com"
   },
   "agent": {
     "defaultSourceSha": "78022828c37f6cf5be01f246c5c653ef2954322a",
@@ -43,19 +50,25 @@
   "starter": {
     "preparerSha256": "cac921da3e8345100ed2f21426785b009d439c0dcdaa36c267fed862cb446d6c",
     "sourceLockSha256": "f6ce167c77bd81537896e3a366ef45627677eb837b07cbb07ff8716d89eb53ca",
-    "preparedTreeSha256": null,
-    "preparedLockSha256": null,
-    "installRecordSha256": null,
+    "preparedTreeSha256": "07cce5cdacf4fe211b39f0bc55529c9e54374667c6da45ce23328b7be73c6f72",
+    "preparedLockSha256": "5803f71f7c12a6fed81fcac8c697fb283a5866c7d69cece1bb75c11a40c0c21a",
+    "installRecordSha256": "119d9de05329fbf4f6a00c39b7a68cd7d682992dbd930d25305b131415961840",
     "publishedRemote": null,
     "publishedMainSha": null,
     "publishedTreeVerified": false,
-    "wrangler": "4.144.0"
+    "wrangler": "4.144.0",
+    "preparedTreeVerified": true,
+    "artifactAliasRestoration": {
+      ".claude": ".agents",
+      ".codex": ".agents",
+      "CLAUDE.md": "AGENTS.md"
+    }
   },
   "runner": {
     "base": "cloudflare/sandbox:0.12.1@sha256:ea9b35e61c800eddbc4450fad333e5dd26033a06f7d36624388b0711bef9f8c5",
-    "recipeSha256": "4395f5c17c1e15db688ab376a9e367553bf2923a9c9ea0fab77d42504658a97a",
+    "recipeSha256": "d3081752ac6bd26559bfb1f294b79d801e03fae3b553338b1ad55f4072c50aaa",
     "sourceInputsSha": "c22d448bfd8204994ba92f65b5f722762ce6f052",
-    "cloudInputsSha": null,
+    "cloudInputsSha": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
     "trustedEntries": [
       {
         "path": "check-build.mjs",
@@ -100,10 +113,10 @@
       "integrity": "sha512-oqquqqtHOevn17hzI7qRzU+MiOaCU2UZRLPIZStjGlhwYbxe3hk4Stq3knfcIlGfMSfgM4iycZKeb1fEF5mRTQ=="
     },
     "nodeMajor": 22,
-    "nodeVersion": null,
-    "npmVersion": null,
-    "gitVersion": null,
-    "architecture": null,
+    "nodeVersion": "22.22.2",
+    "npmVersion": "10.9.7",
+    "gitVersion": "2.34.1",
+    "architecture": "linux/amd64",
     "registry": null,
     "publishedDigest": null,
     "isolationVerified": false,
@@ -126,7 +139,12 @@
       "ciAdversarialEvidence": null,
       "realRuntimeEvidence": null,
       "state": "deferred"
-    }
+    },
+    "planningCliVersion": "1.13.2",
+    "ciImageId": "sha256:fbfe31b59b0d909d76b24b5e003f217572adc978e145cb299ead94fe12ef491a",
+    "ciImageArchiveSha256": "b125822b7a344520715698cc8b93b5295a5de7c1456b1a6e5db6a91ee9c6ec93",
+    "ciImageArchiveBytes": 1587673600,
+    "preparedRecipeVerified": true
   },
   "provider": {
     "artifactsSchema": "filter.repo_name / targets / workflow_name",
@@ -134,38 +152,40 @@
     "pinnedInterfaceVerifiedLive": false,
     "inventoryReadbackComplete": false,
     "cleanupMethodsVerified": false,
-    "artifactsNamespaceInventoryStatus": 401
+    "artifactsNamespaceInventoryStatus": 401,
+    "preparedPinnedInterfaceVerified": true,
+    "preparedCleanupProcedures": "Cloud archive cleanup-procedure.md; actual canonical access/absence remains a conditional execution preflight."
   },
   "missingPrerequisites": [
-    "exact deployed acceptance service code/version following maintenance gate",
-    "exact owner and separately authorized disposable VM/workspace/recipient/generation, supported contract5 source preparation",
-    "workspace-specific contract5 preparation and actual root runtime/guard readback",
-    "final source/cloud maintenance heads and full payload hash",
-    "CI-generated prepared starter tree/lock/install record",
-    "pinned recipe/tools/platform architecture and CI image receipt",
-    "supported exact provider interfaces and complete inventory/cleanup",
-    "execution-day priced and bounded owner AI use",
-    "fresh authority bound to all preceding exact identities"
+    "fresh explicit approval of the frozen prepared inputs and bounded conditional batch",
+    "current paid platform/registry/Access capability, complete target absence and exact owned cleanup readbacks under that approval",
+    "GET-only runtime preflight with unique existing firewall and gross nbg1/cpx22/IPv4 quote within cap",
+    "live-issued matching starter/registry/VM/recipient/runtime/guard receipts before customer use",
+    "owner Access/AI sign-in on an already held plan/included quota",
+    "separate exact final candidate approvals after final checks"
   ],
   "publishedReceipts": [],
-  "stop": "Missing exact owner/targets, prepared starter/ordinary image, passing maintenance gate, platform-credential separation, permissions, affordable bounds or supported owned cleanup blocks live actions. Nested containment is deferred; functional success cannot claim full acceptance or enable general creation.",
+  "stop": "Only the conditional preflight/resource batch may be approved. Stop each dependent mutation on missing paid capability, inventory/cleanup support, exact targets/input provenance or affordable bounds. Actual provider facts remain separate and unverified; general creation and full acceptance remain disabled/unfinished.",
   "workspace": {
     "existingEligible": [],
     "proposedDisposableVmCount": 1,
     "vmCreationAuthorized": false,
     "requiredReadyReadbackBeforeHostedUse": true,
-    "sourcePreparationSupported": false,
+    "sourcePreparationSupported": true,
     "blocker": "Exact reviewed one-VM internal staging exemption may be prepared without billing changes; actual firewall/location/price/provider/runtime and execution authority remain pending.",
-    "sourcePreparationStatus": "narrow pin and explicit test-only entitlement prepared; CI and live authority unverified",
+    "sourcePreparationStatus": "Prepared and exact-head maintenance tested; actual runtime/guard and live authority pending",
     "plannedId": "83ec40bf-8873-4b75-a1b5-49151f2b1b8d",
     "ownerId": "5c5eca98-d495-45d3-9f7a-4da7b9d1b17a",
     "ownerEmail": "operations@claymoo.com",
     "activePaid": false,
     "internalEntitlementExceptionPreparationAuthorized": true,
-    "internalEntitlementExceptionLiveAuthorized": false
+    "internalEntitlementExceptionLiveAuthorized": false,
+    "selectedLocation": "nbg1",
+    "serverType": "cpx22",
+    "existingFirewallName": "wongstack-deny-inbound"
   },
   "preparedChecks": {
-    "scope": "Cloud internal-functionality guard, exact test entitlement, runner recipe and existing app; preflight and CI receipt changes still pending",
+    "scope": "Maintenance only: exact reviewed Source helpers and Cloud trial/pin/preflight/entitlement/publisher paths; no real provider behavior, hostile-code isolation or customer publication proof.",
     "targetedCasesPassed": 2693,
     "newGuardAndProvisionCoverage": {
       "statements": 100,
@@ -174,7 +194,7 @@
       "lines": 100
     },
     "targetedLint": "passed",
-    "ciGate": "unverified",
+    "ciGate": "passed",
     "live": "untouched",
     "workingDirectory": "companion Cloud app/",
     "commands": [
@@ -199,13 +219,15 @@
       ]
     ],
     "preparedInputSha256": {
-      "scripts/hosted/Dockerfile.runner": "4395f5c17c1e15db688ab376a9e367553bf2923a9c9ea0fab77d42504658a97a",
+      "scripts/hosted/Dockerfile.runner": "d3081752ac6bd26559bfb1f294b79d801e03fae3b553338b1ad55f4072c50aaa",
       "app/worker/hosted-acceptance.ts": "1cbc33053fc8c6bb847b3a92731c080b1922dc00459f83b19116aeb0669755ba",
       "app/worker/hosted-acceptance-source.ts": "2a2bca1eec31ffdbfcc0026bdeac6ac4d1026f68e8338e46676d1173d052620f"
     },
     "coverageReportSha256": "e1f00a400b3aa6d9484771f3d9d19766b203763ef916267f3acbb07b06c90406",
-    "fullAppCasesPassed": 2693,
-    "appFilesPassed": 97
+    "fullAppCasesPassed": 2755,
+    "appFilesPassed": 99,
+    "vmCasesPassed": 30,
+    "scriptCasesPassed": 67
   },
   "trial": {
     "mode": "internal-functionality",
@@ -224,5 +246,16 @@
     "starterName": "starter",
     "backupBucket": "ha-83ec40bf-backup",
     "workflowName": "ha-83ec40bf-ci"
+  },
+  "ciInputArtifact": {
+    "repository": "matthewwong525/wongstack-cloud",
+    "headSha": "8de0f017df64f1ff62507954e132b6bb981fa7a1",
+    "runId": 37222779808,
+    "artifactId": 11311021774,
+    "name": "hosted-inputs-8de0f017df64f1ff62507954e132b6bb981fa7a1",
+    "digest": "sha256:5c8bac31bf9b5790c1c70867de4f34857fe75ba4d760f9c00f92a260fad0156c",
+    "expiresAt": "2026-10-07T18:03:38Z",
+    "sourceBranch": "main",
+    "passed": true
   }
 }
