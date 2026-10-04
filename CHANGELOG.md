@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 31.1.0 — Learn from chats where the assistant struggled
+
+- When a chat is saved, the assistant also writes a short note for each real moment of trouble: you corrected it, you typed your own answer instead of picking a choice it offered, a step failed again and again, or it hunted a long time for something. A smooth chat gets none, and a note never holds anything private.
+- `/improve` reads those notes first, so a problem a real chat showed comes before one found by reading the project alone. You run it the same way as before.
+- When the trouble is a mistake a machine could catch, `/improve` builds a check that fails, not one more written instruction. A written rule is kept for judgment calls.
+- Fixing a problem closes its note. A note nobody acts on closes by itself after 30 days.
+
+**Updating.** No action needed. The usual update delivers this, and notes begin with the next saved chat; older chats are not re-read.
+
 ## 31.0.1 — Read a test file before deleting it
 
 The change-loop guide now says to read a test file before deleting it along with its code: a test that guards files that stay is moved, not deleted.
