@@ -5,12 +5,14 @@ import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/wor
 import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
-import { getAccessIdentity, type AccessEnv } from "./access.ts";
+import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
 import { activateAccess, type ActivationEnv } from "./employee-access/activation.ts";
 import { activationIdentity } from "./employee-access/identity.ts";
 
-function isOpenWorkspace(env: AccessEnv): boolean {
-  return env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;
+async function labelMemoryLogin(env: Env, link: string, identity: AccessIdentity | null, open: boolean): Promise<void> {
+  if (!open && env.MEMORY_DB && identity?.kind === "user") {
+    await associateLogin(env.MEMORY_DB, link, identity).catch(() => false);
+  }
 }
 
 export default {
@@ -27,7 +29,7 @@ export default {
     const identity = await getAccessIdentity(request, env);
     // Open without login only by the committed switch, and only while no Access
     // identifier is set: a leftover switch can't weaken a private site.
-    const open = isOpenWorkspace(env);
+    const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;
     if (!identity && !open) {
       const configured = env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD;
       return new Response(configured ? "Unauthorized" : "Workspace access is not configured", {
@@ -52,9 +54,7 @@ export default {
     // A setup link labels its assistant machine after ordinary human login.
     // Always clean the URL; association failure does not interrupt the app.
     if (url.pathname === "/" && url.searchParams.has("memory_login_link")) {
-      if (!open && env.MEMORY_DB && identity?.kind === "user") {
-        await associateLogin(env.MEMORY_DB, url.searchParams.get("memory_login_link") || "", identity).catch(() => false);
-      }
+      await labelMemoryLogin(env, url.searchParams.get("memory_login_link") || "", identity, open);
       return new Response(null, { status: 303, headers: { Location: new URL("/", request.url).href, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     }
 
