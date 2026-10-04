@@ -1,6 +1,6 @@
 # See what memory finds, with evidence
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** `humane-dolphin`
 **Open questions:** none
 
@@ -71,3 +71,5 @@ Add a small brief renderer and a shared fact-selection helper under `.agents/ski
 - **2026-10-03** — The user requested a second review for context efficiency, excess context, and latency. Review found that the 20-fact default was generous, repeated source instructions and default filter fields added overhead, and applying the byte budget in group order could omit a higher-ranked fact. Assumed: improve the existing unpublished slice with an eight-fact default, compact evidence formatting, relevance-first budget selection, and guidance to choose one read format. Keep the explicit 20-fact and 6,144-byte ceilings, source metadata, search behavior, and startup loading. Verify ordinary brief/search request-count parity remotely; report measured bytes separately from tokens and production latency.
 
 - **2026-10-04** — Refreshed against published main 02542fa2a8c4eb8a64266cacebee00987579564d. Its independent-task-chat release overlapped only the release-note insertion; retained both entries and the published workflow changes. No memory ownership implementation was published. The context refinements and canonical brief requirement are ready for a fresh remote gate on the integrated branch.
+
+- **2026-10-04** — Context refinements passed the complete current remote suite (1,030 tests), app/deployment checks, and payload/context checks at d3b767d345530289438fb825147ccbcdc633114b. Synthetic eight-fact outputs measured 832 bytes for text search, 1,264 for a brief, and 1,976 for JSON; twenty-fact briefs measured 2,818 bytes. Single-user requests stayed at one and team requests at two across compared formats/limits. The prior detailed one-fact example shrank from 581 to 495 bytes. Stored the current example and context-evaluation.json; the 21-question retrieval report is unchanged. No production latency or token-count claim is made. All refinements are ready for user review before publication.
