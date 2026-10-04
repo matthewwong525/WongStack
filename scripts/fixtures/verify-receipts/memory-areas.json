@@ -1,0 +1,7 @@
+{
+  "app/worker/apps/hello/index.ts": "// Disposable lookup target.\n",
+  "wiki/stack/mini-apps.md": "# Mini apps\n\nServe [hello](../../app/worker/apps/hello/index.ts).\n",
+  "openspec/specs/mini-apps/spec.md": "# Mini apps\n\nDisposable documentation target for the lookup.\n",
+  "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md": "# Mini apps in the main app\n",
+  "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md": "- [x] Add `app/worker/apps/hello/`.\n"
+}

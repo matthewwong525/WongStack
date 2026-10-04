@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Check more than the web preview
+
+- Verification can use captured command-line behavior from automated checks beside the web preview, with evidence tied to the version being reviewed. Missing access to one surface leaves independent checks available.
+- Comparable earlier results show what a fix changed. Focused checks follow confirmed consumers and reopen saved results to confirm they last; practical checks for discovered bugs stay in the project's tests.
+
+**Updating.** Preview checks need no setup. To check command-line behavior, add a project-owned capture recipe and a step in your existing automated checks that keeps its observations.
+
 ## 30.1.0 — See memory facts with their evidence
 
 - Ask for a fresh brief of eight current facts by default, or up to twenty on request, within 6,144 bytes. It keeps the most relevant whole entries before grouping, with compact dates and source pointers. Facts keep their original words, and source access keeps its existing permissions.
