@@ -1,8 +1,8 @@
 # Find useful memory, with evidence and limits
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** `humane-dolphin`
-**Open questions:** Live quality comparison is blocked by the current Claude weekly usage limit. After automated checks, the user must choose explicitly experimental delivery or leave live acceptance pending.
+**Open questions:** none; the user approved publishing the current explicitly experimental build. Live comparison remains a deferred follow-up and automatic selective guidance stays disabled.
 
 ## Why
 
@@ -111,3 +111,7 @@ Keep the existing shared selector, deterministic brief, and evaluation runner. A
 - **2026-10-04** — The integrated extension passed all 1,070 remote assertions at 88a3c237e5f2a93159ef89f33857322f5ccc7a03 with 91.75% line and 88.52% branch coverage. Evidence capture exposed a presentation defect: helper report IDs overrode the semantic fixture names after scoring. Preserve the already computed fixture names in all comparison modes and assert consistent report keys, then rerun the final gate before retaining its report. The broad fixture confirmed direct-eight omitted the critical approval and direct-twenty kept it in 1,724 bytes; this is a constructed recall tradeoff, not live model quality evidence.
 
 - **2026-10-04** — Final integrated source passed all 1,070 assertions, payload checks, app checks and deployment at ca0dbfb2681b333bee7ce4faef8abe31be5116b7, with 91.75% line and 88.50% branch coverage. Retain helper-evidence.md and the 23-executions-per-mode recorded protocol report separately from earlier deterministic evidence. Implementation and integration tasks are checked; task 8.2's live portion and task 8.3 remain incomplete, with selective guidance disabled and the explicit experimental-delivery decision pending. No session facts added: current decisions are already in this proposal. No publication approval.
+
+- **2026-10-04** — After review of the passing implementation, the user said “Ok let’s publish this.” This approves publishing the current explicitly experimental helper despite the disclosed missing live comparison. Deliver the verified implementation and recorded accounting now; defer the quota-blocked live comparison and promotion rather than claim either passed. Keep existing budgets, fallback, and disabled selective-use guidance. The suggested adaptive thread-following design was explanatory advice, not an implemented or approved change, and is outside this release.
+
+- **2026-10-04** — Archive checkpoint for the user-approved experimental v30.1.0 release. All delivery tasks are complete; retained source validation, protocol evidence, current permission integration, and the deferred live benchmark without enabling automatic helper guidance. The archived review and numbered release ride in the final publishing checkpoint; no additional session facts are needed beyond this record.

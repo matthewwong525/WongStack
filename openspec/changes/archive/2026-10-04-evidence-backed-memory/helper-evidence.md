@@ -32,7 +32,9 @@ On this host, Claude CLI 2.1.287's isolated initialization reported empty tool, 
 
 Installed Codex CLI 0.159.2 did not establish removal of all tools through a verified supported control. Its adapter remains unsupported and uses the same verified deterministic fallback; it never silently switches to Claude.
 
-Tasks 8.2's live portion and 8.3 remain incomplete. The user must explicitly choose experimental delivery or leave live acceptance pending; build approval alone does not waive the bar or grant publication. After usable Claude quota returns, run the synthetic live comparison with the intended caller model:
+After reviewing this passing implementation and the disclosed live blocker, the user said “Ok let’s publish this” on 2026-10-04. This explicitly approves experimental delivery of the verified implementation and recorded accounting. Tasks 8.2 and 8.3 complete that approved delivery handoff; the authenticated live quality/usage/timing comparison remains a deferred follow-up, and live acceptance remains false. Selective guidance stays disabled, with unchanged budgets and acceptance criteria. The suggested adaptive thread-following design was advice and is outside this release.
+
+After usable Claude quota returns, run the deferred synthetic live comparison with the intended caller model:
 
 ```bash
 node scripts/evaluate-memory-search.mjs --context --live --agent claude --repeats 2 --json
@@ -42,4 +44,4 @@ Keep the fixed budgets and acceptance criteria. Record at least twenty live exec
 
 ## Review
 
-Review the [plan](review.html) and reports before publication. This adds CLI behavior and no main-app screen; the existing app deployment cannot demonstrate memory extraction. Reverting the helper leaves ordinary search, factual briefs, startup loading and stored memory intact. No production memory was exported, no ownership migration was introduced here, and no additional session facts were stored because the decisions already live in the proposal.
+The user reviewed the [plan](review.html) and implementation before approving experimental publication. This adds CLI behavior and no main-app screen; the existing app deployment cannot demonstrate memory extraction. Reverting the helper leaves ordinary search, factual briefs, startup loading and stored memory intact. No production memory was exported, no ownership migration was introduced here, and no additional session facts were stored because the decisions already live in the proposal.

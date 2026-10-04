@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — See memory facts with their evidence
+## 30.1.0 — See memory facts with their evidence
 
 - Ask for a fresh brief of eight current facts by default, or up to twenty on request, within 6,144 bytes. It keeps the most relevant whole entries before grouping, with compact dates and source pointers. Facts keep their original words, and source access keeps its existing permissions.
 - Structured search returns the same selected facts as ordinary search. A source-repo evaluation reports keyword matches and harder wording misses separately; it makes no claim that retrieval accuracy improved.
