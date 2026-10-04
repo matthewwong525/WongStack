@@ -1,8 +1,0 @@
-{
-  "scenario": "The note panel displays notes",
-  "requirement": "The note panel is available",
-  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
-  "then": "the panel displays their notes",
-  "probe": "browser",
-  "also_scenarios": []
-}

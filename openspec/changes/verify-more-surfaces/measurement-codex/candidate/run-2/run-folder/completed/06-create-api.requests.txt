@@ -1,2 +1,0 @@
-POST	/api/notes	{"title": "Walk API created 44819"}
-GET	/api/notes

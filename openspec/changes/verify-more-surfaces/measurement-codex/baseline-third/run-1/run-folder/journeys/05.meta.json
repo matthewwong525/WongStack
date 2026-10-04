@@ -1,6 +1,0 @@
-{
-  "requirement": "Mapped lookup documents are listed",
-  "scenario": "The mapped lookup preserves its result",
-  "then": "output still names `notes` and `wiki/notes.md`, preserving the earlier result",
-  "probe": "request"
-}

@@ -1,6 +1,0 @@
-{
-  "requirement": "Notes can be archived or deleted",
-  "scenario": "An archived note moves to Archived",
-  "then": "the note appears on the Archived page and is no longer in the main list",
-  "probe": "browser"
-}

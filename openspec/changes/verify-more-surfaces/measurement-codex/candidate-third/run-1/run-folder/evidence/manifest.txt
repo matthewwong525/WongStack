@@ -1,3 +1,0 @@
-url=http://127.0.0.1:40429
-browser=agent-browser 0.38.1
-journey=12-retry

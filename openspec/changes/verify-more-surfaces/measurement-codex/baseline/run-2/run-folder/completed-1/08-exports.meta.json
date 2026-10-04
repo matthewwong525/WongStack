@@ -1,8 +1,0 @@
-{
-  "scenario": "The export view shows note titles",
-  "requirement": "Exports consume the notes title contract",
-  "source": "openspec/specs/exports/spec.md",
-  "then": "each exported title matches the corresponding `title` from `GET /api/notes`",
-  "probe": "browser",
-  "also_scenarios": []
-}

@@ -1,2 +1,0 @@
-PUT	/api/notes/3	{"title":"Practice API rename"}
-GET	/api/notes

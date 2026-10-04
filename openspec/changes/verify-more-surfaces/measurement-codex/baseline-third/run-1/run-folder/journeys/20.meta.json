@@ -1,6 +1,0 @@
-{
-  "requirement": "Notes can be archived or deleted",
-  "scenario": "Archiving a note emails the owner",
-  "then": "the count above the list drops by one, and the owner is sent an email naming the note",
-  "probe": "browser"
-}

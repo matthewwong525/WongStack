@@ -1,4 +1,0 @@
-url=http://127.0.0.1:41323
-browser=none (no browser journeys)
-journey=22-panel-status
-journey=23-preference-cleanup

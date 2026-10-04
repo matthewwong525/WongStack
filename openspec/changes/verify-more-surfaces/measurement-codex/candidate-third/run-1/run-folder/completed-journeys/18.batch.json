@@ -1,1 +1,0 @@
-[["open", "http://127.0.0.1:40429/unavailable"], ["wait", "--load", "networkidle"], ["snapshot"], ["screenshot", "/tmp/wong-verify-eval-run-Wgiyye/evidence/18/01.png", "--full"]]

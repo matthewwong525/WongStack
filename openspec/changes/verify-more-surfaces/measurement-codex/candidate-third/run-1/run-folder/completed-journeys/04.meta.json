@@ -1,1 +1,0 @@
-{"requirement": "Notes can be created", "scenario": "A new note stays in the list", "then": "the note appears in the list with its title as typed, and is still there unchanged after a reload", "probe": "browser"}

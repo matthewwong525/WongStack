@@ -1,1 +1,0 @@
-{"requirement": "Notes can be created", "scenario": "Creating with a title answers 201", "then": "the endpoint answers 201 with the note and its id, and the nightly job re-indexes the note", "probe": "request"}

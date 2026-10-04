@@ -1,2 +1,0 @@
-# Preserve raw diagnostic streams byte for byte.
-*.txt binary

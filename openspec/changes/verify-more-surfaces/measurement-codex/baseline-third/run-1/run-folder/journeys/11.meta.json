@@ -1,6 +1,0 @@
-{
-  "requirement": "Notes can be created",
-  "scenario": "Submitting with no title is rejected",
-  "then": "the form shows \"Title is required\" and nothing is saved",
-  "probe": "browser"
-}

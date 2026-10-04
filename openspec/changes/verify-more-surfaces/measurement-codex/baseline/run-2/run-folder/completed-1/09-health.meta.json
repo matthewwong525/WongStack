@@ -1,8 +1,0 @@
-{
-  "scenario": "The status page shows Ready",
-  "requirement": "Health status is visible",
-  "source": "openspec/specs/health/spec.md",
-  "then": "the page says Ready",
-  "probe": "browser",
-  "also_scenarios": []
-}

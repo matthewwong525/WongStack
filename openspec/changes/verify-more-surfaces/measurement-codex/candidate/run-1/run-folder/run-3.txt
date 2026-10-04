@@ -1,6 +1,0 @@
-probed 22 — 6 request(s)
-evidence: /tmp/wong-verify-eval-run-xyS8t0/evidence
-RESULT: WALKED
-EVIDENCE=/tmp/wong-verify-eval-run-xyS8t0/evidence
-BROWSER=local
-REDACTED=0

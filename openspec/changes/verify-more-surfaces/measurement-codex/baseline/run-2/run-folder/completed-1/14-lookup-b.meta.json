@@ -1,8 +1,0 @@
-{
-  "scenario": "Looking up exports lists its document",
-  "requirement": "Mapped lookup documents are listed",
-  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
-  "then": "output names `exports` and `wiki/exports.md`",
-  "probe": "request",
-  "also_scenarios": []
-}

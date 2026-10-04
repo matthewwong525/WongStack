@@ -1,2 +1,0 @@
-PUT	/api/notes/14	{"title":"Walk API Renamed"}
-GET	/api/notes

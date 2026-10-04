@@ -1,8 +1,0 @@
-{
-  "scenario": "Deleting a note lowers the count",
-  "requirement": "Notes can be archived or deleted",
-  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
-  "then": "the note disappears from the list and the count above the list drops by one",
-  "probe": "browser",
-  "evidence_journey": "19-edit-delete"
-}

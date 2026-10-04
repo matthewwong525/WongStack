@@ -1,1 +1,0 @@
-[["open", "http://127.0.0.1:44819/"], ["wait", "--load", "networkidle"], ["screenshot", "/tmp/wong-verify-eval-run-prMKzm/evidence/10-delete-readback/01-reopened.png", "--full"], ["snapshot"]]

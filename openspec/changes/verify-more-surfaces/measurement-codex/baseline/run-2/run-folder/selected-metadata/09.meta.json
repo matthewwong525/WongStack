@@ -1,9 +1,0 @@
-{
-  "scenario": "The list API counts its notes",
-  "requirement": "Notes are listed with a count",
-  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
-  "then": "the response lists the notes with a `count` equal to the number of notes listed",
-  "probe": "request",
-  "evidence_journey": "10-count",
-  "verdict": "pass"
-}

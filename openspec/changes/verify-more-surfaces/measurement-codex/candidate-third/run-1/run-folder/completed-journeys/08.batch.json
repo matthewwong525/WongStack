@@ -1,1 +1,0 @@
-[["open", "http://127.0.0.1:40429/notes/2/edit"], ["wait", "--load", "networkidle"], ["find", "label", "Title", "fill", "Practice badge plumber"], ["find", "role", "button", "click", "--name", "Save"], ["wait", "--text", "Saved"], ["snapshot"], ["screenshot", "/tmp/wong-verify-eval-run-Wgiyye/evidence/08/01.png", "--full"]]

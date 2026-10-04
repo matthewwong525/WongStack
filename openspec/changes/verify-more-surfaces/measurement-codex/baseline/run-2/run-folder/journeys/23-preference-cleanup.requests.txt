@@ -1,3 +1,0 @@
-POST	/api/settings/bravo	{"title":"Original bravo"}
-GET	/api/settings/bravo
-GET	/api/settings/alpha

@@ -1,6 +1,0 @@
-{
-  "requirement": "Notes can be created",
-  "scenario": "Creating without a title answers 422",
-  "then": "the endpoint answers 422, the body names the missing title, and no note is created",
-  "probe": "request"
-}

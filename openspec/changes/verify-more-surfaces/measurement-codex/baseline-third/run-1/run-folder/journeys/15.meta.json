@@ -1,6 +1,0 @@
-{
-  "requirement": "Notes can be changed",
-  "scenario": "A renamed note shows its new title",
-  "then": "the new title shows in the list",
-  "probe": "request"
-}

@@ -1,2 +1,0 @@
-POST	/api/notes	{"title":"Practice API create"}
-GET	/api/notes

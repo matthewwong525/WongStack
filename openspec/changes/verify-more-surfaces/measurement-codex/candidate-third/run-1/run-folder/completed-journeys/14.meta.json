@@ -1,1 +1,0 @@
-{"requirement": "Mapped lookup documents are listed", "scenario": "Looking up exports lists its document", "then": "output names `exports` and `wiki/exports.md`", "probe": "ci"}

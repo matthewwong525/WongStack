@@ -1,4 +1,0 @@
-url=http://127.0.0.1:44805
-browser=agent-browser 0.38.1
-journey=11
-journey=23

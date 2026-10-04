@@ -1,6 +1,0 @@
-{
-  "requirement": "Notes are listed with a count",
-  "scenario": "The list API counts its notes",
-  "then": "the response lists the notes with a `count` equal to the number of notes listed",
-  "probe": "request"
-}

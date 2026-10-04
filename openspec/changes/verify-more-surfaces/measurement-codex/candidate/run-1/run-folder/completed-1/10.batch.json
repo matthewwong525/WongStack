@@ -1,1 +1,0 @@
-[["open", "http://127.0.0.1:42335/"], ["wait", "--load", "networkidle"], ["screenshot", "/tmp/wong-verify-eval-run-xyS8t0/evidence/10/01.png", "--full"], ["snapshot"], ["find", "role", "button", "click", "--name", "Delete Walk Renamed Badge"], ["wait", "--load", "networkidle"], ["screenshot", "/tmp/wong-verify-eval-run-xyS8t0/evidence/10/02.png", "--full"], ["snapshot"]]

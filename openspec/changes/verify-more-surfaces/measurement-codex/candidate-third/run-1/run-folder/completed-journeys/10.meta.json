@@ -1,1 +1,0 @@
-{"requirement": "Notes can be archived or deleted", "scenario": "Deleting a note lowers the count", "then": "the note disappears from the list and the count above the list drops by one", "probe": "browser"}

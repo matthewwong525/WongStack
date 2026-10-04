@@ -1,3 +1,0 @@
-url=http://127.0.0.1:42335
-browser=none (no browser journeys)
-journey=22

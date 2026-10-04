@@ -1,6 +1,0 @@
-url=http://127.0.0.1:44819
-browser=agent-browser 0.38.1
-journey=10-delete-readback
-journey=11-archive-retry
-journey=10-delete-readback
-journey=11-archive-retry

@@ -1,1 +1,0 @@
-{"requirement": "Mapped lookup documents are listed", "scenario": "Looking up notes lists its document", "then": "output names `notes` and `wiki/notes.md`", "probe": "ci"}
