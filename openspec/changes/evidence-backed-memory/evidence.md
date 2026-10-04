@@ -1,4 +1,6 @@
-# Implementation evidence
+# Earlier deterministic implementation evidence
+
+These measurements predate the helper and machine-ownership integration. See [current helper evidence](helper-evidence.md) for the integrated gate and remaining live comparison.
 
 The refined implementation was checked remotely at `d3b767d345530289438fb825147ccbcdc633114b` on 2026-10-04, integrated with published main `02542fa2a8c4eb8a64266cacebee00987579564d`. [Payload checks](https://github.com/matthewwong525/WongStack/actions/runs/37163560323), [app tests](https://github.com/matthewwong525/WongStack/actions/runs/37163560313), and [deployment](https://github.com/matthewwong525/WongStack/actions/runs/37163560378) passed. All 1,030 tests in the current payload suite passed, with 91.66% line and 88.67% branch coverage. No checks were loosened.
 
