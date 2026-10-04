@@ -1139,6 +1139,55 @@ test('every read the script sends, under a member key, returns no teammate\'s pe
   assert.equal(admin.stdout.match(/hidden:|visible:/g).length, hidden.length + visible.length);
 });
 
+test('JSON search and brief keep Worker permissions for admins, members and readers, including source identifiers', async t => {
+  const { env, anaKey, hidden, visible } = await lockedTeam(t);
+  const readerKey = await addKey(env.fake.db, 'rae@example.com', 'member', { machine: 'reader-laptop', expiresAt: inDays(30), githubId: '301' });
+  env.fake.db.prepare('UPDATE memory_keys SET reader = 1 WHERE hash = ?').run(await hashKey(readerKey));
+  const insertSession = env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, raw_key, updated_at) VALUES (?, 'claude', ?, 'captured', ?, '2026-10-01T00:00:00Z')");
+  insertSession.run('claude:hidden-private-evidence', 'dev@example.com', 'private-object-key');
+  insertSession.run('claude:shared-private-source', 'dev@example.com', 'shared-object-key');
+  const insertFact = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, session_id) VALUES ('x', ?, ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com', ?) RETURNING id");
+  const privateId = insertFact.get('feedback', 'hidden: deploy evidence is personal', 'claude:hidden-private-evidence').id;
+  const sharedId = insertFact.get('project', 'visible: deploy evidence can cite a private source', 'claude:shared-private-source').id;
+  env.fake.objects.set('shared-object-key', Buffer.from('PRIVATE TRANSCRIPT CONTENT'));
+  let transcriptGets = 0;
+  const getObject = env.fake.objects.get.bind(env.fake.objects);
+  env.fake.objects.get = key => { transcriptGets += 1; return getObject(key); };
+  const argsFor = format => format === 'brief' ? ['brief', 'deploy'] : ['search', 'deploy', ...(format === 'json' ? ['--json'] : [])];
+  for (const key of [anaKey, readerKey]) {
+    for (const format of ['text', 'json', 'brief']) {
+      for (const broad of [[], ['--everyone']]) {
+        const result = await memory(env.repo, env.fake, [...argsFor(format), ...broad], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: key }));
+        assert.equal(result.code, 0, result.stderr);
+        assert.doesNotMatch(result.stdout, /hidden: dev|hidden: deploy evidence|claude:hidden-private-evidence|private-object-key|shared-object-key|PRIVATE TRANSCRIPT CONTENT|raw_key/);
+        if (key === anaKey) assert.doesNotMatch(result.stdout, /hidden: rae keeps/);
+        else {
+          assert.match(result.stdout, /hidden: rae keeps deploy notes/, 'a reader can read their own unshared fact');
+          assert.doesNotMatch(result.stdout, /visible: ana likes short deploy notes/, 'a reader cannot read another member\'s personal fact');
+        }
+        for (const id of [hidden[0], hidden[1], privateId, ...(key === anaKey ? [hidden[2]] : [visible[1]])]) {
+          if (format === 'json') assert.ok(!JSON.parse(result.stdout).facts.some(fact => fact.id === id));
+          else assert.doesNotMatch(result.stdout, new RegExp(`#${id}(?:\\D|$)`));
+        }
+        if (format === 'brief') assert.match(result.stdout, /session: claude:shared-private-source/);
+      }
+    }
+  }
+  assert.equal(transcriptGets, 0, 'building a brief retrieves no transcript bytes');
+  for (const format of ['text', 'json', 'brief']) {
+    const narrow = await memory(env.repo, env.fake, argsFor(format), viaWorker());
+    assert.doesNotMatch(narrow.stdout, /hidden: rae keeps/);
+    const everyone = await memory(env.repo, env.fake, [...argsFor(format), '--everyone'], viaWorker());
+    assert.match(everyone.stdout, /hidden: rae keeps/);
+  }
+  const source = await memory(env.repo, env.fake, ['source', String(sharedId)], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: anaKey }));
+  assert.match(source.stdout, /only the author and the admin can read this transcript/);
+  assert.doesNotMatch(source.stdout, /PRIVATE TRANSCRIPT CONTENT/);
+  const denied = await memory(env.repo, env.fake, ['brief', 'deploy'], viaWorker({ CLOUDFLARE_MEMORY_TOKEN: 'wongm_YUBiLmNv.invalid' }));
+  assert.equal(denied.code, 1);
+  assert.doesNotMatch(denied.stdout, /No matching|Memory brief/);
+});
+
 test('a member cannot get round the lock however it writes the read', async t => {
   const { env, url, anaKey, hidden, visible } = await lockedTeam(t);
   const read = async (sql, params = []) => {

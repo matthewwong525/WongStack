@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "implementation": "d3b767d345530289438fb825147ccbcdc633114b",
+  "singleFact": {
+    "priorBriefBytes": 581,
+    "briefBytes": 495,
+    "bodyBytes": 33
+  },
+  "formats": {
+    "search8": {
+      "bytes": 832,
+      "requests": 1
+    },
+    "json8": {
+      "bytes": 1976,
+      "requests": 1
+    },
+    "brief8": {
+      "bytes": 1264,
+      "requests": 1
+    },
+    "brief20": {
+      "bytes": 2818,
+      "requests": 1
+    },
+    "brief1": {
+      "bytes": 354,
+      "requests": 1
+    }
+  },
+  "teamRequests": {
+    "search8": 2,
+    "brief8": 2,
+    "brief20": 2
+  },
+  "units": "UTF-8 bytes and D1 request counts; not model tokens or production latency"
+}
