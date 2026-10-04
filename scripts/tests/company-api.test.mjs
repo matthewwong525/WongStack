@@ -122,11 +122,11 @@ test('bounds combined summaries, forwards selective filters/pagination, and keep
   const entries = Array.from({ length: 70 }, (_, i) => ({ ...descriptor(), operationId: `sample.item-${i}`, summary: i === 65 ? 'Relevant later action' : 'Sample', revision: 'live' }));
   const client = { list: async filters => ({ ...selectOperations(entries, filters), revision: 'live' }) };
   const selected = await combinedList(client, { q: 'Relevant', limit: 1 }); assert.equal(selected.actions[0].operationId, 'sample.item-65'); assert.equal(selected.total, 1);
-  const later = await combinedList(client, { offset: 69, limit: 3 }); assert.equal(later.total, 72); assert.equal(later.actions[0].operationId, 'sample.item-69'); assert.equal(later.actions[1].operationId, 'memory.search'); assert.equal(later.next, null);
+  const later = await combinedList(client, { offset: 69, limit: 3 }); assert.equal(later.total, 74); assert.equal(later.actions[0].operationId, 'sample.item-69'); assert.equal(later.actions[1].operationId, 'memory.search'); assert.equal(later.next, 72);
   const memoryPage = await combinedList(client, { offset: 71, limit: 1 }); assert.equal(memoryPage.actions[0].operationId, 'memory.show');
   const unavailable = { list: async () => { throw new Error('login missing'); } };
-  const memory = await combinedList(unavailable, { scope: 'memory' }); assert.equal(memory.actions.length, 2); assert.equal(memory.companyStatus, 'not_requested');
-  const combined = await combinedList(unavailable); assert.equal(combined.actions.length, 2); assert.match(combined.companyStatus, /unavailable/);
+  const memory = await combinedList(unavailable, { scope: 'memory' }); assert.equal(memory.actions.length, 4); assert.equal(memory.companyStatus, 'not_requested');
+  const combined = await combinedList(unavailable); assert.equal(combined.actions.length, 4); assert.match(combined.companyStatus, /unavailable/);
   await assert.rejects(combinedList(client, { scope: 'wrong' }), /scope/); await assert.rejects(combinedList(client, { limit: 51 }), /filter/);
   assert.throws(() => selectOperations([...memoryOperations, memoryOperations[0]]), /collision/);
   assert.throws(() => refuseExternalReferences({ inputSchema: { $ref: 'https://outside.example.com' } }), /Untrusted/);

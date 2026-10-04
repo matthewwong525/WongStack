@@ -1,0 +1,11 @@
+{
+  "package": "@tobilu/qmd",
+  "version": "2.8.3",
+  "sourceRevision": "26b703c5daa8037df089a8104cbf7eeab4e51874",
+  "nodeMinimum": 22,
+  "integrity": "sha512-zjfVwrObPB618B6x8SdhlGv/tX9OxRHsbQnr5DUtBvqPK6HGQ27lM+9/BAY5okpjrHVnW56hLyDkqoTcsrVLzA==",
+  "models": {
+    "embedding": "hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf",
+    "reranking": "hf:ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF/qwen3-reranker-0.6b-q8_0.gguf"
+  }
+}
