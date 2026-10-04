@@ -38,7 +38,7 @@ export async function evaluateMemoryContext({ fixture = loadFixture(), live = fa
   const cleanup = []; let env;
   try {
     env = await setup({ after: callback => cleanup.push(callback) }); onSetup(env);
-    const keys = seed(env, fixture);
+    const keys = seed(env, fixture, { includeContext: true });
     const ctx = { root: env.repo.root, commonDir: env.repo.root, stateDir: env.repo.stateDir, machineId: env.repo.machineId, author: 'dev@example.com' };
     const cases = [];
     for (let repeat = 0; repeat < repeats; repeat += 1) {

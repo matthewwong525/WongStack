@@ -17,12 +17,12 @@ export function fixtureOwner(fact, ownMachine) {
   }
 }
 
-export function seed(env, fixture) {
+export function seed(env, fixture, { includeContext = false } = {}) {
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeJsonFile(env.repo.stateDir, 'team.json', { team: true });
   const insert = env.fake.db.prepare('INSERT INTO facts (slug, type, body, source, created_at, author, shared, owner_machine_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id');
   const ids = new Map();
-  for (const fact of [...fixture.facts, ...(fixture.diagnosticFacts || [])]) {
+  for (const fact of [...fixture.facts, ...(fixture.diagnosticFacts || []), ...(includeContext ? fixture.contextFacts || [] : [])]) {
     const { id } = insert.get(fact.slug, fact.type, fact.body, 'migration', fact.createdAt || '2026-10-01T00:00:00Z', fact.author || 'dev@example.com', fact.shared ?? 1, fixtureOwner(fact, env.repo.machineId));
     ids.set(fact.key, id);
   }

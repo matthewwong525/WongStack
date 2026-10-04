@@ -78,10 +78,10 @@ export async function extractMemory(ctx, { task, identity, scope = {}, question,
               if (!gaps.includes('input_limit')) gaps.push('input_limit');
             }
             const supplied = host.inputBytes(prompt);
+            if (remaining() <= 3000) throw new Error('deadline');
             if (!reserveWork(supplied)) { status = 'fallback'; gaps.push('input_limit'); selected = initial.map(fact => fact.id); break; }
             report.inputBytes += supplied;
             report.modelCalls += 1;
-            if (remaining() <= 3000) throw new Error('deadline');
             const modelSignal = AbortSignal.any([requestAbort.signal, AbortSignal.timeout(remaining() - 3000)]);
             const reply = await host.call(prompt, modelSignal);
             report.usage.push(reply.usage || null); report.model = reply.model || report.model;

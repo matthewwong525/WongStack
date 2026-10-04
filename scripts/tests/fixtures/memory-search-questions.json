@@ -367,6 +367,92 @@
       "forbidden": []
     }
   ],
+  "contextFacts": [
+    {
+      "key": "shipping-approval",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review requires an explicit owner approval.",
+      "createdAt": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-1",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-2",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-3",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-4",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-5",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-6",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-7",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-8",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-9",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-10",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    },
+    {
+      "key": "shipping-note-11",
+      "slug": "shipping-review-context",
+      "type": "project",
+      "body": "Shipping review recorded a routine deployment note.",
+      "createdAt": "2026-10-02T00:00:00Z"
+    }
+  ],
   "contextQuestions": [
     {
       "id": "combined-recall",
@@ -380,6 +466,22 @@
       "critical": [
         "digest-cap",
         "short-replies"
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "broad-shipping-review",
+      "query": "shipping review",
+      "filters": {
+        "slug": "shipping-review-context"
+      },
+      "classification": "diagnostic",
+      "category": "broad distractors",
+      "expected": [
+        "shipping-approval"
+      ],
+      "critical": [
+        "shipping-approval"
       ],
       "forbidden": []
     }

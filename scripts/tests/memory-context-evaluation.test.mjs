@@ -43,6 +43,15 @@ test('comparative evaluation isolates synthetic data, shares packet caps, and la
   assert.ok(report.cases.filter(entry => entry.mode !== 'helper').every(entry => entry.modelCalls === 0 && entry.inputBytes === 0));
   assert.equal(report.failed, false);
   assert.ok(report.cases.some(entry => entry.id === 'combined-recall' && entry.critical.length === 2));
+  const shipping = report.cases.filter(entry => entry.id === 'broad-shipping-review');
+  const eight = shipping.find(entry => entry.mode === 'direct-eight');
+  const twenty = shipping.find(entry => entry.mode === 'direct-twenty');
+  assert.deepEqual(eight.critical, ['shipping-approval']);
+  assert.equal(eight.returned.length, 8); assert.deepEqual(eight.criticalMatched, []); assert.equal(eight.complete, false);
+  assert.equal(twenty.returned.length, 12); assert.deepEqual(twenty.criticalMatched, ['shipping-approval']); assert.equal(twenty.complete, true);
+  assert.ok(twenty.outputBytes <= 3072, 'twenty keeps the critical fact without a larger packet allowance');
+  // A scripted selection supplies protocol evidence only, regardless of this fixture's coverage.
+  assert.equal(report.evidence, 'recorded protocol'); assert.equal(report.acceptance.passed, false);
   t.diagnostic(`BEGIN SYNTHETIC HELPER PROTOCOL EVALUATION\n${JSON.stringify({ evidence: report.evidence, packetBytes: report.packetBytes, repeats: report.repeats, modes: report.modes, acceptance: report.acceptance, failed: report.failed, cases: report.cases.map(({ id, mode, repeat, complete, criticalMatched, returned, forbidden, regressionPreserved, status, outputBytes, modelCalls, storeRequests, tokenUsage }) => ({ id, mode, repeat, complete, criticalMatched, returned, forbidden, regressionPreserved, status, outputBytes, modelCalls, storeRequests, tokenUsage })) })}\nEND SYNTHETIC HELPER PROTOCOL EVALUATION`);
 });
 

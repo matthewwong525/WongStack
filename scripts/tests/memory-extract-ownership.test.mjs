@@ -12,25 +12,23 @@ const resultIds = (text, format) => (format === 'json' ? JSON.parse(text).facts.
 
 test('search, JSON, brief and extract preserve machine privacy and source permissions for every role', async t => {
   const env = await setup(t);
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug,type,body,source,created_at,author,owner_machine_id,shared) VALUES ('topic',?,?,'migration','2026-10-01','same-label@example.com',?,?) RETURNING id");
-  const put = (type, body, owner, shared = 1) => Number(insert.get(type, `Evidence ${body}.`, owner, shared).id);
-  const ownPrivate = put('user', 'own personal', env.repo.machineId);
-  const ownReader = put('project', 'own unshared', env.repo.machineId, 0);
-  const shared = put('project', 'team decision', otherMachine);
-  const reference = put('reference', 'team reference', null);
-  const otherPrivate = put('feedback', 'other personal', otherMachine);
-  const otherReader = put('project', 'other unshared', otherMachine, 0);
-  const historicPrivate = put('user', 'unassigned historical personal', null);
-  const replaced = put('project', 'replaced old decision', otherMachine);
-  env.fake.db.prepare('UPDATE facts SET superseded_by = ? WHERE id = ?').run(shared, replaced);
   const privateSession = 'claude:private-evidence';
   const sharedSession = 'claude:shared-private-source';
   const rawKey = `sessions/${otherMachine}/claude/11111111-1111-4111-8111-111111111111.jsonl`;
   const insertSession = env.fake.db.prepare("INSERT INTO sessions (id,agent,author,owner_machine_id,status,raw_key,updated_at) VALUES (?,'claude','same-label@example.com',?,'captured',?,'2026-10-01')");
   insertSession.run(privateSession, otherMachine, 'private-object-key');
   insertSession.run(sharedSession, otherMachine, rawKey);
-  env.fake.db.prepare('UPDATE facts SET session_id = ? WHERE id = ?').run(privateSession, otherPrivate);
-  env.fake.db.prepare('UPDATE facts SET session_id = ? WHERE id = ?').run(sharedSession, shared);
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug,type,body,source,created_at,author,owner_machine_id,shared,session_id) VALUES ('topic',?,?,'migration','2026-10-01','same-label@example.com',?,?,?) RETURNING id");
+  const put = (type, body, owner, shared = 1, session = null) => Number(insert.get(type, `Evidence ${body}.`, owner, shared, session).id);
+  const ownPrivate = put('user', 'own personal', env.repo.machineId);
+  const ownReader = put('project', 'own unshared', env.repo.machineId, 0);
+  const shared = put('project', 'team decision', otherMachine, 1, sharedSession);
+  const reference = put('reference', 'team reference', null);
+  const otherPrivate = put('feedback', 'other personal', otherMachine, 1, privateSession);
+  const otherReader = put('project', 'other unshared', otherMachine, 0);
+  const historicPrivate = put('user', 'unassigned historical personal', null);
+  const replaced = put('project', 'replaced old decision', otherMachine);
+  env.fake.db.prepare('UPDATE facts SET superseded_by = ? WHERE id = ?').run(shared, replaced);
   env.fake.objects.set(rawKey, Buffer.from('PRIVATE TRANSCRIPT CONTENT'));
   let transcriptGets = 0;
   const getObject = env.fake.objects.get.bind(env.fake.objects);
