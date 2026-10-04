@@ -79,11 +79,16 @@ A change that touches the landing page SHALL run the landing page's checks and S
 - **WHEN** a change that touches no landing page file is saved
 - **THEN** the landing page's checks and deploy skip, and the check reports that they skipped
 
-### Requirement: The public domain moves only on the owner's word
+### Requirement: wongstack.com shows the landing page
 
-Publishing a landing page change SHALL NOT attach `wongstack.com` or any other custom domain to the site unless the owner has confirmed that switch, after seeing the site live at its own address.
+The published landing page SHALL answer at `wongstack.com` and `www.wongstack.com`, and SHALL stay reachable at its own address. Only a publish from the default branch SHALL attach those names: a preview of an unpublished change SHALL NOT take either one.
 
-#### Scenario: This change is published
+#### Scenario: A visitor opens wongstack.com
 
-- **WHEN** the landing page is first published from this repo
-- **THEN** it is live at its own address, and `wongstack.com` still shows what it showed before
+- **WHEN** a visitor opens `wongstack.com` or `www.wongstack.com` after this change is published
+- **THEN** they see the landing page, with no sign-in and no pricing
+
+#### Scenario: A later change is previewed
+
+- **WHEN** an unpublished landing page change is previewed
+- **THEN** the preview is shown at its own preview address, and `wongstack.com` keeps showing the published page

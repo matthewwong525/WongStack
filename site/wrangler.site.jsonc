@@ -6,14 +6,21 @@
 // wrangler call passes `--config wrangler.site.jsonc`, and
 // scripts/tests/landing-site.test.mjs pins it.
 //
-// No `routes` and no custom domain: wongstack.com attaches only on the
-// owner's word. wiki/maintaining/landing-page.md
+// wongstack.com and www.wongstack.com are the live site's addresses: a publish
+// from the default branch attaches both, and a preview never does.
+// wiki/maintaining/landing-page.md
 {
   "name": "wongstack-site",
   // wrangler refuses a deploy with no date. The site runs no code, so the
   // date changes nothing it serves.
   "compatibility_date": "2026-07-28",
+  // Keep this: with `routes` declared and this key absent, wrangler turns the
+  // workers.dev address off, and the site loses its second way in.
   "workers_dev": true,
+  "routes": [
+    { "pattern": "wongstack.com", "custom_domain": true },
+    { "pattern": "www.wongstack.com", "custom_domain": true }
+  ],
   "observability": {
     "enabled": false
   },
@@ -25,7 +32,10 @@
   },
   "env": {
     "staging": {
-      "name": "wongstack-site-staging"
+      "name": "wongstack-site-staging",
+      // An environment inherits the top-level `routes`. Without its own empty
+      // list, a branch deploy would move wongstack.com to the staging site.
+      "routes": []
     }
   }
 }

@@ -38,7 +38,7 @@ A change that breaks one updates the page's sentence and its *Last updated* date
 
 1. **Check.** A change that touches `site/` or the workflow runs the site's lint, type check, tests, and build. A change that leaves both alone skips them, and the check still reports, in one line.
 2. **Preview.** On a branch, the workflow publishes the staging site and posts the change's own address on the commit as the `landing-preview` status. It shows as a *Details* link beside the change's checks. Read it with `gh api repos/<repo>/commits/<sha>/statuses`. The main preview link stays the starter app's.
-3. **Publish.** A merge to the default branch puts the site live at its own `workers.dev` address.
+3. **Publish.** A merge to the default branch puts the site live at [wongstack.com](#wongstackcom-is-the-sites-address). It keeps its own `workers.dev` address too.
 
 A change under `site/` also runs the starter app's checks and staging deploy, as any code folder does: [the gate](../development/the-change-loop.md#the-gate) treats every path outside the docs as the main app.
 
@@ -46,11 +46,15 @@ A change under `site/` also runs the starter app's checks and staging deploy, as
 
 The site's deploy config is [`site/wrangler.site.jsonc`](../../site/wrangler.site.jsonc), and every wrangler call for the site passes `--config wrangler.site.jsonc`. Never rename it `wrangler.jsonc`: the starter app's scripts find their config by looking in each folder for that name, and with two to find they pick one by chance. [The guard test](../../scripts/tests/landing-site.test.mjs) fails on a second findable config, and when [the payload list](../../.agents/skills/wong-sync/references/payload-files.json) names anything under `site/`.
 
-## wongstack.com moves only on the owner's word
+## wongstack.com is the site's address
 
-Publishing never attaches `wongstack.com`, or any other domain, to the site. The config has no `routes`, and the workflow adds none. The switch is a change of its own, made after the owner has seen the site live at its own address and said to switch.
+The live site answers at `wongstack.com` and `www.wongstack.com`, and at its own `workers.dev` address as a second way in. Both names are the top-level `routes` in [`site/wrangler.site.jsonc`](../../site/wrangler.site.jsonc), so every publish attaches them. Never attach one by hand: the config is the record.
 
-The pages already name `wongstack.com` as their one address to index and share ([`site/index.html`](../../site/index.html)), so a preview never becomes the indexed copy.
+**A preview never takes either name.** An environment in that config inherits the top-level `routes`, so `env.staging` declares `"routes": []`. Without that list, a branch's preview would move `wongstack.com` to the staging site.
+
+[The guard test](../../scripts/tests/landing-site.test.mjs) fails when an environment loses its empty list, when the two names change, or when `"workers_dev": true` goes: with `routes` declared and that key absent, the site loses its own address.
+
+Both names show the same page; `www` does not send a visitor on. Every page names `wongstack.com` as its one address to index and share ([`site/index.html`](../../site/index.html)), so neither `www` nor a preview becomes the indexed copy.
 
 ## Pictures and brand files
 
