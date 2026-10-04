@@ -131,6 +131,8 @@ Payload: `.agents/skills/verify/SKILL.md`, its references and scripts, `wiki/dev
 
 - **2026-10-04** — Imported observations use the existing recursive credential scrub and owned cleanup. Synthetic integration tests capture the posting handoff locally without sending a test report; artifact expiry and report limits live in the short CI reference.
 
+- **2026-10-04** — Latest main adds 959 instruction bytes; its trial merge exceeded the unchanged ceiling. Integration is deferred until measured candidate adoption can replace redundant preview-only instructions. The merge was aborted without changing either feature.
+
 ## Research
 
 The design draws on pstack's [project verification recipes](https://github.com/cursor/plugins/blob/main/pstack/skills/create-verification-skill/SKILL.md), [consumer-risk analysis](https://github.com/cursor/plugins/blob/main/pstack/skills/blast-radius/SKILL.md), [focused regression checks](https://github.com/cursor/plugins/blob/main/pstack/skills/tdd/SKILL.md), and [small solutions](https://github.com/cursor/plugins/blob/main/pstack/skills/principle-laziness-protocol/SKILL.md). These are design references; this change does not vendor their text or tooling. WongStack's recent measured grading work remains the starting point: `openspec/changes/archive/2026-10-03-sharpen-verify/`.
