@@ -88,39 +88,9 @@ test('CLI refuses invalid receipts without printing their values', () => {
   assert.equal(result.status, 1);
   assert.match(result.stdout, /Invalid checkpoint input/);
 });
-test('verified hosted status preserves candidate identity and mandatory gate; never NONE', async t => {
-  const repo = mkdtempSync(join(tmpdir(), 'hosted-revision-'));
-  t.after(() => rmSync(repo, { recursive: true, force: true }));
-  const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-  git('init', '-q', '-b', 'work');
-  writeFileSync(join(repo, 'proposal.md'), '**Branch:** work\n');
-  git('add', 'proposal.md');
-  git('-c', 'user.email=fixture@example.com', '-c', 'user.name=Fixture', 'commit', '-qm', 'fixture');
-  const headSha = git('rev-parse', 'HEAD');
-  const remote = 'https://workspace.artifacts.cloudflare.net/git/org/project.git';
-  git('remote', 'add', 'origin', remote);
-  const run = (command, args) => {
-    assert.equal(command, 'git');
-    if (args.includes('ls-remote')) return `${headSha}\trefs/heads/work`;
-    return git(...args);
-  };
-  const selection = { changeName: 'chosen', branch: 'work', headSha, baseSha: OLD };
-  const hostedInput = { selection, changeRoot: '.' };
-  for (const gateResult of ['SUCCESS', 'FAILURE', 'UNKNOWN', 'TIMEOUT']) {
-    const delivery = async (command, input, options) => {
-      assert.equal(command, 'gate');
-      assert.deepEqual(input, { selection });
-      assert.equal(options.remote, remote);
-      return { projectId: 'project', generation: 2, candidate: { id: 'candidate', ...selection, checks: { status: gateResult === 'SUCCESS' ? 'passed' : 'failed', runId: 'run' } }, gateResult };
-    };
-    const result = await savedRevision({ repo, run, hostedInput, delivery });
-    assert.equal(result.state, 'SAVED');
-    assert.equal(result.gateResult, gateResult);
-    const checkpoint = { ...result };
-    assert.equal((await savedRevision({ repo, run, hostedInput, delivery, checkpoint })).reused, true);
-    assert.notEqual(result.gateResult, 'NONE');
-  }
-  assert.equal((await savedRevision({ repo, run, hostedInput, delivery: async () => { throw Error('authority'); } })).state, 'UNKNOWN');
-  assert.equal((await savedRevision({ repo, run, hostedInput: { ...hostedInput, selection: { ...selection, headSha: HEAD } } })).state, 'UNKNOWN');
-  assert.equal((await savedRevision({ repo, run, hostedInput, delivery: async () => ({ candidate: { headSha: HEAD, branch: 'work' } }) })).state, 'UNKNOWN');
+test('an Artifacts origin is a foreign repository, never a saved gate', async () => {
+  const fixture = githubFixture({ remote: 'https://workspace.artifacts.cloudflare.net/git/org/project.git' });
+  const result = await savedRevision({ ...fixture, checkpoint: receipt });
+  assert.deepEqual(result, { state: 'UNKNOWN', gateResult: 'UNKNOWN', reason: 'Unsupported or foreign repository identity' });
+  assert.ok(fixture.calls.every(([command]) => command === 'git'));
 });
