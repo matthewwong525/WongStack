@@ -34,7 +34,7 @@ export const tagClause = tags => ({
   params: tags,
 });
 
-export async function readFacts(ctx, { values = {}, positionals = [] }, store = openStore(ctx)) {
+export async function readFacts(ctx, { values = {}, positionals = [], ids }, store = openStore(ctx)) {
   const joins = [];
   const where = [];
   const params = [];
@@ -48,6 +48,11 @@ export async function readFacts(ctx, { values = {}, positionals = [] }, store = 
   if (values.change) { sessions.push('f.session_id IN (SELECT DISTINCT session_id FROM facts WHERE slug = ? AND session_id IS NOT NULL)'); params.push(values.change); }
   if (sessions.length) where.push(`(${sessions.join(' OR ')})`);
   if (!values.all) where.push('f.superseded_by IS NULL');
+  if (ids) {
+    if (!ids.length || ids.length > 20 || ids.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new Error('invalid bounded fact IDs');
+    where.push(`f.id IN (${ids.map(() => '?').join(', ')})`);
+    params.push(...ids);
+  }
   const personal = values.everyone ? null : await personalFilter(ctx, store);
   if (personal) { where.push(personal.clause); params.push(...personal.params); }
   const filters = { type: 'f.type = ?', slug: 'f.slug = ?', since: 'f.created_at >= ?', until: 'f.created_at <= ?', author: 'f.author LIKE ?' };
@@ -70,4 +75,3 @@ export async function readFacts(ctx, { values = {}, positionals = [] }, store = 
     .filter(fact => !values.state || fact.state === values.state).slice(0, limit);
   return { version: 1, filters: { terms: positionals.join(' '), ...Object.fromEntries(Object.keys(filters).concat(['tag', 'branch', 'change', 'state']).filter(key => values[key]).map(key => [key, values[key]])), all: Boolean(values.all), everyone: Boolean(values.everyone), personal: Boolean(personal), limit }, facts };
 }
-

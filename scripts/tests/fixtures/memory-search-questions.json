@@ -238,6 +238,7 @@
     },
     {
       "key": "visible-deploy",
+      "owner": "other",
       "slug": "visibility",
       "type": "project",
       "body": "Visibility deploy uses the shared checklist.",
@@ -245,6 +246,7 @@
     },
     {
       "key": "private-feedback",
+      "owner": "other",
       "slug": "visibility",
       "type": "feedback",
       "body": "Visibility deploy personal preference is quiet notifications.",
@@ -252,6 +254,7 @@
     },
     {
       "key": "private-reader",
+      "owner": "other",
       "slug": "visibility",
       "type": "project",
       "body": "Visibility deploy reader notes are personal.",
@@ -361,6 +364,23 @@
       "classification": "diagnostic",
       "category": "no-answer",
       "expected": [],
+      "forbidden": []
+    }
+  ],
+  "contextQuestions": [
+    {
+      "id": "combined-recall",
+      "query": "digest cap and short replies",
+      "classification": "diagnostic",
+      "category": "multi-fact",
+      "expected": [
+        "digest-cap",
+        "short-replies"
+      ],
+      "critical": [
+        "digest-cap",
+        "short-replies"
+      ],
       "forbidden": []
     }
   ]

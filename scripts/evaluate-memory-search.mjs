@@ -5,15 +5,25 @@ import { memory, setup, writeJsonFile } from './tests/fixtures/memory/harness.mj
 import { isMain, parseCli } from './lib-cli.mjs';
 
 const FIXTURE = new URL('./tests/fixtures/memory-search-questions.json', import.meta.url);
-const loadFixture = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
+export const loadFixture = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
+const OTHER_MACHINE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+// Fixture ownership is explicit and independent of its attribution label.
+export function fixtureOwner(fact, ownMachine) {
+  switch (fact.owner || 'self') {
+    case 'self': return ownMachine;
+    case 'other': return OTHER_MACHINE;
+    case 'unassigned': return null;
+    default: throw new Error(`invalid synthetic owner for ${fact.key}`);
+  }
+}
 
-function seed(env, fixture) {
+export function seed(env, fixture) {
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeJsonFile(env.repo.stateDir, 'team.json', { team: true });
-  const insert = env.fake.db.prepare('INSERT INTO facts (slug, type, body, source, created_at, author, shared) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id');
+  const insert = env.fake.db.prepare('INSERT INTO facts (slug, type, body, source, created_at, author, shared, owner_machine_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id');
   const ids = new Map();
   for (const fact of [...fixture.facts, ...(fixture.diagnosticFacts || [])]) {
-    const { id } = insert.get(fact.slug, fact.type, fact.body, 'migration', fact.createdAt || '2026-10-01T00:00:00Z', fact.author || 'dev@example.com', fact.shared ?? 1);
+    const { id } = insert.get(fact.slug, fact.type, fact.body, 'migration', fact.createdAt || '2026-10-01T00:00:00Z', fact.author || 'dev@example.com', fact.shared ?? 1, fixtureOwner(fact, env.repo.machineId));
     ids.set(fact.key, id);
   }
   for (const fact of fixture.diagnosticFacts || []) {
@@ -37,10 +47,10 @@ function score(question, keys, index) {
   return { id: question.id || `regression-${index + 1}`, query: question.query, classification, category: question.category || 'literal/word-form', expected, targets, returned: keys, topThree: keys.slice(0, 3), unexpected, forbidden, hit, failed: forbidden.length > 0 || (classification === 'regression' && !hit) };
 }
 
-function permissionForbidden(fixture, question) {
+export function permissionForbidden(fixture, question) {
   const facts = [...fixture.facts, ...(fixture.diagnosticFacts || [])];
   const superseded = question.filters?.all ? [] : facts.flatMap(fact => fact.supersedes || []);
-  const personal = question.filters?.everyone ? [] : facts.filter(fact => (fact.author || 'dev@example.com') !== 'dev@example.com' && (fact.shared === 0 || ['user', 'feedback'].includes(fact.type))).map(fact => fact.key);
+  const personal = question.filters?.everyone ? [] : facts.filter(fact => fixtureOwner(fact, 'self') !== 'self' && (fact.shared === 0 || ['user', 'feedback'].includes(fact.type))).map(fact => fact.key);
   return [...new Set([...(question.forbidden || []), ...superseded, ...personal])];
 }
 
@@ -89,10 +99,10 @@ export function formatEvaluation(report) {
 }
 
 if (isMain(import.meta.url)) {
-  const { values } = parseCli({ usage: 'usage: evaluate-memory-search.mjs [--json]', options: { json: { type: 'boolean' } } });
+  const { values } = parseCli({ usage: 'usage: evaluate-memory-search.mjs [--json] [--context [--live --agent claude] [--repeats n]]', options: { json: { type: 'boolean' }, context: { type: 'boolean' }, live: { type: 'boolean' }, agent: { type: 'string' }, model: { type: 'string' }, repeats: { type: 'string' } } });
   try {
-    const report = await evaluateMemorySearch();
-    console.log(values.json ? JSON.stringify(report) : formatEvaluation(report));
+    const report = values.context ? await (await import('./evaluate-memory-context.mjs')).evaluateMemoryContext({ live: values.live, agent: values.agent, model: values.model, repeats: Number(values.repeats || (values.live ? 2 : 1)) }) : await evaluateMemorySearch();
+    console.log(values.json ? JSON.stringify(report) : values.context ? JSON.stringify(report, null, 2) : formatEvaluation(report));
     process.exitCode = Number(report.failed);
   } catch (error) {
     console.error(values.json ? JSON.stringify({ version: 1, synthetic: true, failed: true, error: error.message }) : `Evaluation failed: ${error.message}`);

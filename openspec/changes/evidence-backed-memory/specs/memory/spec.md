@@ -41,3 +41,73 @@ Memory SHALL provide opt-in structured search results containing fact identifier
 
 - **WHEN** a structured search matches facts hidden from that caller
 - **THEN** neither the hidden bodies nor their evidence identifiers appear
+
+### Requirement: A selective helper leaves simple lookups fast
+
+Memory SHALL offer an explicitly requested experimental helper for broad or ambiguous questions that may reformulate searches and select original facts with evidence. Ordinary search, factual briefs, and automatic session loading SHALL make no additional model call for this helper. The helper SHALL create no stored memory or generated conclusions, and SHALL not receive the parent conversation or automatically retrieve source transcripts.
+
+#### Scenario: A question spans several past decisions
+
+- **WHEN** the caller explicitly requests the helper with a scoped question
+- **THEN** the helper may search for alternative wording and return useful original facts with evidence, and states any remaining gaps
+
+#### Scenario: An ordinary lookup is sufficient
+
+- **WHEN** the caller uses ordinary search or a factual brief
+- **THEN** that operation retains its existing behavior without invoking the helper
+
+### Requirement: Helper work and returned context have enforced limits
+
+The helper SHALL enforce cumulative limits per task handle of 12,288 UTF-8 bytes of application-supplied model input, 3,072 UTF-8 bytes returned to the caller, three candidate searches, and two model calls. Each request SHALL have a twenty-second deadline. Headers, repeated round inputs, retries, fallback output, and errors SHALL count toward the applicable allowance. Concurrent requests SHALL share reserved allowances. Returned facts SHALL keep whole original bodies and supporting identifiers; truncation and exhausted allowances SHALL never imply complete recall. These bounds SHALL be described as helper-interface limits, not a bound on provider-added context or the main agent's whole conversation.
+
+#### Scenario: Repeated requests consume a task's allowance
+
+- **WHEN** requests reuse the same task handle, including concurrent or retried requests
+- **THEN** they cannot collectively exceed its supplied-input, output, search, or model-call allowance, and already supplied facts are not repeated
+
+#### Scenario: A request cannot finish within its limits
+
+- **WHEN** input, output, work, or time reaches its allowed bound
+- **THEN** further work stops, any returned packet fits the remaining allowance, and the caller can distinguish an incomplete result from an empty successful read
+
+### Requirement: Helper selection preserves evidence and authority
+
+The helper SHALL expose only current facts authorized by the same enforced store permissions and default scope as search, preserving the caller's scope across alternative queries. Selection SHALL be limited to authorized candidate IDs and revalidated before output. The model SHALL have no tools or memory-write authority; a host without verified isolation SHALL not launch a less restricted helper. The helper SHALL retrieve no transcript content, expose no credential or raw storage key, and reject filter paths that cannot meet its bounded-read contract with a visible explanation.
+
+#### Scenario: A model proposes a hidden or fabricated fact
+
+- **WHEN** a model response names an ID outside the authorized candidate pool or attempts to widen caller filters
+- **THEN** the proposal is rejected and no hidden body or identifier is returned
+
+#### Scenario: A selected fact changes before output
+
+- **WHEN** a selected fact is superseded or ceases to be readable before final verification
+- **THEN** it is excluded and the result is marked partial, or verification failure returns unavailable or denied without cached evidence
+
+### Requirement: Helper failure keeps the caller informed
+
+An unavailable, unsupported, invalid, or timed-out helper SHALL fall back without an additional model call to a bounded deterministic selection only when current authorized evidence can be verified within the remaining deadline. Otherwise it SHALL return no facts and report unavailable or denied. Failure and fallback SHALL consume the existing task allowances and SHALL not be presented as a successful complete extraction.
+
+#### Scenario: The installed host cannot isolate the helper
+
+- **WHEN** tool-free isolation or current model access is unavailable
+- **THEN** no unrestricted helper launches and the caller receives a verified bounded fallback or an explicit unavailable result
+
+#### Scenario: Current memory cannot be verified
+
+- **WHEN** a model fails and the store denies or fails the final verification
+- **THEN** the caller gets the denial or unavailability without stale facts or a claim that no matching memory exists
+
+### Requirement: Helper evaluation reports coverage and total work
+
+Memory evaluation SHALL compare the helper with direct eight- and twenty-fact selections under the same final packet budget on synthetic questions with declared required and forbidden facts. It SHALL report critical-fact coverage, complete expected sets, context bytes, store/model calls, elapsed time, and provider-reported token usage or its absence. Recorded model fixtures SHALL be distinguished from live model evidence. Selective helper guidance SHALL remain disabled until live synthetic evaluation shows no forbidden or fabricated facts, no existing regression loss, no per-case critical-fact loss against the comparable twenty-fact baseline, and recovery of both existing synonym-only misses.
+
+#### Scenario: A helper returns fewer bytes but uses more work
+
+- **WHEN** the helper returns a smaller packet but makes additional model calls or takes longer
+- **THEN** the report shows that tradeoff without claiming lower total cost or faster retrieval from packet size alone
+
+#### Scenario: Protocol tests pass but live quality is unverified
+
+- **WHEN** recorded-reply tests pass and live evaluation is unavailable or fails its acceptance bar
+- **THEN** the helper remains explicitly experimental without selective-use promotion and the missing or failing evidence is reported

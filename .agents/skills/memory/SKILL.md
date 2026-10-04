@@ -21,6 +21,7 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Routine recall | `search <terms>`; `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change <slug>` (sessions writing it; with `--branch`, either), `--state active\|shipped\|conversation`, `--all` includes superseded facts, `--everyone` |
 | Programs | `search <terms> --json` (version 1) |
 | Evidence: original facts, dates, sources | `brief <terms>` or `brief --tag <topic>`; search filters except `--all`; default 8, `--limit` up to 20, 6,144 bytes; relevance before grouping |
+| Experimental helper | `extract-task [scope filters]`, then `extract <question> --task <handle> --agent claude\|codex [same filters]`; see [limits](../../../wiki/development/memory.md#experimental-extraction) |
 | One slug, open threads first | `show <slug>` |
 | Everything linked to files, a topic, or a change: docs, past changes, backlinks, facts | `areas <paths or topic…>` or `areas --change <name>` |
 | The transcript behind a fact | `source <fact-id>` |
@@ -35,7 +36,7 @@ Choose one format per unchanged query. Fetch sources on demand to check a fact. 
 
 ## Write
 
-The **write gate** takes two calls:
+The **write gate**:
 
 1. `gate --file <input>` shows each candidate's live same-slug facts and closest matches.
 2. `put-facts --file <input>` takes each decision:
@@ -68,7 +69,7 @@ Repo contributors receive trusted member credentials; readers’ writes stay pri
 
 ## Background run
 
-The hook starts this unattended run. Follow these steps using only the memory script. Write JSON files in the named input folder; pass their paths as `<input>`.
+The hook starts this run. Use only the memory script; write JSON in the input folder and pass its path.
 
 1. **Spool.** Run `spool`. For each file it lists, decide its candidates from the printed neighbours and send the decisions to `put-facts --file <input> --spooled <path>`.
 2. **Pending sessions.** Run `pending --limit 5 --exclude <the session named in your instructions>`. For each session, newest first:

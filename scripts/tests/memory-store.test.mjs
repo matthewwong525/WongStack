@@ -194,8 +194,8 @@ test('structured search shares text IDs, filters and stable tied ranks and dates
   }
   const tied = async () => JSON.parse((await memory(env.repo, env.fake, ['search', 'Evidence keeps original words', '--slug', 'active-topic', '--json'])).stdout);
   // Seed exact equal date/rank records without changing existing immutable facts.
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('ties', 'project', 'Identical evidence wording.', 'save', '2026-10-01T00:00:00Z', 'dev@example.com') RETURNING id");
-  const ids = Array.from({ length: 4 }, () => insert.get().id).reverse();
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, owner_machine_id) VALUES ('ties', 'project', 'Identical evidence wording.', 'save', '2026-10-01T00:00:00Z', 'dev@example.com', ?) RETURNING id");
+  const ids = Array.from({ length: 4 }, () => insert.get(env.repo.machineId).id).reverse();
   for (const terms of [[], ['identical']]) {
     const result = await memory(env.repo, env.fake, ['search', ...terms, '--slug', 'ties', '--json']);
     assert.deepEqual(JSON.parse(result.stdout).facts.map(fact => fact.id), ids);
@@ -267,9 +267,9 @@ test('brief requires scope and uses current facts, evidence and search filters w
 
 test('brief selects eight by default and up to twenty explicitly without extra store requests', async t => {
   const env = await setup(t);
-  env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES ('claude:context', 'claude', 'dev@example.com', 'captured', '2026-10-01T00:00:00Z')").run();
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, session_id) VALUES ('context', 'project', ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com', 'claude:context')");
-  for (let index = 1; index <= 25; index += 1) insert.run(`Context fact ${index} keeps its original words.`);
+  env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at, owner_machine_id) VALUES ('claude:context', 'claude', 'dev@example.com', 'captured', '2026-10-01T00:00:00Z', ?)").run(env.repo.machineId);
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, session_id, owner_machine_id) VALUES ('context', 'project', ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com', 'claude:context', ?)");
+  for (let index = 1; index <= 25; index += 1) insert.run(`Context fact ${index} keeps its original words.`, env.repo.machineId);
   const read = async args => {
     const start = env.fake.calls.length;
     const result = await memory(env.repo, env.fake, [...args, '--slug', 'context']);
@@ -290,12 +290,12 @@ test('brief selects eight by default and up to twenty explicitly without extra s
   assert.equal(ids(one.output).length, 1);
   assert.match(brief.output, /Limit 8 live facts; 8 selected, 0 selected entries omitted/);
   assert.match(twenty.output, /Limit 20 live facts; 20 selected, 0 selected entries omitted/);
-  assert.match(brief.output, /Scope: {"slug":"context"}\n/);
-  assert.doesNotMatch(brief.output, /"all"|"everyone"|"personal"|"terms"|follow up:/);
+  assert.match(brief.output, /Scope: {"slug":"context","personal":true}\n/);
+  assert.doesNotMatch(brief.output, /"all"|"everyone"|"terms"|follow up:/);
   assert.equal(brief.output.match(/Source: source <fact-id>/g).length, 1);
   assert.equal(brief.output.match(/author: dev@example.com · session: claude:context/g).length, 8);
   for (const result of [json, brief, twenty, one]) assert.equal(result.requests, search.requests, 'request count stays constant across formats and fact limits');
-  assert.equal(search.requests, 1, 'ordinary single-user reads use one D1 query');
+  assert.equal(search.requests, 1, 'ordinary machine-scoped reads use one D1 query');
   assert.ok(brief.bytes < twenty.bytes);
   assert.ok(twenty.bytes <= BRIEF_MAX_BYTES);
   t.diagnostic(`SYNTHETIC MEMORY CONTEXT ${JSON.stringify(Object.fromEntries(Object.entries({ search8: search, json8: json, brief8: brief, brief20: twenty, brief1: one }).map(([name, { bytes, requests }]) => [name, { bytes, requests }])))}`);
@@ -304,7 +304,7 @@ test('brief selects eight by default and up to twenty explicitly without extra s
   const teamSearch = await read(['search', '--limit', '8']);
   const teamBrief = await read(['brief']);
   const teamTwenty = await read(['brief', '--limit', '20']);
-  assert.equal(teamSearch.requests, 2, 'team scope adds the reader-schema probe');
+  assert.equal(teamSearch.requests, 1, 'current machine privacy needs no schema probe');
   assert.equal(teamBrief.requests, teamSearch.requests);
   assert.equal(teamTwenty.requests, teamSearch.requests, 'team reads add no per-fact queries');
   assert.match(teamBrief.output, /"personal":true/);

@@ -4,6 +4,9 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { createHash } from 'node:crypto';
+import { extractMemory } from './lib/extract.mjs';
+import { issueTask, scopeOf, taskIdentity } from './lib/extract-ledger.mjs';
 import { CONSOLIDATION_STATE, consolidationDue, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
 import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
 import { ftsQuery, readFacts, stateOf, tagClause } from './lib/read-facts.mjs';
@@ -713,10 +716,25 @@ async function migrate(ctx) {
   if (!files.length) console.log('The store is up to date: every migration is recorded.');
 }
 
+function extractIdentity(ctx, scope) {
+  const token = process.env.CLOUDFLARE_MEMORY_TOKEN || loadEnv(ctx).CLOUDFLARE_MEMORY_TOKEN || '';
+  return taskIdentity(ctx, scope, createHash('sha256').update(token).digest('hex'));
+}
+async function extractCommand(ctx, { values, positionals }) {
+  const scope = scopeOf(values), question = positionals.join(' ').trim();
+  if (!values.task || !question) throw new StoreError('extract requires a question and --task from extract-task');
+  const loaded = values.loaded ? values.loaded.split(',').map(Number) : [];
+  if (loaded.length > 20 || loaded.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new StoreError('--loaded requires at most twenty positive fact IDs');
+  const result = await extractMemory(ctx, { task: values.task, identity: extractIdentity(ctx, scope), scope, question, loaded, agent: values.agent, model: values.model, usageReport: values['usage-report'] });
+  process.stdout.write(result.text);
+  process.exitCode = result.code;
+}
 export const COMMANDS = {
   migrate, search, brief, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
   'keep-transcript': keepTranscript,
   'recent-chats': recentChats,
+  extract: extractCommand,
+  'extract-task': (ctx, { values }) => { const scope = scopeOf(values); console.log(issueTask(ctx, extractIdentity(ctx, scope))); },
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   retag: retagCommand,
@@ -728,8 +746,8 @@ export const COMMANDS = {
 };
 
 const OPTIONS = Object.fromEntries([
-  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label'].map(name => [name, { type: 'string' }]),
-  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias'].map(name => [name, { type: 'boolean' }]),
+  ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'task', 'loaded', 'agent', 'model'].map(name => [name, { type: 'string' }]),
+  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias', 'usage-report'].map(name => [name, { type: 'boolean' }]),
 ]);
 
 const USAGE = `usage: memory.mjs <command>
@@ -738,6 +756,9 @@ const USAGE = `usage: memory.mjs <command>
                                (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)
   show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
   brief [terms] [search filters except --all]   dates and sources; default 8 facts, --limit up to 20 / 6144 bytes; requires scope
+  extract-task [scope filters]  issue an experimental task handle; reuse with exactly these filters
+  extract <question> --task <handle> [scope filters] --agent claude|codex [--model name] [--loaded ids] [--usage-report]
+                               experimental; 12 KiB model input / 3 KiB returned per task; 3 searches / 2 calls / 20 seconds per request
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
   tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)

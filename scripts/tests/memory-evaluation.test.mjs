@@ -4,13 +4,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { evaluateMemorySearch, formatEvaluation } from '../evaluate-memory-search.mjs';
+import { evaluateMemorySearch, formatEvaluation, permissionForbidden } from '../evaluate-memory-search.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
 
 const RUNNER = fileURLToPath(new URL('../evaluate-memory-search.mjs', import.meta.url));
 const fixture = questions => ({ facts: [
   { key: 'allowed', slug: 'test', type: 'project', body: 'Deploy uses a checklist.' },
-  { key: 'hidden', slug: 'test', type: 'feedback', body: 'Deploy personal preference.', author: 'other@example.com' },
+  { key: 'hidden', slug: 'test', type: 'feedback', body: 'Deploy personal preference.', author: 'other@example.com', owner: 'other' },
 ], questions });
 const regression = { query: 'deploy', classification: 'regression', category: 'literal/word-form', expected: ['allowed'], forbidden: ['hidden'] };
 const reply = ids => async () => ({ code: 0, stdout: JSON.stringify({ version: 1, facts: ids.map(id => ({ id })) }), stderr: '' });
@@ -18,6 +18,18 @@ const gone = env => {
   for (const dir of [env.repo.root, env.repo.home]) assert.equal(existsSync(dir), false, `${dir} cleaned`);
   assert.throws(() => env.fake.db.prepare('SELECT 1'), /closed|not open/);
 };
+
+test('evaluation permission scoring uses machine ownership even when author labels disagree', () => {
+  const evidence = { facts: [
+    { key: 'own', type: 'feedback', author: 'other@example.com', owner: 'self' },
+    { key: 'other', type: 'feedback', author: 'dev@example.com', owner: 'other' },
+    { key: 'reader', type: 'project', author: 'dev@example.com', owner: 'other', shared: 0 },
+    { key: 'historic', type: 'user', author: 'dev@example.com', owner: 'unassigned' },
+    { key: 'team', type: 'project', author: 'other@example.com', owner: 'other' },
+  ] };
+  assert.deepEqual(permissionForbidden(evidence, {}), ['other', 'reader', 'historic']);
+  assert.deepEqual(permissionForbidden(evidence, { filters: { everyone: true } }), []);
+});
 
 test('synthetic baseline retains every old required case and visibly reports diagnostic misses', async t => {
   let env;

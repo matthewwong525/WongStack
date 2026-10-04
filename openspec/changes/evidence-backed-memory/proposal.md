@@ -1,42 +1,58 @@
-# See what memory finds, with evidence
+# Find useful memory, with evidence and limits
 
-**Status:** ready-to-ship
+**Status:** in-progress
 **Branch:** `humane-dolphin`
-**Open questions:** none
+**Open questions:** Live quality comparison is blocked by the current Claude weekly usage limit. After automated checks, the user must choose explicitly experimental delivery or leave live acceptance pending.
 
 ## Why
 
-The assistant can remember a fact yet miss it when a question uses different words. Before adding a more complex memory system, make those misses measurable and give the assistant a short brief it can trace back to the facts behind it.
+The assistant can remember a fact yet miss it when a question uses different words. Loading more facts can help, but it can also distract the assistant and fill its context. Keep everyday lookups fast, and offer a bounded helper when a question needs several decisions or a better search.
 
 ## What Changes
 
-- **See which questions memory answers and which it misses.** A repeatable report checks ordinary questions, different wording, changed decisions, and questions with no answer. Existing guarantees keep passing; harder questions show where a later improvement would help.
+- **Keep simple lookups fast; use a helper for harder questions.** Ordinary search and the eight-fact brief keep their current behavior without another model call. For a broad or ambiguous question, the assistant can explicitly ask a helper to try better search terms and pick useful facts. The helper starts as an experiment, with no automatic loading.
   ```text
-  practice facts + questions
+                question
+                   │
+          ┌────────┴────────┐
+          ▼                 ▼
+     simple lookup     harder question
+          │                 │
+          ▼                 ▼
+       search         bounded helper
+  ```
+- **Limit what the helper reads and returns.** Code limits the helper's supplied input to 12 KiB across its calls and its returned context to 3 KiB per task handle. It gets at most three searches, two model calls, and twenty seconds per request. It returns selected facts in their own words with dates and sources, without loading whole chats or inventing new memories.
+  ```text
+       inspect within 12 KiB
+                 │
+                 ▼
+         select useful fact IDs
+                 │
+                 ▼
+     facts + sources within 3 KiB
+  ```
+- **Show missing evidence and stop cleanly.** Facts keep their existing permissions and replaced facts stay out. If the helper cannot run or reaches a limit, use an ordinary selection that still fits the remaining budget, when current memory can be verified. Say when results are partial, unavailable, or denied.
+  ```text
+      helper finishes ──▶ selected facts
+              │
+        cannot finish
               │
               ▼
-       today's memory search
-              │
-              ▼
-     found / missed / wrong result
+      bounded fallback + limitation
   ```
-- **Ask for a brief with evidence attached.** The brief starts with eight current facts on the requested topic, keeps the most relevant entries that fit, groups them by kind, and shows their dates and sources. An explicit request can select up to twenty facts. It uses the facts' own words, without an extra model call or new conclusions.
+- **Check usefulness as well as size and speed.** Compare ordinary selections of eight and twenty facts with the helper on the same questions. Record which needed facts survive, the context returned, model usage, and elapsed time. A smaller packet alone does not establish that the helper is cheaper, faster, or more useful.
   ```text
-  topic ──▶ facts you may read
-                     │
-                     ▼
-               bounded brief
-              /      │      \
-           fact     date    source
-  ```
-- **Keep briefs current and private.** Each request reads current memory and excludes replaced facts. A short brief says when it was made and when its selection is limited; following a source still obeys the source's own permissions.
-  ```text
-  old fact ──▶ replaced ──▶ left out
-  live fact ─▶ allowed  ──▶ brief
-  private source ────────▶ permission check
+         same practice questions
+                   │
+          ┌────────┼────────┐
+          ▼        ▼        ▼
+       eight     twenty   helper
+          └────────┼────────┘
+                   ▼
+       useful facts / usage / time
   ```
 
-**Non-goals:** Installing Hindsight, adding another store, embeddings, relationship graphs, inferred beliefs, saved/generated wiki pages, changing ownership or credentials, and changing what loads automatically at session start.
+**Non-goals:** Installing Hindsight, adding another store, embeddings, relationship graphs, inferred beliefs, generated summaries or wiki pages, changing ownership or credentials, automatically reading transcripts, and changing what loads at session start. The helper's limits cover its own new reads and returns, not the main agent's entire context.
 
 ## Capabilities
 
@@ -46,11 +62,11 @@ None.
 
 ### Modified Capabilities
 
-- `memory`: a bounded, read-only evidence brief and structured search results for repeatable retrieval evaluation.
+- `memory`: structured search and factual briefs, plus an explicitly requested, bounded helper that reformulates searches and selects evidence; comparative retrieval evaluation.
 
 ## Impact
 
-Add a small brief renderer and a shared fact-selection helper under `.agents/skills/memory/scripts/lib/`; adapt `.agents/skills/memory/scripts/memory.mjs` without changing default search output. Extend the existing search fixtures and tests, add a source-repo evaluation runner, and update memory documentation plus a minor release entry. No schema migration, new database, provider credential, app screen, or runtime dependency is expected. Estimated scope: about 8–10 implementation, test, and documentation files beyond these planning artifacts.
+Keep the existing shared selector, deterministic brief, and evaluation runner. Add a controlled helper entry point, a tool-free calling-agent adapter, and budget accounting under `.agents/skills/memory/scripts/lib/`; extend `.agents/skills/memory/scripts/memory.mjs`, memory fixtures/tests, the meta-only evaluation runner, and the existing memory documentation/release note. The helper must preserve the enforced store route and caller filters. No schema migration, provider credential, app screen, or Hindsight dependency is expected. Host support requires proof that the helper cannot use tools or inherit repository instructions; unsupported hosts fall back visibly. The earlier deterministic implementation is checked; the helper extension source and assertions are prepared, awaiting a fresh remote gate and separate live acceptance.
 
 ## Decision log
 
@@ -73,3 +89,17 @@ Add a small brief renderer and a shared fact-selection helper under `.agents/ski
 - **2026-10-04** — Refreshed against published main 02542fa2a8c4eb8a64266cacebee00987579564d. Its independent-task-chat release overlapped only the release-note insertion; retained both entries and the published workflow changes. No memory ownership implementation was published. The context refinements and canonical brief requirement are ready for a fresh remote gate on the integrated branch.
 
 - **2026-10-04** — Context refinements passed the complete current remote suite (1,030 tests), app/deployment checks, and payload/context checks at d3b767d345530289438fb825147ccbcdc633114b. Synthetic eight-fact outputs measured 832 bytes for text search, 1,264 for a brief, and 1,976 for JSON; twenty-fact briefs measured 2,818 bytes. Single-user requests stayed at one and team requests at two across compared formats/limits. The prior detailed one-fact example shrank from 581 to 495 bytes. Stored the current example and context-evaluation.json; the 21-question retrieval report is unchanged. No production latency or token-count claim is made. All refinements are ready for user review before publication.
+
+- **2026-10-04** — Asked which memory retrieval approach to plan → chose selective helper: use bounded extraction for broad or ambiguous questions and keep simple lookups fast.
+- **2026-10-04** — Assumed: extend this unpublished change instead of creating a second memory change, because the helper builds directly on its shared selection, factual rendering, and evaluation interfaces.
+- **2026-10-04** — Assumed: use a model only for query reformulation and ordered fact selection, with code enforcing permissions, deadlines, budgets, and original-word output, because those repeated operations need no model judgment and preserve evidence without inference.
+- **2026-10-04** — Assumed: start experimentally with 12,288 cumulative supplied input bytes, 3,072 cumulative returned bytes per task handle, three candidate searches, two model calls, and a twenty-second request deadline, because bounded work is the user's goal but no live evaluation establishes optimal limits yet. Provider-added instructions and actual tokens are measured separately.
+- **2026-10-04** — Assumed: ordinary search and briefs remain model-free; only the explicitly selected helper may add model calls, because the latest choice extends the earlier deterministic brief rather than replacing it.
+- **2026-10-04** — Assumed: exclude automatic transcript reads, reject unsupported unbounded state filtering on the helper path, and require verified tool-free host adapters, because otherwise a small final packet could hide large reads, extra context, or uncontrolled work.
+- **2026-10-04** — Assumed: keep the helper explicitly experimental until live synthetic comparisons show no critical-fact loss against the comparable twenty-fact baseline and recover both existing synonym-only misses, because fixture protocol tests and smaller output do not establish model usefulness or efficiency. Failure to meet that bar leaves selective recommendation disabled and is reported.
+
+- **2026-10-04** — Asked what to do with the selective-helper plan → chose build it now, implement and test, then review before publishing.
+- **2026-10-04** — Assumed: support the verified tool-free Claude adapter and report Codex as unsupported without switching hosts, because the installed Codex controls do not establish removal of every tool. Keep selective recommendations disabled until the separately required live acceptance evidence exists. Source, assertions, and docs are prepared; earlier passing checks do not validate this extension.
+
+- **2026-10-04** — Published main advanced to a775930044e8d77c967a136431d8d971b20809e8 (machine-owned memory v30.0.0). Integrated that release before testing the helper, retaining installation-bound access and replacing synthetic ownership assumptions rather than keeping email-based authority. Existing deterministic evidence predates this integration and does not prove the extension.
+- **2026-10-04** — The installed Claude isolation probe reported empty tool, MCP, and skill lists, but its first model request was refused by the weekly usage limit (reset stated as 14:00 UTC). No live quality, latency, or token-cost comparison was obtained. Continue implementation and the remote automated gate; keep live acceptance and selective-use promotion incomplete. No publishing approval has been given.
