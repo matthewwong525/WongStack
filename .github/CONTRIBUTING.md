@@ -23,7 +23,7 @@ Use Node.js 22 ([`.nvmrc`](../.nvmrc)) and OpenSpec 1.13.2 (`npm install -g @fis
 (cd app && npm ci && npm test)
 (cd scripts/tests && npm ci)
 scripts/tests/node_modules/.bin/oxlint --deny-warnings scripts .agents/skills/*/scripts
-shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh server/*.sh
+shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh
 scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs
 node scripts/check-payload-links.mjs
 node scripts/check-openspec-config.mjs

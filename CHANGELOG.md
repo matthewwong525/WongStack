@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 31.0.0 — One way in: your own computer
+
+- WongStack now installs one way: from your own computer, with your own GitHub and Cloudflare accounts. That route works exactly as before.
+- The `server` folder is gone: the script that turned a fresh server into a workspace, the helper that ran on that server, and the installer it used.
+- The pieces for projects hosted by wongstack.com are gone too. Setup, save, publish and resume no longer look for a hosted project first; they go straight to their GitHub steps.
+- The guides describe one route. The managed-projects page is removed, and nothing promises a hosted service.
+- The automatic checks no longer build a hosted starter or test the server pieces, so each run has less to do.
+
+**Updating.** An installed project needs no step: the usual update removes pieces it never used. If you set up servers from the `server` folder of your own copy of WongStack, keep them by staying on version 30.10.0, or by copying that folder from 30.10.0.
+
 ## 30.10.0 — Build first, check once at the end
 
 Build the complete change and its tests before automatic verification. Reuse the exact saved revision for the preview walkthrough, keeping required final checks and fresh evidence. Failed checks still get repairs and affected rechecks.

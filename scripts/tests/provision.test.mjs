@@ -371,7 +371,7 @@ test('human membership changes preserve separate machine permissions and only pr
   assert.equal(first.access.serviceTokenId, env.fake.state.serviceTokens[0].id);
   assertNoSecret(env, JSON.stringify(first));
   await env.provision();
-  assert.equal(app.policies.find(p => p.decision === 'allow').include.length, 2, 'an installer rerun retains the managed roster');
+  assert.equal(app.policies.find(p => p.decision === 'allow').include.length, 2, 'a setup rerun retains the existing roster');
   await env.provision({ teammateEmails: [] });
   assert.deepEqual(app.policies.find(p => p.decision === 'allow').include, [{ email: { email: EMAIL } }]);
   assert.deepEqual(app.policies.find(p => p.decision === 'non_identity'), machine);

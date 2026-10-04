@@ -3,9 +3,9 @@
 Your own WongStack fork sets the defaults every new project receives, while each installed project keeps its own site, data, and business knowledge.
 
 ```text
-WongStack → your fork → easy setup → your hosted project
-                 ↑                         ↑
-          shared defaults            changes for one business
+WongStack → your fork → easy setup → your project
+                 ↑                      ↑
+          shared defaults         changes for one business
 ```
 
 ## Choose where to change it
@@ -21,8 +21,6 @@ Change a **source fork** when every new project should start that way. A fork is
 > Make this WongStack template fit a small design studio. Change the starter page and the shared workflow guidance, and keep easy setup working for new projects.
 
 The [payload manifest](../../.agents/skills/wong-sync/references/payload-manifest.md) owns what new projects receive. You can change the workflow skills, shared rules, shipped wiki pages, starter app, and [Cloudflare stack](README.md). When adding a default, update the inventory so setup includes it. A source-only page or script does not reach installed projects just because it exists in the fork.
-
-For servers you run, change the tools in the fork's setup script or its agent. Those changes reach servers using that fork. They are separate from the installed project's payload; the [server guide](https://github.com/matthewwong525/WongStack/blob/main/server/README.md#your-fork-is-your-template) owns the scripts and the contract a host must support.
 
 Keep the [template's release checks](https://github.com/matthewwong525/WongStack/blob/main/wiki/maintaining/README.md) and its blank [environment examples](../development/secrets.md). They help catch missing files, broken links, and secrets before someone installs your version. The existing easy setup uses Cloudflare. Changing the hosting provider means maintaining your own setup and deployment flow too.
 
