@@ -10,8 +10,8 @@ import { isMain, parseCli } from '../../../../scripts/lib-cli.mjs';
 
 const USAGE = `Usage: node .claude/skills/update-dependencies/scripts/update.mjs [--dry-run] [--hold <package>]...
 
-Surveys and updates the OpenSpec and browser CLIs, the OpenSpec pins, and the app/ and
-scripts/tests/ dependencies, then checks the OpenSpec contract and reports. Each stage
+Surveys and updates the OpenSpec and browser CLIs, the OpenSpec pins, and the app/,
+scripts/tests/, and site/ dependencies, then checks the OpenSpec contract and reports. Each stage
 prints "== <stage>", a line per item, then "ok", or "FAIL <what> — <error>" and exits 1.
 Run it again after a fix: finished stages report current.
 
@@ -30,7 +30,8 @@ export const PIN_FILES = [
   '.github/CONTRIBUTING.md',
 ];
 const PROSE_FILE = '.github/CONTRIBUTING.md';
-const PACKAGE_STAGES = [['app', 'app'], ['test-tools', 'scripts/tests']];
+// Each stage's name and folder. site/ is the landing page (meta-only); a repo without a folder skips its stage.
+const PACKAGE_STAGES = [['app', 'app'], ['test-tools', 'scripts/tests'], ['site', 'site']];
 const NPM_TOOLS = { openspec: '@fission-ai/openspec', 'agent-browser': 'agent-browser' };
 const SECTIONS = ['dependencies', 'devDependencies'];
 const LOOKUPS_AT_ONCE = 8;

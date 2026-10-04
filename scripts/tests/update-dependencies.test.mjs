@@ -196,6 +196,27 @@ test('a major is bumped, flagged, and reported with its release notes; @types/no
   assert.match(out, /^moved: scripts\/tests\/c8 12\.0\.0 -> 12\.1\.0$/m);
 });
 
+test('the landing page in site/ is its own stage after the test tools, and a repo without site/ skips it', async t => {
+  const none = await fixture(t).go();
+  assert.equal(none.code, 0, none.out);
+  assert.match(none.out, /^== site\nno package\.json; skipped\nok$/m);
+
+  const f = fixture(t, withRegistry({ vite: '8.1.0' }));
+  const site = { name: 'site', devDependencies: { vite: '^8.0.0' } };
+  write(f.root, 'site/package.json', `${JSON.stringify(site, null, 2)}\n`);
+  write(f.root, 'site/package-lock.json', lockFor(site));
+  const { code, out } = await f.go();
+  assert.equal(code, 0, out);
+  const at = stage => out.indexOf(`== ${stage}\n`);
+  assert.ok(at('test-tools') >= 0 && at('test-tools') < at('site') && at('site') < at('contract'), out);
+  assert.match(out, /^site\/vite \^8\.0\.0 -> \^8\.1\.0$/m);
+  assert.equal(JSON.parse(f.read('site/package.json')).devDependencies.vite, '^8.1.0');
+  assert.ok(lockInSync(JSON.parse(f.read('site/package.json')), JSON.parse(f.read('site/package-lock.json'))));
+  assert.match(out, /^site\/package-lock\.json refreshed$/m);
+  assert.match(out, /^moved: site\/vite \^8\.0\.0 -> \^8\.1\.0$/m);
+  assert.match(out, /^status: updated$/m);
+});
+
 test('a held package keeps the range package.json names, and a changed range refreshes the lock', async t => {
   const f = fixture(t, withRegistry({ react: '20.0.0' }));
   const app = JSON.parse(f.read('app/package.json'));

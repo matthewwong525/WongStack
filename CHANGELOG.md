@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — A memory area for WongStack's own landing page
+
+Memory's list of areas gains one entry, for the landing page kept in the WongStack source. Your install has no such folder, so nothing changes in how memory files or finds your facts.
+
+**Updating.** No action needed.
+
 ## 30.10.0 — Build first, check once at the end
 
 Build the complete change and its tests before automatic verification. Reuse the exact saved revision for the preview walkthrough, keeping required final checks and fresh evidence. Failed checks still get repairs and affected rechecks.

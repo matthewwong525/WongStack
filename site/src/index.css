@@ -1,0 +1,1155 @@
+/* A black-and-white dark theme, like x.ai's own (--background, --primary,
+   --secondary, --border, --card); the Twilight W logo is the only color. The
+   filled button is near-white with near-black text. */
+html {
+  scroll-behavior: smooth;
+}
+
+/* The sliding headline's brand names, each in a free lookalike of the brand's
+   own lettering, never the brand's font files. Google Fonts, SIL Open Font
+   License 1.1, subset to the name's letters (css2 `text=`). */
+@font-face {
+  font-family: "Grok Lookalike"; /* Geist, OFL */
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/geist-grok.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Muse Lookalike"; /* Figtree, OFL */
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/figtree-muse.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Dots Lookalike"; /* Inter, OFL; OpenAI sets OpenAI Sans */
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/inter-dots.woff2") format("woff2");
+}
+
+:root {
+  --bg: hsl(0 0% 4%);
+  --text: hsl(0 0% 96%);
+  --muted: hsl(0 0% 64%);
+  --border: hsl(0 0% 18%);
+  --card: hsl(0 0% 8%);
+  --shade: hsl(0 0% 7%); /* every other landing section; muted text on it stays above 4.5:1 */
+  --accent: var(--text); /* a hook: every accented rule reads this */
+
+  color-scheme: dark;
+
+  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol {
+  margin: 0;
+}
+
+.site {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 4rem;
+  border-bottom: 1px solid var(--border);
+
+  > a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+  }
+  img {
+    height: 1.75rem;
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  nav a {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  nav a:hover {
+    color: var(--text);
+  }
+
+  @media (max-width: 40rem) {
+    nav {
+      gap: 0.75rem;
+    }
+  }
+}
+
+/* The license, the privacy page, and the contact: one muted row that wraps on a phone. */
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+
+  a:hover {
+    color: var(--text);
+  }
+}
+
+/* The privacy page: one reading column. */
+.legal {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 4rem 0;
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    margin-top: 2rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  p {
+    margin-top: 0.75rem;
+  }
+}
+
+.note {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.stack a,
+.legal a {
+  text-decoration: underline;
+}
+
+/* A section on a gray band from edge to edge, while its content stays in
+   .site's column: the shadow paints the gray out to the screen's sides, and
+   the clip keeps it from spilling above or below, or scrolling sideways. */
+.band-shade {
+  background: var(--shade);
+  box-shadow: 0 0 0 100vmax var(--shade);
+  clip-path: inset(0 -100vmax);
+}
+
+/* A centered page section; .hero is the tall one at the top of a page. */
+.band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 5rem 0;
+  text-align: center;
+
+  h2 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+}
+
+.hero {
+  gap: 1.5rem;
+  padding: 4rem 0;
+  h1 {
+    font-size: clamp(2.5rem, 7vw, 4.5rem);
+    font-weight: 500;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+}
+
+/* Text a screen reader reads and the eye doesn't see. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The sliding headline: a window one line tall over four rows (the last
+   repeats the first), stepped up one row every 2.5 s. The fixed heights keep
+   the page from shifting. */
+.rotator > span[aria-hidden] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rotator-window {
+  height: 1.15em;
+  overflow: hidden;
+}
+
+.rotator-rows {
+  display: flex;
+  flex-direction: column;
+  animation: rotate-names 7.5s infinite;
+}
+
+.rotator-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em;
+  height: 1.15em;
+  white-space: nowrap;
+
+  img[src] {
+    width: 0.8em;
+    height: 0.8em;
+    opacity: 1;
+  }
+}
+
+.rotator-grok {
+  font-family: "Grok Lookalike", system-ui, sans-serif;
+}
+
+.rotator-muse {
+  font-family: "Muse Lookalike", system-ui, sans-serif;
+}
+
+.rotator-dots {
+  font-family: "Dots Lookalike", system-ui, sans-serif;
+}
+
+@keyframes rotate-names {
+  0%,
+  26% {
+    transform: translateY(0);
+  }
+  33.33%,
+  59.33% {
+    transform: translateY(-25%);
+  }
+  66.67%,
+  92.67% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(-75%);
+  }
+}
+
+/* A visitor who asks for less motion sees Grok Bot, still, and jumps to
+   sections without the smooth scroll. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .rotator-rows {
+    animation: none;
+  }
+}
+
+/* The hero's "Supports" row: the AI plans and agents it works with. */
+.supports {
+  color: var(--muted);
+}
+
+.lede {
+  max-width: 36rem;
+  font-size: 1.2rem;
+  color: var(--muted);
+}
+
+/* The quiet link beside the install button: "See it on GitHub →". */
+.more {
+  font-weight: 500;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--bg);
+  background: var(--text);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--min, 16rem), 100%), 1fr));
+  gap: 1rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+}
+
+/* A stack group's list. */
+.stack ul {
+  color: var(--muted);
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--bg);
+}
+
+.bubble-you {
+  align-self: flex-end;
+  border-color: var(--accent);
+  color: var(--bg);
+  background: var(--accent);
+}
+
+/* The legend names each logo; the grid under it shows only the logos, one
+   column per product, and one row per feature. It fits a phone without
+   scrolling sideways. WongStack's column is set apart by weight and a heavier
+   border, not by color; the other logos are light gray. */
+.legend,
+.supports {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
+  padding: 0;
+  font-size: 0.875rem;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+}
+
+/* On a phone the row can't fit on one line: "Supports" goes above, and the
+   logos and "+ any model with an API key" stay together on the next line. */
+@media (max-width: 30rem) {
+  .supports {
+    column-gap: 0.5rem;
+    font-size: 0.75rem;
+
+    li:first-child {
+      flex-basis: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+.legend img,
+.supports img,
+.compare img {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Other products' logos are one-color SVGs, drawn black in an img: invert
+   them to light gray. Only WongStack's W keeps its color. */
+img[src^="/logos/"] {
+  filter: invert(1);
+  opacity: 0.6;
+}
+
+.compare {
+  width: 100%;
+  max-width: 44rem;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  th,
+  td {
+    padding: 0.75rem 0.125rem;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  /* Five narrow logo columns; the row labels take the rest and wrap, so the
+     grid fits a 390 px phone. */
+  th[scope="col"],
+  tbody td {
+    width: 2.75rem;
+  }
+  th[scope="row"] {
+    padding-right: 0.5rem;
+    font-weight: 500;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  td {
+    font-size: 1.1rem;
+  }
+  tr > :nth-child(2) {
+    font-weight: 700;
+    border-inline: 2px solid var(--text);
+  }
+}
+
+/* Each stack item: its logo left of its linked name, its line under the name. */
+.stack {
+  width: 100%;
+  text-align: left;
+
+  ul {
+    padding: 0;
+    list-style: none;
+  }
+  li {
+    display: grid;
+    grid-template-columns: 1.25rem 1fr;
+    gap: 0 0.6rem;
+    align-items: center;
+  }
+  li + li {
+    margin-top: 0.75rem;
+  }
+  img {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  a {
+    color: var(--text);
+  }
+  li p {
+    grid-column: 2;
+    font-size: 0.875rem;
+  }
+}
+
+.faq {
+  width: 100%;
+  max-width: 44rem;
+  text-align: left;
+
+  details {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  summary {
+    font-weight: 500;
+    cursor: pointer;
+  }
+  p {
+    margin-top: 0.5rem;
+    color: var(--muted);
+  }
+}
+
+/* "Install for free" and "See it on GitHub →" side by side, wrapping on a phone. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+/* The three install steps: a number in a circle, then the step's
+   lines beside it, left-aligned within the lede's width. */
+.install {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 36rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  text-align: left;
+
+  > li {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    column-gap: 0.75rem;
+    row-gap: 0.25rem;
+    align-items: start;
+    counter-increment: step;
+  }
+  > li::before {
+    content: counter(step);
+    grid-row: 1 / span 2;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    font-weight: 500;
+  }
+  > li > * {
+    grid-column: 2;
+  }
+  > li > p:first-child {
+    padding-top: 0.25rem;
+    font-weight: 500;
+  }
+  a {
+    text-decoration: underline;
+  }
+}
+
+/* "Optional, once it works": the add-ons under the install steps, each name
+   above what it enables, in the steps' column. */
+.extras {
+  width: 100%;
+  max-width: 36rem;
+  margin-top: 2rem;
+  text-align: left;
+
+  h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    color: var(--muted);
+  }
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0;
+    list-style: none;
+  }
+  a {
+    font-weight: 500;
+    text-decoration: underline;
+  }
+  p {
+    color: var(--muted);
+  }
+}
+
+/* The install message: a box with the copy icon in its top-right corner.
+   Long words, such as the link, break inside the box instead of widening the
+   page. */
+.install-message {
+  width: 100%;
+  max-width: 36rem;
+  text-align: left;
+
+  > div {
+    position: relative;
+  }
+  pre {
+    margin: 0;
+    padding: 0.75rem 2.75rem 0.75rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--card);
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  /* ✓ Copied is wider than the icon, so the text moves down a line, not under it. */
+  > div:has(> button[data-copied]) > pre {
+    padding-top: 2.75rem;
+  }
+  button[data-copy] {
+    position: absolute;
+    top: 0.375rem;
+    right: 0.375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: var(--card);
+    cursor: pointer;
+  }
+  [role="status"] {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+}
+
+.band-card {
+  padding: 4rem 1.5rem;
+  border-radius: 1.5rem;
+  background: var(--card);
+}
+
+/* Four points in a 2 × 2 grid, each with a large picture above its text. */
+.points {
+  --min: 26rem; /* two columns within .site's 72rem, one on a phone */
+  width: 100%;
+  text-align: left;
+
+  /* The point's own text, not the chat bubbles in its picture. */
+  .card > p {
+    color: var(--muted);
+  }
+}
+
+/* A point's illustration, with its small chat or note laid over the bottom
+   on a fade to the page's black. */
+.visual {
+  position: relative;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: var(--card);
+  font-size: 0.875rem;
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  > div {
+    position: absolute;
+    inset: auto 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem 1rem;
+    background: linear-gradient(transparent, var(--bg) 60%);
+  }
+
+  /* On a phone the overlay would hide the picture, so it sits under it. */
+  @media (max-width: 40rem) {
+    > div {
+      position: static;
+      padding-top: 1rem;
+      background: var(--bg);
+    }
+  }
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+
+  span {
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    background: var(--bg);
+  }
+}
+
+/* "Why I built this": a round photo left of the paragraphs in a narrow middle
+   column; on a phone, the photo sits above them, centered. */
+.about > div {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 2.5rem;
+  align-items: center;
+  max-width: 44rem;
+  text-align: left;
+
+  img {
+    width: 10rem;
+    height: 10rem;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    color: var(--muted);
+    font-size: 1.1rem;
+  }
+  p:first-child {
+    color: var(--text);
+  }
+  @media (max-width: 40rem) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    justify-items: center;
+  }
+}
+
+/* Text beside a picture in a narrow middle column, so the picture sits by
+   its text, not at the page's edge; on a phone, it goes under the text. */
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4rem;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 5rem 0;
+
+  > div:first-child {
+    display: flex;
+    flex: 1 1 20rem;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  h2 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .lede b {
+    color: var(--text);
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  button {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--text);
+    background: var(--bg);
+    cursor: pointer;
+  }
+  [aria-pressed="true"] {
+    border-color: var(--text);
+    font-weight: 600;
+  }
+}
+
+/* Real Paseo screenshots: the laptop app under the hero, and the pressed
+   phone screen right of its text on a wide screen and under it on a phone. */
+.paseo-shot {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+
+/* min-width: 0 lets the phone shrink inside the split, or the page scrolls
+   sideways on a narrow phone. */
+.phones {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+/* A fixed width, not min(16rem, 100%): a percentage lets the phone count as
+   its full 640 px when the split sizes its row, which wraps it under the
+   text on a wide screen. min-width: 0 lets it shrink on a narrow phone. */
+.phones > .paseo-shot {
+  width: 18rem;
+  min-width: 0;
+  border-width: clamp(0.25rem, 1vw, 0.4rem);
+  border-radius: clamp(1.25rem, 5vw, 2.25rem);
+}
+
+/* "Examples of things I've done": sample Claymoo admin screens in a browser
+   window, in gray; finished states are near-black, never green or red. The
+   screens keep their own light colors on the dark page. */
+.apps .lede b {
+  color: var(--text);
+}
+
+.browser {
+  --bg: #fff;
+  --text: hsl(0 0% 4%);
+  --muted: hsl(216 4% 51%);
+  --border: hsl(222 19% 86%);
+  --card: hsl(40 18% 97%);
+
+  color: var(--text);
+  color-scheme: light;
+  width: 100%;
+  max-width: 56rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--bg);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+
+  i {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  span {
+    flex: 1;
+    min-width: 0;
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    background: var(--card);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.admin {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 1.25rem 1.25rem;
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+  }
+  h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .card {
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
+  }
+  .chips button {
+    font-size: 0.8rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    padding: 0.5rem 0.4rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    font-weight: 500;
+    color: var(--muted);
+  }
+  td button {
+    padding: 0;
+    border: 0;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    background: none;
+    cursor: pointer;
+  }
+}
+
+.admin-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 -1.25rem;
+  padding: 0.6rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+
+  b {
+    flex: 1;
+  }
+  > span:not(.admin-mark) {
+    color: var(--muted);
+  }
+}
+
+.admin-mark {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.3rem;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--text);
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 1.25rem;
+  border-bottom: 1px solid var(--border);
+
+  > * {
+    padding-bottom: 0.4rem;
+  }
+  b {
+    border-bottom: 2px solid var(--text);
+  }
+  span {
+    color: var(--muted);
+  }
+}
+
+.admin-toolbar {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font: inherit;
+    background: var(--card);
+  }
+  .button {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+  }
+}
+
+.admin-back {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  cursor: pointer;
+}
+
+.admin-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.badge-dark {
+  border-color: var(--text);
+  color: var(--bg);
+  background: var(--text);
+}
+
+.pack-order {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12rem;
+  gap: 1rem;
+  align-items: start;
+}
+
+.pack-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pack-item {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--bg);
+  cursor: pointer;
+
+  i {
+    height: 2.5rem;
+    border-radius: 0.4rem;
+    background: var(--border);
+  }
+  span {
+    display: flex;
+    flex-direction: column;
+    color: var(--muted);
+  }
+  b {
+    color: var(--text);
+  }
+  strong {
+    font-size: 1.25rem;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.pack-done {
+  border: 2px solid var(--text);
+  cursor: default;
+}
+
+.pack-side .button {
+  margin-top: 0.5rem;
+}
+
+.admin-bars {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--muted);
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  span {
+    display: flex;
+    align-items: flex-end;
+    height: 6rem;
+  }
+  i {
+    width: 100%;
+    border-radius: 0.3rem 0.3rem 0 0;
+    background: var(--muted);
+  }
+  b {
+    color: var(--text);
+  }
+}
+
+.admin-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+
+  div {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+  dt {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  dd {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+}
+
+.admin textarea {
+  min-height: 3.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.brief-variations {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+/* The reference picture: a gray card with near-black numbered markers. */
+.brief-picture {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 1.5rem 2.5rem;
+  aspect-ratio: 4 / 5;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  background: var(--border);
+
+  b {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    color: var(--bg);
+    background: var(--text);
+  }
+}
+
+.brief-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* On a phone the side card and the picture go under, and Pack by and
+   Delivery hide. */
+@media (max-width: 40rem) {
+  .pack-order,
+  .brief-variations {
+    grid-template-columns: 1fr;
+  }
+  .brief-picture {
+    max-width: 10rem;
+  }
+  .pack-table :is(th, td):is(:nth-child(2), :nth-child(4)) {
+    display: none;
+  }
+}
