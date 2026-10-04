@@ -74,3 +74,5 @@ The generated-starter gate also passed all 175 tests and all four 100% coverage 
 ## Authorized continuation
 
 The person approved continuing. The new checkpoint consolidates the bounded stream reader shared by API and access JSON parsing. Both callers preserve their existing size-limit and decoding errors; limits, malformed UTF-8 handling and reader cancellation remain unchanged. Existing tests exercise both wire contracts; no test or threshold was relaxed.
+
+Continued checkpoint `d325c4cd`: app, build/staging, script checks and both generated starters passed. Payload release checks alone failed the instruction byte ceiling (`190955 >= 190845`): this branch adds owner-consumer distribution wording and merged #267 consumes the prior headroom. The first correction condenses only this change's Pack inventory sentence, retaining the helper/owner links and memory separation. This failure intersects the change; no unrelated rerun applies.
