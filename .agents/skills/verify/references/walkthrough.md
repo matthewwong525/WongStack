@@ -15,7 +15,11 @@ Match each scenario to the strongest existing route:
 
 Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned cleanup. Prepare surfaces independently: no preview blocks deployed checks alone. No route → name scenario/reason as unverified. Stage runnable checks; blocked/failed prerequisites pause dependents only. Finish independent safe checks.
 
-**Before writes**, establish staging-only bindings, sandbox destinations and owned disposable records with safe cleanup; a staging URL proves none. Owned fixture deletes need no prompt. Preserve shared/production data. Real messages, purchases, paid resources or access changes beyond the authorized heal need permission. Unknown isolation/destination/cleanup → defer that check, name what is needed, finish safe checks.
+**Before writes**: `preflight`'s `PLAYGROUND=yes` → create/change/delete staging data freely: no prompt, ownership or cleanup; the next walk rebuilds it. Otherwise establish staging-only bindings and owned disposable records with safe cleanup, or defer, naming the need. Production data, paid resources or access changes beyond the authorized heal need permission.
+
+**Outside services**: `node "$ROOT/scripts/cf-secrets.mjs" shared` lists key names. Trigger a service only on an `own` key; `shared`/unknown destination → never trigger; name the service and that a staging-only key unlocks it.
+
+**Missing seed records** → create through the app's screens, else unverified, naming the missing sample data. **Scheduled work** → run the project's manual trigger on staging, grade its result; the timetable stays partly shown; no trigger → unverified.
 
 ## b — write the journeys
 
@@ -101,7 +105,7 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 ## e — after a failure
 
-Finish independent checks; retain retry evidence. Clean up owned test data on pass or fail. Seed reset (`node "$ROOT/scripts/reset-staging-d1.mjs"`) requires **FAILURE**, an established disposable database separate from production, and no overlapping dependent work. Otherwise preserve shared data; defer unsafe cleanup.
+Finish independent checks; retain retry evidence. `PLAYGROUND=yes` → clean up nothing: `preflight` rebuilds staging before each re-walk. Otherwise clean up owned test data; preserve shared data.
 
 A failure is **in scope** only when both hold:
 
@@ -112,7 +116,7 @@ Otherwise report **out of scope** with why.
 
 For an in-scope repair, retain a focused check when existing CI can cheaply reproduce the defect. `/save` captures the same check's intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure, weaker checks or unrelated fixes.
 
-Usually **out of scope**: empty fixtures (separate seed change), app `401` with valid service token (app authentication), previous-page screenshot (repair journey waits and re-walk).
+Usually **out of scope**: app `401` with valid service token (app authentication), previous-page screenshot (repair journey waits and re-walk).
 
 ## f — post the evidence, then clean up
 

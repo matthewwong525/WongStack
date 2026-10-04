@@ -59,7 +59,7 @@ To keep staging manual-only, say so:
 
 Omit the key **only** when staging genuinely should run production's schedule.
 
-Exercising a cron by manual trigger instead is a reasonable choice, and it costs less than it looks: what goes untested is the *schedule*, not the handler. Keep `scheduled()` and the manual trigger calling the same function so the tested path can't drift from the real one. The cron expression itself is only ever verifiable in production — check the Worker's Triggers tab after the first deploy.
+Exercising a cron by manual trigger instead is the convention, and it costs less than it looks: what goes untested is the *schedule*, not the handler. A new scheduled job gets a manual trigger, reachable on staging only, and `scheduled()` and the trigger call the same function so the tested path can't drift from the real one. [`/verify`](../development/staging-walkthrough.md#why-a-walk-runs-the-way-it-does) runs the job through that trigger on the staging Worker's own URL, since an alias version runs no queue consumer. The cron expression itself is only ever verifiable in production — check the Worker's Triggers tab after the first deploy.
 
 ## One declared list of secrets, two Workers
 
@@ -98,6 +98,14 @@ Each has a committed, values-blank `.example` beside it: `.env.example` at the r
 `secrets:push` falls back to `.dev.vars` for staging, so both Workers get identical values unless you create a git-ignored **`app/.dev.vars.staging`**. No command changes; the file's existence is the switch.
 
 Identical values are fine for read-only or harmless credentials. **Diverge for anything with third-party write side effects** — payment keys, outbound email and SMS, webhook targets. Sharing those lets a branch on staging charge a real card or email a real customer: the same production-contamination hole that twinning the database closes, re-opened one layer up at the API. It fails quietly, in the same family as a service binding left pointing at production.
+
+**Copy `app/.dev.vars` to `app/.dev.vars.staging` and swap each such key for a test key**: a payment provider's test-mode key, a sandbox inbox. The file replaces `.dev.vars` for staging whole, so a key it leaves out is not loaded. The check before publishing uses a service freely only when staging has its own key for it, and leaves a service on a shared key alone, so a missing test key costs a check, never a real charge.
+
+```bash
+node scripts/cf-secrets.mjs shared   # which keys does staging share with production?
+```
+
+It prints key names in two lists, `own` and `shared`, and never a value; with no staging file, every key is shared. It compares the two files on this machine and makes no network call, because a deployed secret can't be read back: after editing either file, run `secrets:push` so the Workers match. It can only compare, so a live key pasted into the staging file still reads as `own`.
 
 ### What the gate can and can't see
 

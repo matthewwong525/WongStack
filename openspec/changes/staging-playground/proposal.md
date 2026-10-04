@@ -85,3 +85,4 @@ None.
 - **2026-10-04** — Assumed: the check's new instructions are kept, because on the practice site they caught as many planted mistakes as the old ones (10 of 10) with no false alarms and no unsafe sends. They showed no gain in catching, and the practice runs took about twice as long.
 - **2026-10-04** — Assumed: taking turns is confirmed on GitHub only, because no workspace hosted without GitHub was free to test; there a check goes ahead without a turn and says so.
 - **2026-10-04** — Check: `.github/workflows/deploy.yml` the new step that records a release is allowed to fail without failing the release, because a missing record only costs the quick look at the live app and must never block publishing. No existing step changed.
+- **2026-10-04** — Assumed: the quick look at the live app gets its first real run on this change's own release and is read from the publish report, not ticked as a task, because the plan is filed away before publishing happens.

@@ -8,7 +8,7 @@ user-invocable: true
 
 Check **this saved revision's scenarios**; finish safe checks/simulations before one help/skip handoff. [Reference](references/walkthrough.md): how; [wiki](../../../wiki/development/staging-walkthrough.md): why. Gates nothing.
 
-Authorized: `/save`, browser installation, the Access heal and disposable staging checks. Seed resets require FAILURE and [§ e](references/walkthrough.md#e--after-a-failure) isolation. Existing authorization stands; other permissions join the handoff.
+Authorized: `/save`, browser installation, the Access heal, `preflight`'s staging turn and rebuild, and § a's staging writes. Existing authorization stands; other permissions join the handoff.
 
 ## Order
 
@@ -19,14 +19,14 @@ bash "$ROOT/.claude/skills/verify/scripts/verify-staging.sh" preflight
 ```
 
 1. **Scout.** [Rungs](../save/references/checkpoint-evidence.md#selection-rungs): `explicit` (including `/ship`'s archive), `session`, `changed-active`, `recorded-branch`, `changed-archive`. Asks name candidates' scenarios. READY → match probes/recipes/consumers by [§ a](references/walkthrough.md#a--scout-the-scenarios); nothing reachable → NONE, name exclusions and stop.
-2. **Save, prepare independently.** `/save`, then `preflight`; no browser journeys → `--no-browser`. CI-only/missing preview → `--no-preview --no-browser`, then [collect](references/ci-evidence.md). Blocks pause dependents; never guess URLs. Recheck head before posting; changes require fresh evidence.
+2. **Save, prepare independently.** `/save`, then `preflight` (allow 12 minutes for the staging turn); no browser journeys → `--no-browser`. `SEEDED=no` beside a `TURN` line → staging-data checks unverified, with its reason; report `TURN=unavailable`. CI-only/missing preview → `--no-preview --no-browser`, then [collect](references/ci-evidence.md). Blocks pause dependents; never guess URLs. Recheck head before posting; changes require fresh evidence.
 3. **Walk/grade** by [§§ b–f](references/walkthrough.md#b--write-the-journeys); finish independent safe checks before repairs.
-4. **FAILURE** → restore data safely; [judge scope](references/walkthrough.md#e--after-a-failure). In scope → fix, `/save`, re-walk **at most twice**; otherwise report. Consumers grant no repair scope.
+4. **FAILURE** → [judge scope](references/walkthrough.md#e--after-a-failure). In scope → fix, `/save`, `preflight`, re-walk **at most twice**; otherwise report.
 5. **Simulate/report** by [§ f](references/walkthrough.md#f--post-the-evidence-then-clean-up); one report covers surfaces/retries, heals/fixes/installs and scope/limits. [Next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step); inside `/ship`, return the verdict.
 
 ## When a block stops the walk
 
-Heal **once per invocation**; retry dependents only. Move completed inputs outside `journeys/` to avoid replay.
+Heal **once per invocation**; retry dependents only.
 
 **BLOCK=access-challenge (exit 3)**: with a Cloudflare API token, mint a repo-named service token; widen groups if needed. Confirm the owned app's machine policy accepts it; preserve human permissions. Store the pair in **primary worktree** `.env` only ([secrets](../../../wiki/development/secrets.md), [Access](../../../wiki/stack/cloudflare-access.md), [authorized widen](../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the mint; never print/commit credentials. Privacy changes need human login/revocation checks; machine access proves no email login.
 
@@ -42,11 +42,11 @@ Named screenshot/request/click-through: skip scout, use its address and `mktemp 
 |---|---|---|
 | **NONE** | no scenario reachable | what was there instead |
 | **SUCCESS** | no contradiction or blocked reachable check | evidence, including each [partly shown](references/walkthrough.md#d--grade-against-the-written-expectation) claim |
-| **FAILURE** | evidence contradicts a `THEN` | evidence, safe cleanup, fix only in scope |
+| **FAILURE** | evidence contradicts a `THEN` | evidence, fix only in scope |
 | **UNKNOWN** | reachable check blocked or ambiguous | unverified, why and needed help |
 | **TIMEOUT** | budget exceeded | unverified, what completed and where it stopped |
 
-Precedence: FAILURE, TIMEOUT, UNKNOWN; inherently unobservable claims stay partly shown. [`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure) ([why](../../../wiki/development/staging-walkthrough.md#the-verdicts)).
+Precedence: FAILURE, TIMEOUT, UNKNOWN. [`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure) ([why](../../../wiki/development/staging-walkthrough.md#the-verdicts)).
 
 ## Hard rules
 
