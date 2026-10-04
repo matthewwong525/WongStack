@@ -123,6 +123,8 @@ Payload: `.agents/skills/verify/SKILL.md`, its references and scripts, `wiki/dev
 
 - **2026-10-04** — Collector checkpoint CI caught a lint warning in the intentionally invalid recipe fixture (`then` assignment). The fixture now defines the same invalid field explicitly; its rejection assertion and all delivery checks remain enabled.
 
+- **2026-10-04** — The intentionally invalid `then` field is loaded as JSON protocol data, preserving the rejection assertion without constructing a thenable. CI then found a shared test-fixture scenario object; receipt and recipe now have independent objects so the unknown-scenario test cannot mutate its own oracle.
+
 ## Research
 
 The design draws on pstack's [project verification recipes](https://github.com/cursor/plugins/blob/main/pstack/skills/create-verification-skill/SKILL.md), [consumer-risk analysis](https://github.com/cursor/plugins/blob/main/pstack/skills/blast-radius/SKILL.md), [focused regression checks](https://github.com/cursor/plugins/blob/main/pstack/skills/tdd/SKILL.md), and [small solutions](https://github.com/cursor/plugins/blob/main/pstack/skills/principle-laziness-protocol/SKILL.md). These are design references; this change does not vendor their text or tooling. WongStack's recent measured grading work remains the starting point: `openspec/changes/archive/2026-10-03-sharpen-verify/`.

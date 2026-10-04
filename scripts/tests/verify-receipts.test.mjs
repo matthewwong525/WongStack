@@ -36,7 +36,7 @@ function setup(t) {
     writeFileSync(join(folder, path), text);
     evidence[stream] = { path, sha256: hash(text), bytes: Buffer.byteLength(text) };
   }
-  const manifest = { format: 'memory-areas-pilot-1', capture: { ...identity, createdAt: '2026-10-04T01:00:00Z' }, cases: [{ id: 'missing-store', scenario, state: 'captured', command: { executable: '/usr/bin/node', argv: ['/source/entry.mjs', 'areas'], cwd: '/removed/fixture' }, exitCode: 0, signal: null, evidence, fixture: { before, after: clone(before) } }], cleanup: { fixtureRemoved: true, evidenceRetained: true } };
+  const manifest = { format: 'memory-areas-pilot-1', capture: { ...identity, createdAt: '2026-10-04T01:00:00Z' }, cases: [{ id: 'missing-store', scenario: clone(scenario), state: 'captured', command: { executable: '/usr/bin/node', argv: ['/source/entry.mjs', 'areas'], cwd: '/removed/fixture' }, exitCode: 0, signal: null, evidence, fixture: { before, after: clone(before) } }], cleanup: { fixtureRemoved: true, evidenceRetained: true } };
   const save = () => writeFileSync(join(folder, 'capture.json'), JSON.stringify(manifest));
   save();
   return { root, folder, runDir, manifest, save, validate: () => validateCapture({ folder, recipe, identity }) };
