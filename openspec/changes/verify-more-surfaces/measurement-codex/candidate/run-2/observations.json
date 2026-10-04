@@ -1,0 +1,1007 @@
+{
+  "captures": {
+    "lookup-a": {
+      "practice": true,
+      "subjectSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "command": [
+        "node",
+        "cli.mjs",
+        "{\"area\":\"notes\"}"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+      "stderr": "",
+      "inputSha256": "b4c5906c018690d654656f10033eb9317cec0f1cd19b999a65d3c133a2d69153",
+      "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+      "environment": "practice-node"
+    },
+    "lookup-b": {
+      "practice": true,
+      "subjectSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "command": [
+        "node",
+        "cli.mjs",
+        "{\"area\":\"exports\"}"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"area\":\"exports\",\"docs\":[]}\n",
+      "stderr": "",
+      "inputSha256": "0cea96a15102f91aa6d1d9d2a2cb06a5d0da3b2bcc589dbb93c04f2925fd825c",
+      "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+      "environment": "practice-node"
+    },
+    "lookup-c": {
+      "practice": true,
+      "subjectSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "command": [
+        "node",
+        "cli.mjs",
+        "{\"area\":\"notes\"}"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+      "stderr": "",
+      "inputSha256": "b4c5906c018690d654656f10033eb9317cec0f1cd19b999a65d3c133a2d69153",
+      "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+      "environment": "practice-node"
+    },
+    "lookup-d": "{\"practice\":true,\"subjectSha\":",
+    "lookup-e": {
+      "practice": true,
+      "subjectSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "command": [
+        "node",
+        "cli.mjs",
+        "{\"area\":\"notes\"}"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+      "stderr": "",
+      "inputSha256": "b4c5906c018690d654656f10033eb9317cec0f1cd19b999a65d3c133a2d69153",
+      "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+      "environment": "practice-node",
+      "baseline": {
+        "practice": true,
+        "subjectSha": "cccccccccccccccccccccccccccccccccccccccc",
+        "command": [
+          "node",
+          "cli.mjs",
+          "{\"area\":\"notes\"}"
+        ],
+        "exitCode": 0,
+        "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+        "stderr": "",
+        "inputSha256": "e9517b7e1bb335bf4c0824125e8f9920a92464dc28ee77afa23f4a2ed92cbb6b",
+        "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+        "environment": "practice-node"
+      }
+    }
+  },
+  "selected": [
+    "The list API counts its notes",
+    "Searching shows only matches",
+    "Submitting with no title is rejected",
+    "A new note stays in the list",
+    "Creating without a title answers 422",
+    "Creating with a title answers 201",
+    "A renamed note shows its new title",
+    "Saving shows a Saved badge",
+    "A rename through the API is logged",
+    "Deleting a note lowers the count",
+    "An archived note moves to Archived",
+    "Archiving a note emails the owner",
+    "Looking up notes lists its document",
+    "Looking up exports lists its document",
+    "A third lookup lists current notes",
+    "A fourth lookup lists current notes",
+    "The mapped lookup preserves its result",
+    "The note panel displays notes",
+    "The alpha preference survives reopening",
+    "The bravo preference survives reopening",
+    "The export view shows note titles",
+    "The list API counts its notes",
+    "Searching shows only matches",
+    "Submitting with no title is rejected",
+    "A new note stays in the list",
+    "Creating without a title answers 422",
+    "Creating with a title answers 201",
+    "A renamed note shows its new title",
+    "Saving shows a Saved badge",
+    "A rename through the API is logged",
+    "Deleting a note lowers the count",
+    "An archived note moves to Archived",
+    "Archiving a note emails the owner",
+    "Looking up notes lists its document",
+    "Looking up exports lists its document",
+    "A third lookup lists current notes",
+    "A fourth lookup lists current notes",
+    "The mapped lookup preserves its result",
+    "The note panel displays notes",
+    "The alpha preference survives reopening",
+    "The bravo preference survives reopening",
+    "The export view shows note titles",
+    "Deleting a note lowers the count",
+    "An archived note moves to Archived"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:08:47.547Z"
+    },
+    {
+      "method": "GET",
+      "path": "/new",
+      "at": "2026-10-04T06:08:47.556Z"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/alpha",
+      "at": "2026-10-04T06:08:47.565Z",
+      "stored": "Original alpha"
+    },
+    {
+      "method": "GET",
+      "path": "/notes/1/edit",
+      "at": "2026-10-04T06:08:54.686Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:09:54.549Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:09:54.591Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:09:55.292Z"
+    },
+    {
+      "method": "GET",
+      "path": "/new",
+      "at": "2026-10-04T06:09:57.396Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:09:57.434Z"
+    },
+    {
+      "method": "POST",
+      "path": "/notes",
+      "at": "2026-10-04T06:09:58.075Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:09:59.746Z"
+    },
+    {
+      "method": "GET",
+      "path": "/new",
+      "at": "2026-10-04T06:10:03.318Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:03.357Z"
+    },
+    {
+      "method": "POST",
+      "path": "/notes",
+      "at": "2026-10-04T06:10:04.609Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:04.613Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:06.333Z"
+    },
+    {
+      "method": "GET",
+      "path": "/notes/1/edit",
+      "at": "2026-10-04T06:10:09.238Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:09.274Z"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notes/1",
+      "at": "2026-10-04T06:10:10.506Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:12.778Z"
+    },
+    {
+      "method": "GET",
+      "path": "/notes/2/edit",
+      "at": "2026-10-04T06:10:15.604Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:15.642Z"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notes/2",
+      "at": "2026-10-04T06:10:16.873Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:20.582Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:20.623Z"
+    },
+    {
+      "method": "POST",
+      "path": "/notes/3/delete",
+      "at": "2026-10-04T06:10:21.324Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:21.327Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:23.408Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:23.444Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:25.576Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:25.607Z"
+    },
+    {
+      "method": "POST",
+      "path": "/notes/5/archive",
+      "at": "2026-10-04T06:10:26.308Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:10:26.310Z"
+    },
+    {
+      "method": "GET",
+      "path": "/unavailable",
+      "at": "2026-10-04T06:10:28.453Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:28.484Z"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/alpha",
+      "at": "2026-10-04T06:10:30.537Z",
+      "stored": "Original alpha"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:30.576Z"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/alpha",
+      "at": "2026-10-04T06:10:31.822Z",
+      "submitted": "Walk alpha 44819",
+      "response": {
+        "saved": true,
+        "title": "Walk alpha 44819"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/settings/alpha",
+      "at": "2026-10-04T06:10:34.510Z",
+      "stored": "Original alpha"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/bravo",
+      "at": "2026-10-04T06:10:37.307Z",
+      "stored": "Original bravo"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:37.343Z"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/bravo",
+      "at": "2026-10-04T06:10:37.972Z",
+      "submitted": "Walk bravo 44819",
+      "response": {
+        "saved": true,
+        "title": "Walk bravo 44819"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/settings/bravo",
+      "at": "2026-10-04T06:10:40.259Z",
+      "stored": "Walk bravo 44819"
+    },
+    {
+      "method": "GET",
+      "path": "/exports",
+      "at": "2026-10-04T06:10:43.215Z",
+      "titles": [
+        "undefined",
+        "undefined",
+        "undefined",
+        "undefined",
+        "undefined"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:43.217Z",
+      "response": {
+        "count": 5,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Garden plan",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:10:43.267Z"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.650Z",
+      "response": {
+        "count": 5,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Garden plan",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.663Z",
+      "response": {
+        "count": 5,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Garden plan",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.677Z",
+      "response": {
+        "count": 5,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Garden plan",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.686Z"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.695Z",
+      "response": {
+        "count": 6,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Garden plan",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.708Z"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.717Z",
+      "response": {
+        "count": 7,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Garden plan",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "body": ""
+          },
+          {
+            "id": 9,
+            "title": "Walk API created 44819",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notes/6",
+      "at": "2026-10-04T06:10:44.731Z"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.741Z",
+      "response": {
+        "count": 7,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Walk API renamed garden",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "body": ""
+          },
+          {
+            "id": 9,
+            "title": "Walk API created 44819",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/practice/evidence/lookup-a",
+      "at": "2026-10-04T06:10:44.754Z",
+      "capture": {
+        "practice": true,
+        "subjectSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "command": [
+          "node",
+          "cli.mjs",
+          "{\"area\":\"notes\"}"
+        ],
+        "exitCode": 0,
+        "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+        "stderr": "",
+        "inputSha256": "b4c5906c018690d654656f10033eb9317cec0f1cd19b999a65d3c133a2d69153",
+        "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+        "environment": "practice-node"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/practice/evidence/lookup-b",
+      "at": "2026-10-04T06:10:44.768Z",
+      "capture": {
+        "practice": true,
+        "subjectSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "command": [
+          "node",
+          "cli.mjs",
+          "{\"area\":\"exports\"}"
+        ],
+        "exitCode": 0,
+        "stdout": "{\"area\":\"exports\",\"docs\":[]}\n",
+        "stderr": "",
+        "inputSha256": "0cea96a15102f91aa6d1d9d2a2cb06a5d0da3b2bcc589dbb93c04f2925fd825c",
+        "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+        "environment": "practice-node"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/practice/evidence/lookup-c",
+      "at": "2026-10-04T06:10:44.782Z",
+      "capture": {
+        "practice": true,
+        "subjectSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "command": [
+          "node",
+          "cli.mjs",
+          "{\"area\":\"notes\"}"
+        ],
+        "exitCode": 0,
+        "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+        "stderr": "",
+        "inputSha256": "b4c5906c018690d654656f10033eb9317cec0f1cd19b999a65d3c133a2d69153",
+        "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+        "environment": "practice-node"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/practice/evidence/lookup-d",
+      "at": "2026-10-04T06:10:44.796Z",
+      "capture": "{\"practice\":true,\"subjectSha\":"
+    },
+    {
+      "method": "GET",
+      "path": "/practice/evidence/lookup-e",
+      "at": "2026-10-04T06:10:44.810Z",
+      "capture": {
+        "practice": true,
+        "subjectSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "command": [
+          "node",
+          "cli.mjs",
+          "{\"area\":\"notes\"}"
+        ],
+        "exitCode": 0,
+        "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+        "stderr": "",
+        "inputSha256": "b4c5906c018690d654656f10033eb9317cec0f1cd19b999a65d3c133a2d69153",
+        "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+        "environment": "practice-node",
+        "baseline": {
+          "practice": true,
+          "subjectSha": "cccccccccccccccccccccccccccccccccccccccc",
+          "command": [
+            "node",
+            "cli.mjs",
+            "{\"area\":\"notes\"}"
+          ],
+          "exitCode": 0,
+          "stdout": "{\"area\":\"notes\",\"docs\":[\"wiki/notes.md\"]}\n",
+          "stderr": "",
+          "inputSha256": "e9517b7e1bb335bf4c0824125e8f9920a92464dc28ee77afa23f4a2ed92cbb6b",
+          "methodSha256": "27ae084b6240d7fa0a346a3c42d783115afa84983667ef6c8b3ab6c12b7b1718",
+          "environment": "practice-node"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/unavailable",
+      "at": "2026-10-04T06:10:44.825Z"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/alpha",
+      "at": "2026-10-04T06:10:44.839Z",
+      "stored": "Original alpha"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/bravo",
+      "at": "2026-10-04T06:10:44.852Z",
+      "stored": "Walk bravo 44819"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.866Z",
+      "response": {
+        "count": 7,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Walk API renamed garden",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "body": ""
+          },
+          {
+            "id": 9,
+            "title": "Walk API created 44819",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/exports",
+      "at": "2026-10-04T06:10:44.874Z",
+      "titles": [
+        "undefined",
+        "undefined",
+        "undefined",
+        "undefined",
+        "undefined",
+        "undefined",
+        "undefined"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:10:44.875Z",
+      "response": {
+        "count": 7,
+        "notes": [
+          {
+            "id": 1,
+            "title": "Walk renamed groceries",
+            "body": ""
+          },
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Walk API renamed garden",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "body": ""
+          },
+          {
+            "id": 9,
+            "title": "Walk API created 44819",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:11:18.771Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:11:18.817Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:11:21.573Z"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.ico",
+      "at": "2026-10-04T06:11:21.621Z"
+    },
+    {
+      "method": "POST",
+      "path": "/notes/1/archive",
+      "at": "2026-10-04T06:11:22.255Z"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "at": "2026-10-04T06:11:22.257Z"
+    },
+    {
+      "method": "GET",
+      "path": "/archived",
+      "at": "2026-10-04T06:11:22.937Z"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:11:24.353Z",
+      "response": {
+        "count": 6,
+        "notes": [
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Walk API renamed garden",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "body": ""
+          },
+          {
+            "id": 9,
+            "title": "Walk API created 44819",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/archived",
+      "at": "2026-10-04T06:11:24.364Z"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notes",
+      "at": "2026-10-04T06:11:24.383Z",
+      "response": {
+        "count": 6,
+        "notes": [
+          {
+            "id": 2,
+            "title": "Walk badge plumber",
+            "body": ""
+          },
+          {
+            "id": 3,
+            "title": "Trip ideas",
+            "body": ""
+          },
+          {
+            "id": 6,
+            "title": "Walk API renamed garden",
+            "body": ""
+          },
+          {
+            "id": 7,
+            "title": "Walk typed title 4481",
+            "body": ""
+          },
+          {
+            "id": 8,
+            "title": "",
+            "body": ""
+          },
+          {
+            "id": 9,
+            "title": "Walk API created 44819",
+            "body": ""
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/archived",
+      "at": "2026-10-04T06:11:24.396Z"
+    }
+  ]
+}

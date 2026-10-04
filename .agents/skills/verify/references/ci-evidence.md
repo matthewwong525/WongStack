@@ -1,8 +1,8 @@
 # CI behavior evidence
 
-Recipes: `.agents/verification/<id>.json`, format `verify-recipe-1`. Guide owns capture; scenarios own expectations.
+Recipes: `.agents/verification/<id>.json`, format `verify-recipe-1`. Required: `id`, nonempty `sourcePaths`, owning guide `instructions`, nonempty `scenarios` (`capability`, `requirement`, `scenario`), `capture.workflow` and `capture.artifact`. References must exist; guide owns capture, scenarios expectations.
 
-Example:
+Source-repo example (installs supply their own recipe):
 
 ```sh
 helper=.claude/skills/verify/scripts/verify-receipts.mjs
@@ -12,8 +12,4 @@ node "$helper" collect --recipe "$recipe" --sha "$head" --run-dir "$run"
 node "$helper" compare --recipe "$recipe" --sha "$head" --run-dir "$fresh_run" --baseline-sha "$base"
 ```
 
-Full SHAs; fresh owned folders. Collect checks head/attempt/digests; compare checks inputs/driver/environment. Grade `THEN`; never execute downloads.
-
-CI-only: `verify-staging.sh preflight --no-preview --no-browser`.
-
-Before posting, `publish` scrubs imports/report. Inline observations/revisions; link the run, never local paths. Expired/missing artifacts stay unverified; no older fallback. `cleanup` on every exit, including UNKNOWN/TIMEOUT. Partial downloads remove only their folder.
+Use full SHAs/fresh owned folders. Collect validates head/attempt/digests; compare checks inputs/method/environment. Expired/missing artifacts remain unverified; no older fallback. Partial downloads remove only their folder.

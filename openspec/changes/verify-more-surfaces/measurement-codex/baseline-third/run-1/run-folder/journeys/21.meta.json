@@ -1,0 +1,6 @@
+{
+  "requirement": "Exports consume the notes title contract",
+  "scenario": "The export view shows note titles",
+  "then": "each exported title matches the corresponding `title` from `GET /api/notes`",
+  "probe": "browser"
+}

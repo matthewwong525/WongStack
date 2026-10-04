@@ -1,0 +1,17 @@
+{
+  "requirement": "Mapped lookup documents are listed",
+  "scenario": "A third lookup lists current notes",
+  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+  "then": "output names `notes` and `wiki/notes.md`",
+  "id": "15",
+  "probe": "request",
+  "dependencies": [],
+  "status": "graded; manual follow-up deferred without asking",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "verdict": "ask",
+  "reason": "lookup-c names the expected document but subjectSha is bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; obtain a capture of reviewed source aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+  "where": "http://127.0.0.1:44805/practice/evidence/lookup-c",
+  "evidence": [
+    "evidence/15/01-response.txt"
+  ]
+}

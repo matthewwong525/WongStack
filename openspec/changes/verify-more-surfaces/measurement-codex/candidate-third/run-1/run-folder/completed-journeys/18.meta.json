@@ -1,0 +1,1 @@
+{"requirement": "The note panel is available", "scenario": "The note panel displays notes", "then": "the panel displays their notes", "probe": "browser"}

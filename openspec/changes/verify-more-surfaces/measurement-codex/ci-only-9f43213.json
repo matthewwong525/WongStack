@@ -1,0 +1,918 @@
+{
+  "state": "collected",
+  "folder": "/tmp/wong-verify-KGdMPI/evidence/ci-memory-areas",
+  "identity": {
+    "repository": "matthewwong525/WongStack",
+    "workflow": ".github/workflows/payload.yml",
+    "headSha": "9f43213608e84b63886881d371c5aa7b01f1b759",
+    "subjectSha": "9f43213608e84b63886881d371c5aa7b01f1b759",
+    "runId": "37180228742",
+    "runAttempt": "1",
+    "event": "push",
+    "ref": "refs/heads/heroic-eagle"
+  },
+  "cases": [
+    {
+      "id": "unmapped",
+      "scenario": {
+        "capability": "memory",
+        "requirement": "A fact names the code area it concerns",
+        "scenario": "No mapped folder"
+      },
+      "comparison": {
+        "inputSha256": "86903228216040406e823a6fbeba41f97d6318c7d6c93fce5c38922fccb7c1d3",
+        "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+        "environment": {
+          "node": "v22.23.3",
+          "platform": "linux",
+          "arch": "x64",
+          "locale": "C.UTF-8"
+        }
+      },
+      "state": "captured",
+      "command": {
+        "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+        "argv": [
+          "/home/runner/work/WongStack/WongStack/.agents/skills/memory/scripts/memory.mjs",
+          "areas",
+          "unmapped/example.txt"
+        ],
+        "cwd": "/tmp/wong-verify-memory-GP2PDi/repo"
+      },
+      "exitCode": 0,
+      "signal": null,
+      "evidence": {
+        "stdout": {
+          "path": "unmapped.stdout.txt",
+          "sha256": "af9f15eb875633c5160ff6b11b5b50f1cc0455b131a3d338f18998fc1bc2c6e5",
+          "bytes": 32
+        },
+        "stderr": {
+          "path": "unmapped.stderr.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      },
+      "fixture": {
+        "before": {
+          "envPresent": false,
+          "installationPresent": false,
+          "files": [
+            {
+              "path": "app/worker/apps/hello/index.ts",
+              "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+              "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+              "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+            },
+            {
+              "path": "openspec/specs/mini-apps/spec.md",
+              "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+            },
+            {
+              "path": "wiki/stack/mini-apps.md",
+              "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+            }
+          ]
+        },
+        "after": {
+          "envPresent": false,
+          "installationPresent": false,
+          "files": [
+            {
+              "path": "app/worker/apps/hello/index.ts",
+              "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+              "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+              "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+            },
+            {
+              "path": "openspec/specs/mini-apps/spec.md",
+              "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+            },
+            {
+              "path": "wiki/stack/mini-apps.md",
+              "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "unconfigured",
+      "scenario": {
+        "capability": "memory",
+        "requirement": "A fact names the code area it concerns",
+        "scenario": "The store is unreachable"
+      },
+      "comparison": {
+        "inputSha256": "1289382d86b566d319b15d85e1d3104895073e704303cd6236d3eff61ddd2640",
+        "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+        "environment": {
+          "node": "v22.23.3",
+          "platform": "linux",
+          "arch": "x64",
+          "locale": "C.UTF-8"
+        }
+      },
+      "state": "captured",
+      "command": {
+        "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+        "argv": [
+          "/home/runner/work/WongStack/WongStack/.agents/skills/memory/scripts/memory.mjs",
+          "areas",
+          "app/worker/apps/hello/index.ts"
+        ],
+        "cwd": "/tmp/wong-verify-memory-GP2PDi/repo"
+      },
+      "exitCode": 0,
+      "signal": null,
+      "evidence": {
+        "stdout": {
+          "path": "unconfigured.stdout.txt",
+          "sha256": "417b1f0bee3fbd3fdec7dfc98a71962f6eaab51392df42831e70a060e969394f",
+          "bytes": 516
+        },
+        "stderr": {
+          "path": "unconfigured.stderr.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      },
+      "fixture": {
+        "before": {
+          "envPresent": false,
+          "installationPresent": false,
+          "files": [
+            {
+              "path": "app/worker/apps/hello/index.ts",
+              "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+              "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+              "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+            },
+            {
+              "path": "openspec/specs/mini-apps/spec.md",
+              "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+            },
+            {
+              "path": "wiki/stack/mini-apps.md",
+              "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+            }
+          ]
+        },
+        "after": {
+          "envPresent": false,
+          "installationPresent": false,
+          "files": [
+            {
+              "path": "app/worker/apps/hello/index.ts",
+              "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+              "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+              "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+            },
+            {
+              "path": "openspec/specs/mini-apps/spec.md",
+              "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+            },
+            {
+              "path": "wiki/stack/mini-apps.md",
+              "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "mini-app",
+      "scenario": {
+        "capability": "memory",
+        "requirement": "One lookup shows everything linked to a path or topic",
+        "scenario": "A mini-app file"
+      },
+      "comparison": {
+        "inputSha256": "1289382d86b566d319b15d85e1d3104895073e704303cd6236d3eff61ddd2640",
+        "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+        "environment": {
+          "node": "v22.23.3",
+          "platform": "linux",
+          "arch": "x64",
+          "locale": "C.UTF-8"
+        }
+      },
+      "state": "captured",
+      "command": {
+        "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+        "argv": [
+          "/home/runner/work/WongStack/WongStack/.agents/skills/memory/scripts/memory.mjs",
+          "areas",
+          "app/worker/apps/hello/index.ts"
+        ],
+        "cwd": "/tmp/wong-verify-memory-GP2PDi/repo"
+      },
+      "exitCode": 0,
+      "signal": null,
+      "evidence": {
+        "stdout": {
+          "path": "mini-app.stdout.txt",
+          "sha256": "417b1f0bee3fbd3fdec7dfc98a71962f6eaab51392df42831e70a060e969394f",
+          "bytes": 516
+        },
+        "stderr": {
+          "path": "mini-app.stderr.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      },
+      "fixture": {
+        "before": {
+          "envPresent": false,
+          "installationPresent": false,
+          "files": [
+            {
+              "path": "app/worker/apps/hello/index.ts",
+              "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+              "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+              "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+            },
+            {
+              "path": "openspec/specs/mini-apps/spec.md",
+              "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+            },
+            {
+              "path": "wiki/stack/mini-apps.md",
+              "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+            }
+          ]
+        },
+        "after": {
+          "envPresent": false,
+          "installationPresent": false,
+          "files": [
+            {
+              "path": "app/worker/apps/hello/index.ts",
+              "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+              "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+            },
+            {
+              "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+              "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+            },
+            {
+              "path": "openspec/specs/mini-apps/spec.md",
+              "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+            },
+            {
+              "path": "wiki/stack/mini-apps.md",
+              "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "cleanup": {
+    "fixtureRemoved": true,
+    "evidenceRetained": true
+  },
+  "comparison": {
+    "state": "comparable",
+    "headSha": "9f43213608e84b63886881d371c5aa7b01f1b759",
+    "baselineSha": "f0b91f8c76f65de5c883abdb9c707c299f32d1f5",
+    "cases": [
+      {
+        "id": "unmapped",
+        "scenario": {
+          "capability": "memory",
+          "requirement": "A fact names the code area it concerns",
+          "scenario": "No mapped folder"
+        },
+        "state": "comparable",
+        "before": {
+          "id": "unmapped",
+          "scenario": {
+            "capability": "memory",
+            "requirement": "A fact names the code area it concerns",
+            "scenario": "No mapped folder"
+          },
+          "comparison": {
+            "inputSha256": "86903228216040406e823a6fbeba41f97d6318c7d6c93fce5c38922fccb7c1d3",
+            "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+            "environment": {
+              "node": "v22.23.3",
+              "platform": "linux",
+              "arch": "x64",
+              "locale": "C.UTF-8"
+            }
+          },
+          "state": "captured",
+          "command": {
+            "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+            "argv": [
+              "/tmp/wong-verify-source-4GsNyd/source/.agents/skills/memory/scripts/memory.mjs",
+              "areas",
+              "unmapped/example.txt"
+            ],
+            "cwd": "/tmp/wong-verify-memory-3v4RgQ/repo"
+          },
+          "exitCode": 0,
+          "signal": null,
+          "evidence": {
+            "stdout": {
+              "path": "unmapped.stdout.txt",
+              "sha256": "af9f15eb875633c5160ff6b11b5b50f1cc0455b131a3d338f18998fc1bc2c6e5",
+              "bytes": 32
+            },
+            "stderr": {
+              "path": "unmapped.stderr.txt",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          },
+          "fixture": {
+            "before": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            },
+            "after": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            }
+          }
+        },
+        "after": {
+          "id": "unmapped",
+          "scenario": {
+            "capability": "memory",
+            "requirement": "A fact names the code area it concerns",
+            "scenario": "No mapped folder"
+          },
+          "comparison": {
+            "inputSha256": "86903228216040406e823a6fbeba41f97d6318c7d6c93fce5c38922fccb7c1d3",
+            "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+            "environment": {
+              "node": "v22.23.3",
+              "platform": "linux",
+              "arch": "x64",
+              "locale": "C.UTF-8"
+            }
+          },
+          "state": "captured",
+          "command": {
+            "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+            "argv": [
+              "/home/runner/work/WongStack/WongStack/.agents/skills/memory/scripts/memory.mjs",
+              "areas",
+              "unmapped/example.txt"
+            ],
+            "cwd": "/tmp/wong-verify-memory-GP2PDi/repo"
+          },
+          "exitCode": 0,
+          "signal": null,
+          "evidence": {
+            "stdout": {
+              "path": "unmapped.stdout.txt",
+              "sha256": "af9f15eb875633c5160ff6b11b5b50f1cc0455b131a3d338f18998fc1bc2c6e5",
+              "bytes": 32
+            },
+            "stderr": {
+              "path": "unmapped.stderr.txt",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          },
+          "fixture": {
+            "before": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            },
+            "after": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "unconfigured",
+        "scenario": {
+          "capability": "memory",
+          "requirement": "A fact names the code area it concerns",
+          "scenario": "The store is unreachable"
+        },
+        "state": "comparable",
+        "before": {
+          "id": "unconfigured",
+          "scenario": {
+            "capability": "memory",
+            "requirement": "A fact names the code area it concerns",
+            "scenario": "The store is unreachable"
+          },
+          "comparison": {
+            "inputSha256": "1289382d86b566d319b15d85e1d3104895073e704303cd6236d3eff61ddd2640",
+            "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+            "environment": {
+              "node": "v22.23.3",
+              "platform": "linux",
+              "arch": "x64",
+              "locale": "C.UTF-8"
+            }
+          },
+          "state": "captured",
+          "command": {
+            "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+            "argv": [
+              "/tmp/wong-verify-source-4GsNyd/source/.agents/skills/memory/scripts/memory.mjs",
+              "areas",
+              "app/worker/apps/hello/index.ts"
+            ],
+            "cwd": "/tmp/wong-verify-memory-3v4RgQ/repo"
+          },
+          "exitCode": 0,
+          "signal": null,
+          "evidence": {
+            "stdout": {
+              "path": "unconfigured.stdout.txt",
+              "sha256": "417b1f0bee3fbd3fdec7dfc98a71962f6eaab51392df42831e70a060e969394f",
+              "bytes": 516
+            },
+            "stderr": {
+              "path": "unconfigured.stderr.txt",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          },
+          "fixture": {
+            "before": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            },
+            "after": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            }
+          }
+        },
+        "after": {
+          "id": "unconfigured",
+          "scenario": {
+            "capability": "memory",
+            "requirement": "A fact names the code area it concerns",
+            "scenario": "The store is unreachable"
+          },
+          "comparison": {
+            "inputSha256": "1289382d86b566d319b15d85e1d3104895073e704303cd6236d3eff61ddd2640",
+            "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+            "environment": {
+              "node": "v22.23.3",
+              "platform": "linux",
+              "arch": "x64",
+              "locale": "C.UTF-8"
+            }
+          },
+          "state": "captured",
+          "command": {
+            "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+            "argv": [
+              "/home/runner/work/WongStack/WongStack/.agents/skills/memory/scripts/memory.mjs",
+              "areas",
+              "app/worker/apps/hello/index.ts"
+            ],
+            "cwd": "/tmp/wong-verify-memory-GP2PDi/repo"
+          },
+          "exitCode": 0,
+          "signal": null,
+          "evidence": {
+            "stdout": {
+              "path": "unconfigured.stdout.txt",
+              "sha256": "417b1f0bee3fbd3fdec7dfc98a71962f6eaab51392df42831e70a060e969394f",
+              "bytes": 516
+            },
+            "stderr": {
+              "path": "unconfigured.stderr.txt",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          },
+          "fixture": {
+            "before": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            },
+            "after": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "mini-app",
+        "scenario": {
+          "capability": "memory",
+          "requirement": "One lookup shows everything linked to a path or topic",
+          "scenario": "A mini-app file"
+        },
+        "state": "comparable",
+        "before": {
+          "id": "mini-app",
+          "scenario": {
+            "capability": "memory",
+            "requirement": "One lookup shows everything linked to a path or topic",
+            "scenario": "A mini-app file"
+          },
+          "comparison": {
+            "inputSha256": "1289382d86b566d319b15d85e1d3104895073e704303cd6236d3eff61ddd2640",
+            "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+            "environment": {
+              "node": "v22.23.3",
+              "platform": "linux",
+              "arch": "x64",
+              "locale": "C.UTF-8"
+            }
+          },
+          "state": "captured",
+          "command": {
+            "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+            "argv": [
+              "/tmp/wong-verify-source-4GsNyd/source/.agents/skills/memory/scripts/memory.mjs",
+              "areas",
+              "app/worker/apps/hello/index.ts"
+            ],
+            "cwd": "/tmp/wong-verify-memory-3v4RgQ/repo"
+          },
+          "exitCode": 0,
+          "signal": null,
+          "evidence": {
+            "stdout": {
+              "path": "mini-app.stdout.txt",
+              "sha256": "417b1f0bee3fbd3fdec7dfc98a71962f6eaab51392df42831e70a060e969394f",
+              "bytes": 516
+            },
+            "stderr": {
+              "path": "mini-app.stderr.txt",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          },
+          "fixture": {
+            "before": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            },
+            "after": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            }
+          }
+        },
+        "after": {
+          "id": "mini-app",
+          "scenario": {
+            "capability": "memory",
+            "requirement": "One lookup shows everything linked to a path or topic",
+            "scenario": "A mini-app file"
+          },
+          "comparison": {
+            "inputSha256": "1289382d86b566d319b15d85e1d3104895073e704303cd6236d3eff61ddd2640",
+            "methodSha256": "f1961979fa3e5f7afdaf49a6862b265a512f7d8dc16bb705c2b8b9797671781b",
+            "environment": {
+              "node": "v22.23.3",
+              "platform": "linux",
+              "arch": "x64",
+              "locale": "C.UTF-8"
+            }
+          },
+          "state": "captured",
+          "command": {
+            "executable": "/opt/hostedtoolcache/node/22.23.3/x64/bin/node",
+            "argv": [
+              "/home/runner/work/WongStack/WongStack/.agents/skills/memory/scripts/memory.mjs",
+              "areas",
+              "app/worker/apps/hello/index.ts"
+            ],
+            "cwd": "/tmp/wong-verify-memory-GP2PDi/repo"
+          },
+          "exitCode": 0,
+          "signal": null,
+          "evidence": {
+            "stdout": {
+              "path": "mini-app.stdout.txt",
+              "sha256": "417b1f0bee3fbd3fdec7dfc98a71962f6eaab51392df42831e70a060e969394f",
+              "bytes": 516
+            },
+            "stderr": {
+              "path": "mini-app.stderr.txt",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0
+            }
+          },
+          "fixture": {
+            "before": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            },
+            "after": {
+              "envPresent": false,
+              "installationPresent": false,
+              "files": [
+                {
+                  "path": "app/worker/apps/hello/index.ts",
+                  "sha256": "eeb088b431be937d179742f6059317ac119d557c6173f925704063bbb063b135"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/proposal.md",
+                  "sha256": "b72e79aaafc585b6472acf703185c8fb16d588ecab7285c1c125023d65f52acb"
+                },
+                {
+                  "path": "openspec/changes/archive/2026-09-01-mini-apps-in-the-main-app/tasks.md",
+                  "sha256": "4e7c09391724d6f0494cf3d5f28fa66e077665f1a2243738dd2476187783e934"
+                },
+                {
+                  "path": "openspec/specs/mini-apps/spec.md",
+                  "sha256": "1b56ae77104f4aa578e6129085cf805d7327b5b1a914b817b80b9ac802a3bf00"
+                },
+                {
+                  "path": "wiki/stack/mini-apps.md",
+                  "sha256": "a792e5f015d9b5238a3d2a987af5cffa33357e8a372f61a43b572ebf4f6fbdd4"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "requirement": "Notes can be archived or deleted",
+  "scenario": "Archiving a note emails the owner",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the count above the list drops by one, and the owner is sent an email naming the note",
+  "id": "12",
+  "probe": "browser",
+  "dependencies": [
+    "fresh deployed read confirms owned id9; original id11 deleted by erroneous Delete"
+  ],
+  "status": "graded",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "evidence": [
+    "evidence/11/01.png",
+    "evidence/11/02.png"
+  ],
+  "verdict": "partial",
+  "reason": "Archive reduced count 10 to 9; no sandbox delivery capture or deployed email reader can prove the owner received a named email.",
+  "where": "http://127.0.0.1:44805/ \u2192 /notes/9/archive"
+}

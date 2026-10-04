@@ -1,0 +1,1 @@
+{"requirement": "Notes are listed with a count", "scenario": "Searching shows only matches", "then": "only notes whose title contains the word are listed", "probe": "browser"}

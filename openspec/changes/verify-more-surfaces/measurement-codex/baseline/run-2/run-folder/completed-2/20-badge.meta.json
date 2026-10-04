@@ -1,0 +1,8 @@
+{
+  "scenario": "Saving shows a Saved badge",
+  "requirement": "Notes can be changed",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "a \"Saved\" badge appears on the edit page",
+  "probe": "browser",
+  "evidence_journey": "19-edit-delete"
+}

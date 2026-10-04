@@ -1,0 +1,107 @@
+[
+  {
+    "scenario": "The list API counts its notes",
+    "verdict": "pass",
+    "reason": "200 response count=5 equals five notes in evidence/01/01-response.txt."
+  },
+  {
+    "scenario": "Searching shows only matches",
+    "verdict": "fail",
+    "reason": "Searching plumber also lists Groceries for the week, which does not contain the word; 02/01–02.png."
+  },
+  {
+    "scenario": "Submitting with no title is rejected",
+    "verdict": "fail",
+    "reason": "Form says Title required, not the promised Title is required; fresh before/after lists unchanged; 03/01–03.png."
+  },
+  {
+    "scenario": "A new note stays in the list",
+    "verdict": "fail",
+    "reason": "Typed Practice Exact TITLE is stored/rendered as Practice Exact TITL before and after reopening; 04/01–02.png."
+  },
+  {
+    "scenario": "Creating without a title answers 422",
+    "verdict": "fail",
+    "reason": "422 names the missing title, but fresh GET gains empty-title note id=8 (count 5 to 6); 05/01–03-response.txt."
+  },
+  {
+    "scenario": "Creating with a title answers 201",
+    "verdict": "partial",
+    "reason": "201 returns title and id=9, confirmed by fresh GET; nightly re-indexing has no documented trigger/readback route; 06/01–02-response.txt."
+  },
+  {
+    "scenario": "A renamed note shows its new title",
+    "verdict": "pass",
+    "reason": "Practice renamed groceries appears on the freshly opened list after saving; 07/01–02.png."
+  },
+  {
+    "scenario": "Saving shows a Saved badge",
+    "verdict": "pass",
+    "reason": "Saved badge visible after waiting for the asynchronous update; 08/01.png."
+  },
+  {
+    "scenario": "A rename through the API is logged",
+    "verdict": "partial",
+    "reason": "200 returns Practice API rename for id=3 and fresh GET agrees; audit-log entry has no documented read route; 09/01–02-response.txt."
+  },
+  {
+    "scenario": "Deleting a note lowers the count",
+    "verdict": "fail",
+    "reason": "Count drops 7 to 6, but Book club picks remains and Garden plan disappears instead; 10/01–02.png."
+  },
+  {
+    "scenario": "An archived note moves to Archived",
+    "verdict": "pass",
+    "reason": "Plumber invoice disappears from main list and appears on freshly opened Archived page; 11/01–03.png."
+  },
+  {
+    "scenario": "Archiving a note emails the owner",
+    "verdict": "partial",
+    "reason": "Retry archives Book club picks and count drops 7 to 6; owner email and its title are unobservable through documented routes; 12-retry/01–02.png. First attempt stopped because deletion removed Garden plan."
+  },
+  {
+    "scenario": "Looking up notes lists its document",
+    "verdict": "pass",
+    "reason": "lookup-a matches reviewed source, notes input and practice-node; raw stdout names notes and wiki/notes.md; 13/01-response.txt."
+  },
+  {
+    "scenario": "Looking up exports lists its document",
+    "verdict": "fail",
+    "reason": "Valid reviewed-source lookup-b exits 0 but stdout docs=[] omits wiki/exports.md; 14/01-response.txt."
+  },
+  {
+    "scenario": "A third lookup lists current notes",
+    "verdict": "unverified",
+    "reason": "lookup-c subject is bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, not reviewed aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; 15/01-response.txt."
+  },
+  {
+    "scenario": "A fourth lookup lists current notes",
+    "verdict": "unverified",
+    "reason": "lookup-d receipt is truncated JSON with no readable output or valid source identity; 16/01-response.txt."
+  },
+  {
+    "scenario": "The mapped lookup preserves its result",
+    "verdict": "unverified",
+    "reason": "Head output names notes and wiki/notes.md, but baseline cccccccccccccccccccccccccccccccccccccccc inputSha256 differs from head; identical-input preservation is unproved; 17/01-response.txt."
+  },
+  {
+    "scenario": "The note panel displays notes",
+    "verdict": "ask",
+    "reason": "Landed /unavailable says Preview unavailable; panel cannot be exercised. A working practice panel is needed to observe notes; 18/01.png and 18.url."
+  },
+  {
+    "scenario": "The alpha preference survives reopening",
+    "verdict": "fail",
+    "reason": "Saved appears for Practice alpha saved title, but reopening and fresh API GET return Original alpha; 19/01–03.png."
+  },
+  {
+    "scenario": "The bravo preference survives reopening",
+    "verdict": "pass",
+    "reason": "Saved appears and reopening plus independent API GET retain Practice bravo saved title; 20/01–03.png."
+  },
+  {
+    "scenario": "The export view shows note titles",
+    "verdict": "fail",
+    "reason": "Fresh API producer has five title values; /exports renders five undefined values instead; 21/01–02.png."
+  }
+]

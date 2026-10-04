@@ -1,0 +1,2 @@
+POST	/api/notes	{"title":"Walk API Fixture"}
+GET	/api/notes

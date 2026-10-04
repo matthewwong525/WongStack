@@ -1,0 +1,12 @@
+{
+  "requirement": "Notes are listed with a count",
+  "scenario": "Searching shows only matches",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "only notes whose title contains the word are listed",
+  "id": "02",
+  "probe": "browser",
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "prerequisites": "live disposable practice site",
+  "status": "runnable",
+  "cleanup": "invocation-owned in-memory state; no shared data"
+}

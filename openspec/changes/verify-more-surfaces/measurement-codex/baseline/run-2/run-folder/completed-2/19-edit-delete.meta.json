@@ -1,0 +1,7 @@
+{
+  "scenario": "A renamed note shows its new title",
+  "requirement": "Notes can be changed",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the new title shows in the list",
+  "probe": "browser"
+}

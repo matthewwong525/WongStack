@@ -1,0 +1,107 @@
+[
+  {
+    "scenario": "The list API counts its notes",
+    "verdict": "pass",
+    "reason": "GET /api/notes returns count 5 and exactly five records (01-count/01-response.txt)."
+  },
+  {
+    "scenario": "Searching shows only matches",
+    "verdict": "fail",
+    "reason": "Search plumber renders Groceries for the week as well as matching titles (02-search/02-results.png)."
+  },
+  {
+    "scenario": "Submitting with no title is rejected",
+    "verdict": "fail",
+    "reason": "Empty submission shows \"Title required\", not promised \"Title is required\"; fresh list still has six notes (03-empty-form)."
+  },
+  {
+    "scenario": "A new note stays in the list",
+    "verdict": "fail",
+    "reason": "Typed Walk typed title 44819 appears initially, but reload reads Walk typed title 4481 (04-create/01-created.png and 02-reloaded.png)."
+  },
+  {
+    "scenario": "Creating without a title answers 422",
+    "verdict": "fail",
+    "reason": "POST {} answers 422 and Title is required, but fresh GET grows from five to six records with empty-title id 8 (05-empty-api)."
+  },
+  {
+    "scenario": "Creating with a title answers 201",
+    "verdict": "partial",
+    "reason": "POST answers 201 with id 9 and exact title; fresh GET retains it; no deployed job trigger or index readback is documented (06-create-api)."
+  },
+  {
+    "scenario": "A renamed note shows its new title",
+    "verdict": "pass",
+    "reason": "Saved Walk renamed groceries is shown by a fresh navigation to the list (07-rename/02-list.png)."
+  },
+  {
+    "scenario": "Saving shows a Saved badge",
+    "verdict": "pass",
+    "reason": "Saved badge is visible after save and a 1000 ms update wait (08-badge/01-badge.png)."
+  },
+  {
+    "scenario": "A rename through the API is logged",
+    "verdict": "partial",
+    "reason": "PUT id 6 answers 200 with Walk API renamed garden and fresh GET retains it; no deployed audit-log read route is documented (09-audit)."
+  },
+  {
+    "scenario": "Deleting a note lowers the count",
+    "verdict": "fail",
+    "reason": "Immediate view hides Trip ideas and drops 7 to 6, but fresh API and reopened list retain id 3; Plumber invoice instead disappears (10-delete and 10-delete-readback)."
+  },
+  {
+    "scenario": "An archived note moves to Archived",
+    "verdict": "pass",
+    "reason": "Retry archives Walk renamed groceries: absent from main list/API and present on fresh Archived page (11-archive-retry); original target was absent after deletion check."
+  },
+  {
+    "scenario": "Archiving a note emails the owner",
+    "verdict": "partial",
+    "reason": "Archiving Book club picks drops count 6 to 5 and fresh Archived contains it; no sandbox mail receipt or delivery read route is available (12-email)."
+  },
+  {
+    "scenario": "Looking up notes lists its document",
+    "verdict": "pass",
+    "reason": "Validated practice capture for reviewed aaaa revision, notes input and practice-node method has stdout naming notes and wiki/notes.md (13-lookup-a)."
+  },
+  {
+    "scenario": "Looking up exports lists its document",
+    "verdict": "fail",
+    "reason": "Reviewed exports capture exits zero but stdout docs is []; wiki/exports.md is missing (14-lookup-b)."
+  },
+  {
+    "scenario": "A third lookup lists current notes",
+    "verdict": "unverified",
+    "reason": "Capture subject is bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, not reviewed aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (15-lookup-c)."
+  },
+  {
+    "scenario": "A fourth lookup lists current notes",
+    "verdict": "unverified",
+    "reason": "200 response contains truncated JSON ending at subjectSha; no readable source identity/output can be validated (16-lookup-d)."
+  },
+  {
+    "scenario": "The mapped lookup preserves its result",
+    "verdict": "unverified",
+    "reason": "Head aaaa output names notes/wiki/notes.md; baseline cccc has a different inputSha256, so identical-input preservation comparison is invalid (17-lookup-e)."
+  },
+  {
+    "scenario": "The note panel displays notes",
+    "verdict": "unverified",
+    "reason": "/unavailable answers 503 Preview unavailable; deployed panel prerequisite is blocked, so notes rendering cannot be assessed (18-panel)."
+  },
+  {
+    "scenario": "The alpha preference survives reopening",
+    "verdict": "fail",
+    "reason": "Saved appears for Walk alpha 44819, but fresh reopen and GET read Original alpha (19-alpha)."
+  },
+  {
+    "scenario": "The bravo preference survives reopening",
+    "verdict": "pass",
+    "reason": "Saved appears and fresh reopen plus GET retain Walk bravo 44819 unchanged (20-bravo)."
+  },
+  {
+    "scenario": "The export view shows note titles",
+    "verdict": "fail",
+    "reason": "Fresh API title fields have actual titles, while /exports renders undefined for every row (21-exports)."
+  }
+]

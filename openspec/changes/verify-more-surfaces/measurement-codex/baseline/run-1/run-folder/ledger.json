@@ -1,0 +1,401 @@
+[
+  {
+    "requirement": "Notes are listed with a count",
+    "scenario": "The list API counts its notes",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the response lists the notes with a `count` equal to the number of notes listed",
+    "id": "01",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "pass",
+    "reason": "GET /api/notes returned count 7 and exactly seven note records.",
+    "where": "http://127.0.0.1:44805/api/notes",
+    "evidence": [
+      "evidence/01/01-response.txt"
+    ]
+  },
+  {
+    "requirement": "Notes are listed with a count",
+    "scenario": "Searching shows only matches",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "only notes whose title contains the word are listed",
+    "id": "02",
+    "probe": "browser",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "fail",
+    "reason": "Search for plumber also rendered Groceries for the week, whose title does not contain the word.",
+    "where": "http://127.0.0.1:44805/?q=plumber",
+    "evidence": [
+      "evidence/02/01.png",
+      "evidence/02.result.json"
+    ]
+  },
+  {
+    "requirement": "Notes can be created",
+    "scenario": "Submitting with no title is rejected",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the form shows \"Title is required\" and nothing is saved",
+    "id": "03",
+    "probe": "browser",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "fail",
+    "reason": "The form displayed Title required rather than the promised Title is required; the exact required message is absent.",
+    "where": "http://127.0.0.1:44805/new \u2192 POST /notes",
+    "evidence": [
+      "evidence/03/01.png",
+      "evidence/03.result.json"
+    ]
+  },
+  {
+    "requirement": "Notes can be created",
+    "scenario": "A new note stays in the list",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the note appears in the list with its title as typed, and is still there unchanged after a reload",
+    "id": "04",
+    "probe": "browser",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "fail",
+    "reason": "Walk UI K86ObN appeared initially but became Walk UI K86Ob after reload; the title did not stay unchanged.",
+    "where": "http://127.0.0.1:44805/new \u2192 / \u2192 reload",
+    "evidence": [
+      "evidence/04/01.png",
+      "evidence/04/02.png",
+      "evidence/04.result.json"
+    ]
+  },
+  {
+    "requirement": "Notes can be created",
+    "scenario": "Creating without a title answers 422",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the endpoint answers 422, the body names the missing title, and no note is created",
+    "id": "05",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "fail",
+    "reason": "POST {} answered 422 with Title is required, but the fresh list grew from seven to eight and added blank-title id8.",
+    "where": "http://127.0.0.1:44805/api/notes",
+    "evidence": [
+      "evidence/05/01-response.txt",
+      "evidence/05/02-response.txt",
+      "evidence/05/03-response.txt"
+    ]
+  },
+  {
+    "requirement": "Notes can be created",
+    "scenario": "Creating with a title answers 201",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the endpoint answers 201 with the note and its id, and the nightly job re-indexes the note",
+    "id": "06",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "partial",
+    "reason": "201 returned note id9 and its typed title, confirmed by fresh GET; nightly re-indexing has no deployed reader or existing state command.",
+    "where": "http://127.0.0.1:44805/api/notes",
+    "evidence": [
+      "evidence/06/01-response.txt",
+      "evidence/06/02-response.txt"
+    ]
+  },
+  {
+    "requirement": "Notes can be changed",
+    "scenario": "A renamed note shows its new title",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the new title shows in the list",
+    "id": "07",
+    "probe": "browser",
+    "dependencies": [
+      "06: id9 fixture existence shown"
+    ],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "pass",
+    "reason": "After editing owned id9, the returned list displayed Walk Renamed K86ObN.",
+    "where": "http://127.0.0.1:44805/notes/9/edit \u2192 /",
+    "evidence": [
+      "evidence/07/02.png",
+      "evidence/07.result.json"
+    ]
+  },
+  {
+    "requirement": "Notes can be changed",
+    "scenario": "Saving shows a Saved badge",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "a \"Saved\" badge appears on the edit page",
+    "id": "08",
+    "probe": "browser",
+    "dependencies": [
+      "07: shared edit receipt"
+    ],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "evidence": [
+      "evidence/07/01.png",
+      "evidence/07.result.json"
+    ],
+    "verdict": "pass",
+    "reason": "The edit page displayed Saved after waiting for the asynchronous badge; shared journey 07 receipt.",
+    "where": "http://127.0.0.1:44805/notes/9/edit"
+  },
+  {
+    "requirement": "Notes can be changed",
+    "scenario": "A rename through the API is logged",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the endpoint answers 200 with the new title, and an entry naming the note is written to the audit log",
+    "id": "09",
+    "probe": "request",
+    "dependencies": [
+      "06: id9 fixture existence shown"
+    ],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "partial",
+    "reason": "PUT id9 answered 200 with Walk API Renamed K86ObN, confirmed by GET; no existing deployed audit-log reader is documented.",
+    "where": "http://127.0.0.1:44805/api/notes/9",
+    "evidence": [
+      "evidence/09/01-response.txt",
+      "evidence/09/02-response.txt"
+    ]
+  },
+  {
+    "requirement": "Notes can be archived or deleted",
+    "scenario": "Deleting a note lowers the count",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the note disappears from the list and the count above the list drops by one",
+    "id": "10",
+    "probe": "browser",
+    "dependencies": [
+      "22: confirmed owned id10"
+    ],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "evidence": [
+      "evidence/10/01.png",
+      "evidence/10/02.png",
+      "evidence/10.result.json"
+    ],
+    "verdict": "fail",
+    "reason": "Delete targeted owned id10; count fell 11 to 10 but id10 remained and owned id11 disappeared instead.",
+    "where": "http://127.0.0.1:44805/ \u2192 /notes/10/delete \u2192 /"
+  },
+  {
+    "requirement": "Notes can be archived or deleted",
+    "scenario": "An archived note moves to Archived",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the note appears on the Archived page and is no longer in the main list",
+    "id": "11",
+    "probe": "browser",
+    "dependencies": [
+      "fresh deployed read confirms owned id9; original id11 deleted by erroneous Delete"
+    ],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "evidence": [
+      "evidence/11/01.png",
+      "evidence/11/02.png",
+      "evidence/11/03.png",
+      "evidence/11.result.json",
+      "evidence/11-attempt-1.result.json",
+      "evidence/23/01-response.txt",
+      "evidence/23/02-response.txt"
+    ],
+    "verdict": "pass",
+    "reason": "On retry with confirmed owned id9, its title disappeared from the main list and appeared in Archived.",
+    "where": "http://127.0.0.1:44805/ \u2192 /notes/9/archive \u2192 /archived"
+  },
+  {
+    "requirement": "Notes can be archived or deleted",
+    "scenario": "Archiving a note emails the owner",
+    "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+    "then": "the count above the list drops by one, and the owner is sent an email naming the note",
+    "id": "12",
+    "probe": "browser",
+    "dependencies": [
+      "fresh deployed read confirms owned id9; original id11 deleted by erroneous Delete"
+    ],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "evidence": [
+      "evidence/11/01.png",
+      "evidence/11/02.png"
+    ],
+    "verdict": "partial",
+    "reason": "Archive reduced count 10 to 9; no sandbox delivery capture or deployed email reader can prove the owner received a named email.",
+    "where": "http://127.0.0.1:44805/ \u2192 /notes/9/archive"
+  },
+  {
+    "requirement": "Mapped lookup documents are listed",
+    "scenario": "Looking up notes lists its document",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "output names `notes` and `wiki/notes.md`",
+    "id": "13",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "pass",
+    "reason": "lookup-a is readable, exit 0, subject aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, and stdout names notes and wiki/notes.md.",
+    "where": "http://127.0.0.1:44805/practice/evidence/lookup-a",
+    "evidence": [
+      "evidence/13/01-response.txt"
+    ]
+  },
+  {
+    "requirement": "Mapped lookup documents are listed",
+    "scenario": "Looking up exports lists its document",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "output names `exports` and `wiki/exports.md`",
+    "id": "14",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "fail",
+    "reason": "lookup-b is current and exit 0, but stdout has area exports and docs [], omitting wiki/exports.md.",
+    "where": "http://127.0.0.1:44805/practice/evidence/lookup-b",
+    "evidence": [
+      "evidence/14/01-response.txt"
+    ]
+  },
+  {
+    "requirement": "Mapped lookup documents are listed",
+    "scenario": "A third lookup lists current notes",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "output names `notes` and `wiki/notes.md`",
+    "id": "15",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded; manual follow-up deferred without asking",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "ask",
+    "reason": "lookup-c names the expected document but subjectSha is bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; obtain a capture of reviewed source aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+    "where": "http://127.0.0.1:44805/practice/evidence/lookup-c",
+    "evidence": [
+      "evidence/15/01-response.txt"
+    ]
+  },
+  {
+    "requirement": "Mapped lookup documents are listed",
+    "scenario": "A fourth lookup lists current notes",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "output names `notes` and `wiki/notes.md`",
+    "id": "16",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded; manual follow-up deferred without asking",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "ask",
+    "reason": "lookup-d returns 200 with truncated invalid JSON; its subject, exit code and stdout cannot be read reliably; obtain a complete capture.",
+    "where": "http://127.0.0.1:44805/practice/evidence/lookup-d",
+    "evidence": [
+      "evidence/16/01-response.txt"
+    ]
+  },
+  {
+    "requirement": "Mapped lookup documents are listed",
+    "scenario": "The mapped lookup preserves its result",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "output still names `notes` and `wiki/notes.md`, preserving the earlier result",
+    "id": "17",
+    "probe": "request",
+    "dependencies": [],
+    "status": "graded; manual follow-up deferred without asking",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "ask",
+    "reason": "lookup-e current stdout names the document, but baseline inputSha256 e9517b7e differs from current b4c5906c; same-input preservation is not established.",
+    "where": "http://127.0.0.1:44805/practice/evidence/lookup-e",
+    "evidence": [
+      "evidence/17/01-response.txt"
+    ]
+  },
+  {
+    "requirement": "The note panel is available",
+    "scenario": "The note panel displays notes",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "the panel displays their notes",
+    "id": "18",
+    "probe": "browser",
+    "dependencies": [],
+    "status": "graded; manual follow-up deferred without asking",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "ask",
+    "reason": "/unavailable answers 503 Preview unavailable; restore the deployed panel and repeat its browser check before grading product behavior.",
+    "where": "http://127.0.0.1:44805/unavailable",
+    "evidence": [
+      "evidence/18/01.png",
+      "evidence/18.result.json",
+      "evidence/22/05-response.txt"
+    ]
+  },
+  {
+    "requirement": "Saved preferences last",
+    "scenario": "The alpha preference survives reopening",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "Saved appears and reopening the preference shows the saved title unchanged",
+    "id": "19",
+    "probe": "browser",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "fail",
+    "reason": "Alpha displayed Saved, then reopened as Original alpha; a fresh API GET confirms that the typed title was not stored.",
+    "where": "http://127.0.0.1:44805/settings/alpha",
+    "evidence": [
+      "evidence/19/01.png",
+      "evidence/19/02.png",
+      "evidence/19.result.json",
+      "evidence/22/03-response.txt"
+    ]
+  },
+  {
+    "requirement": "Saved preferences last",
+    "scenario": "The bravo preference survives reopening",
+    "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+    "then": "Saved appears and reopening the preference shows the saved title unchanged",
+    "id": "20",
+    "probe": "browser",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "pass",
+    "reason": "Bravo displayed Saved and reopened with Walk bravo K86ObN; a fresh API GET returned that same title.",
+    "where": "http://127.0.0.1:44805/settings/bravo",
+    "evidence": [
+      "evidence/20/01.png",
+      "evidence/20/02.png",
+      "evidence/20.result.json",
+      "evidence/22/04-response.txt"
+    ]
+  },
+  {
+    "requirement": "Exports consume the notes title contract",
+    "scenario": "The export view shows note titles",
+    "source": "openspec/specs/exports/spec.md",
+    "then": "each exported title matches the corresponding `title` from `GET /api/notes`",
+    "id": "21",
+    "probe": "browser",
+    "dependencies": [],
+    "status": "graded",
+    "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+    "verdict": "fail",
+    "reason": "/exports rendered undefined for every row while fresh GET /api/notes supplied real title fields; the documented consumer contract is contradicted.",
+    "where": "http://127.0.0.1:44805/exports and /api/notes",
+    "evidence": [
+      "evidence/21/01.png",
+      "evidence/21/01-response.txt",
+      "evidence/21/02-response.txt",
+      "evidence/21.result.json"
+    ]
+  }
+]

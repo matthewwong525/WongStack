@@ -1,0 +1,19 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:44819/exports"
+  ],
+  [
+    "wait",
+    "--load",
+    "networkidle"
+  ],
+  [
+    "screenshot",
+    "/tmp/wong-verify-eval-run-prMKzm/evidence/21-exports/01-export.png",
+    "--full"
+  ],
+  [
+    "snapshot"
+  ]
+]

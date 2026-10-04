@@ -1,0 +1,13 @@
+{
+  "requirement": "Notes can be archived or deleted",
+  "scenario": "Deleting a note lowers the count",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the note disappears from the list and the count above the list drops by one",
+  "id": "10",
+  "probe": "browser",
+  "dependencies": [
+    "04"
+  ],
+  "status": "blocked pending owned fixture",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers"
+}

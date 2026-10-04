@@ -1,0 +1,1 @@
+[["open", "http://127.0.0.1:40429/api/notes"], ["wait", "--load", "networkidle"], ["snapshot"], ["screenshot", "/tmp/wong-verify-eval-run-Wgiyye/evidence/21/01.png", "--full"], ["open", "http://127.0.0.1:40429/exports"], ["wait", "--load", "networkidle"], ["snapshot"], ["screenshot", "/tmp/wong-verify-eval-run-Wgiyye/evidence/21/02.png", "--full"]]

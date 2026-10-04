@@ -1,0 +1,112 @@
+[
+  {
+    "scenario": "Looking up notes lists its document",
+    "verdict": "pass",
+    "reason": "Reviewed aaaaaaa receipt in practice-node has exit 0, empty stderr and stdout naming notes and wiki/notes.md."
+  },
+  {
+    "scenario": "Looking up exports lists its document",
+    "verdict": "fail",
+    "reason": "Reviewed aaaaaaa receipt has exit 0 but stdout is {\"area\":\"exports\",\"docs\":[]}; wiki/exports.md is absent."
+  },
+  {
+    "scenario": "A third lookup lists current notes",
+    "verdict": "ask",
+    "reason": "Output names the document, but subjectSha is bbbbbbb rather than reviewed aaaaaaa; current-source behavior is unverified."
+  },
+  {
+    "scenario": "A fourth lookup lists current notes",
+    "verdict": "ask",
+    "reason": "HTTP 200 body ends after subjectSha colon; JSON and stdout are unreadable, so the product outcome is unverified."
+  },
+  {
+    "scenario": "The mapped lookup preserves its result",
+    "verdict": "ask",
+    "reason": "Both outputs name the document, but baseline inputSha256 e9517b7 differs from current b4c5906; same-input preservation is unverified."
+  },
+  {
+    "scenario": "The note panel displays notes",
+    "verdict": "ask",
+    "reason": "Browser displays Preview unavailable and request probe confirms 503; panel behavior is blocked."
+  },
+  {
+    "scenario": "The alpha preference survives reopening",
+    "verdict": "fail",
+    "reason": "Saved appears for Walk NLso5c alpha, but reopening and fresh GET return Original alpha."
+  },
+  {
+    "scenario": "The bravo preference survives reopening",
+    "verdict": "pass",
+    "reason": "Saved appears and reopening plus fresh GET return Walk NLso5c bravo unchanged."
+  },
+  {
+    "scenario": "The list API counts its notes",
+    "verdict": "pass",
+    "reason": "GET returned seven notes and count 7."
+  },
+  {
+    "scenario": "Searching shows only matches",
+    "verdict": "fail",
+    "reason": "Search for plumber includes Groceries for the week, a nonmatching title."
+  },
+  {
+    "scenario": "Submitting with no title is rejected",
+    "verdict": "fail",
+    "reason": "Form says Title required rather than Title is required; before/after API lists are unchanged."
+  },
+  {
+    "scenario": "A new note stays in the list",
+    "verdict": "fail",
+    "reason": "Walk NLso5c Exact Title appears initially, then reload shows Walk NLso5c Exact Titl."
+  },
+  {
+    "scenario": "Creating without a title answers 422",
+    "verdict": "fail",
+    "reason": "422 and Title is required are returned, but fresh GET shows new empty note id 9 and count rising 7 to 8."
+  },
+  {
+    "scenario": "Creating with a title answers 201",
+    "verdict": "partial",
+    "reason": "201 returns id 10 with the submitted title; fresh GET confirms storage; nightly re-indexing has no deployed read surface."
+  },
+  {
+    "scenario": "A renamed note shows its new title",
+    "verdict": "pass",
+    "reason": "After editing owned id 7, the main list shows Walk NLso5c Renamed."
+  },
+  {
+    "scenario": "Saving shows a Saved badge",
+    "verdict": "pass",
+    "reason": "Waited for Saved; screenshot shows Saved on the edit page."
+  },
+  {
+    "scenario": "A rename through the API is logged",
+    "verdict": "partial",
+    "reason": "PUT answers 200 with id 10 and new title; fresh GET agrees; audit entry has no deployed read surface."
+  },
+  {
+    "scenario": "Deleting a note lowers the count",
+    "verdict": "fail",
+    "reason": "Count drops 9 to 8, but selected id 7 remains; empty id 9 disappears instead."
+  },
+  {
+    "scenario": "An archived note moves to Archived",
+    "verdict": "pass",
+    "reason": "Owned id 8 disappears from main list and appears on Archived; main count falls 8 to 7."
+  },
+  {
+    "scenario": "Archiving a note emails the owner",
+    "verdict": "partial",
+    "reason": "Count falls 8 to 7; no email capture, sandbox mailbox or delivery interface exists, so actual email is not proved."
+  },
+  {
+    "scenario": "The status page shows Ready",
+    "verdict": "pass",
+    "reason": "Browser screenshot and snapshot show Ready."
+  },
+  {
+    "scenario": "The export view shows note titles",
+    "verdict": "fail",
+    "reason": "API supplies seven concrete titles; fresh export page renders seven undefined rows instead."
+  }
+]

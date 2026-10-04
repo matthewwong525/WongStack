@@ -1,0 +1,1 @@
+{"requirement": "Notes can be changed", "scenario": "A rename through the API is logged", "then": "the endpoint answers 200 with the new title, and an entry naming the note is written to the audit log", "probe": "request"}

@@ -490,3 +490,20 @@ test('malformed percent-encoding in object paths returns a controlled 400', asyn
   const env = await setup(t); const response = await handleMemory(new Request('https://prod/_memory/r2/buckets/b/objects/%zz', { headers: { Authorization: `Bearer ${token(env)}` } }), bindings(env));
   assert.equal(response.status, 400); assert.equal((await response.json()).errors[0].code, 'bad_path');
 });
+
+test('described reads keep two matching human labels separate and fail closed after memory revocation', async t => {
+  const env = await setup(t); const keyA = await grant(env, OWNER), keyB = await grant(env, OTHER);
+  const sameLogin = JSON.stringify({ issuer: 'https://login.example.com', subject: 'same-person', email: 'same@example.com' });
+  env.fake.db.prepare('UPDATE memory_keys SET login_identity = ?').run(sameLogin);
+  insert(env, OWNER, 'feedback', 'first machine private'); insert(env, OTHER, 'feedback', 'second machine private'); insert(env, OTHER, 'project', 'shared delivery');
+  for (const [owner, key, own, other] of [[OWNER, keyA, 'first machine private', 'second machine private'], [OTHER, keyB, 'second machine private', 'first machine private']]) {
+    const repo = local(t, env, owner);
+    const adapted = await node(repo, env.fake, 'operations.mjs', ['call', 'memory.search', '--file', '-'],
+      { input: '{}', env: { CLOUDFLARE_MEMORY_TOKEN: key, COMPANY_API_ORIGIN: 'https://preview.example.com' } });
+    const result = JSON.parse(adapted.stdout); assert.match(result.text, new RegExp(own)); assert.doesNotMatch(result.text, new RegExp(other)); assert.match(result.text, /shared delivery/);
+    const described = await node(repo, env.fake, 'operations.mjs', ['describe', 'memory.search']); assert.doesNotMatch(described.stdout, /machine private|shared delivery/);
+  }
+  env.fake.db.prepare("UPDATE memory_keys SET expires_at = '2000-01-01' WHERE hash = ?").run(await hashKey(keyA));
+  const refused = await node(local(t, env, OWNER), env.fake, 'operations.mjs', ['call', 'memory.search', '--file', '-'], { input: '{}', env: { CLOUDFLARE_MEMORY_TOKEN: keyA } });
+  assert.equal(JSON.parse(refused.stdout).error.code, 'unavailable'); assert.doesNotMatch(refused.stdout, /first machine private|shared delivery/);
+});

@@ -2,6 +2,7 @@
 // here, and the handler `apps/<name>/api.ts` lists for "<METHOD> <route>"
 // answers it. Vite finds each app's api.ts at build time, so a new app needs
 // no edit here. wiki/stack/mini-apps.md
+import { dispatch, registrations, type Route } from "../api/contract.ts";
 import type { AccessIdentity } from "../access.ts";
 
 type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET";
@@ -30,10 +31,12 @@ export const APP_API = /^\/apps\/([^/]+)\/api(?:\/(.*))?$/;
 // Each app's routes, keyed "METHOD route". Maps, not objects, so a route or an
 // app named `constructor` can't reach a property every object inherits.
 const apps = new Map(
-  Object.entries(import.meta.glob<{ routes: Map<string, AppHandler> }>("./*/api.ts", { eager: true })).map(
+  Object.entries(import.meta.glob<{ routes: Map<string, Route> }>("./*/api.ts", { eager: true })).map(
     ([path, module]) => [path.split("/")[1], module.routes],
   ),
 );
+
+export const appActions = [...apps].flatMap(([name, routes]) => registrations(routes, name));
 
 /**
  * Answer an app API call. The handler gets a copy of the env without the
@@ -51,5 +54,5 @@ export function handleApp(request: Request, env: Env, identity: AccessIdentity |
   const appEnv: AppEnv & Partial<Record<MemoryBindings, unknown>> = { ...env };
   delete appEnv.MEMORY_DB;
   delete appEnv.MEMORY_BUCKET;
-  return handler(request, appEnv, { url, route, identity });
+  return dispatch(handler, request, appEnv, { url, route, identity });
 }

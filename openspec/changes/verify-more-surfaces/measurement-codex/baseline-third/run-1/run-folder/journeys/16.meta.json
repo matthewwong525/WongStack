@@ -1,0 +1,6 @@
+{
+  "requirement": "Notes can be changed",
+  "scenario": "Saving shows a Saved badge",
+  "then": "a \"Saved\" badge appears on the edit page",
+  "probe": "request"
+}

@@ -1,0 +1,20 @@
+{
+  "requirement": "Notes can be changed",
+  "scenario": "A rename through the API is logged",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the endpoint answers 200 with the new title, and an entry naming the note is written to the audit log",
+  "id": "09",
+  "probe": "request",
+  "dependencies": [
+    "06: id9 fixture existence shown"
+  ],
+  "status": "graded",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "verdict": "partial",
+  "reason": "PUT id9 answered 200 with Walk API Renamed K86ObN, confirmed by GET; no existing deployed audit-log reader is documented.",
+  "where": "http://127.0.0.1:44805/api/notes/9",
+  "evidence": [
+    "evidence/09/01-response.txt",
+    "evidence/09/02-response.txt"
+  ]
+}

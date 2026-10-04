@@ -1,0 +1,11 @@
+request: GET http://127.0.0.1:41323/unavailable
+---
+HTTP/1.1 503 Service Unavailable
+Content-Type: text/plain
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 05:59:26 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+Preview unavailable

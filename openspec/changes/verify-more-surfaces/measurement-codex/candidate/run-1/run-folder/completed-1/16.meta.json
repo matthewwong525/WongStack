@@ -1,0 +1,12 @@
+{
+  "requirement": "Mapped lookup documents are listed",
+  "scenario": "A fourth lookup lists current notes",
+  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+  "then": "output names `notes` and `wiki/notes.md`",
+  "id": "16",
+  "probe": "ci-capture via request",
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "prerequisites": "live disposable practice site",
+  "status": "runnable",
+  "cleanup": "invocation-owned in-memory state; no shared data"
+}

@@ -1,0 +1,9 @@
+{
+  "scenario": "A third lookup lists current notes",
+  "requirement": "Mapped lookup documents are listed",
+  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+  "then": "output names `notes` and `wiki/notes.md`",
+  "probe": "request",
+  "evidence_journey": "15-lookup-c",
+  "verdict": "ask"
+}

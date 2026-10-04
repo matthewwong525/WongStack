@@ -1,0 +1,12 @@
+request: PUT http://127.0.0.1:40429/api/notes/3
+body: {"title":"Practice API rename"}
+---
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 06:21:09 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"id":3,"title":"Practice API rename","body":""}

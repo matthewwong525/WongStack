@@ -1,0 +1,31 @@
+walked 02-search — 2 screenshot(s)
+walked 03-empty-form — 2 screenshot(s)
+walked 04-create — 2 screenshot(s)
+walked 07-rename — 2 screenshot(s)
+walked 08-badge — 1 screenshot(s)
+walked 10-delete — 2 screenshot(s)
+walked 11-archive — 0 screenshot(s) (batch stopped at a failing step)
+walked 12-email — 2 screenshot(s)
+walked 18-panel — 1 screenshot(s)
+walked 19-alpha — 2 screenshot(s)
+walked 20-bravo — 2 screenshot(s)
+walked 21-exports — 1 screenshot(s)
+probed 01-count — 1 request(s)
+probed 03-empty-form — 1 request(s)
+probed 05-empty-api — 3 request(s)
+probed 06-create-api — 2 request(s)
+probed 09-audit — 2 request(s)
+probed 13-lookup-a — 1 request(s)
+probed 14-lookup-b — 1 request(s)
+probed 15-lookup-c — 1 request(s)
+probed 16-lookup-d — 1 request(s)
+probed 17-lookup-e — 1 request(s)
+probed 18-panel — 1 request(s)
+probed 19-alpha — 1 request(s)
+probed 20-bravo — 1 request(s)
+probed 21-exports — 2 request(s)
+evidence: /tmp/wong-verify-eval-run-prMKzm/evidence
+RESULT: WALKED
+EVIDENCE=/tmp/wong-verify-eval-run-prMKzm/evidence
+BROWSER=local
+REDACTED=0

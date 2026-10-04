@@ -1,0 +1,11 @@
+request: GET http://127.0.0.1:44819/api/notes
+---
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 06:10:44 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"count":7,"notes":[{"id":1,"title":"Walk renamed groceries","body":""},{"id":2,"title":"Walk badge plumber","body":""},{"id":3,"title":"Trip ideas","body":""},{"id":6,"title":"Walk API renamed garden","body":""},{"id":7,"title":"Walk typed title 4481","body":""},{"id":8,"title":"","body":""},{"id":9,"title":"Walk API created 44819","body":""}]}

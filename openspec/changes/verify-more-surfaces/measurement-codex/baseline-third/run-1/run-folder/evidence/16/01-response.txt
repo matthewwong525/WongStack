@@ -1,0 +1,11 @@
+request: GET http://127.0.0.1:39357/practice/evidence/lookup-d
+---
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 06:16:02 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"practice":true,"subjectSha":

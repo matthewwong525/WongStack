@@ -1,0 +1,11 @@
+request: GET http://127.0.0.1:44819/api/settings/bravo
+---
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 06:10:44 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"title":"Walk bravo 44819"}

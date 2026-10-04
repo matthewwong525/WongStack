@@ -1,0 +1,11 @@
+request: GET http://127.0.0.1:42335/api/notes
+---
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 06:06:44 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"count":8,"notes":[{"id":1,"title":"Groceries for the week","body":""},{"id":2,"title":"Call the plumber","body":""},{"id":3,"title":"Trip ideas","body":""},{"id":4,"title":"Plumber invoice","body":""},{"id":5,"title":"Book club picks","body":""},{"id":6,"title":"Garden plan","body":""},{"id":7,"title":"Walk Renamed Badge","body":""},{"id":11,"title":"Walk API Renamed","body":""}]}

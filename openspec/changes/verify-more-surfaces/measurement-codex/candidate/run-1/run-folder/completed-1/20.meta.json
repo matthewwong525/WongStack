@@ -1,0 +1,12 @@
+{
+  "requirement": "Saved preferences last",
+  "scenario": "The bravo preference survives reopening",
+  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+  "then": "Saved appears and reopening the preference shows the saved title unchanged",
+  "id": "20",
+  "probe": "browser",
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "prerequisites": "live disposable practice site",
+  "status": "runnable",
+  "cleanup": "invocation-owned in-memory state; no shared data"
+}

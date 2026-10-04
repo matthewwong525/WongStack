@@ -14,7 +14,7 @@ Follow the files that already do it. Split by job, not by size: each file does o
 - **A part used by one page:** in that page's folder. It moves to `app/src/components/` when a second page uses it.
 - **Data and helpers with no UI:** [`app/src/lib/`](../../app/src/lib/apps.ts).
 - **Styles:** the shared look is [`app/public/style.css`](../../app/public/style.css), the only file that styles whole elements. A part's CSS sits beside it, under class names named for the part, like [`AppList.css`](../../app/src/pages/home/AppList.css).
-- **An API route:** a handler file in [`app/worker/api/`](../../app/worker/api/health.ts), and one entry in [its router](../../app/worker/api/router.ts).
+- **An API route:** a handler file in [`app/worker/api/`](../../app/worker/api/health.ts), and one entry in [its router](../../app/worker/api/router.ts). For an approved shared action, use [the health contract](../../app/worker/api/health.ts); [company actions](../../wiki/stack/company-api.md) owns the pattern.
 - **A mini app:** copy the example's two folders, [`app/src/apps/hello/`](../../app/src/apps/hello/App.tsx) and, for a server side, [`app/worker/apps/hello/`](../../app/worker/apps/hello/api.ts). The page is `App.tsx`, with `app.json` and its CSS beside it; an API route is a handler file and one entry in `api.ts`'s route list. No other file needs an edit.
 
 The [`npm test` chain](../../app/package.json) owns all numeric limits and enforces them in CI, which is [the gate](../../wiki/development/the-change-loop.md#the-gate); nothing builds locally.

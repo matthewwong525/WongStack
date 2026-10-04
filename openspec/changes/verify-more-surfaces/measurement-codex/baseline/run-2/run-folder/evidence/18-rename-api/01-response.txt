@@ -1,0 +1,12 @@
+request: PUT http://127.0.0.1:41323/api/notes/10
+body: {"title":"Walk NLso5c API Renamed"}
+---
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 05:58:30 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"id":10,"title":"Walk NLso5c API Renamed","body":""}

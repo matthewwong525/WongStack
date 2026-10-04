@@ -1,0 +1,17 @@
+{
+  "requirement": "Mapped lookup documents are listed",
+  "scenario": "The mapped lookup preserves its result",
+  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+  "then": "output still names `notes` and `wiki/notes.md`, preserving the earlier result",
+  "id": "17",
+  "probe": "request",
+  "dependencies": [],
+  "status": "graded; manual follow-up deferred without asking",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "verdict": "ask",
+  "reason": "lookup-e current stdout names the document, but baseline inputSha256 e9517b7e differs from current b4c5906c; same-input preservation is not established.",
+  "where": "http://127.0.0.1:44805/practice/evidence/lookup-e",
+  "evidence": [
+    "evidence/17/01-response.txt"
+  ]
+}

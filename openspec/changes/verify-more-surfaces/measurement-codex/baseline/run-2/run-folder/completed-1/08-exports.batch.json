@@ -1,0 +1,33 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:41323/api/notes"
+  ],
+  [
+    "wait",
+    "--load",
+    "networkidle"
+  ],
+  [
+    "get",
+    "text",
+    "body"
+  ],
+  [
+    "open",
+    "http://127.0.0.1:41323/exports"
+  ],
+  [
+    "wait",
+    "--load",
+    "networkidle"
+  ],
+  [
+    "screenshot",
+    "/tmp/wong-verify-eval-run-NLso5c/evidence/08-exports/01-export.png",
+    "--full"
+  ],
+  [
+    "snapshot"
+  ]
+]

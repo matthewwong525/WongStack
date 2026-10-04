@@ -1,0 +1,17 @@
+{
+  "requirement": "Mapped lookup documents are listed",
+  "scenario": "Looking up exports lists its document",
+  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+  "then": "output names `exports` and `wiki/exports.md`",
+  "id": "14",
+  "probe": "request",
+  "dependencies": [],
+  "status": "graded",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "verdict": "fail",
+  "reason": "lookup-b is current and exit 0, but stdout has area exports and docs [], omitting wiki/exports.md.",
+  "where": "http://127.0.0.1:44805/practice/evidence/lookup-b",
+  "evidence": [
+    "evidence/14/01-response.txt"
+  ]
+}

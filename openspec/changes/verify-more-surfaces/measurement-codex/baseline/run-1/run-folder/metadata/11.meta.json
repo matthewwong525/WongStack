@@ -1,0 +1,25 @@
+{
+  "requirement": "Notes can be archived or deleted",
+  "scenario": "An archived note moves to Archived",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the note appears on the Archived page and is no longer in the main list",
+  "id": "11",
+  "probe": "browser",
+  "dependencies": [
+    "fresh deployed read confirms owned id9; original id11 deleted by erroneous Delete"
+  ],
+  "status": "graded",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "evidence": [
+    "evidence/11/01.png",
+    "evidence/11/02.png",
+    "evidence/11/03.png",
+    "evidence/11.result.json",
+    "evidence/11-attempt-1.result.json",
+    "evidence/23/01-response.txt",
+    "evidence/23/02-response.txt"
+  ],
+  "verdict": "pass",
+  "reason": "On retry with confirmed owned id9, its title disappeared from the main list and appeared in Archived.",
+  "where": "http://127.0.0.1:44805/ \u2192 /notes/9/archive \u2192 /archived"
+}

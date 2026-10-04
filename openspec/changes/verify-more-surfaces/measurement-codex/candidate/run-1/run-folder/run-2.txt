@@ -1,0 +1,9 @@
+walked 07r — 0 screenshot(s)
+walked 08r — 0 screenshot(s)
+walked 10r — 0 screenshot(s)
+probed 09 — 2 request(s)
+evidence: /tmp/wong-verify-eval-run-xyS8t0/evidence
+RESULT: WALKED
+EVIDENCE=/tmp/wong-verify-eval-run-xyS8t0/evidence
+BROWSER=local
+REDACTED=0

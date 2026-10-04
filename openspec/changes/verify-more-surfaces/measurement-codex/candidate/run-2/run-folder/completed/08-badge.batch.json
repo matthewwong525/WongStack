@@ -1,0 +1,43 @@
+[
+  [
+    "open",
+    "http://127.0.0.1:44819/notes/2/edit"
+  ],
+  [
+    "wait",
+    "--load",
+    "networkidle"
+  ],
+  [
+    "find",
+    "label",
+    "Title",
+    "fill",
+    "Walk badge plumber"
+  ],
+  [
+    "find",
+    "role",
+    "button",
+    "click",
+    "--name",
+    "Save"
+  ],
+  [
+    "wait",
+    "--load",
+    "networkidle"
+  ],
+  [
+    "wait",
+    "1000"
+  ],
+  [
+    "screenshot",
+    "/tmp/wong-verify-eval-run-prMKzm/evidence/08-badge/01-badge.png",
+    "--full"
+  ],
+  [
+    "snapshot"
+  ]
+]

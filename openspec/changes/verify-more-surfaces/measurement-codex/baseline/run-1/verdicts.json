@@ -1,0 +1,107 @@
+[
+  {
+    "scenario": "The list API counts its notes",
+    "verdict": "pass",
+    "reason": "GET /api/notes returned count 7 and exactly seven note records."
+  },
+  {
+    "scenario": "Searching shows only matches",
+    "verdict": "fail",
+    "reason": "Search for plumber also rendered Groceries for the week, whose title does not contain the word."
+  },
+  {
+    "scenario": "Submitting with no title is rejected",
+    "verdict": "fail",
+    "reason": "The form displayed Title required rather than the promised Title is required; the exact required message is absent."
+  },
+  {
+    "scenario": "A new note stays in the list",
+    "verdict": "fail",
+    "reason": "Walk UI K86ObN appeared initially but became Walk UI K86Ob after reload; the title did not stay unchanged."
+  },
+  {
+    "scenario": "Creating without a title answers 422",
+    "verdict": "fail",
+    "reason": "POST {} answered 422 with Title is required, but the fresh list grew from seven to eight and added blank-title id8."
+  },
+  {
+    "scenario": "Creating with a title answers 201",
+    "verdict": "partial",
+    "reason": "201 returned note id9 and its typed title, confirmed by fresh GET; nightly re-indexing has no deployed reader or existing state command."
+  },
+  {
+    "scenario": "A renamed note shows its new title",
+    "verdict": "pass",
+    "reason": "After editing owned id9, the returned list displayed Walk Renamed K86ObN."
+  },
+  {
+    "scenario": "Saving shows a Saved badge",
+    "verdict": "pass",
+    "reason": "The edit page displayed Saved after waiting for the asynchronous badge; shared journey 07 receipt."
+  },
+  {
+    "scenario": "A rename through the API is logged",
+    "verdict": "partial",
+    "reason": "PUT id9 answered 200 with Walk API Renamed K86ObN, confirmed by GET; no existing deployed audit-log reader is documented."
+  },
+  {
+    "scenario": "Deleting a note lowers the count",
+    "verdict": "fail",
+    "reason": "Delete targeted owned id10; count fell 11 to 10 but id10 remained and owned id11 disappeared instead."
+  },
+  {
+    "scenario": "An archived note moves to Archived",
+    "verdict": "pass",
+    "reason": "On retry with confirmed owned id9, its title disappeared from the main list and appeared in Archived."
+  },
+  {
+    "scenario": "Archiving a note emails the owner",
+    "verdict": "partial",
+    "reason": "Archive reduced count 10 to 9; no sandbox delivery capture or deployed email reader can prove the owner received a named email."
+  },
+  {
+    "scenario": "Looking up notes lists its document",
+    "verdict": "pass",
+    "reason": "lookup-a is readable, exit 0, subject aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, and stdout names notes and wiki/notes.md."
+  },
+  {
+    "scenario": "Looking up exports lists its document",
+    "verdict": "fail",
+    "reason": "lookup-b is current and exit 0, but stdout has area exports and docs [], omitting wiki/exports.md."
+  },
+  {
+    "scenario": "A third lookup lists current notes",
+    "verdict": "ask",
+    "reason": "lookup-c names the expected document but subjectSha is bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; obtain a capture of reviewed source aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa."
+  },
+  {
+    "scenario": "A fourth lookup lists current notes",
+    "verdict": "ask",
+    "reason": "lookup-d returns 200 with truncated invalid JSON; its subject, exit code and stdout cannot be read reliably; obtain a complete capture."
+  },
+  {
+    "scenario": "The mapped lookup preserves its result",
+    "verdict": "ask",
+    "reason": "lookup-e current stdout names the document, but baseline inputSha256 e9517b7e differs from current b4c5906c; same-input preservation is not established."
+  },
+  {
+    "scenario": "The note panel displays notes",
+    "verdict": "ask",
+    "reason": "/unavailable answers 503 Preview unavailable; restore the deployed panel and repeat its browser check before grading product behavior."
+  },
+  {
+    "scenario": "The alpha preference survives reopening",
+    "verdict": "fail",
+    "reason": "Alpha displayed Saved, then reopened as Original alpha; a fresh API GET confirms that the typed title was not stored."
+  },
+  {
+    "scenario": "The bravo preference survives reopening",
+    "verdict": "pass",
+    "reason": "Bravo displayed Saved and reopened with Walk bravo K86ObN; a fresh API GET returned that same title."
+  },
+  {
+    "scenario": "The export view shows note titles",
+    "verdict": "fail",
+    "reason": "/exports rendered undefined for every row while fresh GET /api/notes supplied real title fields; the documented consumer contract is contradicted."
+  }
+]

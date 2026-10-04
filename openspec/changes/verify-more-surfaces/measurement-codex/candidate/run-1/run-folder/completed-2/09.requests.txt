@@ -1,0 +1,2 @@
+PUT	/api/notes/11	{"title":"Walk API Renamed"}
+GET	/api/notes

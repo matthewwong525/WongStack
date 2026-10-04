@@ -1,0 +1,3 @@
+# Raw CLI traces and response captures retain their exact bytes.
+**/*.txt binary
+**/*.log binary

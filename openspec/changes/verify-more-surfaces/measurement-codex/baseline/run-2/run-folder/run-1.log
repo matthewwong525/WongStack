@@ -1,0 +1,22 @@
+walked 01-search — 2 screenshot(s)
+walked 02-empty — 1 screenshot(s)
+walked 03-lifecycle — 2 screenshot(s) (batch stopped at a failing step)
+walked 04-archive — 3 screenshot(s)
+walked 05-alpha — 3 screenshot(s)
+walked 06-bravo — 3 screenshot(s)
+walked 07-panel — 1 screenshot(s)
+walked 08-exports — 1 screenshot(s)
+walked 09-health — 1 screenshot(s)
+probed 10-count — 1 request(s)
+probed 11-empty-api — 3 request(s)
+probed 12-create-api — 2 request(s)
+probed 13-lookup-a — 1 request(s)
+probed 14-lookup-b — 1 request(s)
+probed 15-lookup-c — 1 request(s)
+probed 16-lookup-d — 1 request(s)
+probed 17-lookup-e — 1 request(s)
+evidence: /tmp/wong-verify-eval-run-NLso5c/evidence
+RESULT: WALKED
+EVIDENCE=/tmp/wong-verify-eval-run-NLso5c/evidence
+BROWSER=local
+REDACTED=0

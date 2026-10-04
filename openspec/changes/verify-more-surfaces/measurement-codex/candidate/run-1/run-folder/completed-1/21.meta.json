@@ -1,0 +1,12 @@
+{
+  "requirement": "Exports consume the notes title contract",
+  "scenario": "The export view shows note titles",
+  "source": "openspec/specs/exports/spec.md",
+  "then": "each exported title matches the corresponding `title` from `GET /api/notes`",
+  "id": "21",
+  "probe": "browser",
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "prerequisites": "live disposable practice site",
+  "status": "runnable",
+  "cleanup": "invocation-owned in-memory state; no shared data"
+}

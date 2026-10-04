@@ -1,0 +1,8 @@
+{
+  "scenario": "Submitting with no title is rejected",
+  "requirement": "Notes can be created",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the form shows \"Title is required\" and nothing is saved",
+  "probe": "browser",
+  "also_scenarios": []
+}

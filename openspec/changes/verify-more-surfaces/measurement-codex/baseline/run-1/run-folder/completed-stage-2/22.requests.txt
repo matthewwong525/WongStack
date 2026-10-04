@@ -1,0 +1,5 @@
+POST	/api/notes	{"title":"Walk Delete K86ObN"}
+POST	/api/notes	{"title":"Walk Archive K86ObN"}
+GET	/api/settings/alpha
+GET	/api/settings/bravo
+GET	/unavailable

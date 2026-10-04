@@ -1,0 +1,1 @@
+[["open", "http://127.0.0.1:44805/new"], ["wait", "--load", "networkidle"], ["find", "role", "button", "click", "--name", "Save"], ["wait", "--load", "networkidle"], ["screenshot", "/tmp/wong-verify-eval-run-K86ObN/evidence/03/01.png", "--full"], ["snapshot"]]

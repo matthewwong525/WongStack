@@ -1,0 +1,20 @@
+{
+  "requirement": "Notes can be changed",
+  "scenario": "A renamed note shows its new title",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the new title shows in the list",
+  "id": "07",
+  "probe": "browser",
+  "dependencies": [
+    "06: id9 fixture existence shown"
+  ],
+  "status": "graded",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "verdict": "pass",
+  "reason": "After editing owned id9, the returned list displayed Walk Renamed K86ObN.",
+  "where": "http://127.0.0.1:44805/notes/9/edit \u2192 /",
+  "evidence": [
+    "evidence/07/02.png",
+    "evidence/07.result.json"
+  ]
+}

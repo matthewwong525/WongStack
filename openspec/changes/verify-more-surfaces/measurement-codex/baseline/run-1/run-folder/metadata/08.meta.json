@@ -1,0 +1,20 @@
+{
+  "requirement": "Notes can be changed",
+  "scenario": "Saving shows a Saved badge",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "a \"Saved\" badge appears on the edit page",
+  "id": "08",
+  "probe": "browser",
+  "dependencies": [
+    "07: shared edit receipt"
+  ],
+  "status": "graded",
+  "cleanup": "owned disposable in-memory state; no shared records; retain identifiers",
+  "evidence": [
+    "evidence/07/01.png",
+    "evidence/07.result.json"
+  ],
+  "verdict": "pass",
+  "reason": "The edit page displayed Saved after waiting for the asynchronous badge; shared journey 07 receipt.",
+  "where": "http://127.0.0.1:44805/notes/9/edit"
+}

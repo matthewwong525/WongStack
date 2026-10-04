@@ -1,0 +1,6 @@
+GET	/unavailable
+GET	/api/notes
+POST	/api/settings/alpha	{"title":"Walk alpha Saved Title"}
+GET	/api/settings/alpha
+POST	/api/settings/bravo	{"title":"Walk bravo Saved Title"}
+GET	/api/settings/bravo

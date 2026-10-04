@@ -1,0 +1,2 @@
+GET	/api/notes
+GET	/exports

@@ -1,0 +1,236 @@
+{
+  "label": "candidate-codex-third",
+  "reference": "/root/.paseo/worktrees/2b9tffs3/heroic-eagle/openspec/changes/verify-more-surfaces/walkthrough-candidate.md",
+  "framing": "builder",
+  "exercise": "mixed",
+  "date": "2026-10-04",
+  "model": "not reported",
+  "agentCmd": "codex exec --ephemeral --sandbox danger-full-access --model gpt-6.1-sol --add-dir \"$RUN_DIR\" --add-dir /root/.agent-browser - 2>\"$RUN_DIR/codex-trace.txt\"",
+  "planted": 5,
+  "working": 4,
+  "partial": 3,
+  "runs": [
+    {
+      "run": 1,
+      "caught": 5,
+      "missed": 0,
+      "falseAlarms": 0,
+      "asked": 0,
+      "named": 3,
+      "overclaimed": 0,
+      "other": 0,
+      "scenarios": {
+        "Submitting with no title is rejected": {
+          "key": "broken",
+          "verdict": "fail",
+          "outcome": "caught"
+        },
+        "Deleting a note lowers the count": {
+          "key": "broken",
+          "verdict": "fail",
+          "outcome": "caught"
+        },
+        "Creating without a title answers 422": {
+          "key": "broken",
+          "verdict": "fail",
+          "outcome": "caught"
+        },
+        "A new note stays in the list": {
+          "key": "broken",
+          "verdict": "fail",
+          "outcome": "caught"
+        },
+        "Searching shows only matches": {
+          "key": "broken",
+          "verdict": "fail",
+          "outcome": "caught"
+        },
+        "A renamed note shows its new title": {
+          "key": "works",
+          "verdict": "pass",
+          "outcome": "passed"
+        },
+        "The list API counts its notes": {
+          "key": "works",
+          "verdict": "pass",
+          "outcome": "passed"
+        },
+        "An archived note moves to Archived": {
+          "key": "works",
+          "verdict": "pass",
+          "outcome": "passed"
+        },
+        "Saving shows a Saved badge": {
+          "key": "works",
+          "verdict": "pass",
+          "outcome": "passed"
+        },
+        "Creating with a title answers 201": {
+          "key": "partial",
+          "verdict": "partial",
+          "outcome": "named"
+        },
+        "A rename through the API is logged": {
+          "key": "partial",
+          "verdict": "partial",
+          "outcome": "named"
+        },
+        "Archiving a note emails the owner": {
+          "key": "partial",
+          "verdict": "partial",
+          "outcome": "named"
+        }
+      },
+      "mixed": {
+        "caught": 3,
+        "missed": 0,
+        "falsePasses": 0,
+        "falseAlarms": 0,
+        "correct": 2,
+        "namedGaps": 0,
+        "unnamedGaps": 4,
+        "irrelevantSelections": 0,
+        "reportCorrect": 0,
+        "reportWrong": 9,
+        "scenarios": {
+          "Looking up notes lists its document": {
+            "verdict": "pass",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          },
+          "Looking up exports lists its document": {
+            "verdict": "fail",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          },
+          "A third lookup lists current notes": {
+            "verdict": "unverified",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          },
+          "A fourth lookup lists current notes": {
+            "verdict": "unverified",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          },
+          "The mapped lookup preserves its result": {
+            "verdict": "unverified",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          },
+          "The note panel displays notes": {
+            "verdict": "ask",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          },
+          "The alpha preference survives reopening": {
+            "verdict": "fail",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [
+              {
+                "submitted": "Practice alpha saved title",
+                "stored": "Original alpha",
+                "writeAt": "2026-10-04T06:20:56.398Z",
+                "readAt": "2026-10-04T06:20:56.530Z"
+              },
+              {
+                "submitted": "Practice alpha saved title",
+                "stored": "Original alpha",
+                "writeAt": "2026-10-04T06:20:56.398Z",
+                "readAt": "2026-10-04T06:20:57.799Z"
+              }
+            ],
+            "report": null,
+            "reportCorrect": false
+          },
+          "The bravo preference survives reopening": {
+            "verdict": "pass",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [
+              {
+                "submitted": "Practice bravo saved title",
+                "stored": "Practice bravo saved title",
+                "writeAt": "2026-10-04T06:21:01.614Z",
+                "readAt": "2026-10-04T06:21:01.747Z"
+              },
+              {
+                "submitted": "Practice bravo saved title",
+                "stored": "Practice bravo saved title",
+                "writeAt": "2026-10-04T06:21:01.614Z",
+                "readAt": "2026-10-04T06:21:03.030Z"
+              }
+            ],
+            "report": null,
+            "reportCorrect": false
+          },
+          "The export view shows note titles": {
+            "verdict": "fail",
+            "selected": true,
+            "observed": true,
+            "observedCheck": true,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          },
+          "The status page shows Ready": {
+            "verdict": null,
+            "selected": false,
+            "observed": false,
+            "observedCheck": false,
+            "readbacks": [],
+            "report": null,
+            "reportCorrect": false
+          }
+        },
+        "consumerChecked": true,
+        "consumerReasoned": false,
+        "practiceLabelled": true,
+        "currentRevisionNamed": true,
+        "overallCorrect": true
+      },
+      "minutes": 5.0506,
+      "costUsd": null,
+      "model": null,
+      "error": null
+    }
+  ],
+  "total": {
+    "caught": 5,
+    "missed": 0,
+    "falseAlarms": 0,
+    "asked": 0,
+    "named": 3,
+    "overclaimed": 0,
+    "other": 0,
+    "minutes": 5.0506,
+    "costUsd": null
+  }
+}

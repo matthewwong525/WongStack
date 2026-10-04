@@ -1,0 +1,1 @@
+{"requirement": "Saved preferences last", "scenario": "The alpha preference survives reopening", "then": "Saved appears and reopening the preference shows the saved title unchanged", "probe": "browser"}

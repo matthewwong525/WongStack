@@ -1,0 +1,9 @@
+{
+  "scenario": "The bravo preference survives reopening",
+  "requirement": "Saved preferences last",
+  "source": "openspec/changes/practice-notes/specs/practice-captures/spec.md",
+  "then": "Saved appears and reopening the preference shows the saved title unchanged",
+  "probe": "browser",
+  "evidence_journey": "06-bravo",
+  "verdict": "pass"
+}

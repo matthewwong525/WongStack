@@ -1,0 +1,26 @@
+walked 02 — 2 screenshot(s)
+walked 03 — 3 screenshot(s)
+walked 04 — 2 screenshot(s)
+walked 07 — 2 screenshot(s)
+walked 08 — 1 screenshot(s)
+walked 10 — 2 screenshot(s)
+walked 11 — 3 screenshot(s)
+walked 12 — 1 screenshot(s) (batch stopped at a failing step)
+walked 18 — 1 screenshot(s)
+walked 19 — 3 screenshot(s)
+walked 20 — 3 screenshot(s)
+walked 21 — 2 screenshot(s)
+probed 01 — 1 request(s)
+probed 05 — 3 request(s)
+probed 06 — 2 request(s)
+probed 09 — 2 request(s)
+probed 13 — 1 request(s)
+probed 14 — 1 request(s)
+probed 15 — 1 request(s)
+probed 16 — 1 request(s)
+probed 17 — 1 request(s)
+evidence: /tmp/wong-verify-eval-run-Wgiyye/evidence
+RESULT: WALKED
+EVIDENCE=/tmp/wong-verify-eval-run-Wgiyye/evidence
+BROWSER=local
+REDACTED=0

@@ -1,0 +1,9 @@
+walked 10-delete-readback — 1 screenshot(s)
+walked 11-archive-retry — 2 screenshot(s)
+probed 10-delete-readback — 2 request(s)
+probed 11-archive-retry — 2 request(s)
+evidence: /tmp/wong-verify-eval-run-prMKzm/evidence
+RESULT: WALKED
+EVIDENCE=/tmp/wong-verify-eval-run-prMKzm/evidence
+BROWSER=local
+REDACTED=0

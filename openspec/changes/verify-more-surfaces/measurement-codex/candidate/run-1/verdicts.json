@@ -1,0 +1,107 @@
+[
+  {
+    "scenario": "The list API counts its notes",
+    "verdict": "pass",
+    "reason": "GET returns count 7 and seven records; a later fresh read also returns eight records with count 8."
+  },
+  {
+    "scenario": "Searching shows only matches",
+    "verdict": "fail",
+    "reason": "Searching plumber lists Call the plumber and Plumber invoice, but also Groceries for the week, which does not match."
+  },
+  {
+    "scenario": "Submitting with no title is rejected",
+    "verdict": "fail",
+    "reason": "The form says \"Title required\", not the promised \"Title is required\"; before/after API lists remain identical at six records."
+  },
+  {
+    "scenario": "A new note stays in the list",
+    "verdict": "fail",
+    "reason": "Submitted \"Walk Synthetic Exact Title\" appears initially; fresh load shows \"Walk Synthetic Exact Titl\", losing the final character."
+  },
+  {
+    "scenario": "Creating without a title answers 422",
+    "verdict": "fail",
+    "reason": "POST {} returns 422 and {\"error\":\"Title is required\"}, but fresh GET adds blank-title note id 10 and raises count 7 to 8."
+  },
+  {
+    "scenario": "Creating with a title answers 201",
+    "verdict": "partial",
+    "reason": "POST returns 201 with id 11 and \"Walk API Synthetic\"; fresh GET confirms storage. Nightly re-indexing has no documented trigger or read route."
+  },
+  {
+    "scenario": "A renamed note shows its new title",
+    "verdict": "pass",
+    "reason": "Retry edits owned note id 7 to \"Walk Renamed Exact\"; returned list and fresh reload both show that exact title."
+  },
+  {
+    "scenario": "Saving shows a Saved badge",
+    "verdict": "pass",
+    "reason": "After saving \"Walk Renamed Badge\", waiting for visible Saved produces a screenshot with the Saved badge on the edit page."
+  },
+  {
+    "scenario": "A rename through the API is logged",
+    "verdict": "partial",
+    "reason": "PUT owned note id 11 returns 200 with \"Walk API Renamed\" and fresh GET retains it; no documented audit-log consumer or capture is available."
+  },
+  {
+    "scenario": "Deleting a note lowers the count",
+    "verdict": "fail",
+    "reason": "Delete changes displayed count 9 to 8, but \"Walk Renamed Badge\" remains in the list and a later fresh API read retains id 7."
+  },
+  {
+    "scenario": "An archived note moves to Archived",
+    "verdict": "pass",
+    "reason": "Archived owned note id 8 disappears from the main list and appears on /archived; its stored title is \"Walk Archive Syntheti\"."
+  },
+  {
+    "scenario": "Archiving a note emails the owner",
+    "verdict": "partial",
+    "reason": "Archiving owned note id 9 reduces count 8 to 7. No mailbox, sandbox delivery capture, or documented email read route proves email naming the note."
+  },
+  {
+    "scenario": "Looking up notes lists its document",
+    "verdict": "pass",
+    "reason": "lookup-a is readable JSON for reviewed aaaa source, practice-node, notes input and recorded method; exit 0 stdout names notes and wiki/notes.md."
+  },
+  {
+    "scenario": "Looking up exports lists its document",
+    "verdict": "fail",
+    "reason": "lookup-b has reviewed source and exports input; exit 0 stdout says area exports with docs [], omitting wiki/exports.md."
+  },
+  {
+    "scenario": "A third lookup lists current notes",
+    "verdict": "unverified",
+    "reason": "lookup-c stdout names the expected document, but subjectSha is bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, not the reviewed revision."
+  },
+  {
+    "scenario": "A fourth lookup lists current notes",
+    "verdict": "unverified",
+    "reason": "lookup-d response is truncated malformed JSON ending at subjectSha; source identity and readable command output cannot be validated."
+  },
+  {
+    "scenario": "The mapped lookup preserves its result",
+    "verdict": "unverified",
+    "reason": "lookup-e head aaaa names notes/wiki/notes.md, but baseline cccc has a different inputSha256; preservation under identical input is unproved."
+  },
+  {
+    "scenario": "The note panel displays notes",
+    "verdict": "unverified",
+    "reason": "/unavailable returns 503 \"Preview unavailable\"; the notes panel cannot be observed through its entry point."
+  },
+  {
+    "scenario": "The alpha preference survives reopening",
+    "verdict": "fail",
+    "reason": "Saved appears for \"Walk alpha Saved Title\", but reopening and fresh GET return \"Original alpha\"; supplementary POST 200 saved:true also contradicts its fresh GET."
+  },
+  {
+    "scenario": "The bravo preference survives reopening",
+    "verdict": "pass",
+    "reason": "Saved appears for \"Walk bravo Saved Title\"; reopening and fresh GET preserve that exact value; supplementary POST/readback agree."
+  },
+  {
+    "scenario": "The export view shows note titles",
+    "verdict": "fail",
+    "reason": "Fresh producer GET supplies seven actual titles; /exports renders seven \"undefined\" values instead."
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "requirement": "Notes can be created",
+  "scenario": "Creating without a title answers 422",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "the endpoint answers 422, the body names the missing title, and no note is created",
+  "id": "05",
+  "probe": "request",
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "prerequisites": "live disposable practice site",
+  "status": "runnable",
+  "cleanup": "invocation-owned in-memory state; no shared data"
+}

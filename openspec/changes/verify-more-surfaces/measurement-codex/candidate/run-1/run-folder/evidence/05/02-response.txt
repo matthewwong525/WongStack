@@ -1,0 +1,12 @@
+request: POST http://127.0.0.1:42335/api/notes
+body: {}
+---
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 06:05:03 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"error":"Title is required"}

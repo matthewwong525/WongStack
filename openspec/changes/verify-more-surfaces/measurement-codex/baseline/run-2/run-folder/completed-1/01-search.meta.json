@@ -1,0 +1,8 @@
+{
+  "scenario": "Searching shows only matches",
+  "requirement": "Notes are listed with a count",
+  "source": "openspec/changes/practice-notes/specs/notes/spec.md",
+  "then": "only notes whose title contains the word are listed",
+  "probe": "browser",
+  "also_scenarios": []
+}

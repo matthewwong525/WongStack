@@ -1,0 +1,12 @@
+request: POST http://127.0.0.1:44805/api/notes
+body: {"title":"Walk Archive K86ObN"}
+---
+HTTP/1.1 201 Created
+Content-Type: application/json
+Cache-Control: no-store
+Date: Sun, 04 Oct 2026 05:50:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"id":11,"title":"Walk Archive K86ObN","body":""}

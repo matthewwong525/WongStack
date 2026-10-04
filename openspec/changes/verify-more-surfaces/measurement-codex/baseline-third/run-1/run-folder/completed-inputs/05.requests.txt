@@ -1,0 +1,3 @@
+GET	/api/notes
+POST	/api/notes	{"title":""}
+GET	/api/notes
