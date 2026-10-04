@@ -9,6 +9,7 @@ const TOKEN_PATTERNS = [
   ['API key (sk-)', /\bsk-[A-Za-z0-9_-]{20,}/],
   ['AWS access key', /\bAKIA[0-9A-Z]{16}\b/],
   ['JWT', /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/],
+  ['Memory login marker', /\bwongl_[A-Za-z0-9_-]{43}\b/],
   ['Memory key', /\bwongm_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{20,}/],
   // The word stays and only the token is replaced, so a transcript still reads as a header.
   ['Bearer header', /\b(Bearer\s+)[A-Za-z0-9._~+/=-]{20,}/],

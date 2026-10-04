@@ -1,69 +1,64 @@
 # The memory key
 
-Your memory key opens this repo's [session memory](memory.md) store and nothing else. This page covers where it is kept, the three kinds of key, and how a teammate gets one. It is part of the [development](README.md) docs.
+Your memory key opens this repository's [session memory](memory.md), with private memory owned by this OS-user installation. Repository authorization includes shared memory; trusted setup or the admin installs the secret that proves that authorization to the store. A copied checkout or a chosen machine ID alone grants nothing.
 
-The private app has one narrow exception: production `/_memory/*` reaches this route without an app login. Its memory key and GitHub checks still apply. Staging and previews bind no production memory and receive no public exception. See [Access](../stack/cloudflare-access.md#4-bypass-the-public-surface).
+`CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**. **This page owns that name.** It stays in the primary checkout's ignored `.env` under [the secrets convention](secrets.md), never in git, chat, logs, or CI secrets. Each repository has its own credential. The local installation ID stays the same across its chats, repositories, and linked worktrees.
 
-`CLOUDFLARE_MEMORY_TOKEN` holds your **memory key**: it opens this repo's store and nothing else. **This page owns that name.** It lives in the ignored `.env` under [the secrets convention](secrets.md). It is **never** a GitHub secret, so CI cannot read transcripts, and never committed: a repo can be public, and git history keeps a key forever.
+Production `/_memory/*` reaches the memory route without an app login and checks its own credential. Staging and branch previews bind no production memory and answer 404. See [Access](../stack/cloudflare-access.md#4-bypass-the-public-surface). Every call uses the primary checkout's recorded `components.memory.worker`; a branch cannot redirect its secret.
 
-Every memory call goes through your app's **production Worker**, under `/_memory/`. It binds the memory database as `MEMORY_DB` and the bucket as `MEMORY_BUCKET`; the staging Worker and previews bind neither, and answer 404. CI deploys the route with the app on each merge to `main`, so no one deploys memory by hand. The route's code lives in [the memory skill](../../.agents/skills/memory/SKILL.md), so [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps it current; `app/worker/index.ts` only imports it. A `memory_keys` table in the memory database holds a hash of each key, and `memory_admins` holds the admin's GitHub account. The route refuses any statement that names either table, so no key can read or change them. No person holds a Cloudflare token for memory, because Cloudflare's D1 permissions reach every database in the account, the app's too.
-
-Two costs come with one Worker. A failed production deploy stops memory too; facts wait in the local spool and go through on the next run. And the app's own code shares the Worker with memory. A [mini app](../stack/mini-apps.md) handler gets every binding but `MEMORY_DB` and `MEMORY_BUCKET`, and the `disallow_importable_env` flag in `app/wrangler.jsonc` stops any code importing them, but code in the same Worker can still get around that on purpose. So review a handler's code before it publishes, and keep every other route away from the memory bindings, except [a preview check's picture route](staging-walkthrough.md#what-a-walk-needs), which is handed the bucket alone and reaches only its `walks/` folder.
+The production app Worker binds `MEMORY_DB` and, when available, `MEMORY_BUCKET`. The [memory skill](../../.agents/skills/memory/SKILL.md) owns the handler. `memory_keys` holds only credential hashes, machine IDs, roles, and optional labels. Ordinary keys cannot read or change it or the retained legacy `memory_admins` table. The trusted admin's `CLOUDFLARE_API_TOKEN` reaches the database directly for migrations and issuance.
 
 A key has one of three roles:
 
-- **Admin:** the person who ran setup, tied to their GitHub account, not their email. [Setup's provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store) links that account and writes their key to `.env`. They read every transcript in the store. Another GitHub account with the same email is a member.
-- **Member:** a teammate. They read what [who sees what](memory.md#who-sees-what) gives them, and add facts under their own email. The route runs only the memory script's own writes for them, so they cannot change or delete a fact, rewrite another person's session, or remove the store's guards. They supersede only facts they wrote, with their own replacement in the same save, so the replacement is always visible and credited. A supersede aimed at a teammate's fact leaves it live, and the script names who wrote it; only the admin supersedes anyone's.
-- **Reader:** someone who can read a private repo on GitHub but not push to it. A reader is a member whose facts only they and the admin see: the route stores every fact they write as unshared, whatever the request says. Knowledge meant for the team goes in [the wiki](../README.md) instead, through a pull request like any file edit.
+- **Admin:** setup's installation. It can read every fact and transcript; digest and search default to its own private facts until `--everyone` is requested.
+- **Member:** a repository contributor. It loads and contributes team knowledge automatically and accesses private facts and transcripts only for its stored machine owner. It supersedes only that owner's facts, with a replacement in the same batch.
+- **Reader:** read-only repository access. Every fact it contributes stays unshared, visible only to its machine and the admin.
 
-What each role reads is in [who sees what](memory.md#who-sees-what). Beyond that table:
+The [privacy table](memory.md#who-sees-what) applies even with one active machine. Emails, hostname, git authors, and people pages are labels only. New raw transcripts live under `sessions/<machine-id>/<agent>/<session>.jsonl`; only the owning machine and admin read them. Historical email paths remain admin-readable. Authors and dates stay unchanged when upkeep restates a fact.
 
-- Transcripts are filed under their author's email. The admin also reads ones filed before keys existed.
-- The route reads a member's own facts by the key's email alone, never a people page, which a branch could change.
-- A fact's author is the key's email: the route refuses a member's write under any other name. The admin's key is not limited this way; D1 restores a database to any time in the last 30 days.
-- A token-shaped string is replaced in the raw transcript even when it was never in `.env`. A secret with no known shape, never in `.env`, stays there, so keep one out of the chat.
+A failed production deploy pauses memory; facts wait in this machine's local spool. Offline starts can use this machine's cached digest. A refused credential prevents cached private memory from loading, including a later offline start, until authorization succeeds again.
 
-The script reads `CLOUDFLARE_MEMORY_TOKEN` from the process environment first, then from `.env`. A shell that loaded a `.env` sends that value to every repo it runs in, so unset it (`env -u CLOUDFLARE_MEMORY_TOKEN ...`) when you work with another repo's store.
+The app's code shares the Worker with memory. [Mini apps](../stack/mini-apps.md) receive no memory bindings; the importable-env guard also blocks them. Review app changes before publishing: code in the same Worker can deliberately circumvent that boundary. The [picture route](staging-walkthrough.md#what-a-walk-needs) receives the bucket alone and reads only `walks/`.
 
 ## Joining through GitHub
 
-A teammate gets a key without the admin. When a session starts with no key, the hook runs `memory.mjs join` in the background, and memory loads from the next session. `join` can also be run by hand.
+This heading remains for older links. Enrollment through GitHub has been replaced by trusted credential installation. Memory needs no GitHub lookup, person sign-in, account cap, or renewal. Missing credentials are reported by the normal hook; it never auto-enrolls a checkout.
 
-1. `join` reads the person's GitHub token from `gh auth token` and sends it to the route's `/_memory/join`, with the machine's name and `git config user.email`.
-2. The route asks GitHub about **its own repository**, which CI's production deploy sets as `GITHUB_REPOSITORY`. Nothing in the request can change the repository or the GitHub address. Push access makes a **member**. On a private repo, read access alone makes a **reader**. A public repo needs push access, because GitHub can not tell its read-only collaborator from a stranger.
-3. The key's email is one GitHub has verified: the `git config` email when it is verified, otherwise the primary one. So a typed email cannot claim someone else's transcripts.
-4. The route asks GitHub for the account's id. Only the account the admin linked gets an admin key; an email alone never makes an admin.
-5. The route makes the key for this machine, which expires after 30 days. `join` writes it to the primary `.env` and never prints it. Until the admin runs `memory.mjs migrate` after an update, a join that needs the new schema is refused, and a store with no linked admin makes no admin.
+The admin issues a credential for the recipient's local machine ID into a private transfer file. The recipient installs it with:
 
-The hook renews every key when 7 days or fewer are left, the admin's too. Someone removed from the GitHub repo keeps memory until their key expires; `member remove` stops it at once. Each machine has its own key, so a second laptop does not replace the first. One GitHub account holds at most 10 keys: a join from an 11th machine works at once, and the key of the machine that joined longest ago stops. That machine rejoins on its own at its next start.
+```bash
+node .claude/skills/memory/scripts/memory.mjs join --file <absolute-private-file>
+```
 
-The trade-off: the person's `gh` token has the `repo` scope, and it reaches a Worker the repo's admin deploys. The route uses it for three GitHub calls (the repository, the verified emails, the account) and never stores or logs it. The repo's own scripts already run on that machine with the same token. A narrower token would need a GitHub OAuth app per repo.
-
-When `join` is refused, it says what to do, and the hook repeats that each session until the person runs `join` again:
-
-| Refusal | Fix |
-|---|---|
-| `gh` is not signed in | `gh auth login` |
-| `gh` cannot read verified emails | `gh auth refresh -h github.com -s user:email`, once ([required tools](required-tools.md#gh-needs-the-useremail-scope-for-memory)) |
-| GitHub does not let this account in | ask the admin for read access to a private repo, or push access to a public one |
-| production is not deployed, or the store is not migrated | wait for CI, or ask the admin to run `memory.mjs migrate` |
+Installation checks the configured production Worker, repository database, local ID, and active server grant before writing the primary `.env`. On Unix, the transfer file must have mode 600. Once installed, ordinary chats load and capture permitted memory without another approval. Transfer through an existing private channel; never paste the file's contents into chat. Remove the transfer file when it is no longer needed.
 
 ## Add or remove a teammate
 
-A teammate is added by giving them access to the repo on GitHub; [joining through GitHub](#joining-through-github) then gives them a key. No one makes a key by hand for another person, so someone without GitHub access gets that access first. The admin runs these with `CLOUDFLARE_API_TOKEN`, the [user token](../stack/cloudflare-credentials.md):
+Repository authorization is the policy: contributors receive **member** credentials, read-only teammates **reader** credentials. The trusted admin uses the existing provisioning token with D1 Write:
 
 ```bash
-node .claude/skills/memory/scripts/memory.mjs member admin    # link your GitHub account as admin; this machine's key goes to .env
-node .claude/skills/memory/scripts/memory.mjs member remove ana@example.com
+node .claude/skills/memory/scripts/memory.mjs member admin
+node .claude/skills/memory/scripts/memory.mjs member add <machine-id> --role member --key-file <absolute-private-file>
+node .claude/skills/memory/scripts/memory.mjs member remove <machine-id>
 node .claude/skills/memory/scripts/memory.mjs member list
 ```
 
-`member admin` needs `gh` signed in and a git email; setup runs it for you. It links the GitHub account `gh` is signed in as, and gives this machine a 30-day admin key that renews itself like a joined one. It never prints the key. `member remove` stops every key of the email at once, and unlinks the admin when it is the admin's email. `member list` shows one line per key, with its machine, GitHub account, and expiry, and `reader` for a reader key, then the linked admin.
+Get the recipient's ID from `node --input-type=module -e 'import { machineId } from "./.claude/skills/memory/scripts/lib/machine-id.mjs"; console.log(machineId())'` in their checkout. It is an identifier, not a credential. `member admin` installs this machine's admin key directly; no git email or GitHub account is needed for memory. `member add` writes a restricted transfer file outside repositories, never prints its secret, and accepts an optional `--label` for display.
 
-A store with keys for more than one email is a team: the route says so on every answer, and the script remembers it on this machine.
+New keys have no scheduled expiry. Reissuing for a machine revokes its earlier credentials immediately. `member remove` revokes every credential and pending login marker for that ID here. Listing shows machine IDs, labels, roles, revoked state, and verified login identity, without secrets. Existing login metadata stays on retained rows after rotation or revocation. Removing repository permission elsewhere does not revoke memory: the admin must remove its credential too.
 
-After a WongStack update that adds a memory migration, the admin runs `memory.mjs migrate` once. Until then, old keys keep working, and a `join` that needs the new schema is refused. The migration that ties the admin to GitHub also links the admin running it when `gh` is signed in, else it says to run `member admin`.
+## Ordinary login labels the machine
 
-The route's URL, `https://<worker>.<subdomain>.workers.dev/_memory`, is recorded as `components.memory.worker`; it is not a secret. Memory reads it from your main checkout's record, like `.env`, never a linked worktree's, so a branch that changes it can not send your key or GitHub token elsewhere. The session start ignores the branch's address and says so. Only a memory key goes there: `wongm_<the email, base64url>.<random>`. A value of any other shape counts as a Cloudflare token and goes to the Cloudflare API, so a test key must carry an email too. An older store whose `CLOUDFLARE_MEMORY_TOKEN` is still a Cloudflare token keeps using the Cloudflare API until [setup's runbook moves it](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store).
+Setup supplies the normal app link with a short-lived machine context. Opening it and completing the website's usual email login attaches the verified issuer and subject to this machine. No code, extra screen, button, or memory approval is needed. Setup seeds its marker hash while issuing the admin credential; recipient installation requests one after validating its key. Only its hash and 24-hour expiry are stored remotely. Local link state is private, and markers are redacted from transcripts and refused in facts.
+
+The link labels the assistant installation, even if opened on a phone. It must stay personal: forwarding it can identify the recipient as its user. It never proves who authored every earlier note. Original authors, ownership, and permissions stay intact; notes written before login remain identifiable by the machine's association. Matching login identities on two machines never combine private memory.
+
+The callback uses the existing verified human website identity, consumes the marker once, and redirects to the clean app URL. Invalid, expired, replayed, revoked, service, open-site, and preview contexts create no association. A different verified subject cannot silently replace an established label. A plain unrelated visit cannot identify an assistant installation. Memory works before login and when association is unavailable; installation reports an unavailable link plainly.
+
+## Updating an existing store
+
+After the reviewed Worker update deploys, the admin runs `memory.mjs migrate`, then issues replacement machine credentials using the commands above. Old email keys are refused. Shared history stays available; historical private facts, sessions, and raw objects remain unassigned and admin-readable. Nothing matches old emails or hostnames to an owner. Old local cache, spool, and unregistered transcripts are not adopted. Historical ownership recovery is a separate decision.
+
+The local ID lives outside git in the OS user's data folder (`XDG_DATA_HOME/wongstack`, otherwise `~/.local/share/wongstack`; Windows uses Local AppData). Keep its private `machine-id` file: losing it creates a different installation. A corrupt ID stops memory instead of rotating ownership. People sharing one OS account share one owner. Copying both its ID and credential gives the same bearer access.
 
 Back to [session memory](memory.md).

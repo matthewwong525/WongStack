@@ -1,5 +1,6 @@
 // Verify signed Access identity before all business content; memory keeps its own keys.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/skills/memory/worker/memory-worker.mjs";
+import { associateLogin } from "../../.agents/skills/memory/worker/login-link.mjs";
 import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/worker/walk-pictures.mjs";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
@@ -26,6 +27,15 @@ export default {
         status: configured ? 401 : 503,
         headers: { "Cache-Control": "no-store" },
       });
+    }
+
+    // A setup link labels its assistant machine after ordinary human login.
+    // Always clean the URL; association failure does not interrupt the app.
+    if (url.pathname === "/" && url.searchParams.has("memory_login_link")) {
+      if (!open && env.MEMORY_DB && identity?.kind === "user") {
+        await associateLogin(env.MEMORY_DB, url.searchParams.get("memory_login_link") || "", identity).catch(() => false);
+      }
+      return new Response(null, { status: 303, headers: { Location: new URL("/", request.url).href, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
     }
 
     // A preview check's kept pictures, served from the verify skill. The route

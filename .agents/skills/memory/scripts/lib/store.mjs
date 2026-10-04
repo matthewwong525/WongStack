@@ -1,12 +1,13 @@
 // Memory store client: repo context, config, credentials, local state, the D1 and R2 calls, and the spool.
 // A memory key's calls go to the app's production Worker (components.memory.worker); any other token's go to
 // the Cloudflare REST API. The requests are the same. The Worker's address comes from the main checkout, like
-// .env, so a branch that changes it can not send the key or a GitHub token anywhere else.
+// .env, so a branch that changes it cannot redirect a credential.
 import { execFileSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { ROLE_HEADER, TEAM_HEADER } from '../../worker/memory-worker.mjs';
+import { machineId, MACHINE_ID } from './machine-id.mjs';
 import { primaryRoot } from './primary-root.mjs';
 
 export { isMain } from './cli.mjs';
@@ -16,13 +17,13 @@ const TOKEN_VAR = 'CLOUDFLARE_MEMORY_TOKEN';
 const TOKEN_PAGE = 'wiki/development/memory-key.md';
 const SPOOLABLE = new Set(['unconfigured', 'auth', 'network', 'server']);
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
-const KEY_PREFIX = 'wongm_';
 
-// The email a memory key was made for (wongm_<base64url(email)>.<random>), or null for any other token.
-export function keyEmail(token) {
-  if (!token?.startsWith(KEY_PREFIX)) return null;
-  const email = Buffer.from(token.slice(KEY_PREFIX.length).split('.')[0], 'base64url').toString('utf8');
-  return email.includes('@') ? email.toLowerCase() : null;
+// The payload is metadata; the Worker trusts only the credential's hashed grant.
+export function keyMachine(token) {
+  const match = token?.match(/^wongm_([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]{43})$/);
+  if (!match) return null;
+  const payload = Buffer.from(match[1], 'base64url').toString('utf8');
+  return payload.startsWith('machine:') && MACHINE_ID.test(payload.slice(8)) ? payload.slice(8) : null;
 }
 
 // kind: unconfigured | auth | network | server | query. `reason` is the short form for one-line reports.
@@ -33,9 +34,7 @@ export class StoreError extends Error {
     this.reason = reason;
   }
   get spoolable() { return SPOOLABLE.has(this.kind); }
-  // A memory key past its expiry: `memory.mjs join` renews it.
-  get expired() { return this.code === 'key_expired'; }
-}
+  }
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const tryGit = (cwd, ...args) => { try { return git(cwd, ...args); } catch { return ''; } };
@@ -43,7 +42,7 @@ const tryGit = (cwd, ...args) => { try { return git(cwd, ...args); } catch { ret
 // primaryRoot is null when Git cannot confirm the primary worktree: reads fall back to this checkout, and a write stops.
 export function repoContext(cwd = process.cwd()) {
   const [root, commonDir] = git(cwd, 'rev-parse', '--show-toplevel', '--path-format=absolute', '--git-common-dir').split('\n');
-  let author, primary = null;
+  let author, owner, primary = null;
   try { primary = primaryRoot(cwd).primary; } catch { /* reported by the write that needs it */ }
   return {
     root,
@@ -52,7 +51,8 @@ export function repoContext(cwd = process.cwd()) {
     branch: tryGit(cwd, 'rev-parse', '--abbrev-ref', 'HEAD'),
     get author() { author ??= tryGit(cwd, 'config', 'user.email'); return author; },
     machine: hostname(),
-    stateDir: process.env.WONG_MEMORY_STATE_DIR || join(commonDir, 'wong-memory'),
+    get machineId() { owner ??= machineId(); return owner; },
+    get stateDir() { return join(process.env.WONG_MEMORY_STATE_DIR || join(commonDir, 'wong-memory'), this.machineId); },
   };
 }
 
@@ -120,15 +120,17 @@ export function adminToken(ctx) {
 // `admin` opens the store straight through the Cloudflare API with the provisioning token, for
 // migrations (a Worker's D1 binding runs one statement at a time, and a migration file holds many)
 // and for memory keys (the Worker refuses the keys table to every key).
-export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
+export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = null } = {}) {
   const config = loadConfig(ctx);
   const env = loadEnv(ctx);
-  const token = admin ? adminToken(ctx) : process.env[TOKEN_VAR] || env[TOKEN_VAR];
-  if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env; \`${SCRIPT} join\` gets one through your GitHub access to this repo`, { kind: 'unconfigured', help: TOKEN_PAGE });
-  if (!admin && keyEmail(token) && !config.worker && !process.env.WONG_MEMORY_API) {
+  const token = admin ? adminToken(ctx) : credential || process.env[TOKEN_VAR] || env[TOKEN_VAR];
+  if (!token) throw new StoreError(`${TOKEN_VAR} is not set in .env; ${SCRIPT} join --file <private-file> installs a credential issued by the repo admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
+  if (!admin && !keyMachine(token)) throw new StoreError('unsupported or legacy memory key; ask the admin for a machine credential replacement', { kind: 'auth', help: TOKEN_PAGE });
+  if (!admin && keyMachine(token) !== ctx.machineId) throw new StoreError('memory credential belongs to another installation; ask the admin for this machine’s credential', { kind: 'auth' });
+  if (!admin && keyMachine(token) && !config.worker && !process.env.WONG_MEMORY_API) {
     throw new StoreError(`${TOKEN_VAR} holds a memory key, but .claude/.wong-stack.json records no components.memory.worker; pull the latest main or ask the admin`, { kind: 'unconfigured', help: TOKEN_PAGE });
   }
-  const viaWorker = !admin && Boolean(keyEmail(token));
+  const viaWorker = !admin && Boolean(keyMachine(token));
   const api = admin ? cloudflareApi() : (process.env.WONG_MEMORY_API || (viaWorker ? config.worker : cloudflareApi())).replace(/\/$/, '');
   const base = `${api}/accounts/${config.accountId}`;
   const objectPath = key => `/r2/buckets/${config.bucket}/objects/${encodeURI(key)}`;
@@ -138,20 +140,21 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
   async function call(path, init = {}, budget = timeoutMs) {
     let response;
     try {
-      response = await fetch(`${base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: AbortSignal.timeout(budget) });
+      response = await fetch(`${path === '/login-link' ? api : base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: AbortSignal.timeout(budget) });
     } catch (error) {
       throw new StoreError(`memory store unreachable (${error.name === 'TimeoutError' ? 'timeout' : 'network'})`, { kind: 'network' });
     }
     if (viaWorker) role = recordTeam(ctx, response.headers.get(TEAM_HEADER), response.headers.get(ROLE_HEADER)) || role;
-    if (response.status === 401 && (await response.clone().json().catch(() => ({}))).errors?.[0]?.code === 'key_expired') {
-      throw Object.assign(new StoreError(`the memory key in ${TOKEN_VAR} expired; \`${SCRIPT} join\` renews it`, { kind: 'auth', help: TOKEN_PAGE }), { code: 'key_expired' });
-    }
     if (response.status === 403) {
       const code = (await response.clone().json().catch(() => ({}))).errors?.[0]?.code;
-      if (code === 'not_author') throw new StoreError('only the author and the admin can read this transcript', { kind: 'forbidden' });
+      if (code === 'not_author') throw new StoreError('only the owning machine and the admin can read this transcript', { kind: 'forbidden' });
       if (code === 'member_read') throw new StoreError(`the memory store refused this read: ${(await response.clone().json()).errors[0].message}`, { kind: 'forbidden' });
     }
-    if (response.status === 401 || response.status === 403) throw new StoreError(`the memory store rejected ${admin ? ADMIN_TOKEN_VAR : TOKEN_VAR} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
+    if (response.status === 401 || response.status === 403) {
+      if (viaWorker) writeJson(statePath(ctx, 'authorization-refused.json'), { at: new Date().toISOString() });
+      throw new StoreError(`the memory store rejected ${admin ? ADMIN_TOKEN_VAR : TOKEN_VAR} (HTTP ${response.status})`, { kind: 'auth', help: TOKEN_PAGE });
+    }
+    if (viaWorker && response.ok) rmSync(join(ctx.stateDir, 'authorization-refused.json'), { force: true });
     if (response.status >= 500) throw new StoreError(`memory store error (HTTP ${response.status})`, { kind: 'server' });
     // Only a transcript GET may 404 on its own; any other 404 from the Worker means production has not deployed the route.
     if (viaWorker && response.status === 404 && (await response.clone().json().catch(() => ({}))).errors?.[0]?.code !== 10007) {
@@ -181,14 +184,18 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false } = {}) {
     return Buffer.from(await response.arrayBuffer());
   }
 
-  // Transcripts are filed under this email: the memory key's, or the git email for a direct token.
-  const email = keyEmail(token) || (ctx.author || '').toLowerCase() || 'unknown';
-  // Facts are written under the key's email: the Worker refuses a member's write under any other name.
-  const author = keyEmail(token) || ctx.author || null;
-  return { config, env, email, author, get role() { return role; }, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
+  const ownerMachineId = admin ? ctx.machineId : keyMachine(token);
+  const author = ctx.author || ownerMachineId;
+  async function loginLink() {
+    const response = await call('/login-link', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new StoreError('could not prepare the normal login link', { kind: 'server' });
+    return data.result.url;
+  }
+  return { config, env, ownerMachineId, author, get role() { return role; }, loginLink, batch, query: async (sql, params) => (await batch([[sql, params]]))[0], putObject, getObject };
 }
 
-// The memory Worker says on every answer whether more than one email holds a key, and the key's role; remember
+// The memory Worker says on every answer that machine privacy is enforced, and the key's role; remember
 // both for the next session's digest and search. An unchanged answer writes nothing. Returns the role.
 const ROLES = new Set(['admin', 'member', 'reader']);
 function recordTeam(ctx, header, roleHeader) {
@@ -208,7 +215,7 @@ export const RUN_TALLY = 'run-tally.json';
 
 export function statePath(ctx, ...parts) {
   const path = join(ctx.stateDir, ...parts);
-  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   return path;
 }
 
@@ -216,7 +223,7 @@ export const readJson = (path, fallback) => { try { return JSON.parse(readFileSy
 // Write a temp file, then rename it: a concurrent reader sees the old file or the new one, never a torn one.
 export function writeJson(path, value) {
   const temp = `${path}.${process.pid}.tmp`;
-  writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`);
+  writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
   renameSync(temp, path);
 }
 

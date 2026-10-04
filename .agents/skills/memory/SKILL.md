@@ -27,7 +27,7 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
 | What the person typed in this computer's recent Claude Code and Codex chats, keys hidden, no store needed; ask first | `recent-chats [--days 30]` |
 
-In a team repo (`components.memory.team`), the store shows each key only what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. A fact is dated context: check it against the repo, and the repo wins.
+The store shows each key what [who sees what](../../../wiki/development/memory.md#who-sees-what) allows; only the admin's `--everyone` on `search`, `show`, or `live` shows all. Facts are dated context; the repo wins.
 
 **Every skill: when the store is unreachable, say memory was not loaded and continue.**
 
@@ -62,7 +62,7 @@ Writing is two calls, the **write gate**:
 
 ## Team access
 
-A teammate's key comes from `join` ([joining through GitHub](../../../wiki/development/memory-key.md#joining-through-github)), never from someone else. The admin runs `member admin`, `member remove <email>`, and `member list` ([add or remove a teammate](../../../wiki/development/memory-key.md#add-or-remove-a-teammate)). Never write a key to a file or a fact: `join` and `member admin` write it only to `.env`, and nothing prints it.
+Repo contributors receive trusted member credentials; readers’ writes stay private. The admin runs `member add <machine-id> --key-file <private-file>`; install with `join --file <private-file>`, revoke with `member remove <machine-id>`, list with `member list` ([the key](../../../wiki/development/memory-key.md#add-or-remove-a-teammate)). Private files and the primary ignored `.env` hold secrets. Chats capture automatically. Setup’s app link labels the machine after ordinary website login; labels never change ownership.
 
 ## Background run
 

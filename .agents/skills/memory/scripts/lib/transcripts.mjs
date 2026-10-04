@@ -1,12 +1,11 @@
 // Discover, claim, parse, and strip Claude Code and Codex transcripts. Code only: no model reads raw files.
-import { appendFileSync, closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
-import { checkouts, readJson, statePath } from './store.mjs';
+import { join, sep } from 'node:path';
+import { readJson, statePath } from './store.mjs';
 
 const IDLE_MS = 60 * 60 * 1000;
 const PRUNE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
-const CODEX_LOOKBACK_DAYS = 30;
 const ERROR_CHARS = 300;
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const CLAUDE_NAME = new RegExp(`^(${UUID})\\.jsonl$`);
@@ -28,14 +27,14 @@ const excluded = () => process.env.WONG_MEMORY_EXCLUDE || '';
 // ---------- registry ----------
 
 export function registerSession(ctx, entry) {
-  appendFileSync(statePath(ctx, 'registry.jsonl'), `${JSON.stringify(entry)}\n`);
+  appendFileSync(statePath(ctx, 'registry.jsonl'), `${JSON.stringify({ ...entry, ownerMachineId: ctx.machineId })}\n`);
 }
 
 export function readRegistry(ctx) {
   const file = join(ctx.stateDir, 'registry.jsonl');
   const entries = new Map();
   if (!existsSync(file)) return entries;
-  for (const entry of readFileSync(file, 'utf8').split('\n').map(parseLine)) if (entry?.id) entries.set(entry.id, { ...entries.get(entry.id), ...entry });
+  for (const entry of readFileSync(file, 'utf8').split('\n').map(parseLine)) if (entry?.id && entry.ownerMachineId === ctx.machineId) entries.set(entry.id, { ...entries.get(entry.id), ...entry });
   return entries;
 }
 
@@ -47,7 +46,7 @@ export function pruneRegistry(ctx, now = Date.now()) {
     if (!info) return false;
     return !(seen[entry.id]?.size === info.size && now - info.mtimeMs > PRUNE_AFTER_MS);
   });
-  writeFileSync(statePath(ctx, 'registry.jsonl'), kept.map(entry => `${JSON.stringify(entry)}\n`).join(''));
+  writeFileSync(statePath(ctx, 'registry.jsonl'), kept.map(entry => `${JSON.stringify({ ...entry, ownerMachineId: ctx.machineId })}\n`).join(''));
 }
 
 // ---------- parsing ----------
@@ -130,54 +129,18 @@ export const strip = (messages, readThrough = 0) => messages
 
 // ---------- discovery ----------
 
-// The first line of a Codex rollout holds its working directory; read only that line.
-function firstRecord(file) {
-  const fd = openSync(file, 'r');
-  try {
-    let text = '';
-    for (let size = 16384; size <= 1 << 20; size *= 4) {
-      const buffer = Buffer.alloc(size);
-      text = buffer.subarray(0, readSync(fd, buffer, 0, size, 0)).toString('utf8');
-      const end = text.indexOf('\n');
-      if (end >= 0) return parseLine(text.slice(0, end));
-    }
-    return parseLine(text);
-  } finally { closeSync(fd); }
-}
-
-// Claude keeps one folder per working directory; a checkout's own folder holds its top-level sessions.
-function claudeCandidates(dirs) {
-  const out = [];
-  for (const checkout of dirs) {
-    const dir = join(claudeHome(), escapeClaude(checkout));
-    if (!existsSync(dir)) continue;
-    for (const name of readdirSync(dir)) {
-      const match = name.match(CLAUDE_NAME);
-      if (match) out.push({ agent: 'claude', id: `claude:${match[1]}`, file: join(dir, name) });
-    }
-  }
-  return out;
-}
-
-// Every Codex rollout in the day folders from `days` days ago through today.
+// Recent-chat reading is explicit; capture discovery below uses registered owners only.
 function codexRollouts(days, now) {
-  const out = [];
-  for (let day = 0; day <= days; day += 1) {
-    const dir = codexDayDir(codexHome(), new Date(now - day * 86400000));
+  const found = [];
+  for (let offset = 0; offset <= days; offset += 1) {
+    const dir = codexDayDir(codexHome(), new Date(now - offset * 86400000));
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
       const match = name.match(CODEX_NAME);
-      if (match) out.push({ agent: 'codex', id: `codex:${match[1]}`, file: join(dir, name) });
+      if (match) found.push({ agent: 'codex', id: `codex:${match[1]}`, file: join(dir, name) });
     }
   }
-  return out;
-}
-
-function codexCandidates(dirs, now) {
-  return codexRollouts(CODEX_LOOKBACK_DAYS, now).filter(({ file }) => {
-    const cwd = firstRecord(file)?.payload?.cwd;
-    return cwd && dirs.some(checkout => inside(resolve(cwd), checkout));
-  });
+  return found;
 }
 
 // Every top-level chat on this computer changed in the last `days` days, from any folder, newest first.
@@ -200,10 +163,9 @@ export function recentTranscripts({ days = 30, now = Date.now(), registry = new 
     .sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
-// Sessions this clone may claim: registry entries, plus transcripts of checkouts that exist now.
+// Capture selects only registered sessions stamped with this machine owner.
 // Subagent transcripts live in subfolders, and background runs are marked, so neither is claimed.
-function discover(ctx, now) {
-  const dirs = checkouts(ctx);
+function discover(ctx) {
   const registry = readRegistry(ctx);
   const found = new Map();
   const add = candidate => {
@@ -213,29 +175,23 @@ function discover(ctx, now) {
     if (info) found.set(candidate.id, { ...candidate, size: info.size, mtimeMs: info.mtimeMs });
   };
   for (const entry of registry.values()) if (entry.transcript) add({ agent: entry.agent, id: entry.id, file: entry.transcript });
-  claudeCandidates(dirs).forEach(add);
-  codexCandidates(dirs, now).forEach(add);
+
   return [...found.values()];
 }
 
 // Idle sessions whose file changed since the last capture, newest first. Reads file metadata only.
 export function pending(ctx, { now = Date.now(), exclude = [], idleMs = IDLE_MS } = {}) {
   const seen = readJson(join(ctx.stateDir, 'seen.json'), {});
-  return discover(ctx, now)
+  return discover(ctx)
     .filter(session => !exclude.includes(session.id))
     .filter(session => now - session.mtimeMs >= idleMs && seen[session.id]?.size !== session.size)
     .sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
-// A session's transcript: the registry first, then its Claude folder, then a full discovery.
+// A transcript is available for capture only through its owned registry entry.
 export function sessionFile(ctx, id) {
   if (id === excluded()) return null;
   const registered = readRegistry(ctx).get(id)?.transcript;
   if (registered && stat(registered)) return registered;
-  const [agent, uuid] = id.split(':');
-  if (agent === 'claude') {
-    const direct = checkouts(ctx).map(dir => join(claudeHome(), escapeClaude(dir), `${uuid}.jsonl`)).find(file => stat(file));
-    if (direct) return direct;
-  }
-  return discover(ctx, Date.now()).find(session => session.id === id)?.file || null;
+  return null;
 }
