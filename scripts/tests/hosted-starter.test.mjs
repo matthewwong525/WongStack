@@ -52,7 +52,11 @@ test('offline starter copies the actual source record and compatible payload, wi
  const record=await prepareStarter(target,{exec,today:'2026-10-04'});
  assert.equal(record.commit,SHA);assert.equal(record.upstream.repo,'https://github.com/reviewed/fork');assert.equal(record.components.memory,null);
  for(const name of ['AGENTS.md','.claude','.codex','wiki/README.md','wiki/development/README.md','.agents/skills/wong-sync/scripts/hosted-context.mjs'])assert.ok(existsSync(join(target,name)),name);
- assert.match(readFileSync(join(target,'app/worker/index.ts'),'utf8'),/getAccessIdentity[\s\S]*Unauthorized[\s\S]*Response.json\(hostedIdentity/);
+ const generatedWorker=readFileSync(join(target,'app/worker/index.ts'),'utf8');
+ assert.match(generatedWorker,/getAccessIdentity[\s\S]*Unauthorized[\s\S]*Response.json\(hostedIdentity/);
+ const identityRoute="\n\n    if (url.pathname === '/_hosted/identity' && request.method === 'GET') {\n      return Response.json(hostedIdentity, { headers: { 'Cache-Control': 'no-store' } });\n    }";
+ assert.equal(generatedWorker.replace("import { hostedIdentity } from './hosted-identity.ts';\n",'').replace(identityRoute,''),read('app/worker/index.ts'),'existing upstream discovery, login-link and app routing is preserved');
+ assert.ok(generatedWorker.indexOf("Response.json(hostedIdentity")<generatedWorker.indexOf('    // Discovery always requires company login'),'compiled identity is inserted immediately after the access guard');
  assert.match(readFileSync(join(target,'app/worker/index.test.ts'),'utf8'),/reports compiled identity only to signed requests/);
  assert.match(readFileSync(join(target,'app/vite.config.ts'),'utf8'),/Hosted build identity is required/);
  assert.equal(JSON.parse(readFileSync(join(target,'.agents/.wong-stack.json'))).components.memory,null);
@@ -99,7 +103,7 @@ test('required starter transformations reject missing or duplicate source anchor
  const scratch=mkdtempSync(join(tmpdir(),'starter-anchors-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const sourceWorker=read('app/worker/index.ts');
  const start=sourceWorker.indexOf('    if (!identity && !open) {');
- const end=sourceWorker.indexOf('    // A preview check')+'    // A preview check'.length;
+ const end=sourceWorker.indexOf('\n    }',start)+'\n    }'.length;
  const anchors=[['app/worker/index.ts',sourceWorker.slice(start,end)],['app/worker/index.test.ts','  it("dispatches APIs only after a verified assertion",'],['app/vitest.config.ts','export default defineConfig({'],['app/vite.config.ts','export default defineConfig({']];
  for(const [index,[file,anchor]]of anchors.entries()) {
   const text=read(file);assert.ok(anchor);assert.equal(replaceRequired(text,anchor,'replacement').includes('replacement'),true);

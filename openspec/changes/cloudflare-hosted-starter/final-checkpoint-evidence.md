@@ -2,7 +2,7 @@
 
 ## Current result
 
-Remaining implementation and focused verification are complete; the normal maintenance CI/staging checkpoint awaits one final approval. No new push, staging deployment, hosted provider resource, credential issuance, sign-in, trial or production action is accepted by this record. Tasks 4.1–5.2 and 6.1 remain unchecked until their required maintenance evidence passes.
+Remaining implementation and focused verification are complete; the user authorized the combined normal maintenance CI/staging checkpoint and both commits were pushed. Initial existing staging deployments passed, with Cloud's additive migration applied; complete gates remain pending the concrete CI repairs below. No hosted provider resource, credential issuance, sign-in, trial, starter deployment or production action is authorized by this record. Tasks 4.1–5.2 and 6.1 remain unchecked until their required evidence passes.
 
 ## Source preparation and focused checks
 
@@ -26,4 +26,12 @@ The new additive `0021_hosted_observer.sql` prepares five nullable observation f
 
 ## Remaining acceptance
 
-One final authorization must cover the complete prepared Source/Cloud commits and their normal CI, existing staging deployments and the additive Cloud staging migration. Live Artifacts setup, private preview HTML/assets/API, authenticated three-fact publication, acknowledgment failure/recovery, a second real AI change and exact cleanup remain Source tasks 6.2/6.3 under fresh bounded authorization.
+Live Artifacts setup, private preview HTML/assets/API, authenticated three-fact publication, acknowledgment failure/recovery, a second real AI change and exact cleanup remain Source tasks 6.2/6.3 under fresh bounded authorization. Compatible published starter/agent identities are still required; maintenance staging alone cannot establish them.
+
+## Authorized first maintenance runs and repairs
+
+At exact Source `b94bd6405b74db08883f1ac188806733a6a35a9f`, [Test](https://github.com/matthewwong525/WongStack/actions/runs/37205834030) passed 101 app cases across 16 files with 100% coverage. [Deploy](https://github.com/matthewwong525/WongStack/actions/runs/37205834069) passed existing staging/database checks and uploaded the exact branch preview: staging version `557ab0ac-035e-4eb5-8da7-b8859096c810`, preview version `01033879-7220-4e6d-8074-ff97e940ba8e`, GitHub deployment `6841615060`. Exact-head preview discovery returned `https://spotless-panther-wongstack-staging.matthewwong525.workers.dev`; anonymous reads of root and `/api/me` returned HTTP 302. No sign-in or protected-content acceptance was attempted.
+
+[Payload checks](https://github.com/matthewwong525/WongStack/actions/runs/37205834039) failed two of 1,148 script cases with `starter_anchor`, while numeric coverage remained above unchanged limits. Current upstream routes separated the guard from its old adjacent comment. The narrow repaired anchor retains strict exact-one behavior and inserts identity directly after signed access. A fixture removes only the inserted import/route and requires the entire remaining generated Worker to equal current upstream byte-for-byte. All seven affected starter script cases, syntax checks and selected lint pass; full payload/generated-starter CI is rerunning under the same checkpoint authorization.
+
+Cloud `b54a885512aeafb6dbb39fbeded44559fa6d2635` passed its full ordinary test command (2,541 app cases across 93 files, 100% coverage; 30 VM and 58 script cases; zero clones), but [Test](https://github.com/matthewwong525/wongstack-cloud/actions/runs/37205834717) failed the separate loosened-check reason gate because the existing runtime-boundary reason omitted the Vitest configuration filename. A new dated file-bound explanation repairs that documentation gate without changing configuration or lowering a check. [Deploy](https://github.com/matthewwong525/wongstack-cloud/actions/runs/37205834707) passed and applied `0021_hosted_observer.sql` to existing staging: Worker version `e8e51758-ec83-4b93-93cc-9378c85e9d5b`, later preview upload `4d94c75b-23d1-4068-8506-b4bcd92fc22f`, no preview URL returned/discovered. These are platform service versions, not hosted customer receipts. Safe anonymous staging HTML/JavaScript/CSS reads returned HTTP 200; `/api/me` returned 401. Source and Cloud complete gates remain pending exact-head reruns.

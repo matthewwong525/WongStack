@@ -64,10 +64,8 @@ export async function prepareStarter(dir,{exec=run,today,source=SOURCE}={}) {
         status: configured ? 401 : 503,
         headers: { "Cache-Control": "no-store" },
       });
-    }
-
-    // A preview check`;
-  code=replaceRequired(code,protectedAnchor,`${protectedAnchor.slice(0,-'    // A preview check'.length)}    if (url.pathname === '/_hosted/identity' && request.method === 'GET') {\n      return Response.json(hostedIdentity, { headers: { 'Cache-Control': 'no-store' } });\n    }\n\n    // A preview check`);
+    }`;
+  code=replaceRequired(code,protectedAnchor,`${protectedAnchor}\n\n    if (url.pathname === '/_hosted/identity' && request.method === 'GET') {\n      return Response.json(hostedIdentity, { headers: { 'Cache-Control': 'no-store' } });\n    }`);
   writeFileSync(worker,code);
   const tests=join(dir,'app/worker/index.test.ts');
   let suite=readFileSync(tests,'utf8');

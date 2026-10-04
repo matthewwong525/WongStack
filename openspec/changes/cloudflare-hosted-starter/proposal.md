@@ -2,7 +2,7 @@
 
 **Status:** in-progress
 **Branch:** spotless-panther
-**Open questions:** one final approval for the complete prepared Source/Cloud normal CI, existing staging deployments and additive Cloud migration; live resources, credentials, sign-ins, trial and enablement remain separate.
+**Open questions:** fresh bounded live inventory, compatible published starter/agent identities, necessary sign-in participation, cost limit, cleanup and enablement remain separate; the combined maintenance CI/staging checkpoint is authorized and running.
 
 ## Why
 
@@ -164,3 +164,7 @@ Starting a hosted project should give a person a project their AI can work on an
 - **2026-10-04** — Fetched current Source main `932439b` (published v30.3.0) and merged it normally into the existing feature branch at local `fb719c6`, preserving the prepared hosted delivery changes. Published upstream memory and company-action changes remain upstream behavior; this change adds no Memory/Devices migration, enrollment or billing work. No push, checks, staging deployment or hosted provider action accompanied this preparation. Verify the integrated result only at the combined final checkpoint.
 
 - **2026-10-04** — Completed the user-requested combined focused verification: 89 Source cases, 487 Cloud cases with unchanged seven-module 100% coverage, and 12 ordinary pipeline script cases. Exact Source/Cloud type, lint, payload, context and validation evidence is retained in the final checkpoint records. Keep remaining tasks unchecked pending normal maintenance CI; request only one final approval for the complete prepared commits and existing staging actions, explicitly including the eight additive Cloud columns. No live hosted resource, credential, sign-in, trial, production publication or enablement is authorized by this preparation.
+
+- **2026-10-04** — The user authorized pushing complete Source `b94bd6405b74db08883f1ac188806733a6a35a9f` and Cloud `b54a885512aeafb6dbb39fbeded44559fa6d2635` and one combined final normal CI/staging checkpoint, including existing Workers/database checks, Source branch preview/generated-starter test/build and additive Cloud migration 0021. Both pushes succeeded. Existing staging resources only; no live Artifacts resources, credentials, sign-ins, starter deployment, trial or production publication are authorized.
+
+- **2026-10-04** — Source's first full payload CI found two starter preparation failures because current upstream company discovery/login-link routes were inserted between the signed-access denial block and the old adjacent preview-comment anchor. Narrow the required exact-one anchor to the complete unchanged denial block and insert identity immediately after it. Preserve current upstream routing byte-for-byte; missing/duplicate anchors still fail. All seven affected starter script cases and syntax/selected lint pass. Full generated starter test/build remains in the authorized CI rerun, with no local app build or starter deployment.
