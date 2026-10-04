@@ -46,7 +46,17 @@ The inspected pilot at `c43f71e` justifies this contract:
 | `evidence` stream paths, SHA-256 digests and byte counts | Find intact scrubbed stdout/stderr without executing downloaded files. |
 | `fixture.before`, `fixture.after`, `cleanup` | Inspect configuration absence, retained file digests and fixture removal independently of the command result. |
 
-Comparison metadata is deliberately deferred until paired observations justify it. The proven historical pilot remains historical evidence when the head changes. Artifact upload replaces the fixed-name artifact on a rerun; only the server's newest attempt is usable, and an older artifact never fills a gap.
+The paired extension adds the following fields; its first fresh paired artifact must still be inspected before this task is complete:
+
+| Fields | Use |
+|---|---|
+| Head `pair.baselineSha`, `state`, `folder`, optional `reason` | Locate only the expressly selected merge-base and distinguish a baseline gap from usable head evidence. |
+| `pair.sourceRemoved`, `sourceRegistrationRemoved` | Observe directory and owned Git worktree-registration cleanup separately; incomplete cleanup blocks comparison. |
+| Case `comparison.inputSha256` | Bind identical seeded-file digests and the lookup path; no expected output is included. |
+| `comparison.methodSha256` | Require the same current-head producer bytes for both unchanged source entry points. |
+| `comparison.environment` with Node version, platform, architecture and locale | Reject relevant runtime differences without comparing ephemeral fixture paths or timestamps. |
+
+The proven historical pilot remains historical evidence when the head changes. Artifact upload replaces the fixed-name artifact on a rerun; only the server's newest attempt is usable, and an older artifact never fills a gap.
 
 ### 3. Deterministic receipt collection, observation-only on the host
 

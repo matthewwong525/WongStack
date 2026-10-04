@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { checkRecipe, collectCapture, validateCapture } from '../../.agents/skills/verify/scripts/verify-receipts.mjs';
+import { checkRecipe, collectCapture, compareCaptures, validateCapture } from '../../.agents/skills/verify/scripts/verify-receipts.mjs';
 
 // Protocol fixtures are intentionally synthetic; the real pilot is inspected separately after /save.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -59,6 +59,89 @@ function ghFixture({ folder, runs, view = server, downloadError, after = view })
   };
   return { gh, calls };
 }
+
+function paired(t) {
+  const options = setup(t);
+  const baselineSha = 'b'.repeat(40);
+  options.manifest.cases[0].comparison = { inputSha256: hash('same fixture and argument'), methodSha256: hash('same driver'), environment: { node: 'v24.0.0', platform: 'linux', arch: 'x64', locale: 'C.UTF-8' } };
+  // Independent protocol objects: changing the baseline must not change the head
+  // or the recipe that supplies its canonical scenario references.
+  const baseline = clone(options.manifest);
+  baseline.capture.subjectSha = baselineSha;
+  baseline.cases[0].command.argv[0] = '/earlier-source/entry.mjs';
+  baseline.cases[0].command.cwd = '/different-removed-fixture';
+  const baselineFolder = join(options.folder, 'baseline');
+  mkdirSync(baselineFolder);
+  for (const stream of ['stdout', 'stderr']) cpSync(join(options.folder, `${stream}.txt`), join(baselineFolder, `${stream}.txt`));
+  const saveBaseline = () => writeFileSync(join(baselineFolder, 'capture.json'), JSON.stringify(baseline));
+  options.manifest.pair = { state: 'captured', baselineSha, folder: 'baseline', sourceRemoved: true, sourceRegistrationRemoved: true };
+  options.save(); saveBaseline();
+  return { ...options, baseline, baselineSha, baselineFolder, saveBaseline, compare: () => compareCaptures({ ...options, recipe, identity, baselineSha }) };
+}
+
+test('comparison exposes equivalent observations at explicitly selected source revisions without a verdict', t => {
+  const options = paired(t);
+  options.baseline.cases[0].exitCode = 7; options.saveBaseline();
+  const result = options.compare();
+  assert.equal(result.state, 'comparable');
+  assert.equal(result.headSha, headSha);
+  assert.equal(result.baselineSha, options.baselineSha);
+  assert.equal(result.cases[0].before.exitCode, 7);
+  assert.equal(result.cases[0].after.exitCode, 0);
+  assert.equal(result.cases[0].state, 'comparable');
+  assert.equal('verdict' in result, false);
+  const collected = collectCapture({ ...options, recipe, headSha, gh: ghFixture(options).gh });
+  assert.equal(collected.state, 'collected');
+  assert.equal(collected.comparison.state, 'comparable');
+});
+
+for (const [name, change, reason] of [
+  ['different inputs', value => { value.comparison.inputSha256 = hash('other inputs'); }, 'Fixture inputs differ'],
+  ['different driver', value => { value.comparison.methodSha256 = hash('other driver'); }, 'Capture methods differ'],
+  ['different environment', value => { value.comparison.environment.node = 'v20.0.0'; }, 'Relevant environments differ'],
+  ['missing metadata', value => { delete value.comparison; }, 'Comparison metadata is missing or malformed'],
+  ['malformed metadata', value => { value.comparison.environment.extra = 'not an accounted environment'; }, 'Comparison metadata is missing or malformed'],
+]) test(`comparison rejects ${name} while retaining independently valid head observations`, t => {
+  const options = paired(t);
+  change(options.baseline.cases[0]); options.saveBaseline();
+  const result = options.compare();
+  assert.equal(result.state, 'unavailable');
+  assert.equal(result.cases[0].reason, reason);
+  assert.deepEqual(options.validate(), options.manifest);
+  const collected = collectCapture({ ...options, recipe, headSha, gh: ghFixture(options).gh });
+  assert.equal(collected.state, 'collected');
+  assert.equal(collected.comparison.state, 'unavailable');
+  assert.equal(collected.cases[0].exitCode, 0);
+});
+
+test('missing, unavailable, stale or incomplete baseline is a comparison gap and never replaces the head', t => {
+  const options = paired(t);
+  const compare = extra => compareCaptures({ ...options, recipe, identity, baselineSha: options.baselineSha, ...extra });
+  assert.match(compare({ baselineSha: undefined }).reason, /No full baseline/);
+  assert.match(compare({ baselineSha: headSha }).reason, /head, not an earlier revision/);
+  assert.equal(options.validate().cases[0].exitCode, 0);
+  assert.match(compare({ baselineSha: 'c'.repeat(40) }).reason, /selected baseline/);
+  options.manifest.pair.state = 'unavailable'; options.save();
+  assert.match(compare().reason, /not captured/);
+  options.manifest.pair.state = 'captured'; options.manifest.pair.sourceRemoved = false; options.save();
+  assert.match(compare().reason, /cleanup is incomplete/);
+  options.manifest.pair.sourceRemoved = true; options.manifest.pair.sourceRegistrationRemoved = false; options.save();
+  assert.match(compare().reason, /cleanup is incomplete/);
+  options.manifest.pair.sourceRegistrationRemoved = true;
+  options.manifest.pair.sourceRemoved = true; options.manifest.pair.folder = '../baseline'; options.save();
+  assert.match(compare().reason, /cleanup is incomplete/);
+  options.manifest.pair.folder = 'baseline'; options.save();
+  options.baseline.capture.subjectSha = 'c'.repeat(40); options.saveBaseline();
+  assert.match(compare().reason, /Baseline: Capture identity mismatch: subjectSha/);
+  options.baseline.capture.subjectSha = options.baselineSha; options.baseline.capture.runAttempt = '1'; options.saveBaseline();
+  assert.match(compare().reason, /Baseline: Capture identity mismatch: runAttempt/);
+  options.baseline.capture.runAttempt = identity.runAttempt; options.saveBaseline();
+  rmSync(join(options.baselineFolder, 'stdout.txt'));
+  assert.equal(compare().reason, 'Baseline evidence could not be read');
+  assert.equal(options.validate().cases[0].exitCode, 0);
+  delete options.manifest.pair; options.save();
+  assert.match(compare().reason, /selected baseline/);
+});
 
 test('recipe resolves source, owning guide, workflow and qualified scenarios without duplicating promises', t => {
   const { root } = setup(t);

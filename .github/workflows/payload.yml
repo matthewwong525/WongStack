@@ -62,12 +62,14 @@ jobs:
       - name: Script tests and coverage
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
         run: scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs
-      # One real behavior capture; meta-only, with no service credentials.
+      # One suite; paired behavior observations use separate source/fixture roots.
       - name: Capture memory areas behavior
         id: memory_capture
         if: ${{ steps.scope.outputs.docs_only != 'true' }}
         timeout-minutes: 2
-        run: node scripts/verify-memory-areas.mjs --out "$RUNNER_TEMP/verify-memory-areas"
+        env:
+          VERIFY_BASELINE_REF: origin/${{ github.event.repository.default_branch }}
+        run: node scripts/verify-memory-areas.mjs --out "$RUNNER_TEMP/verify-memory-areas" --baseline-ref "$VERIFY_BASELINE_REF"
       - name: Keep scrubbed memory areas observations
         if: ${{ always() && steps.memory_capture.outcome != 'skipped' && steps.memory_capture.outcome != '' }}
         timeout-minutes: 2

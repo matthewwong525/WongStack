@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 
-const USAGE = 'usage: verify-receipts.mjs {check|collect} --recipe <path> [--root <repo>] [--sha <head> --run-dir <owned-folder>]';
+const USAGE = 'usage: verify-receipts.mjs {check|collect|compare} --recipe <path> [--root <repo>] [--sha <head> --run-dir <owned-folder>] [--baseline-sha <selected-revision>]';
 const SHA = /^[a-f0-9]{40}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
@@ -161,9 +161,51 @@ export function validateCapture({ folder, recipe, identity }) {
   return manifest;
 }
 
+function comparisonMetadata(value) {
+  return object(value) && DIGEST.test(value.inputSha256) && DIGEST.test(value.methodSha256)
+    && object(value.environment) && ['node', 'platform', 'arch', 'locale'].every(key => text(value.environment[key]))
+    && Object.keys(value).every(key => ['inputSha256', 'methodSha256', 'environment'].includes(key))
+    && Object.keys(value.environment).every(key => ['node', 'platform', 'arch', 'locale'].includes(key));
+}
+
+// Eligibility only. A comparable pair can still show a product contradiction;
+// the current written scenario remains the authority for grading both results.
+export function compareCaptures({ folder, recipe, identity, baselineSha }) {
+  const head = validateCapture({ folder, recipe, identity });
+  const result = { state: 'unavailable', headSha: identity.headSha, baselineSha: baselineSha || null, cases: [] };
+  if (!SHA.test(baselineSha)) return { ...result, reason: 'No full baseline revision was selected' };
+  if (identity.subjectSha !== identity.headSha) fail('Comparison head must be the saved source revision');
+  if (baselineSha === identity.headSha) return { ...result, reason: 'The selected baseline is the head, not an earlier revision' };
+  const pair = head.pair;
+  if (!object(pair) || pair.baselineSha !== baselineSha) return { ...result, reason: 'Capture does not contain the selected baseline' };
+  if (pair.state !== 'captured') return { ...result, reason: 'The selected baseline was not captured' };
+  if (pair.folder !== 'baseline' || pair.sourceRemoved !== true || pair.sourceRegistrationRemoved !== true) return { ...result, reason: 'Baseline source or evidence cleanup is incomplete' };
+  let baseline;
+  try {
+    baseline = validateCapture({ folder: ownedPath(folder, pair.folder, true), recipe, identity: { ...identity, subjectSha: baselineSha } });
+  } catch (error) {
+    return { ...result, reason: error instanceof CaptureError ? `Baseline: ${error.message}` : 'Baseline evidence could not be read' };
+  }
+  const earlier = new Map(baseline.cases.map(record => [scenarioKey(record.scenario), record]));
+  for (const after of head.cases) {
+    const before = earlier.get(scenarioKey(after.scenario));
+    const left = before.comparison;
+    const right = after.comparison;
+    let reason;
+    if (!comparisonMetadata(left) || !comparisonMetadata(right)) reason = 'Comparison metadata is missing or malformed';
+    else if (left.inputSha256 !== right.inputSha256) reason = 'Fixture inputs differ';
+    else if (left.methodSha256 !== right.methodSha256) reason = 'Capture methods differ';
+    else if (['node', 'platform', 'arch', 'locale'].some(key => left.environment[key] !== right.environment[key])) reason = 'Relevant environments differ';
+    result.cases.push({ id: after.id, scenario: after.scenario, state: reason ? 'unavailable' : 'comparable', ...(reason ? { reason } : {}), before, after });
+  }
+  result.state = result.cases.every(record => record.state === 'comparable') ? 'comparable' : 'unavailable';
+  if (result.state === 'unavailable') result.reason = 'One or more cases cannot be compared';
+  return result;
+}
+
 const github = (args, cwd) => execFileSync('gh', args, { cwd, encoding: 'utf8', timeout: 60000, maxBuffer: 2 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
 
-export function collectCapture({ root, recipe, headSha, runDir, gh = github }) {
+export function collectCapture({ root, recipe, headSha, baselineSha, runDir, gh = github }) {
   if (!SHA.test(headSha)) fail('A full saved head revision is required');
   const owned = realpathSync(runDir);
   if (lstatSync(runDir).isSymbolicLink() || dirname(owned) !== realpathSync(tmpdir()) || !/^wong-verify-[a-zA-Z0-9_-]+$/.test(basename(owned))) fail('Collection needs an owned walkthrough folder');
@@ -184,6 +226,7 @@ export function collectCapture({ root, recipe, headSha, runDir, gh = github }) {
     download = mkdtempSync(join(owned, `ci-${recipe.id}-`));
     gh(['run', 'download', identity.runId, '--repo', repository, '--name', recipe.capture.artifact, '--dir', download], root);
     const manifest = validateCapture({ folder: download, recipe, identity });
+    const comparison = baselineSha ? compareCaptures({ folder: download, recipe, identity, baselineSha }) : undefined;
     const after = runIdentity(JSON.parse(gh(apiArgs, root)), { repository, workflow: recipe.capture.workflow, headSha });
     if (after.runAttempt !== identity.runAttempt) fail('Run attempt changed during collection');
     const evidenceRoot = join(owned, 'evidence');
@@ -194,7 +237,7 @@ export function collectCapture({ root, recipe, headSha, runDir, gh = github }) {
     try { lstatSync(target); fail('Evidence folder already exists'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     renameSync(download, target);
     download = undefined;
-    return { state: 'collected', folder: target, identity, cases: manifest.cases, cleanup: manifest.cleanup };
+    return { state: 'collected', folder: target, identity, cases: manifest.cases, cleanup: manifest.cleanup, ...(comparison ? { comparison } : {}) };
   } finally {
     if (download) rmSync(download, { recursive: true, force: true });
   }
@@ -202,16 +245,18 @@ export function collectCapture({ root, recipe, headSha, runDir, gh = github }) {
 
 if (isMain(import.meta.url)) {
   const { positionals, values } = parseCli({ usage: USAGE, allowPositionals: true, options: {
-    recipe: { type: 'string' }, root: { type: 'string' }, sha: { type: 'string' }, 'run-dir': { type: 'string' },
+    recipe: { type: 'string' }, root: { type: 'string' }, sha: { type: 'string' }, 'run-dir': { type: 'string' }, 'baseline-sha': { type: 'string' },
   } });
   const [command] = positionals;
-  if (positionals.length !== 1 || !['check', 'collect'].includes(command) || !values.recipe
-    || (command === 'collect' && (!values.sha || !values['run-dir']))
-    || (command === 'check' && (values.sha || values['run-dir']))) usageError(USAGE);
+  if (positionals.length !== 1 || !['check', 'collect', 'compare'].includes(command) || !values.recipe
+    || (command !== 'check' && (!values.sha || !values['run-dir']))
+    || (command === 'compare' && !values['baseline-sha'])
+    || (values['baseline-sha'] && !SHA.test(values['baseline-sha']))
+    || (command === 'check' && (values.sha || values['run-dir'] || values['baseline-sha']))) usageError(USAGE);
   try {
     const root = resolve(values.root || '.');
     const recipe = checkRecipe({ root, recipePath: values.recipe });
-    const result = command === 'check' ? { state: 'ready', recipe } : collectCapture({ root, recipe, headSha: values.sha, runDir: values['run-dir'] });
+    const result = command === 'check' ? { state: 'ready', recipe } : collectCapture({ root, recipe, headSha: values.sha, baselineSha: values['baseline-sha'], runDir: values['run-dir'] });
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     // Tool errors may contain credentials or untrusted artifact text; print no raw command output.

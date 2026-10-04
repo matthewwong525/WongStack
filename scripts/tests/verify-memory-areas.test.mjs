@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { captureMemoryAreas } from '../verify-memory-areas.mjs';
+import { captureMemoryAreas, capturePairedMemoryAreas } from '../verify-memory-areas.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const SCRIPT = join(ROOT, 'scripts/verify-memory-areas.mjs');
@@ -130,4 +130,79 @@ test('CLI requires CI identity and an output folder, and keeps the shared help c
   });
   assert.equal(good.status, 0, good.stderr);
   assert.match(good.stdout, /^CAPTURE=/);
+});
+
+test('paired capture exercises actual distinct source revisions with one driver and identical inputs', t => {
+  const options = setup(t);
+  const sourceRoot = join(options.folder, 'source');
+  const entry = join(sourceRoot, '.agents/skills/memory/scripts/memory.mjs');
+  mkdirSync(join(sourceRoot, '.agents/skills/memory/scripts'), { recursive: true });
+  const git = args => execFileSync('git', args, { cwd: sourceRoot, encoding: 'utf8' }).trim();
+  git(['init', '-q', '-b', 'practice']);
+  const commit = text => {
+    writeFileSync(entry, `console.log(${JSON.stringify(text)});\n`);
+    git(['add', '.']);
+    git(['-c', 'user.name=Practice', '-c', 'user.email=practice@example.invalid', 'commit', '-qm', text]);
+    return git(['rev-parse', 'HEAD']);
+  };
+  const baselineSha = commit('earlier observation');
+  const savedSha = commit('changed observation');
+  const { manifest, exitCode } = capturePairedMemoryAreas({ ...options, sourceRoot, identity: { ...identity, headSha: savedSha }, baselineRef: baselineSha });
+  assert.equal(exitCode, 0, manifest.error);
+  assert.equal(manifest.capture.subjectSha, savedSha);
+  assert.deepEqual(manifest.pair, { state: 'captured', baselineSha, folder: 'baseline', sourceRemoved: true, sourceRegistrationRemoved: true });
+  const baselineFolder = join(options.out, 'baseline');
+  const baseline = JSON.parse(readFileSync(join(baselineFolder, 'capture.json'), 'utf8'));
+  assert.equal(baseline.capture.headSha, savedSha);
+  assert.equal(baseline.capture.subjectSha, baselineSha);
+  assert.equal(baseline.capture.runAttempt, manifest.capture.runAttempt);
+  for (const [index, current] of manifest.cases.entries()) {
+    const earlier = baseline.cases[index];
+    assert.equal(raw(options.out, current), 'changed observation\n');
+    assert.equal(raw(baselineFolder, earlier), 'earlier observation\n');
+    assert.deepEqual(current.comparison, earlier.comparison);
+    assert.notEqual(current.command.cwd, earlier.command.cwd);
+    assert.notEqual(current.command.argv[0], earlier.command.argv[0]);
+    assert.equal(existsSync(current.command.cwd), false);
+    assert.equal(existsSync(earlier.command.cwd), false);
+    assert.equal(existsSync(earlier.command.argv[0]), false, 'baseline checkout was removed after capture');
+  }
+  assert.equal(git(['rev-parse', 'HEAD']), savedSha, 'head source checkout stayed intact');
+  assert.equal(git(['worktree', 'list', '--porcelain']).match(/^worktree /gm).length, 1);
+});
+
+test('an absent baseline or old entry point leaves complete head evidence usable', t => {
+  const options = setup(t);
+  const missing = capturePairedMemoryAreas({ ...options, baselineRef: 'refs/heads/no-such-verify-baseline' });
+  assert.equal(missing.exitCode, 0);
+  assert.equal(missing.manifest.pair.state, 'unavailable');
+  assert.match(missing.manifest.pair.reason, /merge-base is unavailable/);
+  assert.equal(missing.manifest.cases.length, 3);
+  const unselected = capturePairedMemoryAreas({ ...options, out: join(options.folder, 'unselected') });
+  assert.equal(unselected.exitCode, 0);
+  assert.equal(unselected.manifest.pair.reason, 'No baseline was selected');
+  const same = capturePairedMemoryAreas({ ...options, out: join(options.folder, 'same-revision'), baselineRef: headSha });
+  assert.equal(same.exitCode, 0);
+  assert.equal(same.manifest.pair.baselineSha, headSha);
+  assert.match(same.manifest.pair.reason, /head, not an earlier revision/);
+  assert.equal(same.manifest.cases.length, 3);
+  const sourceRoot = join(options.folder, 'source');
+  mkdirSync(sourceRoot);
+  const git = args => execFileSync('git', args, { cwd: sourceRoot, encoding: 'utf8' }).trim();
+  git(['init', '-q', '-b', 'practice']);
+  writeFileSync(join(sourceRoot, 'old.txt'), 'Before command existed');
+  git(['add', '.']);
+  git(['-c', 'user.name=Practice', '-c', 'user.email=practice@example.invalid', 'commit', '-qm', 'Before command']);
+  const baselineSha = git(['rev-parse', 'HEAD']);
+  mkdirSync(join(sourceRoot, '.agents/skills/memory/scripts'), { recursive: true });
+  writeFileSync(join(sourceRoot, '.agents/skills/memory/scripts/memory.mjs'), "console.log('Command reached');\n");
+  git(['add', '.']);
+  git(['-c', 'user.name=Practice', '-c', 'user.email=practice@example.invalid', 'commit', '-qm', 'Add command']);
+  const current = git(['rev-parse', 'HEAD']);
+  const absent = capturePairedMemoryAreas({ ...options, sourceRoot, out: join(options.folder, 'absent-entry'), identity: { ...identity, headSha: current }, baselineRef: baselineSha });
+  assert.equal(absent.exitCode, 0);
+  assert.equal(absent.manifest.pair.baselineSha, baselineSha);
+  assert.match(absent.manifest.pair.reason, /entry point is absent/);
+  assert.equal(absent.manifest.pair.sourceRemoved, true);
+  assert.equal(absent.manifest.cases.length, 3);
 });
