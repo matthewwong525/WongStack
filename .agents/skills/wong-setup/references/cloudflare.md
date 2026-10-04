@@ -70,8 +70,8 @@ Success returns the token's own `id`. **Translate every failure** with the [fail
 From the target's root, with `CLOUDFLARE_API_TOKEN` exported from `DURABLE_ENV`:
 
 ```bash
-P="node <source checkout>/.agents/skills/wong-setup/scripts/provision.mjs"
-$P widen
+P() { node "<source checkout>/.agents/skills/wong-setup/scripts/provision.mjs" "$@"; }
+P widen
 ```
 
 It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what the report's `granted` list names. Access permissions are part of normal private setup.
@@ -79,7 +79,7 @@ It runs [the widen protocol](permission-groups.md), granting only [a normal prov
 ## Step 3 — which account
 
 ```bash
-$P accounts
+P accounts
 ```
 
 - **Exactly one** → use it, and say which.
@@ -97,7 +97,7 @@ Ask once before the billable parts, as [a two-option choice](../../explore/refer
 The script derives every name from the repository name and checks it against the account; state them, and never make the user invent one:
 
 ```bash
-$P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 ```
 
 The report's `checked` list marks each name `free`, `ours` (made by this repo earlier), or `taken`. Name any `taken` one and offer the report's `base`, the first suffix that frees every name, such as `recipe-box-2`.
@@ -107,7 +107,7 @@ Apply the id-free fragments now (the `package.json` scripts, `.env.example` vari
 After the one ask, one command runs 4b through 4d:
 
 ```bash
-$P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email> --open-without-login
+P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email> --open-without-login
 ```
 
 Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).

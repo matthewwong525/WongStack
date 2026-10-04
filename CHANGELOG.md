@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Install with one Cloudflare account
+## 31.4.0 — Install with one Cloudflare account
 
 - A new install on Mac or Linux can now live in one place: your project's files, its checks, its previews and its publishing all sit in your own Cloudflare account. No GitHub account and no server is needed. [The Artifacts route](wiki/stack/artifacts-route.md) explains it.
 - It needs Cloudflare's paid plan, about $5 a month. Setup looks first: on a free account it stops before making anything, says the cost, and offers GitHub, which stays free.
@@ -13,6 +13,7 @@
 - Anyone who asks for GitHub still gets it, unchanged.
 
 **Updating.** An install that uses GitHub needs to do nothing: it keeps its repository, checks, pull requests and publishing as they are. The update adds the new route's files, which stay unused, and nothing asks you to move.
+
 ## 31.3.0 — Fewer steps, faster tasks
 
 - Saving takes one command once the files are chosen. It commits, uploads, opens or updates the change on GitHub, waits for the checks, and returns the result, the preview link, and what to do next. A failed check comes back with its cause, so nothing is looked up twice.

@@ -567,6 +567,16 @@ test('writing the memory key replaces every earlier line, so the new key is the 
   assert.equal(readFileSync(file, 'utf8'), 'A=1\nCLOUDFLARE_MEMORY_TOKEN=first\n');
 });
 
+test('facts written before any session is registered wait in the spool, never lost', async t => {
+  const env = await setup(t);
+  const first = await put(env, { session: 'current', source: 'save', slug: 'install', facts: [{ action: 'add', type: 'project', body: 'Learned in the chat that installed the project.' }] });
+  assert.equal(first.code, 0, first.stderr);
+  assert.match(first.stdout, /spooled: 1 facts wait in .*the session-start hook has not run here/);
+  assert.equal(readdirSync(join(env.repo.stateDir, 'spool')).length, 1);
+  const listed = await memory(env.repo, env.fake, ['spool']);
+  assert.match(listed.stdout, /Candidate 1: \[project\] Learned in the chat that installed the project\./);
+});
+
 test('an offline write goes to the spool, and the spool drains through the gate', async t => {
   const env = await setup(t);
   env.fake.setOffline(true);

@@ -26,7 +26,10 @@ case "$*" in
   "rev-parse origin/main") if [ -e "$FAKE_DIR/refetched" ] && [ -n "\${MAIN_MOVED:-}" ]; then echo "${'f'.repeat(40)}"; else echo "${HEAD}"; fi ;;
   "rev-parse origin/"*) [ -n "\${SAVED_RC:-}" ] && exit "$SAVED_RC"; echo "\${SAVED_SHA:-${HEAD}}" ;;
   "merge-base --is-ancestor origin/main HEAD") exit "\${ANCESTOR_RC:-0}" ;;
-  "log -1 --format=%s HEAD") echo "feat: add recipes" ;;
+  "log -1 --format=%s HEAD") echo "Archive the plan" ;;
+  "log --reverse --format=%s origin/main..HEAD") printf '%s\\n' "\${FIRST_SUBJECT-feat: add recipes}" "Archive the plan" ;;
+  "show HEAD:VERSION") [ -n "\${HEAD_VERSION:-}" ] && echo "$HEAD_VERSION" || exit 1 ;;
+  "show origin/main:VERSION") [ -n "\${MAIN_VERSION:-}" ] && echo "$MAIN_VERSION" || exit 1 ;;
   "rev-parse HEAD^{tree}") echo "${TREE}" ;;
   "commit-tree "*) echo "${COMMIT}" ;;
   "push origin --delete "*) exit "\${DELETE_RC:-0}" ;;
@@ -103,6 +106,15 @@ test('a given subject names the publish commit', t => {
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.calls, new RegExp(`^git commit-tree ${TREE} -p origin/main -m Add recipes \\(v1\\.2\\.0\\)$`, 'm'));
   assert.doesNotMatch(r.calls, /git log/);
+});
+
+test("with no subject, main's commit is named for the change's first commit, and for the version it ships", t => {
+  const named = env => new RegExp(`^git commit-tree ${TREE} -p origin/main -m (.*)$`, 'm').exec(run(t, env).calls)?.[1];
+  assert.equal(named({}), 'feat: add recipes', 'the last commit on the branch, often the archive, named the publish');
+  assert.equal(named({ HEAD_VERSION: '1.3.0', MAIN_VERSION: '1.2.0' }), 'feat: add recipes (v1.3.0)');
+  assert.equal(named({ HEAD_VERSION: '1.2.0', MAIN_VERSION: '1.2.0' }), 'feat: add recipes', 'an unchanged version is not a release');
+  assert.equal(named({ FIRST_SUBJECT: 'feat: add recipes (v1.2.9)', HEAD_VERSION: '1.3.0', MAIN_VERSION: '1.2.0' }), 'feat: add recipes (v1.3.0)', 'a stale version in the subject is replaced');
+  assert.equal(named({ FIRST_SUBJECT: '' }), 'Archive the plan', 'with no first subject the last commit names it');
 });
 
 test('a main that moved past the branch is never overwritten: nothing is published or deleted', t => {

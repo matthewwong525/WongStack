@@ -16,9 +16,15 @@
  * Prints key=value lines (SAVE_HEAD, PR_URL, PREVIEW_URL, RECEIPT, ATTEMPT), each failing check
  * with the tail of its log, one NEXT: line saying what to do, and SAVE_GATE_RESULT= last.
  *
+ * An Artifacts install (wiki/stack/artifacts-route.md) has no GitHub: delivery-route.mjs is asked
+ * once, and on `artifacts` no gh call is made. The branch is pushed, no pull request is read,
+ * opened, or given a body, no PR_URL is printed, no receipt is kept, and a FAILURE is the failing
+ * stage's own output, which the waiter prints under its RESULT line.
+ *
  * Exit codes:
  *   0  the checkpoint ran; SAVE_GATE_RESULT is the answer
- *   1  a git or gh step failed; its error is printed and nothing after it ran
+ *   1  a git or gh step failed, or the route could not be told; its error is printed and
+ *      nothing after it ran
  *   2  usage
  *   3  the pull request is CLOSED and not merged: ask, reopen or a fresh branch
  *   4  nothing to save, or HEAD is the default branch or detached
@@ -40,6 +46,7 @@ import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { buildReview } from '../../plan/scripts/build-review.mjs';
 import { liveFiles } from '../../ship/scripts/worktree-secrets.mjs';
+import { delivery, RouteError } from './delivery-route.mjs';
 import { writePrBody } from './render-pr-body.mjs';
 
 const USAGE = `usage: node checkpoint.mjs --message-file <file> --summary-file <file>
@@ -79,11 +86,30 @@ function must(command, args, what) {
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
-/** `main`, unless neither a local nor a remote `main` exists; then what GitHub names. */
-export function defaultBranch() {
+/**
+ * Which way this checkout saves and publishes, asked once a command: `{ route }`, `github` or
+ * `artifacts`. When origin and the install record disagree it is `{ lines }`, the stop to print:
+ * no command guesses a route, and none falls back to GitHub.
+ */
+export function askRoute(cwd = process.cwd()) {
+  try {
+    return { route: delivery(cwd).route };
+  } catch (error) {
+    if (!(error instanceof RouteError)) throw error;
+    return { lines: [`error=the delivery route could not be told: ${error.message}`,
+      'NEXT: origin and the install record disagree, so nothing ran. Report this line and stop; guess no route.'] };
+  }
+}
+
+/**
+ * `main`, unless neither a local nor a remote `main` exists; then what GitHub names. An Artifacts
+ * install has no GitHub to ask, and its setup makes `main`.
+ */
+export function defaultBranch(route = 'github') {
   for (const ref of ['refs/remotes/origin/main', 'refs/heads/main']) {
     if (sh('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).status === 0) return 'main';
   }
+  if (route === 'artifacts') return 'main';
   const named = sh('gh', ['repo', 'view', '--json', 'defaultBranchRef', '--jq', '.defaultBranchRef.name']);
   return named.status === 0 && named.stdout.trim() ? named.stdout.trim() : 'main';
 }
@@ -220,6 +246,16 @@ function nextLine(result, fixes) {
   return `NEXT: fix every cause above in one push. Where this computer has the tools, rerun the failed check first (node .github/scripts/checks.mjs --worktree). Then stage and rerun this command: fix attempt ${fixes + 1} of ${CAP}. A failure outside the diff gets its RERUN command once, then: ${RERUN} --wait; still red: stop, with no code edit.`;
 }
 
+/** The same answers on an Artifacts install, which has no pull request, no receipt, and no rerun. */
+function artifactsNextLine(result, fixes) {
+  if (result === 'SUCCESS') return 'NEXT: checks passed. Report the save.';
+  if (result === 'NONE') return 'NEXT: no checks are configured. Report the save.';
+  if (result === 'TIMEOUT') return `NEXT: checks are still running. Report that, or keep waiting with: ${RERUN} --wait`;
+  if (result === 'UNKNOWN') return nextLine(result, fixes);
+  if (fixes >= CAP) return `NEXT: the ${CAP} fix attempts are spent. Stop and report the failing output above; change no more code.`;
+  return `NEXT: fix the cause the lines under RESULT show, in one push. Where this computer has the tools, rerun the failed check first (node .github/scripts/checks.mjs --worktree). Then stage and rerun this command: fix attempt ${fixes + 1} of ${CAP}. A failure outside the diff has no rerun on this route: stop and report it, with no code edit.`;
+}
+
 function checkpoint(values) {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   const wait = Boolean(values.wait);
@@ -229,7 +265,11 @@ function checkpoint(values) {
   const branch = must('git', ['rev-parse', '--abbrev-ref', 'HEAD'], 'cannot read the current branch');
   const remote = sh('git', ['remote', 'get-url', 'origin']);
   if (remote.status !== 0) throw new Stop(1, ['error=no origin remote', 'NEXT: add the remote by .claude/skills/save/references/preconditions.md, then rerun this command.']);
-  const base = defaultBranch();
+  const asked = askRoute(root);
+  if (asked.lines) throw new Stop(1, asked.lines);
+  // An Artifacts install has no pull request: the pushed branch and its check run are the save.
+  const artifacts = asked.route === 'artifacts';
+  const base = defaultBranch(asked.route);
   if (branch === 'HEAD' || branch === base) {
     throw new Stop(4, [`REFUSED=HEAD is ${branch === 'HEAD' ? 'detached' : `the default branch (${base})`}`, 'NEXT: cut the feature branch (git checkout -b <name>), then rerun this command.']);
   }
@@ -244,7 +284,7 @@ function checkpoint(values) {
   const fixing = !wait && state.last === 'FAILURE';
   if (fixing && state.fixes >= CAP) {
     throw new Stop(6, [`REFUSED=the ${CAP} fix attempts of this /save run are spent`, `ATTEMPT=${state.fixes}`,
-      'NEXT: stop and report the failing checks with the pull request link. A later /save run starts a new count with --new-run.']);
+      `NEXT: stop and report the failing checks${artifacts ? '' : ' with the pull request link'}. A later /save run starts a new count with --new-run.`]);
   }
 
   if (!wait) {
@@ -260,7 +300,7 @@ function checkpoint(values) {
   const head = must('git', ['rev-parse', 'HEAD'], 'cannot read HEAD');
   say(`SAVE_HEAD=${head}`);
 
-  let pr = readPr();
+  let pr = artifacts ? null : readPr();
   if (pr?.state === 'CLOSED') {
     throw new Stop(3, [`PR_URL=${pr.url}`, 'REFUSED=the pull request is closed and not merged; nothing was pushed',
       'NEXT: ask the person: reopen it (gh pr reopen, then rerun this command), or push to a fresh branch (git checkout -b <name>, then rerun).']);
@@ -276,19 +316,19 @@ function checkpoint(values) {
 
   let repoUrl = '';
   if (!wait) {
-    if (values['change-root']) repoUrl = must('gh', ['repo', 'view', '--json', 'url', '--jq', '.url'], 'gh repo view');
-    renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl });
+    if (values['change-root'] && !artifacts) repoUrl = must('gh', ['repo', 'view', '--json', 'url', '--jq', '.url'], 'gh repo view');
+    if (!artifacts) renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl });
     must('git', pr ? ['push'] : ['push', '-u', 'origin', 'HEAD'], 'git push');
     if (fixing) state.fixes += 1;
     if (pr) patchBody(pr.number, bodyFile);
-    else {
+    else if (!artifacts) {
       const title = firstLine(readFileSync(files.message, 'utf8'));
       const created = must('gh', ['pr', 'create', '--title', title, '--body-file', bodyFile], 'gh pr create');
       const url = created.split('\n').findLast(line => /^https?:\/\//.test(line)) ?? '';
       pr = { state: 'OPEN', url, number: Number(url.match(/\/(\d+)$/)?.[1]) || null };
     }
   }
-  say(`PR_URL=${pr?.url ?? 'none'}`);
+  if (!artifacts) say(`PR_URL=${pr?.url ?? 'none'}`);
 
   const minutes = values['max-minutes'] ?? '20';
   say(`WAITING=checks for ${head.slice(0, 7)}, up to ${minutes} minutes`);
@@ -296,9 +336,10 @@ function checkpoint(values) {
   const waiterOutput = waited.stdout.trimEnd();
   if (waiterOutput) say(waiterOutput);
   const result = waiterOutput.match(/^RESULT: (SUCCESS|FAILURE|NONE|TIMEOUT|UNKNOWN)$/m)?.[1] ?? 'UNKNOWN';
-  if (result === 'FAILURE') printFailures(failingChecks(waiterOutput));
+  // On an Artifacts install the lines just printed under RESULT are the failing stage's output.
+  if (result === 'FAILURE' && !artifacts) printFailures(failingChecks(waiterOutput));
 
-  const receipt = writeReceipt(root, branch, result, receiptFile);
+  const receipt = artifacts ? 'none (this route keeps no receipt; /verify reads the gate again)' : writeReceipt(root, branch, result, receiptFile);
   const preview = result === 'UNKNOWN' ? '' : firstLine(sh('bash', [join(here, 'preview-url.sh')]).stdout);
   if (preview && !wait && values['change-root'] && pr?.number) {
     if (renderBody({ root, branch, values, summaryFile: files.summary, bodyFile, repoUrl, previewUrl: preview })) patchBody(pr.number, bodyFile);
@@ -316,7 +357,7 @@ function checkpoint(values) {
   const rerun = result === 'FAILURE' && state.fixes < CAP;
   if (files.summary && rerun) say(`SUMMARY_FILE=${files.summary} (kept for the rerun)`);
   else if (files.summary) rmSync(files.summary, { force: true });
-  say(nextLine(result, state.fixes));
+  say((artifacts ? artifactsNextLine : nextLine)(result, state.fixes));
   return result;
 }
 

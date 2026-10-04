@@ -94,3 +94,28 @@ test('an Artifacts origin is a foreign repository, never a saved gate', async ()
   assert.deepEqual(result, { state: 'UNKNOWN', gateResult: 'UNKNOWN', reason: 'Unsupported or foreign repository identity' });
   assert.ok(fixture.calls.every(([command]) => command === 'git'));
 });
+
+const ARTIFACTS = `https://${'0'.repeat(32)}.artifacts.cloudflare.net/git/wongstack/recipe-box.git`;
+test('an Artifacts install reads its gate from the check run for the exact commit, and never asks gh', async () => {
+  for (const [word, gateResult] of [['SUCCESS', 'SUCCESS'], ['NONE', 'NONE'], ['FAILURE', 'FAILURE'], ['PENDING', 'UNKNOWN'], ['', 'UNKNOWN'], ['anything else', 'UNKNOWN']]) {
+    const fixture = githubFixture({ remote: ARTIFACTS, runResult: word });
+    const result = await savedRevision(fixture);
+    assert.equal(result.state, 'SAVED', word);
+    assert.equal(result.gateResult, gateResult, word);
+    assert.equal(result.repository, ARTIFACTS);
+    assert.equal(result.reused, false);
+    assert.ok(fixture.calls.every(([command]) => command !== 'gh'), 'gh was asked on an install with no GitHub');
+    assert.match(fixture.calls.at(-1)[1], new RegExp(`artifacts-run\\.mjs result ${HEAD} refs/heads/work$`));
+  }
+});
+test('an Artifacts install with unsaved or unpushed work still asks for a save, before any check run is read', async () => {
+  for (const overrides of [{ dirty: ' M source.mjs' }, { refs: '' }, { refs: `${OLD}\trefs/heads/work` }]) {
+    const fixture = githubFixture({ remote: ARTIFACTS, ...overrides });
+    assert.equal((await savedRevision(fixture)).state, 'NEEDS_SAVE');
+    assert.ok(fixture.calls.every(([command]) => command === 'git'));
+  }
+});
+test('a remote that is neither GitHub nor Artifacts is still refused', async () => {
+  const result = await savedRevision(githubFixture({ remote: 'https://example.com/team/repo.git' }));
+  assert.deepEqual([result.state, result.reason], ['UNKNOWN', 'Unsupported or foreign repository identity']);
+});

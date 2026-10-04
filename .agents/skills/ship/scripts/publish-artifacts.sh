@@ -59,7 +59,15 @@ if ! git merge-base --is-ancestor origin/main HEAD; then
 fi
 
 # ── One commit on main: this branch's files ────────────────────────────────────
-SUBJECT=${1:-$(git log -1 --format=%s HEAD)}
+# With no subject given, the change's first commit names it, and the version it ships when it has one.
+SUBJECT=${1:-}
+if [ -z "$SUBJECT" ]; then
+  SUBJECT=$(git log --reverse --format=%s origin/main..HEAD | head -1)
+  [ -n "$SUBJECT" ] || SUBJECT=$(git log -1 --format=%s HEAD)
+  HEAD_V=$(git show HEAD:VERSION 2>/dev/null | tr -d '[:space:]' || true)
+  BASE_V=$(git show origin/main:VERSION 2>/dev/null | tr -d '[:space:]' || true)
+  if [ -n "$HEAD_V" ] && [ "$HEAD_V" != "$BASE_V" ]; then SUBJECT="${SUBJECT% (v[0-9]*)} (v$HEAD_V)"; fi
+fi
 TREE=$(git rev-parse 'HEAD^{tree}') || no "cannot read HEAD's files"
 COMMIT=$(git commit-tree "$TREE" -p origin/main -m "$SUBJECT") || no "could not write the publish commit"
 if ! git push origin "$COMMIT:refs/heads/main" >/dev/null 2>&1; then
