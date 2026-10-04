@@ -12,8 +12,8 @@ export const API_PREFIX = "/api/";
 // can not reach a property every object inherits.
 const routes = new Map<string, Route>([["GET /api/health", health]]);
 
-// Inventory every custom main route here before enabling employee policy.
-// Business routes list every app they serve; a missing mapping denies access.
+// List every custom main route here with the apps it serves. Once Access permissions
+// start, a business route with no mapping denies everyone but the owner.
 const routeAccess = new Map<string, RouteAccess>([["GET /api/health", { kind: "infrastructure" }]]);
 
 export const mainRouteInventory = () => [...routes.keys()].map(route => ({ route, access: routeAccess.get(route) }));

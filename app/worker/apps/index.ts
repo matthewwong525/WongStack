@@ -6,7 +6,8 @@ import { dispatch, registrations, type Route } from "../api/contract.ts";
 import type { AccessIdentity } from "../access.ts";
 import type { PolicyEnv } from "../employee-access/policy.ts";
 
-type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_ACTIVATION" | "WONG_ACCESS_SEAL_KEY" | "WONG_ACCESS_LOGIN_MANAGEMENT" | "WONG_ACCESS_ROLLOUT";
+// The memory store and the sign-in list key: a mini app is handed neither.
+type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_LOGIN_MANAGEMENT";
 
 /**
  * Everything the Worker has but the memory store: the database, saved keys, and settings.
@@ -55,9 +56,6 @@ export function handleApp(request: Request, env: Env & PolicyEnv, identity: Acce
   const appEnv: AppEnv & Partial<Record<MemoryBindings, unknown>> = { ...env };
   delete appEnv.MEMORY_DB;
   delete appEnv.MEMORY_BUCKET;
-  delete appEnv.WONG_ACCESS_ACTIVATION;
-  delete appEnv.WONG_ACCESS_SEAL_KEY;
   delete appEnv.WONG_ACCESS_LOGIN_MANAGEMENT;
-  delete appEnv.WONG_ACCESS_ROLLOUT;
   return dispatch(handler, request, appEnv, { url, route, identity }, { apps: [name] });
 }

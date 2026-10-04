@@ -1,18 +1,29 @@
 import { readFileSync } from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
 import { expect, it } from 'vitest';
-it('isolated staging seed represents assigned, zero-app and removed people without enabling any authority', () => {
-  const db = new DatabaseSync(':memory:');
+import { database, owner, req } from '../../tests/employee-access/connections';
+import { management } from './management';
+import { currentPolicy } from './policy';
+it('staging starts with practice people and permissions on, and holds no provider work or key', async () => {
+  const { sql, DB } = database();
   try {
-    db.exec('PRAGMA foreign_keys = ON');
-    for (const file of ['0001_employee_access.sql', '0002_employee_connections.sql']) db.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), 'utf8'));
-    db.exec(readFileSync(new URL('../../../schema/seed.sql', import.meta.url), 'utf8'));
-    expect(db.prepare('SELECT origin, policy_enabled, issuance_enabled FROM wong_access_installation').get()).toEqual({ origin: 'https://access-fixture.example.invalid', policy_enabled: 0, issuance_enabled: 0 });
-    expect(db.prepare('SELECT email, status FROM wong_access_members ORDER BY email').all()).toEqual([
+    sql.exec(readFileSync(new URL('../../../schema/seed.sql', import.meta.url), 'utf8'));
+    expect(sql.prepare('SELECT policy_enabled, issuance_enabled, account_id, access_policy_id FROM wong_access_installation').get())
+      .toEqual({ policy_enabled: 1, issuance_enabled: 0, account_id: '', access_policy_id: '' });
+    expect(sql.prepare('SELECT email, status FROM wong_access_members ORDER BY email').all()).toEqual([
       { email: 'ada@example.invalid', status: 'active' }, { email: 'bo@example.invalid', status: 'active' }, { email: 'casey@example.invalid', status: 'removed' },
     ]);
-    expect(db.prepare('SELECT email, app_id FROM wong_access_grants').all()).toEqual([{ email: 'ada@example.invalid', app_id: 'hello' }]);
-    expect(db.prepare('SELECT COUNT(*) count FROM wong_access_connections').get()).toEqual({ count: 0 });
-    expect(db.prepare('SELECT kind, status FROM wong_access_work ORDER BY kind').all()).toEqual([{ kind: 'policy', status: 'failed' }, { kind: 'sessions', status: 'ready' }]);
-  } finally { db.close(); }
+    expect(sql.prepare('SELECT email, app_id FROM wong_access_grants').all()).toEqual([{ email: 'ada@example.invalid', app_id: 'hello' }]);
+    for (const table of ['wong_access_connections', 'wong_access_work', 'wong_access_policy_writes']) {
+      expect(sql.prepare(`SELECT COUNT(*) count FROM ${table}`).get()).toEqual({ count: 0 });
+    }
+    // The committed owner email, not the seeded row, decides who manages the practice list.
+    const env = { DB, WONG_ENVIRONMENT: 'staging', WONG_OWNER_EMAIL: owner.id };
+    const opened = await (await management(req('status', 'GET'), env, owner)).json();
+    expect(opened).toMatchObject({ environment: 'practice', key: 'practice', started: true, people: [
+      { email: 'ada@example.invalid', status: 'active', apps: ['hello'] }, { email: 'bo@example.invalid', status: 'active', apps: [] },
+      { email: 'casey@example.invalid', status: 'removed', apps: [] }] });
+    const practice = (email: string) => currentPolicy(env, { ...owner, id: email, claims: { ...owner.claims, email } });
+    expect(await practice('ada@example.invalid')).toMatchObject({ state: 'current', role: 'employee', apps: new Set(['hello']) });
+    expect(await practice('casey@example.invalid')).toEqual({ state: 'denied' });
+  } finally { sql.close(); }
 });

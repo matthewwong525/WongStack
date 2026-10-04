@@ -58,7 +58,7 @@ export async function discovery(request: Request, env: AppEnv, identity: AccessI
   if (!identity) return actionError("authentication_required");
   const url = new URL(request.url);
   if (request.method !== "GET") return Response.json({ error: "Not found" }, { status: 404 });
-  const policy = await currentPolicy(request, env, identity);
+  const policy = await currentPolicy(env, identity);
   if (!policyAllows(policy, { kind: "self-service" })) return policyDenied(policy);
   const visible = uniqueActions(registry).filter(({ action, access }) => policyAllows(policy, access) &&
     action.agentAvailable && (!action.allowed || action.allowed(identity)));

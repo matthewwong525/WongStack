@@ -20,8 +20,8 @@ afterEach(() => {
 });
 
 const person: AccessIdentity = { id: "owner@example.com", kind: "user", claims: { aud: "a", iss: "i", exp: 0 } };
-const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {}, WONG_ACCESS_ACTIVATION: "private-owner", WONG_ACCESS_SEAL_KEY: "private-seal",
-  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login", WONG_ACCESS_ROLLOUT: "private-rollout" } as unknown as Env;
+const env = { DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {},
+  WONG_ACCESS_LOGIN_MANAGEMENT: "private-login" } as unknown as Env;
 const call = (path: string, method = "GET", identity: AccessIdentity | null = person) =>
   handleApp(new Request(`https://workspace.example.com${path}`, { method }), env, identity);
 
@@ -48,10 +48,9 @@ it("hands a handler the database and saved keys, but no memory binding", async (
   expect(appEnv.PAYMENT_KEY).toBe("secret");
   expect("MEMORY_DB" in appEnv).toBe(false);
   expect("MEMORY_BUCKET" in appEnv).toBe(false);
-  for (const name of ["WONG_ACCESS_ACTIVATION", "WONG_ACCESS_SEAL_KEY", "WONG_ACCESS_LOGIN_MANAGEMENT", "WONG_ACCESS_ROLLOUT"]) {
-    expect(name in appEnv).toBe(false);
-    expect(name in env).toBe(true);
-  }
+  // The sign-in list key stays with the core: no mini app is handed it.
+  expect("WONG_ACCESS_LOGIN_MANAGEMENT" in appEnv).toBe(false);
+  expect("WONG_ACCESS_LOGIN_MANAGEMENT" in env).toBe(true);
   expect("MEMORY_DB" in env).toBe(true);
   expect(info.route).toBe("peek");
   expect(info.url.searchParams.get("x")).toBe("1");
@@ -84,13 +83,11 @@ it("does not match a property every object inherits", async () => {
 it("applies the app slug to both bare and described routes before handler work", async () => {
   const employee = { ...person, claims: { ...person.claims, sub: "employee", email: person.id,
     iss: "https://business.cloudflareaccess.com", aud: "app", exp: 9999999999 } };
-  const row = { origin: "https://workspace.example.com", issuer: employee.claims.iss, audience: "app",
-    access_app_id: "application", worker_id: "worker", owner_email: "actual-owner@example.com",
-    owner_subject: "owner", policy_enabled: 1, revision: 1, status: "active", apps: '[]' };
+  const row = { policy_enabled: 1, revision: 1, status: "active", apps: '[]' };
   const first = vi.fn(async () => row);
   const db = { withSession: vi.fn(() => ({ prepare: () => ({ bind: () => ({ first }) }) })) };
-  const bindings = { ...env, DB: db, WONG_ACCESS_POLICY: "on", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
-    CF_ACCESS_AUD: "app", CF_ACCESS_APP_ID: "application", CF_ACCESS_WORKER_ID: "worker" } as unknown as Env & PolicyEnv;
+  const bindings = { ...env, DB: db, WONG_OWNER_EMAIL: "actual-owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
+    CF_ACCESS_AUD: "app" } as unknown as Env & PolicyEnv;
   const run = (route: string) => handleApp(new Request(`https://workspace.example.com/apps/hello/api/${route}`), bindings, employee);
   for (const route of ["peek", "greeting"]) expect((await run(route)).status).toBe(403);
   expect(seen).toEqual([]);

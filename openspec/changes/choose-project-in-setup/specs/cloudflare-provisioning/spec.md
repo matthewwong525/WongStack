@@ -2,7 +2,7 @@
 
 ### Requirement: One secrets file loads both Workers
 
-`app/.dev.vars` SHALL be the declared list of Worker runtime secrets, and `secrets:push` SHALL load ordinary runtime secrets into production and staging; a git-ignored `app/.dev.vars.staging` SHALL give staging its own values. A linked worktree with no copy SHALL read the primary worktree's file. Private production Access activation, sealing, login-management and rollout bindings SHALL be omitted entirely from staging sources/config, including blank declarations. Both target sources and staging config SHALL be validated before the first provider write. Unsafe fallback, explicit override or staging source SHALL load nothing into either Worker.
+`app/.dev.vars` SHALL be the declared list of Worker runtime secrets, and `secrets:push` SHALL load ordinary runtime secrets into production and staging; a git-ignored `app/.dev.vars.staging` SHALL give staging its own values. A linked worktree with no copy SHALL read the primary worktree's file. The private production Access login-management binding SHALL be omitted entirely from staging sources/config, including a blank declaration. Both target sources and staging config SHALL be validated before the first provider write. Unsafe fallback, explicit override or staging source SHALL load nothing into either Worker.
 
 #### Scenario: Staging diverges
 
@@ -37,3 +37,24 @@
 
 - **WHEN** staging config or deployed secret names include private Access management authority
 - **THEN** the check fails and names the binding without disclosing its value
+
+## ADDED Requirements
+
+### Requirement: Setup supplies what Access needs
+
+Setup and the unattended installer SHALL record the owner's email as committed nonsecret configuration for both Workers, and SHALL create a key limited to Access application-and-policy writes, store it with the account and human-policy identifiers as the production Worker's login-management secret, and record the key's identifier for reuse and rotation. The key SHALL NOT be the deploy key, SHALL NOT be written to staging, and a rerun SHALL reuse it. Updating an existing installation SHALL perform the same step. When the available Cloudflare token cannot create the key, the step SHALL be reported as missing with the private key link and SHALL NOT block the rest of setup or the update.
+
+#### Scenario: A fresh install
+
+- **WHEN** setup finishes on an account with sign-in turned on
+- **THEN** the owner email is in both Workers' committed configuration, production holds the login-management secret, staging holds none, and the owner can add a person from Access without another step
+
+#### Scenario: An existing install updates
+
+- **WHEN** an installation made before this change updates and its saved token can create keys
+- **THEN** the update adds the owner email and the production secret and leaves existing people's access unchanged
+
+#### Scenario: The token cannot create keys
+
+- **WHEN** the saved Cloudflare token lacks permission to create the key
+- **THEN** the step is reported missing with the private key link, and Access still opens and names the step left

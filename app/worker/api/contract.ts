@@ -184,7 +184,7 @@ async function execute(action: Action, request: Request, env: AppEnv, call: AppC
 }
 
 export async function dispatch(route: Route, request: Request, env: AppEnv, call: AppCall, access?: RouteAccess): Promise<Response> {
-  const denied = await authorizeRequest(request, env, call.identity, access);
+  const denied = await authorizeRequest(env, call.identity, access);
   if (denied) return denied;
   if (typeof route === "function") return route(request, env, call);
   if ((route.requiresIdentity !== false || route.ready) && !call.identity) return actionError("authentication_required");

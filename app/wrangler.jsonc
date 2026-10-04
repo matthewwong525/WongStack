@@ -14,9 +14,10 @@
 		"run_worker_first": true
 	},
 	"vars": {
-		// Add WONG_ACCESS_POLICY: "on" only after reviewed owner policy setup.
-		// Once enabled, retain it on updates/rollback. Missing D1 authority denies.
+		// WONG_OWNER_EMAIL is the sign-in email setup recorded for the owner: the
+		// person who manages people in Access. wiki/stack/employee-access.md
 		"WONG_ENVIRONMENT": "production",
+		"WONG_OWNER_EMAIL": "matthewwong525@gmail.com",
 		"CF_ACCESS_TEAM_DOMAIN": "startuptemplate.cloudflareaccess.com",
 		"CF_ACCESS_AUD": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
 		"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",
@@ -65,6 +66,7 @@
 			"name": "wongstack-staging",
 			"vars": {
 				"WONG_ENVIRONMENT": "staging",
+				"WONG_OWNER_EMAIL": "matthewwong525@gmail.com",
 				"CF_ACCESS_TEAM_DOMAIN": "startuptemplate.cloudflareaccess.com",
 				"CF_ACCESS_AUD": "b0e998ce836c59c284ff427902e65228fbbf2e5de3b1c77d26d2c81928cd2590",
 				"CF_ACCESS_APP_ID": "10a98858-5fe3-4650-a57f-a02786a1e851",

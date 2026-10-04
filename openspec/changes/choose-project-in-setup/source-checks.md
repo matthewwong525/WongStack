@@ -98,3 +98,31 @@ Prepared a standalone built-in-only Node artifact and reused its transport from 
 Synthetic source tests cover independent app-only status, headless/expired login (the existing transport tests), missing connections, redirect refusal, issuance/renewal/removal races, same-origin employee identity changes and lost-response receipts, callback destination checks, protected private file modes, clone/fetch/feature push, conflicting/dirty folders, encoded REST lookup/create/update, exact-head checks/status pagination and settled-gate semantics, preview commit evidence, unsupported endpoints, and unchanged personal delivery gates. These tests have not been run locally. Tasks 4.1–4.3 remain unchecked until the parent completes the remote gate.
 
 Static payload links, OpenSpec configuration, JavaScript syntax and context checks pass. Instruction headroom is 121 bytes at this source state; the new transport link and employee `/ship` guard were offset inside their touched guidance. No source check was loosened. The artifact is supplied by an exact passed public source commit and digest; the later setup-prompt slice must pin that actual passed artifact. No live provider credential was read, created or changed. Controlled empty-folder/provider acceptance remains separate in 7.2.
+
+
+## Reduced app/API-only final source gate
+
+2026-10-04, exact head `33762826f3352c8841d96c665cb27009bb80ac8b`, branch `smooth-repo-selection`, draft #264, Status `in-progress`. All remaining 2.x–5.x source, tests and documentation were completed before this single checkpoint. Automatic repository integration/editing/issuance was withdrawn; all repository authority is manual. Additive customer schema/data and independent memory remain intact.
+
+- App: 173 tests, all four coverage metrics 100%, lint/unused/duplication checks PASS, [run](https://github.com/matthewwong525/WongStack/actions/runs/37231798571).
+- Build/staging PASS, [run](https://github.com/matthewwong525/WongStack/actions/runs/37231798606).
+- Payload: all 1,303 script tests, script coverage, generated installs and 37 release checks PASS, [run](https://github.com/matthewwong525/WongStack/actions/runs/37231798585).
+- Initial complete-source check failed two lint conditions/three rejection-message assertions. Repair 1 exposed consumer fixtures and asynchronous reload timing; repair 2 grouped those fixes plus zero-app/missing-installation checks. No limits or checks were weakened; no local implementation tests/builds ran.
+- Immutable bootstrap ancestor `3e739ca8f82f7df90916ba0d31c078948682b5ba`, SHA-256 `2182ca2abac0e9b4163b60cedac38a830e1646a76dfa4fd717a6d45a1f4e35c4`. Anonymous public raw readback after the gate returned HTTP 200/17,173 bytes with that digest and refused redirects; download was not executed locally.
+- Finished-preview walkthrough is ongoing. Task 6.3 needs independently verified controlled-installation authority; source checks and browser simulations establish no live email admission/session propagation. Session facts skipped: no current session hook.
+
+These post-gate completion records remain local for the next publication checkpoint; no metadata-only push or duplicate branch-wide gate was added.
+
+
+## Finished preview evidence and live acceptance boundary
+
+Safe walkthrough at unchanged checked head `33762826f3352c8841d96c665cb27009bb80ac8b`: actual preview reports owner setup unavailable (setup 403; management 503) and withdrawn repository routes 404. Staging was rebuilt safely under an owned turn. Browser-only synthetic responses exercised owner add/readback/share/removal/retry, employee copy/fallback/allowed-denied navigation and zero-app setup on the deployed UI. Phone width/document width were both 390px; keyboard reached app selection and selected all fallback text. Private pictures and a detailed verification comment are attached to PR #264.
+
+Overall verification is UNKNOWN for live authority, not a failure of the observed UI: no independently verified controlled owner/session/configuration exists for deployed current-grant API/discovery/call probes or actual email admission/expiry/removal/provider convergence. Task 6.2's safe UI portion is complete; its deployed-human API portion and 6.3 remain unchecked. The person was asked for a controlled app URL and independently verified owner email only; credentials must use the existing private setup flow. No response, approval or skip is inferred. No production provider mutation or fresh memory enrollment occurred.
+
+Journey repairs corrected two guide/runtime command mismatches and a render wait; no source revision or implementation test rerun was needed. Six response-cookie text captures were scrubbed; later simulation captures needed no redaction. Post-gate completion/evidence records stay local until the next authorized publication checkpoint; no extra branch-wide gate was introduced for metadata.
+
+
+## Selected live target prerequisite
+
+The person selected existing WongStack and confirmed themselves as expected owner. Readonly machine-authenticated probes to `https://wongstack.matthewwong525.workers.dev/api/access/identity` and `/api/access/setup` both returned HTTP 404/application JSON. Public `main` contains no employee-access identity module. Thus this checked, unmerged change must be installed before actual owner identity/setup can be verified on that target. Those requests establish no signed-human authority. No production writes occurred; two response-cookie captures were scrubbed and the temporary probe folder was cleaned. Publishing approval was requested once after the finished source/preview work; it remains pending.

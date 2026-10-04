@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Person } from '../../lib/access'
-import { apps as catalogue } from '../../lib/apps'
+import { appTitle } from '../../lib/apps'
 
 export function PersonForm({ person, apps, pending, onSave, onCancel }: {
   person: Person | null; apps: string[]; pending: boolean
@@ -11,14 +11,14 @@ export function PersonForm({ person, apps, pending, onSave, onCancel }: {
   return <form className="access-form" onSubmit={event => { event.preventDefault(); onSave({ email, apps: selected, removed: false }) }}>
     <h2>{person ? 'Edit person' : 'Add person'}</h2>
     <label>Email<input type="email" required disabled={pending} autoFocus value={email} readOnly={!!person} onChange={event => setEmail(event.target.value)} /></label>
-    <fieldset disabled={pending}><legend>Apps this person can use</legend>
-      {apps.filter(app => app !== 'access').map(app => <label className="access-choice" key={app}>
+    <fieldset disabled={pending}><legend>Apps</legend>
+      {apps.map(app => <label className="access-choice" key={app}>
         <input type="checkbox" checked={selected.includes(app)} onChange={event => setSelected(event.target.checked ? [...selected, app] : selected.filter(value => value !== app))} />
-        {catalogue.find(item => item.name === app)?.title ?? app}
+        {appTitle(app)}
       </label>)}
-      {!apps.some(app => app !== 'access') && <p>No business apps yet. Ask your assistant to add one.</p>}
+      {!apps.length && <p>No apps built yet. Ask your assistant to make one.</p>}
     </fieldset>
-    <p>No apps are selected for a new person. Repository and memory access are set up separately.</p>
+    <p>A new person starts with no apps. Project code is shared separately.</p>
     <div className="access-actions"><button type="submit" disabled={pending}>Save access</button><button type="button" disabled={pending} onClick={onCancel}>Cancel</button></div>
   </form>
 }

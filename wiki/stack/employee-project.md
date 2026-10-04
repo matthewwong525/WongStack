@@ -22,7 +22,7 @@ JSON
 
 `PRIVATE_CONNECTION` is the nonsecret path chosen for this business. Login uses your own browser approval. A different computer or expired session may require approval again. On a headless computer, only a validated Cloudflare Access CLI link for this business is shown. Raw login output and sessions remain private. Redirected credential requests are refused. Changing the signed-in person requires a separate private connection.
 
-`status` reads authenticated API permission and current app assignments, including zero assigned apps; it proves no repository or memory connection. A pinned employer finishing closed rollout can use finite identity readback, labeled identity-only until employee policy is ready. Removed employees are denied. Discovery describes only permitted live actions; calls consult the current selected contract and execute once. Check uncertain write outcomes before repeating them.
+`status` reads authenticated API permission and current app assignments, including zero assigned apps; it proves no repository or memory connection. Every signed-in person gets it, before and after [Access permissions start](employee-access.md#the-first-open). Removed employees are denied. Discovery describes only permitted live actions; calls consult the current selected contract and execute once. Check uncertain write outcomes before repeating them.
 
 The helper needs no checkout, memory module, package installation or repository credential. Existing files and memory settings remain untouched. Installed [company calls](company-api.md#connect-and-call) use the same transport with explicit `--state`; installed memory reads keep their existing independent authority.
 
@@ -36,7 +36,7 @@ Company login grants no new memory permission or machine enrollment. Preserve al
 
 ## Publish checked artifact pins
 
-[The committed release record](../../app/worker/employee-access/bootstrap-release.json) carries `version: 1`, a full public Source `commit` and complete `sha256`; blank pins deliberately leave prompt copying unavailable. The final source checkpoint may create a complete source commit, pin its artifact bytes in a subsequent commit, and push once. At the final checked head, distribution tests prove the pinned commit is an ancestor, its artifact digest matches and its bytes equal the bootstrap under test. Confirm the exact public raw URL after those checks pass. Neither commit existence nor identity readback alone proves readiness.
+[The committed release record](../../app/worker/employee-access/bootstrap-release.json) carries `version: 1`, a full public Source `commit` and complete `sha256`; blank pins deliberately leave prompt copying unavailable. The final source checkpoint may create a complete source commit, pin its artifact bytes in a subsequent commit, and push once. At the final checked head, distribution tests prove the pinned commit is an ancestor, its artifact digest matches and its bytes equal the bootstrap under test. Confirm the exact public raw URL after those checks pass. Commit existence alone proves no readiness.
 
 If bootstrap bytes change afterward, establish a new immutable source commit and matching digest before claiming the copied prompt ready. Never change existing pins to a mutable URL. Customized installs retain their branding, login, app routes, dirty local work and separate memory.
 

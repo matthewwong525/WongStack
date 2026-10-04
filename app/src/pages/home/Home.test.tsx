@@ -5,7 +5,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { apps } from "../../lib/apps";
 import { Home } from "./Home";
 
-beforeEach(() => vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "legacy" }))));
+const setup = { role: "employee", identity: { email: "person@example.com", subject: "person" }, apps: apps.map((app) => app.name), api: "authenticated",
+  repository: "manual_provider_setup", memory: "independent_operator_setup", prompt: { state: "unavailable", message: "Finish reviewed setup" } };
+beforeEach(() => vi.stubGlobal("fetch", vi.fn(async (url: string) => Response.json(url.endsWith("/setup") ? setup : { state: "legacy" }))));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 it("lists every app in this build after safe app-access readback", async () => {
@@ -13,6 +15,8 @@ it("lists every app in this build after safe app-access readback", async () => {
 
   await screen.findByRole("region", { name: "Make it yours" });
   expect(screen.queryAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(apps.map((app) => app.href));
+  // An install with no recorded owner still offers everyone the setup box.
+  await screen.findByText("Signed in as person@example.com");
   expect(screen.queryByText(/Loading/)).toBeNull();
 });
 
@@ -36,7 +40,7 @@ it("keeps the workspace heading and apps outside the removable welcome, in order
 it('the verified employer retains the welcome and the current app catalogue', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => url.endsWith('/apps')
     ? Response.json({ state: 'current', role: 'owner', revision: 1, apps: apps.map(app => app.name) })
-    : Response.json({ role: 'owner', identity: { email: 'owner@example.com', subject: 'owner' }, apps: apps.map(app => app.name), api: 'authenticated', repository: 'manual_provider_setup', memory: 'independent_operator_setup', prompt: { state: 'unavailable', message: 'Finish reviewed setup' } })))
+    : Response.json({ ...setup, role: 'owner' })))
   render(<Home />)
   await screen.findByRole('region', { name: 'Make it yours' })
   expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(apps.map(app => app.href))

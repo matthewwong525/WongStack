@@ -50,6 +50,7 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
   },
   "vars": {
     "WONG_ENVIRONMENT": "production",
+    "WONG_OWNER_EMAIL": "<owner email>",
     "CF_ACCESS_TEAM_DOMAIN": "<access team domain>",
     "CF_ACCESS_AUD": "<access audience>",
     "CF_ACCESS_APP_ID": "<access app id>",
@@ -78,6 +79,7 @@ The **only thing in the payload that creates a wrangler config**, so a deployabl
       "name": "<your-worker>-staging",
       "vars": {
         "WONG_ENVIRONMENT": "staging",
+        "WONG_OWNER_EMAIL": "<owner email>",
         "CF_ACCESS_TEAM_DOMAIN": "<access team domain>",
         "CF_ACCESS_AUD": "<access audience>",
         "CF_ACCESS_APP_ID": "<access app id>",

@@ -1,15 +1,16 @@
-// Management authority is pinned independently of the optional legacy policy latch.
+// The owner is the verified person whose sign-in email setup recorded; no private pin exists.
 import type { AccessIdentity } from "../access.ts";
-import { readPin, ownerMatches, type ActivationEnv, type Pin } from "./activation.ts";
+import { humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
 
-export interface ConnectionEnv extends ActivationEnv {
-  WONG_ACCESS_POLICY?: string;
-  WONG_ACCESS_ROLLOUT?: string;
-  WONG_ACCESS_SEAL_KEY?: string;
-  /** Separate account-scoped Access-only authority, provided privately by the operator. */
+export interface ConnectionEnv extends PolicyEnv {
+  CF_ACCESS_APP_ID?: string;
+  CF_ACCESS_WORKER_ID?: string;
+  /** Production only: setup's key for this app's own sign-in list. Never on staging. */
   WONG_ACCESS_LOGIN_MANAGEMENT?: string;
 }
-export type Core = { db: D1DatabaseSession; pin: Pin; env: ConnectionEnv; email: string; subject: string; holder?: string };
+/** `live` is the production Worker; anywhere else Access keeps a practice list and calls no provider. */
+export type Core = { db: D1DatabaseSession; env: ConnectionEnv; installationId: string; origin: string;
+  email: string; subject: string; live: boolean; holder?: string };
 export class AccessError extends Error {
   readonly code: string;
   readonly status: number;
@@ -17,23 +18,52 @@ export class AccessError extends Error {
 }
 export const reply = (body: object, status = 200) => Response.json(body,
   { status, headers: { "Cache-Control": "no-store" } });
+export const now = () => new Date().toISOString();
 
+/** Called only after the Worker has verified the Access assertion's signature. */
 export async function ownerCore(request: Request, env: ConnectionEnv, identity: AccessIdentity | null): Promise<Core> {
-  const pin = env.WONG_ACCESS_ACTIVATION && readPin(env.WONG_ACCESS_ACTIVATION);
-  if (env.WONG_ENVIRONMENT !== "production" || !pin || !env.DB) throw new AccessError("owner_setup_required");
-  if (!routingMatches(request, env, pin)) throw new AccessError("owner_setup_required");
-  if (!ownerMatches(pin, identity)) throw new AccessError("owner_required", 403);
-  if (request.method !== "GET" && request.headers.get("Origin") !== pin.origin) throw new AccessError("origin_required", 403);
+  const owner = ownerEmail(env);
+  // An older install, or an open site with no sign-in, has no owner to verify.
+  if (!owner || !env.DB || !identity) throw new AccessError("owner_setup_required");
+  // Service tokens, request bodies and a first visit establish nothing.
+  if (humanEmail(identity) !== owner) throw new AccessError("owner_required", 403);
+  const origin = new URL(request.url).origin;
+  // Browser cookies cannot change people from a foreign site.
+  if (request.method !== "GET" && request.headers.get("Origin") !== origin) throw new AccessError("origin_required", 403);
   const db = env.DB.withSession("first-primary");
-  const row = await db.prepare("SELECT * FROM wong_access_installation WHERE slot = 1").first<Record<string, unknown>>();
-  if (!row || !installationMatches(pin, row)) throw new AccessError("installation_mismatch");
-  return { db, pin, env, email: pin.ownerEmail, subject: pin.ownerSubject };
+  const subject = identity.claims.sub!;
+  return { db, env, installationId: await installation(db, env, { origin, owner, subject }), origin, email: owner,
+    subject, live: env.WONG_ENVIRONMENT === "production" };
 }
 
-export const now = () => new Date().toISOString();
-export async function audit(core: Core, event: string, revision: number): Promise<void> {
-  await core.db.prepare(`INSERT INTO wong_access_audit VALUES (?, ?, ?, ?, ?, ?)`)
-    .bind(crypto.randomUUID(), core.pin.installationId, core.email, event, revision, now()).run();
+/** The single row holds the revision and the permissions switch; the first owner request creates it. */
+async function installation(db: D1DatabaseSession, env: ConnectionEnv,
+  first: { origin: string; owner: string; subject: string }): Promise<string> {
+  const read = () => db.prepare("SELECT installation_id FROM wong_access_installation WHERE slot = 1")
+    .first<{ installation_id: string }>();
+  const existing = await read();
+  if (existing) return existing.installation_id;
+  const id = crypto.randomUUID();
+  await db.batch([
+    db.prepare(`INSERT INTO wong_access_installation
+      (slot, installation_id, origin, account_id, worker_id, access_app_id, access_policy_id,
+       issuer, audience, owner_subject, owner_email, repository_id, repository_name, activated_at)
+      VALUES (1, ?, ?, '', ?, ?, '', ?, ?, ?, ?, 1, '', ?) ON CONFLICT(slot) DO NOTHING`).bind(id, first.origin,
+      env.CF_ACCESS_WORKER_ID ?? "", env.CF_ACCESS_APP_ID ?? "", `https://${env.CF_ACCESS_TEAM_DOMAIN ?? ""}`,
+      env.CF_ACCESS_AUD ?? "", first.subject, first.owner, now()),
+    // The first-seen signed subject is written to the log, never compared.
+    db.prepare(`INSERT INTO wong_access_audit SELECT ?, installation_id, owner_email,
+      'owner_first_seen:' || owner_subject, revision, activated_at
+      FROM wong_access_installation WHERE installation_id = ?`).bind(crypto.randomUUID(), id),
+  ]);
+  // A concurrent first request may have won; either way one row exists now.
+  return (await read())!.installation_id;
+}
+
+export async function permissionsStarted(core: Core): Promise<boolean> {
+  const row = await core.db.prepare("SELECT policy_enabled FROM wong_access_installation WHERE installation_id = ?")
+    .bind(core.installationId).first<{ policy_enabled: number }>();
+  return row?.policy_enabled === 1;
 }
 
 export async function lease(core: Core): Promise<string> {
@@ -41,29 +71,17 @@ export async function lease(core: Core): Promise<string> {
   const row = await core.db.prepare(`INSERT INTO wong_access_leases VALUES (?, ?, ?)
     ON CONFLICT(installation_id) DO UPDATE SET holder = excluded.holder, expires_at = excluded.expires_at
     WHERE wong_access_leases.expires_at < ? RETURNING holder`)
-    .bind(core.pin.installationId, holder, new Date(Date.now() + 120_000).toISOString(), now()).first<{ holder: string }>();
+    .bind(core.installationId, holder, new Date(Date.now() + 120_000).toISOString(), now()).first<{ holder: string }>();
   if (!row || row.holder !== holder) throw new AccessError("retry_pending", 409);
   return holder;
 }
 export async function release(core: Core, holder: string): Promise<void> {
   await core.db.prepare("DELETE FROM wong_access_leases WHERE installation_id = ? AND holder = ?")
-    .bind(core.pin.installationId, holder).run();
+    .bind(core.installationId, holder).run();
 }
 
 export async function leaseCurrent(core: Core): Promise<boolean> {
   const row = await core.db.prepare("SELECT holder FROM wong_access_leases WHERE installation_id = ? AND expires_at > ?")
-    .bind(core.pin.installationId, now()).first<{ holder: string }>();
+    .bind(core.installationId, now()).first<{ holder: string }>();
   return !!core.holder && row?.holder === core.holder;
-}
-
-function routingMatches(request: Request, env: ConnectionEnv, pin: Pin): boolean {
-  return [[pin.origin, new URL(request.url).origin], [pin.issuer, `https://${env.CF_ACCESS_TEAM_DOMAIN}`],
-    [pin.audience, env.CF_ACCESS_AUD], [pin.workerId, env.CF_ACCESS_WORKER_ID], [pin.accessAppId, env.CF_ACCESS_APP_ID]]
-    .every(([expected, actual]) => expected === actual);
-}
-function installationMatches(pin: Pin, row: Record<string, unknown>): boolean {
-  const columns: [keyof Pin, string][] = [["installationId", "installation_id"], ["origin", "origin"],
-    ["ownerSubject", "owner_subject"], ["ownerEmail", "owner_email"], ["accountId", "account_id"], ["accessAppId", "access_app_id"],
-    ["accessPolicyId", "access_policy_id"], ["workerId", "worker_id"], ["issuer", "issuer"], ["audience", "audience"]];
-  return columns.every(([field, column]) => pin[field] === row[column]);
 }

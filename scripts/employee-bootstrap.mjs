@@ -166,25 +166,20 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     safeCache(directory(), root);
     const chosen = companyOrigin(origin || record());
     const credential = await token(chosen, true);
-    let connection = 'employee_setup', identity;
+    let identity;
     if (onboarding) {
-      const probe = await http('/api/access/setup', {}, chosen, credential).catch(error => ({ failure: error }));
-      if (probe.status !== 200 || probe.value.api !== 'authenticated') {
-        const readback = await http('/api/access/identity', {}, chosen, credential);
-        if (readback.status !== 200 || readback.value.origin !== chosen || !readback.value.subject) throw new Error('Employee setup is unavailable; no API readiness was established');
-        identity = { email: readback.value.email, subject: readback.value.subject };
-        connection = 'identity_only; owner setup or legacy access, no employee readiness';
-      } else identity = probe.value.identity;
+      const probe = await http('/api/access/setup', {}, chosen, credential);
+      if (probe.status !== 200 || probe.value.api !== 'authenticated') throw new Error('Employee setup is unavailable; no API readiness was established');
+      identity = probe.value.identity;
       if (!identity || typeof identity.email !== 'string' || typeof identity.subject !== 'string' || !identity.subject) throw new Error('Verified employee identity is unavailable');
     } else {
       const probe = await http('/api/actions?limit=1', {}, chosen, credential);
       if (probe.status !== 200 || !Array.isArray(probe.value.actions)) throw new Error('Company discovery is unavailable; the target was not connected');
-      connection = 'legacy_company';
     }
     const previous = readJson(file).identity;
     if (previous && identity && (previous.email !== identity.email || previous.subject !== identity.subject)) throw new Error('The signed-in person changed; use a separate private company connection');
     writeFileSync(file, `${JSON.stringify({ origin: chosen, installedOrigin: record() || null, ...(identity && { identity }) })}\n`, { mode: 0o600 });
-    return onboarding ? { connected: chosen, connection } : { connected: chosen };
+    return onboarding ? { connected: chosen, connection: 'employee_setup' } : { connected: chosen };
   }
   async function describe(id) {
     const { value } = await http(`/api/actions?id=${encodeURIComponent(id)}`);
@@ -218,18 +213,7 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     if (result.status !== 200 || result.value.api !== 'authenticated') throw new Error('Employee setup is unavailable; ask the owner to finish setup');
     return result.value;
   }
-  async function ownerSetup(action) {
-    const actions = { identity: ['GET', 'identity'], activate: ['POST', 'activate'],
-      connect: ['POST', 'login/connect'], prepare: ['POST', 'prepare'], rollout: ['POST', 'rollout'],
-      status: ['GET', 'status'], retry: ['POST', 'retry'] };
-    if (!Object.hasOwn(actions, action)) throw new Error('Unsupported owner setup operation');
-    const [method, path] = actions[action];
-    const origin = target();
-    const result = await http(`/api/access/${path}`, { method, headers: { Origin: origin } });
-    if (result.status !== 200) throw new Error('Owner setup is unavailable; verify the private installation record and connections');
-    return result.value;
-  }
-  return { login, list, describe, call, ownerSetup, setup, target, get stateDirectory() { return directory(); } };
+  return { login, list, describe, call, setup, target, get stateDirectory() { return directory(); } };
 }
 const USAGE = 'employee-bootstrap.mjs login --origin <HTTPS origin> | status | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
 export async function main(args = process.argv.slice(2)) {

@@ -32,7 +32,7 @@ test('fresh payload carries every helper dependency and memory descriptions stay
 
 test('explicit distribution retains Access, additive schema and a standalone API-only artifact', () => {
   const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
-  for (const path of ['scripts/employee-bootstrap.mjs', 'scripts/employee-owner-setup.mjs', 'schema/migrations/0001_employee_access.sql', 'schema/migrations/0002_employee_connections.sql']) assert.ok(inventory.pack.files.includes(path));
+  for (const path of ['scripts/employee-bootstrap.mjs', 'schema/migrations/0001_employee_access.sql', 'schema/migrations/0002_employee_connections.sql']) assert.ok(inventory.pack.files.includes(path));
   assert.ok(inventory.scaffold.files.includes('app/src/apps/access/App.tsx'));
   assert.ok(inventory.scaffold.files.includes('app/worker/employee-access/bootstrap-release.json'));
   assert.ok(!inventory.scaffold.exclude.includes('app/src/apps/access'));

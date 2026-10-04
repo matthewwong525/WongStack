@@ -21,7 +21,7 @@ The public `.agents/.wong-stack.json` and [production configuration](../../../ap
 | App database | `wongstack-db`, `322d78e8-19e1-4bf0-8489-faa13c66deb1` |
 | Recorded owner email | `matthewwong525@gmail.com` |
 
-The record still says `humanLogin: unverified` and has no signed owner subject. A repository ID is not an activation prerequisite. Its memory URL suggests the production address, but does not independently verify app routing. These public values are inventory, not owner authority. Private provider/session readback and an independently confirmed owner must establish the activation pin. Live onboarding readiness remains unverified. No private setup record or credential value was read for this inventory.
+The record still says `humanLogin: unverified`. `app/wrangler.jsonc` now carries the recorded owner email as `WONG_OWNER_EMAIL` for both Workers; that committed value, with a verified human sign-in, is the owner authority. No repository ID, private pin or signed-subject pin is involved. The live app has no sign-in list key yet: task 10.3 runs `provision.mjs access` once, with a confirm, after publishing. No private setup record or credential value was read for this inventory.
 
 ## Routes to preserve
 
@@ -35,14 +35,15 @@ The record still says `humanLogin: unverified` and has no signed owner subject. 
 | `/_memory/*` | Independent memory credential before business identity | Preserve memory's authority and target |
 | `/_walk/*` | Signed verification picture route, restricted bucket access | Preserve its independent verification contract |
 | `/?memory_login_link=...` | Verified human machine-label association, clean redirect | Preserve existing memory-only labeling |
-| New `/api/access/identity`, `/api/access/activate` | Undescribed finite core setup operations | Own nonsecret human identity; private-pinned owner activation |
+| `/api/access/setup`, `/api/access/apps` | Undescribed finite core readback | Every signed-in person's own prompt, apps and role |
+| `/api/access/status`, `/api/access/people`, `/api/access/retry` | Undescribed finite owner operations | The recorded owner only; a preview keeps a practice list |
 
 No other bare main business handlers exist in this source router. Installed customized routes require their own read-only inventory and reviewed app mappings before policy activation; this inventory cannot establish that for another business. New app IDs receive no automatic assignment. Existing action/record guards remain conjunctive.
 
 ## Retained source baseline and final acceptance
 
-Previous remote checkpoints in [source-checks.md](source-checks.md) establish trusted owner storage, current app/discovery guards and durable Cloudflare policy/session reconciliation. Their original task numbers and withdrawn GitHub evidence remain historical records.
+Previous remote checkpoints in [source-checks.md](source-checks.md) establish current app/discovery guards and durable Cloudflare policy/session reconciliation for the first build. Their original task numbers and withdrawn GitHub evidence remain historical records; they do not cover this revision.
 
-Current source removes unshipped repository registration, publication inspection, credential issuance and private Git/PR transport. Additive tables and deprecated fields remain intact; app/API-only activation uses inert placeholders for new rows and preserves existing records. Access manages exact-email app grants and independent login outcomes; employees retain own zero-app setup. Home and direct app navigation enforce current permissions while branding/tutorial customization stays intact.
+This revision removes the private owner activation, the rollout list, the policy latch, the sealing key, the sealed database copy, the owner-setup script and the identity/activation routes. The owner is the recorded email; the built app folders are the catalogue; permissions start at the owner's first open, after listing everyone the sign-in list already admits with every app. Additive tables and deprecated fields remain intact: `wong_access_connections` now holds only the newest generation the sign-in list is known to match, and `wong_access_receipts`, `wong_access_attempts` and the repository columns stay inert. Home and direct app navigation enforce current permissions while branding and the removable welcome stay intact.
 
-No live owner authority is established by this inventory or synthetic tests. Tasks 6.1–6.2 require the final source gate and finished nonproduction preview; task 6.3 requires controlled installation authority and actual human-login/provider outcomes. Production management credentials remain excluded from staging.
+No live owner sign-in or provider change is established by this inventory or synthetic tests. Task 10.1 is the source gate, 10.2 the preview with its practice list, and 10.3 the live key step and a real second person. Production management credentials remain excluded from staging.

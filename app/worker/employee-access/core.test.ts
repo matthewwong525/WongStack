@@ -1,45 +1,77 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { AccessError, audit, lease, leaseCurrent, ownerCore, release, reply } from "./core";
-import { decode, encode, seal, unseal } from "./seal";
+import { AccessError, lease, leaseCurrent, ownerCore, permissionsStarted, release, reply } from "./core";
 import { boundedJson } from "./json";
 import { provider } from "./provider";
-import { fixture, owner, employee, pin, req } from "../../tests/employee-access/connections";
+import { fixture, owner, employee, site, req } from "../../tests/employee-access/connections";
 let f: ReturnType<typeof fixture>;
 beforeEach(() => { f = fixture(); });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-it("requires independently pinned production owner even with legacy routing or disabled policy", async () => {
-  f.env.WONG_ACCESS_POLICY = undefined;
-  f.sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
+it("knows the owner by the recorded email and a verified human sign-in, on the live app and on a preview", async () => {
   const core = await ownerCore(req("status", "GET"), f.env, owner);
-  expect(core.email).toBe(pin.ownerEmail);
-  await audit(core, "reviewed", 1);
-  expect(f.sql.prepare("SELECT event FROM wong_access_audit").get()).toEqual({ event: "reviewed" });
-  for (const identity of [null, employee, { ...owner, kind: "service" as const },
-    { ...owner, claims: { ...owner.claims, sub: "other" } }]) {
+  expect(core).toMatchObject({ email: site.ownerEmail, subject: site.ownerSubject, origin: site.origin,
+    installationId: site.installationId, live: true });
+  expect(await permissionsStarted(core)).toBe(true);
+  // Neither the stored subject nor the stored origin is a pin: only the committed email decides.
+  const preview = new Request("https://branch-business-staging.example.com/api/access/status");
+  expect(await ownerCore(preview, { ...f.env, WONG_ENVIRONMENT: "staging", WONG_OWNER_EMAIL: " Owner@Example.com " },
+    { ...owner, id: "OWNER@example.com", claims: { ...owner.claims, email: "OWNER@example.com", sub: "another-device" } }))
+    .toMatchObject({ email: site.ownerEmail, subject: "another-device", live: false, origin: "https://branch-business-staging.example.com" });
+  for (const identity of [employee, { ...owner, kind: "service" as const },
+    { ...owner, claims: { ...owner.claims, common_name: "machine" } }, { ...owner, claims: { ...owner.claims, sub: "" } },
+    { ...owner, claims: { ...owner.claims, exp: 1 } }, { ...owner, claims: { ...owner.claims, email: employee.id } }]) {
     await expect(ownerCore(req("people"), f.env, identity)).rejects.toMatchObject({ code: "owner_required", status: 403 });
   }
-  await expect(ownerCore(new Request(`${pin.origin}/api/access/people`, { method: "POST" }), f.env, owner))
+  // A request body, a header or a foreign page establishes nothing.
+  await expect(ownerCore(new Request(`${site.origin}/api/access/people`, { method: "POST" }), f.env, owner))
+    .rejects.toMatchObject({ code: "origin_required", status: 403 });
+  await expect(ownerCore(req("people", "POST", { owner: employee.id }, { Origin: "https://other.example.com" }), f.env, owner))
     .rejects.toMatchObject({ code: "origin_required" });
-  for (const overrides of [{ WONG_ENVIRONMENT: "staging" }, { WONG_ACCESS_ACTIVATION: undefined }, { WONG_ACCESS_ACTIVATION: "bad" },
-    { CF_ACCESS_TEAM_DOMAIN: "foreign" }, { CF_ACCESS_AUD: "foreign" }, { CF_ACCESS_WORKER_ID: "foreign" },
-    { CF_ACCESS_APP_ID: "foreign" }, { DB: undefined }]) {
-    await expect(ownerCore(req("status", "GET"), { ...f.env, ...overrides } as typeof f.env, owner)).rejects.toBeInstanceOf(AccessError);
+  // No recorded owner, no database, or an open site with no sign-in: Access stays unavailable.
+  for (const [overrides, identity] of [[{ WONG_OWNER_EMAIL: undefined }, owner], [{ WONG_OWNER_EMAIL: "" }, owner],
+    [{ DB: undefined }, owner], [{}, null]] as const) {
+    await expect(ownerCore(req("status", "GET"), { ...f.env, ...overrides }, identity))
+      .rejects.toMatchObject({ code: "owner_setup_required", status: 503 });
   }
-  await expect(ownerCore(new Request("https://other.example.com/api/access/status"), f.env, owner)).rejects.toBeInstanceOf(AccessError);
-  for (const column of ["installation_id", "origin", "owner_subject", "owner_email", "account_id", "access_app_id",
-    "access_policy_id", "worker_id", "issuer", "audience"]) {
-    const saved = f.sql.prepare(`SELECT ${column} value FROM wong_access_installation`).get()!.value;
-    // Installation FK references retain the original IDs for this mismatch check.
-    if (column === "installation_id") f.sql.exec("PRAGMA foreign_keys = OFF");
-    f.sql.prepare(`UPDATE wong_access_installation SET ${column} = 'foreign'`).run();
-    await expect(ownerCore(req("status", "GET"), f.env, owner)).rejects.toMatchObject({ code: "installation_mismatch" });
-    f.sql.prepare(`UPDATE wong_access_installation SET ${column} = ?`).run(saved);
-  }
-  f.sql.exec("UPDATE wong_access_installation SET repository_id = 456");
-  expect((await ownerCore(req("status", "GET"), f.env, owner)).email).toBe(pin.ownerEmail);
-  f.sql.exec("DELETE FROM wong_access_installation");
-  await expect(ownerCore(req("status", "GET"), f.env, owner)).rejects.toMatchObject({ code: "installation_mismatch" });
+  expect(new AccessError("unavailable").status).toBe(503);
+});
+
+it("creates the installation row on the first owner request and logs the first-seen subject once", async () => {
+  f.sql.close(); f = fixture({ started: false });
+  // Nobody but the owner can make the row exist.
+  await expect(ownerCore(req("status", "GET"), f.env, employee)).rejects.toMatchObject({ code: "owner_required" });
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_installation").get()).toEqual({ count: 0 });
+  const core = await ownerCore(req("status", "GET"), f.env, owner);
+  expect(f.sql.prepare("SELECT * FROM wong_access_installation").get()).toMatchObject({ slot: 1, installation_id: core.installationId,
+    origin: site.origin, account_id: "", worker_id: site.workerId, access_app_id: site.accessAppId, access_policy_id: "",
+    issuer: site.issuer, audience: site.audience, owner_subject: site.ownerSubject, owner_email: site.ownerEmail,
+    policy_enabled: 0, revision: 1 });
+  expect(await permissionsStarted(core)).toBe(false);
+  expect(await permissionsStarted({ ...core, installationId: "unknown" })).toBe(false);
+  const again = await ownerCore(req("status", "GET"), f.env, { ...owner, claims: { ...owner.claims, sub: "another-device" } });
+  expect(again.installationId).toBe(core.installationId);
+  expect(f.sql.prepare("SELECT actor_email, event, revision FROM wong_access_audit").all())
+    .toEqual([{ actor_email: site.ownerEmail, event: `owner_first_seen:${site.ownerSubject}`, revision: 1 }]);
+  // A config with no Access identifiers still gets its one row.
+  f.sql.close(); f = fixture({ started: false });
+  await ownerCore(req("status", "GET"), { ...f.env, CF_ACCESS_WORKER_ID: undefined, CF_ACCESS_APP_ID: undefined,
+    CF_ACCESS_TEAM_DOMAIN: undefined, CF_ACCESS_AUD: undefined }, owner);
+  expect(f.sql.prepare("SELECT worker_id, access_app_id, issuer, audience FROM wong_access_installation").get())
+    .toEqual({ worker_id: "", access_app_id: "", issuer: "https://", audience: "" });
+});
+
+it("keeps the winner's row when two first owner requests race", async () => {
+  f.sql.close(); f = fixture({ started: false });
+  const session = f.env.DB!.withSession("first-primary");
+  const batch = session.batch.bind(session);
+  vi.spyOn(session, "batch").mockImplementationOnce(async statements => {
+    // The other request commits its row between this one's read and write.
+    await ownerCore(req("status", "GET"), f.env, owner);
+    return batch(statements);
+  });
+  const core = await ownerCore(req("status", "GET"), f.env, owner);
+  expect(f.sql.prepare("SELECT installation_id FROM wong_access_installation").all()).toEqual([{ installation_id: core.installationId }]);
+  expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit").get()).toEqual({ count: 1 });
 });
 
 it("uses durable bounded leases and a previous holder cannot release or acknowledge a successor", async () => {
@@ -59,17 +91,6 @@ it("uses durable bounded leases and a previous holder cannot release or acknowle
   expect(await leaseCurrent(f.core)).toBe(false);
 });
 
-it("authenticates sealed material, its purpose, and its installation without diagnostics", async () => {
-  const value = await seal("private-token", f.env.WONG_ACCESS_SEAL_KEY, "installation:receipt");
-  expect(value).not.toContain("private-token");
-  expect(await unseal(value, f.env.WONG_ACCESS_SEAL_KEY, "installation:receipt")).toBe("private-token");
-  await expect(unseal(value, f.env.WONG_ACCESS_SEAL_KEY, "other:receipt")).rejects.toThrow();
-  await expect(unseal("invalid", f.env.WONG_ACCESS_SEAL_KEY, "x")).rejects.toMatchObject({ code: "private_material_invalid" });
-  for (const secret of [undefined, encode(new Uint8Array(3)), "!"]) await expect(seal("s", secret, "x")).rejects.toThrow();
-  expect(encode(decode("-_8"))).toBe("-_8");
-  expect(reply({ code: "safe" }).headers.get("Cache-Control")).toBe("no-store");
-});
-
 it("bounds JSON streams and cancels malformed, empty and oversized reads", async () => {
   expect(await boundedJson(Response.json({ ok: true }), 100)).toEqual({ ok: true });
   const stream = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('{"a":')); controller.enqueue(new TextEncoder().encode('1}')); controller.close(); } });
@@ -78,6 +99,8 @@ it("bounds JSON streams and cancels malformed, empty and oversized reads", async
   await expect(boundedJson(new Response("x"), 100)).rejects.toMatchObject({ code: "json_body_invalid" });
   await expect(boundedJson(new Response(new Uint8Array([255])), 100)).rejects.toMatchObject({ code: "json_body_invalid" });
   await expect(boundedJson(new Response("12345"), 2)).rejects.toMatchObject({ code: "json_body_too_large" });
+  expect(reply({ code: "safe" }).headers.get("Cache-Control")).toBe("no-store");
+  expect(reply({ code: "safe" }, 409).status).toBe(409);
 });
 
 it("limits credentials to fixed provider destinations, refuses redirects and hides provider errors", async () => {

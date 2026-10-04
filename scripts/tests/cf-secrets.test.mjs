@@ -225,7 +225,7 @@ test('shared with no .dev.vars or no wrangler config lists nothing and passes', 
 });
 
 test('private production login bindings cannot reach staging through fallback, override, blank declarations or config', t => {
-  for (const name of ['WONG_ACCESS_ACTIVATION', 'WONG_ACCESS_SEAL_KEY', 'WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_ACCESS_ROLLOUT', 'WONG_GITHUB_PUBLICATION']) {
+  for (const name of ['WONG_ACCESS_LOGIN_MANAGEMENT']) {
     const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: logger() } });
     f.write('app/.dev.vars', `API_KEY=synthetic\n${name}=private-synthetic\n`);
     for (const args of [['push'], ['push', 'app/.dev.vars']]) {
@@ -250,6 +250,15 @@ test('secret parity accepts private production authority only on production and 
   for (const env of [{ PROD: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT', STAGING: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT' }, { PROD: 'API_KEY', STAGING: 'API_KEY,WONG_ACCESS_LOGIN_MANAGEMENT' }]) {
     const result = checkSecrets(t, env); assert.equal(result.status, 1); assert.match(result.out, /must never be set on staging/);
   }
-  const binding = check(t, { vars: { WONG_ACCESS_ACTIVATION: 'synthetic' }, env: { staging: {} } }); assert.equal(binding.status, 0, binding.output);
-  const denied = check(t, { env: { staging: { vars: { WONG_ACCESS_ACTIVATION: 'synthetic' } } } }); assert.equal(denied.status, 1); assert.match(denied.output, /private Access management authority/);
+  // Setup stores the key itself, so its absence from the example file is no drift to warn about.
+  const listed = scaffold(t, { env: { staging: {} } }, { tools: { npx: secretList }, prefix: 'cf-secrets-check-' });
+  listed.write('app/.dev.vars.example', 'API_KEY=\n');
+  const warned = listed.run('cf-secrets.mjs', ['check'], { env: { CLOUDFLARE_API_TOKEN: 'test', PROD: 'API_KEY,OTHER_KEY,WONG_ACCESS_LOGIN_MANAGEMENT', STAGING: 'API_KEY,OTHER_KEY' } });
+  assert.equal(warned.status, 0, warned.out); assert.match(warned.out, /'OTHER_KEY' is set but not declared/);
+  assert.doesNotMatch(warned.out, /'WONG_ACCESS_LOGIN_MANAGEMENT' is set but not declared/);
+  const binding = check(t, { vars: { WONG_ACCESS_LOGIN_MANAGEMENT: 'synthetic' }, env: { staging: {} } }); assert.equal(binding.status, 0, binding.output);
+  const denied = check(t, { env: { staging: { vars: { WONG_ACCESS_LOGIN_MANAGEMENT: 'synthetic' } } } }); assert.equal(denied.status, 1); assert.match(denied.output, /private Access management authority/);
+  // The owner email is ordinary committed config: both Workers carry it, and a missing twin is drift.
+  const owner = check(t, { vars: { WONG_OWNER_EMAIL: 'owner@example.com' }, env: { staging: { vars: { WONG_OWNER_EMAIL: 'owner@example.com' } } } }); assert.equal(owner.status, 0, owner.output);
+  const untwinned = check(t, { vars: { WONG_OWNER_EMAIL: 'owner@example.com' }, env: { staging: {} } }); assert.equal(untwinned.status, 1); assert.match(untwinned.output, /WONG_OWNER_EMAIL/);
 });

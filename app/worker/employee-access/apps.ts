@@ -1,19 +1,18 @@
 // Frontend manifests include apps with no API; action registrations are not a catalogue.
 import type { AccessIdentity } from "../access.ts";
+import { catalogue } from "./catalogue.ts";
 import { authorizeRequest, currentPolicy, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
 
-export const catalogue = Object.keys(import.meta.glob("../../src/apps/*/app.json", { eager: true }))
-  .map(path => path.split("/")[4]).sort();
-
-export async function appAccess(request: Request, env: PolicyEnv, identity: AccessIdentity | null,
-  apps: readonly string[] = catalogue): Promise<Response> {
+export async function appAccess(request: Request, env: PolicyEnv, identity: AccessIdentity | null): Promise<Response> {
   if (request.method !== "GET") return Response.json({ error: "Not found" }, { status: 404 });
-  const policy = await currentPolicy(request, env, identity);
-  if (!policyAllows(policy, { kind: "self-service" })) return policyDenied(policy);
+  const policy = await currentPolicy(env, identity);
+  if (policy.state === "unavailable" || policy.state === "denied") return policyDenied(policy);
   const headers = { "Cache-Control": "no-store" };
-  if (policy.state !== "current") return Response.json({ state: "legacy" }, { headers });
+  if (policy.state === "legacy") return Response.json({ state: "legacy" }, { headers });
+  // Before permissions start everyone keeps every app; the role still says who manages people.
+  if (policy.state === "not_started") return Response.json({ state: "not_started", role: policy.role, apps: catalogue }, { headers });
   return Response.json({ state: "current", role: policy.role, revision: policy.revision,
-    apps: apps.filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })) },
+    apps: catalogue.filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })) },
   { headers });
 }
 
@@ -21,6 +20,6 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
 export async function appPageDenied(request: Request, env: PolicyEnv, identity: AccessIdentity | null): Promise<Response | null> {
   const app = /^\/apps\/([a-z0-9-]+)(?:\/|$)/.exec(new URL(request.url).pathname)?.[1];
   if (!app || !catalogue.includes(app)) return null;
-  return authorizeRequest(request, env, identity,
+  return authorizeRequest(env, identity,
     app === "access" ? { kind: "self-service" } : { apps: [app] });
 }

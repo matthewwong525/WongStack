@@ -142,7 +142,8 @@ test('management handoff is private, restricted, bound to the actual source, and
   assert.equal(tryGit('--git-dir', s.origin, 'grep', '-q', '-F', '-e', value.token, 'main'), null);
   assert.equal((await s.install(job)).last, 'done');
   assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), value);
-  assert.equal(s.fake.state.accountTokens.length, 2, 'CI and one management token only');
+  assert.deepEqual(s.fake.state.accountTokens.map(token => token.name).filter(name => !name.includes('-access-')), ['recipe-box-deploy', 'recipe-box-access'], 'CI and the live app\'s own sign-in list key');
+  assert.equal(managementTokens(s).length, 1, 'one management token only');
 });
 
 test('unsafe or mismatched management recipients and paths fail before provisioning', async (t) => {
@@ -313,7 +314,7 @@ test('a run stopped by Cloudflare finishes on the next run with no duplicate', a
   s.fake.state.refuse = [];
   assert.equal((await s.install()).last, 'done');
   assert.equal(s.fake.state.databases.length, 3);
-  assert.equal(s.fake.state.accountTokens.length, 1);
+  assert.deepEqual(s.fake.state.accountTokens.map(token => token.name), ['recipe-box-deploy', 'recipe-box-access']);
   assert.equal(s.fake.rows('recipe-box-memory', 'SELECT count(*) AS n FROM memory_keys')[0].n, 1);
   assert.ok(s.pushed());
 });

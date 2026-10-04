@@ -21,7 +21,7 @@ test('standalone copied file runs without checkout, memory packages or any repos
   const child = spawnSync(process.execPath, [file, '--help'], { cwd: f.root, encoding: 'utf8' });
   assert.equal(child.status, 0, child.stderr); assert.match(child.stdout, /usage:/);
   assert.doesNotMatch(source.toString(), /from ['"]\.\.?\//);
-  assert.doesNotMatch(source.toString(), /api\.github\.com|projectClient|\/api\/access\/token|git clone/);
+  assert.doesNotMatch(source.toString(), /api\.github\.com|projectClient|\/api\/access\/(?:token|identity|activate|prepare|rollout|login)|ownerSetup|git clone/);
   const denied = spawnSync(process.execPath, [file, 'git', 'clone', 'existing-work'], { cwd: f.root, encoding: 'utf8' });
   assert.equal(denied.status, 1); assert.match(denied.stderr, /employee-bootstrap.mjs login/);
 });
@@ -39,11 +39,17 @@ test('empty-folder connection proves current API permission with zero apps and p
   assert.ok(!readFileSync(join(f.stateDir, 'target.json'), 'utf8').includes(jwt()));
   assert.equal(readFileSync(join(f.root, 'work.txt'), 'utf8'), 'preserve');
 });
-test('identity-only owner/legacy resume does not claim employee readiness', async t => {
-  const f = directories(t);
-  const client = companyClient({ ...f, run: async () => jwt(), request: async url => url.pathname.endsWith('/identity') ? Response.json({ ...identity, origin }) : Response.json({ code: 'setup_unavailable' }, { status: 503 }) });
-  assert.match((await client.login(origin)).connection, /identity_only/);
-  await assert.rejects(client.setup(), { message: 'Company request failed (HTTP 503)' });
+test('a server that proves no API readiness or no signed identity is never connected', async t => {
+  for (const [answer, message] of [[{ ...setup(), api: 'pending' }, /no API readiness was established/], [{ code: 'not_found' }, /no API readiness was established/],
+    [{ ...setup(), identity: { email: identity.email } }, /Verified employee identity is unavailable/], [{ ...setup(), identity: undefined }, /Verified employee identity is unavailable/]]) {
+    const f = directories(t), requests = [];
+    const client = companyClient({ ...f, run: async () => jwt(), request: async url => { requests.push(url.pathname); return Response.json(answer); } });
+    await assert.rejects(client.login(origin), message);
+    // Setup is the one readback: the withdrawn identity and owner-setup routes are never asked.
+    assert.deepEqual(requests, ['/api/access/setup']);
+    assert.equal(client.ownerSetup, undefined);
+    await assert.rejects(client.setup(), /Connect first/);
+  }
 });
 test('standalone denies redirects, expired/new-device/removed logins and never forwards credentials', async t => {
   for (const status of [302, 401, 403, 503]) {

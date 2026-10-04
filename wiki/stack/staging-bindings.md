@@ -95,7 +95,7 @@ Each has a committed, values-blank `.example` beside it: `.env.example` at the r
 
 ### Same values by default; diverge where writes escape
 
-`secrets:push` falls back to `.dev.vars` for staging, so both Workers get identical values unless you create a git-ignored **`app/.dev.vars.staging`**. No command changes; the file's existence is the switch. Private [Access management bindings](employee-access.md#keep-production-authority-out-of-previews) are production-only: omit their names entirely from staging, even blank declarations. Both target files/config are validated before the first push, so an unsafe fallback or override loads nothing.
+`secrets:push` falls back to `.dev.vars` for staging, so both Workers get identical values unless you create a git-ignored **`app/.dev.vars.staging`**. No command changes; the file's existence is the switch. [The live app's key for its sign-in list](employee-access.md#the-key) is production-only, and setup stores it for you: leave its name out of staging entirely, even as a blank declaration. A preview keeps [a practice list](employee-access.md#the-practice-list-on-previews) and needs no key. Both target files/config are validated before the first push, so an unsafe fallback or override loads nothing.
 
 Identical values are fine for read-only or harmless credentials. **Diverge for anything with third-party write side effects** — payment keys, outbound email and SMS, webhook targets. Sharing those lets a branch on staging charge a real card or email a real customer: the same production-contamination hole that twinning the database closes, re-opened one layer up at the API. It fails quietly, in the same family as a service binding left pointing at production.
 

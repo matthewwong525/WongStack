@@ -2,7 +2,7 @@
 
 ### Requirement: Apps and agents use the same defined company action
 
-A described company action SHALL be callable through its existing Worker endpoint by both its app and an authenticated employee assistant. Both callers SHALL execute the same handler with verified identity and the same existing action and record checks. When Access per-app policy is enabled, both SHALL additionally require current employee permission for the action's associated app or apps, including direct API requests. Discovery SHALL NOT grant permission or bypass those checks. An active policy with missing app permission or unavailable authority SHALL stop before business work; installations that have not activated that policy SHALL retain their existing authorization.
+A described company action SHALL be callable through its existing Worker endpoint by both its app and an authenticated employee assistant. Both callers SHALL execute the same handler with verified identity and the same existing action and record checks. Once Access per-app permissions have started, both SHALL additionally require current employee permission for the action's associated app or apps, including direct API requests. Discovery SHALL NOT grant permission or bypass those checks. Started permissions with missing app permission or unavailable authority SHALL stop before business work; installations where permissions have not started SHALL retain their existing authorization.
 
 #### Scenario: An employee uses an app action through their agent
 
@@ -21,7 +21,7 @@ A described company action SHALL be callable through its existing Worker endpoin
 
 ### Requirement: Exposure is explicit and preserves existing apps
 
-An existing unconverted handler SHALL retain its path, business behavior and existing authorization and SHALL be absent from discovery until deliberately described. Enabling Access per-app permissions through a reviewed update SHALL additionally enforce the employee's current app permission before both described and legacy business handlers. Unmapped business routes SHALL deny employee execution until reviewed without removing or replacing their implementation. Possessing a key SHALL NOT expose every action of that service. An employee-enabled action requiring company connections SHALL require verified caller authentication even when an older starter site is open without login. Missing connections SHALL produce a safe unavailable state rather than a request for the owner key on the employee machine.
+An existing unconverted handler SHALL retain its path, business behavior and existing authorization and SHALL be absent from discovery until deliberately described. Started Access per-app permissions SHALL additionally enforce the employee's current app permission before both described and legacy business handlers. Unmapped business routes SHALL deny employee execution until reviewed without removing or replacing their implementation. Possessing a key SHALL NOT expose every action of that service. An employee-enabled action requiring company connections SHALL require verified caller authentication even when an older starter site is open without login. Missing connections SHALL produce a safe unavailable state rather than a request for the owner key on the employee machine.
 
 #### Scenario: An installed app updates
 
@@ -35,5 +35,5 @@ An existing unconverted handler SHALL retain its path, business behavior and exi
 
 #### Scenario: A custom business route has no permission assignment
 
-- **WHEN** Access per-app policy is enabled and a legacy route lacks a reviewed app mapping
+- **WHEN** Access per-app permissions have started and a legacy route lacks a reviewed app mapping
 - **THEN** employee requests perform no business work until that mapping is reviewed, and the existing handler and stricter checks remain preserved

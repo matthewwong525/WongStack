@@ -50,8 +50,8 @@
  * Workers: a deployed secret can not be read back, so a Worker loaded before
  * the files changed may differ until the next `push`.
  *
- * Worker names and ordinary business keys come from config/files. Private
- * Access management names are explicitly production-only. Every repo ships
+ * Worker names and ordinary business keys come from config/files. The private
+ * Access management name is explicitly production-only. Every repo ships
  * this file byte-for-byte identical.
  */
 
@@ -71,8 +71,8 @@ import { primaryRoot } from "../.claude/skills/memory/scripts/lib/primary-root.m
 import { parseCli, usageError } from "./lib-cli.mjs";
 
 const STAGING_ENV = "staging";
-// Include the withdrawn repository secret only as a legacy leakage backstop.
-const PRIVATE_ACCESS = new Set(["WONG_ACCESS_ACTIVATION", "WONG_ACCESS_SEAL_KEY", "WONG_ACCESS_LOGIN_MANAGEMENT", "WONG_ACCESS_ROLLOUT", "WONG_GITHUB_PUBLICATION"]);
+// Setup stores the sign-in list key on the production Worker alone; no file here holds it.
+const PRIVATE_ACCESS = new Set(["WONG_ACCESS_LOGIN_MANAGEMENT"]);
 
 /** The file the Worker's runtime secrets are declared in. */
 const SOURCE = ".dev.vars";
@@ -522,7 +522,8 @@ function checkSecrets(appDir) {
       }
     }
     for (const name of held) {
-      if (!declared.includes(name)) {
+      // Setup stores the Access key itself, so the example file never lists it.
+      if (!declared.includes(name) && !PRIVATE_ACCESS.has(name)) {
         warn(`secret '${name}' is set but not declared in ${EXAMPLE}.`);
       }
     }

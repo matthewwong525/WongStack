@@ -13,7 +13,7 @@ This runbook turns a fresh WongStack install into a running app with session mem
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
 - **Ask before creating or deleting anything billable**, as [a choice with a recommendation](../../explore/references/asking-the-user.md): say what you will make, then make it.
-- **The widen and the two mints are [pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized):** do them, then report them.
+- **The widen and the mints are [pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized):** do them, then report them.
 
 ## Step 1 — the credential
 
@@ -151,7 +151,7 @@ CI gets its own narrow token, never the user token ([why](../../../../wiki/stack
 - **Token and `CLOUDFLARE_API_TOKEN` secret both exist** (`gh secret list`) → current; it only adds a row the token now needs.
 - **The token exists, the secret doesn't** → it rolls the value and sets the secret. To rotate on request, run `gh secret delete CLOUDFLARE_API_TOKEN`, then the script again.
 
-It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. It can publish app/data changes and inspect private coverage; it cannot write Access policies.
+It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. It can publish app/data changes and inspect private coverage; it cannot write Access policies; the live app's own key does.
 
 ### 4e. The workflow
 

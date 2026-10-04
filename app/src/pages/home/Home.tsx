@@ -17,7 +17,7 @@ export function Home() {
         <p className="home-description">Your tools, in one place.</p>
       </header>
       {data && !employee && <Tutorial />}
-      {data?.state === 'current' && <AssistantSetup />}
+      {data && <AssistantSetup />}
       <h2 className="home-apps-heading">Your apps</h2>
       {!data && !error && <p role="status">Loading your apps…</p>}
       {error && <><p role="alert">Your app access is unavailable.</p><button type="button" onClick={reload}>Retry apps</button></>}

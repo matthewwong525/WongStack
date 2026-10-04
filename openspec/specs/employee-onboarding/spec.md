@@ -8,7 +8,7 @@ Let employees connect an assistant from an existing business app using their app
 
 ### Requirement: The business app is the employee setup entry point
 
-A current employee SHALL receive a copyable assistant setup prompt and their own connection status after signing into the existing protected business app. The prompt SHALL contain nonsecret routing and instructions only, SHALL remain manually copyable after clipboard failure, and SHALL perform no work or grant access when copied. Employees SHALL require no Cloudflare administration account or repository identity for the supported company API connection. Repository access SHALL be granted and authenticated separately through its provider. Expired or new-device sessions SHALL use the same employee app identity for renewed approval.
+Every signed-in person SHALL receive a copyable assistant setup prompt and their own connection status after signing into the existing protected business app, before and after per-app permissions start. The prompt SHALL contain nonsecret routing and instructions only, SHALL remain manually copyable after clipboard failure, and SHALL perform no work or grant access when copied. Employees SHALL require no Cloudflare administration account or repository identity for the supported company API connection. Repository access SHALL be granted and authenticated separately through its provider. Expired or new-device sessions SHALL use the same employee app identity for renewed approval.
 
 #### Scenario: Employee copies setup instructions
 
@@ -22,12 +22,17 @@ A current employee SHALL receive a copyable assistant setup prompt and their own
 
 ### Requirement: The employer manages employee grants through Access
 
-Only the installation's trusted verified employer SHALL add, edit or remove employees, manage app-login connections, or change selected-app grants. A new employee SHALL have no business apps preselected and SHALL receive no repository authority from app login. New apps SHALL require an explicit assignment. A current employee with no assigned business apps SHALL retain only their self-service setup/status. Public routing, service identity and first visitation SHALL establish no employer authority.
+The employer SHALL be the person whose verified signed-in email equals the owner email setup recorded in the installation's committed configuration; no private activation record, command or rollout list SHALL be required before Access opens. Only the employer SHALL add, edit or remove employees or change selected-app grants. A new employee SHALL have no business apps preselected and SHALL receive no repository authority from app login. A newly built app SHALL appear in Access unassigned and SHALL require an explicit assignment. A current employee with no assigned business apps SHALL retain only their self-service setup/status. Public routing, service identity, request content and first visitation SHALL establish no employer authority. An installation with no recorded owner email SHALL keep its existing behavior and report Access setup unfinished.
 
 #### Scenario: Employer adds a person
 
 - **WHEN** the employer saves a person's email with Orders access
 - **THEN** that person is assigned Orders only and the owner receives the ordinary app link to share and the actual admission status
+
+#### Scenario: The owner opens Access for the first time
+
+- **WHEN** the person whose sign-in email is the recorded owner email opens Access with no other setup done
+- **THEN** the people list and Add person are available without a private record or command
 
 #### Scenario: Employee attempts membership administration
 
@@ -36,12 +41,17 @@ Only the installation's trusted verified employer SHALL add, edit or remove empl
 
 ### Requirement: App admission follows current desired employee membership
 
-The installation SHALL durably reconcile its current exact-email roster to its recorded app login policy, preserving the employer, other employees, unrelated policies and machine access. Failed admission/removal and session-revocation work SHALL remain observable and retryable. Stale work SHALL not restore a removed member. Login-management credentials SHALL remain private in the customer installation, separate from broader provisioning authority; their actual provider scope SHALL be disclosed. An open or unverified installation SHALL report onboarding unavailable rather than silently granting access.
+Saving a person SHALL commit their app choices and, in the same request on the live app, attempt to reconcile the current exact-email roster to the recorded app login policy, preserving the employer, other employees, the policy's other controls, unrelated policies and machine access. Each person SHALL show one sign-in status; failed admission/removal and session-revocation work SHALL remain observable and retryable. Stale work SHALL not restore a removed member. The login-management credential SHALL be supplied by setup, remain private in the live installation, stay separate from deployment authority, and have its actual provider scope disclosed. A live installation without that credential SHALL still open Access and save app choices while reporting the one remaining setup step. An open or unverified installation SHALL report onboarding unavailable rather than silently granting access.
 
 #### Scenario: Login policy update fails
 
 - **WHEN** the roster is saved but the provider refuses its email-policy update
 - **THEN** admission remains pending and retryable without claiming the person can log in or asking them for a management token
+
+#### Scenario: The credential has not been supplied yet
+
+- **WHEN** the employer saves a person on a live installation that has no login-management credential
+- **THEN** the app choices are saved, the person is shown as not yet able to sign in, and Access names the one setup step left
 
 #### Scenario: A removed person's earlier add is retried
 
@@ -78,12 +88,17 @@ Employee sessions SHALL remain in private OS-user state outside checkouts and SH
 
 ### Requirement: Current app grants govern business access everywhere
 
-Current employee grants SHALL govern app lists, direct app visits, associated described and bare API routes, and assistant discovery/calls. Server authorization SHALL apply before business work, preserve stricter existing action and record checks, and deny unavailable or unmapped policy. Client state, existing login, cached descriptions and repository access SHALL grant no extra permission. Acknowledged grant removal SHALL deny subsequent requests; work already admitted SHALL not be claimed undone.
+Current employee grants SHALL govern app lists, direct app visits, associated described and bare API routes, and assistant discovery/calls. Server authorization SHALL apply before business work, preserve stricter existing action and record checks, and deny unavailable or unmapped policy. Client state, existing login, cached descriptions and repository access SHALL grant no extra permission. The installation's verification service token SHALL keep every built app on previews and the live app, as before permissions started, and SHALL never manage people. Acknowledged grant removal SHALL deny subsequent requests; work already admitted SHALL not be claimed undone.
 
 #### Scenario: An employee calls a hidden app API
 
 - **WHEN** an employee assigned Orders but not Payroll calls Payroll directly with a valid session
 - **THEN** the server denies Payroll before business work while Orders remains available
+
+#### Scenario: The verification machine checks a preview
+
+- **WHEN** the verification service token opens an app page or calls its API after permissions have started
+- **THEN** the request is allowed, and a people-management request from it is denied
 
 #### Scenario: An assigned app is removed during a session
 
@@ -112,3 +127,26 @@ Full removal SHALL deny company work immediately, withdraw managed app admission
 
 - **WHEN** local removal commits but a provider policy or session revocation fails
 - **THEN** new company work is denied and Access reports and retries unresolved provider outcomes without claiming full completion
+
+### Requirement: People who could already sign in keep their apps
+
+Per-app permissions SHALL start automatically at the employer's first Access visit and SHALL NOT reduce anyone's access. On the live app, every email already admitted by the recorded login policy SHALL first be recorded as a current person with every built app; if that import cannot complete, permissions SHALL stay off and everyone SHALL keep their existing access. Before permissions start, every signed-in person SHALL keep every app. After they start, unavailable permission data SHALL deny business work.
+
+#### Scenario: Teammates existed before Access
+
+- **WHEN** the employer first opens Access on a live app whose sign-in list already admits three other people
+- **THEN** those three appear with every app selected and keep using every app until the employer changes them
+
+#### Scenario: The existing sign-in list cannot be read
+
+- **WHEN** the first visit cannot read the recorded login policy
+- **THEN** permissions stay off, nobody loses an app, and Access reports the step left
+
+### Requirement: Previews keep a practice list
+
+On staging and previews the employer SHALL be able to open Access, add people and choose apps against the preview's own data. A preview SHALL hold no login-management credential, SHALL make no login-provider change, SHALL say that its list is for practice, and SHALL NOT read or change the live app's people.
+
+#### Scenario: The employer tries Access on a preview
+
+- **WHEN** the employer adds a person on a preview link
+- **THEN** the person and their apps are saved in the preview's data, the screen says the real sign-in list is untouched, and the live app's people are unchanged

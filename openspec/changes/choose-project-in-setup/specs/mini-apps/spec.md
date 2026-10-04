@@ -35,7 +35,7 @@ The home page SHALL present each authorized mini app as a clearly focused link w
 
 ### Requirement: A mini app reaches everything but memory
 
-A mini app's server side SHALL receive the main app's business bindings and saved business-service keys, and the verified identity of the caller: a person's email or a service token's name. It SHALL receive no memory-store bindings, Access login-management credentials or credential-sealing key. Identity-checked finite core operations SHALL provide required administration without exposing those secrets. The Worker SHALL keep other runtime routes to bindings, such as importing them, turned off. The docs SHALL say mini apps share the Worker with core authorization and memory, so binding exclusions stop mistakes rather than malicious deployed code. A preview SHALL use staging data and keys, never production management credentials or provider mutations.
+A mini app's server side SHALL receive the main app's business bindings and saved business-service keys, and the verified identity of the caller: a person's email or a service token's name. It SHALL receive no memory-store bindings or Access login-management credential. Identity-checked finite core operations SHALL provide required administration without exposing those secrets. The Worker SHALL keep other runtime routes to bindings, such as importing them, turned off. The docs SHALL say mini apps share the Worker with core authorization and memory, so binding exclusions stop mistakes rather than malicious deployed code. A preview SHALL use staging data and keys, never production management credentials or provider mutations.
 
 #### Scenario: Production binds memory
 
@@ -47,6 +47,11 @@ A mini app's server side SHALL receive the main app's business bindings and save
 - **WHEN** a handler imports the environment from the Workers runtime
 - **THEN** the runtime refuses, and no memory or connection-management binding reaches it
 
+#### Scenario: The owner manages access on a preview
+
+- **WHEN** the verified employer uses Access on a preview
+- **THEN** people and app choices are saved in staging data with no login-provider call and no production credential
+
 #### Scenario: The owner manages access
 
 - **WHEN** the verified employer uses the Access mini app's approved core operations
@@ -54,7 +59,7 @@ A mini app's server side SHALL receive the main app's business bindings and save
 
 ### Requirement: The starter landing page teaches the loop
 
-The starter landing page SHALL have a permanent workspace heading and open its employer guidance with one removable welcome, titled *Make it yours*, that makes clear that changes begin by asking in the person's existing chat. It SHALL offer one selectable, copyable first request that asks the agent to get to know the person, personalize the workspace heading, remove the welcome, explain the steps, and show a preview before publishing. The page SHALL confirm a successful copy and retain a way to copy by hand if clipboard access is unavailable. The mini-app list SHALL sit below the welcome. Removing the welcome SHALL leave the workspace heading and app list usable. Sync SHALL update the welcome only while the target still shows it. When Access employee policy is active, employees SHALL instead see their assistant connection prompt and authorized apps without employer personalization or administration guidance; the employer's existing removable welcome SHALL be preserved.
+The starter landing page SHALL have a permanent workspace heading and open its employer guidance with one removable welcome, titled *Make it yours*, that makes clear that changes begin by asking in the person's existing chat. It SHALL offer one selectable, copyable first request that asks the agent to get to know the person, personalize the workspace heading, remove the welcome, explain the steps, and show a preview before publishing. The page SHALL confirm a successful copy and retain a way to copy by hand if clipboard access is unavailable. The mini-app list SHALL sit below the welcome. Removing the welcome SHALL leave the workspace heading and app list usable. Sync SHALL update the welcome only while the target still shows it. Every signed-in person SHALL see one assistant connection prompt on the page. Once Access per-app permissions have started, employees SHALL see that prompt and their authorized apps without employer personalization or administration guidance; the employer's existing removable welcome SHALL be preserved.
 
 #### Scenario: A fresh install
 
@@ -69,5 +74,5 @@ The starter landing page SHALL have a permanent workspace heading and open its e
 
 #### Scenario: Employee opens a configured app
 
-- **WHEN** an employee opens the business app with active Access policy
+- **WHEN** an employee opens the business app after Access per-app permissions have started
 - **THEN** the page offers their assistant setup prompt and allowed apps, without giving them employer personalization or administration guidance

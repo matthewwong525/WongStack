@@ -6,9 +6,7 @@ import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
-import type { ActivationEnv } from "./employee-access/activation.ts";
 import type { ConnectionEnv } from "./employee-access/core.ts";
-import type { PolicyEnv } from "./employee-access/policy.ts";
 import { appPageDenied } from "./employee-access/apps.ts";
 import { handleAccess } from "./employee-access/router.ts";
 
@@ -41,7 +39,7 @@ export default {
       });
     }
 
-    // Owner activation consumes only a private operator pin and signed identity.
+    // People management answers only the signed-in owner; setup readback answers each person.
     if (url.pathname.startsWith("/api/access/")) {
       return handleAccess(request, env, identity);
     }
@@ -83,4 +81,4 @@ export default {
     if (denied) return denied;
     return env.ASSETS.fetch(request);
   },
-} satisfies ExportedHandler<Env & AccessEnv & ActivationEnv & PolicyEnv & ConnectionEnv>;
+} satisfies ExportedHandler<Env & AccessEnv & ConnectionEnv>;

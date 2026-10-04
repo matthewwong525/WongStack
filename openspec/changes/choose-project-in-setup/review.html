@@ -106,64 +106,103 @@
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
 <p data-note="why-1" tabindex="0">Employees should start from the business app they already use, copy one setup prompt and connect their assistant to the apps they are allowed to use. The employer should control those permissions in one small app.</p>
+<p data-note="why-2" tabindex="0">The first build could not be switched on. Access stayed locked until someone filled in five hidden settings and ran about seven commands, and it refused to work on a preview at all. The owner signed in and saw no access and no way to add anyone. This revision makes Access work the moment the owner opens it.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Copy a setup prompt after signing in.</b> Employees paste it into their assistant, approve the same business login on that computer when needed, and connect to their allowed company API actions. The prompt contains no keys. A failed clipboard action leaves the text available to copy by hand.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">HOME: BEFORE          HOME: AFTER</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">┌─────────────────┐   ┌──────────────────────┐</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">│ Your workspace  │   │ Your workspace       │</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">│ App list        │   │ Connect assistant    │</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">└─────────────────┘   │ [Copy setup prompt]  │</span>
-<span class="ln" data-note="item-1-line-6" tabindex="0">                      │ Your allowed apps    │</span>
-<span class="ln" data-note="item-1-line-7" tabindex="0">                      └──────────────────────┘</span>
-
-<span class="ln" data-note="item-1-line-9" tabindex="0">Sign in → Copy prompt → Paste → Approve</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0">                                    ↓</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0">                            Company API ready</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Manage people and apps in Access.</b> The employer adds an email, chooses the apps that person can use and shares the ordinary business app link. No apps are selected automatically. Employees see their own setup status; the employer sees people, login setup and pending changes.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-2-line-1" tabindex="0">ACCESS: OWNER</span>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Access knows the owner.</b> Setup already records the owner's email when it puts the sign-in in front of the app. Open Access with that email and the people list is there: no hidden settings, no commands.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">  BEFORE                      AFTER</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">┌────────────────────────┐  ┌────────────────────────┐</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">│ Access                 │  │ Access   +[Add person] │</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">│ People management is   │  │ bo@example.com         │</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">│ unavailable.           │  │ Orders · Can sign in   │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">│ [Retry people]         │  │ ana@example.com        │</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0">│ [Copy private setup]   │  │ No apps · Can sign in  │</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">│ Assistant setup is     │  │ +Connect assistant     │</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">│ unavailable.           │  │ +[Copy setup prompt]   │</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0">└────────────────────────┘  └────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Add person does everything in one save.</b> Type an email, tick the apps, save. The app records the choices and adds the email to the sign-in list itself. One line per person says whether they can sign in. A retry shows only when that step failed.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-2-line-1" tabindex="0">ADD PERSON</span>
 <span class="ln" data-note="item-2-line-2" tabindex="0">┌──────────────────────────────────┐</span>
-<span class="ln" data-note="item-2-line-3" tabindex="0">│ Access              [Add person] │</span>
-<span class="ln" data-note="item-2-line-4" tabindex="0">│ Bo · Orders             [Edit]   │</span>
-<span class="ln" data-note="item-2-line-5" tabindex="0">│ Login management: Ready          │</span>
+<span class="ln" data-note="item-2-line-3" tabindex="0">│ Email  [bo@example.com       ]   │</span>
+<span class="ln" data-note="item-2-line-4" tabindex="0">│ Apps   [x] Orders  [ ] Payroll   │</span>
+<span class="ln" data-note="item-2-line-5" tabindex="0">│ [Save access]         [Cancel]   │</span>
 <span class="ln" data-note="item-2-line-6" tabindex="0">└──────────────────────────────────┘</span>
 
-<span class="ln" data-note="item-2-line-8" tabindex="0">ADD / EDIT PERSON</span>
+<span class="ln" data-note="item-2-line-8" tabindex="0">SAVED</span>
 <span class="ln" data-note="item-2-line-9" tabindex="0">┌──────────────────────────────────┐</span>
-<span class="ln" data-note="item-2-line-10" tabindex="0">│ Email  [bo@example.com       ]   │</span>
-<span class="ln" data-note="item-2-line-11" tabindex="0">│ Apps   [x] Orders  [ ] Payroll   │</span>
-<span class="ln" data-note="item-2-line-12" tabindex="0">│ [Save access]                    │</span>
-<span class="ln" data-note="item-2-line-13" tabindex="0">│ Admission pending · [Retry]      │</span>
-<span class="ln" data-note="item-2-line-14" tabindex="0">│ [Copy app link]                  │</span>
-<span class="ln" data-note="item-2-line-15" tabindex="0">└──────────────────────────────────┘</span>
+<span class="ln" data-note="item-2-line-10" tabindex="0">│ bo@example.com                   │</span>
+<span class="ln" data-note="item-2-line-11" tabindex="0">│ Orders · Can sign in    [Edit]   │</span>
+<span class="ln" data-note="item-2-line-12" tabindex="0">│ [Copy app link]                  │</span>
+<span class="ln" data-note="item-2-line-13" tabindex="0">└──────────────────────────────────┘</span>
 
-<span class="ln" data-note="item-2-line-17" tabindex="0">ACCESS: EMPLOYEE</span>
-<span class="ln" data-note="item-2-line-18" tabindex="0">┌──────────────────────────────────┐</span>
-<span class="ln" data-note="item-2-line-19" tabindex="0">│ Connect your assistant           │</span>
-<span class="ln" data-note="item-2-line-20" tabindex="0">│ API: Ready                       │</span>
-<span class="ln" data-note="item-2-line-21" tabindex="0">│ Apps: Orders                     │</span>
-<span class="ln" data-note="item-2-line-22" tabindex="0">│ [Copy setup prompt]              │</span>
-<span class="ln" data-note="item-2-line-23" tabindex="0">│ Repository: Set up separately    │</span>
-<span class="ln" data-note="item-2-line-24" tabindex="0">│ Memory: Separate setup           │</span>
-<span class="ln" data-note="item-2-line-25" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Apply the same app permissions everywhere.</b> App pages, direct API calls and assistant actions use the same current permissions. Removing an app permission blocks the next request, including during an existing login. Existing stricter record checks remain in force.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-3-line-1" tabindex="0">Orders allowed → page / API / assistant ✓</span>
-<span class="ln" data-note="item-3-line-2" tabindex="0">Payroll denied → page / API / assistant ✕</span></pre></div></details></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Show pending login changes honestly.</b> The app updates its recorded Cloudflare email policy and reports policy changes and session removal separately. Removal blocks company API work immediately; provider failures stay visible and retryable. Session removal can require teammates to sign in again.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-4-line-1" tabindex="0">REMOVE PERSON</span>
+<span class="ln" data-note="item-2-line-15" tabindex="0">SIGN-IN STEP FAILED</span>
+<span class="ln" data-note="item-2-line-16" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-2-line-17" tabindex="0">│ bo@example.com                   │</span>
+<span class="ln" data-note="item-2-line-18" tabindex="0">│ Orders · Can't sign in yet       │</span>
+<span class="ln" data-note="item-2-line-19" tabindex="0">│ [Try again]                      │</span>
+<span class="ln" data-note="item-2-line-20" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>The live app holds its own key for the sign-in list.</b> Setup makes a Cloudflare key that can only edit sign-in rules and stores it in the live app, never in a preview. Cloudflare scopes that kind of key to the whole account; the app only ever edits its own list. An install made before this change gets the key the next time it updates. Until then Access still opens and saves app choices, and says one step is left.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-3-line-1" tabindex="0">ONE STEP LEFT</span>
+<span class="ln" data-note="item-3-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-3-line-3" tabindex="0">│ Access                           │</span>
+<span class="ln" data-note="item-3-line-4" tabindex="0">│ You can choose apps now. To let  │</span>
+<span class="ln" data-note="item-3-line-5" tabindex="0">│ new people sign in, ask your     │</span>
+<span class="ln" data-note="item-3-line-6" tabindex="0">│ assistant: Finish Access setup   │</span>
+<span class="ln" data-note="item-3-line-7" tabindex="0">│ [Copy that request]              │</span>
+<span class="ln" data-note="item-3-line-8" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>People who can already sign in keep every app.</b> The first time the owner opens Access, it lists everyone already on the sign-in list with every app ticked. Nothing changes for them until the owner unticks something. A person added later starts with no apps.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-4-line-1" tabindex="0">FIRST OPEN</span>
 <span class="ln" data-note="item-4-line-2" tabindex="0">┌──────────────────────────────────┐</span>
-<span class="ln" data-note="item-4-line-3" tabindex="0">│ Remove Bo's app access?          │</span>
-<span class="ln" data-note="item-4-line-4" tabindex="0">│ [Remove access]     [Cancel]     │</span>
-<span class="ln" data-note="item-4-line-5" tabindex="0">│ App/API: Blocked                 │</span>
-<span class="ln" data-note="item-4-line-6" tabindex="0">│ Login policy: Removal pending    │</span>
-<span class="ln" data-note="item-4-line-7" tabindex="0">│ Sessions: Removal pending        │</span>
-<span class="ln" data-note="item-4-line-8" tabindex="0">│ [Retry]                          │</span>
-<span class="ln" data-note="item-4-line-9" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Keep repository access manual.</b> App login grants no GitHub or Cloudflare Artifacts repository access. The employer grants repository access through that provider, and employees authenticate there separately. Access does not manage or revoke those grants. Existing memory setup also stays separate.</div></div></li>
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Build first, verify at the end.</b> Complete the remaining implementation before running tests, then run the required checks and review the finished preview. Repairs repeat only the checks needed to resolve an actual failure.</div></div></li>
+<span class="ln" data-note="item-4-line-3" tabindex="0">│ 3 people could already sign in.  │</span>
+<span class="ln" data-note="item-4-line-4" tabindex="0">│ They keep every app until you    │</span>
+<span class="ln" data-note="item-4-line-5" tabindex="0">│ change them.                     │</span>
+<span class="ln" data-note="item-4-line-6" tabindex="0">│ cy@example.com                   │</span>
+<span class="ln" data-note="item-4-line-7" tabindex="0">│ All apps · Can sign in  [Edit]   │</span>
+<span class="ln" data-note="item-4-line-8" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>A new app shows up by itself.</b> When an app is built it appears in the tick list, unticked for everyone but the owner. Nobody edits a second hidden list of apps.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-5-line-1" tabindex="0">build Payroll ─▶ Access lists Payroll</span>
+<span class="ln" data-note="item-5-line-2" tabindex="0">                        │</span>
+<span class="ln" data-note="item-5-line-3" tabindex="0">                        ▼</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">              owner ticks it for Bo</span></pre></div></details></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>A preview has its own practice list.</b> On a preview link the owner can add people and choose apps to try the screen before publishing. Those choices stay on previews and never touch the real sign-in list.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-6-line-1" tabindex="0">ON A PREVIEW</span>
+<span class="ln" data-note="item-6-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-6-line-3" tabindex="0">│ Access · Practice list           │</span>
+<span class="ln" data-note="item-6-line-4" tabindex="0">│ Changes here stay on previews.   │</span>
+<span class="ln" data-note="item-6-line-5" tabindex="0">│ The real sign-in list is not     │</span>
+<span class="ln" data-note="item-6-line-6" tabindex="0">│ touched.          [Add person]   │</span>
+<span class="ln" data-note="item-6-line-7" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>The setup prompt is always there, in one box.</b> Anyone signed in can copy it from Home or Access, paste it into their assistant and approve the same sign-in on that computer. The prompt holds no keys. If copying fails, the text stays on screen to copy by hand.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-7-line-1" tabindex="0">CONNECT YOUR ASSISTANT</span>
+<span class="ln" data-note="item-7-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-7-line-3" tabindex="0">│ Signed in as bo@example.com      │</span>
+<span class="ln" data-note="item-7-line-4" tabindex="0">│ Apps: Orders                     │</span>
+<span class="ln" data-note="item-7-line-5" tabindex="0">│ [Copy setup prompt]              │</span>
+<span class="ln" data-note="item-7-line-6" tabindex="0">│ Paste it into your assistant     │</span>
+<span class="ln" data-note="item-7-line-7" tabindex="0">│ and approve the sign-in.         │</span>
+<span class="ln" data-note="item-7-line-8" tabindex="0">└──────────────────────────────────┘</span>
+
+<span class="ln" data-note="item-7-line-10" tabindex="0">you            assistant        app</span>
+<span class="ln" data-note="item-7-line-11" tabindex="0"> │── paste ─────▶│               │</span>
+<span class="ln" data-note="item-7-line-12" tabindex="0"> │               │── sign in? ──▶│</span>
+<span class="ln" data-note="item-7-line-13" tabindex="0"> │── approve ───────────────────▶│</span>
+<span class="ln" data-note="item-7-line-14" tabindex="0"> │               │◀── allowed ───│</span></pre></div></details></li>
+<li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>The same app permissions apply everywhere.</b> App pages, direct calls and assistant actions all check the person's current apps. Unticking an app blocks their next request, even while they stay signed in.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-8-line-1" tabindex="0">Orders ticked   ─▶ page / call / assistant: yes</span>
+<span class="ln" data-note="item-8-line-2" tabindex="0">Payroll unticked ─▶ page / call / assistant: no</span></pre></div></details></li>
+<li class="item card" id="item-9"><span class="num">9</span><div class="body"><div class="text" data-note="item-9" tabindex="0"><b>Removing a person blocks them at once, and signs everyone out.</b> Their app use stops with the save. Taking them off the sign-in list also ends every open session of this app, so the people who remain sign in again. This can't be undone.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-9-line-1" tabindex="0">REMOVE PERSON</span>
+<span class="ln" data-note="item-9-line-2" tabindex="0">┌──────────────────────────────────┐</span>
+<span class="ln" data-note="item-9-line-3" tabindex="0">│ Remove bo@example.com?           │</span>
+<span class="ln" data-note="item-9-line-4" tabindex="0">│ Everyone is signed out and       │</span>
+<span class="ln" data-note="item-9-line-5" tabindex="0">│ signs in again. Can't be undone. │</span>
+<span class="ln" data-note="item-9-line-6" tabindex="0">│ [Remove access]       [Cancel]   │</span>
+<span class="ln" data-note="item-9-line-7" tabindex="0">└──────────────────────────────────┘</span></pre></div></details></li>
+<li class="item card" id="item-10"><span class="num">10</span><div class="body"><div class="text" data-note="item-10" tabindex="0"><b>Repository access stays manual.</b> Signing in to the app gives no access to the project's code. The employer grants that separately, and Access does not manage it. Memory setup also stays separate.</div></div></li>
+<li class="item card" id="item-11"><span class="num">11</span><div class="body"><div class="text" data-note="item-11" tabindex="0"><b>Build first, check at the end.</b> Finish the remaining work, then run the checks once and review the finished preview.</div></div></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> repository invitations, GitHub App registration or token issuance, private Git/PR adapters, Artifacts automation, new-project setup, Cloudflare OAuth changes, hosting administration, custom invitation email, per-record business roles or fresh memory enrollment.</p>
+<p class="aside"><b>Non-goals:</b> repository invitations, GitHub App registration or token issuance, private Git/PR adapters, Artifacts automation, new-project setup, Cloudflare OAuth changes, hosting administration, custom invitation email, per-record business roles, fresh memory enrollment, changing who the owner is from inside the app.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
@@ -218,6 +257,27 @@
 <li class="decision card" id="decision-48" data-note="decision-48" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>app/tsconfig.worker.json</code> enables typed JSON imports for the reviewed bootstrap release pins. No type strictness, test, lint, coverage or duplication requirement is lowered. Condensed this change's payload inventory wording after the combined instruction-byte check exceeded its unchanged limit.</li>
 <li class="decision card" id="decision-49" data-note="decision-49" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The first complete-source gate passed the build and script coverage but found two app lint errors and three precise rejection-message assertions. Repair attempt 1 keys asynchronous permission readback, extracts the existing page guard and corrects those assertions; unchanged bootstrap bytes preserve the reviewed public pin. All fixes are grouped into one recheck, with every check and limit retained.</li>
 <li class="decision card" id="decision-50" data-note="decision-50" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Repair attempt 1 passed lint, build and all 1,303 script tests. App/generated-starter failures exposed example-page permission fixtures and an Access test reading before reload finished. Repair attempt 2 updates those consumers and adds zero-app roster and disabled/missing-installation status checks; missing owner status now fails closed. Checks, bootstrap bytes and pins remain unchanged.</li>
+<li class="decision card" id="decision-51" data-note="decision-51" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Final complete-source head <code>33762826f3352c8841d96c665cb27009bb80ac8b</code> passed app/build/payload checks after two grouped repairs. Marked 2.x–5.x and 6.1 complete; finishing safe preview checks and retaining live controlled-installation acceptance pending. Keep post-gate records local until the next authorized publication checkpoint, avoiding a metadata-only repeat of the whole branch gate.</li>
+<li class="decision card" id="decision-52" data-note="decision-52" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Finished safe deployed-preview probes and browser-only owner/employee simulations at the checked source head. Actual preview denies unconfigured setup/management; simulated UI covers copying, zero-app/direct-denial, roster and removal/retry states on phone/keyboard. Current-grant deployed human API/provider acceptance remains unverified without a controlled installation and independently verified owner; requested only its URL/email. Retain 6.2/6.3 pending for those portions, and keep evidence/completion metadata local pending publication.</li>
+<li class="decision card" id="decision-53" data-note="decision-53" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The person selected WongStack and independently confirmed themselves as owner. Public main-source readback lacks the employee-access runtime; readonly live identity/setup probes establish whether this feature is installed before requesting human login. Publishing the checked source is a prerequisite for acceptance on that existing app. Asked to publish first and continue the real login checks; no approval or signed owner authority is inferred from the target choice. Private activation remains closed pending verified session/configuration.</li>
+<li class="decision card" id="decision-54" data-note="decision-54" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether the Access app works as intended after the owner saw no access and no way to add people → found the screen locked behind private activation, a private rollout list and a production-only rule; chose to plan five fixes: automatic owner, built app list, one-save add, a preview practice list and a simpler screen.</li>
+<li class="decision card" id="decision-55" data-note="decision-55" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how a new person's email reaches Cloudflare's sign-in list → chose the app adds them, with setup giving the live app its own narrow Cloudflare key; the account-wide scope of that key was named and accepted.</li>
+<li class="decision card" id="decision-56" data-note="decision-56" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: fold these fixes into this unpublished change, because the owner wants a fix found while checking folded into the same change, not a follow-up.</li>
+<li class="decision card" id="decision-57" data-note="decision-57" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the owner is the email setup recorded, checked on every signed request; the signed user id is logged, not pinned, because the sign-in wall already trusts that email and the second hidden pin is what locked the screen.</li>
+<li class="decision card" id="decision-58" data-note="decision-58" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: people already on the sign-in list keep every app, and permissions start by themselves at the owner's first open, because silently taking apps from current teammates would break them and a confirm button is cheap to add later.</li>
+<li class="decision card" id="decision-59" data-note="decision-59" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: previews keep a practice list in the preview database and never touch the real sign-in list, because one sign-in wall covers live and previews and the owner wants previews to be a safe playground.</li>
+<li class="decision card" id="decision-60" data-note="decision-60" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the key is read from the live app's private settings on each use, with no encrypted database copy, because one private place is enough and it removes a setup step.</li>
+<li class="decision card" id="decision-61" data-note="decision-61" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: an install with no key yet still opens Access and saves app choices, showing one step left, because a missing key should not lock the owner out of the screen.</li>
+<li class="decision card" id="decision-62" data-note="decision-62" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: built apps and the route rules in reviewed code replace the private rollout list, because that list only repeated what the reviewed code already says.</li>
+<li class="decision card" id="decision-63" data-note="decision-63" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: changing the owner stays outside the app, done by rerunning setup, because an in-app transfer is a takeover path nobody asked for.</li>
+<li class="decision card" id="decision-64" data-note="decision-64" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: deleted <code>activation.test.ts</code>, <code>identity.test.ts</code>, the sealing test in <code>core.test.ts</code>, <code>employee-owner-setup.test.mjs</code> and the owner-consumer case in <code>company-api.test.mjs</code>, each with the withdrawn code it covered. Tests for the recorded-owner rule, the built catalogue, the automatic start, one-save admission, the practice list and setup's key step replace them. No lint, coverage, duplication or limit setting changed.</li>
+<li class="decision card" id="decision-65" data-note="decision-65" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: each person's sign-in status reads from the newest generation the sign-in list is known to match, kept in the existing <code>wong_access_connections</code> row, because one line per person needs it and the applied migrations stay as they are. A change to apps alone moves no sign-in work, so it never makes someone who can sign in look unfinished.</li>
+<li class="decision card" id="decision-66" data-note="decision-66" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: an earlier sign-in write of unknown outcome holds back &quot;done&quot; for 150 seconds, the lease plus the provider timeout, then the next matching readback settles it, because with no operator a lost write would leave <i>Try again</i> failing forever.</li>
+<li class="decision card" id="decision-67" data-note="decision-67" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: an open site gets a blank owner email and no key, and the key is recorded as its own <code>components.accessKey</code>, because an open site has no sign-in to know an owner by, and setup rewrites the access record whole on every run.</li>
+<li class="decision card" id="decision-68" data-note="decision-68" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: existing installs get the step as <code>provision.mjs access</code>, named in the changelog's update note and the wiki, with no new skill text beyond one clause, because the context check has under 100 bytes of headroom.</li>
+<li class="decision card" id="decision-69" data-note="decision-69" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the sign-in list check keeps the application's id, audience and Worker destination and drops the hostname comparison, because the origin pin is gone and the Worker destination already shows the application covers this Worker.</li>
+<li class="decision card" id="decision-70" data-note="decision-70" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Removing the owner-setup operations and the identity fallback changed the bootstrap bytes (SHA-256 <code>cd03278312a8cb4a9d88552c56a675c02be5617168d49d64cb8ea477dcf31af8</code>). The pins are blank, so the copied prompt honestly reads unavailable, until the final checkpoint creates the source commit and pins it.</li>
+<li class="decision card" id="decision-71" data-note="decision-71" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked what the automated checker may open once app permissions are on → chose every app, everywhere, as today, so preview checks and the look at the live app after publishing keep working; it never manages people. The risk of a leaked checker key opening every live app was named and is unchanged from today.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

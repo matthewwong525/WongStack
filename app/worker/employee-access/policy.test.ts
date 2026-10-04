@@ -2,12 +2,15 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { authorizeRequest, currentPolicy, policyAllows, type PolicyEnv, type RouteAccess } from "./policy";
+import { authorizeRequest, currentPolicy, humanEmail, ownerEmail, policyAllows, type PolicyEnv, type RouteAccess } from "./policy";
 import type { AccessIdentity } from "../access";
 import { defineAction, dispatch, registrations, type Registration } from "../api/contract";
 import { handleApi } from "../api/router";
 import { discovery } from "../api/discovery";
-import { appAccess } from "./apps";
+import { appAccess, appPageDenied } from "./apps";
+
+// The built folders are the catalogue; these tests name apps this repo does not build.
+vi.mock("./catalogue.ts", () => ({ catalogue: ["access", "frontend-only", "hello", "new-app", "orders", "payroll"] }));
 
 const origin = "https://business.example.com";
 const issuer = "https://business.cloudflareaccess.com";
@@ -21,7 +24,9 @@ let sql: DatabaseSync;
 let env: PolicyEnv;
 const request = () => new Request(`${origin}/api/orders`);
 const access: RouteAccess = { apps: ["orders"] };
-const read = (identity: AccessIdentity | null = employee, bindings = env, req = request()) => currentPolicy(req, bindings, identity);
+const read = (identity: AccessIdentity | null = employee, bindings = env) => currentPolicy(bindings, identity);
+/** A database that answers every permission read with one fixed row. */
+const answering = (row: unknown) => ({ ...env, DB: { withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) } as unknown as D1Database });
 
 beforeEach(() => {
   sql = new DatabaseSync(":memory:");
@@ -38,16 +43,17 @@ beforeEach(() => {
   const session = { prepare: (query: string) => ({ bind: (email: string) => ({
     first: async () => sql.prepare(query).get(email) ?? null,
   }) }) };
-  env = { DB: { withSession: vi.fn(() => session) } as unknown as D1Database, WONG_ACCESS_POLICY: "on",
-    CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com", CF_ACCESS_AUD: "business-app",
-    CF_ACCESS_APP_ID: "application", CF_ACCESS_WORKER_ID: "worker" };
+  env = { DB: { withSession: vi.fn(() => session) } as unknown as D1Database, WONG_OWNER_EMAIL: "owner@example.com",
+    CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com", CF_ACCESS_AUD: "business-app" };
 });
 afterEach(() => sql.close());
 
-it("preserves legacy and managed dispatch without reading any database", async () => {
-  for (const value of [undefined, ""]) {
-    expect(await read(null, { ...env, WONG_ACCESS_POLICY: value })).toEqual({ state: "legacy" });
+it("keeps an install with no recorded owner on its existing behavior, without reading any database", async () => {
+  for (const value of [undefined, "", "  "]) {
+    expect(await read(null, { ...env, WONG_OWNER_EMAIL: value })).toEqual({ state: "legacy" });
+    expect(ownerEmail({ WONG_OWNER_EMAIL: value })).toBeNull();
   }
+  expect(ownerEmail({ WONG_OWNER_EMAIL: " Owner@Example.com " })).toBe("owner@example.com");
   expect(env.DB?.withSession).not.toHaveBeenCalled();
   expect(policyAllows({ state: "legacy" }, undefined)).toBe(true);
 });
@@ -79,70 +85,105 @@ it("requires every mapped app and leaves new or empty mappings closed", async ()
   expect(policyAllows(await read(), { apps: ["orders", "payroll"] })).toBe(true);
 });
 
-it("keeps pinned owner authority separate and permits zero-app employee self-service", async () => {
+it("knows the owner by the recorded email alone and permits zero-app employee self-service", async () => {
   const ownerPolicy = await read(owner);
   expect(ownerPolicy).toMatchObject({ state: "current", role: "owner" });
   expect(policyAllows(ownerPolicy, { kind: "owner" })).toBe(true);
   expect(policyAllows(ownerPolicy, access)).toBe(true);
   expect(policyAllows(ownerPolicy, undefined)).toBe(false);
   expect(policyAllows(ownerPolicy, { apps: [] })).toBe(false);
-  const impostor = { ...owner, claims: { ...owner.claims, sub: "other-subject" } };
-  sql.exec("INSERT INTO wong_access_members VALUES ('installation', 'owner@example.com', 'active', 0, 1, 'now')");
-  expect(await read(impostor)).toEqual({ state: "denied" });
+  // The signed user id is logged, never pinned: a new sign-in for the same email is still the owner.
+  expect(await read({ ...owner, claims: { ...owner.claims, sub: "another-device" } })).toMatchObject({ role: "owner" });
+  expect(await read(owner, { ...env, WONG_OWNER_EMAIL: " OWNER@example.com " })).toMatchObject({ role: "owner" });
+  // A leftover person row under the owner's email takes nothing from the owner.
+  sql.exec("INSERT INTO wong_access_members VALUES ('installation', 'owner@example.com', 'removed', 0, 1, 'now')");
+  expect(await read(owner)).toMatchObject({ state: "current", role: "owner" });
+  // The owner's email carried by a machine, or with no signed user id, is nobody.
+  for (const impostor of [{ ...owner, kind: "service" as const }, { ...owner, claims: { ...owner.claims, sub: "" } },
+    { ...owner, claims: { ...owner.claims, common_name: "machine" } }]) expect(await read(impostor)).toEqual({ state: "denied" });
   sql.exec("DELETE FROM wong_access_grants");
   const empty = await read();
   expect(policyAllows(empty, { kind: "self-service" })).toBe(true);
   expect(policyAllows(empty, { kind: "infrastructure" })).toBe(true);
   expect(policyAllows(empty, { kind: "owner" })).toBe(false);
   expect(policyAllows({ state: "denied" }, { kind: "self-service" })).toBe(false);
-  expect(await authorizeRequest(request(), env, employee, { kind: "self-service" })).toBeNull();
+  expect(await authorizeRequest(env, employee, { kind: "self-service" })).toBeNull();
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
-  expect((await authorizeRequest(request(), env, employee, { kind: "self-service" }))?.status).toBe(403);
+  expect((await authorizeRequest(env, employee, { kind: "self-service" }))?.status).toBe(403);
 });
 
-it("refuses service, unlisted and invalid human identities without promoting them", async () => {
+it("lets the verification machine open every built app and never manage people", async () => {
+  const machine: AccessIdentity = { kind: "service", id: "checker.access", claims: {
+    common_name: "checker.access", sub: "", iss: issuer, aud: "business-app", exp: 9999999999,
+  } };
+  const policy = await read(machine);
+  expect(policy).toEqual({ state: "current", role: "employee", revision: 1,
+    apps: new Set(["access", "frontend-only", "hello", "new-app", "orders", "payroll"]) });
+  expect(humanEmail(machine)).toBeNull();
+  expect(policyAllows(policy, { apps: ["orders", "payroll"] })).toBe(true);
+  expect(policyAllows(policy, { kind: "owner" })).toBe(false);
+  expect(policyAllows(policy, undefined)).toBe(false);
+  // A machine carrying an email, no name, or a name that is not its own identity is nobody.
+  for (const forged of [{ ...machine, claims: { ...machine.claims, email: "owner@example.com" } },
+    { ...machine, claims: { ...machine.claims, common_name: undefined } },
+    { ...machine, claims: { ...machine.claims, common_name: "another.access" } }]) {
+    expect(await read(forged)).toEqual({ state: "denied" });
+  }
+});
+
+it("refuses service, unlisted and invalid human identities once permissions have started", async () => {
   const invalid: (AccessIdentity | null)[] = [null, { ...employee, kind: "service" }, { ...employee, id: "bad email" }];
   for (const claims of [{ common_name: "service" }, { sub: "" }, { sub: undefined }, { email: undefined },
     { email: "other@example.com" }, { exp: 0 }, { nbf: 9999999999 }]) {
     invalid.push({ ...employee, claims: { ...employee.claims, ...claims } });
   }
-  for (const identity of invalid) expect(await read(identity)).toEqual({ state: "denied" });
-  expect(env.DB?.withSession).not.toHaveBeenCalled();
+  for (const identity of invalid) {
+    expect(humanEmail(identity)).toBeNull();
+    expect(await read(identity)).toEqual({ state: "denied" });
+  }
   const unlisted = { ...employee, id: "unlisted@example.com", claims: { ...employee.claims, email: "unlisted@example.com" } };
   expect(await read(unlisted)).toEqual({ state: "denied" });
-  for (const claims of [{ iss: "https://other.cloudflareaccess.com" }, { aud: "other" }, { aud: ["other"] }]) {
-    expect(await read({ ...employee, claims: { ...employee.claims, ...claims } })).toEqual({ state: "denied" });
-  }
+  // Before permissions start, the same callers keep what the sign-in wall already gave them.
+  sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
+  for (const identity of [...invalid, unlisted]) expect(await read(identity)).toEqual({ state: "not_started", role: "employee" });
 });
 
-it("fails closed for malformed rollout, missing migration, empty/disabled policy and invalid grants", async () => {
-  for (const value of ["off", " on ", " "]) {
-    expect(await read(employee, { ...env, WONG_ACCESS_POLICY: value })).toEqual({ state: "unavailable" });
-  }
-  expect(env.DB?.withSession).not.toHaveBeenCalled();
+it("leaves everyone every app until permissions start, and names the owner meanwhile", async () => {
+  sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
+  const before = await read();
+  expect(before).toEqual({ state: "not_started", role: "employee" });
+  for (const mapping of [undefined, { apps: [] }, { apps: ["payroll"] }, { kind: "owner" as const }]) expect(policyAllows(before, mapping)).toBe(true);
+  expect(await read(owner)).toEqual({ state: "not_started", role: "owner" });
+  expect(await authorizeRequest(env, employee, { apps: ["payroll"] })).toBeNull();
+  // The owner has never opened Access: no row exists, and nothing has started.
+  sql.exec("DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
+  expect(await read()).toEqual({ state: "not_started", role: "employee" });
+  expect(await read(owner)).toEqual({ state: "not_started", role: "owner" });
+});
+
+it("ignores a grant for an app that is no longer built", async () => {
+  sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'retired'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'retired', 1)");
+  const policy = await read();
+  expect(policy).toEqual({ state: "current", role: "employee", revision: 1, apps: new Set(["orders"]) });
+  expect(policyAllows(policy, { apps: ["retired"] })).toBe(false);
+  expect(policyAllows(policy, access)).toBe(true);
+});
+
+it("denies rather than opens when started permission data is missing, unreadable or malformed", async () => {
   expect(await read(employee, { ...env, DB: undefined })).toEqual({ state: "unavailable" });
   const failed = { ...env, DB: { withSession: () => { throw new Error("private database detail"); } } as unknown as D1Database };
   expect(await read(employee, failed)).toEqual({ state: "unavailable" });
-  const denied = await authorizeRequest(request(), failed, employee, access);
+  const denied = await authorizeRequest(failed, employee, access);
   expect(denied?.status).toBe(503);
   expect(denied?.headers.get("Cache-Control")).toBe("no-store");
   expect(await denied?.json()).toMatchObject({ error: { code: "unavailable", message: "Access unavailable", requestId: expect.any(String) } });
-  sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
-  expect(await read()).toEqual({ state: "unavailable" });
-  sql.exec("UPDATE wong_access_installation SET policy_enabled = 1; INSERT INTO wong_access_apps VALUES ('installation', 'bad/app'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'bad/app', 1)");
-  expect(await read()).toEqual({ state: "unavailable" });
-  sql.exec("DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
-  expect(await read()).toEqual({ state: "unavailable" });
-  sql.exec("DROP TABLE wong_access_installation");
-  expect(await read()).toEqual({ state: "unavailable" });
-});
-
-it("rejects foreign installation routing and Access configuration", async () => {
-  expect(await read(employee, env, new Request("https://preview.example.com/api/orders"))).toEqual({ state: "unavailable" });
-  for (const update of [{ CF_ACCESS_TEAM_DOMAIN: "other.cloudflareaccess.com" }, { CF_ACCESS_AUD: "other" },
-    { CF_ACCESS_APP_ID: "other" }, { CF_ACCESS_WORKER_ID: "other" }]) {
-    expect(await read(employee, { ...env, ...update })).toEqual({ state: "unavailable" });
+  const row = { policy_enabled: 1, revision: 1, status: "active", apps: '["orders"]' };
+  expect(await read(employee, answering(row))).toMatchObject({ state: "current" });
+  for (const change of [{ policy_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { apps: "not json" }, { apps: '{"orders":true}' }]) {
+    expect(await read(employee, answering({ ...row, ...change }))).toEqual({ state: "unavailable" });
   }
+  sql.exec("DROP TABLE wong_access_grants; DROP TABLE wong_access_members; DROP TABLE wong_access_apps; DROP TABLE wong_access_installation");
+  expect(await read()).toEqual({ state: "unavailable" });
 });
 
 it("gates bare and described main dispatch before business work, with no unmapped fallback", async () => {
@@ -187,7 +228,7 @@ it("preserves action visibility, record guards, identity and readiness checks co
 
 it("keeps the reviewed harmless health exception independent of employee and database authority", async () => {
   const failed = { ...env, DB: { withSession: vi.fn(() => { throw new Error("offline"); }) } as unknown as D1Database };
-  expect(await authorizeRequest(request(), failed, null, { kind: "infrastructure" })).toBeNull();
+  expect(await authorizeRequest(failed, null, { kind: "infrastructure" })).toBeNull();
   const health = await handleApi(new Request(`${origin}/api/health`), failed as Env & PolicyEnv);
   expect(await health.json()).toEqual({ ok: true });
   expect(failed.DB?.withSession).not.toHaveBeenCalled();
@@ -262,48 +303,52 @@ it("rechecks current grants before conditional responses and isolates caller and
   }
 });
 
-it("fails discovery closed on empty, disabled or unavailable policy even for infrastructure-only catalogues", async () => {
+it("fails discovery closed on unavailable started policy, and keeps the existing catalogue before permissions start", async () => {
   const cached = (await discover()).headers.get("ETag")!;
   const unavailable = { ...env, DB: undefined };
   for (const path of ["/api/actions", "/api/actions?id=main.health", "/api/openapi.json"]) {
     expect((await discover(path, { "if-none-match": cached }, employee, unavailable)).status).toBe(503);
   }
+  const ids = async () => (await (await discover("/api/actions", { "if-none-match": cached })).json()).actions.map((item: { operationId: string }) => item.operationId);
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
-  expect((await discover()).status).toBe(503);
+  // Not started: the same actions as before Access existed, and never a cached started answer.
+  expect(await ids()).toEqual(["employee.setup", "main.health", "new.read", "orders.read", "orders.unmapped", "owner.manage", "unrelated.name"]);
   sql.exec("DELETE FROM wong_access_grants; DELETE FROM wong_access_members; DELETE FROM wong_access_apps; DELETE FROM wong_access_installation");
-  expect((await discover()).status).toBe(503);
+  expect(await ids()).toContain("orders.unmapped");
 });
 
 it("reads frontend app grants with zero-app Access self-service, owner exceptions and no permission cache", async () => {
   const req = new Request(`${origin}/api/access/apps`);
-  const catalogue = ["access", "orders", "payroll", "new-app", "frontend-only"];
-  const readback = (caller: AccessIdentity | null = employee, bindings = env) => appAccess(req, bindings, caller, catalogue);
+  const catalogue = ["access", "frontend-only", "hello", "new-app", "orders", "payroll"];
+  const readback = (caller: AccessIdentity | null = employee, bindings = env) => appAccess(req, bindings, caller);
   const first = await readback();
   expect(first.headers.get("Cache-Control")).toBe("no-store");
   expect(await first.json()).toEqual({ state: "current", role: "employee", revision: 1, apps: ["access", "orders"] });
   expect(await (await readback(owner)).json()).toEqual({ state: "current", role: "owner", revision: 1, apps: catalogue });
   // Client-only apps come from manifests and are allowed only when explicitly assigned.
-  const built = await (await appAccess(req, env, owner)).json();
-  expect(built.apps).toContain("hello");
   sql.exec("INSERT INTO wong_access_apps VALUES ('installation', 'frontend-only'); INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'frontend-only', 1)");
-  expect((await (await readback()).json()).apps).toEqual(["access", "orders", "frontend-only"]);
+  expect((await (await readback()).json()).apps).toEqual(["access", "frontend-only", "orders"]);
   sql.exec("DELETE FROM wong_access_grants; UPDATE wong_access_installation SET revision = 2");
   expect(await (await readback()).json()).toEqual({ state: "current", role: "employee", revision: 2, apps: ["access"] });
   sql.exec("UPDATE wong_access_members SET status = 'removed'");
   expect((await readback()).status).toBe(403);
   expect((await readback(null)).status).toBe(403);
   expect((await readback(employee, { ...env, DB: undefined })).status).toBe(503);
-  expect(await (await readback(null, { ...env, WONG_ACCESS_POLICY: undefined })).json()).toEqual({ state: "legacy" });
+  expect(await (await readback(null, { ...env, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy" });
+  // Before permissions start a removed row means nothing yet: everyone keeps every app.
+  sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
+  expect(await (await readback()).json()).toEqual({ state: "not_started", role: "employee", apps: catalogue });
+  expect(await (await readback(owner)).json()).toEqual({ state: "not_started", role: "owner", apps: catalogue });
   expect((await appAccess(new Request(req, { method: "POST" }), env, employee)).status).toBe(404);
 });
 
 it("direct page authorization preserves unknown routes and legacy behavior while guarding nested app and Access pages", async () => {
-  const { appPageDenied } = await import("./apps");
-  for (const path of ["/", "/assets/main.js", "/apps/not-installed/", "/apps/not-installed/subpage"]) {
-    expect(await appPageDenied(new Request(`https://business.example.com${path}`), env, employee)).toBeNull();
-  }
-  // Legacy installs use their existing login boundary without a new database dependency.
+  const page = (path: string, bindings = env) => appPageDenied(new Request(`https://business.example.com${path}`), bindings, employee);
+  for (const path of ["/", "/assets/main.js", "/apps/not-installed/", "/apps/not-installed/subpage"]) expect(await page(path)).toBeNull();
+  // An install with no recorded owner uses its existing login boundary without a database read.
   for (const path of ["/apps/hello", "/apps/hello/subpage", "/apps/access/"]) {
-    expect(await appPageDenied(new Request(`https://business.example.com${path}`), { ...env, WONG_ACCESS_POLICY: undefined }, employee)).toBeNull();
+    expect(await page(path, { ...env, WONG_OWNER_EMAIL: undefined })).toBeNull();
   }
+  for (const path of ["/apps/orders/", "/apps/orders/subpage", "/apps/access/"]) expect(await page(path)).toBeNull();
+  for (const path of ["/apps/hello", "/apps/payroll/subpage"]) expect((await page(path))?.status).toBe(403);
 });
