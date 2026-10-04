@@ -1,0 +1,60 @@
+name: QMD retrieval acceptance
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '.agents/skills/memory/**'
+      - '.agents/skills/explore/SKILL.md'
+      - 'scripts/evaluate-document-retrieval.mjs'
+      - 'scripts/tests/document-*.test.mjs'
+      - 'scripts/tests/document-recall.test.mjs'
+      - 'scripts/tests/fixtures/document-retrieval/**'
+      - '.github/workflows/qmd-retrieval.yml'
+      - 'wiki/development/document-retrieval.md'
+  pull_request:
+    paths:
+      - '.agents/skills/memory/**'
+      - 'scripts/evaluate-document-retrieval.mjs'
+      - 'scripts/tests/fixtures/document-retrieval/**'
+      - '.github/workflows/qmd-retrieval.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qmd-retrieval-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
+jobs:
+  semantic:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Run pinned public-source CPU acceptance
+        run: node scripts/evaluate-document-retrieval.mjs --output qmd-report/acceptance.json
+      - name: Retain original public evidence and measured timings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: qmd-retrieval-${{ github.sha }}
+          path: qmd-report/acceptance.json
+          retention-days: 30
+          if-no-files-found: warn
+  portable:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Verify Node keyword fallback without QMD or models
+        run: node --test scripts/tests/document-portable.test.mjs

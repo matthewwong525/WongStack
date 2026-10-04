@@ -26,14 +26,14 @@ Update dependencies after answers or evidence. Explain changed premises; reopen 
 
 ## Search memory before asking
 
-Before asking, search intent terms and likely paths once:
+Before asking, recall the task and look up likely paths once; read cited originals:
 
 ```bash
-node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search <terms>
+node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" recall <question>
 node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" areas <paths>
 ```
 
-Use live facts as correctable assumptions, naming age and author. [Memory unreachable](../memory/SKILL.md#read)? Say so; continue.
+Treat dated facts as assumptions. [Memory unavailable](../memory/SKILL.md#read)? Say so; continue with available sources.
 
 ## Check for other work
 
