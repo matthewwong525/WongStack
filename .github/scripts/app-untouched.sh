@@ -49,6 +49,10 @@
 # origin/$DEFAULT_BRANCH. `/apply` uses it to skip a host preview when the
 # change leaves the main app untouched. It reads no GITHUB_* variable.
 #
+# With `--base <sha> --head <sha>`, compare those exact local commits without
+# reading GitHub context or fetching. Portable runners supply the whole-change
+# base explicitly. An unavailable base still answers conservatively.
+#
 # Needs a full-history checkout (`fetch-depth: 0`); it fetches a missing base
 # ref itself. Always exits 0: the answer is the output, never the status.
 #
@@ -58,11 +62,21 @@
 set -uo pipefail
 
 WORKTREE=false
-case "${1:-}" in
-  "") ;;
-  --worktree) WORKTREE=true ;;
-  *) echo "usage: bash .github/scripts/app-untouched.sh [--worktree]" >&2; exit 2 ;;
-esac
+EXPLICIT=false
+BASE_ARG=""
+HEAD_ARG="HEAD"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --worktree) WORKTREE=true; shift ;;
+    --base|--head)
+      [ "$#" -ge 2 ] || { echo "missing value for $1" >&2; exit 2; }
+      EXPLICIT=true
+      if [ "$1" = --base ]; then BASE_ARG="$2"; else HEAD_ARG="$2"; fi
+      shift 2 ;;
+    *) echo "usage: bash .github/scripts/app-untouched.sh [--worktree | --base <sha> --head <sha>]" >&2; exit 2 ;;
+  esac
+done
+if $WORKTREE && $EXPLICIT; then echo "--worktree cannot use explicit commits" >&2; exit 2; fi
 
 note() { echo "app-untouched: $*" >&2; }
 
@@ -100,10 +114,18 @@ fi
 
 EVENT="${GITHUB_EVENT_NAME:-}"
 $WORKTREE && EVENT=worktree
+$EXPLICIT && EVENT=explicit
 REF="${GITHUB_REF_NAME:-}"
 BASE=""
 
 case "$EVENT" in
+  explicit)
+    [[ "$BASE_ARG" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || unknown "no usable explicit base SHA"
+    [[ "$HEAD_ARG" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || unknown "no usable explicit head SHA"
+    have_commit "$BASE_ARG" && have_commit "$HEAD_ARG" || unknown "explicit commits unavailable"
+    BASE="$BASE_ARG"
+    note "explicit commits: comparing the whole change"
+    ;;
   pull_request)
     [ -n "${GITHUB_BASE_REF:-}" ] || unknown "pull_request with no GITHUB_BASE_REF"
     TARGET=$(remote_branch "$GITHUB_BASE_REF") || unknown "can not fetch origin/$GITHUB_BASE_REF"
@@ -152,8 +174,8 @@ if $WORKTREE; then
     > "$CHANGED" 2>/dev/null || unknown "git diff failed"
   git diff --name-only --no-renames --diff-filter=D -z "$BASE" > "$REMOVED" 2>/dev/null || unknown "git diff failed"
 else
-  git diff --name-only --no-renames -z "$BASE" HEAD > "$CHANGED" 2>/dev/null || unknown "git diff failed"
-  git diff --name-only --no-renames --diff-filter=D -z "$BASE" HEAD > "$REMOVED" 2>/dev/null || unknown "git diff failed"
+  git diff --name-only --no-renames -z "$BASE" "$HEAD_ARG" > "$CHANGED" 2>/dev/null || unknown "git diff failed"
+  git diff --name-only --no-renames --diff-filter=D -z "$BASE" "$HEAD_ARG" > "$REMOVED" 2>/dev/null || unknown "git diff failed"
 fi
 
 UNTOUCHED=true

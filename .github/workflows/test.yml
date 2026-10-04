@@ -37,8 +37,8 @@
 #
 # Every limit below has an escape hatch: a skip comment, a skipped or deleted
 # test, a lowered number in a config. Agents write most of the code, and a
-# person who does not read code can not see one being used. The loosened-checks
-# step, just before the summary, fails the job when the change uses one and
+# person who does not read code can not see one being used. The shared check entry point
+# fails the job when the change uses one and
 # its Decision log gives no reason, so a reason is always written where the
 # person reads it. wiki/development/the-change-loop.md#the-gate owns the rule.
 
@@ -72,109 +72,20 @@ jobs:
         id: scope
         uses: ./.github/actions/change-scope
 
-      # Resolve the app by its test script, never by a stack's config file: a
-      # repo can have tests long before it is provisioned, or instead of ever
-      # being provisioned. Repo root first, then each immediate subdirectory.
-      # Skipped when the main app is untouched. Every main-app step below is
-      # gated on this step's `found`, so they skip with it.
-      - name: Locate the test suite
-        id: suite
-        if: ${{ steps.scope.outputs.untouched != 'true' }}
-        run: |
-          has_test() {
-            node -e "process.exit(require('$1/package.json').scripts?.test?0:1)" 2>/dev/null
-          }
-          FOUND=""
-          if [ -f package.json ] && has_test "$PWD"; then
-            FOUND="$PWD"
-          else
-            for dir in */; do
-              case "$dir" in node_modules/|.*) continue ;; esac
-              if [ -f "$dir/package.json" ] && has_test "$PWD/${dir%/}"; then
-                FOUND="$PWD/${dir%/}"; break
-              fi
-            done
-          fi
-          if [ -z "$FOUND" ]; then
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            {
-              echo "### No test suite yet"
-              echo ""
-              echo "No \`package.json\` in this repo declares a \`test\` script,"
-              echo "so there is nothing to run."
-              echo ""
-              echo "Add one — \`/plan\` includes a test task for any change that"
-              echo "touches behavior — and this check runs it on every push."
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "No test script declared — nothing to run."
-            exit 0
-          fi
-          echo "found=true" >> "$GITHUB_OUTPUT"
-          echo "dir=$FOUND" >> "$GITHUB_OUTPUT"
-
+      # The shared entry point owns scope, discovery, install/test, quality
+      # checks after a red suite, and the summary on both delivery routes.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: ${{ steps.suite.outputs.found == 'true' }}
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: ${{ steps.suite.outputs.dir }}/package-lock.json
 
-      - name: Install
-        if: ${{ steps.suite.outputs.found == 'true' }}
-        working-directory: ${{ steps.suite.outputs.dir }}
-        run: npm ci --no-audit --no-fund
-
-      - name: Test
-        id: test
-        if: ${{ steps.suite.outputs.found == 'true' }}
-        working-directory: ${{ steps.suite.outputs.dir }}
-        run: npm test
-
-      # Every run that is not cancelled — docs-only ones, and after a red suite,
-      # so one push reports everything. A skip comment, a skipped or deleted
-      # test, or a changed check setting fails here unless the change's
-      # Decision log names the file in a `Check:` bullet. See "Why loosened
-      # checks need a reason" above.
-      - name: Check for loosened checks
-        id: loosened
-        if: ${{ !cancelled() }}
-        shell: bash
-        env:
-          BASE: ${{ steps.scope.outputs.base }}
-        run: node .github/scripts/loosened-checks.mjs --base "$BASE" | tee -a "$GITHUB_STEP_SUMMARY"
-
-      # Every run that is not cancelled, docs-only ones too: a wiki edit is
-      # often all a change is. Skipped only when `wiki_affected` is false: the
-      # change touches no Markdown and removes or moves no file, so no link can
-      # break. Fails on a dead link or section link, a page no other wiki page
-      # links to, a hub that skips a page, a page over 3,000 words, or a page
-      # not opening with one title and a sentence; wiki/wiki-style.md owns the
-      # rules.
-      - name: Check the wiki's links
-        id: wiki
-        if: ${{ !cancelled() && steps.scope.outputs.wiki_affected != 'false' }}
-        shell: bash
-        run: node .github/scripts/wiki-links.mjs | tee -a "$GITHUB_STEP_SUMMARY"
-
-      # One line on the run page: what ran, or why nothing did.
-      - name: Summary
+      - name: Run shared checks
         if: ${{ !cancelled() }}
         env:
-          UNTOUCHED: ${{ steps.scope.outputs.untouched }}
-          FOUND: ${{ steps.suite.outputs.found }}
-          LOOSENED: ${{ steps.loosened.outcome }}
-          WIKI: ${{ steps.wiki.outcome }}
-          SUITE: ${{ steps.test.outcome }}
+          CHECK_REPO: ${{ github.workspace }}
+          CHECK_BASE: ${{ steps.scope.outputs.base }}
+          CHECK_HEAD: ${{ github.sha }}
+          CHECK_DEFAULT: ${{ github.event.repository.default_branch }}
         run: |
-          if [ "$UNTOUCHED" = true ]; then
-            LINE="The main app is untouched (only docs changed), so its suite did not run."
-          elif [ "$FOUND" = true ]; then
-            LINE="The main app changed, so its suite ran: $SUITE."
-          else
-            LINE="The main app changed, but no test suite is declared."
-          fi
-          [ "$LOOSENED" = failure ] && LINE="$LINE A check was loosened with no written reason; see Loosened checks above."
-          [ "$WIKI" = failure ] && LINE="$LINE A wiki page has a broken link, is linked from nowhere, is too long, or lacks its title; see Wiki checks above."
-          [ "$WIKI" = skipped ] && LINE="$LINE The wiki check skipped, because no page or linked file changed."
-          echo "$LINE" >> "$GITHUB_STEP_SUMMARY"
-          echo "$LINE"
+          node .github/scripts/checks.mjs \
+            --repo "$CHECK_REPO" --base "$CHECK_BASE" --head "$CHECK_HEAD" \
+            --default-branch "$CHECK_DEFAULT" --summary "$GITHUB_STEP_SUMMARY"

@@ -8,6 +8,10 @@ user-invocable: true
 
 Pick the target, source, tools, and token, then invoke `/explore`. An installed target uses `/wong-sync` and its recorded source; an install request never switches it.
 
+## Hosted workspace first
+
+Artifacts/marker/private handoff → follow [hosted verification](../../../wiki/stack/hosted-projects.md#open-the-workspace) before personal setup.
+
 ## Pick the folder
 
 Pick the target before anything else, never writing into an existing project:
@@ -16,7 +20,7 @@ Pick the target before anything else, never writing into an existing project:
 2. It is empty, or holds only a `.git` with no commits → install here.
 3. Otherwise the target is `~/wongstack`: missing or empty → use it; holding an install record → `/wong-sync` there; holding anything else → try `~/wongstack-2`, `~/wongstack-3`, and so on.
 
-Name the target in one plain line, with no question: *"This folder already has files, so I'll set up WongStack in ~/wongstack."* Make it with `mkdir -p` only at the first write, after the tools and the token. Every later step uses the target's absolute path.
+Name the target plainly. Create it only after tools and token; use its absolute path throughout.
 
 ## Get the computer ready
 
