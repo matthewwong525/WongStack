@@ -6,13 +6,13 @@ user-invocable: true
 
 # /save
 
-Invoking `/save` authorizes, unasked, branch creation, record upkeep, spec reconciliation, commit, push, PR updates, and CI fixes; [ask](../explore/references/asking-the-user.md) before anything else. Never force push, bypass hooks, amend merged commits, or merge a PR: `/ship` owns archive and merge. Nothing builds locally; [the change loop](../../../wiki/development/the-change-loop.md) owns git and delivery.
+`/save` authorizes branch creation, record upkeep, spec reconciliation, commit, push, PR updates and CI fixes; [ask](../explore/references/asking-the-user.md) for anything else. Never force push, bypass hooks, amend merged commits or merge. `/ship` owns archive/merge; [the loop](../../../wiki/development/the-change-loop.md) owns delivery. No local builds.
 
-Input: `/save [note]`. A status note sets one of [the Status values](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan); any other note seeds the Decision-log entry. Facts a cold resume needs go in pushed repo files, with repo-relative paths.
+`/save [note]`: a [Status value](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan) sets Status; other notes seed the Decision log. Cold-resume context belongs in pushed files with repo-relative paths.
 
 ## 1. Protect credentials and select the route
 
-**Every route keeps each real credential value this session supplied, rotated, read, or written out of** tracked files, changes, facts, messages, PR text, and reports. Values live only in working memory and the intended ignored live file; names and where to get them may be recorded.
+**Keep every credential supplied, rotated, read or written this session out of** tracked files, changes, facts, messages, PR text and reports. Values stay in working memory and their intended ignored live file; record only names and sources.
 
 Load each matching procedure before its actions; conditions combine:
 
@@ -32,13 +32,13 @@ openspec list --json
 bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json
 ```
 
-Keep `BRANCH`, `NAME`, and `CHANGE_ROOT` separate. Select by [the rungs](references/checkpoint-evidence.md#selection-rungs) `explicit` (including the exact archive `/ship` passes), `session`, `changed-active`, `changed-archive`, then `recorded-branch`; no `sole-active`. Resolve ambiguity before staging; never duplicate a change to match the branch.
+Keep `BRANCH`, `NAME`, `CHANGE_ROOT` separate. [Rungs](references/checkpoint-evidence.md#selection-rungs): `explicit` (ship's exact archive), `session`, `changed-active`, `changed-archive`, `recorded-branch`; never `sole-active`. Resolve ambiguity before staging; never duplicate a change for its branch name.
 
-A save that changes any repo file takes the normal route, whatever the paths. Nothing learned, decided, or changed → report and stop.
+A save changing repo files takes the normal route. Nothing learned, decided, or changed → report and stop.
 
 ## 2. Maintain the handoff and capture context
 
-Keep an existing feature branch. On the default branch or a detached HEAD, `git checkout -b "$SLUG"` named for the change or topic (the worktree name if the session is unreadable), plus a short SHA on collision. Never rename an established `NAME` to match the branch. Create the plan and required artifacts before their checkpoint. A save with no change takes this route too, with [its own plain PR body](references/git-gate.md#the-body-mirrors-the-change).
+Keep the feature branch. On default/detached HEAD, `git checkout -b "$SLUG"`: change/topic name, else worktree name for an unreadable session; append a short SHA on collision. Never rename `NAME` to match. Create required plan artifacts before checkpointing. No-change saves use [a plain PR body](references/git-gate.md#the-body-mirrors-the-change).
 
 Maintain [the living handoff](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan):
 
@@ -53,30 +53,30 @@ Refresh the review page:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "$CHANGE_ROOT"
 ```
 
-Bad inputs keep the old page: report it stale. Stage the page with the handoff.
+Bad inputs keep the old page: report it stale. Stage it with the handoff.
 
 For an active change, [reconcile its deltas](../plan/references/openspec-cli.md#reconcile-deltas). Read artifact and task progress [from the CLI](../plan/references/openspec-cli.md#create-or-read-a-change), never guessed paths or schema.
 
 ### The archived handoff
 
-Keep the exact `CHANGE_ROOT`; recover `NAME` from the dated folder only if not supplied. Set Status to `ready-to-ship`, keep the actual Branch, and append a dated archive-checkpoint entry. Never rebuild its plan from the conversation, author a new one, or recreate an active folder. Refresh its review; skip delta reconciliation (the archive did it). Stage the archive, its tracked removals, and implementation paths. Render the PR body in archive mode; report the archived path.
+Keep exact `CHANGE_ROOT`; infer `NAME` from its dated folder only if absent. Set `ready-to-ship`, retain actual Branch and append a dated archive-checkpoint entry. Never rebuild the plan or recreate an active folder. Refresh review; archive already reconciled deltas. Stage archive, tracked removals and implementation; render in archive mode and report its path.
 
 ## 3. Stage, exclude values, and commit
 
-Stage only intended implementation, handoff, and removal paths, never `git add .`; check the staged list for unrelated work. A plan-only save commits its new artifacts too.
+Stage intended implementation, handoff and removals, never `git add .`; check for unrelated staged work. A plan-only save commits its artifacts.
 
-Before **every commit and publication**, check durable content for every credential value met this session: read each explicitly handled key's nonempty value silently from its live file and feed it on stdin to `git grep --cached -l -F -f -`, which prints only matching paths; never put values in arguments. A match stops the save until removed and restaged.
+Before **every commit/publication**, silently read each handled credential's nonempty live value into stdin for `git grep --cached -l -F -f -`. Print only matching paths, never values or secret arguments. Matches stop saving until removed and restaged.
 
-Commit a one-line, repo-style message through a literal message file or quoted heredoc, with the `Co-Authored-By: Claude` trailer. Clean tree, no commits ahead → nothing to push: say so. Push unpushed commits anyway. A non-CI failure stops with its exact error.
+Commit a one-line repo-style message via literal file/quoted heredoc, with `Co-Authored-By: Claude`. Clean and no commits ahead: report nothing to push; otherwise push unpushed commits. Non-CI failures stop with their exact error.
 
 ## 4. Publish and wait for the gate
 
-Discover the preview with [preview-url.sh](scripts/preview-url.sh); never construct a URL. Follow [the git gate](references/git-gate.md) to push, open or update the PR, and wait for CI, fixing failures up to three times. Save may finish unverified: `UNKNOWN` is never "no checks".
+Use [preview-url.sh](scripts/preview-url.sh), never a constructed URL. [The gate](references/git-gate.md) owns push, PR and CI wait/fixes (three attempts). Save may finish unverified; UNKNOWN never means no checks.
 
 ## 5. Report
 
-When the save changed a plan's sections or `tasks.md`, [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) (*Click here to see the plan:*), apart from the one link below, and offer *Review the plan* in the closing question.
+Changed plan sections/tasks: [print the plan link](../explore/references/asking-the-user.md#print-the-plans-link) apart from the report link; offer *Review the plan* when asking.
 
-Run by the person, report the outcome and one link in [plain words](../explore/references/asking-the-user.md#write-in-plain-words). Inside another verb, or when asked, report branch and commit; PR link; the change or archive and its Status; facts added, superseded, and dropped (or skipped), stored or spooled; CI result with fixes or uncertainty; the preview URL or its absence. End with exactly one `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`, the actual value; inside another verb always print it, because the caller reads it. Name the continue command only for an active change. Keep errors explicit.
+Report outcome and one link in [plain words](../explore/references/asking-the-user.md#write-in-plain-words). Inside a verb or on request, include branch/commit, PR, change/archive Status, fact counts and stored/spooled/skipped state, CI fixes/uncertainty and preview/absence. Return `SAVE_HEAD=<exact SHA>` and [a receipt](references/git-gate.md#saved-revision-handoff). End with one actual `SAVE_GATE_RESULT=SUCCESS|NONE|UNKNOWN|TIMEOUT|FAILURE`; always print it inside a verb. Explicit errors; continue command only for active changes.
 
-Invoked directly, end with [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): normally continue the tasks, *publish it*, or stop here; a failing or unverified gate offers the ways to clear it. Inside an authorized chain, return without asking.
+Direct invocation ends with [next steps](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step): continue, publish or stop; failed/unverified gates offer repairs. Authorized chains return unasked.

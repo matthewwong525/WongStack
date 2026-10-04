@@ -22,6 +22,8 @@ const scripts = {
   'scripts/tag-releases.mjs': [],
   'scripts/eval-verify.mjs': [],
   'scripts/verify-memory-areas.mjs': [],
+  'scripts/verify-revision-chain.mjs': [],
+  '.agents/skills/save/scripts/saved-revision.mjs': [],
   '.agents/skills/verify/scripts/verify-receipts.mjs': ['check'],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],

@@ -68,7 +68,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/number-releas
 
 ## Step 4 — verify the preview (evidence, not a gate)
 
-**Invoke the `verify` skill once**, verbatim; never skip it or rerun it for a better verdict. No `verify` skill → say so in one line and go on; never install it.
+**Invoke `verify` once with Step 3's exact checkpoint receipt.** It checks identity and reuses the gate without another save; fresh walkthrough evidence remains required. Never rerun for a better verdict. No `verify` skill → say so in one line and go on; never install it.
 
 - `SUCCESS`, `NONE`, `UNKNOWN`, `TIMEOUT` → report it and merge.
 - `FAILURE` after `/verify`'s own fixes → **stop and ask** [two options](../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks): fix it first *(Recommended)*, or *publish anyway* and record that the walk failed. Say in [plain words](../explore/references/asking-the-user.md#write-in-plain-words) what they would see not working on the preview.

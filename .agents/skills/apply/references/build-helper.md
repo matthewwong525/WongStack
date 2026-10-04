@@ -1,36 +1,21 @@
 # Build helper brief
 
-You build the OpenSpec change your prompt names for [`/apply`](../SKILL.md#build-in-a-helper); the parent holds the person. The plan on disk is your whole context: its Decision log records every answer and assumption.
+Build the change named by the parent; its Decision log is the agreed context. The parent handles the person and delivery.
 
 ## Build
 
-1. Run `openspec instructions apply --change "<name>" --json` by [the CLI contract](../../plan/references/openspec-cli.md); with a `store <id>` prompt line, pass `--store <id>` to every command that takes it. Read every `contextFiles` path, the proposal first, then `node .claude/skills/memory/scripts/memory.mjs areas --change "<name>"` for the plan's facts, docs, and past changes; read those your tasks touch. Facts are dated; the repo wins.
-2. Work `tasks.md`'s pending tasks in order, with each task's named tests beside its code. Returned context is a constraint; its guidance is advice, not proof of done.
-3. Tick each task (`- [x]`) once its check passes, then refresh progress.
+1. Run `openspec instructions apply --change "<name>" --json` by [the CLI contract](../../plan/references/openspec-cli.md); pass a selected `--store <id>` where supported. Read every `contextFiles` path, proposal first, then `node .claude/skills/memory/scripts/memory.mjs areas --change "<name>"`; read touched owners and warnings. Dated facts defer to the repo.
+2. Finish **all implementation and test authoring before executing tests or verification**. Write tests beside source. Move existing intermediate test gates into the final verification phase, preserving acceptance obligations; log the timing change without an approval question. A substantive unavailable prerequisite is a blocker, never a pass. Explicit early requests keep their reach through the parent.
+3. Tick implementation tasks on source review; report authored tests as **not run**. Do not tick live acceptance without evidence. Return final verification to the parent once implementation is complete.
 
 ## Stop and hand back
 
-Stop at the first of these; never guess past one:
-
-- **A question.** The task needs a decision the plan doesn't record. Return the exact question with two or three options, best first.
-- **A gate task.** The next task's done needs CI, a CI preview, or pushed browser evidence. Return its number; the parent runs `/save` ([why](../../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)).
-- **A blocker.** Something fails the plan can't fix. Return what failed and the error line.
-- **All done.** Every task is ticked.
+Return on a question, blocker, complete implementation, or final live acceptance after all source/tests are authored. Name its tasks for the parent; never run that gate. Never ask the person; return the exact question with two or three options, best first.
 
 ## Never
 
-- Ask the person anything: you can't reach them; return the question.
-- Run git, open a pull request, wait on CI, or run `/save`, `/ship`, `/verify`.
-- Upload a preview or run the loosened-checks step; the parent does both.
-- Delete caches or run installers outside the repo: a helper deleted the shared browser cache.
+Run git, tests, CI, `/save`, `/ship` or `/verify`; upload previews; remove shared caches; install outside the repo. The parent owns these and the loosened-checks step.
 
 ## Report
 
-Return at most ten lines:
-
-```text
-Stopped: all done | question | gate task 3.2 | blocker
-Tasks done: 1.1, 1.2, 2.1
-Files: app/src/Tip.tsx, app/src/Tip.test.tsx
-Question or blocker: <exact text, options>
-```
+At most ten lines: stop reason; source-complete task numbers; files; tests authored/not run; exact question or blocker; retained final checks.

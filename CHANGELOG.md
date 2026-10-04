@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 30.10.0 — Build first, check once at the end
+
+Build the complete change and its tests before automatic verification. Reuse the exact saved revision for the preview walkthrough, keeping required final checks and fresh evidence. Failed checks still get repairs and affected rechecks.
+
+**Updating.** Existing per-part test checkpoints move to the end of the build. No account, credential or hosting change is needed.
+
 ## 30.9.0 — Clearer drawings in plans
 
 - A plan's drawing now fits what it explains, not one column of steps. Steps run in one straight line, with what can go wrong in a row below.

@@ -95,6 +95,21 @@ jobs:
           path: ${{ runner.temp }}/verify-preflight-regression/
           if-no-files-found: error
           retention-days: 14
+      - name: Capture retained revision handoff
+        id: revision_chain
+        if: ${{ steps.scope.outputs.docs_only != 'true' }}
+        timeout-minutes: 2
+        run: node scripts/verify-revision-chain.mjs --out "$RUNNER_TEMP/verify-revision-chain"
+      - name: Keep revision handoff observations
+        if: ${{ always() && steps.revision_chain.outcome != 'skipped' && steps.revision_chain.outcome != '' }}
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verify-revision-chain
+          overwrite: true
+          path: ${{ runner.temp }}/verify-revision-chain/
+          if-no-files-found: error
+          retention-days: 14
       # The full suite above already includes it.
       - name: Private-names test
         if: ${{ steps.scope.outputs.docs_only == 'true' }}

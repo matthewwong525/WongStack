@@ -642,3 +642,14 @@ test('pictures reports NONE for a comment with no picture, and UNKNOWN when the 
   assert.match(refused.stdout, /^RESULT: UNKNOWN\n {2}the live site did not return the pictures \(HTTP 401\)\nRUN_DIR=/);
   assert.doesNotMatch(refused.stdout, /\t/);
 });
+
+test('scouting an unobservable change spends no preview, browser, staging or evidence work', t => {
+  const { work, temp, calls, env } = preflightFixture(t);
+  const result = spawnSync('bash', [script, 'scout-check'], { cwd: work, env, encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /^RESULT: READY\nROOT=/);
+  assert.doesNotMatch(result.stdout, /RUN_DIR=|TURN=|SEEDED=/);
+  assert.equal(existsSync(calls), false);
+  assert.deepEqual(readdirSync(temp), []);
+  // Scenario reachability belongs to the agent scout, not this plumbing check.
+});
