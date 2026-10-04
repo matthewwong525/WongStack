@@ -14,7 +14,7 @@ The sanitized wh1007 evidence was read with the supplied SHA256 verified. It est
 
 ## Goals / Non-Goals
 
-**Goals:** one new hosted project can be bootstrapped, edited by an AI, checked remotely, privately previewed and published twice. All customer project storage and hosted execution use Cloudflare; the workspace VM remains the existing AI editing environment. Repeated setup and delivery steps are deterministic.
+**Goals of this release:** ship the tested setup and delivery implementation with managed creation disabled. The separately authorized follow-up must establish that one new hosted project can be bootstrapped, edited by an AI, checked remotely, privately previewed and published twice. All customer project storage and hosted execution use Cloudflare; the workspace VM remains the existing AI editing environment. Repeated setup and delivery steps are deterministic.
 
 **Non-goals:** see the proposal. In particular, this is an HTTP/static starter, not a full memory-ready personal WongStack installation. Copy the shipped workflow/knowledge payload and record its source, but do not provision a memory store or add memory readiness to hosted setup. Existing memory code and personal installation behavior remain separate. Do not modify billing or device enrollment to manufacture a test account.
 
@@ -124,7 +124,7 @@ Modify the current Cloud setup cards rather than adding a repository browser. Re
 
 The planning phase created no credentials or provider resources and performed no live checks. The later `/apply` starts implementation, which must first establish, using the official SDK and protocol fixtures, its exact checkout, runner credential boundary, compiled-output handoff, result schema and finite cleanup contract. Task-driven maintenance checks must not silently deploy or provision new resources; inspect the maintenance workflow before dispatch. Live acceptance needs a separately authorized disposable inventory and budget, platform Paid/Zero Trust readiness, necessary permissions and source/Cloud deployment pins. The current [Artifacts pricing](https://developers.cloudflare.com/artifacts/platform/pricing/) requires Workers Paid; do not start a trial or create tokens to satisfy this dependency.
 
-Required acceptance, all on fresh non-canceled resources:
+Required deferred live acceptance before enablement, all on fresh non-canceled resources (see [the unfinished follow-up](live-acceptance-follow-up.md)):
 
 | Case | Evidence required |
 | --- | --- |
@@ -154,6 +154,6 @@ CI for the Source/Cloud implementation still follows each maintenance repository
 
 Implement from the latest main of both repositories, under this new plan. Cloud changes are companion integration needed for this end-to-end delivery, not a revival of Cloud #65. Roll out only to new projects with the negotiated Source contract and a reviewed pinned starter; a failed contract/integration keeps managed creation unavailable with a clear service-side status, without falling into customer token setup.
 
-Release enablement follows the complete fresh acceptance. To roll back, disable new managed creation and keep already-created Artifacts repositories, grants and deployments available for status/recovery; do not migrate them to GitHub or delete customer work. Cleanup/decommissioning uses exact owned receipts and explicit authority.
+This implementation release remains disabled. Its user-authorized ship includes normal Source/Cloud production deployment and Cloud record migrations; it does not complete the live acceptance. Release enablement follows the complete fresh acceptance in the unfinished follow-up. To roll back, disable new managed creation and keep already-created Artifacts repositories, grants and deployments available for status/recovery; do not migrate them to GitHub or delete customer work. Cleanup/decommissioning uses exact owned receipts and explicit authority.
 
 Follow-ups, each requiring its own plan: (1) replace the SDK build path with native Workers Builds when automatic connection is supported; (2) add business D1 with separate staging resources and migration acceptance; (3) team access and more than one change; (4) custom domains and non-HTTP workloads. Memory/Devices remains its own workstream and is not an implicit prerequisite.

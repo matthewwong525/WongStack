@@ -1,16 +1,16 @@
-# Start a hosted project without provider accounts
+# Prepare account-free hosted projects
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** spotless-panther
-**Open questions:** fresh bounded live inventory, compatible published starter/agent identities, necessary sign-in participation, cost limit, cleanup and enablement remain separate; combined maintenance CI/staging passed.
+**Open questions:** none for this disabled implementation release. Live inventory, immutable starter/runner/agent pins, sign-in participation, cost, cleanup and enablement remain unfinished in [the follow-up](live-acceptance-follow-up.md).
 
 ## Why
 
-Starting a hosted project should give a person a project their AI can work on and a small working site, without signing up for GitHub or Cloudflare. The first delivery should prove that whole journey with a small amount of new machinery.
+Starting a hosted project should give a person a project their AI can work on and a small working site, without signing up for GitHub or Cloudflare. This release ships the tested implementation with managed creation disabled. A separate live-acceptance follow-up must prove the complete small-app journey before enabling it.
 
 ## What Changes
 
-- **New hosted projects use managed storage by default.** After the existing email sign-in and service access steps, start the project without provider accounts, tokens, or dashboard visits. A quieter choice keeps the normal GitHub setup for people who request it. Existing projects keep their current route.
+- **Prepare managed storage as the new-project default when enabled.** After the existing email sign-in and service access steps, start the project without provider accounts, tokens, or dashboard visits. A quieter choice keeps the normal GitHub setup for people who request it. Existing projects keep their current route.
   ```text
   NEW HOSTED PROJECT
   ═══════════════════════════════════════
@@ -67,7 +67,7 @@ Starting a hosted project should give a person a project their AI can work on an
                                    ▼
                          both agree: published
   ```
-- **Keep setup and failure states understandable.** Reuse the existing dashboard cards; no new repository browser or hosting console. The first release is accepted only after setup, a real AI edit, a deliberately failing check, private preview, approved publication and a second change all work.
+- **Keep setup and failure states understandable.** Reuse the existing dashboard cards; no new repository browser or hosting console. This disabled implementation release is accepted through its Source/Cloud maintenance gates. Enablement remains conditional on the separate complete live journey: setup, a real AI edit, a deliberately failing check, private preview, approved publication and a second change.
   ```text
   ┌─────────────────────────────────────┐
   │ My business                         │
@@ -90,7 +90,7 @@ Starting a hosted project should give a person a project their AI can work on an
   └─────────────────────────────────────┘
   ```
 
-**Non-goals:** moving existing projects, removing the public GitHub template or existing GitHub workflow, a GitHub replacement with pull requests and issues, a new AI runtime, Memory/Devices, billing changes, automatic customer sign-ins, database-backed app features, background jobs, custom domains, parallel changes, and a bespoke build or bundle-transfer system.
+**Non-goals:** moving existing projects, removing the public GitHub template or existing GitHub workflow, a GitHub replacement with pull requests and issues, a new AI runtime, Memory/Devices, billing changes, automatic customer sign-ins, database-backed app features, background jobs, custom domains, parallel changes, a bespoke build or bundle-transfer system, enabling managed creation, and completing the deferred live trial in this release.
 
 ## Capabilities
 
@@ -172,3 +172,7 @@ Starting a hosted project should give a person a project their AI can work on an
 - **2026-10-04** — Source repair `33773b5` passed all 1,148 script cases, then ordinary generated-starter lint reported `fetch` complexity 23 against unchanged maximum 21. Factor the identical existing open-workspace predicate into a typed generated helper to make room for the compiled identity route while keeping the full signed-access denial block and upstream routing. Preserve strict exact-one transformation anchors and add generated signed/unsigned/method/stale-open-switch coverage; do not raise the limit or add exclusions. Cloud's final evidence head `6b20efe8db3960ba23c73c09012f96108c5d3d24` passed complete maintenance CI/staging with no remaining migrations; live hosted acceptance remains pending.
 
 - **2026-10-04** — Source repaired head `3de4694fdd872eada9e9f5332d3b8c7c7bb9f074` passed [Test](https://github.com/matthewwong525/WongStack/actions/runs/37207060305), [Payload checks](https://github.com/matthewwong525/WongStack/actions/runs/37207060315) and [Deploy](https://github.com/matthewwong525/WongStack/actions/runs/37207060278), with settled exact-head SUCCESS. All 1,148 script cases pass above unchanged coverage floors; full generated starter install/type generation/test/build and compiled configuration/identity/assets checks pass without deployment. Source app tests, payload/release/wiki/context checks and the exact branch staging preview pass. Together with Cloud's final recorded passing gate, complete implementation/maintenance tasks 4.1–5.2. Two narrow Source repairs and one Cloud documentation repair were required. Keep 6.1 incomplete for compatible published starter/agent/runner identities and 6.2/6.3 incomplete for separately authorized live acceptance/cleanup; creation remains disabled and no publication/merge is authorized by this checkpoint.
+
+- **2026-10-04** — The user invoked `/ship`, then explicitly selected “Ship disabled implementation; retain live follow-up.” Narrow this release to the tested code and normal Source/Cloud production deployments, including Cloud record migrations 0019–0021. Move original unfinished tasks 6.1–6.3 verbatim into `live-acceptance-follow-up.md`; do not mark them complete or fabricate acceptance. This deliberate scope change supersedes the earlier requirement to finish the real app trial before shipping this code, while preserving that complete journey as a condition of later enablement. No new hosted resource, credential, sign-in, billable trial, starter publication or managed-creation enablement is authorized. Archive only the completed implementation tasks and keep creation/delivery/observer controls and new provider bindings inactive.
+
+- **2026-10-04** — Archive checkpoint for the explicitly approved disabled implementation release: all 13 current-scope tasks are complete, original 6.1–6.3 remain unfinished in `live-acceptance-follow-up.md`, and delta requirements exactly match reconciled main specs. Number the Source release 30.4.0 from current main 30.3.0, then gate this exact archive checkpoint before merging. No live Artifacts acceptance or enablement is implied.

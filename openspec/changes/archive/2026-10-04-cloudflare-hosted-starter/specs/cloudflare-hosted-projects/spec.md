@@ -8,7 +8,7 @@ Give a new hosted customer an ordinary project their AI can edit and a working s
 
 ### Requirement: Managed storage is the default for new hosted projects
 
-A new hosted project SHALL use platform-managed Artifacts unless the owner explicitly requests GitHub. Its setup SHALL require no customer GitHub or Cloudflare account, provider credential, provider dashboard visit or operator dashboard connection. Existing GitHub projects and explicitly selected GitHub projects SHALL retain their normal setup and delivery route, without migration.
+When managed creation is separately enabled, a new hosted project SHALL use platform-managed Artifacts unless the owner explicitly requests GitHub. Its setup SHALL require no customer GitHub or Cloudflare account, provider credential, provider dashboard visit or operator dashboard connection. Existing GitHub projects and explicitly selected GitHub projects SHALL retain their normal setup and delivery route, without migration.
 
 #### Scenario: Owner starts a new hosted project
 
@@ -19,6 +19,15 @@ A new hosted project SHALL use platform-managed Artifacts unless the owner expli
 
 - **WHEN** a project already uses GitHub or a new project's owner explicitly selects GitHub
 - **THEN** its setup, pull requests, checks, preview discovery and merging retain the normal GitHub behavior
+
+### Requirement: Managed creation stays disabled pending live acceptance
+
+The prepared implementation SHALL keep new managed project creation disabled and provider execution bindings unconfigured until a separately authorized complete live acceptance and enablement decision. Shipping the implementation alone SHALL NOT activate customer provisioning or imply that the live journey passed.
+
+#### Scenario: Managed creation is disabled
+
+- **WHEN** the managed route has not completed live acceptance and remains disabled
+- **THEN** starting a workspace creates no managed repository, hosting resource or provider credential, while the existing GitHub route remains available
 
 ### Requirement: Hosted setup preserves the project and its source identity
 

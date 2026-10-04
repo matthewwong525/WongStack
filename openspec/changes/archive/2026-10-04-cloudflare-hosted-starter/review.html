@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · cloudflare-hosted-starter</title>
+<title>Review · 2026-10-04-cloudflare-hosted-starter</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="cloudflare-hosted-starter">
+<body data-change="2026-10-04-cloudflare-hosted-starter">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>cloudflare-hosted-starter</h1>
+  <h1>2026-10-04-cloudflare-hosted-starter</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -105,11 +105,11 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">Starting a hosted project should give a person a project their AI can work on and a small working site, without signing up for GitHub or Cloudflare. The first delivery should prove that whole journey with a small amount of new machinery.</p>
+<p data-note="why-1" tabindex="0">Starting a hosted project should give a person a project their AI can work on and a small working site, without signing up for GitHub or Cloudflare. This release ships the tested implementation with managed creation disabled. A separate live-acceptance follow-up must prove the complete small-app journey before enabling it.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>New hosted projects use managed storage by default.</b> After the existing email sign-in and service access steps, start the project without provider accounts, tokens, or dashboard visits. A quieter choice keeps the normal GitHub setup for people who request it. Existing projects keep their current route.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Prepare managed storage as the new-project default when enabled.</b> After the existing email sign-in and service access steps, start the project without provider accounts, tokens, or dashboard visits. A quieter choice keeps the normal GitHub setup for people who request it. Existing projects keep their current route.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
 <span class="ln" data-note="item-1-line-1" tabindex="0">NEW HOSTED PROJECT</span>
 <span class="ln" data-note="item-1-line-2" tabindex="0">═══════════════════════════════════════</span>
 <span class="ln" data-note="item-1-line-3" tabindex="0">email sign-in ──▶ start project</span>
@@ -155,7 +155,7 @@
 <span class="ln" data-note="item-4-line-9" tabindex="0">                       └─────────┬─────────┘</span>
 <span class="ln" data-note="item-4-line-10" tabindex="0">                                 ▼</span>
 <span class="ln" data-note="item-4-line-11" tabindex="0">                       both agree: published</span></pre></div></details></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Keep setup and failure states understandable.</b> Reuse the existing dashboard cards; no new repository browser or hosting console. The first release is accepted only after setup, a real AI edit, a deliberately failing check, private preview, approved publication and a second change all work.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Keep setup and failure states understandable.</b> Reuse the existing dashboard cards; no new repository browser or hosting console. This disabled implementation release is accepted through its Source/Cloud maintenance gates. Enablement remains conditional on the separate complete live journey: setup, a real AI edit, a deliberately failing check, private preview, approved publication and a second change.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
 <span class="ln" data-note="item-5-line-1" tabindex="0">┌─────────────────────────────────────┐</span>
 <span class="ln" data-note="item-5-line-2" tabindex="0">│ My business                         │</span>
 <span class="ln" data-note="item-5-line-3" tabindex="0">│ Setting up your project…            │</span>
@@ -176,7 +176,7 @@
 <span class="ln" data-note="item-5-line-18" tabindex="0">│ Follow the existing AI sign-in steps│</span>
 <span class="ln" data-note="item-5-line-19" tabindex="0">└─────────────────────────────────────┘</span></pre></div></details></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> moving existing projects, removing the public GitHub template or existing GitHub workflow, a GitHub replacement with pull requests and issues, a new AI runtime, Memory/Devices, billing changes, automatic customer sign-ins, database-backed app features, background jobs, custom domains, parallel changes, and a bespoke build or bundle-transfer system.</p>
+<p class="aside"><b>Non-goals:</b> moving existing projects, removing the public GitHub template or existing GitHub workflow, a GitHub replacement with pull requests and issues, a new AI runtime, Memory/Devices, billing changes, automatic customer sign-ins, database-backed app features, background jobs, custom domains, parallel changes, a bespoke build or bundle-transfer system, enabling managed creation, and completing the deferred live trial in this release.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
@@ -226,6 +226,8 @@
 <li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source's first full payload CI found two starter preparation failures because current upstream company discovery/login-link routes were inserted between the signed-access denial block and the old adjacent preview-comment anchor. Narrow the required exact-one anchor to the complete unchanged denial block and insert identity immediately after it. Preserve current upstream routing byte-for-byte; missing/duplicate anchors still fail. All seven affected starter script cases and syntax/selected lint pass. Full generated starter test/build remains in the authorized CI rerun, with no local app build or starter deployment.</li>
 <li class="decision card" id="decision-44" data-note="decision-44" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source repair <code>33773b5</code> passed all 1,148 script cases, then ordinary generated-starter lint reported <code>fetch</code> complexity 23 against unchanged maximum 21. Factor the identical existing open-workspace predicate into a typed generated helper to make room for the compiled identity route while keeping the full signed-access denial block and upstream routing. Preserve strict exact-one transformation anchors and add generated signed/unsigned/method/stale-open-switch coverage; do not raise the limit or add exclusions. Cloud's final evidence head <code>6b20efe8db3960ba23c73c09012f96108c5d3d24</code> passed complete maintenance CI/staging with no remaining migrations; live hosted acceptance remains pending.</li>
 <li class="decision card" id="decision-45" data-note="decision-45" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Source repaired head <code>3de4694fdd872eada9e9f5332d3b8c7c7bb9f074</code> passed <a href="https://github.com/matthewwong525/WongStack/actions/runs/37207060305">Test</a>, <a href="https://github.com/matthewwong525/WongStack/actions/runs/37207060315">Payload checks</a> and <a href="https://github.com/matthewwong525/WongStack/actions/runs/37207060278">Deploy</a>, with settled exact-head SUCCESS. All 1,148 script cases pass above unchanged coverage floors; full generated starter install/type generation/test/build and compiled configuration/identity/assets checks pass without deployment. Source app tests, payload/release/wiki/context checks and the exact branch staging preview pass. Together with Cloud's final recorded passing gate, complete implementation/maintenance tasks 4.1–5.2. Two narrow Source repairs and one Cloud documentation repair were required. Keep 6.1 incomplete for compatible published starter/agent/runner identities and 6.2/6.3 incomplete for separately authorized live acceptance/cleanup; creation remains disabled and no publication/merge is authorized by this checkpoint.</li>
+<li class="decision card" id="decision-46" data-note="decision-46" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The user invoked <code>/ship</code>, then explicitly selected “Ship disabled implementation; retain live follow-up.” Narrow this release to the tested code and normal Source/Cloud production deployments, including Cloud record migrations 0019–0021. Move original unfinished tasks 6.1–6.3 verbatim into <code>live-acceptance-follow-up.md</code>; do not mark them complete or fabricate acceptance. This deliberate scope change supersedes the earlier requirement to finish the real app trial before shipping this code, while preserving that complete journey as a condition of later enablement. No new hosted resource, credential, sign-in, billable trial, starter publication or managed-creation enablement is authorized. Archive only the completed implementation tasks and keep creation/delivery/observer controls and new provider bindings inactive.</li>
+<li class="decision card" id="decision-47" data-note="decision-47" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Archive checkpoint for the explicitly approved disabled implementation release: all 13 current-scope tasks are complete, original 6.1–6.3 remain unfinished in <code>live-acceptance-follow-up.md</code>, and delta requirements exactly match reconciled main specs. Number the Source release 30.4.0 from current main 30.3.0, then gate this exact archive checkpoint before merging. No live Artifacts acceptance or enablement is implied.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

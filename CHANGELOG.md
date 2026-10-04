@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Prepare account-free hosted projects
+## 30.4.0 — Prepare account-free hosted projects
 
 - The test workflow uses one portable check entry point with the whole change's base and exact saved head. It keeps test discovery, documentation-only skips, and the existing check and wiki reports together.
 - Quality checks still report after failed installation or tests. The existing GitHub staging deployment runs independently.
