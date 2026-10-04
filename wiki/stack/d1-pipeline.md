@@ -152,6 +152,10 @@ Two consequences, both real:
 - Two branches pushing in the same window overwrite each other's staging deploy. For a small team this is a shrug; if it starts hurting, the branch name is already in `cf-deploy.sh`, so narrowing the scope is a small change rather than a redesign.
 - Concurrent resets or migrations across parallel branches can stomp each other, and an abandoned branch can leave its migration applied. [`db:reset:staging`](#seeded-staging-production-untouched) is the routine recovery, not a heavyweight operation.
 
+**Checks take turns.** [`/verify`](../development/staging-walkthrough.md) holds one staging turn while it walks, so two checks never reset or write staging at once, across machines. The turn is a marker kept with the repository's saved work (`refs/wong/staging-turn` on the remote): the one store every machine already shares, and a push there starts no CI run. A walk takes it, rebuilds staging, walks, and gives it back; a turn its holder never returned expires after 15 minutes. A host that refuses the marker walks without a turn and says so.
+
+A turn covers checks only. A reset still wipes data someone is looking at on their preview, and another branch's push still redeploys the staging Worker mid-walk; the next walk rebuilds the data.
+
 ### Why not a Worker per pull request
 
 Because Cloudflare doesn't offer one, and building it isn't worth it. A Worker per PR means, per PR: a created-migrated-seeded D1, its own queue, its own bucket, its own secrets, its own [Access](cloudflare-access.md) policy — and a teardown job on close, or orphaned resources accumulate forever. That's an environment provisioner, easily larger than the app using it.
@@ -182,7 +186,7 @@ Staging is a **seeded fixture database, not a mirror of production.** `npm run d
 
 It never reads, exports, or touches production. That makes the reset safe, fast, and deterministic — the escape hatch when [shared staging](#staging-is-shared-and-thats-the-trade) gets wedged by an abandoned branch's migration.
 
-`schema/seed.sql` ships as a commented, empty template. Fill it with the few rows a preview needs to be exercisable. **A change that alters a seeded table updates `schema/seed.sql` in the same change** — so a reset always matches the current schema.
+`schema/seed.sql` ships as a commented, empty template. **A change that adds or alters a feature adds the made-up rows its scenarios need, in the same change**: sample customers, orders, or records, realistic in shape, with no real person's details. Every check before publishing [starts from these rows](../development/staging-walkthrough.md#why-a-walk-runs-the-way-it-does), so a feature with no sample data goes unchecked, and the check names it. A change that alters a seeded table updates the file too, so a reset always matches the current schema.
 
 The trade-off, stated plainly: fixtures won't catch a migration that only breaks on production-scale data shapes (400k rows, an unexpected NULL). The mitigation is that production migrations are forward-only and run against real data for the first time at merge, with [Time Travel](d1-recovery.md#a-bad-migration-reached-production) behind them.
 
@@ -195,8 +199,8 @@ All of them read repo-specific values from `wrangler.jsonc` (names, ids) or `.en
 | `scripts/cf-build.sh` | the workflow's **build** step | Migrate production or staging by branch, then build. `--app-dir` prints where `package.json` lives, so CI can install in the right place. |
 | `scripts/cf-deploy.sh` | the workflow's **deploy** step | Deploy the production Worker on the default branch; on any other, deploy the staging Worker and then upload a per-commit staging version for the alias URL. |
 | `scripts/cf-preview.sh` | [`/apply`](../../.agents/skills/apply/SKILL.md), for a preview from the agent's machine | Install, migrate staging, build, upload a staging version under the preview alias, and print its URL. Never deploys production. |
-| `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging` | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
-| `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load both Workers from `app/.dev.vars`, refusing `.env`; compare the two Workers' secret names and staging's bindings against production's. |
+| `scripts/reset-staging-d1.mjs` | `npm run db:reset:staging`, and `/verify` before each walk | Drop staging → apply migrations → apply `schema/seed.sql`. Never touches production. |
+| `scripts/cf-secrets.mjs` | `npm run secrets:push` / `secrets:check`, and the workflow's **parity** step | Load both Workers from `app/.dev.vars`, refusing `.env`; compare the two Workers' secret names and staging's bindings against production's; `shared` lists which keys staging shares with production. |
 | `scripts/lib-wrangler-config.sh`<br>`scripts/lib-wrangler-config.mjs` | sourced/imported by the above | One copy of "where is the wrangler config", "what is this environment's database name", "which branch is production", and the staging guards, so a build, its deploy, and a preview can't resolve different apps. |
 | `scripts/lib-cli.mjs` | imported by the `.mjs` scripts | One CLI convention: `--help` prints usage and exits 0, and a usage error exits 2. It passes on the memory skill's `scripts/lib/cli.mjs`, which skills share too. |
 

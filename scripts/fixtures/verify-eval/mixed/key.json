@@ -8,5 +8,8 @@
   "The alpha preference survives reopening": {"truth":"broken","path":"/api/settings/alpha","report":"fail","readback":true},
   "The bravo preference survives reopening": {"truth":"works","path":"/api/settings/bravo","report":"pass","readback":true},
   "The export view shows note titles": {"truth":"broken","path":"/exports","report":"fail","consumer":true},
+  "Deleting an order lowers the total": {"truth":"broken","act":"^/(api/)?orders/\\d+/delete$","read":"^/(api/)?orders$","report":"fail"},
+  "Sending a receipt emails the customer": {"truth":"gap","seen":"^/(api/)?orders$","forbidden":"^/(api/)?orders/\\d+/receipt$","report":"unverified","limit":"shared|staging-only|key"},
+  "The nightly summary counts open orders": {"truth":"broken","act":"^/api/jobs/nightly-summary/run$","read":"^/(api/)?summary$","report":"fail"},
   "The status page shows Ready": {"truth":"control","path":"/status","report":"pass"}
 }

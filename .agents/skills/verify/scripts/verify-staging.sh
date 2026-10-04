@@ -10,11 +10,16 @@
 #                                          → can we walk, and what do we walk?
 #   verify-staging.sh run <run-dir> <url>  → drive the journeys, capture evidence
 #   verify-staging.sh publish <run-dir>    → keep the screenshots, or say why not
-#   verify-staging.sh cleanup <run-dir>    → leave no trace
+#   verify-staging.sh cleanup <run-dir>    → leave no trace, give the turn back
 #
 # and, for a walk that already ran:
 #
 #   verify-staging.sh pictures <pr>        → fetch that walk's kept screenshots
+#
+# and, for the staging turn on its own (preflight and cleanup already do both):
+#
+#   verify-staging.sh turn take            → wait for the turn, then hold it
+#   verify-staging.sh turn give <commit>   → give back the turn `take` printed
 #
 # `scout-check` exists so that "there is nothing to walk" costs nothing. It
 # answers the one question the scout needs before spending anything — are we in
@@ -30,6 +35,25 @@
 # check rather than failing the walk over a tool it will not use.
 # `--no-preview --no-browser` prepares the same owned run folder for CI
 # evidence only, without looking up a URL or obtaining browser tools.
+#
+# ── One walk at a time, from the same data ────────────────────────────────────
+# Every branch shares one staging database. In a repo that has one, a preflight
+# with a preview takes the repository's staging turn, rebuilds staging from the
+# checked-in seed, and prints three more facts:
+#
+#   TURN=held | timeout | unavailable <why>
+#   SEEDED=yes | no <why>      was staging rebuilt from the seed for this walk?
+#   PLAYGROUND=yes | no        is every stateful staging binding its own twin,
+#                              and the staging database not production's?
+#
+# The turn is the ref `refs/wong/staging-turn` on `origin`: the one store every
+# machine already shares. Taking it is a create-only push, which the remote
+# applies atomically, so two walks can not both hold it. `cleanup` gives it
+# back; a turn its holder never gave back (a crashed walk) is taken over once
+# it is older than the walk's budget plus five minutes. A `timeout` leaves
+# staging alone, so its checks are unverified. `unavailable` (no remote, or a
+# host that refuses the ref) still rebuilds and walks, without a turn.
+# `--no-preview` touches no staging: no turn, no rebuild, none of these facts.
 #
 # ── What this script does NOT do ──────────────────────────────────────────────
 # It never decides whether a journey passed. It captures evidence; `/verify`
@@ -100,8 +124,9 @@ resolve_primary_root() {
 # Exported values win. Missing values come from the primary worktree's ignored
 # .env — the same durable store setup's provisioning writes. Load only the
 # allowlisted credentials the walk understands; never source arbitrary shell
-# from a dotenv file and never print a value. All three are optional: they
-# matter only when the preview sits behind Cloudflare Access. The memory
+# from a dotenv file and never print a value. All are optional: the Access pair
+# matters only when the preview sits behind Cloudflare Access, and the account
+# id only to the staging rebuild. The memory
 # skill's parser reads the file, so quotes, `export`, and CRLF mean the same
 # thing here as there.
 load_credentials() {
@@ -118,9 +143,9 @@ load_credentials() {
       const env = parseEnv((await import("node:fs")).readFileSync(file, "utf8"));
       for (const key of keys) if (env[key]) console.log(`${key}=${env[key]}`);
     ' "$active_root/.claude/skills/memory/scripts/lib/store.mjs" "$env_file" \
-      CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET)
+      CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET)
   fi
-  export CLOUDFLARE_API_TOKEN CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
+  export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET
 }
 
 has_access_token() { [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; }
@@ -245,6 +270,94 @@ scrubbed() { echo "REDACTED=${REDACTED:-unknown}"; }
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 
+# ── The staging turn (see the header) ─────────────────────────────────────────
+TURN_REF=refs/wong/staging-turn
+TURN_EXPIRY="${WONG_TURN_EXPIRY_SECONDS:-900}"   # the walk's ten-minute budget, plus five
+TURN_WAIT="${WONG_TURN_WAIT_SECONDS:-600}"       # no longer than a walk's budget
+TURN_POLL="${WONG_TURN_POLL_SECONDS:-15}"
+
+# Who holds a turn: this machine and this checkout, so a re-walk from the same
+# place takes its own stale turn back at once instead of waiting for it.
+turn_holder() { echo "holder: $(hostname 2>/dev/null || echo unknown):$ROOT"; }
+
+# Point the remote's turn at <commit> (empty deletes it), only while the remote
+# still holds <expected> (empty: only while nobody holds it).
+turn_push() {
+  git -C "$ROOT" push -q origin "$1:$TURN_REF" --force-with-lease="$TURN_REF:$2" >/dev/null 2>&1
+}
+
+# Sets TURN, and TURN_SHA when the turn is held.
+turn_take() {
+  local commit held deadline refused=0 age
+  TURN_SHA=""
+  if ! git -C "$ROOT" remote get-url origin >/dev/null 2>&1; then
+    TURN="unavailable this repo has no remote to keep the turn on"; return
+  fi
+  # An empty commit that says who took the turn and, by its date, when.
+  commit=$(printf 'staging turn\n\n%s\nbranch: %s\n' "$(turn_holder)" "$(git -C "$ROOT" branch --show-current 2>/dev/null)" \
+    | GIT_AUTHOR_NAME=wong GIT_AUTHOR_EMAIL=wong@localhost GIT_COMMITTER_NAME=wong GIT_COMMITTER_EMAIL=wong@localhost \
+      git -C "$ROOT" commit-tree "$(git -C "$ROOT" mktree </dev/null)" 2>/dev/null) || {
+    TURN="unavailable the turn marker could not be made"; return
+  }
+  deadline=$(( $(date +%s) + TURN_WAIT ))
+  while :; do
+    if turn_push "$commit" ""; then TURN=held; TURN_SHA=$commit; return; fi
+    if ! held=$(git -C "$ROOT" ls-remote origin "$TURN_REF" 2>/dev/null | cut -f1); then
+      TURN="unavailable the remote did not answer"; return
+    fi
+    if [ -z "$held" ]; then
+      # Free, yet the push failed: once is a race with a give, twice is a host
+      # that will not keep the ref.
+      refused=$((refused + 1))
+      if [ "$refused" -ge 2 ]; then TURN="unavailable the remote refused the turn marker"; return; fi
+      continue
+    fi
+    refused=0
+    if git -C "$ROOT" fetch -q --no-tags origin "$held" 2>/dev/null || git -C "$ROOT" fetch -q --no-tags origin "$TURN_REF" 2>/dev/null; then
+      age=$(( $(date +%s) - $(git -C "$ROOT" log -1 --format=%ct "$held" 2>/dev/null || date +%s) ))
+      if [ "$age" -gt "$TURN_EXPIRY" ] || git -C "$ROOT" log -1 --format=%B "$held" 2>/dev/null | grep -qxF "$(turn_holder)"; then
+        if turn_push "$commit" "$held"; then TURN=held; TURN_SHA=$commit; return; fi
+      fi
+    fi
+    if [ "$(date +%s)" -ge "$deadline" ]; then TURN=timeout; return; fi
+    sleep "$TURN_POLL"
+  done
+}
+
+# Gives the turn back, only while the remote still holds <commit>: a turn
+# another walk took over is theirs.
+turn_give() { [ -n "${1:-}" ] && turn_push "" "$1"; }
+
+# Before a walk with a preview: take the turn and rebuild staging from the
+# seed, in a repo with a staging database of its own. Sets TURN, SEEDED and
+# PLAYGROUND; keeps the held turn's commit in the run folder for `cleanup`.
+prepare_staging() {
+  local run_dir="$1" db
+  TURN=""; PLAYGROUND=no
+  SEEDED="no this repo has no staging database of its own to rebuild"
+  [ -f "$ROOT/scripts/reset-staging-d1.mjs" ] || return 0
+  # Empty when staging binds no database; fails when it binds production's.
+  db=$(cd "$ROOT" && node scripts/lib-wrangler-config.mjs staging-database 2>/dev/null) || db=""
+  [ -n "$db" ] || return 0
+  # The binding half of the parity check: without a token it compares the
+  # config alone, with no network call.
+  if (cd "$ROOT" && env -u CLOUDFLARE_API_TOKEN node scripts/cf-secrets.mjs check >/dev/null 2>&1); then PLAYGROUND=yes; fi
+  turn_take
+  [ -n "$TURN_SHA" ] && printf '%s\n' "$TURN_SHA" > "$run_dir/staging-turn"
+  if [ "$TURN" = timeout ]; then
+    SEEDED="no another check held staging for the whole wait"; return 0
+  fi
+  load_credentials "$ROOT" || true
+  if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+    SEEDED="no this machine has no Cloudflare credential to rebuild staging with"; return 0
+  fi
+  if (cd "$ROOT" && timeout 5m node scripts/reset-staging-d1.mjs) >"$run_dir/staging-reset.log" 2>&1; then
+    SEEDED=yes
+  else
+    SEEDED="no the staging rebuild failed (staging-reset.log in the run folder says why)"
+  fi
+}
+
 case "$CMD" in
 # ──────────────────────────────────────────────────────────────────────────────
 # The cheap half of preflight. Deliberately does NOT check the browser, install
@@ -344,6 +457,7 @@ preflight)
   RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX") || {
     emit UNKNOWN; note "could not prepare a walkthrough run directory"; exit 0
   }
+  if [ "$NEED_PREVIEW" -eq 1 ]; then prepare_staging "$RUN_DIR"; fi
   emit READY
   echo "URL=$URL"
   echo "RUN_DIR=$RUN_DIR"
@@ -354,6 +468,29 @@ preflight)
     echo "BROWSER=none (not needed)"
   fi
   if [ -n "$INSTALLED" ]; then echo "INSTALLED=$INSTALLED"; fi
+  if [ "$NEED_PREVIEW" -eq 1 ]; then
+    if [ -n "$TURN" ]; then echo "TURN=$TURN"; fi
+    echo "SEEDED=$SEEDED"
+    echo "PLAYGROUND=$PLAYGROUND"
+  fi
+  ;;
+
+# ──────────────────────────────────────────────────────────────────────────────
+turn)
+  if [ -z "$ROOT" ]; then
+    emit UNKNOWN; note "not inside a git repository"; exit 0
+  fi
+  case "${2:-}" in
+    take)
+      turn_take
+      echo "TURN=$TURN"
+      if [ -n "$TURN_SHA" ]; then echo "TURN_SHA=$TURN_SHA"; fi
+      ;;
+    give)
+      if turn_give "${3:-}"; then echo "TURN=given"; else echo "TURN=gone"; fi
+      ;;
+    *) echo "usage: verify-staging.sh turn take | turn give <commit>" >&2; exit 1 ;;
+  esac
   ;;
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -538,6 +675,9 @@ cleanup)
   TMP_ROOT=$(realpath -- "${TMPDIR:-/tmp}" 2>/dev/null) || TMP_ROOT=""
   case "${REAL##*/}" in wong-verify-*|wong-walk-*) OURS=1 ;; *) OURS=0 ;; esac
   if [ "$OURS" = 1 ] && [ -n "$TMP_ROOT" ] && [ -d "$REAL" ] && [ "$(dirname -- "$REAL")" = "$TMP_ROOT" ]; then
+    # The walk's staging turn, when preflight took one. A turn that can not be
+    # given back here expires on its own.
+    if [ -n "$ROOT" ] && [ -s "$REAL/staging-turn" ]; then turn_give "$(head -1 "$REAL/staging-turn")" || true; fi
     rm -rf -- "$REAL"; echo "cleaned $RUN_DIR"
   else
     echo "refusing to remove '$RUN_DIR' — not a walkthrough run directory in ${TMP_ROOT:-the temp dir}" >&2; exit 1
@@ -545,7 +685,7 @@ cleanup)
   ;;
 
 *)
-  echo "usage: verify-staging.sh {scout-check|preflight [--no-browser] [--no-preview]|run <run-dir> <url> [minutes]|publish <run-dir>|pictures <pr>|cleanup <run-dir>}" >&2
+  echo "usage: verify-staging.sh {scout-check|preflight [--no-browser] [--no-preview]|run <run-dir> <url> [minutes]|publish <run-dir>|pictures <pr>|turn take|turn give <commit>|cleanup <run-dir>}" >&2
   exit 1
   ;;
 esac

@@ -4,6 +4,7 @@
  *
  *     node scripts/cf-secrets.mjs push     # app/.dev.vars -> production + staging
  *     node scripts/cf-secrets.mjs check    # do the two Workers still match?
+ *     node scripts/cf-secrets.mjs shared   # which keys does staging share with production?
  *
  * Wire them up as `secrets:push` and `secrets:check` in package.json.
  *
@@ -35,15 +36,26 @@
  * present, but only ever to WARN: it is uncorroborated, and a repo may set a
  * secret out of band for good reasons.
  *
- * Names only. No secret value is read, printed, logged, or diffed anywhere in
- * this file — including on error paths — because `check` runs in CI, where its
- * output is retained in build logs.
+ * Names only. No secret value is printed or logged anywhere in this file —
+ * including on error paths — because `check` runs in CI, where its output is
+ * retained in build logs. Only `shared` reads values, to compare them.
+ *
+ * ── What `shared` reports ─────────────────────────────────────────────────────
+ * `push` loads staging from `.dev.vars` unless `.dev.vars.staging` exists, so
+ * by default staging holds production's keys and an outside service called from
+ * staging reaches real people. `shared` compares the two files, on this machine
+ * and with no network call, and prints each key name under `own` (staging's
+ * value differs) or `shared` (the same value, or no staging file). `/verify`
+ * uses a service only when its key is `own`. It reads the files, not the
+ * Workers: a deployed secret can not be read back, so a Worker loaded before
+ * the files changed may differ until the next `push`.
  *
  * Zero-config: no Worker name, environment id, or secret key is baked in here.
  * Every repo ships this file byte-for-byte identical.
  */
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, relative, resolve } from "node:path";
 
@@ -143,6 +155,22 @@ function readKeyNames(file) {
     if (match) names.push(match[1]);
   }
   return names;
+}
+
+/**
+ * Each KEY with a digest of its value, for `shared` to compare. The value
+ * itself never leaves this function. One pair of matching quotes is dropped,
+ * so `"x"` in one file and `x` in the other still count as the same key.
+ */
+function readKeyDigests(file) {
+  const digests = new Map();
+  for (const rawLine of readFileSync(file, "utf8").split(/\r?\n/)) {
+    const match = rawLine.trim().match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/);
+    if (!match || rawLine.trim().startsWith("#")) continue;
+    const value = match[2].trim().replace(/^(["'])(.*)\1$/, "$2");
+    digests.set(match[1], createHash("sha256").update(value).digest("hex"));
+  }
+  return digests;
 }
 
 /* ── wrangler ──────────────────────────────────────────────────────────────── */
@@ -522,19 +550,49 @@ function check(appDir, configPath) {
   );
 }
 
+/* ── shared ────────────────────────────────────────────────────────────────── */
+
+/**
+ * Which keys staging holds with its own value, and which with production's.
+ * A key the staging file leaves out is in neither list: `push` loads staging
+ * from that file alone, so staging does not hold it.
+ */
+function shared(appDir) {
+  const dir = secretsDir(appDir);
+  const source = resolve(dir, SOURCE);
+  const stagingSource = resolve(dir, `${SOURCE}.${STAGING_ENV}`);
+  const lists = { own: [], shared: [] };
+  if (!existsSync(source)) {
+    console.log(`cf-secrets: no ${relative(repoRoot, source)} on this machine — no key to compare`);
+  } else if (!existsSync(stagingSource)) {
+    console.log(`cf-secrets: read ${relative(repoRoot, source)}; no ${basename(stagingSource)}, so staging holds production's value for every key`);
+    lists.shared = readKeyNames(source);
+  } else {
+    console.log(`cf-secrets: read ${relative(repoRoot, source)} and ${basename(stagingSource)}`);
+    const production = readKeyDigests(source);
+    for (const [name, digest] of readKeyDigests(stagingSource)) {
+      lists[production.get(name) === digest ? "shared" : "own"].push(name);
+    }
+    const absent = [...production.keys()].filter((name) => !lists.own.includes(name) && !lists.shared.includes(name));
+    if (absent.length > 0) console.log(`cf-secrets: ${basename(stagingSource)} leaves out ${absent.join(", ")} — staging does not hold ${absent.length > 1 ? "them" : "it"}`);
+  }
+  for (const [label, names] of Object.entries(lists)) console.log(`${label}: ${[...new Set(names)].sort().join(" ")}`);
+}
+
 /* ── entry ─────────────────────────────────────────────────────────────────── */
 
 const USAGE = [
-  "usage: node scripts/cf-secrets.mjs <push|check> [file]",
+  "usage: node scripts/cf-secrets.mjs <push|check|shared> [file]",
   "",
   `  push   load ${SOURCE} into the production and staging Workers`,
   "  check  fail if the two Workers' secrets or bindings disagree",
+  "  shared list key names only: `own` when staging has its own value, `shared` when it has production's",
   "",
   `  [file] push only: read a file other than ${SOURCE}. Account-credential`,
   "         files such as .env are refused.",
 ].join("\n");
 const [mode, file, ...extra] = parseCli({ usage: USAGE, allowPositionals: true }).positionals;
-if (!["push", "check"].includes(mode) || extra.length || (file && mode !== "push")) usageError(USAGE);
+if (!["push", "check", "shared"].includes(mode) || extra.length || (file && mode !== "push")) usageError(USAGE);
 
 // `check` resolves the config WITHOUT exiting, because a repo with no config at
 // all is the pack's shipping state — before setup's Cloudflare provisioning runs there is
@@ -542,7 +600,12 @@ if (!["push", "check"].includes(mode) || extra.length || (file && mode !== "push
 // `push` keeps the library's aborting lookup: it has real work to do and cannot
 // do it without a config.
 const configPath =
-  mode === "check" ? findWranglerConfigOrNull() : findWranglerConfig();
+  mode === "push" ? findWranglerConfig() : findWranglerConfigOrNull();
+
+if (mode === "shared" && !configPath) {
+  console.log("cf-secrets: no wrangler config yet — no key to compare\nown: \nshared: ");
+  process.exit(0);
+}
 
 if (mode === "check" && !configPath) {
   // The first of the three skip conditions, and the one that occurs earliest in
@@ -558,4 +621,5 @@ const appDir = dirname(configPath);
 console.log(`cf-secrets: ${mode} (config: ${configPath.slice(repoRoot.length + 1)})`);
 
 if (mode === "push") push(appDir, file);
+else if (mode === "shared") shared(appDir);
 else check(appDir, configPath);

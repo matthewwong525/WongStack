@@ -8,8 +8,10 @@
 --     database, never a copy of production.
 --   • A change that alters a seeded table updates THIS file in the same
 --     change, so a reset always matches the current schema.
---   • Keep it minimal: the few rows a preview needs to be exercisable
---     (a demo account, a couple of reference rows), not a data dump.
+--   • A change that adds or alters a feature adds, in the same change, the
+--     made-up rows its scenarios need (sample customers, orders, records):
+--     realistic in shape, never a real person's details, not a data dump.
+--     The check before publishing starts from these rows.
 --
 -- This template ships empty. Add your INSERTs below.
 

@@ -15,6 +15,16 @@ Owner connections now seal separate login-management/GitHub authority, reconcile
 
 **Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Create a separate staging secret file with production connection authority explicitly empty before pushing runtime secrets. Existing memory access stays separate.
 
+## 30.8.0 — A staging playground, and a look at the live app
+
+- The check before publishing starts by wiping staging back to its made-up sample data, then creates, edits, and deletes freely, with no asking and no tidying up. Checks take turns, so two chats never trip over each other.
+- A change that adds or alters a feature also adds the sample customers, orders, or records its check needs. A check that finds no sample data for a promise names it.
+- The check uses an outside service, such as payments or email, only when staging has its own test key for it. A service still on the live app's key is left alone and named, so no real customer is emailed or charged.
+- A job that runs on a timetable is started by hand in staging, so its work is checked before publishing.
+- After publishing, the assistant waits for the release and opens the live app once, looking only. If the release failed or the app does not open, the same chat says what is wrong, builds a fix, and asks *publish it?*.
+
+**Updating.** The usual update delivers this, and each check now wipes staging's data first. Staging uses the live app's keys unless you give it its own, so checks leave payments, email, and similar services alone. To let checks use one, give staging its own test key: copy the file `app/.dev.vars` to `app/.dev.vars.staging`, swap that service's key for its test-mode key, then ask the assistant to load your keys into staging.
+
 ## 30.7.0 — Safer building and publishing
 
 - An answer you give in the middle of a build is written into the plan before the build carries on, so the next builder does not ask again or guess.

@@ -15,6 +15,25 @@
 import { createServer } from 'node:http';
 import { exportTitles } from './mixed/exports.mjs';
 
+// The mixed exercise's made-up sample orders, as a seeded staging would hold them. Two more mistakes
+// are planted there: a delete removes the order and leaves the shown total as it was, and the
+// nightly summary's manual trigger counts one open order too many.
+const ORDERS = [
+  { id: 1001, customer: 'Ada Example', amount: 40, status: 'open' },
+  { id: 1002, customer: 'Ben Sample', amount: 25.5, status: 'open' },
+  { id: 1003, customer: 'Cy Placeholder', amount: 12, status: 'open' },
+  { id: 1004, customer: 'Dee Mockup', amount: 60, status: 'shipped' },
+];
+const money = amount => amount.toFixed(2);
+
+const ordersPage = ({ orders, total }) => page('Orders', `<h1>Orders</h1>
+<p id="total">Total: ${money(total)}</p>
+<ul id="orders">
+${orders.map(order => `<li><span class="order">#${order.id} ${escapeHtml(order.customer)} ${money(order.amount)} ${order.status}</span>
+  <form method="post" action="/orders/${order.id}/delete"><button aria-label="Delete order ${order.id}">Delete</button></form>
+  <form method="post" action="/orders/${order.id}/receipt"><button aria-label="Send receipt for order ${order.id}">Send receipt</button></form></li>`).join('\n')}
+</ul>`);
+
 const SEED = ['Groceries for the week', 'Call the plumber', 'Trip ideas', 'Plumber invoice', 'Book club picks', 'Garden plan'];
 const SAVED_DELAY_MS = 800;
 
@@ -95,6 +114,9 @@ export async function startSite({ captures = null } = {}) {
   const notes = SEED.map(title => ({ id: nextId++, title, body: '', archived: false }));
   const typed = new Map(); // each new note's title as typed, shown by the next list page only
   const settings = { alpha: 'Original alpha', bravo: 'Original bravo' };
+  const orders = ORDERS.map(order => ({ ...order }));
+  const seededTotal = orders.reduce((sum, order) => sum + order.amount, 0);
+  let summary = null;
   const observations = [];
   const active = () => notes.filter(note => !note.archived);
   const add = (title, body) => {
@@ -158,6 +180,37 @@ export async function startSite({ captures = null } = {}) {
     json(res, 200, publicNote(note));
   }
 
+  // Seeded orders, a receipt that would leave through the email service, and a timed job's manual trigger.
+  function practiceOrders(req, res, pathname, observation) {
+    const api = pathname.startsWith('/api/');
+    const at = `${req.method} ${pathname.replace(/^\/api/, '').replace(/\d+/, ':id')}`;
+    const order = orders.find(candidate => candidate.id === Number(pathname.match(/\d+/)?.[0]));
+    const back = () => send(res, 303, 'text/plain', 'See /orders', { Location: '/orders' });
+    const listed = () => ({ total: seededTotal, orders: orders.map(entry => ({ ...entry })) });
+    switch (at) {
+      case 'GET /orders':
+        observation.response = listed();
+        return api ? json(res, 200, observation.response) : html(res, ordersPage(observation.response));
+      case 'POST /orders/:id/delete':
+        if (!order) return api ? json(res, 404, { error: 'No such order' }) : notFound(res);
+        orders.splice(orders.indexOf(order), 1);
+        return api ? json(res, 200, { deleted: true }) : back();
+      case 'POST /orders/:id/receipt':
+        if (!order) return api ? json(res, 404, { error: 'No such order' }) : notFound(res);
+        observation.sent = order.customer;
+        return api ? json(res, 200, { sent: true }) : html(res, page('Receipt', '<h1>Sent</h1>\n<p><a href="/orders">Back to orders</a></p>'));
+      case 'POST /jobs/nightly-summary/run':
+        if (!api) return notFound(res);
+        summary = { openOrders: orders.filter(entry => entry.status === 'open').length + 1, ranAt: new Date().toISOString() };
+        return json(res, 200, { ran: true });
+      case 'GET /summary':
+        observation.response = summary;
+        if (api) return json(res, 200, summary ?? { openOrders: null });
+        return html(res, page('Summary', `<h1>Nightly summary</h1>\n<p id="summary">${summary ? `Open orders: ${summary.openOrders}` : 'No summary yet'}</p>`));
+      default: return api ? json(res, 404, { error: 'Not found' }) : notFound(res);
+    }
+  }
+
   async function route(req, res) {
     const { pathname, searchParams } = new URL(req.url, 'http://site');
     const observation = { method: req.method, path: pathname, at: new Date().toISOString() };
@@ -178,6 +231,7 @@ export async function startSite({ captures = null } = {}) {
       observation.titles = titles;
       return html(res, page('Exports', `<h1>Exported titles</h1><ul>${titles.map(title => `<li>${escapeHtml(title)}</li>`).join('')}</ul>`));
     }
+    if (captures && /^\/(?:api\/)?(?:orders|summary|jobs)\b/.test(pathname)) return practiceOrders(req, res, pathname, observation);
     const [, slot] = pathname.match(/^\/(?:api\/)?settings\/(alpha|bravo)$/) ?? [];
     if (captures && slot) {
       if (req.method === 'POST' && pathname.startsWith('/api/')) {

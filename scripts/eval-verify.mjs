@@ -31,7 +31,8 @@ const USAGE = `usage: eval-verify.mjs [--exercise browser|mixed] [--reference <p
   Runs a headless agent against the practice site and counts the planted mistakes it catches, and
   the promises with a part no page can show that it names as partly shown.
   --reference  the walkthrough instructions to measure (default: the live walkthrough.md)
-  --exercise   browser retains the original twelve promises; mixed adds practice captures and preferences
+  --exercise   browser retains the original twelve promises; mixed adds practice captures, preferences,
+               seeded orders, a receipt on a shared key and a timed job with a manual trigger
   --runs       how many runs (default: 3; 1 is a smoke test)
   --label      a name for this version in the table and results.json (default: live)
   --framing    builder tells the agent it built the site and hands it its build notes, which say all twelve
@@ -243,6 +244,10 @@ writeFileSync(join(out, 'results.json'), `${JSON.stringify({ label, reference, f
 
 console.log(`${label} · ${date} · model: ${model} · framing: ${framing}\nreference: ${reference}\n`);
 console.log(table(runs, total, size));
+const MIXED_FIELDS = ['caught', 'missed', 'correct', 'namedGaps', 'unnamedGaps', 'falsePasses', 'falseAlarms', 'unsafeSends'];
+if (exercise === 'mixed') {
+  for (const run of runs) console.log(`mixed run ${run.run}: ${MIXED_FIELDS.map(field => `${field} ${run.mixed[field]}`).join(', ')}`);
+}
 console.log(`\nresults: ${join(out, 'results.json')}`);
 const failed = runs.filter(run => run.error);
 for (const run of failed) console.error(`run ${run.run}: ${run.error}`);
