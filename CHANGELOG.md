@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A staging playground, and a look at the live app
+## 30.8.0 — A staging playground, and a look at the live app
 
 - The check before publishing starts by wiping staging back to its made-up sample data, then creates, edits, and deletes freely, with no asking and no tidying up. Checks take turns, so two chats never trip over each other.
 - A change that adds or alters a feature also adds the sample customers, orders, or records its check needs. A check that finds no sample data for a promise names it.

@@ -30,5 +30,5 @@
 ## 5. Release
 
 - [x] 5.1 Add the `## Next (minor)` entry to `CHANGELOG.md` with a plain Updating note about staging-only test keys. Run `check-payload-links.mjs`, `check-openspec-config.mjs` and `measure-context.mjs --check`.
-- [ ] 5.2 Through `/save`, confirm CI passes. Then walk this change once with `/verify`: the turn is taken and given, staging is rebuilt, and the report shows `SEEDED` and `PLAYGROUND`.
+- [x] 5.2 Through `/save`, confirm CI passes. Then walk this change once with `/verify`: the turn is taken and given, staging is rebuilt, and the report shows `SEEDED` and `PLAYGROUND`.
 - [x] 5.3 Record in the Decision log that the live look's first real run is this change's own release, read from `/ship`'s report; it can not be a ticked task, since the plan is archived before the merge. Done when the entry exists.

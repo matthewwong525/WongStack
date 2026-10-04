@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · staging-playground</title>
+<title>Review · 2026-10-04-staging-playground</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="staging-playground">
+<body data-change="2026-10-04-staging-playground">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>staging-playground</h1>
+  <h1>2026-10-04-staging-playground</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -158,6 +158,7 @@
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: taking turns is confirmed on GitHub only, because no workspace hosted without GitHub was free to test; there a check goes ahead without a turn and says so.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-10-04</p>Check: <code>.github/workflows/deploy.yml</code> the new step that records a release is allowed to fail without failing the release, because a missing record only costs the quick look at the live app and must never block publishing. No existing step changed.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the quick look at the live app gets its first real run on this change's own release and is read from the publish report, not ticked as a task, because the plan is filed away before publishing happens.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the plan is filed in the archive and numbered 30.8.0 for publishing, because every task is done, the automatic checks passed, and the check ran for real on this change: it took its turn, rebuilt staging, and gave the turn back.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -1,6 +1,6 @@
 # Make staging a safe playground, and look at the live app after publishing
 
-**Status:** in-progress
+**Status:** ready-to-ship
 
 **Branch:** wongstack-improvements
 
@@ -86,3 +86,4 @@ None.
 - **2026-10-04** — Assumed: taking turns is confirmed on GitHub only, because no workspace hosted without GitHub was free to test; there a check goes ahead without a turn and says so.
 - **2026-10-04** — Check: `.github/workflows/deploy.yml` the new step that records a release is allowed to fail without failing the release, because a missing record only costs the quick look at the live app and must never block publishing. No existing step changed.
 - **2026-10-04** — Assumed: the quick look at the live app gets its first real run on this change's own release and is read from the publish report, not ticked as a task, because the plan is filed away before publishing happens.
+- **2026-10-04** — Assumed: the plan is filed in the archive and numbered 30.8.0 for publishing, because every task is done, the automatic checks passed, and the check ran for real on this change: it took its turn, rebuilt staging, and gave the turn back.
