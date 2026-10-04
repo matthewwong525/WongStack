@@ -120,3 +120,19 @@ Applied the new repair rule to both labelled inputs in `scripts/fixtures/verify-
 - Out of scope: the consumer's failed expectation belongs to another capability and its handler is untouched. Report the failed observation and scope reason, preserve shared data, finish independent checks, and make no consumer fix or regression-test change. Checking that consumer supplies no repair authorization. No consumer mutation occurred.
 
 The exact-source preflight artifact remains required separately before task 5.2 can be ticked.
+
+## Retained regression proof — 2026-10-04
+
+Saved head `27db0ffcf33c2af286e5f35bdf451df290264d02`, [push run 37184030139](https://github.com/matthewwong525/WongStack/actions/runs/37184030139), attempt 1: complete required gate SUCCESS. Actual GitHub repository/workflow/head/event/ref/attempt match the downloaded `verify-preflight-regression` manifest. Same focused check and argv on earlier `ab27e29989bbf4074b8949210d1c7cae2f64ae25` and saved head; check SHA-256 `e7a1f5ff98e7a57988ab6681681f399ff250c0f09a8dcef5846ce04e37fd2dcc`. Before: READY, shell exit 1, `ERR_ASSERTION`, `1 !== 0`, test pass 0/fail 1. After: READY, shell exit 0, test pass 1/fail 0. Both source digests match their Git blobs; every stream size/digest validates. Source directory/registration removed, output retained in `regression-proof-27db0ff/`. The disposable fixture Git head is separate from both observed source revisions. This is real exact-source practice evidence with mocked preview/browser inputs, not a live-preview claim. The full repaired-head suite remains required; no red checkpoint or product defect was introduced.
+
+Producer tests use disposable Git history and provenance-labelled immutable old bytes, so squash merging does not strand future checkouts. An unavailable earlier Git source is a named diagnostic gap while the repaired-head check still must pass; tests confirm missing baseline cannot hide a failing head. The current run supplied actual ab27 proof, so no missing-baseline fallback was used here. Task 5.2 is complete, including the separately labelled decision simulations above.
+
+## Walkthrough wiki update — 2026-10-04
+
+The walkthrough wiki now explains pilot-first capture adoption, the small project-owned recipe, exact-source/newest-attempt evidence, independent preparation, comparable revisions, confirmed consumers, fresh lasting-effect readbacks and practical retained regression checks. Capture commands remain in the CI reference; project-specific details remain in the pilot's guide. Existing wiki headings are preserved, and obsolete preview-only and no-retained-coverage claims are removed.
+
+Local payload path/anchor/symlink checks and the wiki graph/3,000-word check pass. The unchanged context check passes at 190,661/190,845 instruction bytes, 25,962/27,084 words, and 2,190/2,200 startup words. These are static checks, not fresh CI behavior evidence. Task 5.3 remains unticked until the parent runs `/save` and proves the final saved links/checks.
+
+## Release packaging — 2026-10-04
+
+The payload list copies the existing verify skill directory, including collector/reference and the existing shared memory CLI library. It excludes both meta capture producers, their fixtures/tests/evaluator, `.github/workflows/payload.yml` and the project-owned recipe. There is one Next minor entry; VERSION matches main and the installed test workflow is unchanged. The updating note identifies GitHub Actions as the supported capture host. Task 6.1 packaging is checked; the final gate and exact-head verification remain pending.

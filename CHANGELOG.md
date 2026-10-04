@@ -8,7 +8,7 @@
 - Verification can use captured command-line behavior from automated checks beside the web preview, with evidence tied to the version being reviewed. Missing access to one surface leaves independent checks available.
 - Comparable earlier results show what a fix changed. Focused checks follow confirmed consumers and reopen saved results to confirm they last; practical checks for discovered bugs stay in the project's tests.
 
-**Updating.** Preview checks need no setup. To check command-line behavior, add a project-owned capture recipe and a step in your existing automated checks that keeps its observations.
+**Updating.** Preview checks need no setup. For command-line behavior, add a project-owned capture recipe and an observation step to your existing GitHub Actions checks. GitHub Actions is the currently supported capture host.
 
 ## 30.3.0 — Better thinking before a plan
 
