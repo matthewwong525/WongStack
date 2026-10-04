@@ -54,10 +54,11 @@ export async function prepareStarter(dir,{exec=run,today,source=SOURCE}={}) {
   write(join(dir,'app/wrangler.jsonc'),hostedConfig());
   // Build-time literals go in compiled code, rather than editable deployment vars.
   writeFileSync(join(dir,'app/worker/hosted-env.d.ts'), `// Compatibility routes stay unconfigured; these optional types create no bindings.\ninterface Env { MEMORY_BUCKET?: R2Bucket; MEMORY_DB?: D1Database; }\n`);
-  writeFileSync(join(dir,'app/worker/hosted-identity.ts'),`export const hostedIdentity = { projectId: __HOSTED_PROJECT__, sourceCommit: __HOSTED_SHA__ };\ndeclare const __HOSTED_PROJECT__: string;\ndeclare const __HOSTED_SHA__: string;\n`);
+  writeFileSync(join(dir,'app/worker/hosted-identity.ts'),`import type { AccessEnv } from './access.ts';\nexport const hostedIdentity = { projectId: __HOSTED_PROJECT__, sourceCommit: __HOSTED_SHA__ };\nexport function isOpenWorkspace(env: AccessEnv) {\n  return env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;\n}\ndeclare const __HOSTED_PROJECT__: string;\ndeclare const __HOSTED_SHA__: string;\n`);
   const worker=join(dir,'app/worker/index.ts');
   let code=readFileSync(worker,'utf8');
-  code=`import { hostedIdentity } from './hosted-identity.ts';\n${code}`;
+  code=`import { hostedIdentity, isOpenWorkspace } from './hosted-identity.ts';\n${code}`;
+  code=replaceRequired(code,'    const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;','    const open = isOpenWorkspace(env);');
   const protectedAnchor = `    if (!identity && !open) {
       const configured = env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD;
       return new Response(configured ? "Unauthorized" : "Workspace access is not configured", {
@@ -69,7 +70,7 @@ export async function prepareStarter(dir,{exec=run,today,source=SOURCE}={}) {
   writeFileSync(worker,code);
   const tests=join(dir,'app/worker/index.test.ts');
   let suite=readFileSync(tests,'utf8');
-  suite=replaceRequired(suite,'  it("dispatches APIs only after a verified assertion",',`  it("reports compiled identity only to signed requests", async () => {\n    expect((await call('/_hosted/identity')).status).toBe(401);\n    const response = await call('/_hosted/identity', { 'Cf-Access-Jwt-Assertion': await token() });\n    expect(await response.json()).toEqual({ projectId: 'test-project', sourceCommit: '${'a'.repeat(40)}' });\n    expect(response.headers.get('Cache-Control')).toBe('no-store');\n  });\n  it("dispatches APIs only after a verified assertion",`);
+  suite=replaceRequired(suite,'  it("dispatches APIs only after a verified assertion",',`  it("reports compiled identity only to signed requests", async () => {\n    expect((await call('/_hosted/identity')).status).toBe(401);\n    expect((await call('/_hosted/identity', { 'Cf-Access-Authenticated-User-Email': 'owner@example.com' })).status).toBe(401);\n    const headers = { 'Cf-Access-Jwt-Assertion': await token() };\n    const response = await call('/_hosted/identity', headers);\n    expect(await response.json()).toEqual({ projectId: 'test-project', sourceCommit: '${'a'.repeat(40)}' });\n    expect(response.headers.get('Cache-Control')).toBe('no-store');\n    const wrongMethod = await call('/_hosted/identity', headers, env, 'POST');\n    expect(await wrongMethod.text()).toBe('asset');\n    const onlyAudience = { ASSETS: assets, WORKSPACE_LOGIN: 'off', CF_ACCESS_AUD: AUD } as unknown as typeof env;\n    expect((await call('/_hosted/identity', {}, onlyAudience)).status).toBe(503);\n  });\n  it("dispatches APIs only after a verified assertion",`);
   writeFileSync(tests,suite);
   const vitest=join(dir,'app/vitest.config.ts');
   writeFileSync(vitest,replaceRequired(readFileSync(vitest,'utf8'),'export default defineConfig({',`export default defineConfig({\n  define: { __HOSTED_PROJECT__: JSON.stringify('test-project'), __HOSTED_SHA__: JSON.stringify('${'a'.repeat(40)}') },`));

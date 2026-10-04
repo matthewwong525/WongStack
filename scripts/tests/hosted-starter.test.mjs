@@ -55,7 +55,9 @@ test('offline starter copies the actual source record and compatible payload, wi
  const generatedWorker=readFileSync(join(target,'app/worker/index.ts'),'utf8');
  assert.match(generatedWorker,/getAccessIdentity[\s\S]*Unauthorized[\s\S]*Response.json\(hostedIdentity/);
  const identityRoute="\n\n    if (url.pathname === '/_hosted/identity' && request.method === 'GET') {\n      return Response.json(hostedIdentity, { headers: { 'Cache-Control': 'no-store' } });\n    }";
- assert.equal(generatedWorker.replace("import { hostedIdentity } from './hosted-identity.ts';\n",'').replace(identityRoute,''),read('app/worker/index.ts'),'existing upstream discovery, login-link and app routing is preserved');
+ const openExpression='    const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;';
+ assert.equal(generatedWorker.replace("import { hostedIdentity, isOpenWorkspace } from './hosted-identity.ts';\n",'').replace(identityRoute,'').replace('    const open = isOpenWorkspace(env);',openExpression),read('app/worker/index.ts'),'existing upstream discovery, login-link and app routing is preserved');
+ assert.ok(readFileSync(join(target,'app/worker/hosted-identity.ts'),'utf8').includes(`return ${openExpression.slice('    const open = '.length)}`),'the extracted predicate keeps the upstream expression');
  assert.ok(generatedWorker.indexOf("Response.json(hostedIdentity")<generatedWorker.indexOf('    // Discovery always requires company login'),'compiled identity is inserted immediately after the access guard');
  assert.match(readFileSync(join(target,'app/worker/index.test.ts'),'utf8'),/reports compiled identity only to signed requests/);
  assert.match(readFileSync(join(target,'app/vite.config.ts'),'utf8'),/Hosted build identity is required/);
@@ -104,7 +106,7 @@ test('required starter transformations reject missing or duplicate source anchor
  const sourceWorker=read('app/worker/index.ts');
  const start=sourceWorker.indexOf('    if (!identity && !open) {');
  const end=sourceWorker.indexOf('\n    }',start)+'\n    }'.length;
- const anchors=[['app/worker/index.ts',sourceWorker.slice(start,end)],['app/worker/index.test.ts','  it("dispatches APIs only after a verified assertion",'],['app/vitest.config.ts','export default defineConfig({'],['app/vite.config.ts','export default defineConfig({']];
+ const anchors=[['app/worker/index.ts',sourceWorker.slice(start,end)],['app/worker/index.ts','    const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;'],['app/worker/index.test.ts','  it("dispatches APIs only after a verified assertion",'],['app/vitest.config.ts','export default defineConfig({'],['app/vite.config.ts','export default defineConfig({']];
  for(const [index,[file,anchor]]of anchors.entries()) {
   const text=read(file);assert.ok(anchor);assert.equal(replaceRequired(text,anchor,'replacement').includes('replacement'),true);
   for(const duplicate of [false,true]) {
