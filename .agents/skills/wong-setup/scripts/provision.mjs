@@ -470,14 +470,14 @@ function migrateScripts(dir, n, note) {
   note('updated', 'app/package.json db:migrate scripts');
 }
 
-/** Merges `components.memory` into the install record, writing only on a change. */
-function recordMemory(dir, memory, note) {
+/** Merge a public component into the install record, writing only on a change. */
+function recordComponent(dir, component, data, note) {
   const file = recordFile(dir);
   const record = readJson(file, {});
-  const next = { ...record, components: { ...record.components, memory: { ...record.components?.memory, ...memory } } };
+  const next = { ...record, components: { ...record.components, [component]: { ...record.components?.[component], ...data } } };
   if (JSON.stringify(next) === JSON.stringify(record)) return;
   writeJson(file, next);
-  note('updated', '.claude/.wong-stack.json components.memory');
+  note('updated', `.claude/.wong-stack.json components.${component}`);
 }
 
 /** One allow policy on this account alone, with the named groups. */
@@ -611,7 +611,9 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     }
   }
   const worker = `https://${n.worker}.${sub}.workers.dev/_memory`;
-  recordMemory(dir, { accountId: account, databaseId: memoryId, database: n.memory, bucket, worker }, note);
+  recordComponent(dir, 'memory', { accountId: account, databaseId: memoryId, database: n.memory, bucket, worker }, note);
+  // `sub` was read back from the account; never copy an upstream installation's origin.
+  recordComponent(dir, 'companyApi', { origin: `https://${n.worker}.${sub}.workers.dev` }, note);
 
   // The schema, retried while a new database or a widened token takes effect, then the admin key.
   const memory = join(dir, '.claude', 'skills', 'memory', 'scripts', 'memory.mjs');

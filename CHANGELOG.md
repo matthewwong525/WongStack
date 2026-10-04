@@ -10,6 +10,12 @@
 
 **Updating.** No action needed. The usual update delivers the exploration guidance.
 
+## 30.2.0 — Company actions and memory discovery for agents
+
+Employees can discover and call approved app actions using their own company login; service keys stay on the server. One helper also describes existing memory searches and topic reads with their existing access. API guides and request checks come from each action’s definition.
+
+**Updating.** Choose which existing actions your team’s assistants should use. Add descriptions around those handlers through review, keeping their paths and access checks. Keep memory’s current credential and production target. Older installs can connect an explicit company origin until their public install record is filled. Company login must work before employee company access is available.
+
 ## 30.1.0 — See memory facts with their evidence
 
 - Ask for a fresh brief of eight current facts by default, or up to twenty on request, within 6,144 bytes. It keeps the most relevant whole entries before grouping, with compact dates and source pointers. Facts keep their original words, and source access keeps its existing permissions.

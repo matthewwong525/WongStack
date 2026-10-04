@@ -589,3 +589,23 @@ test('a source with no changelog reports updating as incomplete, never an error'
   assert.deepEqual(report.updating, []);
   assert.equal(report.updatingComplete, false);
 });
+
+test('company API updates inventory new support while preserving a customized legacy handler and older targets', t => {
+  const f = fixture(t, { components: { skills: ['alpha'], memory: { worker: 'https://installed.example.com/_memory' } },
+    targetFiles: { 'app/index.txt': 'custom business handler with record guard\n', '.env': 'BUSINESS_KEY=installed-private-value\n' } });
+  write(f.source, 'app/index.txt', 'described example with shared contract\n');
+  write(f.source, 'scripts/company-api.mjs', 'employee helper without business key\n');
+  write(f.source, 'app/worker/api/contract.ts', 'shared action contract\n');
+  const manifest = inventory({ pack: { files: ['pack.txt', 'scripts/company-api.mjs'] } });
+  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(manifest));
+  f.commit('add company discovery support');
+  const report = f.inspect();
+  assert.equal(report.changes.find(row => row.sourcePath === 'app/index.txt').localState, 'locally-adapted');
+  assert.ok(report.changes.some(row => row.sourcePath === 'scripts/company-api.mjs' && row.operation === 'added'));
+  assert.ok(report.changes.some(row => row.sourcePath === 'app/worker/api/contract.ts' && row.operation === 'added'));
+  assert.equal(readFileSync(join(f.target, 'app/index.txt'), 'utf8'), 'custom business handler with record guard\n');
+  assert.equal(readFileSync(join(f.target, '.env'), 'utf8'), 'BUSINESS_KEY=installed-private-value\n');
+  const record = JSON.parse(readFileSync(join(f.target, '.claude/.wong-stack.json')));
+  assert.equal(record.components.memory.worker, 'https://installed.example.com/_memory'); assert.equal(record.components.companyApi, undefined);
+  assert.ok(!JSON.stringify(report).includes('installed-private-value'));
+});

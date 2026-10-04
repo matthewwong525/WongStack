@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { READ_OPTIONS } from './lib/read-options.mjs';
 // The one door to the memory store. Every skill, the hook, and the background run call this script.
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -745,10 +746,10 @@ export const COMMANDS = {
   ...JOIN_COMMANDS,
 };
 
-const OPTIONS = Object.fromEntries([
+const OPTIONS = { ...READ_OPTIONS, ...Object.fromEntries([
   ...['file', 'spooled', 'days', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'task', 'loaded', 'agent', 'model'].map(name => [name, { type: 'string' }]),
   ...['all', 'json', 'help', 'everyone', 'background', 'no-alias', 'usage-report'].map(name => [name, { type: 'boolean' }]),
-]);
+]) };
 
 const USAGE = `usage: memory.mjs <command>
   search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n] [--json]
