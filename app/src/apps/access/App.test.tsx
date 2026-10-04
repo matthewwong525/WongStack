@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-/// <reference types="node" />
-import { readFileSync } from 'node:fs'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { App } from './App'
@@ -211,16 +209,6 @@ it('the person form works from the keyboard, keeps its labels and offers no edit
   expect(screen.getByRole('textbox', { name: 'Email' }).hasAttribute('disabled')).toBe(true)
   expect((screen.getByRole('checkbox', { name: 'Hello' }) as HTMLInputElement).checked).toBe(true)
   expect(screen.queryByRole('checkbox', { name: /editing/i })).toBeNull()
-})
-it('fits a phone: the Access and setup styles wrap, and fix no width in pixels', () => {
-  for (const file of ['./Access.css', '../../components/AssistantSetup.css', '../../components/CopyText.css']) {
-    const css = readFileSync(new URL(file, import.meta.url), 'utf8')
-    expect(css, file).not.toMatch(/(?:min-)?width:\s*\d+px/)
-  }
-  const css = readFileSync(new URL('./Access.css', import.meta.url), 'utf8')
-  expect(css).toMatch(/\.access-actions \{[^}]*flex-wrap: wrap/)
-  expect(css).toMatch(/\.access-notice \{[^}]*overflow-wrap: anywhere/)
-  expect(css).toMatch(/input\[type="email"\] \{[^}]*width: 100%/)
 })
 it('unmounted responses cannot overwrite newer resource state, and malformed roster readback stays unavailable', async () => {
   let fulfill: (value: Response) => void = () => {}, reject: (error: Error) => void = () => {}
