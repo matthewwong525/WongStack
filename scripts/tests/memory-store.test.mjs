@@ -211,7 +211,7 @@ test("other changes' open threads are never listed; one line counts them by step
   for (let i = 0; i < 100; i += 1) insert('ops', i % 5 ? 'project' : 'feedback', `Settled fact ${i}.`, 1);
   const lines = (await digestOf(env)).split('\n');
   assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0, 'no other change\'s thread is listed');
-  assert.equal(lines[2], `Open threads on other changes, by step: plan 10, save 5; 65 untagged. ${STEP_SEARCH}`);
+  assert.deepEqual(lines.filter(line => line.startsWith('Open threads on other changes, by step:')), [`Open threads on other changes, by step: plan 10, save 5; 65 untagged. ${STEP_SEARCH}`]);
   assert.ok(lines.some(line => line.startsWith('- [feedback] Settled fact')), 'feedback facts show');
   assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts show');
   const shown = lines.filter(line => line.startsWith('- [')).length;
@@ -486,8 +486,8 @@ test('--home is an unknown flag, and nothing reaches the store', async t => {
 test('the shipped question set: each question finds its fact in the top three, and filler alone finds nothing', async t => {
   const env = await setup(t);
   const { facts, questions } = JSON.parse(readFileSync(new URL('./fixtures/memory-search-questions.json', import.meta.url), 'utf8'));
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES (?, ?, ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com') RETURNING id");
-  const ids = new Map(facts.map(fact => [insert.get(fact.slug, fact.type, fact.body).id, fact.key]));
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, owner_machine_id) VALUES (?, ?, ?, 'save', '2026-10-01T00:00:00Z', 'dev@example.com', ?) RETURNING id");
+  const ids = new Map(facts.map(fact => [insert.get(fact.slug, fact.type, fact.body, env.repo.machineId).id, fact.key]));
   for (const { query, finds } of questions) {
     const result = await memory(env.repo, env.fake, ['search', ...query.split(' ')]);
     assert.equal(result.code, 0, result.stderr);

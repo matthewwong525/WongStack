@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { execFile, execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -540,7 +541,12 @@ function storelessRepo(t) {
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: root });
   writeFileSync(join(root, '.env'), `SERVICE_TOKEN=${SECRET}\n`);
   const home = tempDir(t, 'recent-home-');
-  return { repo: { root, home, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(home, 'state') }, fake: { api: 'http://127.0.0.1:9/client/v4' } };
+  const machineId = randomUUID();
+  const dataHome = join(home, 'data');
+  mkdirSync(join(dataHome, 'wongstack'), { recursive: true });
+  writeFileSync(join(dataHome, 'wongstack', 'machine-id'), `${machineId}\n`, { mode: 0o600 });
+  const stateBase = join(home, 'state');
+  return { repo: { root, home, machineId, dataHome, stateBase, claudeHome: join(home, 'claude'), codexHome: join(home, 'codex'), stateDir: join(stateBase, machineId) }, fake: { api: 'http://127.0.0.1:9/client/v4' } };
 }
 
 test('recent-chats shows only what the person typed, from every folder, redacted, newest first, with no store', async t => {
@@ -591,7 +597,7 @@ test('a new machine never adopts legacy cache, spool, registry or unregistered t
   writeFileSync(join(env.repo.stateDir, 'registry.jsonl'), '');
   writeFileSync(join(legacy, 'registry.jsonl'), JSON.stringify({ id: history.id, transcript: history.file }) + '\n');
   assert.deepEqual(JSON.parse((await memory(env.repo, env.fake, ['pending', '--json'])).stdout), []);
-  assert.match((await memory(env.repo, env.fake, ['spool'])).stdout, /No spooled/);
+  assert.equal((await memory(env.repo, env.fake, ['spool'])).stdout.trim(), 'The spool is empty.');
   const stripped = await memory(env.repo, env.fake, ['strip', history.id]); assert.equal(stripped.code, 1); assert.doesNotMatch(stripped.stdout, /historic private conversation/);
   env.fake.setOffline(true); const hookResult = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.doesNotMatch(hookResult.stdout, /legacy private preference/);

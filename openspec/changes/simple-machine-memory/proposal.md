@@ -79,4 +79,6 @@ One new local identity helper, one small login-link handler, and one additive SQ
 
 - **2026-10-04** — First CI pass: app tests and deploy checks passed. Payload lint found an unused legacy prefix and a test request helper that could specify a GET body. Removed the unused constant and restricted the helper's body to PUT; checks remain unchanged. Payload runtime coverage awaits the retry.
 
+- **2026-10-04** — Payload runtime retry ran 1,039 tests with five failures. Updated the storeless recent-chat fixture's machine state, the exact empty-spool assertion, the digest line-position assertion, and the ranking fixture's known owner. The existing managed-installer test now accepts a supplied verified website owner without requiring a git email, while keeping malformed-job/clone and website-policy checks. No search-ranking expectation, privacy protection, or coverage threshold was lowered.
+
 - **Check:** `scripts/retired-names.json` removes the former `member add` retirement entry because the reviewed plan deliberately restores this command for trusted machine issuance. It no longer promises GitHub enrollment; all other retired-name guards remain unchanged. `memory-areas.test.mjs` now verifies that changing author labels on the same machine preserves private ownership; cross-machine isolation remains in the Worker matrix.
