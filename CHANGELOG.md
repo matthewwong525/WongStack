@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 30.3.0 — Better thinking before a plan
+
+- Exploration follows the relevant work, compares distinct approaches when a choice matters, and separates facts from assumptions and missing evidence.
+- Questions follow their prerequisites. Changed premises reopen affected choices while unrelated answers stay settled; independent choices can move ahead of missing facts, and unanswered material preferences stay open before planning.
+
+**Updating.** No action needed. The usual update delivers the exploration guidance.
+
 ## 30.2.0 — Company actions and memory discovery for agents
 
 Employees can discover and call approved app actions using their own company login; service keys stay on the server. One helper also describes existing memory searches and topic reads with their existing access. API guides and request checks come from each action’s definition.

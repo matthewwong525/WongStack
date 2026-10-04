@@ -59,7 +59,7 @@ Before planning, the agent [checks for other work](../../.agents/skills/explore/
 
 ### Asking before drafting
 
-`/explore` owns clarification. Standalone, it asks small groups of questions as long as the thinking needs. Moving into `/plan`, however planning was invoked, it asks only where a wrong guess makes the artifacts *wrong*, not merely *different*, and asks a follow-up group when an answer opens another such choice. Minor gaps become recorded assumptions. [The exit round](../../.agents/skills/explore/SKILL.md#the-exit-round) is the runbook; `/plan` logs the answers in the Decision log.
+[`/explore`](../../.agents/skills/explore/SKILL.md) owns investigation and clarification: [ground the recommendation](../../.agents/skills/explore/SKILL.md#investigate-the-relevant-flow), then [resolve material choices before handoff](../../.agents/skills/explore/SKILL.md#the-exit-round). It writes nothing; `/plan` records the answers and assumptions in the Decision log.
 
 ## The steps
 

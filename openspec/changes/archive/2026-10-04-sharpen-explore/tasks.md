@@ -1,0 +1,14 @@
+# Tasks
+
+## 1. Explore skill and its behavioral comparison
+
+- [x] 1.1 Capture the current explore instructions before editing, prepare the three neutral scratch scenarios and scripted answers in `design.md`, and fix the scoring expectations before any run. Include the expenses privacy correction, a missing fact alongside ready independent choices, and one temporarily unanswered material preference; verify baseline and candidate receive identical facts and answers without scoring or variant labels.
+- [x] 1.2 Write compact original guidance in `.agents/skills/explore/SKILL.md` for grounded investigation, material decision dependencies, selective reopening after a changed premise, independent ready questions, distinct alternatives, and a handoff with no unresolved material preference. Verify existing linked headings, memory and overlap checks, shared ask links, the 80/20 rule, read-only boundary, bounded reuse, and authorized or unattended defaults remain; run `node scripts/measure-context.mjs --check` and trim this change if needed.
+- [x] 1.3 Run the three paired read-only dialogue comparisons from the design, limited to six sessions on one host/model, and record actual questions, source reads, observed results, limits, and available cost in `exploration-comparison.md`. Verify changed visibility revises the queue and notification audience without repeating duplicate handling, a missing fact delays only dependent choices, and a pending material preference prevents premature completion. Score actual behavior against the fixed criteria; remove or simplify regressing guidance. If isolated runs are unavailable, record that behavioral improvement remains unverified rather than substituting static checks as proof.
+- [x] 1.4 Update the exploration summary in `wiki/development/the-change-loop.md` only where needed to link to the skill's owning guidance. Verify it does not introduce a second checklist, alter the no-write promise, or change the handoff stops.
+
+## 2. Release notes and integration checks
+
+- [x] 2.1 Add one `## Next (minor)` entry to `CHANGELOG.md` explaining the user-visible exploration changes and stating no update action is needed. Verify `VERSION` is untouched and avoid claiming a measured gain beyond the comparison's evidence.
+- [x] 2.2 Run `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, `node scripts/check-retired-names.mjs`, and `node scripts/measure-context.mjs --check`; verify successful results without raising baselines or changing unrelated guidance.
+- [x] 2.3 Keep the proposal and Decision log aligned with the final scope and comparison results, regenerate `review.html` with the existing builder, and run `openspec validate sharpen-explore --strict --no-interactive`. Verify the page exists, drawing warnings are fixed, and completion reports distinguish static validation from observed conversational behavior.
