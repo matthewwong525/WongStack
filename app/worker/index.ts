@@ -8,8 +8,8 @@ import { APP_API, handleApp } from "./apps/index.ts";
 import { getAccessIdentity, type AccessEnv, type AccessIdentity } from "./access.ts";
 import type { ActivationEnv } from "./employee-access/activation.ts";
 import type { ConnectionEnv } from "./employee-access/core.ts";
-import { authorizeRequest, type PolicyEnv } from "./employee-access/policy.ts";
-import { catalogue } from "./employee-access/apps.ts";
+import type { PolicyEnv } from "./employee-access/policy.ts";
+import { appPageDenied } from "./employee-access/apps.ts";
 import { handleAccess } from "./employee-access/router.ts";
 
 async function labelMemoryLogin(env: Env, link: string, identity: AccessIdentity | null, open: boolean): Promise<void> {
@@ -79,12 +79,8 @@ export default {
     if (url.pathname.startsWith(API_PREFIX)) {
       return handleApi(request, env, identity);
     }
-    const app = /^\/apps\/([a-z0-9-]+)(?:\/|$)/.exec(url.pathname)?.[1];
-    if (app && catalogue.includes(app)) {
-      const denied = await authorizeRequest(request, env, identity,
-        app === "access" ? { kind: "self-service" } : { apps: [app] });
-      if (denied) return denied;
-    }
+    const denied = await appPageDenied(request, env, identity);
+    if (denied) return denied;
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env & AccessEnv & ActivationEnv & PolicyEnv & ConnectionEnv>;

@@ -296,3 +296,14 @@ it("reads frontend app grants with zero-app Access self-service, owner exception
   expect(await (await readback(null, { ...env, WONG_ACCESS_POLICY: undefined })).json()).toEqual({ state: "legacy" });
   expect((await appAccess(new Request(req, { method: "POST" }), env, employee)).status).toBe(404);
 });
+
+it("direct page authorization preserves unknown routes and legacy behavior while guarding nested app and Access pages", async () => {
+  const { appPageDenied } = await import("./apps");
+  for (const path of ["/", "/assets/main.js", "/apps/not-installed/", "/apps/not-installed/subpage"]) {
+    expect(await appPageDenied(new Request(`https://business.example.com${path}`), env, employee)).toBeNull();
+  }
+  // Legacy installs use their existing login boundary without a new database dependency.
+  for (const path of ["/apps/hello", "/apps/hello/subpage", "/apps/access/"]) {
+    expect(await appPageDenied(new Request(`https://business.example.com${path}`), { ...env, WONG_ACCESS_POLICY: undefined }, employee)).toBeNull();
+  }
+});

@@ -43,13 +43,15 @@ test('identity-only owner/legacy resume does not claim employee readiness', asyn
   const f = directories(t);
   const client = companyClient({ ...f, run: async () => jwt(), request: async url => url.pathname.endsWith('/identity') ? Response.json({ ...identity, origin }) : Response.json({ code: 'setup_unavailable' }, { status: 503 }) });
   assert.match((await client.login(origin)).connection, /identity_only/);
-  await assert.rejects(client.setup(), /unavailable/);
+  await assert.rejects(client.setup(), { message: 'Company request failed (HTTP 503)' });
 });
 test('standalone denies redirects, expired/new-device/removed logins and never forwards credentials', async t => {
   for (const status of [302, 401, 403, 503]) {
     const f = directories(t), requests = [];
     const client = companyClient({ ...f, run: async () => jwt(), request: async (url, init) => { requests.push({ url, init }); return new Response('{}', { status }); } });
-    await assert.rejects(client.login(origin), /denied|redirect|unavailable/);
+    const message = status === 302 ? 'Company redirect refused; use company login.' : status === 503
+      ? 'Company request failed (HTTP 503)' : 'Company session expired or access was denied; use the employee’s own login.';
+    await assert.rejects(client.login(origin), { message });
     assert.ok(requests.every(row => row.url.origin === origin && row.init.redirect === 'manual'));
     await assert.rejects(client.setup(), /Connect first/);
   }
@@ -75,7 +77,7 @@ test('unavailable private locator cannot interfere with independently installed 
   const { combinedList } = await import('../company-api.mjs');
   const result = await combinedList(client, { scope: 'memory' });
   assert.ok(result.actions.some(action => action.operationId === 'memory.search'));
-  assert.equal(result.companyStatus, 'not_requested'); await assert.rejects(client.setup(), /not private/);
+  assert.equal(result.companyStatus, 'not_requested'); await assert.rejects(client.setup(), { message: 'Company login state must be owned by this user and private (directory mode 0700)' });
 });
 test('unrelated commands receive no company/provider/verification credential environment', () => {
   const previous = process.env.GH_TOKEN; process.env.GH_TOKEN = 'synthetic-private';
