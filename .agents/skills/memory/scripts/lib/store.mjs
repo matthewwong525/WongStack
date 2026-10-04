@@ -141,10 +141,11 @@ export function openStore(ctx, { timeoutMs = 15000, admin = false, credential = 
     let response;
     try {
       onRequest();
-      response = await fetch(`${path === '/login-link' ? api : base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(budget)]) : AbortSignal.timeout(budget) });
+      response = await fetch(`${path === '/login-link' ? api : base}${path}`, { ...init, redirect: 'manual', headers: { Authorization: `Bearer ${token}`, ...init.headers }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(budget)]) : AbortSignal.timeout(budget) });
     } catch (error) {
       throw new StoreError(`memory store unreachable (${error.name === 'TimeoutError' ? 'timeout' : 'network'})`, { kind: 'network' });
     }
+    if (response.status >= 300 && response.status < 400) throw new StoreError('memory transport refused a redirect', { kind: 'auth' });
     if (viaWorker) role = recordTeam(ctx, response.headers.get(TEAM_HEADER), response.headers.get(ROLE_HEADER)) || role;
     if (response.status === 403) {
       const code = (await response.clone().json().catch(() => ({}))).errors?.[0]?.code;

@@ -8,7 +8,7 @@ user-invocable: true
 
 The [memory convention](../../../wiki/development/memory.md) owns storage and access; [writing facts](references/writing-facts.md) owns the writing bar. Facts are never edited, only superseded.
 
-Run every call from the repo root:
+From the repo root:
 
 ```bash
 node .claude/skills/memory/scripts/memory.mjs <command>
@@ -33,6 +33,8 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 Choose one format per unchanged query. Fetch sources on demand to check a fact. Reads obey [who sees what](../../../wiki/development/memory.md#who-sees-what); `--everyone` widens only admins' scope. Source access is checked. The repo wins over dated facts.
 
 **Every skill: when the store is unreachable, say memory was not loaded and continue.**
+
+[Read adapter](../../../wiki/stack/company-api.md#memory-keeps-its-own-access).
 
 ## Write
 

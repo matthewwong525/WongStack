@@ -690,6 +690,7 @@ test('a fresh provision with R2 on makes the memory store, the key, both databas
 
   // The memory store, recorded with the Worker that serves it, migrated, with the admin key in .env.
   assert.equal(report.r2, true);
+  assert.deepEqual(env.record().components.companyApi, { origin: "https://recipe-box.ada.workers.dev" });
   assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
   assert.deepEqual(env.record().components.memory, {
     accountId: ACCOUNT, databaseId: 'uuid-recipe-box-memory', database: 'recipe-box-memory', bucket: 'recipe-box-memory',
@@ -886,6 +887,7 @@ test('an account with no workers.dev subdomain gets one named for the owner, wit
   assert.equal(env.fake.state.subdomain, 'ada-2');
   assert.ok(report.created.includes('workers.dev subdomain ada-2'));
   assert.equal(env.record().components.memory.worker, 'https://recipe-box.ada-2.workers.dev/_memory');
+  assert.equal(env.record().components.companyApi.origin, 'https://recipe-box.ada-2.workers.dev');
 });
 
 test('five taken subdomains stop with cloudflare', async (t) => {
