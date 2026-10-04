@@ -239,7 +239,17 @@ function currentSession(ctx) {
 
 async function putFactsCommand(ctx, { values, tally }) {
   const input = readInput(values.file);
-  if (input.session === 'current') input.session = currentSession(ctx);
+  if (input.session === 'current') {
+    try {
+      input.session = currentSession(ctx);
+    } catch (error) {
+      // A fresh install's first chat has no session yet: hold its facts for the next session start.
+      if (values.spooled) throw error;
+      const file = spoolWrite(ctx, input);
+      console.log(`spooled: ${(input.facts || []).filter(fact => fact.action !== 'drop').length} facts wait in ${file}; the next session start sends them through the gate (${error.message})`);
+      return;
+    }
+  }
   try {
     const result = await putFacts(ctx, input);
     addToTally(tally, putFactsCounts(input, result));

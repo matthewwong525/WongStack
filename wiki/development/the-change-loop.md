@@ -104,7 +104,7 @@ The work decides the form; no mode or setting does.
 
 This page owns delivery; other surfaces link here.
 
-**The GitHub gate is CI when present, else PR review**: GitHub Actions is an optional accelerator on pull requests, version control, OpenSpec, and the repo. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **no local run is the gate**; `/apply`'s host preview gates nothing and never reaches production.
+**The GitHub gate is CI when present, else PR review**: GitHub Actions is an optional accelerator on pull requests, version control, OpenSpec, and the repo. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **no local run is the gate**; `/apply`'s host preview gates nothing and never reaches production. [Artifacts](../stack/artifacts-route.md) runs them in Cloudflare.
 
 **A finished build is checked on this computer first, where its tools exist.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs the checks CI would run for the files the change touches, once, before the first push, and the build repairs what fails. It is a pre-check, never the gate: it decides no save and no publish, its result is reported as local, and a computer without the tools says so in one line and goes on. Runs on one computer take turns.
 

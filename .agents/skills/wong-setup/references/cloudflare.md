@@ -8,11 +8,12 @@ This runbook turns a fresh WongStack install into a running app with session mem
 
 ## Boundaries
 
-- **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`.
+- **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`. The Artifacts route's one empty first commit on `main` is the exception.
 - **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
 - **Ask before creating or deleting anything billable**, as [a choice with a recommendation](../../explore/references/asking-the-user.md): say what you will make, then make it.
+- **[The Artifacts route](../../../../wiki/stack/artifacts-route.md#setup)** owns its changes to Steps 1a, 2, 4 and 5, and its teardown.
 - **The widen and the mints are [pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized):** do them, then report them.
 
 ## Step 1 — the credential
@@ -66,21 +67,19 @@ Success returns the token's own `id`. **Translate every failure** with the [fail
 
 ## Step 2 — the token widens itself
 
-**Don't ask; widen, then report what you granted.** From the target's root, with `CLOUDFLARE_API_TOKEN` exported from `DURABLE_ENV`:
+From the target's root, with `CLOUDFLARE_API_TOKEN` exported from `DURABLE_ENV`:
 
 ```bash
-P="node <source checkout>/.agents/skills/wong-setup/scripts/provision.mjs"
-$P widen
+P() { node "<source checkout>/.agents/skills/wong-setup/scripts/provision.mjs" "$@"; }
+P widen
 ```
 
 It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what the report's `granted` list names. Access permissions are part of normal private setup.
 
-If it stops, **provision nothing**: give the cause, and list the permission names for the user to add by hand.
-
 ## Step 3 — which account
 
 ```bash
-$P accounts
+P accounts
 ```
 
 - **Exactly one** → use it, and say which.
@@ -98,7 +97,7 @@ Ask once before the billable parts, as [a two-option choice](../../explore/refer
 The script derives every name from the repository name and checks it against the account; state them, and never make the user invent one:
 
 ```bash
-$P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 ```
 
 The report's `checked` list marks each name `free`, `ours` (made by this repo earlier), or `taken`. Name any `taken` one and offer the report's `base`, the first suffix that frees every name, such as `recipe-box-2`.
@@ -108,7 +107,7 @@ Apply the id-free fragments now (the `package.json` scripts, `.env.example` vari
 After the one ask, one command runs 4b through 4d:
 
 ```bash
-$P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email> --open-without-login
+P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-email> --open-without-login
 ```
 
 Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN, creates unavailable production/staging Workers, and attaches the owned Worker-ID app before content publication. Review overlapping hostname/path/preview apps first; preserve unrelated resources. Machine credentials are saved to ignored primary/branch `.env`; public identifiers go in `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).

@@ -1,6 +1,6 @@
 # Git preconditions
 
-`/save`, `/continue`, and `/ship` check GitHub once:
+`/save`, `/continue`, and `/ship`: [`delivery-route.mjs`](../scripts/delivery-route.mjs) prints `artifacts` → no `gh`: follow [that route](../../../../wiki/stack/artifacts-route.md#how-the-verbs-differ). Otherwise check GitHub once:
 
 | Check | Fails when | Fix |
 |---|---|---|

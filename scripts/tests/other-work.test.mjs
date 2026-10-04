@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  archivedIn, changesIn, foldPullRequests, inside, isBot, isLive, parseWorktrees,
+  archivedIn, changesIn, foldPullRequests, inside, isBot, isLive, parseWorktrees, savedBranches,
 } from '../../.agents/skills/explore/scripts/other-work.mjs';
 
 const cli = new URL('../../.agents/skills/explore/scripts/other-work.mjs', import.meta.url).pathname;
@@ -272,4 +272,114 @@ test('--help prints usage; an unknown flag or a folder outside git exits 2', t =
   const outside = run(path.join(s.base, 'bin'), s.env({ GIT_CEILING_DIRECTORIES: s.base }));
   assert.equal(outside.status, 2);
   assert.equal(outside.json.ok, false);
+});
+
+// ---------------------------------------------------------------------------
+// An Artifacts install: saved branches stand in for pull requests
+
+const PROPOSAL = '# Add recipes\n\n**Status:** in-progress\n\nWhy.\n';
+const REFS = 'for-each-ref --format=%(refname) refs/remotes/origin';
+const remote = branch => `refs/remotes/origin/${branch}`;
+const diffOf = branch => `diff --name-only origin/main...${remote(branch)}`;
+const proposalOf = (branch, name) => `show ${remote(branch)}:openspec/changes/${name}/proposal.md`;
+
+// A fake `git(...args)` answering from a table keyed by its arguments joined with spaces. A call
+// the table does not list answers null, as a failed git call does. `asked` records every call.
+function fakeGit(answers) {
+  const asked = [];
+  const answer = (...args) => {
+    asked.push(args.join(' '));
+    return answers[args.join(' ')] ?? null;
+  };
+  return { git: answer, asked };
+}
+
+test('savedBranches lists nothing when origin holds no branch but the base', () => {
+  assert.deepEqual(savedBranches(fakeGit({}).git, 'origin/main'), []);
+  assert.deepEqual(savedBranches(fakeGit({ [REFS]: '' }).git, 'origin/main'), []);
+  const { git: only, asked } = fakeGit({ [REFS]: ['HEAD', 'main'].map(remote).join('\n') });
+  assert.deepEqual(savedBranches(only, 'origin/main'), []);
+  assert.deepEqual(asked, [REFS]);
+});
+
+test('savedBranches lists a remote branch that holds an unarchived change, with its title and Status', () => {
+  const files = ['app/src/pages/recipes/Recipes.tsx', 'openspec/changes/add-recipes/proposal.md', 'openspec/changes/add-recipes/tasks.md'];
+  const { git: saved } = fakeGit({
+    [REFS]: ['HEAD', 'add-recipes', 'main'].map(remote).join('\n'),
+    [diffOf('add-recipes')]: files.join('\n'),
+    [proposalOf('add-recipes', 'add-recipes')]: PROPOSAL,
+  });
+  assert.deepEqual(savedBranches(saved, 'origin/main'), [
+    { branch: 'add-recipes', changes: [{ name: 'add-recipes', title: 'Add recipes', status: 'in-progress' }], files },
+  ]);
+});
+
+test('savedBranches leaves out a branch with no change to pick up', () => {
+  const { git: none } = fakeGit({
+    [REFS]: ['fix-typo', 'no-proposal', 'archived-only'].map(remote).join('\n'),
+    [diffOf('fix-typo')]: 'README.md\napp/src/lib/apps.ts',
+    [diffOf('no-proposal')]: 'openspec/changes/no-proposal/tasks.md',
+    [diffOf('archived-only')]: 'openspec/changes/archive/2026-09-01-old/proposal.md',
+  });
+  assert.deepEqual(savedBranches(none, 'origin/main'), []);
+});
+
+test('savedBranches never lists the base branch, origin\'s HEAD, or a branch already listed', () => {
+  const branches = ['HEAD', 'main', 'mine', 'in-a-worktree', 'add-recipes'];
+  const answers = { [REFS]: branches.map(remote).join('\n') };
+  for (const branch of branches) {
+    answers[diffOf(branch)] = `openspec/changes/${branch}/proposal.md`;
+    answers[proposalOf(branch, branch)] = PROPOSAL;
+  }
+  const { git: all, asked } = fakeGit(answers);
+  const listed = savedBranches(all, 'origin/main', new Set(['mine', 'in-a-worktree']));
+  assert.deepEqual(listed.map(entry => entry.branch), ['add-recipes']);
+  assert.deepEqual(asked.filter(call => call.startsWith('diff ')), [diffOf('add-recipes')], 'a skipped branch is not even compared');
+});
+
+test('savedBranches leaves out a branch whose archived change is already on the base', () => {
+  const files = ['openspec/changes/archive/2026-09-01-add-recipes/proposal.md', 'openspec/changes/next-idea/proposal.md'];
+  const answers = { [REFS]: remote('add-recipes'), [diffOf('add-recipes')]: files.join('\n'), [proposalOf('add-recipes', 'next-idea')]: PROPOSAL };
+  assert.deepEqual(savedBranches(fakeGit(answers).git, 'origin/main').map(entry => entry.branch), ['add-recipes'], 'an archive the base does not hold has not shipped');
+  const shipped = fakeGit({ ...answers, 'cat-file -e origin/main:openspec/changes/archive/2026-09-01-add-recipes': '' });
+  assert.deepEqual(savedBranches(shipped.git, 'origin/main'), []);
+});
+
+test('savedBranches lists nothing when there is no base to compare with', () => {
+  const { git: baseless, asked } = fakeGit({
+    [REFS]: remote('add-recipes'),
+    [diffOf('add-recipes')]: 'openspec/changes/add-recipes/proposal.md',
+    [proposalOf('add-recipes', 'add-recipes')]: PROPOSAL,
+  });
+  assert.deepEqual(savedBranches(baseless, null), []);
+  assert.deepEqual(asked.filter(call => call.startsWith('diff ')), []);
+});
+
+test('savedBranches reports a missing title or Status as null, and caps the file list', () => {
+  const files = ['openspec/changes/rough/proposal.md', ...Array.from({ length: 30 }, (_, n) => `app/file-${n}.ts`)];
+  const { git: rough } = fakeGit({ [REFS]: remote('rough'), [diffOf('rough')]: files.join('\n'), [proposalOf('rough', 'rough')]: 'Notes only.\n' });
+  const [entry] = savedBranches(rough, 'origin/main');
+  assert.deepEqual(entry.changes, [{ name: 'rough', title: null, status: null }]);
+  assert.deepEqual(entry.files, files.slice(0, 20));
+});
+
+test('an Artifacts install lists saved branches in place of pull requests, and never asks gh', t => {
+  const s = setup(t);
+  git(s.primary, 'checkout', '-q', '-b', 'add-recipes');
+  commit(s.primary, 'openspec/changes/add-recipes/proposal.md', PROPOSAL);
+  git(s.primary, 'push', '-q', 'origin', 'add-recipes');
+  git(s.primary, 'checkout', '-q', 'main');
+  git(s.primary, 'branch', '-q', '-D', 'add-recipes');
+  git(s.primary, 'remote', 'set-url', 'origin', `https://${'a'.repeat(32)}.artifacts.cloudflare.net/git/wong/demo.git`);
+  write(path.join(s.primary, '.claude/.wong-stack.json'), JSON.stringify({ components: { delivery: { route: 'artifacts' } } }));
+  const { status, json } = run(s.dirs.current, s.env());
+  assert.equal(status, 0);
+  assert.deepEqual(json.notes, []);
+  assert.deepEqual(json.pullRequests, [], 'gh had pull requests to offer, and was not asked');
+  assert.deepEqual(json.savedBranches, [{
+    branch: 'add-recipes',
+    changes: [{ name: 'add-recipes', title: 'Add recipes', status: 'in-progress' }],
+    files: ['openspec/changes/add-recipes/proposal.md'],
+  }]);
+  assert.equal(json.workspaces.find(ws => ws.path === s.dirs.feature).pr, undefined);
 });

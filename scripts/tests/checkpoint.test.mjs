@@ -11,6 +11,10 @@ const REAL_GIT = execFileSync('bash', ['-c', 'command -v git'], { encoding: 'utf
 const PR = { number: 7, state: 'OPEN', url: 'https://github.com/team/repo/pull/7' };
 const run = (id, job) => `https://github.com/team/repo/actions/runs/${id}/job/${job}`;
 const PASS = [`pass\tunit\t${run(10, 1)}`];
+// An Artifacts install: origin is on Cloudflare's Git domain, and the install record names the route.
+const ARTIFACTS_REMOTE = `https://${'0123456789abcdef'.repeat(2)}.artifacts.cloudflare.net/git/wongstack/repo.git`;
+const ARTIFACTS_RECORD = { components: { delivery: { route: 'artifacts', accountId: '0123456789abcdef'.repeat(2), remote: ARTIFACTS_REMOTE, workflow: 'repo-checks' } } };
+const PREVIEW = 'https://work.example.workers.dev';
 
 // The real git, against a bare origin in the fixture. Every call is logged, and the origin
 // address reads as a GitHub one so the receipt helper can name the repository.
@@ -75,13 +79,30 @@ if (line.startsWith('run view')) {
 fail('unexpected gh call: ' + line, 97);
 `;
 
-function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PASS } } = {}) {
+// On an Artifacts install the scripts call `node` by name for two things. delivery-route.mjs runs
+// for real, over the fake git's origin and the committed install record. artifacts-run.mjs is
+// stood in for: `wait` prints $FAKE_DIR/run.txt, as the check run's reader would, and `preview`
+// prints $FAKE_DIR/preview.txt. Every other script, the fake gh included, runs on the real node.
+const FAKE_NODE = `#!/usr/bin/env bash
+case "\${1:-}" in
+  */artifacts-run.mjs)
+    echo "node artifacts-run.mjs \${*:2}" >> "$FAKE_DIR/calls"
+    case "\${2:-}" in
+      wait) cat "$FAKE_DIR/run.txt" ;;
+      preview) cat "$FAKE_DIR/preview.txt" 2>/dev/null ;;
+    esac
+    exit 0 ;;
+esac
+exec "$REAL_NODE" "$@"
+`;
+
+function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PASS }, artifacts = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-checkpoint-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
   const origin = join(dir, 'origin.git');
   for (const name of ['bin', 'work', 'notes', 'state']) mkdirSync(join(dir, name));
-  for (const [name, body] of [['git', FAKE_GIT], ['gh', FAKE_GH]]) {
+  for (const [name, body] of [['git', FAKE_GIT], ['gh', FAKE_GH], ...(artifacts ? [['node', FAKE_NODE]] : [])]) {
     writeFileSync(join(dir, 'bin', name), body);
     chmodSync(join(dir, 'bin', name), 0o755);
   }
@@ -91,6 +112,7 @@ function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PA
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.test', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.test',
     WONG_SAVE_STATE_DIR: join(dir, 'state'), WAIT_FOR_CHECKS_GRACE: '1', WAIT_FOR_CHECKS_INTERVAL: '0.2',
+    ...(artifacts ? { FAKE_REMOTE: ARTIFACTS_REMOTE, REAL_NODE: process.execPath } : {}),
   };
   const git = (...args) => execFileSync(REAL_GIT, args, { cwd: work, env, encoding: 'utf8' }).trim();
   const write = (path, text) => {
@@ -105,6 +127,7 @@ function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PA
   write('.gitignore', '.env*\n');
   write('app.txt', 'one\n');
   if (workflows) write('.github/workflows/test.yml', 'on: push\n');
+  if (artifacts) write('.claude/.wong-stack.json', `${JSON.stringify(ARTIFACTS_RECORD)}\n`);
   git('add', '-A');
   git('commit', '-q', '-m', 'base');
   git('push', '-q', '-u', 'origin', 'main');
@@ -124,7 +147,12 @@ function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PA
     return { ...result, value: key => result.stdout.match(new RegExp(`^${key}=(.*)$`, 'm'))?.[1] };
   };
   const calls = () => readFileSync(join(dir, 'calls'), 'utf8');
-  return { dir, work, git, write, stage, set, save, call, calls, message, summary, body: () => readFileSync(join(dir, 'body.md'), 'utf8') };
+  // What the Artifacts check run's reader prints for HEAD, and the preview its deploy reported.
+  const checkRun = (text, preview = '') => {
+    writeFileSync(join(dir, 'run.txt'), `${text}\n`);
+    writeFileSync(join(dir, 'preview.txt'), preview ? `${preview}\n` : '');
+  };
+  return { dir, work, git, write, stage, set, save, call, calls, checkRun, message, summary, body: () => readFileSync(join(dir, 'body.md'), 'utf8') };
 }
 
 const lastLine = result => result.stdout.trimEnd().split('\n').at(-1);
@@ -384,4 +412,130 @@ test('an unreadable pull request and bad arguments stop early', t => {
     ['--message-file', f.message, '--summary-file', join(f.dir, 'notes', 'absent.md')], ['--wait', '--max-minutes', 'soon']]) {
     assert.equal(f.call(args).status, 2, args.join(' '));
   }
+});
+
+// ---------------------------------------------------------------------------
+// The Artifacts route: the same command, with no GitHub to ask
+
+const neverGitHub = (f, result) => {
+  assert.doesNotMatch(f.calls(), /^gh /m, 'gh is never asked on an Artifacts install');
+  assert.doesNotMatch(result.stdout, /^PR_URL=|GitHub|[Pp]ull request/m, 'nothing names a pull request or GitHub');
+};
+
+test('an Artifacts install: one command pushes the branch, waits for its check run, and asks gh nothing', t => {
+  const f = fixture(t, { artifacts: true, pushed: false });
+  f.checkRun('RESULT: SUCCESS', PREVIEW);
+  f.stage('openspec/changes/demo/proposal.md', '# Demo\n\n**Status:** in-progress\n**Branch:** work\n\n## Why\n\nIt is faster.\n\n## What Changes\n\n- One thing.\n');
+  f.stage('openspec/changes/demo/tasks.md', '- [x] 1.1 Done\n');
+  f.stage('app.txt', 'two\n');
+  f.write('openspec/changes/demo/review.html', '<!-- wong-review:3 -->\nold page\n');
+  const r = f.save(['--change-root', 'openspec/changes/demo', '--mode', 'active']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  const head = f.git('rev-parse', 'HEAD');
+  assert.equal(r.value('SAVE_HEAD'), head);
+  assert.equal(r.value('PREVIEW_URL'), PREVIEW);
+  assert.match(r.value('RECEIPT'), /^none \(this route keeps no receipt/);
+  assert.equal(r.value('ATTEMPT'), '0');
+  assert.match(r.stdout, /^RESULT: SUCCESS$/m);
+  assert.match(r.stdout, /^NEXT: checks passed\. Report the save\.$/m);
+  assert.equal(lastLine(r), 'SAVE_GATE_RESULT=SUCCESS');
+  // The review page is still rebuilt and committed, and the branch reaches the remote.
+  assert.match(f.git('show', 'HEAD:openspec/changes/demo/review.html'), /It is faster\./);
+  assert.match(f.git('ls-remote', '--heads', 'origin', 'work'), new RegExp(`^${head}`));
+  assert.equal(f.git('log', '-1', '--format=%s'), 'feat: a thing');
+  const calls = f.calls();
+  assert.match(calls, /git commit -F [^\n]*\n[\s\S]*git push -u origin HEAD\n[\s\S]*node artifacts-run\.mjs wait 20\n[\s\S]*node artifacts-run\.mjs preview\n/);
+  assert.doesNotMatch(calls, /--no-verify|--force/);
+  neverGitHub(f, r);
+  assert.equal(existsSync(f.message) || existsSync(f.summary), false, 'the temporary files are deleted');
+});
+
+test('an Artifacts install: a failed check run passes the failing stage\'s own lines through', t => {
+  const f = fixture(t, { artifacts: true });
+  // The last line has the shape of GitHub's failing-check list; it is still only passed through.
+  f.checkRun(`RESULT: FAILURE\n  checks failed\n  not ok 1 - adds two numbers\n  Expected 2, received 3\n  - lint  ${run(10, 2)}`);
+  f.stage('app.txt', 'two\n');
+  const r = f.save();
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(lastLine(r), 'SAVE_GATE_RESULT=FAILURE');
+  assert.match(r.stdout, /^RESULT: FAILURE\n {2}checks failed\n {2}not ok 1 - adds two numbers\n {2}Expected 2, received 3\n {2}- lint {2}\S+$/m);
+  assert.doesNotMatch(r.stdout, /^(FAILED_CHECK|LINK|RERUN|CAUSE)/m);
+  assert.equal(r.value('PREVIEW_URL'), 'none');
+  assert.match(r.stdout, /^NEXT: fix the cause the lines under RESULT show, in one push\.[^\n]*fix attempt 1 of 3[^\n]*no rerun on this route: stop and report it, with no code edit\.$/m);
+  assert.equal(r.value('SUMMARY_FILE'), `${f.summary} (kept for the rerun)`);
+  neverGitHub(f, r);
+  // The fix is counted as on GitHub, and a pass ends the run.
+  f.checkRun('RESULT: SUCCESS', PREVIEW);
+  f.stage('app.txt', 'three\n');
+  const fixed = f.save();
+  assert.equal(fixed.status, 0, `${fixed.stdout}${fixed.stderr}`);
+  assert.equal(fixed.value('ATTEMPT'), '1');
+  assert.equal(fixed.value('PREVIEW_URL'), PREVIEW);
+  assert.equal(lastLine(fixed), 'SAVE_GATE_RESULT=SUCCESS');
+  neverGitHub(f, fixed);
+});
+
+test('an Artifacts install: the fourth fix is refused, with no pull request to point at', t => {
+  const f = fixture(t, { artifacts: true });
+  f.checkRun('RESULT: FAILURE\n  checks failed\n  not ok');
+  for (const attempt of [0, 1, 2, 3]) {
+    f.stage('app.txt', `attempt ${attempt}\n`);
+    const r = f.save();
+    assert.equal(r.value('ATTEMPT'), String(attempt));
+    assert.match(r.stdout, attempt < 3 ? new RegExp(`fix attempt ${attempt + 1} of 3`) : /^NEXT: the 3 fix attempts are spent\. Stop and report the failing output above; change no more code\.$/m);
+  }
+  f.stage('app.txt', 'attempt 4\n');
+  const refused = f.save();
+  assert.equal(refused.status, 6);
+  assert.match(refused.stdout, /^NEXT: stop and report the failing checks\. A later \/save run starts a new count with --new-run\.$/m);
+  neverGitHub(f, refused);
+});
+
+test('an Artifacts install: a check run that can not be read is UNKNOWN, and --wait reads it again', t => {
+  const f = fixture(t, { artifacts: true });
+  f.checkRun('RESULT: UNKNOWN\n  Cloudflare answered HTTP 500', PREVIEW);
+  f.stage('app.txt', 'two\n');
+  const r = f.save();
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(lastLine(r), 'SAVE_GATE_RESULT=UNKNOWN');
+  assert.match(r.stdout, /^RESULT: UNKNOWN\n {2}Cloudflare answered HTTP 500$/m);
+  assert.match(r.stdout, /^NEXT: the gate is unverified, which is never "no checks"/m);
+  assert.equal(r.value('PREVIEW_URL'), 'none', 'an unverified gate reads no preview');
+  assert.doesNotMatch(f.calls(), /artifacts-run\.mjs preview/);
+  const head = f.git('rev-parse', 'HEAD');
+  f.checkRun('RESULT: TIMEOUT\n  - checks (still running)');
+  const waiting = f.call(['--wait', '--max-minutes', '1']);
+  assert.equal(lastLine(waiting), 'SAVE_GATE_RESULT=TIMEOUT');
+  assert.match(waiting.stdout, /^NEXT: checks are still running\. Report that, or keep waiting with: [^\n]*checkpoint\.mjs --wait$/m);
+  assert.match(f.calls(), /node artifacts-run\.mjs wait 1\n/);
+  f.checkRun('RESULT: NONE');
+  const none = f.call(['--wait']);
+  assert.equal(lastLine(none), 'SAVE_GATE_RESULT=NONE');
+  assert.match(none.stdout, /^NEXT: no checks are configured\. Report the save\.$/m);
+  assert.equal(f.git('rev-parse', 'HEAD'), head);
+  assert.equal(f.calls().match(/git commit/g).length, 1);
+  assert.equal(f.calls().match(/git push/g).length, 1, 'the one save push; --wait pushes nothing');
+  for (const result of [r, waiting, none]) neverGitHub(f, result);
+});
+
+test('a route that can not be told stops before any commit, and never falls back to GitHub', t => {
+  // The install record names Artifacts, but origin is on GitHub.
+  const recorded = fixture(t, { artifacts: true });
+  recorded.stage('app.txt', 'two\n');
+  const before = recorded.git('rev-parse', 'HEAD');
+  const r = recorded.save([], { FAKE_REMOTE: 'https://github.com/team/repo.git' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /^error=the delivery route could not be told: the install record says artifacts, but origin is on github\.com$/m);
+  assert.match(r.stdout, /^NEXT: origin and the install record disagree, so nothing ran\./m);
+  assert.doesNotMatch(r.stdout, /SAVE_HEAD|SAVE_GATE_RESULT/);
+  assert.equal(recorded.git('rev-parse', 'HEAD'), before);
+  assert.doesNotMatch(recorded.calls(), /git commit|git push|^gh |artifacts-run/m);
+  assert.equal(existsSync(recorded.summary), true, 'the files stay for the rerun');
+  // Origin is an Artifacts repository, but no install record names the route.
+  const unrecorded = fixture(t);
+  unrecorded.stage('app.txt', 'two\n');
+  const other = unrecorded.save([], { FAKE_REMOTE: ARTIFACTS_REMOTE });
+  assert.equal(other.status, 1);
+  assert.match(other.stderr, /^error=the delivery route could not be told: origin is a Cloudflare Artifacts repository, but the install record names no artifacts route$/m);
+  assert.doesNotMatch(unrecorded.calls(), /git commit|git push|^gh /m);
 });

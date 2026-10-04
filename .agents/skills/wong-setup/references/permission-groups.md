@@ -1,6 +1,6 @@
 # The widen protocol and the permission-group ids
 
-A token's policy grants Cloudflare permission groups. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which [`provision.mjs`](../scripts/provision.mjs) runs. `scripts/tests/provision.test.mjs` fails when the script's groups differ from the tables below.
+A token's policy grants Cloudflare permission groups. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which [`provision.mjs`](../scripts/provision.mjs) runs. [The Artifacts route](../../../../wiki/stack/artifacts-route.md#the-permissions-it-adds) adds four. `scripts/tests/provision.test.mjs` fails when the script's groups differ from the tables below.
 
 ## The sequence
 
@@ -21,12 +21,7 @@ A token's policy grants Cloudflare permission groups. The user grants two on the
 - **A widen takes up to about a minute to propagate.** The first probe after a `PUT` can return `401` (code `10000`) or `403` on a permission the token now holds, so **a first `401` or `403` is not a permission problem.** Retry with backoff (about 2s, 4s, 8s, 15s, 30s); only a refusal at the end is real. Access endpoints are slowest: one adopter's run stopped on an Access `403` that would have cleared within the minute. Lost `resources` does *not* clear with time; it shows an empty `/accounts`, not a `403`.
 - **If the widen didn't take, stop and provision nothing.** Report which surfaces are unavailable, and list the permission names for the user to add by hand. Should Cloudflare ever restrict self-escalation, this turns it into a clear message, not a half-provision.
 
-```bash
-curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  "https://api.cloudflare.com/client/v4/user/tokens/permission_groups?per_page=1000"
-```
-
-There were **392 groups** at writing, so the endpoint needs `per_page=1000`; the default page hides most.
+`/user/tokens/permission_groups` needs `?per_page=1000`: the default page hides most of some 400 groups.
 
 ## Verified ids
 
@@ -88,15 +83,3 @@ The GitHub secret gets its own token, never the user token. [The provisioning ru
 Match on `scopes` containing `com.cloudflare.api.account`, never on position, since order is not guaranteed. The zone-scoped copy yields a token that accepts the policy, then fails every account-level Access call.
 
 **Builds is filed under "CI".** No group name contains "build"; Workers Builds permissions are `Workers CI Read` and `Workers CI Write`.
-
-## Reading a token's current policy
-
-```bash
-curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  https://api.cloudflare.com/client/v4/user/tokens/verify        # → the token's own id
-
-curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-  https://api.cloudflare.com/client/v4/user/tokens/{id}          # → its policy document
-```
-
-A policy pairs a permission-group list with a `resources` map. An empty `/accounts` after a widen means lost resources ([failure map](failure-map.md)).

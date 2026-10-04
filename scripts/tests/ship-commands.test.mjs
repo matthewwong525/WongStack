@@ -11,6 +11,10 @@ const ARCHIVE = 'openspec/changes/archive/2026-10-04-demo';
 const CHANGELOG = '# Changelog\n\nNewest first.\n\n## 1.0.0 — First\n\nThe first release.\n';
 const withEntry = entry => CHANGELOG.replace('## 1.0.0', `${entry}\n\n## 1.0.0`);
 const NEXT_ENTRY = '## Next (minor) — New thing\n\nA new thing.';
+// An Artifacts install: origin is on Cloudflare's Git domain, and the install record names the route.
+const REAL_GIT = execFileSync('bash', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+const ARTIFACTS_REMOTE = `https://${'0123456789abcdef'.repeat(2)}.artifacts.cloudflare.net/git/wongstack/repo.git`;
+const ARTIFACTS_RECORD = { components: { delivery: { route: 'artifacts', accountId: '0123456789abcdef'.repeat(2), remote: ARTIFACTS_REMOTE, workflow: 'repo-checks' } } };
 
 // A fake gh that answers from $FAKE_DIR/gh.json and logs every call.
 const FAKE_GH = `#!/usr/bin/env node
@@ -75,14 +79,42 @@ console.error('unexpected openspec call: ' + line);
 process.exit(97);
 `;
 
+// An Artifacts fixture's git is the real one against the bare origin, with every call logged; only
+// the origin address is answered from $FAKE_REMOTE, so delivery-route.mjs reads a Cloudflare one.
+const FAKE_GIT = `#!/usr/bin/env bash
+echo "git $*" >> "$FAKE_DIR/calls"
+case "$*" in
+  *"remote get-url origin") echo "$FAKE_REMOTE"; exit 0 ;;
+esac
+exec "$REAL_GIT" "$@"
+`;
+
+// And its `node`, which the scripts call by name, stands in for artifacts-run.mjs alone: `result`
+// prints MAIN_RESULT for main's run and RUN_RESULT for the branch's own, and `live` prints RUN_LIVE,
+// what main's run of the published commit ended as. Every other script runs on the real node.
+const FAKE_NODE = `#!/usr/bin/env bash
+case "\${1:-}" in
+  */artifacts-run.mjs)
+    echo "node artifacts-run.mjs \${*:2}" >> "$FAKE_DIR/calls"
+    case "\${2:-}" in
+      result)
+        if [ -n "\${RESULT_RC:-}" ]; then exit "$RESULT_RC"; fi
+        if [ "\${4:-}" = refs/heads/main ]; then echo "\${MAIN_RESULT-SUCCESS}"; else echo "\${RUN_RESULT-SUCCESS}"; fi ;;
+      live) echo "\${RUN_LIVE-none}" ;;
+    esac
+    exit 0 ;;
+esac
+exec "$REAL_NODE" "$@"
+`;
+
 // A real repository with a bare origin: main holds a first release, and `work` is checked out.
-function fixture(t, { gh = {}, openspec = {} } = {}) {
+function fixture(t, { gh = {}, openspec = {}, artifacts = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-ship-commands-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
   const origin = join(dir, 'origin.git');
   for (const name of ['bin', 'work']) mkdirSync(join(dir, name));
-  for (const [name, body] of [['gh', FAKE_GH], ['openspec', FAKE_OPENSPEC]]) {
+  for (const [name, body] of [['gh', FAKE_GH], ['openspec', FAKE_OPENSPEC], ...(artifacts ? [['git', FAKE_GIT], ['node', FAKE_NODE]] : [])]) {
     writeFileSync(join(dir, 'bin', name), body);
     chmodSync(join(dir, 'bin', name), 0o755);
   }
@@ -93,8 +125,10 @@ function fixture(t, { gh = {}, openspec = {} } = {}) {
     ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, HOME: dir, FAKE_DIR: dir,
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.test', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.test',
+    ...(artifacts ? { FAKE_REMOTE: ARTIFACTS_REMOTE, REAL_GIT, REAL_NODE: process.execPath } : {}),
   };
-  const git = (...args) => execFileSync('git', args, { cwd: work, env, encoding: 'utf8' }).trim();
+  // The fixture's own git calls go to the real git, so only the command's calls are logged.
+  const git = (...args) => execFileSync(REAL_GIT, args, { cwd: work, env, encoding: 'utf8' }).trim();
   const write = (path, text) => {
     mkdirSync(dirname(join(work, path)), { recursive: true });
     writeFileSync(join(work, path), text);
@@ -104,10 +138,10 @@ function fixture(t, { gh = {}, openspec = {} } = {}) {
     git('add', '-A');
     git('commit', '-q', '-m', message);
   };
-  execFileSync('git', ['init', '-q', '--bare', '-b', 'main', origin], { env });
+  execFileSync(REAL_GIT, ['init', '-q', '--bare', '-b', 'main', origin], { env });
   git('init', '-q', '-b', 'main');
   git('remote', 'add', 'origin', origin);
-  commit({ 'CHANGELOG.md': CHANGELOG, VERSION: '1.0.0\n', 'app.txt': 'one\n' }, 'base');
+  commit({ 'CHANGELOG.md': CHANGELOG, VERSION: '1.0.0\n', 'app.txt': 'one\n', ...(artifacts ? { '.claude/.wong-stack.json': `${JSON.stringify(ARTIFACTS_RECORD)}\n` } : {}) }, 'base');
   git('push', '-q', '-u', 'origin', 'main');
   git('checkout', '-q', '-b', 'work');
   // Another release, or another person's edit, lands on the default branch meanwhile.
@@ -383,4 +417,142 @@ test('bad arguments are refused; a changelog conflict keeps this branch\'s entry
   // Two entries of its own, or none, is not a mechanical resolution.
   assert.equal(entryOnTop('## A\n\n## B\n', '# Log\n'), null);
   assert.equal(entryOnTop('# Log\n', '# Log\n\n## 1.0.1 — Theirs\n'), null);
+});
+
+// ---------------------------------------------------------------------------
+// The Artifacts route: the same two commands, with no GitHub to ask
+
+const noGh = f => assert.doesNotMatch(f.calls(), /^gh /m, 'gh is never asked on an Artifacts install');
+const TO_MAIN = /^git push origin [0-9a-f]{40}:refs\/heads\/main$/gm;
+
+test('an Artifacts install: prepare reads main\'s own check run, and asks gh nothing', t => {
+  const f = fixture(t, { artifacts: true });
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY), 'app.txt': 'two\n' });
+  const r = f.run(['prepare']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.deepEqual(['BRANCH', 'DIRTY', 'AHEAD', 'DEFAULT_CHECKS', 'CHANGE', 'ARCHIVE', 'RELEASE', 'SYNC', 'REVIEW'].map(r.value),
+    ['work', 'no', '1', 'ok', 'demo', ARCHIVE, '1.1.0 from 1.0.0', 'none', 'rebuilt']);
+  assert.match(f.calls(), new RegExp(`^node artifacts-run\\.mjs result ${f.git('rev-parse', 'origin/main')} refs/heads/main$`, 'm'));
+  assert.equal(f.read('VERSION'), '1.1.0\n');
+  noGh(f);
+  // A main whose run found no checks is `ok` too.
+  const plain = fixture(t, { artifacts: true });
+  plain.commit({ 'README.md': '# Project\n' });
+  const none = plain.run(['prepare', '--no-change'], { MAIN_RESULT: 'NONE' });
+  assert.equal(none.status, 0, `${none.stdout}${none.stderr}`);
+  assert.deepEqual(['DEFAULT_CHECKS', 'CHANGE', 'ARCHIVE', 'RELEASE', 'SYNC'].map(none.value), ['ok', 'none', 'none', 'none', 'none']);
+  noGh(plain);
+});
+
+test('an Artifacts install: a red or unread main stops prepare before any change is read', t => {
+  const f = fixture(t, { artifacts: true });
+  f.commit(f.change('demo'));
+  // Main moved on the remote, and this checkout has not fetched it yet.
+  const stale = f.git('rev-parse', 'origin/main');
+  f.advanceMain({ 'other.txt': 'theirs\n' });
+  const moved = f.git('rev-parse', 'origin/main');
+  f.git('update-ref', 'refs/remotes/origin/main', stale);
+  const failing = f.run(['prepare', '--change', 'demo'], { MAIN_RESULT: 'FAILURE' });
+  assert.equal(failing.status, 6);
+  assert.equal(failing.value('DEFAULT_CHECKS'), 'failure');
+  assert.match(failing.stdout, /^NEXT: main's checks are failing\. Fix the default branch first/m);
+  assert.match(f.calls(), new RegExp(`^node artifacts-run\\.mjs result ${moved} refs/heads/main$`, 'm'), 'main is fetched first, so the run read is the newest commit\'s');
+  assert.doesNotMatch(f.calls(), new RegExp(`result ${stale} `));
+  // Still running, missing, unreadable, or no answer at all: unverified, never passed.
+  for (const [vars, word] of [[{ MAIN_RESULT: 'UNKNOWN' }, 'UNKNOWN'], [{ MAIN_RESULT: 'PENDING' }, 'PENDING'], [{ MAIN_RESULT: '' }, 'nothing'], [{ RESULT_RC: '1' }, 'nothing']]) {
+    const r = f.run(['prepare', '--change', 'demo'], vars);
+    assert.equal(r.status, 6, JSON.stringify(vars));
+    assert.equal(r.value('DEFAULT_CHECKS'), 'unknown');
+    assert.match(r.stderr, new RegExp(`^error=main's check run for ${moved.slice(0, 7)} reads ${word}, so it is unverified$`, 'm'));
+    assert.match(r.stdout, /^NEXT: main's checks could not be read\. Report the message above and stop\.$/m);
+  }
+  // A main that can not be fetched names no run to read.
+  f.git('remote', 'set-url', 'origin', join(f.dir, 'missing.git'));
+  const unfetched = f.run(['prepare', '--change', 'demo']);
+  assert.equal(unfetched.status, 6);
+  assert.equal(unfetched.value('DEFAULT_CHECKS'), 'unknown');
+  assert.match(unfetched.stderr, /^error=origin\/main could not be fetched, so its check run can not be named$/m);
+  assert.doesNotMatch(f.calls(), /^(gh|openspec) /m);
+  assert.equal(f.has('openspec/changes/demo'), true);
+});
+
+test('an Artifacts install: finish publishes without gh, and looks at the commit merge.sh names', t => {
+  const f = fixture(t, { artifacts: true });
+  f.commit({ 'app.txt': 'two\n' }, 'feat: a thing');
+  f.git('push', '-q', '-u', 'origin', 'work');
+  const r = f.run(['finish']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.match(r.stdout, /^merged=yes\ncommit=[0-9a-f]{40}\nmain=SUCCESS\nbranch=deleted\nsynced=ref\n/);
+  const commit = r.value('commit');
+  assert.equal(f.git('rev-parse', 'origin/main'), commit, 'main moved forward to the publish commit');
+  assert.equal(f.git('log', '-1', '--format=%s', commit), 'feat: a thing');
+  assert.equal(f.git('show', `${commit}:app.txt`), 'two');
+  assert.match(r.stdout, /^SECRETS=\{"primary":true,/m);
+  assert.match(r.stdout, /^LIVE_LOOK=unknown\nREASON=nothing was released\nNEXT: it merged\. Report it is live, with REASON as one line\.$/m);
+  const calls = f.calls();
+  assert.equal(calls.match(TO_MAIN).length, 1);
+  // The publish and the live look both read main's run for the commit= value; no pull request names it.
+  assert.equal(calls.match(new RegExp(`^node artifacts-run\\.mjs live ${commit}$`, 'gm')).length, 2);
+  assert.doesNotMatch(calls, /^git push .*(--force|\s-f\b|\s\+)/m, 'nothing is forced');
+  assert.equal(f.git('ls-remote', '--heads', 'origin', 'work'), '');
+  noGh(f);
+});
+
+test('an Artifacts install: a main that moved is not published onto, and NEXT says to bring it in', t => {
+  const f = fixture(t, { artifacts: true });
+  f.commit({ 'app.txt': 'two\n' });
+  f.git('push', '-q', '-u', 'origin', 'work');
+  f.advanceMain({ 'other.txt': 'theirs\n' });
+  const r = f.run(['finish']);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^merged=no\nmoved=yes\nNEXT: main moved since this branch was checked, so nothing was published\. Bring main in: node \.claude\/skills\/ship\/scripts\/ship\.mjs prepare --sync,[^\n]*Then invoke ordinary \/save, and rerun finish only on SUCCESS or NONE\.$/m);
+  assert.match(r.stderr, /^error=main moved since this branch was checked/m);
+  assert.doesNotMatch(r.stdout, /SECRETS=|LIVE_LOOK=/);
+  assert.equal(f.calls().match(TO_MAIN), null);
+  assert.notEqual(f.git('ls-remote', '--heads', 'origin', 'work'), '', 'the branch is kept');
+  noGh(f);
+  // A branch whose own checks did not pass is not published either, and gets the plain stop.
+  const unchecked = f.run(['finish'], { RUN_RESULT: 'FAILURE' });
+  assert.equal(unchecked.status, 1);
+  assert.match(unchecked.stdout, /^merged=no\nNEXT: not merged, and nothing was deleted\. Report the error above and stop\.$/m);
+  assert.match(unchecked.stderr, /only a checked commit is published/);
+  assert.equal(f.calls().match(TO_MAIN), null);
+  noGh(f);
+});
+
+test('an Artifacts install: a red or unread main after the publish stops, and nothing is pushed again', t => {
+  for (const [live, word, why] of [
+    ['failed', 'FAILURE', 'main\'s checks or deploy failed, so this change is not live: production keeps the last passing commit'],
+    ['unknown', 'UNKNOWN', 'main\'s check run could not be read, so what is live is unverified'],
+  ]) {
+    const f = fixture(t, { artifacts: true });
+    f.commit({ 'app.txt': 'two\n' });
+    f.git('push', '-q', '-u', 'origin', 'work');
+    const r = f.run(['finish'], { RUN_LIVE: live });
+    assert.equal(r.status, 3, `${live}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stdout, new RegExp(`^merged=yes\\ncommit=[0-9a-f]{40}\\nmain=${word}\\n`));
+    assert.match(r.stdout, /^SECRETS=\{"primary":true,/m);
+    assert.ok(r.stdout.endsWith(`LIVE_LOOK=unknown\nREASON=${why}\nNEXT: it is on main, but not shown to be live. Report REASON and the error above, and stop. Never push again to make main pass.\n`), r.stdout);
+    assert.doesNotMatch(r.stdout, /invoke apply|Report it is live/);
+    const calls = f.calls();
+    assert.equal(calls.match(TO_MAIN).length, 1, 'one push to main, never a second');
+    assert.equal(calls.match(/^node artifacts-run\.mjs live /gm).length, 1, 'the live look is not run');
+    noGh(f);
+  }
+});
+
+test('a route that can not be told stops prepare and finish, and neither falls back to GitHub', t => {
+  // The install record names Artifacts, but origin is on GitHub.
+  const f = fixture(t, { artifacts: true });
+  f.commit({ 'app.txt': 'two\n' });
+  f.git('push', '-q', '-u', 'origin', 'work');
+  for (const command of ['prepare', 'finish']) {
+    const r = f.run([command], { FAKE_REMOTE: 'https://github.com/team/repo.git' });
+    assert.equal(r.status, 1, command);
+    assert.match(r.stderr, /^error=the delivery route could not be told: the install record says artifacts, but origin is on github\.com$/m);
+    assert.match(r.stdout, /^NEXT: origin and the install record disagree, so nothing ran\./m);
+    assert.doesNotMatch(r.stdout, /DEFAULT_CHECKS=|merged=/);
+  }
+  assert.doesNotMatch(f.calls(), /^(gh|openspec|git push|git merge|node artifacts-run) /m);
+  assert.notEqual(f.git('ls-remote', '--heads', 'origin', 'work'), '');
 });

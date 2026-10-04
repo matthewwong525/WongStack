@@ -11,7 +11,11 @@ import { d1Query } from './d1.mjs';
 export const TOKEN = 'cf-user-secret-value';
 export const ACCOUNT = '0123456789abcdef0123456789abcdef';
 
+/** The one Artifacts namespace every install in an account shares. */
+const NAMESPACE = 'wongstack';
+
 // The groups the tables in permission-groups.md name, with their real ids, plus the zone-scoped trap copy.
+// A scope is one of the API's own (`user`, `account`, `account.zone`) or, spelled in full, another product's.
 export const GROUPS = [
   ['API Tokens Write', 'user', '686d18d5ac6c441c867cbf6771e58a0a'],
   ['Account API Tokens Write', 'account', '5bc3f8b21c554832afc660159ab75fa4'],
@@ -31,7 +35,11 @@ export const GROUPS = [
   ['Browser Run Write', 'account', 'adddda876faa4a0590f1b23a038976e4'],
   ['Access: Apps and Policies Write', 'account.zone', '959972745952452f8be2452be8cbb9f2'],
   ['D1 Write', 'account.zone', 'zone0000000000000000000000000d1w'],
-].map(([name, scope, id]) => ({ id, name, scopes: [`com.cloudflare.api.${scope}`] }));
+  ['Artifacts Write', 'account', 'f9e1ba803b8d4d52b4d4184825b07a28'],
+  ['Workers Containers Write', 'account', 'bdbcd690c763475a985e8641dddc09f7'],
+  ['Billing Read', 'account', '7cf72faf220841aabcfdfab81c43c4f6'],
+  ['Workers R2 Storage Bucket Item Write', 'com.cloudflare.edge.r2.bucket', '2efd5506f9c8494dacb1fa10a3e7d5b6'],
+].map(([name, scope, id]) => ({ id, name, scopes: [scope.startsWith('com.') ? scope : `com.cloudflare.api.${scope}`] }));
 
 export const groupId = (name) => GROUPS.find((g) => g.name === name && !g.scopes[0].includes('zone')).id;
 
@@ -47,12 +55,27 @@ export const startingPolicies = () => [
  * (`403` or `401`, code `10000`), as Cloudflare does while a widen takes effect; `refusedAccessPolls` does
  * the same to the widen's Access probes, as an account without a card may; `d1Failures` fails that
  * many D1 queries. `needsOnboarding` refuses a new Zero Trust organization with a 403, as an account
- * without a card does. `forbidTokens` answers every account-token call 403, as a user token narrowed
- * back from Account API Tokens Write does. `workerSecrets` holds each Worker's secrets by name.
+ * without a card does.
+ *
+ * For an Artifacts install: `paid` says whether the account's subscriptions list Workers Paid. `repos`
+ * names repositories another project already made in the shared namespace. `repos`, `namespaces` and
+ * `repoTokens` (each `active` until revoked) are the Artifacts side; `lifecycles` holds each bucket's
+ * rules; `workerSecrets` each Worker's secrets by name, readable only once the Worker exists;
+ * `tokenValues` each account token's current value by id.
+ * `forbidTokens` answers every account-token call 403, as a user token narrowed back from Account API
+ * Tokens Write does.
  */
-export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }] } = {}) {
+export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = [{ id: ACCOUNT, name: 'Ada' }], paid = true, repos = [] } = {}) {
+  const remoteOf = (namespace, name) => `https://${ACCOUNT}.artifacts.cloudflare.net/git/${namespace}/${name}.git`;
   const state = {
     r2,
+    paid,
+    namespaces: repos.length ? [NAMESPACE] : [],
+    repos: repos.map((name) => ({ id: `foreign-${name}`, namespace: NAMESPACE, name, default_branch: 'main', remote: remoteOf(NAMESPACE, name) })),
+    repoTokens: [],
+    lifecycles: {},
+    workerSecrets: {},
+    tokenValues: {},
     subdomain,
     accounts,
     policies: startingPolicies(),
@@ -75,7 +98,6 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     serviceTokens: [],
     workerDetails: {},
     workerSubdomains: {},
-    workerSecrets: {},
     forbidTokens: false,
   };
   const sqlite = new Map();
@@ -99,6 +121,45 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       return ok({ id: 'tok1' });
     }
     if (route === 'GET /accounts') return ok(state.accounts);
+    if (route === `GET ${account}/subscriptions`) {
+      const other = { id: 'sub-zero-trust', rate_plan: { id: 'teams_free', public_name: 'Zero Trust Free' } };
+      return ok(state.paid ? [other, { id: 'sub-workers', rate_plan: { id: 'workers_paid', public_name: 'Workers Paid' } }] : [other]);
+    }
+    const spaces = `${account}/artifacts/namespaces`;
+    if (route === `POST ${spaces}`) {
+      if (state.namespaces.includes(body.namespace)) return no(409, 1000, 'this namespace already exists');
+      state.namespaces.push(body.namespace);
+      return ok({ name: body.namespace });
+    }
+    const artifacts = url.pathname.match(new RegExp(`^${spaces}/([^/]+)(?:/(repos|tokens)(?:/([^/]+)(/tokens)?)?)?$`));
+    if (artifacts) {
+      const [, namespace, kind, name, tokens] = artifacts;
+      if (!state.namespaces.includes(namespace)) return no(404, 1000, 'no such namespace');
+      const inSpace = state.repos.filter((each) => each.namespace === namespace);
+      const repo = inSpace.find((each) => each.name === name);
+      if (method === 'GET' && !kind) return ok({ name: namespace });
+      if (method === 'GET' && kind === 'repos' && !name) return ok(structuredClone(inSpace.slice(0, Number(query.get('limit') ?? 50))));
+      if (method === 'POST' && kind === 'repos' && !name) {
+        if (inSpace.some((each) => each.name === body.name)) return no(409, 1000, 'this repository already exists');
+        const made = { id: `repo-${++serial}`, namespace, name: body.name, default_branch: body.default_branch ?? 'main', remote: remoteOf(namespace, body.name) };
+        const token = `art_v2_x_${createHash('sha1').update(`${body.name}:${serial}`).digest('hex')}?expires=1900000000`;
+        state.repos.push(made);
+        state.repoTokens.push({ id: `repo-token-${++serial}`, namespace, repo: body.name, scope: 'write', state: 'active', plaintext: token });
+        return ok({ ...made, token });
+      }
+      if (method === 'GET' && kind === 'repos' && name) {
+        if (!repo) return no(404, 1000, 'no such repository');
+        if (!tokens) return ok(structuredClone(repo));
+        const wanted = query.get('state');
+        return ok(state.repoTokens.filter((each) => each.namespace === namespace && each.repo === name && (!wanted || each.state === wanted)).map(({ plaintext: _plaintext, ...token }) => token));
+      }
+      if (method === 'DELETE' && kind === 'tokens' && name && !tokens) {
+        const token = state.repoTokens.find((each) => each.namespace === namespace && each.id === name);
+        if (!token) return no(404, 1000, 'no such token');
+        token.state = 'revoked';
+        return ok({ id: token.id });
+      }
+    }
     if (method === 'GET' && query.get('per_page') === '1' && /\/access\/(apps|identity_providers|service_tokens)$/.test(url.pathname) && state.refusedAccessPolls > 0) {
       state.refusedAccessPolls--;
       return no(state.refusedStatus, 10000, 'Authentication error');
@@ -195,10 +256,11 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       return ok(state.workerDetails[name] ?? { id: createHash('md5').update(name).digest('hex'), name, references: { domains: [] } });
     }
     const workerSecrets = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)/secrets$`));
-    if (workerSecrets && method === 'GET') return ok(Object.keys(state.workerSecrets[workerSecrets[1]] ?? {}).map((name) => ({ name, type: 'secret_text' })));
-    if (workerSecrets && method === 'PUT') {
-      if (!state.workers.includes(workerSecrets[1])) return no(404, 10007, 'no such Worker');
-      (state.workerSecrets[workerSecrets[1]] ??= {})[body.name] = body.text;
+    if (workerSecrets && (method === 'GET' || method === 'PUT')) {
+      const script = workerSecrets[1];
+      if (!state.workers.includes(script)) return no(404, 10007, 'This Worker does not exist on your account.');
+      if (method === 'GET') return ok(Object.keys(state.workerSecrets[script] ?? {}).map((name) => ({ name, type: 'secret_text' })));
+      state.workerSecrets[script] = { ...state.workerSecrets[script], [body.name]: body.text };
       return ok({ name: body.name, type: body.type });
     }
     const workerScript = url.pathname.match(new RegExp(`^${account}/workers/scripts/([^/]+)(/subdomain)?$`));
@@ -219,6 +281,13 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       state.buckets.push(body.name);
       return ok({ name: body.name });
     }
+    const lifecycle = url.pathname.match(new RegExp(`^${account}/r2/buckets/([^/]+)/lifecycle$`));
+    if (method === 'PUT' && lifecycle) {
+      if (!state.r2) return no(403, 10042, 'Please enable R2 through the Cloudflare Dashboard.');
+      if (!state.buckets.includes(lifecycle[1])) return no(404, 10006, 'The specified bucket does not exist.');
+      state.lifecycles[lifecycle[1]] = body.rules;
+      return ok({});
+    }
     if (route === `GET ${account}/workers/subdomain`) return state.subdomain ? ok({ subdomain: state.subdomain }) : no(404, 10007, 'no subdomain');
     if (route === `PUT ${account}/workers/subdomain`) {
       if (body.subdomain === 'ada') return no(409, 10036, 'taken');
@@ -232,6 +301,7 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       const id = createHash('md5').update(`${body.name}:${serial}`).digest('hex');
       state.accountTokens.push({ id, name: body.name, status: 'active', policies: body.policies });
       state.minted.push(value);
+      state.tokenValues[id] = value;
       return ok({ id, value });
     }
     const accountToken = url.pathname.match(new RegExp(`^${account}/tokens/([^/]+)(/value)?$`));
@@ -246,10 +316,12 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
       if (method === 'PUT') {
         const value = `deploy-rolled-${++serial}`;
         state.minted.push(value);
+        state.tokenValues[found.id] = value;
         return ok(value);
       }
       if (method === 'DELETE') {
         state.accountTokens = state.accountTokens.filter(token => token.id !== found.id);
+        delete state.tokenValues[found.id];
         return ok({ id: found.id });
       }
     }

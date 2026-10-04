@@ -4,6 +4,8 @@ You install WongStack from your own computer, with your own GitHub and Cloudflar
 
 Setup assumes you know nothing about Cloudflare, databases, or deployment: where a step needs one of those, the agent handles it and tells you what it did. The runbook the agent follows is [setup's provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md).
 
+**What it costs.** A new install on Mac or Linux keeps your project in your own Cloudflare account, which needs Cloudflare's paid plan, about $5 a month. Ask for GitHub and it is free. [The Artifacts route](artifacts-route.md#what-it-costs) compares the two.
+
 Want new projects to start with your own tools and site? [Make WongStack your own](customizing-wongstack.md) explains how to customize a fork and install it through the same easy setup.
 
 ## What you'll end up with
@@ -74,7 +76,7 @@ Almost every failure at setup traces to the token.
 
 Setup creates real resources on your Cloudflare account. To remove them, for example after a test, ask your agent to tear the project down. It follows these steps:
 
-1. **List** what this repo created: the production and staging Workers, the two app databases (`<repo>-db` and `<repo>-db-staging`), the `<repo>-deploy` token, any Access application and service token, and the GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Include any service token that [`/verify` made for itself](../development/staging-walkthrough.md#when-the-walk-cant-get-in). List the memory store (`<repo>-memory` database and bucket) separately: deleting it destroys what every past session learned, so it is removed only when you name it. Its memory keys live in that database, so they go with it; deleting the production Worker already removed the memory route. Leave every other repo's memory store alone.
+1. **List** what this repo created: the production and staging Workers, the two app databases (`<repo>-db` and `<repo>-db-staging`), the `<repo>-deploy` token, any Access application and service token (the service token is named for the application's id, not the repo, so find it by the id in the install record), and the GitHub secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Include any service token that [`/verify` made for itself](../development/staging-walkthrough.md#when-the-walk-cant-get-in). List the memory store (`<repo>-memory` database and bucket) separately: deleting it destroys what every past session learned, so it is removed only when you name it. Its memory keys live in that database, so they go with it; deleting the production Worker already removed the memory route. Leave every other repo's memory store alone.
 2. **Confirm** as a two-option question that names what each side does. Deleting a database destroys its data.
 3. **Delete** what this repo created, with the same user token: `DELETE /accounts/{account_id}/workers/scripts/<name>`, `DELETE /accounts/{account_id}/d1/database/<id>`, `DELETE /accounts/{account_id}/tokens/<id>` for the deploy token, `DELETE /user/tokens/<id>` for an old `<repo>-memory` token if one is left, and `gh secret delete` for each secret.
 4. **Report** what was removed *and what was skipped*: anything whose name does not match this repo, and anything you declined. Nothing is deleted by guess.

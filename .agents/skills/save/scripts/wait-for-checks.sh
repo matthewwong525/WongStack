@@ -67,6 +67,18 @@ err_or() {
   printf '%s' "${err:-$1}"
 }
 
+# ── An Artifacts install has no pull request ──────────────────────────────────
+# Its checks run in the person's own Cloudflare account. artifacts-run.mjs reads
+# the run named for the exact local HEAD and prints the same RESULT lines. A
+# route that can not be told is UNKNOWN, never a guess
+# (wiki/stack/artifacts-route.md).
+SCRIPTS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROUTE=$(node "$SCRIPTS/delivery-route.mjs" 2>"$ERR_FILE") || unknown "$(err_or 'the delivery route could not be told')"
+if [ "$ROUTE" = artifacts ]; then
+  node "$SCRIPTS/artifacts-run.mjs" wait "$MAX_MIN"
+  exit 0
+fi
+
 LOCAL=$(git rev-parse HEAD 2>"$ERR_FILE") || unknown "$(err_or 'git rev-parse HEAD failed')"
 ROOT=$(git rev-parse --show-toplevel 2>"$ERR_FILE") || unknown "$(err_or 'git rev-parse --show-toplevel failed')"
 if compgen -G "$ROOT/.github/workflows/*.yml" >/dev/null || compgen -G "$ROOT/.github/workflows/*.yaml" >/dev/null; then

@@ -109,6 +109,12 @@
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",
+      "scripts/check-runner/worker.mjs",
+      "scripts/check-runner/pipeline.mjs",
+      "scripts/check-runner/run-id.mjs",
+      "scripts/check-runner/wrangler.template.jsonc",
+      "scripts/check-runner/package.json",
+      "scripts/check-runner/package-lock.json",
       "scripts/employee-bootstrap.mjs"
     ],
     "dirs": [

@@ -2,6 +2,7 @@
 // Cloudflare over HTTP and a fake `gh`. Children run asynchronously, so the fake keeps answering.
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -9,9 +10,10 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  ACCESS_KEY, ACCESS_KEY_TODO, CloudflareError, DEPLOY_TOKEN, NORMAL_PROVISION, PROPAGATION, R2_OFF, USER_GRANTS,
-  accounts, cli, cloudflare, names, provision, readEnv, run, safeName, widen, wranglerConfig, wranglerFragment,
+  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
+  accounts, artifactNamesFor, cli, cloudflare, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
+import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
 import { databaseName, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
 import { ACCOUNT, GROUPS, TOKEN, fakeCloudflare, fakeGh, groupId, startingPolicies } from './fixtures/cloudflare.mjs';
 import { humanEmails } from '../../.agents/skills/wong-setup/scripts/private-access.mjs';
@@ -456,8 +458,11 @@ test('an interrupted one-time machine secret handoff recovers only the owned ser
 
 // ── a target repo, a fake Cloudflare, a fake gh ─────────────────────────────
 
-/** A target with the memory skill and the app's package.json, as an install leaves it before provisioning. */
-async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
+/**
+ * A target with the memory skill and the app's package.json, as an install leaves it before provisioning.
+ * Any other option (`paid`, `repos`) goes to the fake Cloudflare.
+ */
+async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOptions } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-provision-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const dir = join(root, 'recipe-box');
@@ -470,7 +475,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
   mkdirSync(join(dir, 'app'));
   cpSync(join(repoRoot, 'app/package.json'), join(dir, 'app/package.json'));
   writeFileSync(join(dir, '.env'), `CLOUDFLARE_API_TOKEN=${TOKEN}\nCLOUDFLARE_ACCOUNT_ID=${ACCOUNT}\n`);
-  const fake = await fakeCloudflare({ r2, ...(subdomain !== undefined && { subdomain }) });
+  const fake = await fakeCloudflare({ r2, ...(subdomain !== undefined && { subdomain }), ...cloudflareOptions });
   t.after(fake.close);
   const gh = fakeGh(join(root, 'gh'));
   const env = { ...process.env, HOME: root, XDG_DATA_HOME: join(root, 'data'), XDG_CONFIG_HOME: join(root, 'config'), GIT_CONFIG_NOSYSTEM: '1', PATH: `${gh.bin}:${process.env.PATH}`, WONG_CLOUDFLARE_API: fake.api, CLOUDFLARE_MEMORY_TOKEN: '', NODE_NO_WARNINGS: '1' };
@@ -484,6 +489,7 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
     provision: (options = {}) => provision({ ...base, base: 'recipe-box', today: TODAY, ...options }),
     names: (options = {}) => names({ ...base, ...options }),
     widen: (options = {}) => widen({ ...base, ...options }),
+    plan: (options = {}) => plan({ ...base, ...options }),
     record: () => JSON.parse(readFileSync(join(dir, '.claude/.wong-stack.json'), 'utf8')),
     config: () => parseConfig(join(dir, 'app/wrangler.jsonc')),
   };
@@ -491,8 +497,12 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain } = {}) {
 
 /** Asserts no secret reached gh's arguments, a report, or a file the repo would commit. */
 function assertNoSecret(env, ...texts) {
-  const secrets = [TOKEN, ...env.fake.state.minted, ...env.fake.state.serviceTokens.map(token => token.client_secret), readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN].filter(Boolean);
-  const files = ['.claude/.wong-stack.json', 'app/wrangler.jsonc', 'app/package.json'].map((path) => join(env.dir, path)).filter(existsSync);
+  const { state } = env.fake;
+  const secrets = [
+    TOKEN, ...state.minted, ...state.serviceTokens.map(token => token.client_secret), readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN,
+    ...Object.values(state.workerSecrets).flatMap((held) => Object.values(held)), ...state.repoTokens.map((token) => token.plaintext.split('?')[0]),
+  ].filter(Boolean);
+  const files = ['.claude/.wong-stack.json', 'app/wrangler.jsonc', 'app/package.json', 'scripts/check-runner/wrangler.jsonc'].map((path) => join(env.dir, path)).filter(existsSync);
   for (const text of [env.gh.calls(), ...texts, ...files.map((file) => readFileSync(file, 'utf8'))]) {
     for (const secret of secrets) assert.ok(!text.includes(secret), `a secret leaked into: ${text.slice(0, 120)}`);
   }
@@ -500,11 +510,14 @@ function assertNoSecret(env, ...texts) {
 
 // ── the permission tables ───────────────────────────────────────────────────
 
-/** The rows of the table under `### <heading>` in permission-groups.md, keyed by its header cells. */
-function tableRows(heading) {
-  const lines = readFileSync(join(repoRoot, '.agents/skills/wong-setup/references/permission-groups.md'), 'utf8').split('\n');
+const PERMISSION_GROUPS = '.agents/skills/wong-setup/references/permission-groups.md';
+const ARTIFACTS_ROUTE = 'wiki/stack/artifacts-route.md';
+
+/** The rows of the table under `### <heading>` in `file` (permission-groups.md unless named), keyed by its header cells. */
+function tableRows(heading, file = PERMISSION_GROUPS) {
+  const lines = readFileSync(join(repoRoot, file), 'utf8').split('\n');
   const start = lines.findIndex((line) => line.trim() === `### ${heading}`);
-  assert.ok(start >= 0, `permission-groups.md has no "### ${heading}" section`);
+  assert.ok(start >= 0, `${file} has no "### ${heading}" section`);
   const table = [];
   for (const line of lines.slice(start + 1)) {
     if (line.startsWith('#')) break;
@@ -516,15 +529,19 @@ function tableRows(heading) {
 
 const scopeOf = (scope) => scope.replace(/^com\.cloudflare\.api\./, '');
 
-test('the group constants match the tables in permission-groups.md', () => {
+test('the group constants match the tables in permission-groups.md and on the Artifacts route page', () => {
   const plain = (rows) => rows.map((row) => ({ name: row.name, scope: scopeOf(row.scope), id: row.id }));
   assert.deepEqual(plain(tableRows('What the user grants')), USER_GRANTS);
   assert.deepEqual(plain(tableRows('A normal provision')), NORMAL_PROVISION);
   const deploy = tableRows('The CI deploy token');
   assert.deepEqual(plain(deploy), DEPLOY_TOKEN.map(({ name, scope, id }) => ({ name, scope, id })));
   assert.deepEqual(deploy.map((row) => row.when === 'always'), DEPLOY_TOKEN.map((row) => row.when === 'always'));
+  // An Artifacts install's groups, and its runner's storage key, are tabled on the route's own page.
+  assert.deepEqual(plain(tableRows('An Artifacts install', ARTIFACTS_ROUTE)), ARTIFACTS_PROVISION);
+  assert.deepEqual(plain(tableRows('The check runner\'s storage key', ARTIFACTS_ROUTE)), [STORAGE_TOKEN]);
   // The fake lists the same ids, so a test run proves the lookup by name.
-  for (const row of [...USER_GRANTS, ...NORMAL_PROVISION]) assert.equal(groupId(row.name), row.id, row.name);
+  for (const row of [...USER_GRANTS, ...NORMAL_PROVISION, ...ARTIFACTS_PROVISION, STORAGE_TOKEN]) assert.equal(groupId(row.name), row.id, row.name);
+  assert.deepEqual(GROUPS.find((group) => group.name === STORAGE_TOKEN.name).scopes, [STORAGE_TOKEN.scope], 'the storage key is scoped to a bucket, not the account');
 });
 
 test('the token link on the credentials page asks for exactly the two groups the user grants', () => {
@@ -1073,14 +1090,24 @@ const lines = () => {
   return { out, err, io: { out: (line) => out.push(line), err: (line) => err.push(line) } };
 };
 
-test('the command line lists four commands, and refuses bad usage with 2', async () => {
+test('the command line lists five commands, and refuses bad usage with 2', async () => {
   const help = lines();
   assert.equal(await cli(['--help'], help.io), 0);
-  for (const command of ['widen', 'accounts', 'names', 'provision']) assert.match(help.out[0], new RegExp(`^  ${command}\\b`, 'm'));
-  for (const argv of [[], ['nope'], ['widen', 'extra'], ['--nope'], ['names'], ['provision', '--repo', REPO]]) {
+  for (const command of ['widen', 'accounts', 'plan', 'names', 'provision']) assert.match(help.out[0], new RegExp(`^  ${command}\\b`, 'm'));
+  assert.match(help.out[0], /--route github\|artifacts/);
+  for (const argv of [[], ['nope'], ['widen', 'extra'], ['--nope'], ['names'], ['provision', '--repo', REPO], ['widen', '--route']]) {
     const bad = lines();
     assert.equal(await cli(argv, { ...bad.io, env: { CLOUDFLARE_ACCOUNT_ID: ACCOUNT } }), 2, argv.join(' '));
   }
+  // A route is checked once the token is found, so these runs carry one; none of them makes a request.
+  for (const argv of [['widen', '--route', 'nonsense'], ['plan', '--route', 'GitHub'], ['provision', '--repo', REPO, '--base', 'recipe-box', '--route', 'cloudflare']]) {
+    const bad = lines();
+    assert.equal(await cli(argv, { ...bad.io, env: { CLOUDFLARE_ACCOUNT_ID: ACCOUNT, CLOUDFLARE_API_TOKEN: TOKEN }, fetch: () => assert.fail('a bad route makes no request') }), 2, argv.join(' '));
+    assert.match(bad.err[0], /^--route is github or artifacts\n/);
+    assert.deepEqual(bad.out, []);
+  }
+  const noAccount = lines();
+  assert.equal(await cli(['plan', '--dir', join(repoRoot, 'scripts/tests/fixtures')], { ...noAccount.io, env: {} }), 2, 'plan needs an account');
 });
 
 test('the command line reads the token from the target .env and prints one JSON report', async (t) => {
@@ -1125,4 +1152,398 @@ test('the script runs end to end as a process, and prints no secret', async (t) 
   assert.equal(made.code, 0, made.stderr);
   assert.equal(JSON.parse(made.stdout).memory.worker, 'https://recipe-box.ada.workers.dev/_memory');
   assertNoSecret(env, made.stdout, made.stderr, found.stdout);
+});
+
+// ── the Artifacts route: a target with a check runner, and tools that never leave the machine ──
+
+const RUNNER_FILES = ['wrangler.template.jsonc', 'package.json', 'package-lock.json', 'worker.mjs', 'pipeline.mjs', 'run-id.mjs'];
+const RUNNER_CONFIG = 'scripts/check-runner/wrangler.jsonc';
+const STATE_FILE = '.git/wong-stack-provision.json';
+const REMOTE = `https://${ACCOUNT}.artifacts.cloudflare.net/git/${NAMESPACE}/recipe-box.git`;
+/** The tree of a commit with no files. */
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+
+/** Git's own arguments, past the `-C <dir>` and `-c <setting>` that lead them. */
+function gitVerb(args) {
+  let at = 0;
+  while (args[at] === '-C' || args[at] === '-c') at += 2;
+  return args.slice(at);
+}
+
+/**
+ * An `exec` for the Artifacts route. `node`, `gh` and git's local calls run for real, against the temp
+ * repo and the fake `gh`. `npm` and `npx` never run, and neither do git's calls to the remote
+ * (`ls-remote`, `push`, `fetch`): each is recorded and answered here. `calls` holds every argument list,
+ * `ran` each npm or npx call with its folder and whether the Cloudflare token was in its environment,
+ * and `remote` git's remote calls. A faked `wrangler deploy` makes the Worker its config names on the
+ * fake Cloudflare, as a real one does, so the secrets that follow have a Worker to land on.
+ */
+function fakeTools(fake) {
+  const calls = [];
+  const ran = [];
+  const remote = [];
+  const done = { stdout: '', stderr: '' };
+  let head = '';
+  const exec = async (file, args, options = {}) => {
+    calls.push([file, ...args]);
+    if (file === 'npm' || file === 'npx') {
+      ran.push({ file, args, cwd: options.cwd, token: options.env?.CLOUDFLARE_API_TOKEN === TOKEN });
+      if (args.includes('deploy')) {
+        const { name } = JSON.parse(stripJsonc(readFileSync(join(options.cwd, 'wrangler.jsonc'), 'utf8')));
+        if (!fake.state.workers.includes(name)) fake.state.workers.push(name);
+      }
+      return done;
+    }
+    const verb = file === 'git' ? gitVerb(args) : [];
+    if (!['ls-remote', 'push', 'fetch'].includes(verb[0])) return run(file, args, options);
+    remote.push(verb);
+    if (verb[0] === 'ls-remote') return { stdout: head ? `${head}\trefs/heads/main\n` : '', stderr: '' };
+    if (verb[0] === 'push') head = verb.at(-1).split(':')[0];
+    return done;
+  };
+  return { exec, calls, ran, remote };
+}
+
+/**
+ * A target ready for the Artifacts route: the check runner's folder and the save skill as the pack
+ * ships them, a git name beside the email, and `provision` and `names` run through the faked tools.
+ */
+async function artifactsSetup(t, setupOptions) {
+  const env = await setup(t, setupOptions);
+  execFileSync('git', ['-C', env.dir, 'config', 'user.name', 'Ada']);
+  mkdirSync(join(env.dir, 'scripts/check-runner'), { recursive: true });
+  for (const file of RUNNER_FILES) cpSync(join(repoRoot, 'scripts/check-runner', file), join(env.dir, 'scripts/check-runner', file));
+  cpSync(join(repoRoot, '.agents/skills/save'), join(env.dir, '.agents/skills/save'), { recursive: true });
+  const tools = fakeTools(env.fake);
+  return {
+    ...env, tools,
+    provision: (options = {}) => env.provision({ exec: tools.exec, ...options }),
+    names: (options = {}) => env.names({ exec: tools.exec, ...options }),
+    git: (...args) => execFileSync('git', ['-C', env.dir, ...args], { env: env.env, encoding: 'utf8' }).trim(),
+  };
+}
+
+/** The runner's own part of the fake Cloudflare, copied, to compare before and after a run. */
+const delivered = ({ state }) => structuredClone({ repos: state.repos, repoTokens: state.repoTokens, buckets: state.buckets, lifecycles: state.lifecycles, tokens: state.accountTokens, values: state.tokenValues, secrets: state.workerSecrets, minted: state.minted });
+
+// ── the Artifacts route: the plan, the widen, names ─────────────────────────
+
+test('an Artifacts install on a free account stops with plan before anything is made, and the plan says why', async (t) => {
+  const env = await artifactsSetup(t, { paid: false });
+  const before = structuredClone(env.fake.state);
+  const dotEnv = readFileSync(join(env.dir, '.env'), 'utf8');
+  await assert.rejects(env.provision({ route: 'artifacts' }), { reason: 'plan', message: /Workers Paid plan.*\$5 a month.*GitHub/ });
+
+  assert.ok(env.fake.calls.length > 0, 'the plan was read');
+  assert.deepEqual(env.fake.calls.filter((call) => call.method !== 'GET'), [], 'Cloudflare was only read');
+  assert.deepEqual(env.fake.state, before);
+  for (const path of [STATE_FILE, '.claude/.wong-stack.json', 'app/wrangler.jsonc', RUNNER_CONFIG]) assert.equal(existsSync(join(env.dir, path)), false, path);
+  assert.equal(readFileSync(join(env.dir, '.env'), 'utf8'), dotEnv);
+  assert.equal(env.git('remote'), '', 'no origin');
+  assert.deepEqual(env.tools.ran, [], 'neither npm nor npx ran');
+  assert.deepEqual(env.tools.remote, [], 'nothing was pushed');
+  assert.equal(env.gh.calls(), '');
+
+  // The plan command answers the same question without stopping, and Windows without asking Cloudflare.
+  const requests = env.fake.calls.length;
+  assert.deepEqual(await env.plan({ platform: 'win32' }), { route: 'github', reason: 'windows' });
+  assert.equal(env.fake.calls.length, requests, 'Windows is answered with no request');
+  const free = await env.plan({ platform: 'linux' });
+  assert.equal(free.route, 'github');
+  assert.equal(free.reason, 'free-plan');
+  assert.match(free.cost, /\$5 a month/);
+  assert.deepEqual(env.fake.calls.slice(requests).map((call) => `${call.method} ${call.path}`), [`GET /accounts/${ACCOUNT}/subscriptions`]);
+  env.fake.state.paid = true;
+  assert.deepEqual(await env.plan({ platform: 'darwin' }), { route: 'artifacts', plan: 'Workers Paid' });
+  env.fake.state.refuse = [`GET /accounts/${ACCOUNT}/subscriptions`];
+  await assert.rejects(env.plan({ platform: 'linux' }), { reason: 'cloudflare' });
+});
+
+test('an Artifacts widen adds its three groups and reads the plan, stops with cloudflare when refused, and a plain widen asks for neither', async (t) => {
+  const env = await setup(t);
+  const heldIds = () => env.fake.state.policies.flatMap((policy) => policy.permission_groups.map((group) => group.id));
+  const planReads = () => env.fake.count(`GET /accounts/${ACCOUNT}/subscriptions`);
+  const lacksArtifacts = (why) => {
+    for (const row of ARTIFACTS_PROVISION) assert.ok(!heldIds().includes(row.id), `${row.name}: ${why}`);
+    assert.equal(planReads(), 0, why);
+  };
+
+  const plain = await env.widen({ account: ACCOUNT });
+  assert.deepEqual(plain.granted, NORMAL_PROVISION.map((row) => row.name));
+  lacksArtifacts('a plain widen');
+
+  env.fake.state.refuse = ['PUT /user/tokens/tok1'];
+  await assert.rejects(env.widen({ account: ACCOUNT, route: 'artifacts' }), { reason: 'cloudflare', message: 'Cloudflare PUT /user/tokens/tok1: HTTP 500 1000' });
+  lacksArtifacts('a refused widen');
+
+  env.fake.state.refuse = [];
+  const report = await env.widen({ account: ACCOUNT, route: 'artifacts' });
+  assert.deepEqual(report.granted, ARTIFACTS_PROVISION.map((row) => row.name));
+  assert.deepEqual(report.held, [...USER_GRANTS, ...NORMAL_PROVISION].map((row) => row.name));
+  assert.deepEqual(report.probed, [ACCOUNT]);
+  const onAccount = env.fake.state.policies.find((policy) => `com.cloudflare.api.account.${ACCOUNT}` in policy.resources).permission_groups.map((group) => group.id);
+  for (const row of ARTIFACTS_PROVISION) assert.ok(onAccount.includes(row.id), row.name);
+  assert.deepEqual(env.fake.state.policies.map((policy) => policy.resources), startingPolicies().map((policy) => policy.resources));
+  assert.equal(planReads(), 1);
+
+  const again = await env.widen({ account: ACCOUNT, route: 'artifacts' });
+  assert.deepEqual(again.granted, []);
+  assert.equal(env.fake.state.puts.length, 2, 'a token that holds every group is not widened again');
+});
+
+test('a repository name another project holds is reported taken, and stops the install before the runner', async (t) => {
+  const env = await artifactsSetup(t, { repos: ['recipe-box'] });
+  const theirs = structuredClone(env.fake.state.repos);
+
+  // Without the route, names asks nothing about repositories and reports what it always did.
+  const plain = await env.names();
+  assert.equal(plain.base, 'recipe-box');
+  assert.deepEqual(plain.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy' });
+  assert.deepEqual(plain.checked.map((item) => `${item.kind} ${item.name} ${item.status}`), [
+    'worker recipe-box free', 'worker recipe-box-staging free', 'database recipe-box-db free', 'database recipe-box-db-staging free',
+    'database recipe-box-memory free', 'bucket recipe-box-memory free', 'token recipe-box-deploy free',
+  ]);
+  assert.equal(env.fake.count(`GET /accounts/${ACCOUNT}/artifacts`), 0);
+
+  const found = await env.names({ route: 'artifacts' });
+  assert.equal(found.derived, 'recipe-box');
+  assert.deepEqual(found.checked.slice(plain.checked.length), [
+    { kind: 'repository', name: 'recipe-box', status: 'taken' },
+    { kind: 'worker', name: 'recipe-box-checks', status: 'free' },
+    { kind: 'bucket', name: 'recipe-box-checks', status: 'free' },
+    { kind: 'token', name: 'recipe-box-checks-storage', status: 'free' },
+  ]);
+  assert.deepEqual(found.checked.slice(0, plain.checked.length), plain.checked);
+  assert.equal(found.base, 'recipe-box-2');
+  assert.deepEqual(artifactNamesFor('recipe-box-2'), { repo: 'recipe-box-2', runner: 'recipe-box-2-checks', storage: 'recipe-box-2-checks-storage' });
+  assert.deepEqual(found.names, {
+    worker: 'recipe-box-2', staging: 'recipe-box-2-staging', db: 'recipe-box-2-db', stagingDb: 'recipe-box-2-db-staging', memory: 'recipe-box-2-memory', deploy: 'recipe-box-2-deploy',
+    ...artifactNamesFor('recipe-box-2'),
+  });
+
+  // Provisioning under the taken name stops at the repository: it is not adopted, and no runner follows.
+  await assert.rejects(env.provision({ route: 'artifacts' }), { reason: 'cloudflare', message: /already has a repository named recipe-box that this install did not make/ });
+  assert.deepEqual(env.fake.state.repos, theirs, 'the other project\'s repository is untouched');
+  assert.deepEqual(env.fake.calls.filter((call) => call.method !== 'GET' && call.path.includes('/artifacts/')), []);
+  assert.deepEqual(env.tools.ran, [], 'no runner was installed or deployed');
+  assert.deepEqual(env.fake.state.workerSecrets, {});
+  assert.ok(!env.fake.state.workers.includes('recipe-box-checks'));
+  assert.ok(!env.fake.state.buckets.includes('recipe-box-checks'));
+  assert.equal(existsSync(join(env.dir, RUNNER_CONFIG)), false);
+  assert.equal(env.record().components.delivery, undefined);
+  assert.equal(env.git('remote'), '', 'no origin');
+  assert.deepEqual(env.tools.remote, []);
+});
+
+test('with no namespace yet, an Artifacts install\'s names are all free', async (t) => {
+  const env = await artifactsSetup(t);
+  const found = await env.names({ route: 'artifacts' });
+  assert.equal(found.base, 'recipe-box');
+  assert.equal(found.checked.length, 11);
+  assert.ok(found.checked.every((item) => item.status === 'free'), JSON.stringify(found.checked));
+  assert.deepEqual(env.fake.state.namespaces, [], 'looking makes no namespace');
+});
+
+// ── the Artifacts route: provision ──────────────────────────────────────────
+
+test('a fresh Artifacts install makes the repository, the check runner and its keys, and main\'s first commit, with no GitHub', async (t) => {
+  const env = await artifactsSetup(t);
+  const report = await env.provision({ route: 'artifacts' });
+  const { state } = env.fake;
+
+  // The report: what was made, the route, the cost, and that there are no pull requests.
+  for (const made of ['repository recipe-box', 'bucket recipe-box-checks', 'storage key recipe-box-checks-storage', 'deploy token recipe-box-deploy', 'the first, empty commit on main']) {
+    assert.ok(report.created.includes(made), `${made}: ${JSON.stringify(report.created)}`);
+  }
+  assert.equal(report.delivery.route, 'artifacts');
+  assert.equal(report.delivery.pullRequests, false);
+  assert.match(report.delivery.monthlyCost, /\$5 a month/);
+  assert.equal(report.delivery.remote, REMOTE);
+  assert.deepEqual(report.todo, []);
+
+  // The install record, origin, and Git's credential helper for this account's Artifacts host.
+  assert.deepEqual(env.record().components.delivery, {
+    route: 'artifacts', accountId: ACCOUNT, namespace: 'wongstack', repo: 'recipe-box', remote: REMOTE,
+    runner: 'recipe-box-checks', workflow: 'recipe-box-checks', bucket: 'recipe-box-checks',
+  });
+  assert.equal(NAMESPACE, 'wongstack');
+  assert.equal(env.git('remote', 'get-url', 'origin'), REMOTE);
+  const helper = helperConfig(ACCOUNT);
+  assert.equal(helper.length, 2);
+  for (const [key, value] of helper) assert.equal(env.git('config', '--get', key), value, key);
+  assert.ok(existsSync(join(env.dir, '.claude/skills/save/scripts/artifacts-credential.mjs')), 'the helper the config names is in the target');
+
+  // The runner's config, filled from the template; its tools installed and deployed from its own folder.
+  const folder = join(env.dir, 'scripts/check-runner');
+  const text = readFileSync(join(env.dir, RUNNER_CONFIG), 'utf8');
+  assert.ok(!text.includes('<'), 'no placeholder is left');
+  const config = JSON.parse(text);
+  assert.equal(config.name, 'recipe-box-checks');
+  assert.equal(config.account_id, ACCOUNT);
+  assert.equal(config.artifacts[0].namespace, NAMESPACE);
+  assert.deepEqual(config.triggers.events[0].filter, { namespace: NAMESPACE, repo_name: 'recipe-box' });
+  assert.deepEqual(config.triggers.events[0].targets, [{ type: 'workflow', workflow_name: 'recipe-box-checks' }]);
+  assert.equal(config.r2_buckets[0].bucket_name, 'recipe-box-checks');
+  assert.deepEqual(env.tools.ran.map((tool) => [tool.file, tool.cwd]), [['npm', folder], ['npx', folder]]);
+  const [npm, npx] = env.tools.ran;
+  assert.equal(npm.args[0], 'ci');
+  assert.ok(npm.args.includes('--ignore-scripts'), npm.args.join(' '));
+  assert.deepEqual(npx.args.slice(0, 3), ['--no-install', 'wrangler', 'deploy']);
+  assert.equal(npx.token, true, 'the deploy gets the token in its environment');
+  assert.ok(state.workers.includes('recipe-box-checks'));
+
+  // The runner's secrets: the deploy token's value, and the storage key as the pair R2 takes.
+  const deploy = state.accountTokens.find((token) => token.name === 'recipe-box-deploy');
+  const storage = state.accountTokens.find((token) => token.name === 'recipe-box-checks-storage');
+  // The live app's own sign-in key is made on this route too, last, as on GitHub.
+  assert.deepEqual(state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-checks-storage', 'recipe-box-access']);
+  assert.deepEqual(state.workerSecrets['recipe-box-checks'], { CF_TOKEN: state.tokenValues[deploy.id], R2_ACCESS_KEY_ID: storage.id, R2_SECRET_ACCESS_KEY: sha256(state.tokenValues[storage.id]) });
+  assert.deepEqual(Object.keys(state.workerSecrets), ['recipe-box-checks', 'recipe-box']);
+  assert.deepEqual(Object.keys(state.workerSecrets['recipe-box']), ['WONG_ACCESS_LOGIN_MANAGEMENT']);
+  assert.equal(report.accessKey.status, 'ready');
+  assert.match(state.workerSecrets['recipe-box-checks'].R2_SECRET_ACCESS_KEY, /^[0-9a-f]{64}$/);
+  assert.deepEqual(storage.policies, [{
+    effect: 'allow', resources: { [`com.cloudflare.edge.r2.bucket.${ACCOUNT}_default_recipe-box-checks`]: '*' },
+    permission_groups: [{ id: STORAGE_TOKEN.id }],
+  }]);
+  assert.deepEqual(Object.keys(deploy.policies[0].resources), [`com.cloudflare.api.account.${ACCOUNT}`]);
+
+  // The runner's bucket, beside the memory store's, with the rule that deletes old snapshots.
+  assert.deepEqual(state.buckets, ['recipe-box-memory', 'recipe-box-checks']);
+  assert.deepEqual(Object.keys(state.lifecycles), ['recipe-box-checks']);
+  const [rule, ...others] = state.lifecycles['recipe-box-checks'];
+  assert.deepEqual(others, []);
+  assert.equal(rule.enabled, true);
+  assert.deepEqual(rule.deleteObjectsTransition, { condition: { type: 'Age', maxAge: SNAPSHOT_DAYS * 24 * 60 * 60 } });
+
+  // One repository, in the shared namespace, and the token Cloudflare returned with it revoked.
+  assert.deepEqual(state.namespaces, [NAMESPACE]);
+  assert.deepEqual(state.repos.map((repo) => [repo.namespace, repo.name, repo.default_branch, repo.remote]), [[NAMESPACE, 'recipe-box', 'main', REMOTE]]);
+  assert.deepEqual(state.repoTokens.map((token) => token.state), ['revoked']);
+
+  // Main's first commit: empty, pushed without force, and the folder's unborn main now points at it.
+  const head = env.git('rev-parse', '--verify', 'refs/heads/main');
+  assert.equal(env.git('rev-parse', `${head}^{tree}`), EMPTY_TREE);
+  assert.equal(env.git('rev-parse', 'HEAD'), head);
+  assert.deepEqual(env.tools.remote, [['ls-remote', 'origin', 'refs/heads/main'], ['push', 'origin', `${head}:refs/heads/main`], ['fetch', 'origin', 'main']]);
+
+  // No GitHub, and no secret in the report, the record, the runner's config, Git's config, or an argument.
+  assert.equal(env.gh.calls(), '');
+  assert.ok(env.tools.calls.every(([file]) => file !== 'gh'));
+  assertNoSecret(env, JSON.stringify(report), JSON.stringify(env.tools.calls), readFileSync(join(env.dir, '.git/config'), 'utf8'));
+});
+
+test('a second Artifacts run makes nothing new, pushes no second first commit, and leaves the runner\'s keys alone', async (t) => {
+  const env = await artifactsSetup(t);
+  await env.provision({ route: 'artifacts' });
+  const before = delivered(env.fake);
+  const head = env.git('rev-parse', '--verify', 'refs/heads/main');
+  const files = () => [RUNNER_CONFIG, '.claude/.wong-stack.json', 'app/wrangler.jsonc'].map((path) => readFileSync(join(env.dir, path), 'utf8'));
+  const kept = files();
+  // Provisioning's own state, outside every commit, is what says the repository is this install's.
+  const owned = () => JSON.parse(readFileSync(join(env.dir, STATE_FILE), 'utf8')).delivery;
+  assert.deepEqual(owned(), { repoId: env.fake.state.repos[0].id });
+  const account = `/accounts/${ACCOUNT}`;
+  const writes = () => [`POST ${account}/artifacts`, `DELETE ${account}/artifacts`, `POST ${account}/tokens`, `PUT ${account}/tokens`, `POST ${account}/r2/buckets`, `PUT ${account}/workers/scripts/recipe-box-checks/secrets`].map((prefix) => env.fake.count(prefix));
+  const made = writes();
+  assert.equal(made.at(-1), 3, 'three secrets, set once');
+
+  const report = await env.provision({ route: 'artifacts' });
+  assert.deepEqual(report.created, []);
+  assert.deepEqual(report.updated, ['check runner recipe-box-checks'], 'the runner is deployed again, and nothing else changes');
+  for (const same of ['repository recipe-box', 'bucket recipe-box-checks', 'deploy token recipe-box-deploy', 'storage key recipe-box-checks-storage']) {
+    assert.ok(report.reused.includes(same), `${same}: ${JSON.stringify(report.reused)}`);
+  }
+  assert.deepEqual(report.todo, []);
+  assert.deepEqual(writes(), made);
+  assert.deepEqual(delivered(env.fake), before);
+  assert.deepEqual(files(), kept);
+  assert.deepEqual(owned(), { repoId: env.fake.state.repos[0].id });
+  assert.equal(env.git('remote'), 'origin');
+  for (const [key, value] of helperConfig(ACCOUNT)) assert.equal(env.git('config', '--get-all', key), value, `${key} is set once`);
+  assert.deepEqual(env.tools.remote.map(([verb]) => verb), ['ls-remote', 'push', 'fetch', 'ls-remote'], 'the second run only looks at the remote');
+  assert.equal(env.git('rev-parse', '--verify', 'refs/heads/main'), head);
+  assert.deepEqual(env.tools.ran.map((tool) => tool.file), ['npm', 'npx', 'npm', 'npx']);
+  assert.equal(env.gh.calls(), '');
+
+  // The names it took are now its own.
+  const found = await env.names({ route: 'artifacts' });
+  assert.equal(found.base, 'recipe-box');
+  assert.deepEqual(found.checked.slice(-4), [
+    { kind: 'repository', name: 'recipe-box', status: 'ours' },
+    { kind: 'worker', name: 'recipe-box-checks', status: 'ours' },
+    { kind: 'bucket', name: 'recipe-box-checks', status: 'ours' },
+    { kind: 'token', name: 'recipe-box-checks-storage', status: 'ours' },
+  ]);
+  assertNoSecret(env, JSON.stringify(report), JSON.stringify(env.tools.calls));
+});
+
+test('an Artifacts install with R2 off stops before the runner is installed, and finishes once R2 is on', async (t) => {
+  const env = await artifactsSetup(t, { r2: false });
+  await assert.rejects(env.provision({ route: 'artifacts' }), { reason: 'cloudflare', message: /R2 storage, which is off on this account/ });
+  assert.deepEqual(env.tools.ran, [], 'no runner was installed or deployed');
+  assert.deepEqual(env.fake.state.workerSecrets, {});
+  assert.deepEqual(env.fake.state.buckets, []);
+  assert.deepEqual(env.fake.state.lifecycles, {});
+  assert.equal(existsSync(join(env.dir, RUNNER_CONFIG)), false);
+  assert.equal(env.record().components.delivery, undefined);
+  assert.equal(env.git('remote'), '', 'no origin');
+  assert.deepEqual(env.tools.remote, []);
+
+  env.fake.state.r2 = true;
+  const report = await env.provision({ route: 'artifacts' });
+  assert.equal(env.fake.state.repos.length, 1, 'the repository the first run made is reused, not made twice');
+  assert.ok(report.reused.includes('repository recipe-box'), JSON.stringify(report.reused));
+  assert.ok(report.created.includes('bucket recipe-box-checks'), JSON.stringify(report.created));
+  assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-checks']).sort(), ['CF_TOKEN', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']);
+  assert.equal(env.git('remote', 'get-url', 'origin'), REMOTE);
+  assert.equal(env.tools.remote.filter(([verb]) => verb === 'push').length, 1);
+});
+
+// ── the Artifacts route: the runner's config and the command line ───────────
+
+test('the runner config fills every placeholder, and a new placeholder fails', () => {
+  const demo = { account: ACCOUNT, repo: 'demo', runner: 'demo-checks' };
+  const text = runnerConfig(demo, readFileSync(join(repoRoot, 'scripts/check-runner/wrangler.template.jsonc'), 'utf8'));
+  assert.ok(!text.includes('<'), 'no placeholder is left');
+  const config = JSON.parse(text);
+  assert.equal(config.name, 'demo-checks');
+  assert.equal(config.workflows[0].name, 'demo-checks');
+  assert.deepEqual(JSON.parse(config.vars.WONG_RUNNER), { account: ACCOUNT, namespace: NAMESPACE, repo: 'demo' });
+  assert.equal(runnerConfig(demo, '// Setup fills every <placeholder>.\n{ "name": "<runner>" }\n'), '{ "name": "demo-checks" }\n', 'a comment line is dropped, not filled');
+  assert.throws(() => runnerConfig(demo, '{ "name": "<runner>", "extra": "<your-new-thing>" }\n'), { reason: 'repo', message: /<your-new-thing>/ });
+});
+
+test('the command line prints the plan as one JSON report, and passes --route on', async (t) => {
+  const env = await setup(t);
+  const command = async (...argv) => {
+    const { out, err, io } = lines();
+    const code = await cli([...argv, '--dir', env.dir], { ...io, env: { WONG_CLOUDFLARE_API: env.fake.api }, sleep: noSleep });
+    return { code, out, err };
+  };
+  const paid = await command('plan');
+  assert.equal(paid.code, 0, paid.err.join('\n'));
+  assert.equal(paid.out.length, 1);
+  assert.deepEqual(JSON.parse(paid.out[0]), { route: 'artifacts', plan: 'Workers Paid' });
+
+  env.fake.state.paid = false;
+  const free = await command('plan');
+  assert.equal(free.code, 0, free.err.join('\n'));
+  assert.equal(JSON.parse(free.out[0]).reason, 'free-plan');
+
+  const requests = env.fake.calls.length;
+  const bad = await command('plan', '--route', 'nonsense');
+  assert.equal(bad.code, 2);
+  assert.deepEqual(bad.out, []);
+  assert.equal(env.fake.calls.length, requests, 'a bad route makes no request');
+
+  const widened = await command('widen', '--route', 'artifacts');
+  assert.equal(widened.code, 0, widened.err.join('\n'));
+  assert.deepEqual(JSON.parse(widened.out[0]).granted, [...NORMAL_PROVISION, ...ARTIFACTS_PROVISION].map((row) => row.name));
+  const named = await command('names', '--repo', REPO, '--route', 'artifacts');
+  assert.equal(named.code, 0, named.err.join('\n'));
+  assert.equal(JSON.parse(named.out[0]).names.repo, 'recipe-box');
+  assert.equal(JSON.parse((await command('names', '--repo', REPO)).out[0]).names.repo, undefined);
+  assertNoSecret(env, paid.out[0], widened.out[0], named.out[0]);
 });

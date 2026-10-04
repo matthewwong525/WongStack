@@ -18,13 +18,19 @@
  * finish: merge.sh (its lines printed unchanged), then worktree-secrets.mjs promote, then
  * live-look.sh on the merge commit. Prints SECRETS=, the live look's lines, and NEXT:.
  *
+ * An Artifacts install (wiki/stack/artifacts-route.md) has no GitHub: delivery-route.mjs is asked
+ * once a command, and on `artifacts` no gh call is made. prepare reads main's own check run;
+ * finish takes the merge commit from merge.sh's `commit=` line, and a main that moved, failed, or
+ * could not be read gets its own NEXT:. A route that can not be told stops either command.
+ *
  * Exit codes of prepare:
  *   0  ready for /save            1  a step failed; its message is printed
  *   2  usage                      3  nothing to ship yet: the pull-in
  *   4  unchecked tasks            5  the default branch could not be merged in cleanly
  *   6  the default branch's checks are failing or unreadable
  *   7  the change to ship needs a decision: none selected, or other active changes ride along
- * finish exits with merge.sh's code: 0 merged, 1 not merged, 2 merged but the branch is kept.
+ * finish exits with merge.sh's code: 0 merged, 1 not merged, 2 merged but the branch is kept,
+ * and on an Artifacts install 3: published, but main's run failed or could not be read.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -32,7 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { buildReview } from '../../plan/scripts/build-review.mjs';
 import { checkpointEvidence } from '../../save/scripts/checkpoint-evidence.mjs';
-import { defaultBranch, firstLine, sh } from '../../save/scripts/checkpoint.mjs';
+import { askRoute, defaultBranch, firstLine, sh } from '../../save/scripts/checkpoint.mjs';
 
 const USAGE = `usage: node ship.mjs prepare [--change <name> | --no-change] [--allow-others] [--skip-specs] [--sync] [--store <id>]
        node ship.mjs finish
@@ -47,6 +53,7 @@ finish   merge the gated pull request, promote secret edits, look at the live ap
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SELF = 'node .claude/skills/ship/scripts/ship.mjs';
+const ARTIFACTS_RUN = join(here, '..', '..', 'save', 'scripts', 'artifacts-run.mjs');
 const MAIN_CHECKS = '[.check_runs[]] | map(.conclusion) | (if (index("failure") or index("cancelled")) then "failure" else "ok" end)';
 const MECHANICAL = new Set(['CHANGELOG.md', 'VERSION']);
 
@@ -61,6 +68,30 @@ function must(command, args, what) {
   const result = sh(command, args);
   if (result.status !== 0) throw new Stop(1, [`error=${what}: ${result.stderr.trim() || result.stdout.trim() || `exit ${result.status}`}`]);
   return result.stdout.trim();
+}
+
+/** `github` or `artifacts`; a route that can not be told stops the command. */
+function routeOf(cwd) {
+  const asked = askRoute(cwd);
+  if (asked.lines) throw new Stop(1, asked.lines);
+  return asked.route;
+}
+
+/**
+ * The default branch's checks on an Artifacts install, in the shape of the gh answer prepare reads:
+ * `ok` for a run that passed or found no checks, `failure` for a red one, and nothing, with the
+ * reason, for a run that is still going, missing, or unreadable. The branch is fetched first, so
+ * an older commit's run never answers for the one a publish would land on.
+ */
+function artifactsDefaultChecks(base) {
+  const fetch = sh('git', ['fetch', 'origin', base]);
+  const sha = fetch.status === 0 ? sh('git', ['rev-parse', `origin/${base}`]).stdout.trim() : '';
+  if (!sha) return { status: 1, stdout: '', stderr: `origin/${base} could not be fetched, so its check run can not be named` };
+  // `node` by name, as the shell scripts beside this one call it.
+  const read = sh('node', [ARTIFACTS_RUN, 'result', sha, `refs/heads/${base}`]);
+  const word = read.status === 0 ? read.stdout.trim() : '';
+  const answer = { SUCCESS: 'ok', NONE: 'ok', FAILURE: 'failure' }[word] ?? '';
+  return { status: 0, stdout: answer, stderr: `${base}'s check run for ${sha.slice(0, 7)} reads ${word || 'nothing'}, so it is unverified` };
 }
 
 /** One OpenSpec CLI answer as JSON; a missing field is reported by the caller, never guessed. */
@@ -190,7 +221,9 @@ function prepare(values) {
   // Every git and OpenSpec call below sees the whole repo, whichever folder the command was started in.
   process.chdir(root);
   const branch = must('git', ['rev-parse', '--abbrev-ref', 'HEAD'], 'cannot read the current branch');
-  const base = defaultBranch();
+  const route = routeOf(root);
+  const artifacts = route === 'artifacts';
+  const base = defaultBranch(route);
 
   // A merge an earlier run left for the agent to resolve is concluded here.
   if (sh('git', ['rev-parse', '--verify', '--quiet', 'MERGE_HEAD']).status === 0) {
@@ -205,10 +238,11 @@ function prepare(values) {
   say(`DIRTY=${dirty ? 'yes' : 'no'}`);
   say(`AHEAD=${ahead}`);
   // A red or unreadable default branch stops every ship, a new intent included, before any build.
-  const checks = sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
+  const checks = artifacts ? artifactsDefaultChecks(base) : sh('gh', ['api', `repos/:owner/:repo/commits/${base}/check-runs`, '--jq', MAIN_CHECKS]);
   const answer = checks.status === 0 ? checks.stdout.trim() : '';
   say(`DEFAULT_CHECKS=${answer || 'unknown'}`);
   if (answer === 'failure') throw new Stop(6, [`NEXT: ${base}'s checks are failing. Fix the default branch first; ship nothing onto it.`]);
+  if (answer !== 'ok' && artifacts) throw new Stop(6, [`error=${checks.stderr}`, `NEXT: ${base}'s checks could not be read. Report the message above and stop.`]);
   if (answer !== 'ok') throw new Stop(6, [`error=${firstLine(checks.stderr) || 'gh returned no answer'}`, `NEXT: ${base}'s checks could not be read. Report gh's message and stop.`]);
   if (!dirty && (branch === base || ahead === 0)) {
     throw new Stop(3, ['NEXT: nothing to ship yet. Take the pull-in in the ship skill: invoke apply inside /ship, or say there is nothing to continue.']);
@@ -252,21 +286,25 @@ function prepare(values) {
   return 0;
 }
 
-function liveLook(prNumber) {
-  const commit = prNumber ? sh('gh', ['pr', 'view', prNumber, '--json', 'mergeCommit', '--jq', '.mergeCommit.oid']).stdout.trim() : '';
+/** The merged pull request's commit, as GitHub names it. */
+const mergeCommit = prNumber => (prNumber ? sh('gh', ['pr', 'view', prNumber, '--json', 'mergeCommit', '--jq', '.mergeCommit.oid']).stdout.trim() : '');
+
+function liveLook(commit) {
   if (!/^[0-9a-f]{40,64}$/.test(commit)) return 'LIVE_LOOK=unknown\nREASON=the merge commit could not be read';
   const look = sh('bash', [join(here, 'live-look.sh'), commit]);
   return look.stdout.trim() || 'LIVE_LOOK=unknown\nREASON=the live look printed nothing';
 }
 
 function finish() {
+  const artifacts = routeOf() === 'artifacts';
   const merge = sh('bash', [join(here, 'merge.sh')]);
   process.stdout.write(merge.stdout);
   process.stderr.write(merge.stderr);
   if (!/^merged=yes$/m.test(merge.stdout)) {
     const recover = `${SELF} prepare --sync, with the same --change or --no-change. Then invoke ordinary /save, and rerun finish only on SUCCESS or NONE.`;
     if (/^stale_version=/m.test(merge.stdout)) say(`NEXT: another release took this number. Run: ${recover}`);
-    else if (sh('gh', ['pr', 'view', '--json', 'mergeable', '--jq', '.mergeable']).stdout.trim() === 'CONFLICTING') say(`NEXT: the branch conflicts with the default branch. Run: ${recover}`);
+    else if (artifacts && /^moved=yes$/m.test(merge.stdout)) say(`NEXT: main moved since this branch was checked, so nothing was published. Bring main in: ${recover}`);
+    else if (!artifacts && sh('gh', ['pr', 'view', '--json', 'mergeable', '--jq', '.mergeable']).stdout.trim() === 'CONFLICTING') say(`NEXT: the branch conflicts with the default branch. Run: ${recover}`);
     else say('NEXT: not merged, and nothing was deleted. Report the error above and stop.');
     return merge.status || 1;
   }
@@ -276,9 +314,20 @@ function finish() {
   let promoted;
   try { promoted = JSON.stringify(JSON.parse(secrets.stdout)); } catch { promoted = `error (${firstLine(secrets.stderr) || `exit ${secrets.status}`})`; }
   say(`SECRETS=${promoted}`);
-  const look = liveLook(merge.stdout.match(/^pr=(\d+)/m)?.[1]);
+  // An Artifacts publish that main's own run did not pass is not shown to be live: there is
+  // nothing to look at, and another push would not make that run pass.
+  if (artifacts && merge.status === 3) {
+    const why = /^main=FAILURE$/m.test(merge.stdout)
+      ? 'main\'s checks or deploy failed, so this change is not live: production keeps the last passing commit'
+      : 'main\'s check run could not be read, so what is live is unverified';
+    say(`LIVE_LOOK=unknown\nREASON=${why}`);
+    say('NEXT: it is on main, but not shown to be live. Report REASON and the error above, and stop. Never push again to make main pass.');
+    return merge.status;
+  }
+  const look = liveLook(artifacts ? merge.stdout.match(/^commit=([0-9a-f]+)$/m)?.[1] ?? '' : mergeCommit(merge.stdout.match(/^pr=(\d+)/m)?.[1]));
   say(look);
-  const kept = merge.status === 2 ? ' The branch and its stacked pull requests stay; report the error above.' : '';
+  const stays = artifacts ? 'The branch stays' : 'The branch and its stacked pull requests stay';
+  const kept = merge.status === 2 ? ` ${stays}; report the error above.` : '';
   if (/^LIVE_LOOK=failed$/m.test(look)) say(`NEXT: it merged, but the live app is not right. Say what is not working, then invoke apply once with REASON and URL as the request; no retry and no revert.${kept}`);
   else say(`NEXT: it merged. Report it is live, with REASON as one line.${kept}`);
   return merge.status;

@@ -2,12 +2,16 @@
 // Cloudflare provisioning for a WongStack repo: the one set of steps setup's runbook
 // (references/cloudflare.md) runs.
 //
-//     node provision.mjs widen | accounts | names --repo <owner/name> | provision --repo <owner/name> --base <base> | access
+//     node provision.mjs widen | accounts | plan | names --repo <owner/name> | provision --repo <owner/name> --base <base> | access
+//
+// `--route artifacts` on widen, names and provision is the install with no GitHub: its repository and
+// check runner live in the person's own Cloudflare account (wiki/stack/artifacts-route.md).
 //
 // Each command prints one JSON report and never a token. The token is CLOUDFLARE_API_TOKEN, from the
 // environment or the target's .env. WONG_CLOUDFLARE_API points every call at another API base, for tests.
 // Every step checks before it acts, so a run that stopped runs again from the top.
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,11 +21,18 @@ import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mj
 import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { PrimaryRootError, primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { AccessSetupError, accessOrganization, loginManagementKey, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
+import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
 import { privateDeployment } from '../../../../scripts/lib-access-config.mjs';
 import { parseConfig } from '../../../../scripts/lib-wrangler-config.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS = join(HERE, '..', '..', 'wong-sync', 'references', 'stack-pack-fragments.md');
+/** The one Artifacts namespace every install in an account shares: Cloudflare can not delete a namespace. */
+export const NAMESPACE = 'wongstack';
+/** Days a check run's snapshot stays in the runner's bucket before the bucket's own rule deletes it. */
+export const SNAPSHOT_DAYS = 2;
+// A Workers Paid subscription, by the plan's id or name, as the account's subscriptions list it.
+const PAID_PLAN = /workers.*(paid|standard)/i;
 const API = 'https://api.cloudflare.com/client/v4';
 const ACCOUNT = /^[0-9a-f]{32}$/;
 /** The waits, in seconds, while a widened token or a new store takes effect: about a minute. */
@@ -65,7 +76,16 @@ export const ACCESS_KEY = [{ name: 'Access: Apps and Policies Write', scope: 'ac
 /** The to-do a report carries when the token could not make that key. Access still opens and saves app choices. */
 export const ACCESS_KEY_TODO = 'the live app has no key for its sign-in list, because the saved Cloudflare token can not make keys: send the private key link (wiki/development/secrets.md#receive-a-key-through-a-private-link) for a Cloudflare token with Account API Tokens Write, then run `provision.mjs access`';
 
-/** Why a step stopped: `token`, `cloudflare`, or `repo`, with a plain cause. */
+/** What an Artifacts install adds to the widen: its repository, its check runner, and the read that sees the plan. */
+export const ARTIFACTS_PROVISION = [
+  { name: 'Artifacts Write', scope: 'account', id: 'f9e1ba803b8d4d52b4d4184825b07a28' },
+  { name: 'Workers Containers Write', scope: 'account', id: 'bdbcd690c763475a985e8641dddc09f7' },
+  { name: 'Billing Read', scope: 'account', id: '7cf72faf220841aabcfdfab81c43c4f6' },
+];
+/** The check runner's storage key: the objects of its one bucket, and nothing else. */
+export const STORAGE_TOKEN = { name: 'Workers R2 Storage Bucket Item Write', scope: 'com.cloudflare.edge.r2.bucket', id: '2efd5506f9c8494dacb1fa10a3e7d5b6' };
+
+/** Why a step stopped: `token`, `cloudflare`, `repo`, or `plan` (the account lacks the paid plan), with a plain cause. */
 export class ProvisionError extends Error {
   constructor(reason, cause) {
     super(cause);
@@ -183,6 +203,9 @@ export const namesFor = (base) => ({
   deploy: `${base}-deploy`,
 });
 
+/** What an Artifacts install adds under one base: its repository, its check runner (Worker, Workflow, bucket), and the runner's storage key. */
+export const artifactNamesFor = (base) => ({ repo: base, runner: `${base}-checks`, storage: `${base}-checks-storage` });
+
 const isScope = (key, scope) => key.startsWith(`com.cloudflare.api.${scope}.`) && !key.includes('.zone.');
 const findGroup = (groups, { name, scope }) => groups.find((group) => group.name === name && group.scopes?.includes(`com.cloudflare.api.${scope}`));
 
@@ -227,14 +250,14 @@ function durableEnv(dir) {
  * still refused after the full wait goes in `accessPending` instead of stopping, and the later ones get
  * one try each, since that wait already covered propagation; provision's Zero Trust step then decides.
  */
-export async function widen({ token, api, fetch, account, openWithoutLogin = false, sleep = wait }) {
+export async function widen({ token, api, fetch, account, route = 'github', openWithoutLogin = false, sleep = wait }) {
   const cf = cloudflare(token, { api, fetch });
   const [self, groups] = await step('token', async () => {
     const { id } = await cf('GET', '/user/tokens/verify');
     return Promise.all([cf('GET', `/user/tokens/${id}`), cf('GET', '/user/tokens/permission_groups?per_page=1000')]);
   });
   const held = new Set(self.policies.flatMap((policy) => policy.permission_groups.map((group) => group.id)));
-  const wanted = [...USER_GRANTS, ...NORMAL_PROVISION].map((row) => {
+  const wanted = [...USER_GRANTS, ...NORMAL_PROVISION, ...(route === 'artifacts' ? ARTIFACTS_PROVISION : [])].map((row) => {
     const group = findGroup(groups, row);
     if (!group) throw new ProvisionError('token', `Cloudflare lists no ${row.scope} permission group named ${row.name}`);
     const policy = self.policies.find((p) => p.effect === 'allow' && Object.keys(p.resources).some((key) => isScope(key, row.scope)));
@@ -251,6 +274,8 @@ export async function widen({ token, api, fetch, account, openWithoutLogin = fal
   const accessPending = [];
   for (const id of probed) {
     await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/d1/database?per_page=1`), sleep, pending));
+    // Artifacts and Containers answer only on a paid account, so the plan read is the one probe here.
+    if (route === 'artifacts') await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/subscriptions`), sleep, pending));
     for (const surface of ['apps', 'identity_providers', 'service_tokens']) {
       const probe = () => cf('GET', `/accounts/${id}/access/${surface}?per_page=1`);
       await step('cloudflare', async () => {
@@ -277,6 +302,27 @@ export async function accounts({ token, api, fetch }) {
   return { accounts: list.map(({ id, name }) => ({ id, name })) };
 }
 
+// ── the plan ────────────────────────────────────────────────────────────────
+
+/** The account's Workers Paid plan as its subscriptions name it, or null. Reads only. */
+async function paidPlan(cf, account, sleep) {
+  const subscriptions = await retry(() => cf('GET', `/accounts/${account}/subscriptions`), sleep, pending);
+  for (const { rate_plan: rate } of subscriptions ?? []) {
+    if (PAID_PLAN.test(`${rate?.id ?? ''} ${rate?.public_name ?? ''}`)) return rate.public_name || rate.id;
+  }
+  return null;
+}
+
+/**
+ * Which route a new install takes, before anything is created: `artifacts` on Mac or Linux with the
+ * paid plan seen, else `github` with the reason. Anything but a seen paid plan counts as not paid.
+ */
+export async function plan({ token, api, fetch, account, platform = process.platform, sleep = wait }) {
+  if (platform === 'win32') return { route: 'github', reason: 'windows' };
+  const seen = await step('cloudflare', () => paidPlan(cloudflare(token, { api, fetch }), account, sleep));
+  return seen ? { route: 'artifacts', plan: seen } : { route: 'github', reason: 'free-plan', needs: 'Workers Paid', cost: 'about $5 a month' };
+}
+
 // ── names ───────────────────────────────────────────────────────────────────
 
 /** The account's R2 buckets, or null when R2 is off. Any other failure throws. */
@@ -285,6 +331,27 @@ async function r2Buckets(cf, account) {
     return (await cf('GET', `/accounts/${account}/r2/buckets?per_page=1000`)).buckets ?? [];
   } catch (error) {
     if (error instanceof CloudflareError && (error.codes.includes(R2_OFF) || error.messages.some((m) => /enable R2/i.test(m)))) return null;
+    throw error;
+  }
+}
+
+/** The names an Artifacts install adds under one base, by kind. */
+const artifactNameList = (base) => {
+  const a = artifactNamesFor(base);
+  return [
+    { kind: 'repository', name: a.repo },
+    { kind: 'worker', name: a.runner },
+    { kind: 'bucket', name: a.runner },
+    { kind: 'token', name: a.storage },
+  ];
+};
+
+/** The install's Artifacts repositories by name; none when the shared namespace does not exist yet. */
+async function repositories(cf, account) {
+  try {
+    return await cf('GET', `/accounts/${account}/artifacts/namespaces/${NAMESPACE}/repos?limit=200`);
+  } catch (error) {
+    if (error instanceof CloudflareError && error.status === 404) return [];
     throw error;
   }
 }
@@ -307,30 +374,35 @@ const nameList = (base) => {
  * Derives the names from the repo, and reports each as free, ours (this repo provisioned it), or taken.
  * `base` is the repo's own base on a rerun, else the first base with every name free.
  */
-export async function names({ token, api, fetch, account, repo, dir = '.', exec = run }) {
+export async function names({ token, api, fetch, account, repo, route = 'github', dir = '.', exec = run }) {
   const cf = cloudflare(token, { api, fetch });
+  const artifacts = route === 'artifacts';
+  const all = (base) => [...nameList(base), ...(artifacts ? artifactNameList(base) : [])];
+  const named = (base) => ({ ...namesFor(base), ...(artifacts && artifactNamesFor(base)) });
   const derived = safeName(String(repo).split('/').at(-1));
   const recorded = await recordedBase(dir, exec);
   const existing = await step('cloudflare', async () => {
-    const [workers, databases, tokens, buckets] = await Promise.all([
+    const [workers, databases, tokens, buckets, repos] = await Promise.all([
       cf('GET', `/accounts/${account}/workers/scripts`),
       cf('GET', `/accounts/${account}/d1/database?per_page=1000`),
       cf('GET', `/accounts/${account}/tokens?per_page=100`),
       r2Buckets(cf, account),
+      artifacts ? repositories(cf, account) : [],
     ]);
     return {
+      repository: new Set(repos.map((r) => r.name)),
       worker: new Set(workers.map((w) => w.id)),
       database: new Set(databases.map((d) => d.name)),
       token: new Set(tokens.map((t) => t.name)),
       bucket: new Set((buckets ?? []).map((b) => b.name)),
     };
   });
-  const check = (base, ours) => nameList(base).map((item) => ({ ...item, status: existing[item.kind].has(item.name) ? (ours ? 'ours' : 'taken') : 'free' }));
-  if (recorded) return { derived, base: recorded, names: namesFor(recorded), checked: check(recorded, true) };
+  const check = (base, ours) => all(base).map((item) => ({ ...item, status: existing[item.kind].has(item.name) ? (ours ? 'ours' : 'taken') : 'free' }));
+  if (recorded) return { derived, base: recorded, names: named(recorded), checked: check(recorded, true) };
   const checked = check(derived, false);
   let base = derived;
   for (let n = 2; check(base, false).some((item) => item.status === 'taken'); n++) base = `${derived}-${n}`;
-  return { derived, base, names: namesFor(base), checked };
+  return { derived, base, names: named(base), checked };
 }
 
 // ── provision ───────────────────────────────────────────────────────────────
@@ -530,7 +602,7 @@ const accountPolicy = (account, groups, rows) => [
  * The CI deploy token: made when missing, given any group it lacks, and its value rolled into the GitHub
  * secret when the secret is missing. The value goes straight to `gh` on stdin.
  */
-async function deployToken(cf, account, name, rows, groups, { secretSet, setSecret, note }) {
+async function deployToken(cf, account, name, rows, groups, { secretSet, setSecret, note, sentTo = 'GitHub' }) {
   const base = `/accounts/${account}/tokens`;
   const policies = accountPolicy(account, groups, rows);
   const found = (await cf('GET', `${base}?per_page=100`)).find((t) => t.name === name);
@@ -549,7 +621,150 @@ async function deployToken(cf, account, name, rows, groups, { secretSet, setSecr
   }
   if (secretSet) return note('reused', `deploy token ${name}`);
   await setSecret(await cf('PUT', `${base}/${found.id}/value`, {}));
-  note('updated', `deploy token ${name}: new value sent to GitHub`);
+  note('updated', `deploy token ${name}: new value sent to ${sentTo}`);
+}
+
+// ── the Artifacts route: the repository and its check runner ────────────────
+
+/** `fn()`, or null when Cloudflare answers 404. */
+const orNull = (fn) => fn().catch((error) => (error instanceof CloudflareError && error.status === 404 ? null : Promise.reject(error)));
+
+/** The runner's Wrangler config: the pack's template with every placeholder filled, comments dropped. */
+export function runnerConfig({ account, repo, runner }, template) {
+  const fill = { '<runner>': runner, '<account id>': account, '<namespace>': NAMESPACE, '<repo>': repo };
+  let text = template.replace(/^\/\/.*\n/gm, '');
+  for (const [placeholder, value] of Object.entries(fill)) text = text.replaceAll(placeholder, value);
+  const left = /<[^<>\n"]+>/.exec(text);
+  if (left) throw new ProvisionError('repo', `the check runner's config has a placeholder this script does not fill: ${left[0]}`);
+  return text;
+}
+
+/** The install's repository in the shared namespace, made when missing. A same-named one this install did not make stops. */
+async function repository(cf, account, name, { state, checkpoint, note, sleep }) {
+  const spaces = `/accounts/${account}/artifacts/namespaces`;
+  if (!(await retry(() => orNull(() => cf('GET', `${spaces}/${NAMESPACE}`)), sleep, pending))) {
+    await cf('POST', spaces, { namespace: NAMESPACE });
+    note('created', `Artifacts namespace ${NAMESPACE}`);
+  }
+  const repos = `${spaces}/${NAMESPACE}/repos`;
+  const found = await orNull(() => cf('GET', `${repos}/${name}`));
+  const resumed = state.delivery?.creating === name;
+  const ours = resumed || (found?.id !== undefined && state.delivery?.repoId === found.id);
+  if (found && !ours) throw new ProvisionError('cloudflare', `this account already has a repository named ${name} that this install did not make; pick another name`);
+  if (found && !resumed) note('reused', `repository ${name}`);
+  else if (!found) {
+    state.delivery = { creating: name };
+    checkpoint();
+  }
+  const repo = found ?? (await cf('POST', repos, { name, default_branch: 'main', description: 'A WongStack install' }));
+  if (!found || resumed) {
+    // Creating a repository returns a ready-made token. Nothing keeps it, so it is revoked.
+    for (const made of await cf('GET', `${repos}/${name}/tokens?state=active&per_page=100`)) await cf('DELETE', `${spaces}/${NAMESPACE}/tokens/${made.id}`);
+    note('created', `repository ${name}`);
+  }
+  state.delivery = { repoId: repo.id };
+  checkpoint();
+  return repo.remote ?? `https://${account}.artifacts.cloudflare.net/git/${NAMESPACE}/${name}.git`;
+}
+
+/** The runner's bucket, made when missing, with the rule that deletes old snapshots. */
+async function snapshotBucket(cf, account, name, buckets, note) {
+  if (!buckets) throw new ProvisionError('cloudflare', 'the check runner keeps its working files in R2 storage, which is off on this account; turn R2 on, then run setup again');
+  if (buckets.some((b) => b.name === name)) note('reused', `bucket ${name}`);
+  else {
+    await cf('POST', `/accounts/${account}/r2/buckets`, { name });
+    note('created', `bucket ${name}`);
+  }
+  const rule = { id: 'delete-old-snapshots', enabled: true, conditions: { prefix: '' }, deleteObjectsTransition: { condition: { type: 'Age', maxAge: SNAPSHOT_DAYS * 86_400 } } };
+  await cf('PUT', `/accounts/${account}/r2/buckets/${name}/lifecycle`, { rules: [rule] });
+}
+
+/**
+ * The runner's storage key: an account token for the one bucket's objects. Its id and the SHA-256 of
+ * its value are the pair R2 takes, and go straight into the runner's secrets.
+ */
+async function storageToken(cf, account, name, bucket, groups, { secretSet, setKeys, note }) {
+  const group = groups.find((each) => each.name === STORAGE_TOKEN.name && each.scopes?.includes(STORAGE_TOKEN.scope));
+  if (!group) throw new ProvisionError('token', `Cloudflare lists no permission group named ${STORAGE_TOKEN.name}`);
+  const base = `/accounts/${account}/tokens`;
+  const found = (await cf('GET', `${base}?per_page=100`)).find((t) => t.name === name);
+  if (found && secretSet) return note('reused', `storage key ${name}`);
+  const policies = [{ effect: 'allow', resources: { [`com.cloudflare.edge.r2.bucket.${account}_default_${bucket}`]: '*' }, permission_groups: [{ id: group.id }] }];
+  const made = found ? { id: found.id, value: await cf('PUT', `${base}/${found.id}/value`, {}) } : await cf('POST', base, { name, policies });
+  await setKeys(made.id, createHash('sha256').update(made.value).digest('hex'));
+  note(found ? 'updated' : 'created', `storage key ${name}`);
+}
+
+/** Points `origin` at the repository and Git at the credential helper. An origin set elsewhere stops. */
+async function gitRemote(git, account, remote) {
+  const origin = (await git(['remote', 'get-url', 'origin']).catch(() => ({ stdout: '' }))).stdout.trim();
+  if (origin && origin !== remote) throw new ProvisionError('repo', 'origin already points at another repository; this install keeps its repository in Cloudflare');
+  if (!origin) await git(['remote', 'add', 'origin', remote]);
+  for (const [key, value] of helperConfig(account)) await git(['config', '--replace-all', key, value]);
+}
+
+/**
+ * Main's first commit, an empty one, so a first change has a main to be published onto. A folder
+ * with no commit yet starts from it. Never touches a file or an existing commit.
+ */
+async function firstPush(git, note, todo) {
+  let head = (await git(['ls-remote', 'origin', 'refs/heads/main'])).stdout.split(/\s/)[0];
+  const born = await git(['rev-parse', '--verify', '--quiet', 'HEAD']).then(() => true, () => false);
+  if (!head && born) return void todo.push('this folder already has commits: push its main to the new repository with `git push origin main`');
+  if (!head) {
+    const has = (key) => git(['config', key]).then(() => true, () => false);
+    const who = [...((await has('user.name')) ? [] : ['-c', 'user.name=WongStack setup']), ...((await has('user.email')) ? [] : ['-c', 'user.email=setup@wongstack.invalid'])];
+    const tree = (await git(['mktree'], '')).stdout.trim();
+    head = (await git([...who, 'commit-tree', tree, '-m', 'Start the project'])).stdout.trim();
+    await git(['push', 'origin', `${head}:refs/heads/main`]);
+    note('created', 'the first, empty commit on main');
+  }
+  if (!born) {
+    await git(['fetch', 'origin', 'main']);
+    await git(['update-ref', 'HEAD', head]);
+  }
+}
+
+/**
+ * The Artifacts route's delivery, in place of the GitHub secrets: the repository, the runner's bucket,
+ * `origin` and the credential helper, the check runner installed from the pack's own pinned tools and
+ * deployed, its two keys as its secrets, the install record, and main's first commit. Safe to run again.
+ */
+async function artifactsDelivery(cf, { account, base, token, groups, buckets, deployRows, dir, env, exec, state, checkpoint, note, todo, sleep }) {
+  const n = artifactNamesFor(base);
+  const git = (args, input) => exec('git', ['-C', dir, ...args], { env, input });
+  const remote = await step('cloudflare', () => repository(cf, account, n.repo, { state, checkpoint, note, sleep }));
+  await step('cloudflare', () => snapshotBucket(cf, account, n.runner, buckets, note));
+  recordComponent(dir, 'delivery', { route: 'artifacts', accountId: account, namespace: NAMESPACE, repo: n.repo, remote, runner: n.runner, workflow: n.runner, bucket: n.runner }, note);
+  await step('repo', () => gitRemote(git, account, remote));
+
+  const folder = join(dir, 'scripts', 'check-runner');
+  const config = join(folder, 'wrangler.jsonc');
+  const text = await step('repo', () => runnerConfig({ account, ...n }, readFileSync(join(folder, 'wrangler.template.jsonc'), 'utf8')));
+  const had = existsSync(config);
+  if (!had || readFileSync(config, 'utf8') !== text) {
+    writeFileSync(config, text);
+    note(had ? 'updated' : 'created', 'scripts/check-runner/wrangler.jsonc');
+  }
+  const tools = { cwd: folder, env: { ...env, CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account, WRANGLER_SEND_METRICS: 'false' } };
+  await step('repo', () => exec('npm', ['ci', '--no-audit', '--no-fund', '--ignore-scripts'], { cwd: folder, env }));
+  await step('cloudflare', () => exec('npx', ['--no-install', 'wrangler', 'deploy', '--config', 'wrangler.jsonc'], tools));
+  note('updated', `check runner ${n.runner}`);
+
+  const secrets = `/accounts/${account}/workers/scripts/${n.runner}/secrets`;
+  const held = new Set((await step('cloudflare', () => cf('GET', secrets))).map((secret) => secret.name));
+  const put = (name, text) => cf('PUT', secrets, { name, text, type: 'secret_text' });
+  await step('cloudflare', () => deployToken(cf, account, namesFor(base).deploy, deployRows, groups, { secretSet: held.has('CF_TOKEN'), setSecret: (value) => put('CF_TOKEN', value), note, sentTo: 'the check runner' }));
+  await step('cloudflare', () => storageToken(cf, account, n.storage, n.runner, groups, {
+    secretSet: held.has('R2_ACCESS_KEY_ID') && held.has('R2_SECRET_ACCESS_KEY'),
+    setKeys: async (id, secret) => {
+      await put('R2_ACCESS_KEY_ID', id);
+      await put('R2_SECRET_ACCESS_KEY', secret);
+    },
+    note,
+  }));
+  await step('repo', () => firstPush(git, note, todo));
+  return { route: 'artifacts', remote, runner: n.runner, monthlyCost: 'about $5 a month for Cloudflare\'s paid plan; check runs beyond what the plan includes are billed by use', pullRequests: false };
 }
 
 const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === localId;
@@ -563,8 +778,12 @@ const hasKey = (env, localId) => keyMachine(env.CLOUDFLARE_MEMORY_TOKEN) === loc
  * on without Access; a site already private never opens, and a rerun that gets the organization turns an
  * open config private.
  */
-export async function provision({ token, api, fetch, account, repo, base, ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env }) {
+export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env }) {
   const cf = cloudflare(token, { api, fetch });
+  // An Artifacts install needs the paid plan: look before anything is created or written.
+  if (route === 'artifacts' && !(await step('cloudflare', () => paidPlan(cf, account, sleep)))) {
+    throw new ProvisionError('plan', 'this Cloudflare account is not on the Workers Paid plan (about $5 a month), which keeping the project in Cloudflare needs; turn it on, or set up with GitHub for free');
+  }
   const n = namesFor(base);
   const report = { base, names: n, r2: false, created: [], reused: [], updated: [], todo: [] };
   const note = (list, what) => report[list].push(what);
@@ -682,11 +901,29 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     migrateScripts(dir, n, note);
   }
 
+  const rows = DEPLOY_TOKEN.filter((row) => row.when === 'always' || (row.when === 'bucket' && bucket));
+  report.memory = { database: n.memory, bucket, worker };
+  report.urls = { production: `https://${n.worker}.${sub}.workers.dev`, previews: `https://<branch>-${n.staging}.${sub}.workers.dev` };
+  // What Access needs last, on either route: the live app's own key. The deploy token is never reused and gains no Access write.
+  const accessKey = async () => {
+    if (open) return;
+    report.accessKey = await step('cloudflare', () => loginManagementKey(cf, {
+      account, name: `${n.worker}-access`, worker: n.worker, policyId: report.access.humanPolicyId,
+      policies: () => accountPolicy(account, groups, ACCESS_KEY), state, checkpoint, note,
+    }));
+    if (report.accessKey.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
+    recordComponent(dir, 'accessKey', report.accessKey, note);
+  };
+  if (route === 'artifacts') {
+    report.delivery = await artifactsDelivery(cf, { account, base, token, groups, buckets, deployRows: rows, dir, env, exec, state, checkpoint, note, todo: report.todo, sleep });
+    await accessKey();
+    return report;
+  }
+
   // The deploy token and the two GitHub secrets.
   const gh = (args, input) => exec('gh', [...args, '-R', repo], { cwd: dir, env, input });
   const secrets = (await step('cloudflare', () => gh(['secret', 'list']))).stdout;
   const listed = (name) => new RegExp(`^${name}\\s`, 'm').test(secrets);
-  const rows = DEPLOY_TOKEN.filter((row) => row.when === 'always' || (row.when === 'bucket' && bucket));
   await step('cloudflare', () =>
     deployToken(cf, account, n.deploy, rows, groups, {
       secretSet: listed('CLOUDFLARE_API_TOKEN'),
@@ -699,18 +936,7 @@ export async function provision({ token, api, fetch, account, repo, base, ownerE
     note('created', 'GitHub secret CLOUDFLARE_ACCOUNT_ID');
   }
 
-  // What Access needs last: the live app's own key. The deploy token is never reused and gains no Access write.
-  if (!open) {
-    report.accessKey = await step('cloudflare', () => loginManagementKey(cf, {
-      account, name: `${n.worker}-access`, worker: n.worker, policyId: report.access.humanPolicyId,
-      policies: () => accountPolicy(account, groups, ACCESS_KEY), state, checkpoint, note,
-    }));
-    if (report.accessKey.status === 'missing') report.todo.push(ACCESS_KEY_TODO);
-    recordComponent(dir, 'accessKey', report.accessKey, note);
-  }
-
-  report.memory = { database: n.memory, bucket, worker };
-  report.urls = { production: `https://${n.worker}.${sub}.workers.dev`, previews: `https://<branch>-${n.staging}.${sub}.workers.dev` };
+  await accessKey();
   return report;
 }
 
@@ -744,19 +970,23 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
 
 // ── the command line ────────────────────────────────────────────────────────
 
-const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>]
+const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [--route github|artifacts]
   widen                                   grant the token a normal provision's groups, then wait until they work
   accounts                                list the accounts the token sees
+  plan                                    say which route a new install takes: artifacts on Mac or Linux with
+                                          the paid plan seen, else github with the reason; creates nothing
   names --repo <owner/name>               derive the names; report each as free, ours, or taken, and the first free base
   provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config] [--open-without-login]
                                           make or reuse the memory store, databases, config, and deploy token;
                                           --open-without-login goes on, open, when Zero Trust needs onboarding
   access [--owner-email <email>]          on an installed repo with sign-in on: put the owner's email in both Workers'
                                           vars and give the live app its own key for the sign-in list
+--route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
+names, and provision makes the repository and the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,
 from the environment or the target's .env. Each command prints one JSON report, never a token.`;
 
-const NEEDS = { widen: [], accounts: [], names: ['account', 'repo'], provision: ['account', 'repo', 'base'], access: ['account'] };
+const NEEDS = { widen: [], accounts: [], plan: ['account'], names: ['account', 'repo'], provision: ['account', 'repo', 'base'], access: ['account'] };
 
 /** Runs one command and returns the exit code: 0 done, 1 stopped (with a JSON reason), 2 usage. */
 export async function cli(argv, { env = process.env, out = console.log, err = console.error, fetch, sleep } = {}) {
@@ -764,7 +994,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   try {
     parsed = parseArgs({
       args: argv,
-      options: { dir: { type: 'string' }, account: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'owner-email': { type: 'string' }, 'keep-config': { type: 'boolean' }, 'open-without-login': { type: 'boolean' }, help: { type: 'boolean' } },
+      options: { dir: { type: 'string' }, account: { type: 'string' }, route: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'owner-email': { type: 'string' }, 'keep-config': { type: 'boolean' }, 'open-without-login': { type: 'boolean' }, help: { type: 'boolean' } },
       allowPositionals: true,
       strict: true,
     });
@@ -780,6 +1010,10 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   const [command, ...extra] = positionals;
   if (!(command in NEEDS) || extra.length) {
     err(command ? `unknown command: ${[command, ...extra].join(' ')}\n${USAGE}` : USAGE);
+    return 2;
+  }
+  if (!['github', 'artifacts', undefined].includes(values.route)) {
+    err(`--route is github or artifacts\n${USAGE}`);
     return 2;
   }
   const dir = resolve(values.dir ?? '.');
@@ -798,10 +1032,11 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   };
   if (!token) return stop('token', 'CLOUDFLARE_API_TOKEN is not set in the environment or the target .env');
   if (options.account && !ACCOUNT.test(options.account)) return stop('token', 'the account id is not 32 hex characters');
-  const common = { token, api: env.WONG_CLOUDFLARE_API, fetch, account: options.account, repo: options.repo, dir, env, ...(sleep && { sleep }) };
+  const common = { token, api: env.WONG_CLOUDFLARE_API, fetch, account: options.account, repo: options.repo, route: values.route ?? 'github', dir, env, ...(sleep && { sleep }) };
   const commands = {
     widen: () => widen(common),
     accounts: () => accounts(common),
+    plan: () => plan(common),
     names: () => names(common),
     provision: () => provision({ ...common, base: safeName(options.base), ownerEmail: values['owner-email'], keepConfig: Boolean(values['keep-config']), openWithoutLogin: Boolean(values['open-without-login']) }),
     access: () => accessSetup({ ...common, ownerEmail: values['owner-email'] }),
