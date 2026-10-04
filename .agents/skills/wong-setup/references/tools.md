@@ -2,6 +2,8 @@
 
 [`/wong-setup`](../SKILL.md) runs this before cloning. Use its selected repository and raw root for every source reference. Ready the tools, GitHub sign-in, git identity, and Windows links before writing in the target. [Required tools](../../../../wiki/development/required-tools.md) explains each.
 
+**No GitHub on [the Artifacts route](../../../../wiki/stack/artifacts-route.md#setup)**, the default on Mac and Linux: leave `gh` out of the tools and out of the ask (*"Node.js to set things up"*, not *"Node.js and GitHub's app"*), skip [the GitHub sign-in](#2-the-github-sign-in), and ask the person for [the git name and email](#3-the-git-name-and-email). Someone who ends on the GitHub route, by asking for it or from a free Cloudflare account, gets `gh` and the sign-in then.
+
 **The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, and a tool that links you to it. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that running setup again picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
 
 ## 1. The tools
@@ -11,7 +13,7 @@ Check each with `command -v`, in this order, since the clone needs `git` and Ope
 | Tool | Ready when |
 |---|---|
 | `git` | `git --version` answers |
-| `gh` | `gh --version` answers |
+| `gh`, GitHub route only | `gh --version` answers |
 | Node.js | `node --version` is at least the major version in `<selected raw root>/.nvmrc`; an unreadable or invalid requirement stops setup |
 | OpenSpec | `openspec --version` answers |
 
@@ -56,7 +58,7 @@ After the tools pass, check `command -v paseo`. Missing → say one plain senten
 
 ## 2. The GitHub sign-in
 
-Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to fill git authorship ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
+GitHub route only. Check `gh auth status`. Setup needs the `workflow` scope, to add the publishing step, and `user:email`, to fill git authorship ([why](../../../../wiki/development/required-tools.md#gh-needs-the-workflow-scope)).
 
 - **Signed out** → run `gh auth login --web --hostname github.com --git-protocol https --scopes workflow,user:email` in the background, output to a temporary file.
 - **Signed in, a scope missing** from the `Token scopes:` line → run `gh auth refresh --hostname github.com --scopes <every missing scope>` the same way; one refresh covers them all.
@@ -80,6 +82,8 @@ Read `git config user.name` and `git config user.email`. Set only an empty value
 git config --global user.name "$(gh api user --jq '.name // .login')"
 git config --global user.email "$(gh api user/emails --jq '[.[] | select(.primary and .verified)][0].email')"
 ```
+
+With no `gh`, ask the person for both and set those.
 
 Git authorship needs a name and email for saved changes. Memory ownership uses a local installation ID and needs no GitHub or email check.
 
