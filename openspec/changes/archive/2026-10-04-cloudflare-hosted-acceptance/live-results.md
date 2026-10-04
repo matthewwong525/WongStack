@@ -32,3 +32,7 @@ The **ha-83ec40bf-runner image's22 blobs** remain unresolved. Registry tag delet
 The published compressed layers total636277685bytes; conservatively reserve **USD0.015 per month** for one roundedGiB of possibly retained standard R2 storage, pending provider confirmation. This is a storage estimate, not a billing receipt; delayed provider charges remain unknown. No container/runner is instantiated and anonymous registry access is denied. The next supported recovery is provider confirmation/removal of these exact registry objects. No token replacement, re-publication, subscription change or extension is implied.
 
 The original full-acceptance tasks6.1–6.3 stay unfinished. This attempt establishes starter/image publication and several cleanup behaviors, not the app journey. Task4 remains unfinished and storage absence prevents closing cleanup task5.3 or archiving/merging this change.
+
+## Publication decision
+
+On 2026-10-04 the user chose to publish this change with the app journey not run and cleanup5.3 not finished, and to test a hosted app by hand elsewhere. The observations above are unchanged. The registry blobs and empty namespace remain open leftovers after publication.

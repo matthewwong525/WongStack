@@ -1,8 +1,8 @@
 # Run one internal managed-app functionality trial
 
-**Status:** blocked — bounded live attempt stopped; registry storage cleanup unresolved
+**Status:** ready-to-ship — preparation and partial live records publish as they stand; the app journey did not run
 **Branch:** evil-dodo
-**Open questions:** existing staging Hetzner key for canonical VM/IP cleanup; provider confirmation of exact retained registry blobs. The approach is settled.
+**Open questions:** none for this change. Left open after it: provider confirmation of the22 retained registry blobs, the empty ha-83ec40bf namespace, and the unrun app journey.
 
 Latest outcome: the approved live attempt published and verified the exact starter and image, then stopped before VM creation when existing provider cleanup access was unavailable. Staging is restored and account/repo grants are revoked;22 registry blobs remain unresolved. See [live-results.md](live-results.md) and [live-receipts.json](live-receipts.json). No app acceptance or general enablement is claimed.
 
@@ -95,3 +95,7 @@ Source owns the trial procedure, prepared manifest, resource ledger, determinist
 - **2026-10-04** — Cloud preparation shipped viaPR72 at8de0f017df64f1ff62507954e132b6bb981fa7a1; its three main gates pass, exact CI starter/image artifact is11311021774, and normal production deployment applied additive migrations0022–0023. Staging readback confirms no trial controls/bindings. The final conditional request bundles the prepared targets and finite cost/capability readbacks; all actual live/provider/isolation outcomes remain unfinished.
 
 - **2026-10-04** — The user approved the frozen bounded live request and selected existing ChatGPT/Codex included quota. Actual publication and cleanup observations are recorded in live-results.md/live-receipts.json. No VM/app journey ran because the existing Hetzner key handover timed out; exact registry storage absence remains unresolved after supported GC and refused scoped blob deletion. Keep live tasks and cleanup5.3 unfinished; preserve frozen inputs and disabled general creation.
+
+- **2026-10-04** — Asked whether to rerun the bounded live trial or set up a staging workspace for hand testing → chose “Can we just merge now? Let’s quickly wrap it up so i can test elsewhere.” Publish the preparation, helpers and partial live records as they stand. Tasks4.1–4.6 and5.3 move to deferred work unrun; no acceptance, isolation or enablement claim follows, and the registry-blob and namespace leftovers stay open.
+
+- **2026-10-04** — Archive checkpoint: archived as `openspec/changes/archive/2026-10-04-cloudflare-hosted-acceptance` with `--skip-specs`, because all three delta requirements already equal the main spec. No payload file changed, so no release number.
