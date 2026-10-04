@@ -6,7 +6,7 @@
 # `/verify` calls this, in five phases:
 #
 #   verify-staging.sh scout-check          → can a walk start at all? (no network)
-#   verify-staging.sh preflight [--no-browser] [--no-preview]
+#   verify-staging.sh preflight [--no-browser]
 #                                          → can we walk, and what do we walk?
 #   verify-staging.sh run <run-dir> <url>  → drive the journeys, capture evidence
 #   verify-staging.sh publish <run-dir>    → keep the screenshots, or say why not
@@ -28,8 +28,6 @@
 # `--no-browser` on preflight: an all-probe walk (requests and state reads
 # only) needs no browser, so the flag skips the agent-browser install and
 # check rather than failing the walk over a tool it will not use.
-# `--no-preview --no-browser` prepares the same owned run folder for CI
-# evidence only, without looking up a URL or obtaining browser tools.
 #
 # ── What this script does NOT do ──────────────────────────────────────────────
 # It never decides whether a journey passed. It captures evidence; `/verify`
@@ -270,20 +268,7 @@ preflight)
   fi
 
   NEED_BROWSER=1
-  NEED_PREVIEW=1
-  for flag in "${@:2}"; do
-    case "$flag" in
-      --no-browser) NEED_BROWSER=0 ;;
-      --no-preview) NEED_PREVIEW=0 ;;
-      *) emit UNKNOWN; note "usage: verify-staging.sh preflight [--no-browser] [--no-preview]"; exit 0 ;;
-    esac
-  done
-  if [ "$NEED_PREVIEW" -eq 0 ] && [ "$NEED_BROWSER" -eq 1 ]; then
-    emit UNKNOWN; note "--no-preview requires --no-browser; deployed journeys need a preview."; exit 0
-  fi
-  SHA=$(git rev-parse --verify HEAD 2>/dev/null) || {
-    emit UNKNOWN; note "no saved revision to verify"; exit 0
-  }
+  [ "${2:-}" = "--no-browser" ] && NEED_BROWSER=0
 
   # The browser is a tool on this machine, so install it when it is missing
   # rather than reporting its absence — but only when a browser journey needs
@@ -328,32 +313,27 @@ preflight)
   # commit, so a green CI run is what makes this line succeed. Constructing a URL
   # by hand from a naming convention would silently walk the wrong commit — or a
   # URL that was never deployed at all.
-  URL=""
-  if [ "$NEED_PREVIEW" -eq 1 ]; then
-    URL=$(bash "$ROOT/.claude/skills/save/scripts/preview-url.sh" 2>/dev/null | tail -1)
-    case "$URL" in http*) ;; *) URL="" ;; esac   # anything that isn't a URL is no URL
-    if [ -z "$URL" ]; then
-      SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "this commit")
-      emit UNKNOWN
-      note "no preview URL for $SHORT — nothing to walk against."
-      note "The deploy may not have published one yet, or this repo has no preview deploys."
-      exit 0
-    fi
+  URL=$(bash "$ROOT/.claude/skills/save/scripts/preview-url.sh" 2>/dev/null | tail -1)
+  case "$URL" in http*) ;; *) URL="" ;; esac   # anything that isn't a URL is no URL
+  if [ -z "$URL" ]; then
+    SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "this commit")
+    emit UNKNOWN
+    note "no preview URL for $SHORT — nothing to walk against."
+    note "The deploy may not have published one yet, or this repo has no preview deploys."
+    exit 0
   fi
 
-  RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX") || {
-    emit UNKNOWN; note "could not prepare a walkthrough run directory"; exit 0
-  }
+  RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/wong-verify-XXXXXX")
   emit READY
   echo "URL=$URL"
   echo "RUN_DIR=$RUN_DIR"
-  echo "SHA=$SHA"
+  echo "SHA=$(git rev-parse HEAD)"
   if [ "$NEED_BROWSER" -eq 1 ]; then
     echo "BROWSER=local ($(agent-browser --version 2>/dev/null | head -1))"
   else
     echo "BROWSER=none (not needed)"
   fi
-  if [ -n "$INSTALLED" ]; then echo "INSTALLED=$INSTALLED"; fi
+  [ -n "$INSTALLED" ] && echo "INSTALLED=$INSTALLED"
   ;;
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -545,7 +525,7 @@ cleanup)
   ;;
 
 *)
-  echo "usage: verify-staging.sh {scout-check|preflight [--no-browser] [--no-preview]|run <run-dir> <url> [minutes]|publish <run-dir>|pictures <pr>|cleanup <run-dir>}" >&2
+  echo "usage: verify-staging.sh {scout-check|preflight [--no-browser]|run <run-dir> <url> [minutes]|publish <run-dir>|pictures <pr>|cleanup <run-dir>}" >&2
   exit 1
   ;;
 esac
