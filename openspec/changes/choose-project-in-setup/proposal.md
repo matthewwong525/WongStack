@@ -124,7 +124,7 @@ Employees should start from the business app they already use, copy one setup pr
   You do not have access to this app.
   [Back to your apps]
   ```
-- **Withdraw access from the same page.** The employer can remove an app, stop project editing, or remove a person. New access is blocked immediately by the business app, while any pending login or GitHub revocation is reported honestly. Other people's access is preserved.
+- **Withdraw access from the same page.** The employer can remove an app, stop project editing, or remove a person. New access is blocked immediately by the business app, while any pending login or GitHub revocation is reported honestly. Other people's access is preserved. Revoking a credential cannot be undone; renewed access uses a new credential.
   ```text
   REMOVE PERSON
   ═════════════════════════════════════
@@ -215,3 +215,5 @@ Installed Source app: Access mini app, self-service setup/home action, core memb
 - **2026-10-04** — Primary GitHub documentation showed that publication inspection requires Secrets read and Environments read for name/metadata listings, which never expose secret values. Narrowed the earlier no-secrets wording to forbid secret modification/employee authority while allowing necessary owner-only inspection permissions in the new manifest, approved by the owner at connection. No existing live grant is expanded; unreadable or unproven publication boundaries remain blocked. Source: https://docs.github.com/en/rest/actions/secrets#list-repository-secrets.
 
 - **2026-10-04** — The owner/provider source slice 3.1–3.4 is ready for its shared remote gate, including durable unknown-write/token outcomes and caller-only setup status. Runtime rollout/issuance remain disabled. Preserved the separate controlled provider acceptance and the production/staging secret-distribution follow-up.
+
+- **2026-10-04** — Integrated merged #265 workflow baseline `1c5c65fe`, retaining current gate diagnosis and mid-build decision handling. Added the required plain consequence of credential revocation to the existing removal description; revocation behavior and scope are unchanged.

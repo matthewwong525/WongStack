@@ -12,14 +12,14 @@ The pull-request and CI runbook for **every `/save` checkpoint**, including the 
 gh pr view --json number,state,url
 ```
 
-Exit 1 with `no pull requests found` means **none**; any other failure is not "no PR": stop and fix it with [the preconditions](preconditions.md).
+Exit 1 with `no pull requests found` means **none**; any other failure: stop and fix it with [the preconditions](preconditions.md).
 
 | PR state | Action |
 |---|---|
 | **OPEN** | `git push`, then regenerate the body |
 | **none** | `git push -u origin HEAD`, then `gh pr create` with the rendered body file and a repo-style title |
 | **MERGED** | already shipped: skip the CI wait; say there's no live preview |
-| **CLOSED** (not merged) | stop and ask: reopen, or push to a fresh branch; never revive it silently |
+| **CLOSED** (not merged) | stop and ask: reopen, or push to a fresh branch |
 
 ### The body mirrors the change
 
@@ -58,15 +58,15 @@ Read the final `RESULT:` line. `/save` reports it as `SAVE_GATE_RESULT=<RESULT>`
 | **TIMEOUT** | still running past the budget | report with the PR link | do not merge |
 | **UNKNOWN** | `gh` couldn't be asked | report as **unverified** | do not merge |
 
-**`UNKNOWN` is never `NONE`**: we failed to find out, and merging on it lets a red branch into the default branch.
+**`UNKNOWN` is never `NONE`**: merging on it lets a red branch into the default branch.
 
 ### The auto-fix loop
 
-Read the failing log, fix, commit, push, re-wait:
+List every failing check and the cause its log shows, then fix all in one push. A failure outside the diff gets one `gh run rerun "$RUN_ID" --failed`; still red: stop, no code edit:
 
 ```bash
 RUN_ID=$(gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId')
 gh run view "$RUN_ID" --log-failed | tail -120
 ```
 
-**Cap: 3 attempts per `/save` run**; each of [`/verify`](../../verify/SKILL.md)'s two re-walks gets a fresh cap (budgets nest, never share). Still red → stop with the error and the checks link. Below the cap, fixing and re-pushing *is* the runbook, not a stop. Never bypass with `--no-verify` or `--force`.
+**Cap: 3 attempts per `/save` run**; each of [`/verify`](../../verify/SKILL.md)'s two re-walks gets a fresh cap (budgets nest, never share). Still red → stop with the error and the checks link. Never bypass with `--no-verify` or `--force`.

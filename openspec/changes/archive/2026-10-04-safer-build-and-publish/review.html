@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · choose-project-in-setup</title>
+<title>Review · 2026-10-04-safer-build-and-publish</title>
 <style>
   :root { --ink:#222; --muted:#5f5f5f; --line:#b5b5b5; --fill:#f3f3f3; }
   * { box-sizing:border-box; }
@@ -93,11 +93,11 @@
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
-<body data-change="choose-project-in-setup">
+<body data-change="2026-10-04-safer-build-and-publish">
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>choose-project-in-setup</h1>
+  <h1>2026-10-04-safer-build-and-publish</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint">Tap + Note to comment. Saving a note copies all your notes. Open a drawing and tap it to see it full screen.</p>
@@ -105,174 +105,39 @@
 </header>
 <section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
 <div class="card">
-<p data-note="why-1" tabindex="0">Employees should start from the business app they already use, copy one setup prompt, and let their assistant connect with their approved access. The employer should control that access in one small app.</p>
+<p data-note="why-1" tabindex="0">A comparison with two other skill collections, Matt Pocock's and poteto's pstack, found three small gaps in how a change is built and published. An answer you give in the middle of a build can be lost, nothing warns you when publishing can't be undone, and a failed check gets &quot;fixed&quot; before anyone works out why it failed.</p>
 </div></section>
 <section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
 <ol class="items">
-<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Start with your existing app login.</b> The home page offers a setup prompt to paste into Codex or Claude Code. The assistant connects to this business with the same employee identity, including from another computer. A browser approval may be needed there, but employees need no separate Cloudflare account or GitHub sign-in for this flow.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-1-line-1" tabindex="0">HOME: BEFORE</span>
-<span class="ln" data-note="item-1-line-2" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-1-line-3" tabindex="0">Business name</span>
-<span class="ln" data-note="item-1-line-4" tabindex="0">Your apps</span>
-<span class="ln" data-note="item-1-line-5" tabindex="0">Orders                          Open</span>
-
-<span class="ln" data-note="item-1-line-7" tabindex="0">HOME: AFTER</span>
-<span class="ln" data-note="item-1-line-8" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-1-line-9" tabindex="0">Business name</span>
-<span class="ln" data-note="item-1-line-10" tabindex="0">Connect your assistant</span>
-<span class="ln" data-note="item-1-line-11" tabindex="0">[Copy setup prompt]</span>
-<span class="ln" data-note="item-1-line-12" tabindex="0">Paste it into Codex or Claude Code.</span>
-
-<span class="ln" data-note="item-1-line-14" tabindex="0">Your apps</span>
-<span class="ln" data-note="item-1-line-15" tabindex="0">Orders                          Open</span>
-
-<span class="ln" data-note="item-1-line-17" tabindex="0">COPIED: Prompt copied. Paste in chat.</span>
-<span class="ln" data-note="item-1-line-18" tabindex="0">COPY FAILED: Select and copy below.</span>
-<span class="ln" data-note="item-1-line-19" tabindex="0">CHECKING: Checking your access...</span>
-<span class="ln" data-note="item-1-line-20" tabindex="0">UNAVAILABLE: Could not load. [Retry]</span>
-<span class="ln" data-note="item-1-line-21" tabindex="0">NO APPS: Ask your employer for access.</span>
-<span class="ln" data-note="item-1-line-22" tabindex="0">         Your setup prompt is available.</span></pre></div></details></li>
-<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Let the assistant finish the connection.</b> The prompt contains the business address and setup instructions. The assistant handles credentials privately, connects approved API actions, and prepares the existing project only for people allowed to edit it. The setup page reports each connection separately and lets interrupted setup resume without replacing local work.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-2-line-1" tabindex="0">YOUR SETUP</span>
-<span class="ln" data-note="item-2-line-2" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-2-line-3" tabindex="0">Business: Acme</span>
-<span class="ln" data-note="item-2-line-4" tabindex="0">API access: Ready</span>
-<span class="ln" data-note="item-2-line-5" tabindex="0">Project editing: Allowed</span>
-<span class="ln" data-note="item-2-line-6" tabindex="0">Project: Not connected yet</span>
-<span class="ln" data-note="item-2-line-7" tabindex="0">[Copy setup prompt]</span>
-
-<span class="ln" data-note="item-2-line-9" tabindex="0">PROMPT</span>
-<span class="ln" data-note="item-2-line-10" tabindex="0">Connect my assistant to this business:</span>
-<span class="ln" data-note="item-2-line-11" tabindex="0">https://acme.example.com</span>
-<span class="ln" data-note="item-2-line-12" tabindex="0">Follow the published setup instructions.</span>
-<span class="ln" data-note="item-2-line-13" tabindex="0">Use my app login and assigned access.</span>
-
-<span class="ln" data-note="item-2-line-15" tabindex="0">WAITING: Finish app approval to continue.</span>
-<span class="ln" data-note="item-2-line-16" tabindex="0">CONNECTING: Your assistant is connecting.</span>
-<span class="ln" data-note="item-2-line-17" tabindex="0">READY: API and project are connected.</span>
-<span class="ln" data-note="item-2-line-18" tabindex="0">APP ONLY: API ready. Editing not assigned.</span>
-<span class="ln" data-note="item-2-line-19" tabindex="0">INTERRUPTED: [Copy resume instructions]</span>
-<span class="ln" data-note="item-2-line-20" tabindex="0">DENIED: Ask your employer for access.</span></pre></div></details></li>
-<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Manage people in an Access mini app.</b> The employer adds an email, chooses allowed apps, and optionally enables project editing. They share the ordinary app link with that person. Adding the email also updates the app's login permissions. The Access page reports when those changes take effect.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-3-line-1" tabindex="0">ACCESS: EMPTY</span>
-<span class="ln" data-note="item-3-line-2" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-3-line-3" tabindex="0">No employees added yet.</span>
-<span class="ln" data-note="item-3-line-4" tabindex="0">[Add person]</span>
-
-<span class="ln" data-note="item-3-line-6" tabindex="0">ACCESS: PEOPLE</span>
-<span class="ln" data-note="item-3-line-7" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-3-line-8" tabindex="0">Ana    Orders          App access</span>
-<span class="ln" data-note="item-3-line-9" tabindex="0">Bo     Orders          Project editor</span>
-<span class="ln" data-note="item-3-line-10" tabindex="0">[Add person]</span>
-<span class="ln" data-note="item-3-line-11" tabindex="0">Person: edit access / remove</span>
-
-<span class="ln" data-note="item-3-line-13" tabindex="0">ADD OR EDIT PERSON</span>
-<span class="ln" data-note="item-3-line-14" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-3-line-15" tabindex="0">Email: [                            ]</span>
-<span class="ln" data-note="item-3-line-16" tabindex="0">Apps:  [ ] Orders    [ ] Payroll</span>
-<span class="ln" data-note="item-3-line-17" tabindex="0">Project editing: [ ] Allowed</span>
-<span class="ln" data-note="item-3-line-18" tabindex="0">Editors receive the whole repository.</span>
-<span class="ln" data-note="item-3-line-19" tabindex="0">[Save access]</span>
-
-<span class="ln" data-note="item-3-line-21" tabindex="0">SAVING: Updating access...</span>
-<span class="ln" data-note="item-3-line-22" tabindex="0">READY: Share the app link. [Copy link]</span>
-<span class="ln" data-note="item-3-line-23" tabindex="0">LOGIN PENDING: Permission update pending.</span>
-<span class="ln" data-note="item-3-line-24" tabindex="0">               [Retry]</span>
-<span class="ln" data-note="item-3-line-25" tabindex="0">FAILED: Could not save. [Retry]</span></pre></div></details></li>
-<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Connect GitHub once as the owner.</b> The employer approves access to the existing repository. Employees assigned project editing can then clone it and save changes through their assistant using privately issued, short-lived access. GitHub records those operations as the connected GitHub App; the business app records who requested access. Existing review and publishing controls still apply.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-4-line-1" tabindex="0">ACCESS: CONNECTIONS</span>
-<span class="ln" data-note="item-4-line-2" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-4-line-3" tabindex="0">App login management: Connected</span>
-<span class="ln" data-note="item-4-line-4" tabindex="0">GitHub project: Not connected</span>
-<span class="ln" data-note="item-4-line-5" tabindex="0">[Connect GitHub project]</span>
-
-<span class="ln" data-note="item-4-line-7" tabindex="0">OWNER APPROVAL</span>
-<span class="ln" data-note="item-4-line-8" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-4-line-9" tabindex="0">GitHub: approve the selected project.</span>
-<span class="ln" data-note="item-4-line-10" tabindex="0">Return here when finished.</span>
-
-<span class="ln" data-note="item-4-line-12" tabindex="0">CHECKING: Verifying project permissions.</span>
-<span class="ln" data-note="item-4-line-13" tabindex="0">READY: Acme / business-project</span>
-<span class="ln" data-note="item-4-line-14" tabindex="0">BLOCKED: Project protection needs setup.</span>
-<span class="ln" data-note="item-4-line-15" tabindex="0">         [View instructions]</span>
-<span class="ln" data-note="item-4-line-16" tabindex="0">EXPIRED: Approval expired. [Try again]</span>
-<span class="ln" data-note="item-4-line-17" tabindex="0">FAILED: Connection failed. [Try again]</span>
-
-<span class="ln" data-note="item-4-line-19" tabindex="0">LOGIN CONNECTION MISSING</span>
-<span class="ln" data-note="item-4-line-20" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-4-line-21" tabindex="0">App login management needs owner setup.</span>
-<span class="ln" data-note="item-4-line-22" tabindex="0">[Copy owner setup instructions]</span></pre></div></details></li>
-<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Apply the same permissions to apps and APIs.</b> Employees see their allowed apps, and their assistant can discover and call the same approved business actions. A direct API call checks those permissions too. Removing an app permission blocks subsequent calls even when the employee is still signed in; new apps require an employer's assignment.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-5-line-1" tabindex="0">ALLOWED: ORDERS       DENIED: PAYROLL</span>
-<span class="ln" data-note="item-5-line-2" tabindex="0">══════════════       ════════════════</span>
-<span class="ln" data-note="item-5-line-3" tabindex="0">App: Available       App: Denied</span>
-<span class="ln" data-note="item-5-line-4" tabindex="0">API: Allowed         API: Denied</span>
-<span class="ln" data-note="item-5-line-5" tabindex="0">Assistant: Listed    Assistant: Hidden</span>
-
-<span class="ln" data-note="item-5-line-7" tabindex="0">DENIED APP LINK</span>
-<span class="ln" data-note="item-5-line-8" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-5-line-9" tabindex="0">You do not have access to this app.</span>
-<span class="ln" data-note="item-5-line-10" tabindex="0">[Back to your apps]</span></pre></div></details></li>
-<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Withdraw access from the same page.</b> The employer can remove an app, stop project editing, or remove a person. New access is blocked immediately by the business app, while any pending login or GitHub revocation is reported honestly. Other people's access is preserved. Revoking a credential cannot be undone; renewed access uses a new credential.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-6-line-1" tabindex="0">REMOVE PERSON</span>
-<span class="ln" data-note="item-6-line-2" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-6-line-3" tabindex="0">Remove Bo's access?</span>
-<span class="ln" data-note="item-6-line-4" tabindex="0">[Remove access]                Cancel</span>
-
-<span class="ln" data-note="item-6-line-6" tabindex="0">REMOVING</span>
-<span class="ln" data-note="item-6-line-7" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-6-line-8" tabindex="0">App and API: Blocked</span>
-<span class="ln" data-note="item-6-line-9" tabindex="0">App login: Removal pending</span>
-<span class="ln" data-note="item-6-line-10" tabindex="0">GitHub: Revocation pending</span>
-<span class="ln" data-note="item-6-line-11" tabindex="0">[Retry pending removal]</span>
-
-<span class="ln" data-note="item-6-line-13" tabindex="0">REMOVED</span>
-<span class="ln" data-note="item-6-line-14" tabindex="0">═════════════════════════════════════</span>
-<span class="ln" data-note="item-6-line-15" tabindex="0">Access removed.</span>
-<span class="ln" data-note="item-6-line-16" tabindex="0">Downloaded copies remain on the computer.</span>
-<span class="ln" data-note="item-6-line-17" tabindex="0">[Back to Access]</span></pre></div></details></li>
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Your mid-build answer is kept.</b> When the build stops to ask you something, your answer is written into the plan before the build carries on. Today the next builder starts fresh from the plan and may ask again or guess.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-1-line-1" tabindex="0">build stops with a question</span>
+<span class="ln" data-note="item-1-line-2" tabindex="0">          │</span>
+<span class="ln" data-note="item-1-line-3" tabindex="0">          ▼</span>
+<span class="ln" data-note="item-1-line-4" tabindex="0">     you answer</span>
+<span class="ln" data-note="item-1-line-5" tabindex="0">          │</span>
+<span class="ln" data-note="item-1-line-6" tabindex="0">          ▼</span>
+<span class="ln" data-note="item-1-line-7" tabindex="0"> answer written to the plan</span>
+<span class="ln" data-note="item-1-line-8" tabindex="0">          │</span>
+<span class="ln" data-note="item-1-line-9" tabindex="0">          ▼</span>
+<span class="ln" data-note="item-1-line-10" tabindex="0"> a fresh builder reads the plan</span></pre></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>You are told when publishing can't be undone.</b> A plan that deletes or reshapes data, sends a message, or removes a key says so in one plain line, and the report above <i>publish it?</i> repeats it. A change that can simply be reversed stays silent.</div></div></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>A failed check is understood before it is fixed.</b> The assistant first lists every failing check and what its log shows, then fixes them together in one go. A failure this change didn't cause is run again once and, if it still fails, reported to you rather than patched.</div></div></li>
 </ol>
-<p class="aside"><b>Non-goals:</b> new-project setup, moving the wongstack-cloud repository picker, Cloudflare OAuth changes, Artifacts support or delivery work, custom invitation-email delivery, native GitHub account membership, employee hosting administration or publication authority, per-record/read-write business roles, source-folder permissions, or a new memory enrollment system.</p>
+<p class="aside">Non-goals: a check for a missing release note, reading reviewer comments before publishing, any edit to <code>/continue</code>, a second helper that reviews the build (the live verify work covers it), and a script that checks saved chats for skipped steps.</p>
 
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
 <ol class="decisions">
-<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked what selecting a repository should do → chose starting a new project or opening an existing WongStack project, with customized starters separate.</li>
-<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked where a new Cloudflare project belongs → chose the person's own Cloudflare account.</li>
-<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how to handle the overlapping managed starter work → chose to keep going here, design around it and leave it unchanged.</li>
-<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether setup may use a shared sign-in helper → chose yes, for sign-in only, with projects and hosting still owned by the person.</li>
-<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked how much teammate access to include → chose existing GitHub invitations and separate Artifacts repository tokens, without a new invitation flow.</li>
-<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether to plan this flow → chose to plan, assuming #259 will merge.</li>
-<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: one coordinated Source/Cloud change, because replacing the picker depends on the same setup and sign-in handoff working end to end.</li>
-<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: deterministic helpers own repeatable sign-in, selection, resume and provisioning state; the assistant explains results and carries the ordinary workflow, because API identities and retries must be consistent.</li>
-<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: full personal installation for new own-account projects, because existing setup includes hosting and memory, whereas #259 deliberately defines a smaller managed starter.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: source retrieval can still read the public GitHub template without GitHub sign-in on the Artifacts route; removing all GitHub network access was not requested.</li>
-<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether to add invitations and an employee setup page to this plan → chose to add them here, superseding the earlier manual-sharing scope.</li>
-<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether all invited employees should receive project access → chose app access by default, with project editing selected per employee.</li>
-<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the employer's own-account installation runs membership management, because the shared helper remains authorized for sign-in only.</li>
-<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: employee setup consumes the published trusted-machine memory contract without a Devices UI or separate browser approval, because the owning active change explicitly replaces that flow.</li>
-<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: invitation cancellation, editing removal and employee removal are in scope, because employers need to withdraw the access this flow grants.</li>
-<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether to include employee-specific app access controlling API and assistant calls → chose to include it in Team invitations and employee settings.</li>
-<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: per-app access is allowed or denied, with no apps preselected and new apps denied until assigned, because that implements the selected-app choice without inventing business-specific roles or automatic access.</li>
-<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: project editing and memory remain separate grants, because allowing a business app does not authorize its whole source repository or redefine the established machine-memory policy.</li>
-<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked to simplify setup around hosted-app login, a copyable prompt and an Access mini app → chose that entry point and a smaller setup experience, superseding the larger provider-first flow.</li>
-<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked whether the smaller first version should cover only an existing app and GitHub repository → chose existing app + GitHub first, leaving new-project setup, Cloudflare OAuth changes, Artifacts delivery and Cloud picker replacement for later.</li>
-<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: GitHub App installation credentials authorize employee assistant operations without a separate employee GitHub login, because app login should be their single identity; native GitHub website membership remains separate.</li>
-<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: add allowed emails and share the ordinary app link, with no custom invitation mail sender, because the app itself is now the starting point.</li>
-<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the copied prompt contains routing and instructions only, with credentials handed to the helper privately after app authentication, because pasting reusable keys into assistant history is unnecessary.</li>
-<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: fresh memory enrollment stays out of this smaller version, because it needs the separate trusted operator contract and cannot be granted by ordinary app login.</li>
-<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: checkpoint the additive owner-activation slice for its required remote checks before continuing, because task 2.1 requires that gate and leaves employee policy/issuance disabled.</li>
-<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: distinguish completed source/provider-contract inventories from actual owner/provider acceptance, because the current target lacks verified owner setup and live confirmation remains in task 7.2. The activation slice passed remote app, build, payload and generated-starter checks at 8ba9ab9.</li>
-<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Grouped related provider, bootstrap, UI and distribution tasks into shared remote-check slices, preserving all named checks and the separate live acceptance gate. This changes checkpoint timing only; no feature or acceptance requirement was removed.</li>
-<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.2 adds current primary-snapshot membership checks and explicit route scopes. Source is ready for remote checks; runtime policy remains disabled pending reviewed owner rollout.</li>
-<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Integrated merged #263 memory-recall baseline without changing independent memory authority. Remote 2.2 checks caught a fixture foreign-key cleanup error; fixed its dependent-row removal order without weakening schema or checks.</li>
-<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Remote distribution checks found a wiki link to generated install-only Worker configuration. Generalized the reference to its installed path; all script and generated-starter checks passed before that documentation failure. Checks remain unchanged.</li>
-<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.2 passed remote app/build/payload checks at <code>37288ef</code>, with two fixture/documentation fixes and no loosened checks. Continued to current-grant discovery/readback; the production rollout latch stays disabled.</li>
-<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.3 source now filters every discovery representation with current route scopes, and reads frontend app assignments without granting a legacy caller an owner role. Kept the client-only-app test portable across payload installs rather than requiring the meta-only Tips app. Preparing its remote gate.</li>
-<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Task 2.3 passed remote app/build/distribution checks at <code>40a7a4c5</code>, with no gate fixes or loosened checks. Current verification baseline #261 is retained. Continued to the shared owner/provider connection slice 3.1–3.4; rollout and issuance remain disabled.</li>
-<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Primary GitHub documentation showed that publication inspection requires Secrets read and Environments read for name/metadata listings, which never expose secret values. Narrowed the earlier no-secrets wording to forbid secret modification/employee authority while allowing necessary owner-only inspection permissions in the new manifest, approved by the owner at connection. No existing live grant is expanded; unreadable or unproven publication boundaries remain blocked. Source: https://docs.github.com/en/rest/actions/secrets#list-repository-secrets.</li>
-<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>The owner/provider source slice 3.1–3.4 is ready for its shared remote gate, including durable unknown-write/token outcomes and caller-only setup status. Runtime rollout/issuance remain disabled. Preserved the separate controlled provider acceptance and the production/staging secret-distribution follow-up.</li>
-<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Integrated merged #265 workflow baseline <code>1c5c65fe</code>, retaining current gate diagnosis and mid-build decision handling. Added the required plain consequence of credential revocation to the existing removal description; revocation behavior and scope are unchanged.</li>
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked which improvements to plan → chose to drop the release-note check and the reviewer-comment check, since work is moving to Artifacts; doubted <code>/continue</code> stays useful; noted live verify is planned in another workspace.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked what to plan from what's left → chose the three wording fixes: kept answers, the can't-be-undone line, and understanding a failed check first.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the can't-be-undone line is written in the plan and repeated in the build report, because a person who picks <i>Build and publish</i> sees only the plan before it goes live.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the failed-check fix covers GitHub repos only, because <code>hosted-delivery.md</code> has no repair loop of its own to change.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: a failure the change didn't cause gets one re-run and then a report, because editing code the change never touched widens the change without the person's say.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: the offsetting trims come from the three edited files, because the person asked that <code>/continue</code> stay untouched and two changes trimming other files could collide.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: no behaviour test, because these are instruction wording and the repo's rule gives a prose-only change no coverage task; whether assistants follow the new lines stays unverified until real use.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-04</p>Assumed: a minor release, because the skills gain new behaviour without breaking how they are called.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-04</p>Asked what next for the finished plan → chose to build and publish.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-04</p>Archive checkpoint: built all five tasks. Paid for the new lines with trims in the three edited files only; the instruction inventory stays under its limit. One line added beyond the plan: the question stop links the <code>Asked</code> line's format in <code>/plan</code>. Whether assistants follow the new lines is unverified until real use.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
