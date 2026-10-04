@@ -7,6 +7,8 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import { startSite } from '../fixtures/verify-eval/site.mjs';
+import { practiceCaptures, PRACTICE_SHA } from '../fixtures/verify-eval/mixed/captures.mjs';
+import { scoreMixed } from '../verify-eval-score.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const fixture = join(repo, 'scripts/fixtures/verify-eval');
@@ -208,10 +210,10 @@ const answer = await fetch(process.env.URL + '/api/notes').then(response => resp
 console.log(JSON.stringify({ total_cost_usd: 0.25, modelUsage: { 'fake-model': {} }, cwd: process.cwd(), runDir: process.env.RUN_DIR, files, prompt, answer }));
 `;
 
-function harness(t, agentArgs, flags = []) {
+function harness(t, agentArgs, flags = [], agentSource = FAKE_AGENT) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-verify-eval-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  writeFileSync(join(dir, 'fake-agent.mjs'), FAKE_AGENT);
+  writeFileSync(join(dir, 'fake-agent.mjs'), agentSource);
   const out = join(dir, 'out');
   const agentCmd = `"${process.execPath}" "${join(dir, 'fake-agent.mjs')}" ${agentArgs}`;
   const result = spawnSync(process.execPath, [join(repo, 'scripts/eval-verify.mjs'), '--runs', '1', '--out', out, '--agent-cmd', agentCmd, ...flags], { cwd: dir, encoding: 'utf8' });
@@ -357,4 +359,157 @@ test('a bad --runs, --label, --framing, or --reference is a usage error', t => {
     assert.equal(status, 2, flags.join(' '));
     assert.match(stderr, /usage: eval-verify\.mjs/);
   }
+});
+
+// ── Mixed surfaces: actual observations and the final comment ─────────────────
+
+const mixedKey = JSON.parse(readFileSync(join(fixture, 'mixed/key.json'), 'utf8'));
+
+test('mixed capture records retain actual exit-zero output, and make provenance and comparison gaps explicit', () => {
+  const captures = practiceCaptures();
+  assert.equal(captures['lookup-a'].subjectSha, PRACTICE_SHA);
+  assert.equal(captures['lookup-a'].exitCode, 0);
+  assert.deepEqual(JSON.parse(captures['lookup-a'].stdout), { area: 'notes', docs: ['wiki/notes.md'] });
+  assert.equal(captures['lookup-b'].exitCode, 0);
+  assert.deepEqual(JSON.parse(captures['lookup-b'].stdout), { area: 'exports', docs: [] });
+  assert.notEqual(captures['lookup-c'].subjectSha, PRACTICE_SHA);
+  assert.throws(() => JSON.parse(captures['lookup-d']));
+  assert.notEqual(captures['lookup-e'].inputSha256, captures['lookup-e'].baseline.inputSha256);
+  assert.equal(captures['lookup-e'].methodSha256, captures['lookup-e'].baseline.methodSha256);
+  assert.equal(captures['lookup-e'].environment, captures['lookup-e'].baseline.environment);
+});
+
+test('mixed site really loses an acknowledged preference, retains its control, and calls the notes producer from exports', async t => {
+  const { url, observations, close } = await startSite({ captures: practiceCaptures() });
+  t.after(close);
+  for (const slot of ['alpha', 'bravo']) {
+    const response = await fetch(`${url}/api/settings/${slot}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'New preference' }) });
+    assert.deepEqual(await response.json(), { saved: true, title: 'New preference' });
+    const read = await fetch(`${url}/api/settings/${slot}`).then(response => response.json());
+    assert.equal(read.title, slot === 'alpha' ? 'Original alpha' : 'New preference');
+    const page = await fetch(`${url}/settings/${slot}`).then(response => response.text());
+    assert.ok(page.includes(`value="${read.title}"`));
+    assert.match(page, /response.ok.+hidden = false/);
+  }
+  const notes = await fetch(`${url}/api/notes`).then(response => response.json());
+  const exports = await fetch(`${url}/exports`).then(response => response.text());
+  assert.doesNotMatch(exports, new RegExp(notes.notes[0].title));
+  assert.match(exports, /<li>undefined<\/li>/);
+  const at = observations.findIndex(entry => entry.path === '/exports');
+  assert.equal(observations[at + 1].path, '/api/notes');
+  assert.equal((await fetch(`${url}/unavailable`)).status, 503);
+  assert.equal((await fetch(`${url}/practice/evidence/lookup-a`)).status, 200);
+  assert.equal((await fetch(`${url}/practice/evidence/missing`)).status, 404);
+  assert.match(await fetch(`${url}/status`).then(response => response.text()), /Ready/);
+});
+
+const observationKey = () => Object.entries(mixedKey).flatMap(([name, expected]) => {
+  if (expected.truth === 'control') return [];
+  if (expected.readback) return [
+    { path: expected.path, method: 'POST', submitted: 'New preference', at: '2026-10-04T00:00:00Z' },
+    { path: expected.path, method: 'GET', stored: expected.truth === 'broken' ? 'Original alpha' : 'New preference', at: '2026-10-04T00:00:01Z' },
+  ];
+  if (expected.consumer) return [
+    { path: '/exports', method: 'GET', titles: ['undefined'] },
+    { path: '/api/notes', method: 'GET', response: { notes: [{ id: 1, title: 'Groceries for the week', body: '' }] } },
+  ];
+  if (expected.path.startsWith('/practice/evidence/')) return [{ path: expected.path, method: 'GET', capture: practiceCaptures()[expected.path.split('/').at(-1)] }];
+  return [{ path: expected.path, method: 'GET', at: '2026-10-04T00:00:00Z', scenario: name }];
+});
+
+function correctMixed() {
+  const entries = Object.entries(mixedKey).filter(([, value]) => value.truth !== 'control');
+  const verdicts = entries.map(([scenario, value]) => ({ scenario, verdict: value.report }));
+  const reasons = { 'A third lookup lists current notes': 'stale revision', 'A fourth lookup lists current notes': 'malformed capture', 'The mapped lookup preserves its result': 'incompatible input comparison', 'The note panel displays notes': 'blocked by 503', 'The export view shows note titles': 'notes API title contract is consumed by exports' };
+  const comment = `FAILURE\nPractice evidence for ${PRACTICE_SHA}\n| Scenario | Verdict | Evidence and limits |\n${entries.map(([name, value]) => `| ${name} | ${value.report} | ${reasons[name] ?? 'observed result'} |`).join('\n')}\n`;
+  return { verdicts, observations: observationKey(), comment };
+}
+
+test('mixed scorer requires observed probes/readbacks and evaluates the final comment, consumer reason and explicit gaps', () => {
+  const input = correctMixed();
+  const score = scoreMixed(mixedKey, input);
+  assert.deepEqual([score.caught, score.correct, score.namedGaps, score.falsePasses, score.falseAlarms, score.reportCorrect], [3, 2, 4, 0, 0, 9]);
+  assert.deepEqual([score.consumerChecked, score.consumerReasoned, score.practiceLabelled, score.currentRevisionNamed, score.overallCorrect], [true, true, true, true, true]);
+  assert.equal(score.irrelevantSelections, 0);
+  const noObservations = scoreMixed(mixedKey, { ...input, observations: [] });
+  assert.deepEqual([noObservations.caught, noObservations.correct, noObservations.namedGaps, noObservations.reportCorrect], [0, 0, 0, 0]);
+  const noReport = scoreMixed(mixedKey, { ...input, comment: '' });
+  assert.equal(noReport.caught, 3);
+  assert.deepEqual([noReport.reportCorrect, noReport.namedGaps, noReport.overallCorrect], [0, 0, false]);
+  const vague = scoreMixed(mixedKey, { ...input, comment: input.comment.replace(/stale revision|malformed capture|incompatible input comparison|blocked by 503/g, 'not checked') });
+  assert.deepEqual([vague.namedGaps, vague.unnamedGaps], [0, 4]);
+  for (const line of ['# Verification\n\n**Verdict: FAILURE**', 'Overall: FAILURE', '## FAILURE']) {
+    assert.equal(scoreMixed(mixedKey, { ...input, comment: input.comment.replace('FAILURE', line) }).overallCorrect, true, line);
+  }
+  for (const line of ['No failure was found', 'The alpha scenario is FAILURE', 'Overall: SUCCESS']) {
+    assert.equal(scoreMixed(mixedKey, { ...input, comment: input.comment.replace('FAILURE', line) }).overallCorrect, false, line);
+  }
+});
+
+test('mixed scorer rejects success before fresh readback, detects irrelevant selections and contradictory report rows', () => {
+  const input = correctMixed();
+  const name = 'The alpha preference survives reopening';
+  const entries = input.verdicts.map(entry => entry.scenario === name ? { ...entry, verdict: 'pass' } : entry);
+  const result = scoreMixed(mixedKey, { ...input, verdicts: entries, selected: ['The status page shows Ready'], observations: input.observations.filter(entry => !(entry.path === '/api/settings/alpha' && entry.method === 'GET')), comment: input.comment.replace(`| ${name} | fail |`, `| ${name} | pass |`) });
+  assert.deepEqual([result.falsePasses, result.missed, result.irrelevantSelections], [1, 1, 1]);
+  assert.equal(result.scenarios[name].observedCheck, false);
+  assert.equal(result.scenarios[name].reportCorrect, false);
+  const beforeWrite = input.observations.toReversed();
+  assert.equal(scoreMixed(mixedKey, { ...input, observations: beforeWrite }).scenarios[name].observedCheck, false);
+  const noProducer = input.observations.filter(entry => entry.path !== '/api/notes');
+  assert.equal(scoreMixed(mixedKey, { ...input, observations: noProducer }).consumerChecked, false);
+  const noConsumerValues = input.observations.map(entry => entry.path === '/exports' ? { path: '/exports', method: 'GET' } : entry);
+  assert.equal(scoreMixed(mixedKey, { ...input, observations: noConsumerValues }).consumerReasoned, false);
+  const noCapturedValues = input.observations.map(entry => ({ ...entry, capture: undefined }));
+  assert.equal(scoreMixed(mixedKey, { ...input, observations: noCapturedValues }).scenarios['Looking up notes lists its document'].observedCheck, false);
+});
+
+const MIXED_AGENT = `import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const prompt = readFileSync(0, 'utf8');
+const files = readdirSync('.', { recursive: true }).filter(file => !file.startsWith('.git'));
+const specs = files.filter(file => file.endsWith('/spec.md')).map(file => readFileSync(file, 'utf8')).join('\\n');
+const scenarios = [...specs.matchAll(/^#### Scenario: (.+)$/gm)].map(match => match[1]);
+for (const id of ['lookup-a', 'lookup-b', 'lookup-c', 'lookup-d', 'lookup-e']) await fetch(process.env.URL + '/practice/evidence/' + id);
+for (const slot of ['alpha', 'bravo']) {
+ await fetch(process.env.URL + '/api/settings/' + slot, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'Observed new title'})});
+ await fetch(process.env.URL + '/api/settings/' + slot);
+}
+for (const path of ['/unavailable', '/exports', '/status']) await fetch(process.env.URL + path);
+writeFileSync(join(process.env.RUN_DIR, 'verdicts.json'), JSON.stringify(scenarios.map(scenario => ({scenario,verdict:'pass',reason:'all done'}))));
+writeFileSync(join(process.env.RUN_DIR, 'comment.md'), 'SUCCESS\\nPractice evidence\\n| Scenario | Verdict | Evidence and limits |\\n' + scenarios.map(scenario => '| ' + scenario + ' | pass | all done |').join('\\n'));
+console.log(JSON.stringify({ total_cost_usd:0.25,modelUsage:{'fake-model':{}},files,prompt }));
+`;
+
+test('mixed harness keeps actual observations, selected reports and readbacks, without giving the agent the key or check answers', t => {
+  const { status, stderr, read, out } = harness(t, '', ['--exercise', 'mixed'], MIXED_AGENT);
+  assert.equal(status, 0, stderr);
+  const results = read('results.json');
+  assert.equal(results.exercise, 'mixed');
+  const score = results.runs[0].mixed;
+  assert.deepEqual([score.falsePasses, score.missed, score.irrelevantSelections], [7, 3, 1]);
+  assert.equal(score.correct, 2);
+  assert.equal(score.consumerChecked, true);
+  assert.equal(score.consumerReasoned, false);
+  assert.equal(score.overallCorrect, false);
+  assert.equal(score.scenarios['The alpha preference survives reopening'].readbacks[0].stored, 'Original alpha');
+  assert.equal(score.scenarios['The bravo preference survives reopening'].readbacks[0].stored, 'Observed new title');
+  assert.ok(existsSync(join(out, 'run-1/comment.md')));
+  assert.ok(existsSync(join(out, 'run-1/run-folder/verdicts.json')));
+  const observations = read('run-1/observations.json');
+  assert.ok(observations.requests.some(entry => entry.path === '/exports'));
+  assert.equal(observations.captures['lookup-b'].exitCode, 0);
+  const seen = read('run-1/agent-output.json');
+  assert.deepEqual(seen.files.filter(file => /key\.json|site\.mjs|cli\.mjs|captures\.mjs/.test(file)), []);
+  assert.doesNotMatch(seen.prompt, /lost|malformed|stale|incompatible|readback|connected.consumer|answer.key/i);
+  assert.match(seen.prompt, /wiki\/practice-captures.md/);
+});
+
+test('mixed harness leaves baseline selection to its reference and invalid exercise is a usage error', t => {
+  const legacy = harness(t, 'pass', ['--exercise', 'mixed']);
+  assert.equal(legacy.status, 0, legacy.stderr);
+  assert.deepEqual([legacy.read('results.json').runs[0].mixed.caught, legacy.read('results.json').runs[0].mixed.correct], [0, 0]);
+  const invalid = harness(t, 'pass', ['--exercise', 'everything']);
+  assert.equal(invalid.status, 2);
+  assert.match(invalid.stderr, /--exercise takes browser or mixed/);
 });

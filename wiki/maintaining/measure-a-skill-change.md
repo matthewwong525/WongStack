@@ -19,6 +19,8 @@ The first line measures [the live walkthrough reference](../../.agents/skills/ve
 
 Each line makes three runs. Add `--runs 1` for a smoke test.
 
+`--exercise mixed` adds practice CLI captures, lost and healthy saves, a connected export consumer, and an unrelated control. It scores recorded requests/readbacks and `comment.md` beside verdicts; retained run folders contain the raw evidence. Set the keep rule before running, as for browser measurements.
+
 A run does this:
 
 1. Starts [the practice site](../../scripts/fixtures/verify-eval/site.mjs), a small notes app that makes [twelve promises](../../scripts/fixtures/verify-eval/change/specs/notes/spec.md). Five are quietly broken; four work; three work and add a part no page can show, like an email sent to the owner.

@@ -1,0 +1,12 @@
+{
+  "Looking up notes lists its document": {"truth":"works","path":"/practice/evidence/lookup-a","report":"pass"},
+  "Looking up exports lists its document": {"truth":"broken","path":"/practice/evidence/lookup-b","report":"fail"},
+  "A third lookup lists current notes": {"truth":"gap","path":"/practice/evidence/lookup-c","report":"unverified","limit":"stale|revision"},
+  "A fourth lookup lists current notes": {"truth":"gap","path":"/practice/evidence/lookup-d","report":"unverified","limit":"malformed|invalid|readable"},
+  "The mapped lookup preserves its result": {"truth":"gap","path":"/practice/evidence/lookup-e","report":"unverified","limit":"incompatible|incomparable|input|comparison"},
+  "The note panel displays notes": {"truth":"gap","path":"/unavailable","report":"unverified","limit":"blocked|503|unavailable"},
+  "The alpha preference survives reopening": {"truth":"broken","path":"/api/settings/alpha","report":"fail","readback":true},
+  "The bravo preference survives reopening": {"truth":"works","path":"/api/settings/bravo","report":"pass","readback":true},
+  "The export view shows note titles": {"truth":"broken","path":"/exports","report":"fail","consumer":true},
+  "The status page shows Ready": {"truth":"control","path":"/status","report":"pass"}
+}

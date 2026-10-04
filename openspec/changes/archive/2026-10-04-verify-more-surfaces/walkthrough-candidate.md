@@ -110,8 +110,6 @@ A failure is **in scope** only when both hold:
 
 Otherwise report **out of scope** with why.
 
-For an in-scope repair, retain a focused check when existing CI can cheaply reproduce the defect. `/save` captures the same check's intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure, weaker checks or unrelated fixes.
-
 Usually **out of scope**: empty fixtures (separate seed change), app `401` with valid service token (app authentication), previous-page screenshot (repair journey waits and re-walk).
 
 ## f — post the evidence, then clean up
