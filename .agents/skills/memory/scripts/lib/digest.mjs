@@ -16,29 +16,11 @@ const CONSOLIDATE_AFTER_SESSIONS = 5;
 const SEARCH = `${SCRIPT} search <terms>`;
 const TYPE_ORDER = "CASE f.type WHEN 'feedback' THEN 1 WHEN 'project' THEN 2 WHEN 'reference' THEN 3 WHEN 'user' THEN 4 ELSE 5 END";
 
-export const FACT_COLUMNS = 'id, slug, type, body, author, created_at, session_id, superseded_by';
+export const FACT_COLUMNS = 'id, slug, type, body, author, created_at, session_id, superseded_by, owner_machine_id, shared';
 const F_COLUMNS = FACT_COLUMNS.split(', ').map(column => `f.${column}`).join(', ');
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
-
-// Whether the store carries the reader schema (migration 4), read once per store.
-const READER_SCHEMA = ['SELECT count(*) AS n FROM schema_migrations WHERE version = 4'];
-const hasReaders = store => (store.readerSchema ??= store.query(...READER_SCHEMA).then(([row]) => Number(row?.n) > 0));
-
-// In a team, `user` and `feedback` facts are personal: show only the current person's, matched on every
-// email on their people page, their git email, and their memory key's email. Other types come from everyone,
-// except a fact a reader key wrote, which only its author sees; a store before the reader schema has none.
-// The memory Worker already keeps a member's or reader's view to this; for the admin, it narrows the default
-// view to their own. Returns a WHERE clause on alias `f` with its params, or null when the repo is not a team.
-// `page` is the person's page when the caller already read it.
-export async function personalFilter(ctx, store, page = personPage(ctx)) {
-  if (!store.config.team) return null;
-  const emails = new Set([(ctx.author || '').toLowerCase(), store.email].filter(email => email?.includes('@')));
-  for (const email of page?.text.toLowerCase().match(EMAIL) || []) emails.add(email);
-  const list = emails.size ? [...emails] : [''];
-  const own = `lower(f.author) IN (${list.map(() => '?').join(', ')})`;
-  const personal = { clause: `(f.type NOT IN ('user', 'feedback') OR ${own})`, params: list };
-  if (!await hasReaders(store)) return personal;
-  return { clause: `${personal.clause} AND (f.shared = 1 OR ${own})`, params: [...list, ...list] };
+// Attribution never expands privacy. Admin defaults use the same machine scope.
+export async function personalFilter(ctx, store) {
+  return { clause: "((f.type NOT IN ('user', 'feedback') AND f.shared = 1) OR f.owner_machine_id = ?)", params: [store.ownerMachineId || ctx.machineId] };
 }
 
 // When consolidation last ran, and how many sessions were captured since.
@@ -194,6 +176,7 @@ export async function loadDigest(ctx, store, budget) {
 
 export function readCache(ctx, now = Date.now()) {
   const file = join(ctx.stateDir, 'digest.md');
+  if (existsSync(join(ctx.stateDir, 'authorization-refused.json'))) return null;
   if (!existsSync(file)) return null;
   const text = readFileSync(file, 'utf8');
   return text.trim() ? { text, age: ageDays(new Date(statSync(file).mtimeMs).toISOString(), now) } : null;

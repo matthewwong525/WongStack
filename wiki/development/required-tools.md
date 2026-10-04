@@ -57,7 +57,7 @@ The pack's deploy workflow is the file that trips this, so every install needs t
 
 ## `gh` needs the `user:email` scope for memory
 
-A teammate gets their memory key by [joining through GitHub](memory-key.md#joining-through-github), which reads their verified emails. `gh`'s default scopes cannot. Add the scope once: `gh auth refresh -h github.com -s user:email`, or `--scopes workflow,user:email` on a fresh `gh auth login`. Without it, `join` names this command and makes no key.
+This heading remains for older links. Memory uses [trusted machine credentials](memory-key.md#add-or-remove-a-teammate) and needs no GitHub scope. Setup may read verified GitHub emails to fill git authorship; that is separate from memory access.
 
 ## Runtimes install at the point of need
 

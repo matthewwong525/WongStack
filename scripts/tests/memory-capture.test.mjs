@@ -25,6 +25,7 @@ function claudeSession(env, n, messages, { cwd = env.repo.root, dir = escapeClau
   const lines = messages.map(([role, content], index) => JSON.stringify({ type: role, uuid: `u${index}`, sessionId: id, cwd, gitBranch: 'main', timestamp: '2026-09-20T10:00:00Z', isSidechain: Boolean(sub), message: { role, content } }));
   writeFileSync(file, `${lines.join('\n')}\n`);
   age(file, 2 * HOUR);
+  registerSession({ stateDir: env.repo.stateDir, machineId: env.repo.machineId }, { id: `claude:${id}`, agent: 'claude', transcript: file, cwd });
   return { id: `claude:${id}`, file };
 }
 
@@ -38,18 +39,21 @@ function codexSession(env, n, messages) {
     ...messages.map(([role, text]) => JSON.stringify({ type: 'response_item', payload: { type: 'message', role, content: [{ type: role === 'user' ? 'input_text' : 'output_text', text }] } }))];
   writeFileSync(file, `${lines.join('\n')}\n`);
   age(file, 3 * HOUR);
+  registerSession({ stateDir: env.repo.stateDir, machineId: env.repo.machineId }, { id: `codex:${id}`, agent: 'codex', transcript: file, cwd: env.repo.root });
   return { id: `codex:${id}`, file };
 }
 
-const register = (env, entry) => registerSession({ stateDir: env.repo.stateDir }, entry);
+const register = (env, entry) => registerSession({ stateDir: env.repo.stateDir, machineId: env.repo.machineId }, entry);
 
-test('discovery claims live checkouts and the registry, and skips subagents, background runs, deleted worktrees, and fresh sessions', async t => {
+test('capture selects only machine-owned registered transcripts, and skips subagents, background runs, deleted worktrees, and fresh sessions', async t => {
   const env = await setup(t);
   const live = claudeSession(env, 1, [['user', 'Plan the search.'], ['assistant', 'Done.']]);
   claudeSession(env, 2, [['user', 'sub work']], { sub: true });
   const background = claudeSession(env, 3, [['user', 'background']]);
   register(env, { id: background.id, agent: 'claude', transcript: background.file, background: true });
-  claudeSession(env, 4, [['user', 'old worktree']], { cwd: '/gone/worktree', dir: escapeClaude('/gone/worktree') });
+  const historical = claudeSession(env, 4, [['user', 'unregistered history']], { cwd: '/gone/worktree', dir: escapeClaude('/gone/worktree') });
+  const registry = join(env.repo.stateDir, 'registry.jsonl');
+  writeFileSync(registry, readFileSync(registry, 'utf8').split('\n').filter(line => !line.includes(historical.id)).join('\n'));
   const moved = claudeSession(env, 5, [['user', 'registered elsewhere']], { cwd: '/gone/other', dir: escapeClaude('/gone/other') });
   register(env, { id: moved.id, agent: 'claude', transcript: moved.file, cwd: '/gone/other' });
   const fresh = claudeSession(env, 6, [['user', 'still typing']]);
@@ -78,7 +82,7 @@ test('strip redacts and uploads the raw file, drops injected text, and a save ma
   assert.match(stripped.stdout, /pushed with \[redacted:token\] and read billing's memory with \[redacted:token\]\./);
   assert.match(stripped.stdout, /\[error\] Error: ENOENT/);
   assert.doesNotMatch(stripped.stdout, /ignore me|super-secret|ghp_|wongm_/);
-  const object = env.fake.objects.get(`sessions/dev@example.com/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
+  const object = env.fake.objects.get(`sessions/${env.repo.machineId}/claude/${session.id.split(':')[1]}.jsonl`).toString('utf8');
   assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
   assert.ok(object.includes('[redacted:token]') && !object.includes(github) && !object.includes(otherKey));
   for (const line of object.trim().split('\n')) JSON.parse(line);
@@ -150,7 +154,7 @@ test('keep-transcript uploads the redacted transcript and sets raw_key without t
   const before = rows(env, 'SELECT status, read_through FROM sessions')[0];
   const kept = await memory(env.repo, env.fake, ['keep-transcript', 'current']);
   assert.equal(kept.code, 0, kept.stderr);
-  const key = `sessions/dev@example.com/claude/${session.id.split(':')[1]}.jsonl`;
+  const key = `sessions/${env.repo.machineId}/claude/${session.id.split(':')[1]}.jsonl`;
   assert.match(kept.stdout, new RegExp(`kept: .* is in ${key}`));
   const object = env.fake.objects.get(key).toString('utf8');
   assert.ok(object.includes('[redacted:.env]') && !object.includes(SECRET));
@@ -576,4 +580,33 @@ test('recent-chats with no recent chats says so and succeeds', async t => {
   const result = await memory(env.repo, env.fake, ['recent-chats', '--days', '7']);
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stdout.trim(), 'No Claude Code or Codex chats from the last 7 days on this computer.');
+});
+
+test('a new machine never adopts legacy cache, spool, registry or unregistered transcripts', async t => {
+  const env = await setup(t);
+  const legacy = env.repo.stateBase;
+  writeFileSync(join(legacy, 'digest.md'), 'legacy private preference');
+  mkdirSync(join(legacy, 'spool'), { recursive: true }); writeJsonFile(join(legacy, 'spool'), 'old.json', { facts: [{ body: 'legacy candidate' }] });
+  const history = claudeSession(env, 8, [['user', 'historic private conversation']]);
+  writeFileSync(join(env.repo.stateDir, 'registry.jsonl'), '');
+  writeFileSync(join(legacy, 'registry.jsonl'), JSON.stringify({ id: history.id, transcript: history.file }) + '\n');
+  assert.deepEqual(JSON.parse((await memory(env.repo, env.fake, ['pending', '--json'])).stdout), []);
+  assert.match((await memory(env.repo, env.fake, ['spool'])).stdout, /No spooled/);
+  const stripped = await memory(env.repo, env.fake, ['strip', history.id]); assert.equal(stripped.code, 1); assert.doesNotMatch(stripped.stdout, /historic private conversation/);
+  env.fake.setOffline(true); const hookResult = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
+  assert.doesNotMatch(hookResult.stdout, /legacy private preference/);
+  assert.ok(existsSync(join(legacy, 'spool', 'old.json')));
+});
+
+test('new registered transcript capture writes its owned ledger before upload and leaves historical rows untouched', async t => {
+  const env = await setup(t); const current = claudeSession(env, 9, [['user', 'New conversation']]);
+  const kept = await memory(env.repo, env.fake, ['keep-transcript', current.id]); assert.match(kept.stdout, /kept:/);
+  const row = rows(env, 'SELECT owner_machine_id, raw_key FROM sessions WHERE id = ?', current.id)[0];
+  assert.equal(row.owner_machine_id, env.repo.machineId); assert.ok(env.fake.objects.has(row.raw_key));
+  const historical = claudeSession(env, 7, [['user', 'Historical unowned private conversation']]);
+  env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES (?, 'claude', 'dev@example.com', 'captured', 'now')").run(historical.id);
+  const count = env.fake.objects.size;
+  const refused = await memory(env.repo, env.fake, ['strip', historical.id]); assert.equal(refused.code, 1);
+  assert.doesNotMatch(refused.stdout, /Historical unowned private conversation/); assert.equal(env.fake.objects.size, count);
+  assert.equal(rows(env, 'SELECT owner_machine_id FROM sessions WHERE id = ?', historical.id)[0].owner_machine_id, null);
 });

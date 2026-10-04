@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Machine-owned memory
+
+- Private facts and transcripts follow a stable local installation ID across chats and linked workspaces. Repository contributors use trusted machine credentials to load and contribute team knowledge automatically; reader facts remain private.
+- Normal email login through setup’s app link labels that machine, including existing machine-owned notes. Authors and permissions stay unchanged; unrelated visits identify no machine.
+- Credentials last until explicit replacement or revocation. GitHub enrollment, account caps, and scheduled renewal are removed.
+
+**Updating.** After the reviewed app update deploys, the admin runs the memory migration command, then replaces existing keys through trusted issuance and private-file installation. Shared history stays available. Historical private notes and transcripts remain unassigned and admin-readable; old local cache and pending work are not adopted. Use setup’s machine-context app link for ordinary login labels. No historical ownership remapper or extra service is included.
+
 ## 29.16.0 — Finish safe preview checks before asking for help
 
 - Preview checks complete every independent safe check before bringing you in. One help list names the remaining checks, the login, permission, or manual action needed, and what each should show.

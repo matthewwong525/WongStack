@@ -1,20 +1,20 @@
 // The memory script's write statements, shared with the memory route. A member key may run only these
-// writes, with its own email as the author, and plain reads: it adds facts, but cannot change or delete them.
+// writes, with its stored machine owner, and plain reads: it adds facts, but cannot change or delete them.
 // In a team, a member's or reader's reads see only the facts it may (shadowCtes below).
-// `author` is the index of the author parameter; a write without one names no person. The client sends these
+// `owner` is the ownership parameter index; author fields are attribution only. The client sends these
 // for every role; the route swaps in MEMBER_WRITES for a member key.
 
 export const WRITES = {
   session: {
-    sql: `INSERT INTO sessions (id, agent, author, machine, branch, cwd, started_at, ended_at, status, reason, read_through, raw_key, raw_bytes, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    sql: `INSERT INTO sessions (id, agent, author, machine, branch, cwd, started_at, ended_at, status, reason, read_through, raw_key, raw_bytes, updated_at, owner_machine_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (id) DO UPDATE SET status = CASE WHEN sessions.status = 'private' THEN 'private' ELSE excluded.status END,
       reason = excluded.reason, read_through = coalesce(excluded.read_through, sessions.read_through), ended_at = coalesce(excluded.ended_at, sessions.ended_at),
-      raw_key = coalesce(excluded.raw_key, sessions.raw_key), raw_bytes = coalesce(excluded.raw_bytes, sessions.raw_bytes), updated_at = excluded.updated_at`,
-    author: 2,
+      raw_key = coalesce(excluded.raw_key, sessions.raw_key), raw_bytes = coalesce(excluded.raw_bytes, sessions.raw_bytes), updated_at = excluded.updated_at, owner_machine_id = excluded.owner_machine_id`,
+    owner: 14,
   },
-  tag: { sql: 'INSERT OR IGNORE INTO tags (name, definition, alias_of, created_by, created_at) VALUES (?, ?, ?, ?, ?)', author: 3 },
-  fact: { sql: 'INSERT INTO facts (slug, type, body, session_id, source, created_at, author) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id', author: 6 },
+  tag: { sql: 'INSERT OR IGNORE INTO tags (name, definition, alias_of, created_by, created_at) VALUES (?, ?, ?, ?, ?)' },
+  fact: { sql: 'INSERT INTO facts (slug, type, body, session_id, source, created_at, author, owner_machine_id, shared) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id', owner: 7 },
   factTag: { sql: 'INSERT OR IGNORE INTO fact_tags (fact_id, tag) VALUES ((SELECT max(id) FROM facts), ?)' },
   supersede: { sql: 'UPDATE facts SET superseded_by = (SELECT max(id) FROM facts) WHERE superseded_by IS NULL AND id IN (?) RETURNING id' },
   run: { sql: 'INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts) VALUES (?, ?, ?, ?, ?, ?, ?)' },
@@ -26,10 +26,10 @@ export const ADMIN_WRITES = {
 };
 
 // What the route runs for a member key in place of the script's own statement: a supersede marks only facts
-// under the key's email, so a teammate's fact stays live, and a reader key's fact is stored unshared.
+// under the key's machine, so a teammate's fact stays live, and a reader key's fact is stored unshared.
 export const MEMBER_WRITES = {
-  supersede: { sql: 'UPDATE facts SET superseded_by = (SELECT max(id) FROM facts) WHERE superseded_by IS NULL AND id IN (?) AND lower(author) = ? RETURNING id' },
-  readerFact: { sql: 'INSERT INTO facts (slug, type, body, session_id, source, created_at, author, shared) VALUES (?, ?, ?, ?, ?, ?, ?, 0) RETURNING id' },
+  supersede: { sql: 'UPDATE facts SET superseded_by = (SELECT max(id) FROM facts) WHERE superseded_by IS NULL AND id IN (?) AND owner_machine_id = ? RETURNING id' },
+  readerFact: { sql: 'INSERT INTO facts (slug, type, body, session_id, source, created_at, author, owner_machine_id, shared) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0) RETURNING id' },
 };
 
 const listOf = (sql, count) => sql.replace('IN (?)', `IN (${Array.from({ length: count }, () => '?').join(', ')})`);
@@ -47,11 +47,11 @@ const AFTER_OWN_FACT = new Set([WRITES.factTag, WRITES.supersede]);
 
 // Why a member key may not run this statement, or null when it may. A read is checked on its whole text,
 // with nothing stripped: stripping quotes let a quoted name such as ['] hide a write from the check.
-export function memberRefusal({ sql, params = [] }, email) {
+export function memberRefusal({ sql, params = [] }, machineId) {
   const write = BY_SHAPE.get(shape(sql));
   if (write) {
-    if (write.author === undefined || String(params[write.author] ?? '').toLowerCase() === email) return null;
-    return `a member key writes only under its own email, ${email}`;
+    if (write.owner === undefined || params[write.owner] === machineId) return null;
+    return `a member key writes only under its own machine, ${machineId}`;
   }
   const text = String(sql).trim().replace(/;\s*$/, '');
   if (/^(?:SELECT|WITH)\b/i.test(text) && !WRITE_WORDS.test(text) && !text.includes(';')) return null;
@@ -60,10 +60,10 @@ export function memberRefusal({ sql, params = [] }, email) {
 
 // Why a member key may not run this batch, or null when it may: each statement passes memberRefusal, and a
 // fact tag or a supersede comes after the member's own fact insert, so it never acts on someone else's fact.
-export function batchRefusal(statements, email) {
+export function batchRefusal(statements, machineId) {
   let ownFact = false;
   for (const statement of statements) {
-    const refusal = memberRefusal(statement, email);
+    const refusal = memberRefusal(statement, machineId);
     if (refusal) return refusal;
     const write = BY_SHAPE.get(shape(statement.sql));
     if (write === WRITES.fact) ownFact = true;
@@ -72,14 +72,14 @@ export function batchRefusal(statements, email) {
   return null;
 }
 
-// The batch a member key runs, once batchRefusal has passed it: each supersede gains the key's email, and a
+// The batch a member key runs, once batchRefusal has passed it: each supersede gains the key's machine, and a
 // reader's fact insert stores the fact unshared, whatever the request said.
-export function memberStatements(statements, { email, reader }) {
+export function memberStatements(statements, { machine_id, reader }) {
   return statements.map(statement => {
     const write = BY_SHAPE.get(shape(statement.sql));
     const params = statement.params || [];
-    if (write === WRITES.supersede) return { sql: listOf(MEMBER_WRITES.supersede.sql, params.length), params: [...params, String(email).toLowerCase()] };
-    if (write === WRITES.fact && reader) return { sql: MEMBER_WRITES.readerFact.sql, params };
+    if (write === WRITES.supersede) return { sql: listOf(MEMBER_WRITES.supersede.sql, params.length), params: [...params, machine_id] };
+    if (write === WRITES.fact && reader) return { sql: MEMBER_WRITES.readerFact.sql, params: params.slice(0, 8) };
     return statement;
   });
 }
@@ -93,17 +93,17 @@ export const FTS_HITS = '(SELECT rowid, rank FROM facts_fts WHERE facts_fts MATC
 const quote = text => `'${String(text).replaceAll("'", "''")}'`;
 
 // The CTEs that stand in for `facts` and `fact_tags` for a member or reader key in a team: everyone's shared
-// facts that are not personal, plus the key's own. A store before the reader schema has no `shared` column,
-// and no unshared fact. SQLite resolves a CTE before a table of the same name, so every read sees only these.
-export function shadowCtes(email, { readerSchema = true } = {}) {
-  const others = readerSchema ? "(type NOT IN ('user', 'feedback') AND shared = 1)" : "type NOT IN ('user', 'feedback')";
-  return `facts AS (SELECT * FROM main.facts WHERE ${others} OR lower(author) = ${quote(String(email).toLowerCase())}), `
-    + 'fact_tags AS (SELECT * FROM main.fact_tags WHERE fact_id IN (SELECT id FROM facts))';
+// facts that are not personal, plus the key's own. SQLite resolves a CTE before a table of the same name, so every read sees only these.
+export function shadowCtes(machineId) {
+  const owner = quote(machineId);
+  return `facts AS (SELECT * FROM main.facts WHERE (type NOT IN ('user', 'feedback') AND shared = 1) OR owner_machine_id = ${owner}), `
+    + 'fact_tags AS (SELECT * FROM main.fact_tags WHERE fact_id IN (SELECT id FROM facts)), '
+    + `sessions AS (SELECT * FROM main.sessions WHERE owner_machine_id = ${owner})`;
 }
 
 // A read with the shadow CTEs in front, merged into its own WITH list when it has one.
-export function shadowRead(sql, email, options) {
-  const ctes = shadowCtes(email, options);
+export function shadowRead(sql, machineId, options) {
+  const ctes = shadowCtes(machineId, options);
   const text = String(sql).trim();
   const own = text.match(/^WITH(\s+RECURSIVE)?\s+/i);
   return own ? `WITH${own[1] || ''} ${ctes}, ${text.slice(own[0].length)}` : `WITH ${ctes} ${text}`;
@@ -113,7 +113,7 @@ export function shadowRead(sql, email, options) {
 const SCHEMA_NAME = /(?<![\w$])(?:main|temp)(?![\w$])|sqlite_dbpage/i;
 
 // A CTE of its own named `facts` or `fact_tags`, at any depth: a nested one would stand in for the shadow inside FTS_HITS.
-const OWN_SHADOW = /(?<![\w$.])["`[]?(?:facts|fact_tags)["`\]]?\s*(?:\([^)]*\)\s*)?AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(/i;
+const OWN_SHADOW = /(?<![\w$.])["`[]?(?:facts|fact_tags|sessions)["`\]]?\s*(?:\([^)]*\)\s*)?AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(/i;
 
 // Why a member or reader key in a team may not run this read, or null when it may: it names no schema, defines
 // no `facts` or `fact_tags` of its own, and reads the full-text index only through FTS_HITS. Checked before the

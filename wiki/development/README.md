@@ -15,7 +15,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no hand-over link.
   - [When a site blocks the agent's browser](blocked-sites.md) — the agent moves to Cloudflare's cloud browser and carries on, disguising nothing.
 - [Session memory](memory.md) — the private fact store: who sees what, the start-of-session digest, capture by `/save` and the background run, and consolidation.
-  - [The memory key](memory-key.md) — the key that opens the store: the admin, member, and reader roles, joining through GitHub, and adding or removing a teammate.
+  - [The memory key](memory-key.md) — the key that opens the store: the admin, member, and reader roles, machine ownership, trusted credential installation, login labels, and revocation.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: blank declarations stay on the active branch, while real values persist outside git in the primary worktree across linked checkouts.
 - [Contributing upstream](../contributing.md) — the other side of the payload: how a target repo sends an improvement back by hand, and the generality bar it has to clear before you'd merge it here.
 - [Maintaining WongStack](../maintaining/README.md) — editing the toolkit itself: adding a skill, the folder links, and cutting a release.
