@@ -6,11 +6,13 @@
 // The agent works in a temp folder outside the repo that holds the promises only, never the answers.
 // Meta-only: no target receives it. Run it by hand: every run is a paid agent session.
 import { execFileSync, spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startSite } from './fixtures/verify-eval/site.mjs';
+import { practiceCaptures, PRACTICE_SHA } from './fixtures/verify-eval/mixed/captures.mjs';
+import { scoreMixed } from './verify-eval-score.mjs';
 import { parseCli, usageError } from './lib-cli.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,11 +25,13 @@ const AGENT_CMD = 'claude -p --output-format json --allowedTools "Bash,Read,Writ
 const VERDICTS = ['pass', 'fail', 'ask', 'partial'];
 const FRAMINGS = ['none', 'builder'];
 const NOTES = 'BUILD-NOTES.md';
+const EXERCISES = ['browser', 'mixed'];
 
-const USAGE = `usage: eval-verify.mjs [--reference <path>] [--runs <n>] [--label <name>] [--framing builder|none] [--out <dir>] [--agent-cmd "<cmd>"]
+const USAGE = `usage: eval-verify.mjs [--exercise browser|mixed] [--reference <path>] [--runs <n>] [--label <name>] [--framing builder|none] [--out <dir>] [--agent-cmd "<cmd>"]
   Runs a headless agent against the practice site and counts the planted mistakes it catches, and
   the promises with a part no page can show that it names as partly shown.
   --reference  the walkthrough instructions to measure (default: the live walkthrough.md)
+  --exercise   browser retains the original twelve promises; mixed adds practice captures and preferences
   --runs       how many runs (default: 3; 1 is a smoke test)
   --label      a name for this version in the table and results.json (default: live)
   --framing    builder tells the agent it built the site and hands it its build notes, which say all twelve
@@ -54,6 +58,15 @@ const prompt = ({ reference, url, runDir, framing }) => `${framing === 'builder'
 
 Never run an installer, never delete a cache, and write nothing outside ${runDir}.
 `;
+
+// Both references receive the same neutral access information and output format. The reference
+// decides which extra checks to select, how to handle unavailable evidence, and what to grade.
+const mixedPrompt = options => prompt(options)
+  .replace('follow its sections a to d. Skip e and f.', 'follow its sections a to d, then write section f\'s final report. Skip repairs and posting.')
+  .replace('Scout only the scenarios under', 'Scout the change scenarios under')
+  .replace('in the current folder.', 'in the current folder; other canonical capabilities are in openspec/specs/. Access instructions and source relationships are in wiki/practice-captures.md.')
+  .replace('"partial",', '"partial" | "unverified",')
+  + `\nThe reviewed practice source is ${PRACTICE_SHA}. Write the final report to ${options.runDir}/comment.md, including the overall verdict on its own line as Overall: <verdict>, and a table with columns Scenario | Verdict | Evidence and limits. Use scenario names exactly, and pass, fail, partial or unverified in the verdict column. Keep your selected journey metadata or ledger in the run folder. These output formats supply no expected result. All receipts and site actions here are practice evidence.\n`;
 
 const readJson = path => {
   try {
@@ -116,8 +129,34 @@ function reported(stdout) {
   return { costUsd: cost, model };
 }
 
-async function runOnce({ run, reference, framing, agentCmd, out, key }) {
-  const site = await startSite();
+function setupMixed(work) {
+  const mixed = join(FIXTURE, 'mixed');
+  const destinations = {
+    'scenarios.md': `${CHANGE}/specs/practice-captures/spec.md`,
+    'exports-spec.md': 'openspec/specs/exports/spec.md',
+    'health-spec.md': 'openspec/specs/health/spec.md',
+    'guide.md': 'wiki/practice-captures.md',
+    'exports.mjs': 'app/exports.mjs',
+  };
+  for (const [source, target] of Object.entries(destinations)) {
+    mkdirSync(dirname(join(work, target)), { recursive: true });
+    cpSync(join(mixed, source), join(work, target));
+  }
+  for (const area of ['notes', 'exports']) writeFileSync(join(work, 'wiki', `${area}.md`), `# ${area}\nMapped lookup document.\n`);
+  writeFileSync(join(work, 'wiki/notes-api.md'), '# Notes API contract\nGET /api/notes returns {count, notes: [{id, title, body}]}. /exports reads this endpoint and renders each title.\n');
+}
+
+function selectedChecks(runDir) {
+  return readdirSync(runDir, { recursive: true }).filter(path => path.endsWith('.meta.json') || /ledger.*\.json$/.test(path)).flatMap(path => {
+    const data = readJson(join(runDir, path));
+    const records = Array.isArray(data) ? data : Array.isArray(data?.scenarios) ? data.scenarios : [data];
+    return records.map(entry => entry?.scenario).filter(value => typeof value === 'string');
+  });
+}
+
+async function runOnce({ run, reference, framing, agentCmd, out, key, exercise, mixedKey }) {
+  const captures = exercise === 'mixed' ? practiceCaptures() : null;
+  const site = await startSite({ captures });
   const work = mkdtempSync(join(tmpdir(), 'wong-verify-eval-work-'));
   const runDir = mkdtempSync(join(tmpdir(), 'wong-verify-eval-run-'));
   const kept = join(out, `run-${run}`);
@@ -125,18 +164,29 @@ async function runOnce({ run, reference, framing, agentCmd, out, key }) {
   try {
     execFileSync('git', ['init', '-q'], { cwd: work });
     cpSync(join(FIXTURE, 'change'), join(work, CHANGE), { recursive: true });
+    if (exercise === 'mixed') setupMixed(work);
     if (framing === 'builder') cpSync(join(FIXTURE, 'build-notes.md'), join(work, NOTES));
     // The site needs no Access headers, and the runner would send any it finds.
     const env = { ...process.env, RUN_DIR: runDir, URL: site.url };
     delete env.CF_ACCESS_CLIENT_ID;
     delete env.CF_ACCESS_CLIENT_SECRET;
     const started = Date.now();
-    const stdout = await runAgent(agentCmd, { cwd: work, env, input: prompt({ reference, url: site.url, runDir, framing }) });
+    const options = { reference, url: site.url, runDir, framing };
+    const stdout = await runAgent(agentCmd, { cwd: work, env, input: exercise === 'mixed' ? mixedPrompt(options) : prompt(options) });
     const minutes = (Date.now() - started) / 60000;
     writeFileSync(join(kept, 'agent-output.json'), stdout);
     const verdicts = readJson(join(runDir, 'verdicts.json'));
     if (verdicts) writeFileSync(join(kept, 'verdicts.json'), `${JSON.stringify(verdicts, null, 2)}\n`);
-    return { run, ...score(key, verdicts), minutes, ...reported(stdout), error: verdicts ? null : 'the agent wrote no readable verdicts.json' };
+    let mixed = null;
+    if (exercise === 'mixed') {
+      const comment = existsSync(join(runDir, 'comment.md')) ? readFileSync(join(runDir, 'comment.md'), 'utf8') : '';
+      const selected = selectedChecks(runDir);
+      mixed = scoreMixed(mixedKey, { verdicts, selected, observations: site.observations, comment });
+      writeFileSync(join(kept, 'comment.md'), comment);
+      writeFileSync(join(kept, 'observations.json'), `${JSON.stringify({ captures, selected, requests: site.observations }, null, 2)}\n`);
+      cpSync(runDir, join(kept, 'run-folder'), { recursive: true });
+    }
+    return { run, ...score(key, verdicts), ...(mixed ? { mixed } : {}), minutes, ...reported(stdout), error: verdicts ? null : 'the agent wrote no readable verdicts.json' };
   } finally {
     await site.close();
     rmSync(work, { recursive: true, force: true });
@@ -160,8 +210,10 @@ function table(runs, total, { planted, working, partial }) {
 
 const { values } = parseCli({
   usage: USAGE,
-  options: { reference: { type: 'string' }, runs: { type: 'string' }, label: { type: 'string' }, framing: { type: 'string' }, out: { type: 'string' }, 'agent-cmd': { type: 'string' } },
+  options: { exercise: { type: 'string' }, reference: { type: 'string' }, runs: { type: 'string' }, label: { type: 'string' }, framing: { type: 'string' }, out: { type: 'string' }, 'agent-cmd': { type: 'string' } },
 });
+const exercise = values.exercise ?? 'browser';
+if (!EXERCISES.includes(exercise)) usageError(USAGE, '--exercise takes browser or mixed');
 const runCount = Number(values.runs ?? 3);
 if (!Number.isInteger(runCount) || runCount < 1) usageError(USAGE, '--runs takes a whole number, 1 or more');
 const label = values.label ?? 'live';
@@ -174,11 +226,12 @@ const out = resolve(values.out ?? join(tmpdir(), 'wong-verify-eval', label));
 const agentCmd = values['agent-cmd'] ?? AGENT_CMD;
 
 const key = readJson(join(FIXTURE, 'key.json'));
+const mixedKey = exercise === 'mixed' ? readJson(join(FIXTURE, 'mixed/key.json')) : null;
 const keyed = truth => Object.values(key).filter(value => value === truth).length;
 const size = { planted: keyed('broken'), working: keyed('works'), partial: keyed('partial') };
 
 const runs = [];
-for (let run = 1; run <= runCount; run += 1) runs.push(await runOnce({ run, reference, framing, agentCmd, out, key }));
+for (let run = 1; run <= runCount; run += 1) runs.push(await runOnce({ run, reference, framing, agentCmd, out, key, exercise, mixedKey }));
 const costs = runs.map(run => run.costUsd).filter(cost => cost !== null);
 const total = {
   ...Object.fromEntries(['caught', 'missed', 'falseAlarms', 'asked', 'named', 'overclaimed', 'other'].map(field => [field, sum(runs, field)])),
@@ -186,7 +239,7 @@ const total = {
 };
 const date = new Date().toISOString().slice(0, 10);
 const model = [...new Set(runs.map(run => run.model).filter(Boolean))].join(', ') || 'not reported';
-writeFileSync(join(out, 'results.json'), `${JSON.stringify({ label, reference, framing, date, model, agentCmd, ...size, runs, total }, null, 2)}\n`);
+writeFileSync(join(out, 'results.json'), `${JSON.stringify({ label, reference, framing, exercise, date, model, agentCmd, ...size, runs, total }, null, 2)}\n`);
 
 console.log(`${label} · ${date} · model: ${model} · framing: ${framing}\nreference: ${reference}\n`);
 console.log(table(runs, total, size));

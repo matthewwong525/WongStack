@@ -1,0 +1,18 @@
+{
+  "format": "verify-recipe-1",
+  "id": "memory-areas",
+  "sourcePaths": [
+    ".agents/skills/memory/scripts/memory.mjs",
+    ".agents/skills/memory/scripts/lib/areas.mjs"
+  ],
+  "instructions": "scripts/fixtures/verify-receipts/README.md",
+  "scenarios": [
+    { "capability": "memory", "requirement": "A fact names the code area it concerns", "scenario": "No mapped folder" },
+    { "capability": "memory", "requirement": "A fact names the code area it concerns", "scenario": "The store is unreachable" },
+    { "capability": "memory", "requirement": "One lookup shows everything linked to a path or topic", "scenario": "A mini-app file" }
+  ],
+  "capture": {
+    "workflow": ".github/workflows/payload.yml",
+    "artifact": "verify-memory-areas"
+  }
+}

@@ -13,6 +13,7 @@
 //   5. A search lists the matches, then one note that does not match as the last row.
 // One control is slow on purpose: the "Saved" badge appears 800 ms after a save.
 import { createServer } from 'node:http';
+import { exportTitles } from './mixed/exports.mjs';
 
 const SEED = ['Groceries for the week', 'Call the plumber', 'Trip ideas', 'Plumber invoice', 'Book club picks', 'Garden plan'];
 const SAVED_DELAY_MS = 800;
@@ -89,10 +90,12 @@ const titleOf = value => (typeof value === 'string' ? value.trim() : '');
 const publicNote = ({ id, title, body }) => ({ id, title, body });
 
 /** Start a fresh site on a free port. Returns `{ url, close }`. */
-export async function startSite() {
+export async function startSite({ captures = null } = {}) {
   let nextId = 1;
   const notes = SEED.map(title => ({ id: nextId++, title, body: '', archived: false }));
   const typed = new Map(); // each new note's title as typed, shown by the next list page only
+  const settings = { alpha: 'Original alpha', bravo: 'Original bravo' };
+  const observations = [];
   const active = () => notes.filter(note => !note.archived);
   const add = (title, body) => {
     const note = { id: nextId++, title, body: typeof body === 'string' ? body : '', archived: false };
@@ -157,6 +160,44 @@ export async function startSite() {
 
   async function route(req, res) {
     const { pathname, searchParams } = new URL(req.url, 'http://site');
+    const observation = { method: req.method, path: pathname, at: new Date().toISOString() };
+    observations.push(observation);
+    if (captures && pathname.startsWith('/practice/evidence/')) {
+      const capture = captures[pathname.slice('/practice/evidence/'.length)];
+      if (capture === undefined) return notFound(res);
+      observation.capture = capture;
+      return send(res, 200, 'application/json', typeof capture === 'string' ? capture : JSON.stringify(capture));
+    }
+    if (captures && pathname === '/unavailable') return send(res, 503, 'text/plain', 'Preview unavailable');
+    if (captures && pathname === '/status') return html(res, page('Status', '<h1>Ready</h1>'));
+    if (captures && pathname === '/exports') {
+      // A real consumer read through HTTP, rather than the producer's success response.
+      const response = await fetch(`http://127.0.0.1:${server.address().port}/api/notes`);
+      const data = await response.json();
+      const titles = exportTitles(data.notes);
+      observation.titles = titles;
+      return html(res, page('Exports', `<h1>Exported titles</h1><ul>${titles.map(title => `<li>${escapeHtml(title)}</li>`).join('')}</ul>`));
+    }
+    const [, slot] = pathname.match(/^\/(?:api\/)?settings\/(alpha|bravo)$/) ?? [];
+    if (captures && slot) {
+      if (req.method === 'POST' && pathname.startsWith('/api/')) {
+        const body = parseJson(await readBody(req));
+        const title = titleOf(body.title);
+        observation.submitted = title;
+        if (slot === 'bravo') settings[slot] = title;
+        observation.response = { saved: true, title };
+        return json(res, 200, observation.response);
+      }
+      observation.stored = settings[slot];
+      if (pathname.startsWith('/api/')) return json(res, 200, { title: settings[slot] });
+      return html(res, page('Preference', `<h1>Preference</h1><label>Title <input id="title" value="${escapeHtml(settings[slot])}"></label>
+<button id="save">Save</button><span id="saved" role="status" hidden>Saved</span>
+<script>document.getElementById('save').addEventListener('click', async () => {
+  const title = document.getElementById('title').value;
+  const response = await fetch('/api/settings/${slot}', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title})});
+  if (response.ok) document.getElementById('saved').hidden = false;
+});</script>`));
+    }
     const [, id] = pathname.match(/^\/(?:api\/)?notes\/(\d+)(?:\/(?:edit|delete|archive))?$/) ?? [];
     const note = id && notes.find(candidate => candidate.id === Number(id));
     const at = `${req.method} ${id ? pathname.replace(id, ':id') : pathname}`;
@@ -169,7 +210,10 @@ export async function startSite() {
       case 'GET /notes/:id/edit': return html(res, editPage(note));
       case 'POST /notes/:id/delete': return remove(res, note);
       case 'POST /notes/:id/archive': return archive(res, note);
-      case 'GET /api/notes': return json(res, 200, { count: active().length, notes: active().map(publicNote) });
+      case 'GET /api/notes': {
+        observation.response = { count: active().length, notes: active().map(publicNote) };
+        return json(res, 200, observation.response);
+      }
       case 'POST /api/notes': return apiCreate(res, parseJson(await readBody(req)));
       case 'PUT /api/notes/:id': return apiRename(res, note, parseJson(await readBody(req)));
       default: return notFound(res);
@@ -180,6 +224,7 @@ export async function startSite() {
   await new Promise(done => server.listen(0, '127.0.0.1', done));
   return {
     url: `http://127.0.0.1:${server.address().port}`,
+    observations,
     close: () => new Promise(done => { server.closeAllConnections(); server.close(done); }),
   };
 }

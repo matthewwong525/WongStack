@@ -13,6 +13,13 @@ Assistant discovery and frontend app-access readback use the same current grants
 
 **Updating.** Keep existing apps, routes, login settings and business data. After the reviewed update deploys, verify the owner's app login and the existing repository, then configure the private owner activation record. Review app assignments and route mappings before enabling employee permissions. Login-management and GitHub connections each need the owner's separate approval; missing setup leaves those connections unavailable. Existing memory access stays separate.
 
+## 30.6.0 — Check more than the web preview
+
+- Verification can use captured command-line behavior from automated checks beside the web preview, with evidence tied to the version being reviewed. Missing access to one surface leaves independent checks available.
+- Comparable earlier results show what a fix changed. Focused checks follow confirmed consumers and reopen saved results to confirm they last; practical checks for discovered bugs stay in the project's tests.
+
+**Updating.** Preview checks need no setup. For command-line behavior, add a project-owned capture recipe and an observation step to your existing GitHub Actions checks. GitHub Actions is the currently supported capture host.
+
 ## 30.5.0 — Recall original wiki and OpenSpec evidence
 
 - Ask one task question to retrieve permitted live facts and cited original document passages within a shared context budget.

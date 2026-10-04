@@ -76,6 +76,104 @@ function assertScrubbed(run, { stdout, stderr }) {
 const walk = (args, options) => new Promise((done, fail) => execFile('bash', [script, ...args], { encoding: 'utf8', ...options },
   (error, stdout, stderr) => (error ? fail(new Error(`exit ${error.code}`)) : done({ stdout, stderr }))));
 
+function preflightFixture(t, sourceScript = script) {
+  const setup = fixture(t);
+  const { root, work, bin } = setup;
+  const temp = join(root, 'tmp');
+  mkdirSync(temp);
+  const preview = join(work, '.claude/skills/save/scripts');
+  mkdirSync(preview, { recursive: true });
+  writeFileSync(join(preview, 'preview-url.sh'), '#!/usr/bin/env bash\nprintf "lookup\\n" >> "$VERIFY_TEST_CALLS"\nprintf "%s\\n" "$VERIFY_TEST_PREVIEW"\n');
+  for (const command of ['agent-browser', 'npm']) {
+    writeFileSync(join(bin, command), `#!/usr/bin/env bash\nprintf '${command} %s\\n' "$*" >> "$VERIFY_TEST_CALLS"\n[ "$1" = "--version" ] && echo 'agent-browser 0.0.0'\nexit 0\n`);
+    chmodSync(join(bin, command), 0o755);
+  }
+  const git = (...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: work, encoding: 'utf8' });
+  git('add', '.claude');
+  git('commit', '-q', '-m', 'init');
+  const sha = git('rev-parse', 'HEAD').trim();
+  const calls = join(root, 'calls.txt');
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: temp, VERIFY_TEST_CALLS: calls, VERIFY_TEST_PREVIEW: 'https://preview.example/saved-head' };
+  const preflight = (flags = [], changes = {}) => spawnSync('bash', [sourceScript, 'preflight', ...flags], { cwd: work, env: { ...env, ...changes }, encoding: 'utf8' });
+  return { ...setup, temp, sha, calls, env, preflight };
+}
+
+test('CI-only preflight binds an owned folder to the saved head without preview or browser calls', t => {
+  const { work, temp, sha, calls, env, preflight } = preflightFixture(t);
+  for (const flags of [['--no-preview', '--no-browser'], ['--no-browser', '--no-preview']]) {
+    const result = preflight(flags);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /^RESULT: READY\nURL=\nRUN_DIR=.+\nSHA=[a-f0-9]{40}\nBROWSER=none \(not needed\)\n$/);
+    assert.match(result.stdout, new RegExp(`^SHA=${sha}$`, 'm'));
+    assert.equal(existsSync(calls), false, 'CI-only preparation called preview lookup or browser tooling');
+    const runDir = result.stdout.match(/^RUN_DIR=(.+)$/m)[1];
+    assert.equal(dirname(runDir), temp);
+    assert.ok(existsSync(runDir));
+    const cleaned = spawnSync('bash', [script, 'cleanup', runDir], { cwd: work, env, encoding: 'utf8' });
+    assert.equal(cleaned.status, 0);
+    assert.equal(existsSync(runDir), false, 'the prepared folder was not accepted by owned cleanup');
+  }
+});
+
+test('default preflight still discovers the preview and checks its browser', t => {
+  // The diagnostic CI capture runs this same retained assertion against the
+  // selected earlier script; ordinary suite execution checks the current one.
+  const { sha, calls, preflight } = preflightFixture(t, process.env.VERIFY_PREFLIGHT_SOURCE_SCRIPT || script);
+  const result = preflight();
+  t.diagnostic(`preflight exit=${result.status}; stdout=${JSON.stringify(result.stdout)}`);
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /^RESULT: READY\nURL=https:\/\/preview.example\/saved-head\nRUN_DIR=.+\nSHA=[a-f0-9]{40}\nBROWSER=local \(agent-browser 0.0.0\)\n$/);
+  assert.match(result.stdout, new RegExp(`^SHA=${sha}$`, 'm'));
+  assert.equal(readFileSync(calls, 'utf8'), 'agent-browser doctor --json\nlookup\nagent-browser --version\n');
+});
+
+test('request-only preflight still needs the preview while skipping browser tools', t => {
+  const { calls, preflight } = preflightFixture(t);
+  const result = preflight(['--no-browser']);
+  assert.match(result.stdout, /RESULT: READY\nURL=https:\/\/preview.example\/saved-head\n/);
+  assert.match(result.stdout, /^BROWSER=none \(not needed\)$/m);
+  assert.equal(readFileSync(calls, 'utf8'), 'lookup\n');
+});
+
+test('invalid preflight flags cannot allocate a folder or call surface tooling', t => {
+  const { temp, calls, preflight } = preflightFixture(t);
+  for (const flags of [['--no-preview'], ['--unknown'], ['--no-preview', '--no-browser', 'unexpected']]) {
+    const result = preflight(flags);
+    assert.match(result.stdout, /^RESULT: UNKNOWN\n/);
+    assert.doesNotMatch(result.stdout, /^RUN_DIR=/m);
+    assert.deepEqual(readdirSync(temp), []);
+    assert.equal(existsSync(calls), false);
+  }
+});
+
+test('a missing preview blocks only deployed preparation and preserves independent CI evidence', t => {
+  const { temp, sha, calls, preflight } = preflightFixture(t);
+  const ci = preflight(['--no-preview', '--no-browser']);
+  const runDir = ci.stdout.match(/^RUN_DIR=(.+)$/m)[1];
+  writeFileSync(join(runDir, 'receipt.txt'), `observed ${sha}\n`);
+  const sibling = join(temp, 'another-task');
+  mkdirSync(sibling);
+  writeFileSync(join(sibling, 'keep.txt'), 'keep');
+  const deployed = preflight(['--no-browser'], { VERIFY_TEST_PREVIEW: '' });
+  assert.match(deployed.stdout, /^RESULT: UNKNOWN\n {2}no preview URL for /);
+  assert.doesNotMatch(deployed.stdout, /^RUN_DIR=/m);
+  assert.deepEqual(readdirSync(temp).sort(), ['another-task', runDir.split('/').at(-1)].sort());
+  assert.equal(readFileSync(join(runDir, 'receipt.txt'), 'utf8'), `observed ${sha}\n`);
+  assert.equal(readFileSync(join(sibling, 'keep.txt'), 'utf8'), 'keep');
+  assert.equal(readFileSync(calls, 'utf8'), 'lookup\n');
+});
+
+test('CI-only preflight requires a saved head before allocating evidence storage', t => {
+  const { root, temp, calls, env } = preflightFixture(t);
+  const empty = join(root, 'empty');
+  mkdirSync(empty);
+  execFileSync('git', ['init', '-q'], { cwd: empty });
+  const result = spawnSync('bash', [script, 'preflight', '--no-preview', '--no-browser'], { cwd: empty, env, encoding: 'utf8' });
+  assert.match(result.stdout, /^RESULT: UNKNOWN\n {2}no saved revision to verify\n$/);
+  assert.deepEqual(readdirSync(temp), []);
+  assert.equal(existsSync(calls), false);
+});
+
 // The failure the scrub exists for: the driver adds the Access token to every request, a journey lists
 // the requests the browser made, an endpoint echoes its headers, and the token lands in evidence.
 test('run scrubs the Access token it sent out of the evidence, and prints no value', async t => {
